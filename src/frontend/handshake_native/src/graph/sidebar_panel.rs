@@ -115,7 +115,10 @@ pub fn breadcrumb_author_id(idx: usize) -> String {
 
 /// AccessKit author_id for a pin row: `sidebar.pin.{sanitized_block_id}`.
 pub fn pin_row_author_id(block_id: &str) -> String {
-    format!("{PIN_ROW_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{PIN_ROW_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// AccessKit author_id for a pin row's Remove button: `sidebar.pin.{sanitized_block_id}.remove`.
@@ -125,7 +128,10 @@ pub fn pin_remove_author_id(block_id: &str) -> String {
 
 /// AccessKit author_id for a favorite row: `sidebar.favorite.{sanitized_block_id}`.
 pub fn favorite_row_author_id(block_id: &str) -> String {
-    format!("{FAVORITE_ROW_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{FAVORITE_ROW_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// AccessKit author_id for a favorite row's Remove button.
@@ -135,12 +141,18 @@ pub fn favorite_remove_author_id(block_id: &str) -> String {
 
 /// AccessKit author_id for a backlink row: `sidebar.backlink.{sanitized_block_id}`.
 pub fn backlink_row_author_id(block_id: &str) -> String {
-    format!("{BACKLINK_ROW_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{BACKLINK_ROW_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// AccessKit author_id for an unlinked-mention row: `sidebar.unlinked.{sanitized_block_id}`.
 pub fn unlinked_row_author_id(block_id: &str) -> String {
-    format!("{UNLINKED_ROW_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{UNLINKED_ROW_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// AccessKit author_id for a section's Retry button: `sidebar.{section}.retry`.
@@ -470,11 +482,14 @@ impl LoomSidebarPanel {
     /// itself (RISK-4 / MC-4). A block that already has a real edge (appears in Backlinks) must NOT also
     /// appear as "unlinked"; the active block can never be its own mention. Pure so MC-4 is unit-testable.
     pub fn visible_unlinked(&self) -> Vec<&UnlinkedRow> {
-        let backlinked: HashSet<&str> = self.backlinks.iter().map(|b| b.block_id.as_str()).collect();
+        let backlinked: HashSet<&str> =
+            self.backlinks.iter().map(|b| b.block_id.as_str()).collect();
         let active = self.active_block_id.as_deref();
         self.unlinked
             .iter()
-            .filter(|u| !backlinked.contains(u.block_id.as_str()) && Some(u.block_id.as_str()) != active)
+            .filter(|u| {
+                !backlinked.contains(u.block_id.as_str()) && Some(u.block_id.as_str()) != active
+            })
             .collect()
     }
 
@@ -494,7 +509,10 @@ impl LoomSidebarPanel {
     /// The stable egui Id for a section's collapse state (salted by `id_salt` so multiple sidebars do
     /// not collide).
     fn collapse_id(&self, ui: &egui::Ui, section: SectionKind) -> egui::Id {
-        ui.id().with(&self.id_salt).with("collapse").with(section.slug())
+        ui.id()
+            .with(&self.id_salt)
+            .with("collapse")
+            .with(section.slug())
     }
 
     /// Render the whole sidebar and return the typed event (if any) this frame produced. Requests a
@@ -538,14 +556,14 @@ impl LoomSidebarPanel {
             for (idx, crumb) in self.breadcrumbs.iter().enumerate() {
                 ui.colored_label(palette.text_subtle, "›");
                 let resp = ui.add(
-                    egui::Label::new(
-                        egui::RichText::new(crumb.label()).color(palette.accent),
-                    )
-                    .sense(Sense::click()),
+                    egui::Label::new(egui::RichText::new(crumb.label()).color(palette.accent))
+                        .sense(Sense::click()),
                 );
                 emit_link_accesskit(ui, resp.id, &breadcrumb_author_id(idx), &crumb.title);
                 if resp.clicked() {
-                    event = Some(SidebarEvent::Open { block_id: crumb.block_id.clone() });
+                    event = Some(SidebarEvent::Open {
+                        block_id: crumb.block_id.clone(),
+                    });
                 }
             }
         });
@@ -569,8 +587,12 @@ impl LoomSidebarPanel {
         let arrow = if expanded { "▾" } else { "▸" };
         let header_text = format!("{arrow} {} ({count})", section.title());
         let header = ui.add(
-            egui::Label::new(egui::RichText::new(header_text).color(palette.text).strong())
-                .sense(Sense::click()),
+            egui::Label::new(
+                egui::RichText::new(header_text)
+                    .color(palette.text)
+                    .strong(),
+            )
+            .sense(Sense::click()),
         );
         if header.clicked() {
             self.set_expanded(ui, section, !expanded);
@@ -656,7 +678,9 @@ impl LoomSidebarPanel {
                     ui.weak("No favorites");
                 }
                 for block in &self.favorites {
-                    if let Some(ev) = render_bookmark_row(block, ui, palette, BookmarkKind::Favorite) {
+                    if let Some(ev) =
+                        render_bookmark_row(block, ui, palette, BookmarkKind::Favorite)
+                    {
                         event = Some(ev);
                     }
                 }
@@ -742,17 +766,27 @@ fn render_bookmark_row(
         })
         .inner;
 
-    emit_list_item_accesskit(ui, title_resp.id, &row_id, &block.title, &block.content_type);
+    emit_list_item_accesskit(
+        ui,
+        title_resp.id,
+        &row_id,
+        &block.title,
+        &block.content_type,
+    );
 
     if title_resp.clicked() {
-        event = Some(SidebarEvent::Open { block_id: block.block_id.clone() });
+        event = Some(SidebarEvent::Open {
+            block_id: block.block_id.clone(),
+        });
     }
     if remove_clicked {
         event = Some(match kind {
-            BookmarkKind::Pin => SidebarEvent::RemovePin { block_id: block.block_id.clone() },
-            BookmarkKind::Favorite => {
-                SidebarEvent::RemoveFavorite { block_id: block.block_id.clone() }
-            }
+            BookmarkKind::Pin => SidebarEvent::RemovePin {
+                block_id: block.block_id.clone(),
+            },
+            BookmarkKind::Favorite => SidebarEvent::RemoveFavorite {
+                block_id: block.block_id.clone(),
+            },
         });
     }
     event
@@ -760,7 +794,11 @@ fn render_bookmark_row(
 
 /// Render one Backlinks row: the source block title + an edge-type label chip (AC4). Click => Open the
 /// source block. Addressable ListItem with the `sidebar.backlink.{id}` author_id.
-fn render_backlink_row(row: &BacklinkRow, ui: &mut egui::Ui, palette: &HsPalette) -> Option<SidebarEvent> {
+fn render_backlink_row(
+    row: &BacklinkRow,
+    ui: &mut egui::Ui,
+    palette: &HsPalette,
+) -> Option<SidebarEvent> {
     let mut event = None;
     let resp = ui
         .horizontal(|ui| {
@@ -782,14 +820,20 @@ fn render_backlink_row(row: &BacklinkRow, ui: &mut egui::Ui, palette: &HsPalette
         &format!("backlink via {}", row.edge_type),
     );
     if resp.clicked() {
-        event = Some(SidebarEvent::Open { block_id: row.block_id.clone() });
+        event = Some(SidebarEvent::Open {
+            block_id: row.block_id.clone(),
+        });
     }
     event
 }
 
 /// Render one Unlinked-mention row: the source block title (no edge). Click => Open. Addressable
 /// ListItem with the `sidebar.unlinked.{id}` author_id (AC7).
-fn render_unlinked_row(row: &UnlinkedRow, ui: &mut egui::Ui, palette: &HsPalette) -> Option<SidebarEvent> {
+fn render_unlinked_row(
+    row: &UnlinkedRow,
+    ui: &mut egui::Ui,
+    palette: &HsPalette,
+) -> Option<SidebarEvent> {
     let mut event = None;
     let resp = ui.add(
         egui::Label::new(egui::RichText::new(&row.title).color(palette.text)).sense(Sense::click()),
@@ -802,7 +846,9 @@ fn render_unlinked_row(row: &UnlinkedRow, ui: &mut egui::Ui, palette: &HsPalette
         "unlinked mention (no edge)",
     );
     if resp.clicked() {
-        event = Some(SidebarEvent::Open { block_id: row.block_id.clone() });
+        event = Some(SidebarEvent::Open {
+            block_id: row.block_id.clone(),
+        });
     }
     event
 }
@@ -860,9 +906,17 @@ mod tests {
         for i in 0..8 {
             panel.push_breadcrumb(format!("blk-{i}"), format!("Block {i}"));
         }
-        assert_eq!(panel.breadcrumbs.len(), MAX_BREADCRUMBS, "capped at 5 entries");
+        assert_eq!(
+            panel.breadcrumbs.len(),
+            MAX_BREADCRUMBS,
+            "capped at 5 entries"
+        );
         // The oldest (blk-0..blk-2) were dropped; the last 5 (blk-3..blk-7) remain, in order.
-        let ids: Vec<&str> = panel.breadcrumbs.iter().map(|b| b.block_id.as_str()).collect();
+        let ids: Vec<&str> = panel
+            .breadcrumbs
+            .iter()
+            .map(|b| b.block_id.as_str())
+            .collect();
         assert_eq!(ids, ["blk-3", "blk-4", "blk-5", "blk-6", "blk-7"]);
     }
 
@@ -874,7 +928,11 @@ mod tests {
         panel.push_breadcrumb("a", "A");
         panel.push_breadcrumb("b", "B");
         panel.push_breadcrumb("b", "B");
-        let ids: Vec<&str> = panel.breadcrumbs.iter().map(|b| b.block_id.as_str()).collect();
+        let ids: Vec<&str> = panel
+            .breadcrumbs
+            .iter()
+            .map(|b| b.block_id.as_str())
+            .collect();
         assert_eq!(ids, ["a", "b"], "consecutive repeats collapse");
     }
 
@@ -885,13 +943,25 @@ mod tests {
         panel.active_block_id = Some("active".to_owned());
         panel.set_backlinks(vec![BacklinkRow::new("b1", "Linked One", "mention")]);
         panel.set_unlinked(vec![
-            UnlinkedRow::new("b1", "Linked One"),     // also a backlink -> filtered
+            UnlinkedRow::new("b1", "Linked One"), // also a backlink -> filtered
             UnlinkedRow::new("active", "Active Self"), // the active block -> filtered
-            UnlinkedRow::new("u2", "Unlinked Two"),    // genuine unlinked -> kept
+            UnlinkedRow::new("u2", "Unlinked Two"), // genuine unlinked -> kept
         ]);
-        let visible: Vec<&str> = panel.visible_unlinked().iter().map(|u| u.block_id.as_str()).collect();
-        assert_eq!(visible, ["u2"], "only the genuine unlinked block survives the dedup");
-        assert_eq!(panel.section_count(SectionKind::Unlinked), 1, "header count is the deduped count");
+        let visible: Vec<&str> = panel
+            .visible_unlinked()
+            .iter()
+            .map(|u| u.block_id.as_str())
+            .collect();
+        assert_eq!(
+            visible,
+            ["u2"],
+            "only the genuine unlinked block survives the dedup"
+        );
+        assert_eq!(
+            panel.section_count(SectionKind::Unlinked),
+            1,
+            "header count is the deduped count"
+        );
     }
 
     /// RISK-1: optimistic pin removal + rollback restores the row on a simulated backend failure.
@@ -909,7 +979,11 @@ mod tests {
         // Simulated backend failure -> rollback re-inserts at the original index.
         panel.rollback_pin(removed, 1);
         let ids: Vec<&str> = panel.pins.iter().map(|b| b.block_id.as_str()).collect();
-        assert_eq!(ids, ["p1", "p2", "p3"], "rollback restores the row in place");
+        assert_eq!(
+            ids,
+            ["p1", "p2", "p3"],
+            "rollback restores the row in place"
+        );
     }
 
     /// RISK-2: the generation counter monotonically increases per section, independently.
@@ -922,7 +996,11 @@ mod tests {
         assert_eq!((g1, g2), (1, 2), "backlinks generation increments");
         // Unlinked is independent.
         assert_eq!(panel.bump_generation(SectionKind::Unlinked), 1);
-        assert_eq!(panel.current_generation(SectionKind::Backlinks), 2, "sections are independent");
+        assert_eq!(
+            panel.current_generation(SectionKind::Backlinks),
+            2,
+            "sections are independent"
+        );
     }
 
     /// truncate_label cuts long titles with an ellipsis and leaves short ones intact (impl-note 72).
@@ -931,7 +1009,11 @@ mod tests {
         assert_eq!(truncate_label("short", 20), "short");
         let long = "a-very-long-block-title-way-past-twenty";
         let t = truncate_label(long, BREADCRUMB_LABEL_MAX);
-        assert_eq!(t.chars().count(), BREADCRUMB_LABEL_MAX, "truncated to exactly the cap");
+        assert_eq!(
+            t.chars().count(),
+            BREADCRUMB_LABEL_MAX,
+            "truncated to exactly the cap"
+        );
         assert!(t.ends_with('…'), "an ellipsis marks truncation");
     }
 
@@ -942,7 +1024,9 @@ mod tests {
         assert!(row.starts_with(PIN_ROW_AUTHOR_ID_PREFIX));
         let suffix = &row[PIN_ROW_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "pin row author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
         assert!(pin_remove_author_id("a/b").ends_with(".remove"));
@@ -950,7 +1034,10 @@ mod tests {
         assert!(backlink_row_author_id("a b").starts_with(BACKLINK_ROW_AUTHOR_ID_PREFIX));
         assert!(unlinked_row_author_id("a.b").starts_with(UNLINKED_ROW_AUTHOR_ID_PREFIX));
         assert_eq!(breadcrumb_author_id(3), "sidebar.breadcrumb.3");
-        assert_eq!(section_retry_author_id(SectionKind::Pins), "sidebar.pins.retry");
+        assert_eq!(
+            section_retry_author_id(SectionKind::Pins),
+            "sidebar.pins.retry"
+        );
     }
 
     /// set_* installers clear the matching section's loading + error flags.

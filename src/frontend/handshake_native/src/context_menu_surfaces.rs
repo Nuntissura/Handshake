@@ -203,11 +203,12 @@ pub enum PaneHeaderMenuAction {
 /// last-pane guard is encoded so it stays correct when close-pane is wired.
 pub fn pane_header_context_items(locked: bool, is_last_pane: bool) -> Vec<ContextMenuItem> {
     let lock_label = if locked { "Unlock Pane" } else { "Lock Pane" };
-    let close_item = ContextMenuItem::action(pane_ids::CLOSE, "Close Pane").disabled(if is_last_pane {
-        "Cannot close the only pane"
-    } else {
-        "Close pane is a future surface (fixed 2x2 grid)"
-    });
+    let close_item =
+        ContextMenuItem::action(pane_ids::CLOSE, "Close Pane").disabled(if is_last_pane {
+            "Cannot close the only pane"
+        } else {
+            "Close pane is a future surface (fixed 2x2 grid)"
+        });
     ContextMenu::new("pane")
         .item(ContextMenuItem::action(pane_ids::LOCK, lock_label))
         .separator()
@@ -377,7 +378,9 @@ pub fn explorer_context_items(kind: ExplorerRowKind) -> Vec<ContextMenuItem> {
     let rename = match kind {
         ExplorerRowKind::Bookmark => ContextMenuItem::action(explorer_ids::RENAME, "Rename"),
         ExplorerRowKind::Document => ContextMenuItem::action(explorer_ids::RENAME, "Rename")
-            .disabled("Documents are not Loom blocks; document rename needs a document endpoint (future MT)"),
+            .disabled(
+            "Documents are not Loom blocks; document rename needs a document endpoint (future MT)",
+        ),
         ExplorerRowKind::Canvas => ContextMenuItem::action(explorer_ids::RENAME, "Rename")
             .disabled("Canvas rows are not Loom blocks (no rename endpoint)"),
     };
@@ -390,17 +393,22 @@ pub fn explorer_context_items(kind: ExplorerRowKind) -> Vec<ContextMenuItem> {
             ContextMenuItem::action(explorer_ids::ROUTE_TO_STAGE, "Route to Stage")
         }
         ExplorerRowKind::Canvas => {
-            ContextMenuItem::action(explorer_ids::ROUTE_TO_STAGE, "Route to Stage")
-                .disabled("Routing a canvas to the Stage pane is a later MT (Stage displays documents)")
+            ContextMenuItem::action(explorer_ids::ROUTE_TO_STAGE, "Route to Stage").disabled(
+                "Routing a canvas to the Stage pane is a later MT (Stage displays documents)",
+            )
         }
         ExplorerRowKind::Bookmark => {
-            ContextMenuItem::action(explorer_ids::ROUTE_TO_STAGE, "Route to Stage")
-                .disabled("Routing a bookmark to the Stage pane is a later MT (Stage displays documents)")
+            ContextMenuItem::action(explorer_ids::ROUTE_TO_STAGE, "Route to Stage").disabled(
+                "Routing a bookmark to the Stage pane is a later MT (Stage displays documents)",
+            )
         }
     };
     ContextMenu::new("explorer")
         .item(ContextMenuItem::action(explorer_ids::OPEN, "Open"))
-        .item(ContextMenuItem::action(explorer_ids::COPY_PATH, "Copy Path"))
+        .item(ContextMenuItem::action(
+            explorer_ids::COPY_PATH,
+            "Copy Path",
+        ))
         .separator()
         .item(rename)
         .item(
@@ -506,7 +514,11 @@ pub struct LoomNodeState {
 /// edges. `connect`/`disconnect`/`delete` are V1 stubs — disabled + disclosed (no fake-enable).
 pub fn loom_node_context_items(state: &LoomNodeState) -> Vec<ContextMenuItem> {
     let pin_label = if state.pinned { "Unpin" } else { "Pin" };
-    let fav_label = if state.favorite { "Unfavorite" } else { "Favorite" };
+    let fav_label = if state.favorite {
+        "Unfavorite"
+    } else {
+        "Favorite"
+    };
     let disconnect = if state.has_edges {
         ContextMenuItem::action(loom_ids::DISCONNECT, "Disconnect")
             .disabled("Disconnect is a future surface (no edge-edit endpoint wired)")
@@ -516,7 +528,10 @@ pub fn loom_node_context_items(state: &LoomNodeState) -> Vec<ContextMenuItem> {
     };
     ContextMenu::new("loom")
         .item(ContextMenuItem::action(loom_ids::OPEN, "Open Block"))
-        .item(ContextMenuItem::action(loom_ids::OPEN_TO_SIDE, "Open to Side"))
+        .item(ContextMenuItem::action(
+            loom_ids::OPEN_TO_SIDE,
+            "Open to Side",
+        ))
         .separator()
         .item(ContextMenuItem::action(loom_ids::RENAME, "Rename..."))
         .item(ContextMenuItem::action(loom_ids::PIN, pin_label))
@@ -528,8 +543,14 @@ pub fn loom_node_context_items(state: &LoomNodeState) -> Vec<ContextMenuItem> {
         )
         .item(disconnect)
         .separator()
-        .item(ContextMenuItem::action(loom_ids::COPY_BLOCK_ID, "Copy Block ID"))
-        .item(ContextMenuItem::action(loom_ids::REVEAL_IN_PANEL, "Reveal in Block Panel"))
+        .item(ContextMenuItem::action(
+            loom_ids::COPY_BLOCK_ID,
+            "Copy Block ID",
+        ))
+        .item(ContextMenuItem::action(
+            loom_ids::REVEAL_IN_PANEL,
+            "Reveal in Block Panel",
+        ))
         .separator()
         .item(
             ContextMenuItem::action(loom_ids::DELETE, "Delete Block")
@@ -546,8 +567,12 @@ pub fn loom_node_action_for_id(id: &str, state: &LoomNodeState) -> Option<LoomNo
         loom_ids::OPEN => Some(LoomNodeMenuAction::Open),
         loom_ids::OPEN_TO_SIDE => Some(LoomNodeMenuAction::OpenToSide),
         loom_ids::RENAME => Some(LoomNodeMenuAction::Rename),
-        loom_ids::PIN => Some(LoomNodeMenuAction::TogglePin { target: !state.pinned }),
-        loom_ids::FAVORITE => Some(LoomNodeMenuAction::ToggleFavorite { target: !state.favorite }),
+        loom_ids::PIN => Some(LoomNodeMenuAction::TogglePin {
+            target: !state.pinned,
+        }),
+        loom_ids::FAVORITE => Some(LoomNodeMenuAction::ToggleFavorite {
+            target: !state.favorite,
+        }),
         loom_ids::COPY_BLOCK_ID => Some(LoomNodeMenuAction::CopyBlockId),
         loom_ids::REVEAL_IN_PANEL => Some(LoomNodeMenuAction::RevealInPanel),
         _ => None,
@@ -655,12 +680,21 @@ pub fn canvas_node_context_items(state: &CanvasNodeState) -> Vec<ContextMenuItem
         )
         .item(remove_edges)
         .separator()
-        .item(ContextMenuItem::action(canvas_ids::MOVE_TO_FRONT, "Bring to Front"))
-        .item(ContextMenuItem::action(canvas_ids::MOVE_TO_BACK, "Send to Back"))
+        .item(ContextMenuItem::action(
+            canvas_ids::MOVE_TO_FRONT,
+            "Bring to Front",
+        ))
+        .item(ContextMenuItem::action(
+            canvas_ids::MOVE_TO_BACK,
+            "Send to Back",
+        ))
         .separator()
         .item(copy_block_id)
         .separator()
-        .item(ContextMenuItem::action(canvas_ids::REMOVE, "Remove from Canvas"))
+        .item(ContextMenuItem::action(
+            canvas_ids::REMOVE,
+            "Remove from Canvas",
+        ))
         .item(
             ContextMenuItem::action(canvas_ids::DELETE_BLOCK, "Delete Block")
                 .disabled("Delete block needs a confirmation dialog (future surface)"),
@@ -671,7 +705,10 @@ pub fn canvas_node_context_items(state: &CanvasNodeState) -> Vec<ContextMenuItem
 /// Map a confirmed canvas-node menu id to its typed action, honoring `state.kind` (an `open_block` on a
 /// card, or `edit_card` on a block, is disabled — so even a confirmed id maps to `None`, the
 /// belt-and-braces second line of defence). Stubs / unknown ids map to `None`.
-pub fn canvas_node_action_for_id(id: &str, state: &CanvasNodeState) -> Option<CanvasNodeMenuAction> {
+pub fn canvas_node_action_for_id(
+    id: &str,
+    state: &CanvasNodeState,
+) -> Option<CanvasNodeMenuAction> {
     let is_block = matches!(state.kind, CanvasNodeKind::Block);
     let is_card = matches!(state.kind, CanvasNodeKind::Card);
     match id {
@@ -761,8 +798,14 @@ pub fn source_control_context_items(state: &ScmRowState) -> Vec<ContextMenuItem>
         .item(unstage)
         .item(discard)
         .separator()
-        .item(ContextMenuItem::action(scm_ids::DIFF_WORKTREE, "Show Worktree Diff"))
-        .item(ContextMenuItem::action(scm_ids::DIFF_STAGED, "Show Staged Diff"))
+        .item(ContextMenuItem::action(
+            scm_ids::DIFF_WORKTREE,
+            "Show Worktree Diff",
+        ))
+        .item(ContextMenuItem::action(
+            scm_ids::DIFF_STAGED,
+            "Show Staged Diff",
+        ))
         .item(ContextMenuItem::action(scm_ids::BLAME, "Show Line Blame"))
         .separator()
         .item(
@@ -902,18 +945,18 @@ pub fn console_row_action_for_id(id: &str) -> Option<ConsoleRowMenuAction> {
     match id {
         console_ids::COPY_LINE => Some(ConsoleRowMenuAction::CopyLine),
         console_ids::COPY_ALL => Some(ConsoleRowMenuAction::CopyAll),
-        console_ids::FILTER_INPUT => {
-            Some(ConsoleRowMenuAction::SetFilter(Some(ConsoleEntryKind::Input)))
-        }
-        console_ids::FILTER_RESULT => {
-            Some(ConsoleRowMenuAction::SetFilter(Some(ConsoleEntryKind::Result)))
-        }
-        console_ids::FILTER_ERROR => {
-            Some(ConsoleRowMenuAction::SetFilter(Some(ConsoleEntryKind::Error)))
-        }
-        console_ids::FILTER_OUTPUT => {
-            Some(ConsoleRowMenuAction::SetFilter(Some(ConsoleEntryKind::Output)))
-        }
+        console_ids::FILTER_INPUT => Some(ConsoleRowMenuAction::SetFilter(Some(
+            ConsoleEntryKind::Input,
+        ))),
+        console_ids::FILTER_RESULT => Some(ConsoleRowMenuAction::SetFilter(Some(
+            ConsoleEntryKind::Result,
+        ))),
+        console_ids::FILTER_ERROR => Some(ConsoleRowMenuAction::SetFilter(Some(
+            ConsoleEntryKind::Error,
+        ))),
+        console_ids::FILTER_OUTPUT => Some(ConsoleRowMenuAction::SetFilter(Some(
+            ConsoleEntryKind::Output,
+        ))),
         console_ids::FILTER_ALL => Some(ConsoleRowMenuAction::SetFilter(None)),
         console_ids::CLEAR => Some(ConsoleRowMenuAction::Clear),
         _ => None,
@@ -1027,8 +1070,10 @@ pub fn drawer_item_context_items(
     // `drawer_send_to_pane_target` (string-prefix parse), so leaking is bounded by the open-pane count
     // at right-click time and the parent id stays the stable `drawer.send_to_pane`.
     let children: Vec<ContextMenuItem> = if open_panes.is_empty() {
-        vec![ContextMenuItem::action("drawer.send_to_pane.__none", "No open panes")
-            .disabled("No open panes to send to")]
+        vec![
+            ContextMenuItem::action("drawer.send_to_pane.__none", "No open panes")
+                .disabled("No open panes to send to"),
+        ]
     } else {
         open_panes
             .iter()
@@ -1043,10 +1088,20 @@ pub fn drawer_item_context_items(
     ContextMenu::new("drawer")
         .item(ContextMenuItem::action(drawer_ids::STOW, "Stow"))
         .item(ContextMenuItem::action(drawer_ids::PIN, pin_label))
-        .item(ContextMenuItem::action(drawer_ids::PROMOTE, "Promote to Pane"))
-        .item(ContextMenuItem::submenu(drawer_ids::SEND_TO_PANE, "Send to Pane...", children))
+        .item(ContextMenuItem::action(
+            drawer_ids::PROMOTE,
+            "Promote to Pane",
+        ))
+        .item(ContextMenuItem::submenu(
+            drawer_ids::SEND_TO_PANE,
+            "Send to Pane...",
+            children,
+        ))
         .separator()
-        .item(ContextMenuItem::action(drawer_ids::COPY_TO_PROMPT, "Copy to Prompt"))
+        .item(ContextMenuItem::action(
+            drawer_ids::COPY_TO_PROMPT,
+            "Copy to Prompt",
+        ))
         .item(
             ContextMenuItem::action(drawer_ids::ATTACH_EVIDENCE, "Attach as Evidence")
                 .disabled("Evidence-system link is a future surface (V1 stub)"),
@@ -1074,18 +1129,23 @@ pub fn drawer_send_to_pane_target(id: &str) -> Option<&str> {
 /// Map a confirmed drawer-item menu id to its typed action, computing the pin toggle TARGET from the
 /// fresh cached `state`. A `send_to_pane.{pane_id}` child returns `SendToPane`. The submenu HEADER, the
 /// evidence/artifact stubs, and unknown ids map to `None`.
-pub fn drawer_item_action_for_id(id: &str, state: &DrawerItemState) -> Option<DrawerItemMenuAction> {
+pub fn drawer_item_action_for_id(
+    id: &str,
+    state: &DrawerItemState,
+) -> Option<DrawerItemMenuAction> {
     match id {
         drawer_ids::STOW => Some(DrawerItemMenuAction::Stow),
-        drawer_ids::PIN => Some(DrawerItemMenuAction::TogglePin { target: !state.pinned }),
+        drawer_ids::PIN => Some(DrawerItemMenuAction::TogglePin {
+            target: !state.pinned,
+        }),
         drawer_ids::PROMOTE => Some(DrawerItemMenuAction::Promote),
         drawer_ids::COPY_TO_PROMPT => Some(DrawerItemMenuAction::CopyToPrompt),
         drawer_ids::DISCARD => Some(DrawerItemMenuAction::Discard),
-        other => drawer_send_to_pane_target(other).map(|pane_id| {
-            DrawerItemMenuAction::SendToPane {
+        other => {
+            drawer_send_to_pane_target(other).map(|pane_id| DrawerItemMenuAction::SendToPane {
                 pane_id: pane_id.to_owned(),
-            }
-        }),
+            })
+        }
     }
 }
 
@@ -1151,7 +1211,10 @@ pub fn status_bar_context_items(state: &StatusBarSegmentState) -> Vec<ContextMen
     ContextMenu::new("statusbar")
         .item(ContextMenuItem::action(statusbar_ids::COPY_SEGMENT, "Copy"))
         .separator()
-        .item(ContextMenuItem::action(statusbar_ids::TOGGLE_VISIBILITY, visibility_label))
+        .item(ContextMenuItem::action(
+            statusbar_ids::TOGGLE_VISIBILITY,
+            visibility_label,
+        ))
         .separator()
         .item(open_panel)
         .item(ContextMenuItem::action(statusbar_ids::REFRESH, "Refresh"))
@@ -1161,12 +1224,15 @@ pub fn status_bar_context_items(state: &StatusBarSegmentState) -> Vec<ContextMen
 /// Map a confirmed status-bar-segment menu id to its typed action, computing the visibility toggle
 /// TARGET from the fresh cached `state`. `open_panel` is only produced when the segment has a related
 /// panel (else its item is disabled → maps to `None`). Unknown ids map to `None`.
-pub fn status_bar_action_for_id(id: &str, state: &StatusBarSegmentState) -> Option<StatusBarMenuAction> {
+pub fn status_bar_action_for_id(
+    id: &str,
+    state: &StatusBarSegmentState,
+) -> Option<StatusBarMenuAction> {
     match id {
         statusbar_ids::COPY_SEGMENT => Some(StatusBarMenuAction::CopySegment),
-        statusbar_ids::TOGGLE_VISIBILITY => {
-            Some(StatusBarMenuAction::ToggleVisibility { target: !state.visible })
-        }
+        statusbar_ids::TOGGLE_VISIBILITY => Some(StatusBarMenuAction::ToggleVisibility {
+            target: !state.visible,
+        }),
         statusbar_ids::OPEN_PANEL if state.related_panel_name.is_some() => {
             Some(StatusBarMenuAction::OpenPanel)
         }
@@ -1239,7 +1305,8 @@ pub mod editor_body_ids {
     /// MT-048 Rename Symbol — the existing code-panel context-menu author_id.
     pub const RENAME_SYMBOL: &str = crate::code_editor::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID;
     /// MT-049 Quick Fix — the existing code-actions context-menu author_id.
-    pub const QUICK_FIX: &str = crate::code_editor::code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID;
+    pub const QUICK_FIX: &str =
+        crate::code_editor::code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID;
     /// MT-050 Format Selection — the existing formatting context-menu author_id.
     pub const FORMAT_SELECTION: &str = crate::code_editor::FORMAT_SELECTION_CTX_AUTHOR_ID;
     /// MT-008 Peek / Go to Definition — the existing hover go-to-def author_id (the only backend-touching
@@ -1328,7 +1395,8 @@ impl Default for EditorBodyAvailability {
 /// AC-070-7 / RISK-070-5).
 pub fn editor_body_context_items(availability: EditorBodyAvailability) -> Vec<ContextMenuItem> {
     let rename = enabled_or(
-        ContextMenuItem::action(editor_body_ids::RENAME_SYMBOL, "Rename Symbol").with_shortcut("F2"),
+        ContextMenuItem::action(editor_body_ids::RENAME_SYMBOL, "Rename Symbol")
+            .with_shortcut("F2"),
         availability.symbol_under_cursor,
         "No symbol under the cursor to rename",
     );
@@ -1350,7 +1418,10 @@ pub fn editor_body_context_items(availability: EditorBodyAvailability) -> Vec<Co
         "No definition under the cursor",
     );
     let create_note = enabled_or(
-        ContextMenuItem::action(editor_body_ids::CREATE_NOTE_FROM_LINK, "Create note from link"),
+        ContextMenuItem::action(
+            editor_body_ids::CREATE_NOTE_FROM_LINK,
+            "Create note from link",
+        ),
         availability.unresolved_link_under_cursor,
         "No unresolved [[link]] under the cursor",
     );
@@ -1468,7 +1539,10 @@ pub fn node_context_items(availability: NodeMenuAvailability) -> Vec<ContextMenu
         "This node has no stable id to reveal",
     );
     let create_note = enabled_or(
-        ContextMenuItem::action(node_menu_ids::CREATE_NOTE_FROM_LINK, "Create note from link"),
+        ContextMenuItem::action(
+            node_menu_ids::CREATE_NOTE_FROM_LINK,
+            "Create note from link",
+        ),
         availability.unresolved_link,
         "No unresolved link on this node",
     );
@@ -1516,9 +1590,9 @@ pub fn node_navigation_target(
 ) -> Option<crate::navigation_bus::NavigationTarget> {
     use crate::navigation_bus::NavigationTarget;
     match action {
-        NodeMenuAction::OpenNote => {
-            note_id.map(|id| NavigationTarget::OpenNote { note_id: id.to_owned() })
-        }
+        NodeMenuAction::OpenNote => note_id.map(|id| NavigationTarget::OpenNote {
+            note_id: id.to_owned(),
+        }),
         NodeMenuAction::RevealNode => Some(NavigationTarget::RevealNode {
             pane_id: pane_id.clone(),
             node_id: node_id.to_owned(),
@@ -1656,7 +1730,12 @@ mod tests {
         let items = project_tab_context_items(false, 2);
         assert_eq!(
             collect_item_ids(&items),
-            vec!["project.activate", "project.new", "project.rename", "project.close"],
+            vec![
+                "project.activate",
+                "project.new",
+                "project.rename",
+                "project.close"
+            ],
         );
     }
 
@@ -1692,11 +1771,24 @@ mod tests {
     #[test]
     fn future_target_items_are_disabled_and_unmapped() {
         let items = tab_context_items(0, 2, false);
-        for fid in [tab_ids::SPLIT_RIGHT, tab_ids::SPLIT_DOWN, tab_ids::MOVE_TO_NEW_WINDOW] {
+        for fid in [
+            tab_ids::SPLIT_RIGHT,
+            tab_ids::SPLIT_DOWN,
+            tab_ids::MOVE_TO_NEW_WINDOW,
+        ] {
             let item = items.iter().find(|i| i.id == fid).unwrap();
-            assert!(!item.enabled, "{fid} is disabled (future target, no fake-enable)");
-            assert!(item.disabled_reason.is_some(), "{fid} discloses why it is disabled");
-            assert!(tab_action_for_id(fid).is_none(), "{fid} maps to no fireable action");
+            assert!(
+                !item.enabled,
+                "{fid} is disabled (future target, no fake-enable)"
+            );
+            assert!(
+                item.disabled_reason.is_some(),
+                "{fid} discloses why it is disabled"
+            );
+            assert!(
+                tab_action_for_id(fid).is_none(),
+                "{fid} maps to no fireable action"
+            );
         }
         let pane = pane_header_context_items(false, false);
         for fid in [
@@ -1710,23 +1802,47 @@ mod tests {
         ] {
             let item = pane.iter().find(|i| i.id == fid).unwrap();
             assert!(!item.enabled, "{fid} is disabled (future target)");
-            assert!(pane_header_action_for_id(fid).is_none(), "{fid} maps to no fireable action");
+            assert!(
+                pane_header_action_for_id(fid).is_none(),
+                "{fid} maps to no fireable action"
+            );
         }
     }
 
     /// Enabled ids map to their typed action; unknown / separator ids map to none.
     #[test]
     fn enabled_ids_map_to_actions() {
-        assert_eq!(tab_action_for_id(tab_ids::CLOSE), Some(TabMenuAction::Close));
-        assert_eq!(tab_action_for_id(tab_ids::CLOSE_OTHERS), Some(TabMenuAction::CloseOthers));
-        assert_eq!(tab_action_for_id(tab_ids::CLOSE_ALL), Some(TabMenuAction::CloseAll));
-        assert_eq!(tab_action_for_id(tab_ids::PIN), Some(TabMenuAction::TogglePin));
-        assert_eq!(tab_action_for_id(tab_ids::POP_OUT), Some(TabMenuAction::PopOut));
+        assert_eq!(
+            tab_action_for_id(tab_ids::CLOSE),
+            Some(TabMenuAction::Close)
+        );
+        assert_eq!(
+            tab_action_for_id(tab_ids::CLOSE_OTHERS),
+            Some(TabMenuAction::CloseOthers)
+        );
+        assert_eq!(
+            tab_action_for_id(tab_ids::CLOSE_ALL),
+            Some(TabMenuAction::CloseAll)
+        );
+        assert_eq!(
+            tab_action_for_id(tab_ids::PIN),
+            Some(TabMenuAction::TogglePin)
+        );
+        assert_eq!(
+            tab_action_for_id(tab_ids::POP_OUT),
+            Some(TabMenuAction::PopOut)
+        );
         assert_eq!(tab_action_for_id("ctx-menu.separator"), None);
         assert_eq!(tab_action_for_id("bogus.id"), None);
 
-        assert_eq!(pane_header_action_for_id(pane_ids::LOCK), Some(PaneHeaderMenuAction::ToggleLock));
-        assert_eq!(pane_header_action_for_id(pane_ids::POP_OUT), Some(PaneHeaderMenuAction::PopOut));
+        assert_eq!(
+            pane_header_action_for_id(pane_ids::LOCK),
+            Some(PaneHeaderMenuAction::ToggleLock)
+        );
+        assert_eq!(
+            pane_header_action_for_id(pane_ids::POP_OUT),
+            Some(PaneHeaderMenuAction::PopOut)
+        );
 
         assert_eq!(
             project_tab_action_for_id(project_ids::ACTIVATE),
@@ -1739,9 +1855,23 @@ mod tests {
     #[test]
     fn pane_lock_label_reflects_state() {
         let unlocked = pane_header_context_items(false, false);
-        assert_eq!(unlocked.iter().find(|i| i.id == pane_ids::LOCK).unwrap().label, "Lock Pane");
+        assert_eq!(
+            unlocked
+                .iter()
+                .find(|i| i.id == pane_ids::LOCK)
+                .unwrap()
+                .label,
+            "Lock Pane"
+        );
         let locked = pane_header_context_items(true, false);
-        assert_eq!(locked.iter().find(|i| i.id == pane_ids::LOCK).unwrap().label, "Unlock Pane");
+        assert_eq!(
+            locked
+                .iter()
+                .find(|i| i.id == pane_ids::LOCK)
+                .unwrap()
+                .label,
+            "Unlock Pane"
+        );
     }
 
     /// The last-pane guard disables `pane.close` with the distinct "only pane" reason.
@@ -1757,9 +1887,21 @@ mod tests {
     #[test]
     fn project_activate_disabled_for_active() {
         let active = project_tab_context_items(true, 2);
-        assert!(!active.iter().find(|i| i.id == project_ids::ACTIVATE).unwrap().enabled);
+        assert!(
+            !active
+                .iter()
+                .find(|i| i.id == project_ids::ACTIVATE)
+                .unwrap()
+                .enabled
+        );
         let inactive = project_tab_context_items(false, 2);
-        assert!(inactive.iter().find(|i| i.id == project_ids::ACTIVATE).unwrap().enabled);
+        assert!(
+            inactive
+                .iter()
+                .find(|i| i.id == project_ids::ACTIVATE)
+                .unwrap()
+                .enabled
+        );
     }
 
     /// Explorer-row item ids match the stable `ctx-menu.explorer.{id}` reference list (no typos), for
@@ -1799,16 +1941,31 @@ mod tests {
         ] {
             let items = explorer_context_items(kind);
             let find = |id: &str| items.iter().find(|i| i.id == id).unwrap();
-            assert!(find(explorer_ids::OPEN).enabled, "open enabled for {kind:?}");
-            assert!(find(explorer_ids::COPY_PATH).enabled, "copy_path enabled for {kind:?}");
+            assert!(
+                find(explorer_ids::OPEN).enabled,
+                "open enabled for {kind:?}"
+            );
+            assert!(
+                find(explorer_ids::COPY_PATH).enabled,
+                "copy_path enabled for {kind:?}"
+            );
             let rename = find(explorer_ids::RENAME);
             assert_eq!(rename.enabled, rename_enabled, "rename enable for {kind:?}");
             if !rename_enabled {
-                assert!(rename.disabled_reason.is_some(), "disabled rename discloses why");
+                assert!(
+                    rename.disabled_reason.is_some(),
+                    "disabled rename discloses why"
+                );
             }
             let reveal = find(explorer_ids::REVEAL_IN_GRAPH);
-            assert!(!reveal.enabled, "reveal_in_graph disabled (no graph surface)");
-            assert!(reveal.disabled_reason.is_some(), "reveal discloses why it is disabled");
+            assert!(
+                !reveal.enabled,
+                "reveal_in_graph disabled (no graph surface)"
+            );
+            assert!(
+                reveal.disabled_reason.is_some(),
+                "reveal discloses why it is disabled"
+            );
         }
     }
 
@@ -1823,7 +1980,10 @@ mod tests {
             .iter()
             .find(|i| i.id == explorer_ids::RENAME)
             .expect("Document row still RENDERS a Rename item (no fake-drop)");
-        assert!(!rename.enabled, "Document Rename is disabled (document id is not a Loom-block id)");
+        assert!(
+            !rename.enabled,
+            "Document Rename is disabled (document id is not a Loom-block id)"
+        );
         assert_eq!(
             rename.disabled_reason,
             Some(
@@ -1847,8 +2007,14 @@ mod tests {
     #[test]
     fn bookmark_row_rename_is_the_only_enabled_rename() {
         let bookmark = explorer_context_items(ExplorerRowKind::Bookmark);
-        let rename = bookmark.iter().find(|i| i.id == explorer_ids::RENAME).unwrap();
-        assert!(rename.enabled, "Bookmark Rename is enabled (block_id is a real Loom-block id)");
+        let rename = bookmark
+            .iter()
+            .find(|i| i.id == explorer_ids::RENAME)
+            .unwrap();
+        assert!(
+            rename.enabled,
+            "Bookmark Rename is enabled (block_id is a real Loom-block id)"
+        );
         assert_eq!(
             explorer_action_for_id(explorer_ids::RENAME, ExplorerRowKind::Bookmark),
             Some(ExplorerMenuAction::Rename),
@@ -1860,7 +2026,10 @@ mod tests {
                 .into_iter()
                 .find(|i| i.id == explorer_ids::RENAME)
                 .unwrap();
-            assert!(!r.enabled, "{other:?} rename is disabled (not a Loom-block id)");
+            assert!(
+                !r.enabled,
+                "{other:?} rename is disabled (not a Loom-block id)"
+            );
         }
     }
 
@@ -1882,7 +2051,10 @@ mod tests {
                 explorer_action_for_id(explorer_ids::COPY_PATH, kind),
                 Some(ExplorerMenuAction::CopyPath)
             );
-            assert_eq!(explorer_action_for_id(explorer_ids::REVEAL_IN_GRAPH, kind), None);
+            assert_eq!(
+                explorer_action_for_id(explorer_ids::REVEAL_IN_GRAPH, kind),
+                None
+            );
             assert_eq!(explorer_action_for_id("bogus.id", kind), None);
         }
         // Rename fires ONLY for a Bookmark row (the only Loom-block-backed id).
@@ -1931,7 +2103,11 @@ mod tests {
             let mut sorted = ids.clone();
             sorted.sort_unstable();
             sorted.dedup();
-            assert_eq!(sorted.len(), ids.len(), "ids unique within surface: {ids:?}");
+            assert_eq!(
+                sorted.len(),
+                ids.len(),
+                "ids unique within surface: {ids:?}"
+            );
         }
     }
 
@@ -1972,7 +2148,14 @@ mod tests {
     #[test]
     fn loom_pin_favorite_reflect_fresh_state_and_flip() {
         let unpinned = loom_node_context_items(&loom_state(false, false, false));
-        assert_eq!(unpinned.iter().find(|i| i.id == loom_ids::PIN).unwrap().label, "Pin");
+        assert_eq!(
+            unpinned
+                .iter()
+                .find(|i| i.id == loom_ids::PIN)
+                .unwrap()
+                .label,
+            "Pin"
+        );
         assert_eq!(
             loom_node_action_for_id(loom_ids::PIN, &loom_state(false, false, false)),
             Some(LoomNodeMenuAction::TogglePin { target: true }),
@@ -1980,8 +2163,18 @@ mod tests {
         );
 
         let pinned = loom_node_context_items(&loom_state(true, true, false));
-        assert_eq!(pinned.iter().find(|i| i.id == loom_ids::PIN).unwrap().label, "Unpin");
-        assert_eq!(pinned.iter().find(|i| i.id == loom_ids::FAVORITE).unwrap().label, "Unfavorite");
+        assert_eq!(
+            pinned.iter().find(|i| i.id == loom_ids::PIN).unwrap().label,
+            "Unpin"
+        );
+        assert_eq!(
+            pinned
+                .iter()
+                .find(|i| i.id == loom_ids::FAVORITE)
+                .unwrap()
+                .label,
+            "Unfavorite"
+        );
         assert_eq!(
             loom_node_action_for_id(loom_ids::PIN, &loom_state(true, false, false)),
             Some(LoomNodeMenuAction::TogglePin { target: false }),
@@ -2045,15 +2238,33 @@ mod tests {
         let find = |items: &[ContextMenuItem], id: &str| {
             items.iter().find(|i| i.id == id).unwrap().enabled
         };
-        assert!(find(&block, canvas_ids::OPEN_BLOCK), "block enables open_block");
-        assert!(find(&block, canvas_ids::COPY_BLOCK_ID), "block enables copy_block_id");
-        assert!(!find(&block, canvas_ids::EDIT_CARD), "block disables edit_card");
-        assert!(find(&block, canvas_ids::REMOVE_EDGES), "has visual edges enables remove_edges");
+        assert!(
+            find(&block, canvas_ids::OPEN_BLOCK),
+            "block enables open_block"
+        );
+        assert!(
+            find(&block, canvas_ids::COPY_BLOCK_ID),
+            "block enables copy_block_id"
+        );
+        assert!(
+            !find(&block, canvas_ids::EDIT_CARD),
+            "block disables edit_card"
+        );
+        assert!(
+            find(&block, canvas_ids::REMOVE_EDGES),
+            "has visual edges enables remove_edges"
+        );
 
         let card = canvas_node_context_items(&canvas_state(CanvasNodeKind::Card, false));
         assert!(find(&card, canvas_ids::EDIT_CARD), "card enables edit_card");
-        assert!(!find(&card, canvas_ids::OPEN_BLOCK), "card disables open_block");
-        assert!(!find(&card, canvas_ids::REMOVE_EDGES), "no visual edges disables remove_edges");
+        assert!(
+            !find(&card, canvas_ids::OPEN_BLOCK),
+            "card disables open_block"
+        );
+        assert!(
+            !find(&card, canvas_ids::REMOVE_EDGES),
+            "no visual edges disables remove_edges"
+        );
     }
 
     /// AC: canvas.remove maps to the Remove action (DELETE placement); stubs map to none even when
@@ -2077,8 +2288,15 @@ mod tests {
             canvas_node_action_for_id(canvas_ids::REMOVE_EDGES, &block),
             Some(CanvasNodeMenuAction::RemoveEdges),
         );
-        for stub in [canvas_ids::CONNECT_TO, canvas_ids::ADD_VISUAL_EDGE, canvas_ids::DELETE_BLOCK] {
-            assert!(canvas_node_action_for_id(stub, &block).is_none(), "{stub} maps to none");
+        for stub in [
+            canvas_ids::CONNECT_TO,
+            canvas_ids::ADD_VISUAL_EDGE,
+            canvas_ids::DELETE_BLOCK,
+        ] {
+            assert!(
+                canvas_node_action_for_id(stub, &block).is_none(),
+                "{stub} maps to none"
+            );
         }
         // edit_card on a block, open_block on a card → none (belt-and-braces second line of defence).
         assert!(canvas_node_action_for_id(canvas_ids::EDIT_CARD, &block).is_none());
@@ -2123,18 +2341,33 @@ mod tests {
             items.iter().find(|i| i.id == id).unwrap().enabled
         }
         let worktree_only = source_control_context_items(&scm_state(true, false));
-        assert!(enabled(&worktree_only, scm_ids::STAGE), "worktree → stage enabled");
-        assert!(!enabled(&worktree_only, scm_ids::UNSTAGE), "no index → unstage disabled");
+        assert!(
+            enabled(&worktree_only, scm_ids::STAGE),
+            "worktree → stage enabled"
+        );
+        assert!(
+            !enabled(&worktree_only, scm_ids::UNSTAGE),
+            "no index → unstage disabled"
+        );
 
         let index_only = source_control_context_items(&scm_state(false, true));
-        assert!(enabled(&index_only, scm_ids::UNSTAGE), "index → unstage enabled");
-        assert!(!enabled(&index_only, scm_ids::STAGE), "no worktree → stage disabled");
+        assert!(
+            enabled(&index_only, scm_ids::UNSTAGE),
+            "index → unstage enabled"
+        );
+        assert!(
+            !enabled(&index_only, scm_ids::STAGE),
+            "no worktree → stage disabled"
+        );
 
         // Discard is ALWAYS disabled and carries the STUB_NO_CONFIRM marker.
         for state in [scm_state(true, true), scm_state(false, false)] {
             let items = source_control_context_items(&state);
             let discard = items.iter().find(|i| i.id == scm_ids::DISCARD).unwrap();
-            assert!(!discard.enabled, "discard always disabled (no confirm dialog yet)");
+            assert!(
+                !discard.enabled,
+                "discard always disabled (no confirm dialog yet)"
+            );
             assert!(
                 discard.disabled_reason.unwrap().contains("STUB_NO_CONFIRM"),
                 "discard disabled reason carries the STUB_NO_CONFIRM marker",
@@ -2151,7 +2384,10 @@ mod tests {
     #[test]
     fn scm_actions_map_correctly() {
         let both = scm_state(true, true);
-        assert_eq!(source_control_action_for_id(scm_ids::STAGE, &both), Some(ScmRowMenuAction::Stage));
+        assert_eq!(
+            source_control_action_for_id(scm_ids::STAGE, &both),
+            Some(ScmRowMenuAction::Stage)
+        );
         assert_eq!(
             source_control_action_for_id(scm_ids::UNSTAGE, &both),
             Some(ScmRowMenuAction::Unstage),
@@ -2164,7 +2400,10 @@ mod tests {
             source_control_action_for_id(scm_ids::DIFF_STAGED, &both),
             Some(ScmRowMenuAction::DiffStaged),
         );
-        assert_eq!(source_control_action_for_id(scm_ids::BLAME, &both), Some(ScmRowMenuAction::Blame));
+        assert_eq!(
+            source_control_action_for_id(scm_ids::BLAME, &both),
+            Some(ScmRowMenuAction::Blame)
+        );
         assert_eq!(
             source_control_action_for_id(scm_ids::COPY_PATH, &both),
             Some(ScmRowMenuAction::CopyPath),
@@ -2199,12 +2438,23 @@ mod tests {
     /// HEADER is never confirmed → maps to none.
     #[test]
     fn console_actions_map_correctly() {
-        assert_eq!(console_row_action_for_id(console_ids::COPY_LINE), Some(ConsoleRowMenuAction::CopyLine));
-        assert_eq!(console_row_action_for_id(console_ids::COPY_ALL), Some(ConsoleRowMenuAction::CopyAll));
-        assert_eq!(console_row_action_for_id(console_ids::CLEAR), Some(ConsoleRowMenuAction::Clear));
+        assert_eq!(
+            console_row_action_for_id(console_ids::COPY_LINE),
+            Some(ConsoleRowMenuAction::CopyLine)
+        );
+        assert_eq!(
+            console_row_action_for_id(console_ids::COPY_ALL),
+            Some(ConsoleRowMenuAction::CopyAll)
+        );
+        assert_eq!(
+            console_row_action_for_id(console_ids::CLEAR),
+            Some(ConsoleRowMenuAction::Clear)
+        );
         assert_eq!(
             console_row_action_for_id(console_ids::FILTER_INPUT),
-            Some(ConsoleRowMenuAction::SetFilter(Some(ConsoleEntryKind::Input))),
+            Some(ConsoleRowMenuAction::SetFilter(Some(
+                ConsoleEntryKind::Input
+            ))),
         );
         assert_eq!(
             console_row_action_for_id(console_ids::FILTER_ALL),
@@ -2219,14 +2469,23 @@ mod tests {
     #[test]
     fn list_go_to_source_gated_on_source() {
         let with_src = list_row_context_items(true);
-        assert!(with_src.iter().find(|i| i.id == list_ids::GO_TO_SOURCE).unwrap().enabled);
+        assert!(
+            with_src
+                .iter()
+                .find(|i| i.id == list_ids::GO_TO_SOURCE)
+                .unwrap()
+                .enabled
+        );
         assert_eq!(
             list_row_action_for_id(list_ids::GO_TO_SOURCE, true),
             Some(ListRowMenuAction::GoToSource),
         );
 
         let no_src = list_row_context_items(false);
-        let g = no_src.iter().find(|i| i.id == list_ids::GO_TO_SOURCE).unwrap();
+        let g = no_src
+            .iter()
+            .find(|i| i.id == list_ids::GO_TO_SOURCE)
+            .unwrap();
         assert!(!g.enabled, "no source → go_to_source disabled");
         assert!(list_row_action_for_id(list_ids::GO_TO_SOURCE, false).is_none());
     }
@@ -2281,12 +2540,23 @@ mod tests {
         );
         assert_eq!(
             drawer_item_action_for_id("drawer.send_to_pane.pane-c", &drawer_state(false)),
-            Some(DrawerItemMenuAction::SendToPane { pane_id: "pane-c".to_owned() }),
+            Some(DrawerItemMenuAction::SendToPane {
+                pane_id: "pane-c".to_owned()
+            }),
         );
-        assert_eq!(drawer_send_to_pane_target("drawer.send_to_pane.pane-c"), Some("pane-c"));
-        assert_eq!(drawer_send_to_pane_target("drawer.send_to_pane.__none"), None);
-        for stub in [drawer_ids::ATTACH_EVIDENCE, drawer_ids::CONVERT_ARTIFACT, drawer_ids::SEND_TO_PANE]
-        {
+        assert_eq!(
+            drawer_send_to_pane_target("drawer.send_to_pane.pane-c"),
+            Some("pane-c")
+        );
+        assert_eq!(
+            drawer_send_to_pane_target("drawer.send_to_pane.__none"),
+            None
+        );
+        for stub in [
+            drawer_ids::ATTACH_EVIDENCE,
+            drawer_ids::CONVERT_ARTIFACT,
+            drawer_ids::SEND_TO_PANE,
+        ] {
             assert!(
                 drawer_item_action_for_id(stub, &drawer_state(false)).is_none(),
                 "{stub} maps to none (stub or submenu header)",
@@ -2323,22 +2593,40 @@ mod tests {
     #[test]
     fn status_bar_open_panel_and_actions() {
         let with_panel = status_bar_context_items(&statusbar_state(true, Some("System Status")));
-        let open = with_panel.iter().find(|i| i.id == statusbar_ids::OPEN_PANEL).unwrap();
-        assert!(open.enabled, "segment with a related panel enables open_panel");
-        assert_eq!(open.label, "Open System Status", "label names the related panel");
+        let open = with_panel
+            .iter()
+            .find(|i| i.id == statusbar_ids::OPEN_PANEL)
+            .unwrap();
+        assert!(
+            open.enabled,
+            "segment with a related panel enables open_panel"
+        );
+        assert_eq!(
+            open.label, "Open System Status",
+            "label names the related panel"
+        );
         assert_eq!(
             status_bar_action_for_id(statusbar_ids::OPEN_PANEL, &statusbar_state(true, Some("x"))),
             Some(StatusBarMenuAction::OpenPanel),
         );
 
         let no_panel = status_bar_context_items(&statusbar_state(true, None));
-        let open = no_panel.iter().find(|i| i.id == statusbar_ids::OPEN_PANEL).unwrap();
+        let open = no_panel
+            .iter()
+            .find(|i| i.id == statusbar_ids::OPEN_PANEL)
+            .unwrap();
         assert!(!open.enabled, "no related panel → open_panel disabled");
-        assert!(status_bar_action_for_id(statusbar_ids::OPEN_PANEL, &statusbar_state(true, None)).is_none());
+        assert!(
+            status_bar_action_for_id(statusbar_ids::OPEN_PANEL, &statusbar_state(true, None))
+                .is_none()
+        );
 
         // toggle visibility flips, copy + refresh always map.
         assert_eq!(
-            status_bar_action_for_id(statusbar_ids::TOGGLE_VISIBILITY, &statusbar_state(true, None)),
+            status_bar_action_for_id(
+                statusbar_ids::TOGGLE_VISIBILITY,
+                &statusbar_state(true, None)
+            ),
             Some(StatusBarMenuAction::ToggleVisibility { target: false }),
         );
         assert_eq!(
@@ -2370,7 +2658,11 @@ mod tests {
             let mut sorted = ids.clone();
             sorted.sort_unstable();
             sorted.dedup();
-            assert_eq!(sorted.len(), ids.len(), "ids unique within surface: {ids:?}");
+            assert_eq!(
+                sorted.len(),
+                ids.len(),
+                "ids unique within surface: {ids:?}"
+            );
         }
     }
 }

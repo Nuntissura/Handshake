@@ -31,9 +31,8 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
 use handshake_native::graph::graph_view::{
-    GraphEdge, GraphEvent, GraphNode, LoomGraphView, MODE_GLOBAL_AUTHOR_ID,
-    MODE_LOCAL_AUTHOR_ID, NODE_AUTHOR_ID_PREFIX, RELAYOUT_AUTHOR_ID, ZOOM_IN_AUTHOR_ID,
-    ZOOM_OUT_AUTHOR_ID,
+    GraphEdge, GraphEvent, GraphNode, LoomGraphView, MODE_GLOBAL_AUTHOR_ID, MODE_LOCAL_AUTHOR_ID,
+    NODE_AUTHOR_ID_PREFIX, RELAYOUT_AUTHOR_ID, ZOOM_IN_AUTHOR_ID, ZOOM_OUT_AUTHOR_ID,
 };
 use handshake_native::theme::HsTheme;
 
@@ -71,7 +70,13 @@ fn seeded_view(n: usize) -> LoomGraphView {
         .map(|i| GraphNode::new(format!("block-{i:03}"), format!("Block {i}"), node_type(i)))
         .collect();
     let edges: Vec<GraphEdge> = (0..n)
-        .map(|i| GraphEdge::new(format!("block-{i:03}"), format!("block-{:03}", (i + 1) % n), "mention"))
+        .map(|i| {
+            GraphEdge::new(
+                format!("block-{i:03}"),
+                format!("block-{:03}", (i + 1) % n),
+                "mention",
+            )
+        })
         .collect();
     v.set_graph(nodes, edges);
     v
@@ -131,11 +136,17 @@ fn graph_view_accesskit_nodes_present() {
         ZOOM_OUT_AUTHOR_ID,
         RELAYOUT_AUTHOR_ID,
     ] {
-        assert!(ids.contains(required), "AC6: toolbar author_id '{required}' missing from tree {ids:?}");
+        assert!(
+            ids.contains(required),
+            "AC6: toolbar author_id '{required}' missing from tree {ids:?}"
+        );
     }
 
     // PROOF2 (structural): >= 5 graph.node.* entries (one per seeded node).
-    let node_count = ids.iter().filter(|a| a.starts_with(NODE_AUTHOR_ID_PREFIX)).count();
+    let node_count = ids
+        .iter()
+        .filter(|a| a.starts_with(NODE_AUTHOR_ID_PREFIX))
+        .count();
     assert!(
         node_count >= 5,
         "PROOF2: expected >= 5 graph.node.* AccessKit nodes, got {node_count} (ids={ids:?})"
@@ -158,7 +169,10 @@ fn graph_view_accesskit_nodes_present() {
             button_node_found = true;
         }
     }
-    assert!(button_node_found, "AC6: graph.node.block-001 node not found for role check");
+    assert!(
+        button_node_found,
+        "AC6: graph.node.block-001 node not found for role check"
+    );
 
     println!("PROOF2 structural: {node_count} graph.node.* nodes + 5 toolbar ids present");
 }
@@ -199,7 +213,11 @@ fn graph_view_click_node_fires_open() {
     // panel took the left strip, so a hardcoded centre would miss the node.
     let (target_world, zoom, pan) = {
         let v = view.lock().unwrap();
-        let node = v.nodes.iter().find(|n| n.block_id == "block-001").expect("block-001 present");
+        let node = v
+            .nodes
+            .iter()
+            .find(|n| n.block_id == "block-001")
+            .expect("block-001 present");
         (egui::pos2(node.x, node.y), v.zoom, v.pan)
     };
     let center = view
@@ -233,7 +251,9 @@ fn graph_view_click_node_fires_open() {
     harness.run();
 
     let ev = events.lock().unwrap().clone();
-    let opened = ev.iter().any(|e| matches!(e, GraphEvent::OpenNode { block_id } if block_id == "block-001"));
+    let opened = ev
+        .iter()
+        .any(|e| matches!(e, GraphEvent::OpenNode { block_id } if block_id == "block-001"));
     assert!(
         opened,
         "PROOF3: clicking node block-001 must emit OpenNode{{block_id:'block-001'}} (got {ev:?}, \
@@ -273,7 +293,8 @@ fn graph_view_screenshot_has_circle() {
             let raw = image.as_raw();
             // Tally colours; assert the canvas is not all-white AND has >= 2 distinct opaque colours
             // (background grid + at least one node circle => a circle was rendered, PROOF4).
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut white = 0u32;
             let mut i = 0usize;
             while i + 4 <= raw.len() {
@@ -333,7 +354,10 @@ fn graph_view_scroll_zoom() {
             view_ui.lock().unwrap().show(ui, &pal);
         });
     harness.run();
-    assert!((view.lock().unwrap().zoom - 1.0).abs() < 1e-3, "zoom starts at 1.0");
+    assert!(
+        (view.lock().unwrap().zoom - 1.0).abs() < 1e-3,
+        "zoom starts at 1.0"
+    );
 
     // Move the pointer over the canvas (so hover_pos resolves), then two scroll-up wheel events.
     let canvas_pos = egui::pos2(400.0, 320.0);
@@ -349,8 +373,14 @@ fn graph_view_scroll_zoom() {
     }
 
     let zoom = view.lock().unwrap().zoom;
-    assert!(zoom > 1.0, "PROOF5: two scroll-up events must raise zoom above 1.0 (got {zoom})");
-    assert!(zoom <= 4.0, "PROOF5: zoom must stay clamped <= 4.0 (got {zoom})");
+    assert!(
+        zoom > 1.0,
+        "PROOF5: two scroll-up events must raise zoom above 1.0 (got {zoom})"
+    );
+    assert!(
+        zoom <= 4.0,
+        "PROOF5: zoom must stay clamped <= 4.0 (got {zoom})"
+    );
     println!("PROOF5: scroll-zoom raised zoom 1.0 -> {zoom} (clamped <= 4.0)");
 }
 
@@ -371,15 +401,23 @@ fn graph_view_empty_zero_nodes() {
     harness.run();
 
     // The toolbar count label reads "0 nodes" and there are NO graph.node.* nodes.
-    assert!(harness.query_by_label("0 nodes").is_some(), "AC7: '0 nodes' label must be present");
+    assert!(
+        harness.query_by_label("0 nodes").is_some(),
+        "AC7: '0 nodes' label must be present"
+    );
     let ids = author_ids(&harness);
     assert_eq!(
-        ids.iter().filter(|a| a.starts_with(NODE_AUTHOR_ID_PREFIX)).count(),
+        ids.iter()
+            .filter(|a| a.starts_with(NODE_AUTHOR_ID_PREFIX))
+            .count(),
         0,
         "AC7: no graph.node.* nodes for an empty workspace"
     );
     // The toolbar still emits its 5 controls (the surface is usable when empty).
-    assert!(ids.contains(MODE_GLOBAL_AUTHOR_ID), "AC7: toolbar still present on empty canvas");
+    assert!(
+        ids.contains(MODE_GLOBAL_AUTHOR_ID),
+        "AC7: toolbar still present on empty canvas"
+    );
     println!("AC7: empty workspace shows '0 nodes', no node entries, no panic");
 }
 
@@ -418,7 +456,7 @@ fn graph_view_error_label() {
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with >= 3 seeded LoomBlocks"]
 #[cfg(feature = "integration")]
 fn graph_view_global_live_pg() {
-    use handshake_native::backend_client::{LoomGraphClient, LoomGraphCell};
+    use handshake_native::backend_client::{LoomGraphCell, LoomGraphClient};
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     let client = LoomGraphClient::production(rt.handle().clone());
@@ -435,11 +473,16 @@ fn graph_view_global_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let data = data.expect("live PG fetch delivered within 5s").expect("live PG fetch ok");
+    let data = data
+        .expect("live PG fetch delivered within 5s")
+        .expect("live PG fetch ok");
     assert!(
         data.nodes.len() >= 3,
         "AC1/PROOF2 live: >= 3 seeded LoomBlocks expected from views/all, got {}",
         data.nodes.len()
     );
-    println!("AC1/PROOF2 live PG: {} nodes enumerated from the real backend", data.nodes.len());
+    println!(
+        "AC1/PROOF2 live PG: {} nodes enumerated from the real backend",
+        data.nodes.len()
+    );
 }

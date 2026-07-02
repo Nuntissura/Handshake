@@ -115,9 +115,7 @@ async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
 
 async fn scheduler_postgres_backend_from_env(
 ) -> Result<Option<(Arc<dyn Database>, sqlx::postgres::PgPool)>, Box<dyn std::error::Error>> {
-    let Ok(url) = std::env::var("POSTGRES_TEST_URL") else {
-        return Ok(None);
-    };
+    let url = handshake_core::storage::tests::postgres_test_base_url().await?;
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("model_session_scheduler_test_{}", Uuid::now_v7().simple());
@@ -269,11 +267,7 @@ fn is_terminal_state(state: &JobState) -> bool {
 }
 
 fn wait_timeout_ms(timeout_ms: u64) -> u64 {
-    if std::env::var_os("POSTGRES_TEST_URL").is_some() {
-        timeout_ms.max(60_000)
-    } else {
-        timeout_ms
-    }
+    timeout_ms.max(60_000)
 }
 
 async fn wait_for_state(

@@ -54,7 +54,9 @@ impl std::fmt::Display for TransclusionResolveError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             // The token "cycle_detected" is what proof_target #4 greps for.
-            TransclusionResolveError::CycleDetected { at } => write!(f, "cycle_detected at block {at}"),
+            TransclusionResolveError::CycleDetected { at } => {
+                write!(f, "cycle_detected at block {at}")
+            }
             TransclusionResolveError::DepthExceeded { max_depth } => {
                 write!(f, "depth_exceeded (max_depth={max_depth})")
             }
@@ -116,8 +118,16 @@ fn perf_lr05_linear_chain_resolves() {
         "LR-05: the linear chain must visit all 50 blocks in order (got {})",
         order.len()
     );
-    assert_eq!(order.first().map(String::as_str), Some("block-0"), "LR-05: chain starts at block-0");
-    assert_eq!(order.last().map(String::as_str), Some("block-49"), "LR-05: chain ends at block-49");
+    assert_eq!(
+        order.first().map(String::as_str),
+        Some("block-0"),
+        "LR-05: chain starts at block-0"
+    );
+    assert_eq!(
+        order.last().map(String::as_str),
+        Some("block-49"),
+        "LR-05: chain ends at block-49"
+    );
     assert!(
         budget.passes(elapsed_ms),
         "LR-05: linear 50-hop resolve {elapsed_ms} ms must be <= {} ms (override {})",
@@ -154,7 +164,10 @@ fn perf_lr05_cycle_detection() {
         Err(TransclusionResolveError::CycleDetected { at }) => {
             // RISK-4 guard: the cycle is flagged at the FIRST repeated id (block-0, the start we loop
             // back to), proving it detected a CYCLE specifically — not an error for any transclusion.
-            assert_eq!(at, "block-0", "LR-05: the cycle must be flagged at the repeated id block-0");
+            assert_eq!(
+                at, "block-0",
+                "LR-05: the cycle must be flagged at the repeated id block-0"
+            );
             println!(
                 "LR-05 (cycle logic) PASS — cyclic-5 returns cycle_detected at block {at} (no panic, no \
                  infinite loop)"
@@ -169,11 +182,19 @@ fn perf_lr05_cycle_detection() {
 
     // RISK-4 guard #2: a NON-cyclic chain through the SAME resolver does NOT report a cycle — so the
     // resolver is not just returning an error for any transclusion. A short linear chain resolves clean.
-    let linear: std::collections::HashMap<String, String> =
-        [("a".to_string(), "b".to_string()), ("b".to_string(), "c".to_string())].into_iter().collect();
+    let linear: std::collections::HashMap<String, String> = [
+        ("a".to_string(), "b".to_string()),
+        ("b".to_string(), "c".to_string()),
+    ]
+    .into_iter()
+    .collect();
     let ok = resolve_transclusion_chain("a", 100, |id| linear.get(id).cloned())
         .expect("LR-05: a clean linear chain must NOT be reported as a cycle");
-    assert_eq!(ok, vec!["a", "b", "c"], "LR-05: the clean chain resolves a->b->c (no false cycle)");
+    assert_eq!(
+        ok,
+        vec!["a", "b", "c"],
+        "LR-05: the clean chain resolves a->b->c (no false cycle)"
+    );
 }
 
 // ── LR-01: load a 1000-block rich document — round-trip <= 2 s, native parse <= 100 ms (REQUIRES_PG) ─
@@ -192,17 +213,36 @@ fn perf_lr01_load_large_doc() {
         &serde_json::json!({ "workspace_id": be.workspace_id, "title": "mt045-lr01", "content_json": content }),
     );
     let doc_id = created_doc_id(&created);
-    let _guard = DocGuard { be: &be, doc_id: doc_id.clone() };
+    let _guard = DocGuard {
+        be: &be,
+        doc_id: doc_id.clone(),
+    };
 
     // MEASURED (round-trip): GET the 1000-block doc back through real PG.
-    let (loaded, rt_ms) = perf_proof_support::time_ms(|| be.get_json(&format!("/knowledge/documents/{doc_id}")));
+    let (loaded, rt_ms) =
+        perf_proof_support::time_ms(|| be.get_json(&format!("/knowledge/documents/{doc_id}")));
     // MEASURED (native parse): build the native block tree from the loaded JSON.
-    let content_json = loaded.get("document").and_then(|d| d.get("content_json")).cloned().unwrap_or(loaded.clone());
+    let content_json = loaded
+        .get("document")
+        .and_then(|d| d.get("content_json"))
+        .cloned()
+        .unwrap_or(loaded.clone());
     let (block_count, parse_ms) = perf_proof_support::time_ms(|| count_nodes(&content_json));
 
-    assert!(block_count >= 1000, "LR-01: the reloaded doc must carry >= 1000 blocks (got {block_count})");
-    assert!(budget.passes(rt_ms), "LR-01: load round-trip {rt_ms} ms must be <= {} ms", budget.ceiling);
-    assert!(parse_budget.passes(parse_ms), "LR-01: native parse {parse_ms} ms must be <= {} ms", parse_budget.ceiling);
+    assert!(
+        block_count >= 1000,
+        "LR-01: the reloaded doc must carry >= 1000 blocks (got {block_count})"
+    );
+    assert!(
+        budget.passes(rt_ms),
+        "LR-01: load round-trip {rt_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
+    assert!(
+        parse_budget.passes(parse_ms),
+        "LR-01: native parse {parse_ms} ms must be <= {} ms",
+        parse_budget.ceiling
+    );
 
     println!("LR-01 measured={rt_ms}ms round-trip (<= {}ms), parse {parse_ms}ms (<= {}ms) PASS — {block_count} blocks (live PG)", budget.ceiling, parse_budget.ceiling);
     record("LR-01", rt_ms as f64, "PASS");
@@ -222,11 +262,26 @@ fn perf_lr02_scroll_large_doc() {
         &serde_json::json!({ "workspace_id": be.workspace_id, "title": "mt045-lr02", "content_json": content }),
     );
     let doc_id = created_doc_id(&created);
-    let _guard = DocGuard { be: &be, doc_id: doc_id.clone() };
+    let _guard = DocGuard {
+        be: &be,
+        doc_id: doc_id.clone(),
+    };
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let content_json = loaded.get("document").and_then(|d| d.get("content_json")).cloned().unwrap_or(loaded.clone());
-    let blocks = content_json.get("content").and_then(|c| c.as_array()).cloned().unwrap_or_default();
-    assert!(blocks.len() >= 1000, "LR-02: 1000 blocks loaded for the scroll (got {})", blocks.len());
+    let content_json = loaded
+        .get("document")
+        .and_then(|d| d.get("content_json"))
+        .cloned()
+        .unwrap_or(loaded.clone());
+    let blocks = content_json
+        .get("content")
+        .and_then(|c| c.as_array())
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        blocks.len() >= 1000,
+        "LR-02: 1000 blocks loaded for the scroll (got {})",
+        blocks.len()
+    );
 
     // MEASURED: 100 viewport steps from block 0 to 999 — simulate the layout engine windowing each step.
     let (_, elapsed_ms) = perf_proof_support::time_ms(|| {
@@ -236,10 +291,17 @@ fn perf_lr02_scroll_large_doc() {
             let window: usize = 20;
             let end = (top + window).min(blocks.len());
             let _slice = &blocks[top..end];
-            assert!(end <= blocks.len(), "LR-02: window stays in bounds (no layout panic)");
+            assert!(
+                end <= blocks.len(),
+                "LR-02: window stays in bounds (no layout panic)"
+            );
         }
     });
-    assert!(budget.passes(elapsed_ms), "LR-02: 100 scroll steps {elapsed_ms} ms must be <= {} ms", budget.ceiling);
+    assert!(
+        budget.passes(elapsed_ms),
+        "LR-02: 100 scroll steps {elapsed_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
 
     println!("LR-02 measured={elapsed_ms}ms (<= {}ms) PASS — 100 viewport steps over 1000 blocks, no layout panic (live PG)", budget.ceiling);
     record("LR-02", elapsed_ms as f64, "PASS");
@@ -266,14 +328,29 @@ fn perf_lr03_find_in_doc() {
         &serde_json::json!({ "workspace_id": be.workspace_id, "title": "mt045-lr03", "content_json": content }),
     );
     let doc_id = created_doc_id(&created);
-    let _guard = DocGuard { be: &be, doc_id: doc_id.clone() };
+    let _guard = DocGuard {
+        be: &be,
+        doc_id: doc_id.clone(),
+    };
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let content_json = loaded.get("document").and_then(|d| d.get("content_json")).cloned().unwrap_or(loaded.clone());
+    let content_json = loaded
+        .get("document")
+        .and_then(|d| d.get("content_json"))
+        .cloned()
+        .unwrap_or(loaded.clone());
 
     // MEASURED: collect all 500 "FINDME" spans from the loaded doc text.
-    let (count, elapsed_ms) = perf_proof_support::time_ms(|| count_text_occurrences(&content_json, "FINDME"));
-    assert_eq!(count, 500, "LR-03: must collect all 500 FINDME spans (got {count})");
-    assert!(budget.passes(elapsed_ms), "LR-03: find {elapsed_ms} ms must be <= {} ms", budget.ceiling);
+    let (count, elapsed_ms) =
+        perf_proof_support::time_ms(|| count_text_occurrences(&content_json, "FINDME"));
+    assert_eq!(
+        count, 500,
+        "LR-03: must collect all 500 FINDME spans (got {count})"
+    );
+    assert!(
+        budget.passes(elapsed_ms),
+        "LR-03: find {elapsed_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
 
     println!("LR-03 measured={elapsed_ms}ms (<= {}ms) PASS — 500 FINDME matches in a 1000-block doc (live PG)", budget.ceiling);
     record("LR-03", elapsed_ms as f64, "PASS");
@@ -293,7 +370,10 @@ fn perf_lr04_save_large_doc() {
         &serde_json::json!({ "workspace_id": be.workspace_id, "title": "mt045-lr04", "content_json": content }),
     );
     let doc_id = created_doc_id(&created);
-    let _guard = DocGuard { be: &be, doc_id: doc_id.clone() };
+    let _guard = DocGuard {
+        be: &be,
+        doc_id: doc_id.clone(),
+    };
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     // KnowledgeRichDocument serializes its version field as `doc_version` (i64), wrapped under
     // `document` on both create+load and save responses (storage/knowledge.rs:1816;
@@ -318,8 +398,15 @@ fn perf_lr04_save_large_doc() {
         .and_then(|d| d.get("doc_version"))
         .and_then(|v| v.as_i64())
         .unwrap_or(base_version);
-    assert!(new_version > base_version, "LR-04: save must advance the version ({base_version} -> {new_version})");
-    assert!(budget.passes(elapsed_ms), "LR-04: save round-trip {elapsed_ms} ms must be <= {} ms", budget.ceiling);
+    assert!(
+        new_version > base_version,
+        "LR-04: save must advance the version ({base_version} -> {new_version})"
+    );
+    assert!(
+        budget.passes(elapsed_ms),
+        "LR-04: save round-trip {elapsed_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
 
     println!("LR-04 measured={elapsed_ms}ms (<= {}ms) PASS — 1000-block save, version {base_version}->{new_version} (live PG)", budget.ceiling);
     record("LR-04", elapsed_ms as f64, "PASS");
@@ -350,12 +437,22 @@ fn perf_lr05_transclusion_chain_live() {
             ));
             // The endpoint resolves a block to its source document; the chain's next hop is encoded as
             // the source document's own transclusion block id when the seed chains them.
-            resp.get("source_document_id").and_then(|v| v.as_str()).map(String::from)
+            resp.get("source_document_id")
+                .and_then(|v| v.as_str())
+                .map(String::from)
         })
     });
     let order = result.expect("LR-05 live: the seeded 50-hop chain must resolve without a cycle");
-    assert!(order.len() >= 50, "LR-05 live: the chain must be >= 50 hops (got {})", order.len());
-    assert!(budget.passes(elapsed_ms), "LR-05 live: 50-hop resolve {elapsed_ms} ms must be <= {} ms", budget.ceiling);
+    assert!(
+        order.len() >= 50,
+        "LR-05 live: the chain must be >= 50 hops (got {})",
+        order.len()
+    );
+    assert!(
+        budget.passes(elapsed_ms),
+        "LR-05 live: 50-hop resolve {elapsed_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
 
     println!("LR-05 measured={elapsed_ms}ms (<= {}ms) PASS — live 50-hop transclusion chain, cycle-safe (live PG)", budget.ceiling);
     record("LR-05", elapsed_ms as f64, "PASS");
@@ -375,16 +472,27 @@ fn perf_lr06_memory() {
         &serde_json::json!({ "workspace_id": be.workspace_id, "title": "mt045-lr06", "content_json": content }),
     );
     let doc_id = created_doc_id(&created);
-    let _guard = DocGuard { be: &be, doc_id: doc_id.clone() };
+    let _guard = DocGuard {
+        be: &be,
+        doc_id: doc_id.clone(),
+    };
 
     // MEASURED (median of 3): each run loads + parses the 1000-block doc, holding it alive across the
     // "after" RSS read. The median delta (MB) absorbs allocator noise (RISK-5 / CTRL-5).
     let median_mb = perf_proof_support::measure_rss_delta_median(|| {
         let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-        let content_json = loaded.get("document").and_then(|d| d.get("content_json")).cloned().unwrap_or(loaded.clone());
+        let content_json = loaded
+            .get("document")
+            .and_then(|d| d.get("content_json"))
+            .cloned()
+            .unwrap_or(loaded.clone());
         (loaded, content_json)
     });
-    assert!(median_mb <= budget.ceiling as f64, "LR-06: RSS delta median {median_mb:.2} MB must be <= {} MB", budget.ceiling);
+    assert!(
+        median_mb <= budget.ceiling as f64,
+        "LR-06: RSS delta median {median_mb:.2} MB must be <= {} MB",
+        budget.ceiling
+    );
 
     println!("LR-06 measured={median_mb:.2}mb (<= {}mb) PASS — 1000-block doc load RSS delta median of 3 (live PG)", budget.ceiling);
     record("LR-06", median_mb, "PASS");
@@ -404,14 +512,27 @@ fn perf_lr07_html_projection() {
         &serde_json::json!({ "workspace_id": be.workspace_id, "title": "mt045-lr07", "content_json": content }),
     );
     let doc_id = created_doc_id(&created);
-    let _guard = DocGuard { be: &be, doc_id: doc_id.clone() };
+    let _guard = DocGuard {
+        be: &be,
+        doc_id: doc_id.clone(),
+    };
 
     // MEASURED: the server HTML projection response time + length.
     let (html, elapsed_ms) = perf_proof_support::time_ms(|| {
-        be.get_text(&format!("/knowledge/documents/{doc_id}/projection?format=html"))
+        be.get_text(&format!(
+            "/knowledge/documents/{doc_id}/projection?format=html"
+        ))
     });
-    assert!(html.len() > 50_000, "LR-07: the projected HTML must be > 50000 chars (got {})", html.len());
-    assert!(budget.passes(elapsed_ms), "LR-07: HTML projection {elapsed_ms} ms must be <= {} ms", budget.ceiling);
+    assert!(
+        html.len() > 50_000,
+        "LR-07: the projected HTML must be > 50000 chars (got {})",
+        html.len()
+    );
+    assert!(
+        budget.passes(elapsed_ms),
+        "LR-07: HTML projection {elapsed_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
 
     println!("LR-07 measured={elapsed_ms}ms (<= {}ms) PASS — 1000-block HTML projection, {} chars (live PG)", budget.ceiling, html.len());
     record("LR-07", elapsed_ms as f64, "PASS");
@@ -495,6 +616,8 @@ struct DocGuard<'a> {
 impl Drop for DocGuard<'_> {
     fn drop(&mut self) {
         // Best-effort draft clear; a cleanup failure must not mask the proof's own verdict.
-        let _ = self.be.delete(&format!("/knowledge/documents/{}/draft", self.doc_id));
+        let _ = self
+            .be
+            .delete(&format!("/knowledge/documents/{}/draft", self.doc_id));
     }
 }

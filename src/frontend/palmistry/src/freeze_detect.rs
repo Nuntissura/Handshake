@@ -217,7 +217,7 @@ impl FreezeDetector {
         // staleness clock and is unconditionally Healthy — the recovery + no-false-positive guarantee.
         if let Some(hb) = heartbeat {
             let advanced = match self.last_counter {
-                None => true,                 // first heartbeat ever seen.
+                None => true,                     // first heartbeat ever seen.
                 Some(prev) => hb.counter != prev, // any change = an advance (covers wrap; equality = stall).
             };
             if advanced {
@@ -295,7 +295,11 @@ mod tests {
         for i in 0..100u64 {
             let now = base + Duration::from_millis(300 * i);
             let state = det.poll(now, Some(hb(i + 1)), &not_responding);
-            assert_eq!(state, FreezeState::Healthy, "an advancing heartbeat must never freeze (tick {i})");
+            assert_eq!(
+                state,
+                FreezeState::Healthy,
+                "an advancing heartbeat must never freeze (tick {i})"
+            );
         }
     }
 
@@ -307,13 +311,20 @@ mod tests {
         let not_responding = FakeHungWindowProbe::new(ProbeResult::NotResponding);
         let base = Instant::now();
         // Establish a baseline heartbeat (counter 42).
-        assert_eq!(det.poll(base, Some(hb(42)), &not_responding), FreezeState::Healthy);
+        assert_eq!(
+            det.poll(base, Some(hb(42)), &not_responding),
+            FreezeState::Healthy
+        );
         // Writer freezes: counter stuck at 42. 6s later (> 5s threshold) the probe corroborates.
         let now = base + Duration::from_secs(6);
         let state = det.poll(now, Some(hb(42)), &not_responding);
         match state {
             FreezeState::Frozen(report) => {
-                assert!(report.stale_ms >= 6000, "stale duration ~6s, got {}", report.stale_ms);
+                assert!(
+                    report.stale_ms >= 6000,
+                    "stale duration ~6s, got {}",
+                    report.stale_ms
+                );
                 assert_eq!(report.last_heartbeat_counter, 42);
                 assert_eq!(report.last_heartbeat_ts_nanos, 42_000);
             }
@@ -331,8 +342,14 @@ mod tests {
         det.poll(base, Some(hb(7)), &responding);
         let now = base + Duration::from_secs(6);
         let state = det.poll(now, Some(hb(7)), &responding);
-        assert!(state.is_suspected(), "stale + responding window must be SUSPECTED, got {state:?}");
-        assert!(!state.is_frozen(), "a legitimate long frame must NOT confirm a hard freeze");
+        assert!(
+            state.is_suspected(),
+            "stale + responding window must be SUSPECTED, got {state:?}"
+        );
+        assert!(
+            !state.is_frozen(),
+            "a legitimate long frame must NOT confirm a hard freeze"
+        );
     }
 
     /// A missing window cannot corroborate, so even a stale counter is only SUSPECTED, never Frozen
@@ -344,7 +361,10 @@ mod tests {
         let base = Instant::now();
         det.poll(base, Some(hb(1)), &no_window);
         let state = det.poll(base + Duration::from_secs(6), Some(hb(1)), &no_window);
-        assert!(state.is_suspected(), "a missing window cannot confirm a freeze, got {state:?}");
+        assert!(
+            state.is_suspected(),
+            "a missing window cannot confirm a freeze, got {state:?}"
+        );
     }
 
     /// After a confirmed freeze, the heartbeat resuming clears back to Healthy (AC-011-4 — a freeze can
@@ -359,10 +379,22 @@ mod tests {
         let frozen = det.poll(base + Duration::from_secs(6), Some(hb(10)), &not_responding);
         assert!(frozen.is_frozen(), "freeze must be confirmed first");
         // The app unfreezes: the counter advances again at +6.3s.
-        let recovered = det.poll(base + Duration::from_millis(6300), Some(hb(11)), &not_responding);
-        assert_eq!(recovered, FreezeState::Healthy, "an advancing counter must clear the freeze (recovery)");
+        let recovered = det.poll(
+            base + Duration::from_millis(6300),
+            Some(hb(11)),
+            &not_responding,
+        );
+        assert_eq!(
+            recovered,
+            FreezeState::Healthy,
+            "an advancing counter must clear the freeze (recovery)"
+        );
         // And it stays healthy as the counter keeps advancing.
-        let still = det.poll(base + Duration::from_millis(6600), Some(hb(12)), &not_responding);
+        let still = det.poll(
+            base + Duration::from_millis(6600),
+            Some(hb(12)),
+            &not_responding,
+        );
         assert_eq!(still, FreezeState::Healthy);
     }
 
@@ -375,7 +407,11 @@ mod tests {
         det.poll(base, Some(hb(3)), &not_responding);
         // 2s stall < 5s threshold: not yet suspicious even with a not-responding probe.
         let state = det.poll(base + Duration::from_secs(2), Some(hb(3)), &not_responding);
-        assert_eq!(state, FreezeState::Healthy, "a sub-threshold stall must stay Healthy");
+        assert_eq!(
+            state,
+            FreezeState::Healthy,
+            "a sub-threshold stall must stay Healthy"
+        );
     }
 
     /// A heartbeat that becomes UNREADABLE (None) after being seen is treated as staleness (the writer
@@ -386,10 +422,13 @@ mod tests {
         let not_responding = FakeHungWindowProbe::new(ProbeResult::NotResponding);
         let base = Instant::now();
         det.poll(base, Some(hb(5)), &not_responding); // baseline
-        // The reader returns None now (writer stalled mid-publish / stopped). Staleness still accrues
-        // against last_advance.
+                                                      // The reader returns None now (writer stalled mid-publish / stopped). Staleness still accrues
+                                                      // against last_advance.
         let state = det.poll(base + Duration::from_secs(6), None, &not_responding);
-        assert!(state.is_frozen(), "an unreadable heartbeat after a baseline + corroboration is a freeze, got {state:?}");
+        assert!(
+            state.is_frozen(),
+            "an unreadable heartbeat after a baseline + corroboration is a freeze, got {state:?}"
+        );
     }
 
     /// Before ANY heartbeat is seen, the detector is Healthy (a never-started heartbeat is not a freeze)
@@ -402,9 +441,16 @@ mod tests {
         // Many ticks with NO heartbeat ever: never a freeze (no baseline to be stale against).
         for i in 0..50u64 {
             let state = det.poll(base + Duration::from_secs(i), None, &not_responding);
-            assert_eq!(state, FreezeState::Healthy, "no heartbeat yet must be Healthy (tick {i})");
+            assert_eq!(
+                state,
+                FreezeState::Healthy,
+                "no heartbeat yet must be Healthy (tick {i})"
+            );
         }
         // The first heartbeat arrives at +50s; it is Healthy and anchors the clock.
-        assert_eq!(det.poll(base + Duration::from_secs(50), Some(hb(1)), &not_responding), FreezeState::Healthy);
+        assert_eq!(
+            det.poll(base + Duration::from_secs(50), Some(hb(1)), &not_responding),
+            FreezeState::Healthy
+        );
     }
 }

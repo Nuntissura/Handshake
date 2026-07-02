@@ -47,8 +47,9 @@ use handshake_native::fems::memory_client::{
     MemoryClient, MemoryClientError, MemoryContext, MemoryKind, MemoryPack, MemorySource,
 };
 use handshake_native::fems::relevant_memory_panel::{
-    mem_item_author_id, mem_source_author_id, FnNavigationBus, MemoryNavTarget, RelevantMemoryPanel,
-    ENDPOINT_MISSING_BANNER, RELEVANT_MEMORY_LIST_AUTHOR_ID, RELEVANT_MEMORY_PANEL_AUTHOR_ID,
+    mem_item_author_id, mem_source_author_id, FnNavigationBus, MemoryNavTarget,
+    RelevantMemoryPanel, ENDPOINT_MISSING_BANNER, RELEVANT_MEMORY_LIST_AUTHOR_ID,
+    RELEVANT_MEMORY_PANEL_AUTHOR_ID,
 };
 use handshake_native::theme::HsTheme;
 
@@ -235,9 +236,20 @@ fn fetch_live_clamps_thirty_to_24() {
         .expect("AC-002: a 30-item capsule must decode (then clamp)");
     let _ = server.join();
 
-    assert_eq!(pack.items.len(), 24, "AC-002: clamped to exactly 24 client-side");
-    assert!(pack.truncated, "AC-002: truncated must be true after the defensive clamp");
-    println!("PT-001 clamp OK: 30 -> {} items, truncated={}", pack.items.len(), pack.truncated);
+    assert_eq!(
+        pack.items.len(),
+        24,
+        "AC-002: clamped to exactly 24 client-side"
+    );
+    assert!(
+        pack.truncated,
+        "AC-002: truncated must be true after the defensive clamp"
+    );
+    println!(
+        "PT-001 clamp OK: 30 -> {} items, truncated={}",
+        pack.items.len(),
+        pack.truncated
+    );
 }
 
 #[test]
@@ -264,10 +276,17 @@ fn fetch_decodes_capsule_with_unknown_class() {
         .expect("must_fix #2: an unknown memory_class must NOT fail the capsule decode");
     let _ = server.join();
 
-    assert_eq!(pack.items.len(), 2, "the two known-kind items survive; the 'working' item is skipped");
+    assert_eq!(
+        pack.items.len(),
+        2,
+        "the two known-kind items survive; the 'working' item is skipped"
+    );
     assert_eq!(pack.items_of_kind(MemoryKind::Episodic).count(), 1);
     assert_eq!(pack.items_of_kind(MemoryKind::Semantic).count(), 1);
-    assert!(pack.items.iter().all(|i| i.id != "work"), "the unknown-class item is dropped");
+    assert!(
+        pack.items.iter().all(|i| i.id != "work"),
+        "the unknown-class item is dropped"
+    );
     println!("must_fix #2 OK: capsule with 'working' class decoded, unknown item skipped, 2 kept");
 }
 
@@ -318,7 +337,11 @@ fn panel_renders_endpoint_missing_banner() {
     let mut banner_found = false;
     for node in root.children_recursive() {
         let ak = node.accesskit_node();
-        let txt = format!("{} {}", ak.label().unwrap_or_default(), ak.value().unwrap_or_default());
+        let txt = format!(
+            "{} {}",
+            ak.label().unwrap_or_default(),
+            ak.value().unwrap_or_default()
+        );
         if txt.contains("FEMS read endpoint not present") {
             banner_found = true;
         }
@@ -386,7 +409,9 @@ fn panel_renders_grouped_with_source_links() {
             ext_path.display()
         );
     } else {
-        println!("PT-002 screenshot: GPU readback unavailable on this host (structural proof stands)");
+        println!(
+            "PT-002 screenshot: GPU readback unavailable on this host (structural proof stands)"
+        );
     }
 
     assert_no_local_artifact_dir();
@@ -433,10 +458,16 @@ fn panel_source_click_routes_to_nav_bus() {
     harness.run();
 
     let got = captured.borrow();
-    assert_eq!(got.len(), 1, "AC-004: exactly one navigation target routed on click");
+    assert_eq!(
+        got.len(),
+        1,
+        "AC-004: exactly one navigation target routed on click"
+    );
     assert_eq!(
         got[0],
-        MemoryNavTarget::Uri { uri: "loom://block/aria".into() },
+        MemoryNavTarget::Uri {
+            uri: "loom://block/aria".into()
+        },
         "AC-004: the routed target must be the uri resolved from the MemorySource (precedence)"
     );
     println!("PT-003 nav routing OK: click -> nav_bus.navigate_to(Uri loom://block/aria)");
@@ -490,11 +521,19 @@ fn panel_accesskit_nodes_present() {
 
     // Nesting: the list is under the panel; the item is under the list.
     assert!(
-        author_under(&root, RELEVANT_MEMORY_LIST_AUTHOR_ID, RELEVANT_MEMORY_PANEL_AUTHOR_ID),
+        author_under(
+            &root,
+            RELEVANT_MEMORY_LIST_AUTHOR_ID,
+            RELEVANT_MEMORY_PANEL_AUTHOR_ID
+        ),
         "AC-007: the list node must be nested under the panel container"
     );
     assert!(
-        author_under(&root, &mem_item_author_id("ep-1"), RELEVANT_MEMORY_LIST_AUTHOR_ID),
+        author_under(
+            &root,
+            &mem_item_author_id("ep-1"),
+            RELEVANT_MEMORY_LIST_AUTHOR_ID
+        ),
         "AC-007: an item row must be nested under the list container"
     );
 
@@ -539,7 +578,14 @@ fn read_only_no_write_verbs() {
         "RISK-006/MC-005: the GET must go through the struct's shared reqwest client field"
     );
     // No direct store access (no sqlx / postgres / sqlite handle in the consumer).
-    for store in ["sqlx::", "PgPool", "tokio_postgres", "rusqlite", "Sqlite", "sqlite"] {
+    for store in [
+        "sqlx::",
+        "PgPool",
+        "tokio_postgres",
+        "rusqlite",
+        "Sqlite",
+        "sqlite",
+    ] {
         assert!(
             !src.contains(store),
             "AC-006: memory_client must NOT access a store directly — found '{store}'"
@@ -550,7 +596,9 @@ fn read_only_no_write_verbs() {
         src.contains("shared_http_client") && src.contains("BACKEND_BASE_URL"),
         "RISK-006/MC-005: memory_client must reuse the shared backend_client pool + base url"
     );
-    println!("AC-006 read-only gate OK: GET only, no write verbs, no direct store, shared client reused");
+    println!(
+        "AC-006 read-only gate OK: GET only, no write verbs, no direct store, shared client reused"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -564,8 +612,16 @@ fn non_navigable_item_disables_source_link() {
     // asserts the construction can never produce a dead clickable target.
     assert_eq!(MemoryNavTarget::from_source(&MemorySource::default()), None);
     // A navigable source still resolves (precedence: uri > doc > event).
-    let s = MemorySource { event_id: Some("EV-1".into()), ..Default::default() };
-    assert_eq!(MemoryNavTarget::from_source(&s), Some(MemoryNavTarget::Event { event_id: "EV-1".into() }));
+    let s = MemorySource {
+        event_id: Some("EV-1".into()),
+        ..Default::default()
+    };
+    assert_eq!(
+        MemoryNavTarget::from_source(&s),
+        Some(MemoryNavTarget::Event {
+            event_id: "EV-1".into()
+        })
+    );
     println!("RISK-003 OK: non-navigable source -> None (disabled link, no dead click)");
 }
 
@@ -591,11 +647,7 @@ fn role_of(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<String> {
 
 /// True if a node addressed `child_author` has an ancestor addressed `ancestor_author`. The parent walk
 /// happens inside the `children_recursive` borrow so no node escapes the iterator's lifetime.
-fn author_under(
-    root: &egui_kittest::Node<'_>,
-    child_author: &str,
-    ancestor_author: &str,
-) -> bool {
+fn author_under(root: &egui_kittest::Node<'_>, child_author: &str, ancestor_author: &str) -> bool {
     for node in root.children_recursive() {
         if node.accesskit_node().author_id() != Some(child_author) {
             continue;

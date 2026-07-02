@@ -7,7 +7,7 @@
 //!   2. `DATABASE_URL`,
 //!   3. the Handshake-managed PostgreSQL runtime
 //!      (`managed_postgres::ManagedPostgres::ensure_running`, default port
-//!      5544, data dir `<repo>/Handshake_Artifacts/managed_pgdata`) — the
+//!      5544, data dir `<repo>/Handshake_Artifacts/handshake-product/managed_pgdata`) — the
 //!      product's own no-Docker, no-external-daemon cluster path.
 //!
 //! Every test gets a fresh isolated schema (`knowledge_test_<uuidv7>`) on that

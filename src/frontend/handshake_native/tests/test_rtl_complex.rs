@@ -50,7 +50,9 @@ use handshake_native::rich_editor::document_model::{
     from_json_string, to_json_string, BlockNode, Child, DocPosition, Selection, UndoManager,
 };
 use handshake_native::rich_editor::renderer::input_handler::{self, EditAction, EditContext};
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::text_intl::{self, ComplexScript, Direction};
 use std::sync::{Arc, Mutex};
 
@@ -88,13 +90,37 @@ fn assert_no_local_artifact_dir() {
 fn base_direction_first_strong() {
     // AC3: paragraph base direction is the FIRST STRONG character's direction (UAX#9 P2/P3). Both an RTL
     // and an LTR case are covered (the contract's "a cargo test covers both").
-    assert_eq!(text_intl::base_direction(HEBREW_HELLO), Direction::Rtl, "Hebrew first-strong -> RTL");
-    assert_eq!(text_intl::base_direction(ARABIC), Direction::Rtl, "Arabic first-strong -> RTL");
-    assert_eq!(text_intl::base_direction("hello"), Direction::Ltr, "Latin -> LTR");
-    assert_eq!(text_intl::base_direction("中文"), Direction::Ltr, "CJK -> LTR");
+    assert_eq!(
+        text_intl::base_direction(HEBREW_HELLO),
+        Direction::Rtl,
+        "Hebrew first-strong -> RTL"
+    );
+    assert_eq!(
+        text_intl::base_direction(ARABIC),
+        Direction::Rtl,
+        "Arabic first-strong -> RTL"
+    );
+    assert_eq!(
+        text_intl::base_direction("hello"),
+        Direction::Ltr,
+        "Latin -> LTR"
+    );
+    assert_eq!(
+        text_intl::base_direction("中文"),
+        Direction::Ltr,
+        "CJK -> LTR"
+    );
     // First strong char decides even when both scripts are present.
-    assert_eq!(text_intl::base_direction("abc שלום"), Direction::Ltr, "leading Latin -> LTR base");
-    assert_eq!(text_intl::base_direction("שלום abc"), Direction::Rtl, "leading Hebrew -> RTL base");
+    assert_eq!(
+        text_intl::base_direction("abc שלום"),
+        Direction::Ltr,
+        "leading Latin -> LTR base"
+    );
+    assert_eq!(
+        text_intl::base_direction("שלום abc"),
+        Direction::Rtl,
+        "leading Hebrew -> RTL base"
+    );
 }
 
 #[test]
@@ -104,7 +130,10 @@ fn ltr_reorder_is_identity() {
     for s in ["hello world", "Привет мир", "这是中文", "abc 123", ""] {
         let r = text_intl::reorder_line(s);
         assert!(r.is_identity(s), "LTR identity required for {s:?}: {r:?}");
-        assert_eq!(r.visual_text, s, "LTR visual text equals logical text for {s:?}");
+        assert_eq!(
+            r.visual_text, s,
+            "LTR visual text equals logical text for {s:?}"
+        );
     }
 }
 
@@ -117,7 +146,10 @@ fn bidi_reorder_mixed_line_to_visual_order() {
 
     // First strong char is Latin -> LTR base, but the Hebrew run is still visually reordered (reversed).
     assert_eq!(r.base, Direction::Ltr, "first strong is Latin -> LTR base");
-    assert!(!r.is_identity(&logical), "a mixed bidi line must reorder (not identity)");
+    assert!(
+        !r.is_identity(&logical),
+        "a mixed bidi line must reorder (not identity)"
+    );
 
     // The Hebrew run appears REVERSED (visual order) in the visual text; the verbatim logical Hebrew run
     // must NOT appear (it was reversed for display).
@@ -134,7 +166,10 @@ fn bidi_reorder_mixed_line_to_visual_order() {
     let mut visual_gr: Vec<&str> = r.visual_text.graphemes(true).collect();
     logical_gr.sort_unstable();
     visual_gr.sort_unstable();
-    assert_eq!(logical_gr, visual_gr, "AC2: reorder preserves all logical content");
+    assert_eq!(
+        logical_gr, visual_gr,
+        "AC2: reorder preserves all logical content"
+    );
     for run in &r.runs {
         assert!(logical.is_char_boundary(run.logical_range.start));
         assert!(logical.is_char_boundary(run.logical_range.end));
@@ -147,9 +182,17 @@ fn bidi_reorder_mixed_line_to_visual_order() {
 fn bidi_is_noop_for_ltr_and_cjk() {
     // PROOF4 / AC6: explicit no-op proof for the LTR + CJK render path. If the bidi pass were NOT identity
     // here, MT-075 (CJK) / MT-077 (segmentation) rendering would regress.
-    for s in ["fn main() {}", "let 变量 = 1;", "这是中文段落里没有空格", "Hello 世界"] {
+    for s in [
+        "fn main() {}",
+        "let 变量 = 1;",
+        "这是中文段落里没有空格",
+        "Hello 世界",
+    ] {
         let r = text_intl::reorder_line(s);
-        assert!(r.is_identity(s), "bidi must be a no-op for LTR/CJK line {s:?}: {r:?}");
+        assert!(
+            r.is_identity(s),
+            "bidi must be a no-op for LTR/CJK line {s:?}: {r:?}"
+        );
     }
 }
 
@@ -192,54 +235,133 @@ fn hebrew_end_to_end_edit_logical_order() {
     // 1) Insert a Hebrew char at the start of an empty paragraph.
     let (mut doc, mut sel, mut undo) = doc_with_caret("", 0);
     {
-        let mut ctx = EditContext { doc: &mut doc, selection: &mut sel, undo: &mut undo, actor_id: "operator" };
-        assert!(input_handler::apply_action(&mut ctx, EditAction::Insert("ש".into())));
+        let mut ctx = EditContext {
+            doc: &mut doc,
+            selection: &mut sel,
+            undo: &mut undo,
+            actor_id: "operator",
+        };
+        assert!(input_handler::apply_action(
+            &mut ctx,
+            EditAction::Insert("ש".into())
+        ));
     }
     assert_eq!(leaf_text(&doc), "ש", "Hebrew char inserted");
-    assert_eq!(caret_off(&sel), 1, "caret advanced one logical char (grapheme) after insert");
+    assert_eq!(
+        caret_off(&sel),
+        1,
+        "caret advanced one logical char (grapheme) after insert"
+    );
 
     // 2) Insert the rest of the Hebrew word — the model accumulates in LOGICAL order (the order typed).
     {
-        let mut ctx = EditContext { doc: &mut doc, selection: &mut sel, undo: &mut undo, actor_id: "operator" };
+        let mut ctx = EditContext {
+            doc: &mut doc,
+            selection: &mut sel,
+            undo: &mut undo,
+            actor_id: "operator",
+        };
         for ch in "לום".chars() {
-            assert!(input_handler::apply_action(&mut ctx, EditAction::Insert(ch.to_string())));
+            assert!(input_handler::apply_action(
+                &mut ctx,
+                EditAction::Insert(ch.to_string())
+            ));
         }
     }
-    assert_eq!(leaf_text(&doc), "שלום", "the Hebrew word is stored in LOGICAL (typed) order");
+    assert_eq!(
+        leaf_text(&doc),
+        "שלום",
+        "the Hebrew word is stored in LOGICAL (typed) order"
+    );
     let logical_len = "שלום".chars().count();
-    assert_eq!(caret_off(&sel), logical_len, "caret at logical end after typing");
+    assert_eq!(
+        caret_off(&sel),
+        logical_len,
+        "caret at logical end after typing"
+    );
 
     // 3) ArrowLeft moves the caret to the PREVIOUS logical grapheme (documented semantics: logical-order
     //    motion, NOT visual-order). The rope stays logical-order; the renderer handles visual mapping.
     {
-        let mut ctx = EditContext { doc: &mut doc, selection: &mut sel, undo: &mut undo, actor_id: "operator" };
-        assert!(input_handler::apply_action(&mut ctx, EditAction::MoveLeft { extend: false }));
+        let mut ctx = EditContext {
+            doc: &mut doc,
+            selection: &mut sel,
+            undo: &mut undo,
+            actor_id: "operator",
+        };
+        assert!(input_handler::apply_action(
+            &mut ctx,
+            EditAction::MoveLeft { extend: false }
+        ));
     }
-    assert_eq!(caret_off(&sel), logical_len - 1, "ArrowLeft -> previous logical grapheme");
+    assert_eq!(
+        caret_off(&sel),
+        logical_len - 1,
+        "ArrowLeft -> previous logical grapheme"
+    );
 
     // 4) ArrowRight moves to the NEXT logical grapheme (back to the end).
     {
-        let mut ctx = EditContext { doc: &mut doc, selection: &mut sel, undo: &mut undo, actor_id: "operator" };
-        assert!(input_handler::apply_action(&mut ctx, EditAction::MoveRight { extend: false }));
+        let mut ctx = EditContext {
+            doc: &mut doc,
+            selection: &mut sel,
+            undo: &mut undo,
+            actor_id: "operator",
+        };
+        assert!(input_handler::apply_action(
+            &mut ctx,
+            EditAction::MoveRight { extend: false }
+        ));
     }
-    assert_eq!(caret_off(&sel), logical_len, "ArrowRight -> next logical grapheme");
+    assert_eq!(
+        caret_off(&sel),
+        logical_len,
+        "ArrowRight -> next logical grapheme"
+    );
 
     // 5) Backspace deletes the last Hebrew letter (one grapheme cluster) in logical order.
     {
-        let mut ctx = EditContext { doc: &mut doc, selection: &mut sel, undo: &mut undo, actor_id: "operator" };
-        assert!(input_handler::apply_action(&mut ctx, EditAction::DeleteBackward));
+        let mut ctx = EditContext {
+            doc: &mut doc,
+            selection: &mut sel,
+            undo: &mut undo,
+            actor_id: "operator",
+        };
+        assert!(input_handler::apply_action(
+            &mut ctx,
+            EditAction::DeleteBackward
+        ));
     }
-    assert_eq!(leaf_text(&doc), "שלו", "Backspace removed the last Hebrew letter (logical-order delete)");
-    assert_eq!(caret_off(&sel), logical_len - 1, "caret after the deleted grapheme");
+    assert_eq!(
+        leaf_text(&doc),
+        "שלו",
+        "Backspace removed the last Hebrew letter (logical-order delete)"
+    );
+    assert_eq!(
+        caret_off(&sel),
+        logical_len - 1,
+        "caret after the deleted grapheme"
+    );
 
     // 6) Select-all then the documented RTL caret arrow semantics string is the AC4 contract (proven in
     //    the bidi unit test + asserted non-empty here).
     {
-        let mut ctx = EditContext { doc: &mut doc, selection: &mut sel, undo: &mut undo, actor_id: "operator" };
+        let mut ctx = EditContext {
+            doc: &mut doc,
+            selection: &mut sel,
+            undo: &mut undo,
+            actor_id: "operator",
+        };
         assert!(input_handler::apply_action(&mut ctx, EditAction::SelectAll));
     }
-    assert!(matches!(sel, Selection::Text { .. }), "Ctrl+A produced a text selection over the Hebrew run");
-    assert!(text_intl::RTL_CARET_ARROW_SEMANTICS.contains("LOGICAL"), "AC4: arrow semantics documented");
+    assert!(
+        matches!(sel, Selection::Text { .. }),
+        "Ctrl+A produced a text selection over the Hebrew run"
+    );
+    assert!(
+        text_intl::RTL_CARET_ARROW_SEMANTICS.contains("LOGICAL"),
+        "AC4: arrow semantics documented"
+    );
 }
 
 // ── PROOF1 / RISK-3: the rope stays LOGICAL order (DocJson backend round-trip is byte-identical) ──────
@@ -254,11 +376,17 @@ fn rope_stays_logical_order_docjson_round_trip() {
     let json = to_json_string(&doc).expect("serialize");
     let back = from_json_string(&json).expect("deserialize");
     let stored = leaf_text(&back);
-    assert_eq!(stored, HEBREW_HELLO, "the rope stores LOGICAL-order Hebrew (backend round-trip intact)");
+    assert_eq!(
+        stored, HEBREW_HELLO,
+        "the rope stores LOGICAL-order Hebrew (backend round-trip intact)"
+    );
 
     // The visually-reversed form must NOT be what is stored (that would be model corruption).
     let visual: String = HEBREW_HELLO.graphemes(true).rev().collect();
-    assert_ne!(stored, visual, "the model must NOT store visual-order (reversed) text");
+    assert_ne!(
+        stored, visual,
+        "the model must NOT store visual-order (reversed) text"
+    );
 }
 
 // ── PROOF3 / AC5: the Tier-3 typed limitation is SURFACED for Arabic (no-silent-breakage gate) ────────
@@ -272,8 +400,16 @@ fn arabic_typed_limitation_is_surfaced_not_silent() {
     let lim = text_intl::shaping_limitation(ARABIC)
         .expect("PROOF3: Arabic MUST raise a typed shaping limitation (never silently broken)");
     assert_eq!(lim.script, ComplexScript::Arabic);
-    assert!(lim.note.to_lowercase().contains("arabic"), "the note names Arabic: {:?}", lim.note);
-    assert!(lim.note.to_lowercase().contains("limit"), "the note says 'limited': {:?}", lim.note);
+    assert!(
+        lim.note.to_lowercase().contains("arabic"),
+        "the note names Arabic: {:?}",
+        lim.note
+    );
+    assert!(
+        lim.note.to_lowercase().contains("limit"),
+        "the note says 'limited': {:?}",
+        lim.note
+    );
     assert!(!lim.pointer.is_empty(), "a future-MT pointer is recorded");
     assert_eq!(lim.pointer, text_intl::SHAPING_FOLLOW_ON_POINTER);
 
@@ -295,9 +431,9 @@ fn hebrew_rtl_screenshot() {
     // Drive the REAL production rich-editor widget over a Hebrew document so the FULL pipeline (font atlas
     // build + the bidi right-align/reorder path wired into block_renderer) runs exactly as it does live —
     // not a bespoke painter call. The widget paints its own dark surface, so the light text is visible.
-    let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph(
-        HEBREW_HELLO,
-    )]))));
+    let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
+        BlockNode::paragraph(HEBREW_HELLO),
+    ]))));
     let state_ui = Arc::clone(&state);
     let mut harness = Harness::builder()
         // Tall enough that the document BODY (below the editor toolbar + properties chrome) is inside the
@@ -319,7 +455,10 @@ fn hebrew_rtl_screenshot() {
     assert_eq!(text_intl::base_direction(HEBREW_HELLO), Direction::Rtl);
     let prop = egui::FontId::proportional(20.0);
     let has = harness.ctx.fonts_mut(|f| f.has_glyphs(&prop, HEBREW_HELLO));
-    assert!(has, "AC1 (logical): Hebrew glyphs must resolve in the installed chain (no tofu)");
+    assert!(
+        has,
+        "AC1 (logical): Hebrew glyphs must resolve in the installed chain (no tofu)"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -357,9 +496,9 @@ fn arabic_state_screenshot() {
     // Drive the REAL production rich-editor widget over an Arabic document. The widget's block_renderer RTL
     // path paints the Arabic glyphs (isolated forms — egui does not cursive-shape) AND the visible
     // typed-limitation note beneath them.
-    let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph(
-        ARABIC,
-    )]))));
+    let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
+        BlockNode::paragraph(ARABIC),
+    ]))));
     let state_ui = Arc::clone(&state);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(560.0, 560.0))
@@ -374,10 +513,16 @@ fn arabic_state_screenshot() {
     // Logical proof: Arabic base is RTL, the typed limitation is raised, and the Arabic glyphs resolve in
     // the installed chain (present but unshaped — the documented Tier-3 state).
     assert_eq!(text_intl::base_direction(ARABIC), Direction::Rtl);
-    assert!(text_intl::shaping_limitation(ARABIC).is_some(), "Arabic raises the typed limitation");
+    assert!(
+        text_intl::shaping_limitation(ARABIC).is_some(),
+        "Arabic raises the typed limitation"
+    );
     let prop = egui::FontId::proportional(20.0);
     let has = harness.ctx.fonts_mut(|f| f.has_glyphs(&prop, ARABIC));
-    assert!(has, "AC5 (logical): Arabic glyphs must resolve in the chain (present, isolated forms)");
+    assert!(
+        has,
+        "AC5 (logical): Arabic glyphs must resolve in the chain (present, isolated forms)"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -439,8 +584,15 @@ fn code_editor_rtl_line_is_reordered_and_wired() {
     // string — proving the helper output reached the screen, not just the unit test.
     let line = "שלום עולם"; // pure Hebrew line (non-joining RTL — the honest case, no limitation note)
     let bidi = code_line_bidi(line);
-    assert_eq!(bidi.base, Direction::Rtl, "the Hebrew code line resolves RTL base");
-    assert!(bidi.shaping_limitation.is_none(), "Hebrew raises no limitation (non-joining)");
+    assert_eq!(
+        bidi.base,
+        Direction::Rtl,
+        "the Hebrew code line resolves RTL base"
+    );
+    assert!(
+        bidi.shaping_limitation.is_none(),
+        "Hebrew raises no limitation (non-joining)"
+    );
 
     let harness = code_panel_harness(line, "txt");
 
@@ -472,8 +624,15 @@ fn code_editor_arabic_line_surfaces_limitation_marker_wired() {
     // marker is a `⚠` label whose hover carries the limitation note; assert it is on screen.
     let line = "let s = \"العربية\";"; // Arabic literal inside an LTR line (base LTR, limitation present)
     let bidi = code_line_bidi(line);
-    assert!(bidi.shaping_limitation.is_some(), "Arabic code line must raise the typed limitation");
-    assert_eq!(bidi.base, Direction::Ltr, "first strong is the Latin 'l' of `let` -> LTR base");
+    assert!(
+        bidi.shaping_limitation.is_some(),
+        "Arabic code line must raise the typed limitation"
+    );
+    assert_eq!(
+        bidi.base,
+        Direction::Ltr,
+        "first strong is the Latin 'l' of `let` -> LTR base"
+    );
 
     let harness = code_panel_harness(line, "txt");
 
@@ -501,7 +660,10 @@ fn code_editor_ltr_line_is_unchanged_identity_wired() {
     // per-run colored LTR path renders. Prove the plain LTR text label is on screen and NO ⚠ marker is.
     let line = "let x = 1; // ok";
     let bidi = code_line_bidi(line);
-    assert!(bidi.is_identity(line), "an LTR code line must be bidi-identity");
+    assert!(
+        bidi.is_identity(line),
+        "an LTR code line must be bidi-identity"
+    );
 
     // Plain text (extension "txt") so the whole line renders as exactly one label.
     let harness = code_panel_harness(line, "txt");

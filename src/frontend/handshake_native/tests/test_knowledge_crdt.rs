@@ -298,7 +298,12 @@ fn ac_push_200_stored_returns_ok_stored_with_update_seq() {
     let _ = server.join().unwrap();
 
     match outcome {
-        Ok(YjsPushOutcomeV1::Stored { update_seq, update_id, head_state_vector, .. }) => {
+        Ok(YjsPushOutcomeV1::Stored {
+            update_seq,
+            update_id,
+            head_state_vector,
+            ..
+        }) => {
             assert_eq!(update_seq, 42, "update_seq from the real Stored outcome");
             assert_eq!(update_id, "U-1");
             assert_eq!(head_state_vector, "sv-after-encoded");
@@ -333,7 +338,9 @@ fn crdt_push_409_is_ok() {
     assert_eq!(sent["envelope"]["session_id"], json!("SESS-1"));
     assert_eq!(sent["envelope"]["trace_id"], json!("TRACE-1"));
     assert!(
-        exchange.captured_request_line.starts_with("POST /knowledge/crdt/updates/push"),
+        exchange
+            .captured_request_line
+            .starts_with("POST /knowledge/crdt/updates/push"),
         "push must POST the push route: {}",
         exchange.captured_request_line
     );
@@ -344,7 +351,11 @@ fn crdt_push_409_is_ok() {
             assert_eq!(denial.update_id, "U-1");
             assert_eq!(denial.schema_id, YJS_PUSH_DENIAL_SCHEMA_ID);
             match denial.reason {
-                YjsPushDenialReasonV1::StaleBase { head_update_seq, ordering, .. } => {
+                YjsPushDenialReasonV1::StaleBase {
+                    head_update_seq,
+                    ordering,
+                    ..
+                } => {
                     assert_eq!(head_update_seq, 7);
                     assert_eq!(ordering, "Concurrent");
                 }
@@ -366,7 +377,9 @@ fn crdt_push_409_is_ok() {
 #[test]
 fn crdt_base64_roundtrip() {
     // Bytes that DIFFER between STANDARD and url-safe alphabets so a url-safe engine would corrupt them.
-    let raw: Vec<u8> = vec![0x00, 0xFF, 0x3E, 0x3F, 0xFB, 0xEF, b'y', b'j', b's', 0x80, 0x10];
+    let raw: Vec<u8> = vec![
+        0x00, 0xFF, 0x3E, 0x3F, 0xFB, 0xEF, b'y', b'j', b's', 0x80, 0x10,
+    ];
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", pull_one_update_body(&raw));
     let client = KnowledgeCrdtClient::with_base_url(base_url);
     let params = PullUpdatesParams {
@@ -380,12 +393,21 @@ fn crdt_base64_roundtrip() {
         correlation_id: "CORR-1".into(),
     };
 
-    let resp = rt().block_on(async { client.pull_updates(&params).await }).expect("pull ok");
+    let resp = rt()
+        .block_on(async { client.pull_updates(&params).await })
+        .expect("pull ok");
     let _ = server.join().unwrap();
 
-    assert_eq!(resp.updates.len(), 1, "one StoredYjsUpdate envelope replayed");
+    assert_eq!(
+        resp.updates.len(),
+        1,
+        "one StoredYjsUpdate envelope replayed"
+    );
     let decoded = resp.updates[0].update_bytes().expect("update_b64 decodes");
-    assert_eq!(decoded, raw, "base64 STANDARD roundtrip must be byte-for-byte exact");
+    assert_eq!(
+        decoded, raw,
+        "base64 STANDARD roundtrip must be byte-for-byte exact"
+    );
     assert_eq!(decoded.len(), raw.len(), "decoded byte length matches");
     assert_eq!(resp.head_update_seq, 1);
 }
@@ -407,16 +429,22 @@ fn pull_since_update_seq_is_on_the_wire() {
         correlation_id: "CORR-1".into(),
     };
 
-    let _ = rt().block_on(async { client.pull_updates(&params).await }).expect("pull ok");
+    let _ = rt()
+        .block_on(async { client.pull_updates(&params).await })
+        .expect("pull ok");
     let exchange = server.join().unwrap();
 
     assert!(
-        exchange.captured_request_line.contains("since_update_seq=5"),
+        exchange
+            .captured_request_line
+            .contains("since_update_seq=5"),
         "the outgoing GET must carry ?since_update_seq=5 (MC-5); got: {}",
         exchange.captured_request_line
     );
     // The request was a GET against the pull route.
-    assert!(exchange.captured_request_line.starts_with("GET /knowledge/crdt/updates/pull"));
+    assert!(exchange
+        .captured_request_line
+        .starts_with("GET /knowledge/crdt/updates/pull"));
 }
 
 // ── RISK-8: an empty CRDT doc pull is a NORMAL empty state, NOT an error. ──────────────────────────
@@ -436,11 +464,16 @@ fn pull_empty_doc_is_not_an_error() {
         correlation_id: "CORR-1".into(),
     };
 
-    let resp = rt().block_on(async { client.pull_updates(&params).await }).expect("empty pull is Ok");
+    let resp = rt()
+        .block_on(async { client.pull_updates(&params).await })
+        .expect("empty pull is Ok");
     let _ = server.join().unwrap();
 
     assert!(resp.updates.is_empty(), "empty doc -> no updates");
-    assert_eq!(resp.head_update_seq, 0, "fresh doc head_update_seq is 0, NOT an error");
+    assert_eq!(
+        resp.head_update_seq, 0,
+        "fresh doc head_update_seq is 0, NOT an error"
+    );
 }
 
 // ── AC: conflict_state has_conflict=true. ──────────────────────────────────────────────────────────
@@ -479,13 +512,17 @@ fn receipt_all_seven_fields_preserved_on_push() {
     // by deserializing the same body through the public response struct.
     use handshake_native::backend::knowledge_crdt::PushUpdateResponse;
     let body = push_200_stored_body();
-    let parsed: PushUpdateResponse = serde_json::from_value(body).expect("parse PushUpdateResponse");
+    let parsed: PushUpdateResponse =
+        serde_json::from_value(body).expect("parse PushUpdateResponse");
     let r = parsed.receipt;
     assert_eq!(r.receipt_kind, "knowledge_crdt_navigation_receipt_v1");
     assert_eq!(r.actor_id, "operator:ilja");
     assert_eq!(r.session_id, "SESS-1");
     assert_eq!(r.correlation_id, "CORR-1");
-    assert_eq!(r.target_authority_ref, "postgres://kernel_crdt_updates/KCRDT-1");
+    assert_eq!(
+        r.target_authority_ref,
+        "postgres://kernel_crdt_updates/KCRDT-1"
+    );
     assert_eq!(r.operation, "push_update");
     assert_eq!(r.served_at_utc, "2026-06-23T00:00:00+00:00");
 }
@@ -525,7 +562,10 @@ fn pull_empty_correlation_id_is_identity_missing_before_send() {
     let outcome = rt().block_on(async { client.pull_updates(&params).await });
     match outcome {
         Err(CrdtError::IdentityMissing(fields)) => {
-            assert!(fields.contains("correlation_id"), "must name correlation_id: {fields}");
+            assert!(
+                fields.contains("correlation_id"),
+                "must name correlation_id: {fields}"
+            );
         }
         other => panic!("expected IdentityMissing pre-flight error, got {other:?}"),
     }
@@ -547,7 +587,10 @@ fn push_real_backend_400_maps_to_http_error() {
     match outcome {
         Err(CrdtError::HttpError { status, body }) => {
             assert_eq!(status, 400);
-            assert!(body.contains("knowledge_crdt_navigation_ids_required"), "body: {body}");
+            assert!(
+                body.contains("knowledge_crdt_navigation_ids_required"),
+                "body: {body}"
+            );
         }
         other => panic!("expected HttpError(400), got {other:?}"),
     }

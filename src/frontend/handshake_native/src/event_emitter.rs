@@ -170,7 +170,13 @@ impl NativeEditorEvent {
             "document_id": document_id.into(),
             "content_hash": content_hash.into(),
         });
-        Self::new(NativeEditorAction::DocumentSaved, pane_id, actor_id, workspace_id, payload)
+        Self::new(
+            NativeEditorAction::DocumentSaved,
+            pane_id,
+            actor_id,
+            workspace_id,
+            payload,
+        )
     }
 
     /// `code_edit`: a debounced batch of code edits landed. Payload: `{ file_path, line_delta }`.
@@ -185,7 +191,13 @@ impl NativeEditorEvent {
             "file_path": file_path.into(),
             "line_delta": line_delta,
         });
-        Self::new(NativeEditorAction::CodeEdit, pane_id, actor_id, workspace_id, payload)
+        Self::new(
+            NativeEditorAction::CodeEdit,
+            pane_id,
+            actor_id,
+            workspace_id,
+            payload,
+        )
     }
 
     /// `embed_created`: an embed atom was inserted into a note. Payload:
@@ -203,7 +215,13 @@ impl NativeEditorEvent {
             "item_id": item_id.into(),
             "target_document_id": target_document_id.into(),
         });
-        Self::new(NativeEditorAction::EmbedCreated, pane_id, actor_id, workspace_id, payload)
+        Self::new(
+            NativeEditorAction::EmbedCreated,
+            pane_id,
+            actor_id,
+            workspace_id,
+            payload,
+        )
     }
 
     /// `canvas_node_placed`: a node was placed on the canvas. Payload:
@@ -221,7 +239,13 @@ impl NativeEditorEvent {
             "node_id": node_id.into(),
             "node_kind": node_kind.into(),
         });
-        Self::new(NativeEditorAction::CanvasNodePlaced, pane_id, actor_id, workspace_id, payload)
+        Self::new(
+            NativeEditorAction::CanvasNodePlaced,
+            pane_id,
+            actor_id,
+            workspace_id,
+            payload,
+        )
     }
 
     /// `cross_ref_inserted`: a code/note cross-reference was inserted. Payload:
@@ -239,7 +263,13 @@ impl NativeEditorEvent {
             "symbol_entity_id": symbol_entity_id.into(),
             "target_document_id": target_document_id.into(),
         });
-        Self::new(NativeEditorAction::CrossRefInserted, pane_id, actor_id, workspace_id, payload)
+        Self::new(
+            NativeEditorAction::CrossRefInserted,
+            pane_id,
+            actor_id,
+            workspace_id,
+            payload,
+        )
     }
 
     /// `undo_fired`: an undo/redo fired. Payload: `{ scope }` where `scope` ∈ {"local","cross_pane"}.
@@ -250,7 +280,13 @@ impl NativeEditorEvent {
         workspace_id: impl Into<String>,
     ) -> Self {
         let payload = json!({ "scope": scope.as_str() });
-        Self::new(NativeEditorAction::UndoFired, pane_id, actor_id, workspace_id, payload)
+        Self::new(
+            NativeEditorAction::UndoFired,
+            pane_id,
+            actor_id,
+            workspace_id,
+            payload,
+        )
     }
 
     /// `route_to_stage`: content was routed to a Stage pane. Payload:
@@ -262,7 +298,13 @@ impl NativeEditorEvent {
         workspace_id: impl Into<String>,
     ) -> Self {
         let payload = json!({ "content_kind": content_kind.into() });
-        Self::new(NativeEditorAction::RouteToStage, source_pane_id, actor_id, workspace_id, payload)
+        Self::new(
+            NativeEditorAction::RouteToStage,
+            source_pane_id,
+            actor_id,
+            workspace_id,
+            payload,
+        )
     }
 
     /// The full native-editor payload as a self-contained JSON object (typed identity fields hoisted in
@@ -354,7 +396,9 @@ pub struct ErrorRing {
 impl ErrorRing {
     /// A fresh empty ring.
     pub fn new() -> Self {
-        Self { inner: Arc::new(Mutex::new(VecDeque::with_capacity(ERROR_RING_CAP))) }
+        Self {
+            inner: Arc::new(Mutex::new(VecDeque::with_capacity(ERROR_RING_CAP))),
+        }
     }
 
     /// Push a failure, evicting the oldest entry once the cap is reached (bounded — never unbounded).
@@ -369,7 +413,10 @@ impl ErrorRing {
 
     /// The current entries, oldest-first (a snapshot the pane renders).
     pub fn entries(&self) -> Vec<EmitErrorEntry> {
-        self.inner.lock().map(|q| q.iter().cloned().collect()).unwrap_or_default()
+        self.inner
+            .lock()
+            .map(|q| q.iter().cloned().collect())
+            .unwrap_or_default()
     }
 
     /// How many failures are currently held.
@@ -599,7 +646,10 @@ impl NativeEditorEventEmitter {
             Ok(p) => p,
             Err(_) => {
                 let err = EmitError::Backpressure(action.clone());
-                self.error_ring.push(EmitErrorEntry { action, error: err.clone() });
+                self.error_ring.push(EmitErrorEntry {
+                    action,
+                    error: err.clone(),
+                });
                 return Err(err);
             }
         };
@@ -607,7 +657,10 @@ impl NativeEditorEventEmitter {
             // Headless: no dispatch. Record honestly; the permit drops here (no spawn).
             drop(permit);
             let err = EmitError::NoRuntime(action.clone());
-            self.error_ring.push(EmitErrorEntry { action, error: err.clone() });
+            self.error_ring.push(EmitErrorEntry {
+                action,
+                error: err.clone(),
+            });
             return Err(err);
         };
         let transport = Arc::clone(&self.transport);
@@ -761,19 +814,26 @@ mod tests {
     }
     impl MockTransport {
         fn new(fail: bool) -> Self {
-            Self { posted: Arc::new(Mutex::new(Vec::new())), fail }
+            Self {
+                posted: Arc::new(Mutex::new(Vec::new())),
+                fail,
+            }
         }
     }
     impl EventLedgerTransport for MockTransport {
         fn build_post_body(&self, event: &NativeEditorEvent) -> JsonValue {
             // The mock mirrors the production shape so the body-shape unit test can run against it too.
-            RuntimeChatLedgerTransport::with_session_id("http://test", uuid::Uuid::new_v4().to_string())
-                .build_post_body(event)
+            RuntimeChatLedgerTransport::with_session_id(
+                "http://test",
+                uuid::Uuid::new_v4().to_string(),
+            )
+            .build_post_body(event)
         }
         fn post(
             &self,
             event: NativeEditorEvent,
-        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EmitError>> + Send>> {
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EmitError>> + Send>>
+        {
             let posted = Arc::clone(&self.posted);
             let fail = self.fail;
             let body = self.build_post_body(&event);
@@ -813,8 +873,10 @@ mod tests {
     fn build_post_body_has_every_required_runtime_chat_field_snake_case() {
         // RISK-1 / MC-1: assert every REQUIRED RuntimeChatEventV0_1 field is present with the exact
         // snake_case key the backend's deny_unknown_fields handler demands.
-        let transport =
-            RuntimeChatLedgerTransport::with_session_id("http://test", uuid::Uuid::new_v4().to_string());
+        let transport = RuntimeChatLedgerTransport::with_session_id(
+            "http://test",
+            uuid::Uuid::new_v4().to_string(),
+        );
         let ev = NativeEditorEvent::document_saved(
             "DOC-1",
             "f".repeat(64),
@@ -827,7 +889,10 @@ mod tests {
         // Required fields:
         assert_eq!(obj["schema_version"], FR_RUNTIME_CHAT_SCHEMA_VERSION);
         assert!(obj.contains_key("event_id"), "event_id required");
-        assert!(uuid::Uuid::parse_str(obj["event_id"].as_str().unwrap()).is_ok(), "event_id is a UUID");
+        assert!(
+            uuid::Uuid::parse_str(obj["event_id"].as_str().unwrap()).is_ok(),
+            "event_id is a UUID"
+        );
         assert!(obj.contains_key("ts_utc"), "ts_utc required");
         assert!(
             chrono::DateTime::parse_from_rfc3339(obj["ts_utc"].as_str().unwrap()).is_ok(),
@@ -845,22 +910,42 @@ mod tests {
         assert_eq!(obj["body_sha256"], "f".repeat(64));
         // NO unknown/camelCase keys (deny_unknown_fields would 400). Only the allowed snake_case keys.
         let allowed: std::collections::HashSet<&str> = [
-            "schema_version", "event_id", "ts_utc", "session_id", "job_id", "work_packet_id",
-            "spec_id", "wsid", "type", "message_id", "role", "model_role", "body_sha256",
-            "ans001_sha256", "ans001_compliant", "violation_clauses",
+            "schema_version",
+            "event_id",
+            "ts_utc",
+            "session_id",
+            "job_id",
+            "work_packet_id",
+            "spec_id",
+            "wsid",
+            "type",
+            "message_id",
+            "role",
+            "model_role",
+            "body_sha256",
+            "ans001_sha256",
+            "ans001_compliant",
+            "violation_clauses",
         ]
         .into_iter()
         .collect();
         for k in obj.keys() {
-            assert!(allowed.contains(k.as_str()), "unexpected key {k} (would trip deny_unknown_fields)");
+            assert!(
+                allowed.contains(k.as_str()),
+                "unexpected key {k} (would trip deny_unknown_fields)"
+            );
         }
     }
 
     #[test]
     fn non_conforming_content_hash_is_omitted_not_sent() {
         // A non-64-hex content hash must NOT be attached as body_sha256 (it would 400 the event).
-        let transport = RuntimeChatLedgerTransport::with_session_id("http://test", uuid::Uuid::new_v4().to_string());
-        let ev = NativeEditorEvent::document_saved("DOC-1", "short-hash", "pane-rich", "act", "WS-1");
+        let transport = RuntimeChatLedgerTransport::with_session_id(
+            "http://test",
+            uuid::Uuid::new_v4().to_string(),
+        );
+        let ev =
+            NativeEditorEvent::document_saved("DOC-1", "short-hash", "pane-rich", "act", "WS-1");
         let body = transport.build_post_body(&ev);
         assert!(body.as_object().unwrap().get("body_sha256").is_none());
     }
@@ -889,7 +974,9 @@ mod tests {
             Arc::new(MockTransport::new(true)), // forced failure.
             Some(tokio::runtime::Handle::current()),
         );
-        emitter.emit_undo_fired(UndoScope::Local, "pane-rich").expect("dispatched");
+        emitter
+            .emit_undo_fired(UndoScope::Local, "pane-rich")
+            .expect("dispatched");
         // Let the spawned task run.
         for _ in 0..50 {
             if !emitter.error_ring().is_empty() {
@@ -897,9 +984,16 @@ mod tests {
             }
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
-        assert_eq!(emitter.error_ring().len(), 1, "forced failure should land in the ring");
+        assert_eq!(
+            emitter.error_ring().len(),
+            1,
+            "forced failure should land in the ring"
+        );
         assert_eq!(emitter.error_ring().entries()[0].action, "undo_fired");
-        assert!(matches!(emitter.error_ring().entries()[0].error, EmitError::Transport(_)));
+        assert!(matches!(
+            emitter.error_ring().entries()[0].error,
+            EmitError::Transport(_)
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -910,7 +1004,9 @@ mod tests {
             mock.clone(),
             Some(tokio::runtime::Handle::current()),
         );
-        emitter.emit_route_to_stage("selection", "pane-rich").expect("dispatched");
+        emitter
+            .emit_route_to_stage("selection", "pane-rich")
+            .expect("dispatched");
         for _ in 0..50 {
             if !mock.posted.lock().unwrap().is_empty() {
                 break;
@@ -927,23 +1023,29 @@ mod tests {
     fn backpressure_drops_to_error_ring_when_permits_exhausted() {
         // RISK-2 / MC-2: a saturated permit pool DROPS the event into the error ring rather than
         // spawning unbounded tasks. Build an emitter with ZERO permits to force the saturated path.
-        let mut emitter = NativeEditorEventEmitter::new(
-            "WS-1",
-            Arc::new(MockTransport::new(false)),
-            None,
-        );
+        let mut emitter =
+            NativeEditorEventEmitter::new("WS-1", Arc::new(MockTransport::new(false)), None);
         // Replace the permit pool with an exhausted one (0 permits) to deterministically force drop.
         emitter.permits = Arc::new(tokio::sync::Semaphore::new(0));
         let res = emitter.emit_document_saved("DOC-1", "h".repeat(64), "pane-rich");
-        assert_eq!(res, Err(EmitError::Backpressure("document_saved".to_owned())));
+        assert_eq!(
+            res,
+            Err(EmitError::Backpressure("document_saved".to_owned()))
+        );
         assert_eq!(emitter.error_ring().len(), 1);
-        assert!(matches!(emitter.error_ring().entries()[0].error, EmitError::Backpressure(_)));
+        assert!(matches!(
+            emitter.error_ring().entries()[0].error,
+            EmitError::Backpressure(_)
+        ));
     }
 
     #[test]
     fn actor_id_format_is_descriptive_and_valid() {
         // RISK-5 / MC-5: a descriptive, non-empty actor id (the backend only requires non-empty).
-        assert_eq!(native_editor_actor_id("pane-code"), "hsk:native_editor:pane-code");
+        assert_eq!(
+            native_editor_actor_id("pane-code"),
+            "hsk:native_editor:pane-code"
+        );
         assert_eq!(native_editor_actor_id(""), DEFAULT_ACTOR_ID);
         assert!(!native_editor_actor_id("pane-code").trim().is_empty());
     }
@@ -952,12 +1054,22 @@ mod tests {
     fn all_actions_have_distinct_wire_strings() {
         use NativeEditorAction::*;
         let actions = [
-            DocumentSaved, CodeEdit, EmbedCreated, CanvasNodePlaced, CrossRefInserted, UndoFired,
-            RouteToStage, MemoryWriteProposed,
+            DocumentSaved,
+            CodeEdit,
+            EmbedCreated,
+            CanvasNodePlaced,
+            CrossRefInserted,
+            UndoFired,
+            RouteToStage,
+            MemoryWriteProposed,
         ];
         let mut seen = std::collections::HashSet::new();
         for a in actions {
-            assert!(seen.insert(a.as_str()), "duplicate action wire string {}", a.as_str());
+            assert!(
+                seen.insert(a.as_str()),
+                "duplicate action wire string {}",
+                a.as_str()
+            );
         }
         assert_eq!(seen.len(), 8);
     }
@@ -971,9 +1083,16 @@ mod tests {
                 error: EmitError::Transport("x".to_owned()),
             });
         }
-        assert_eq!(ring.len(), ERROR_RING_CAP, "ring must stay bounded at the cap");
+        assert_eq!(
+            ring.len(),
+            ERROR_RING_CAP,
+            "ring must stay bounded at the cap"
+        );
         // The oldest entries were evicted; the newest survive.
         let entries = ring.entries();
-        assert_eq!(entries.last().unwrap().action, format!("a{}", ERROR_RING_CAP + 9));
+        assert_eq!(
+            entries.last().unwrap().action,
+            format!("a{}", ERROR_RING_CAP + 9)
+        );
     }
 }

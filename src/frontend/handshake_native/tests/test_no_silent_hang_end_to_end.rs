@@ -7,10 +7,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use handshake_diag_ring::{DiagEventCode, DiagRingWriter, DEFAULT_CAPACITY};
+use egui_kittest::Harness;
+use handshake_diag_ring::DiagEventCode;
+use handshake_native::app::HandshakeApp;
 use handshake_native::diagnostics::{
-    self, control_socket_name, launch_palmistry_at, DiagSession, OperationCode, ShutdownOutcome,
-    ENV_PALMISTRY_EXE,
+    self, control_socket_name, launch_palmistry_at, OperationCode, ENV_PALMISTRY_EXE,
 };
 
 #[cfg(windows)]
@@ -163,30 +164,38 @@ fn in_app_stall_and_real_child_stall_are_both_reported_in_bounded_time() {
 
     let dir = external_artifact_dir("wp-kernel-012-mt-106");
     std::fs::create_dir_all(&dir).expect("create external artifact dir");
-    let session_id = unique_session_id("mt106");
-    let survivor_dir = dir.join(format!("survivors-{session_id}"));
+    let capstone_id = unique_session_id("mt106");
+    let survivor_dir = dir.join(format!("survivors-{capstone_id}"));
     std::fs::create_dir_all(&survivor_dir).expect("create scoped survivor dir");
     let _survivor_dir_guard = DirGuard(survivor_dir.clone());
     let _survivor_env = EnvGuard::set_path(diagnostics::ENV_PALMISTRY_SURVIVOR_DIR, &survivor_dir);
-    let ring_path = dir.join(format!("ring-{session_id}.ring"));
-    let writer = DiagRingWriter::create(&ring_path, DEFAULT_CAPACITY).expect("create diag ring");
-    assert!(
-        diagnostics::install(writer),
-        "diagnostics recorder must install the MT-106 ring before the capstone records events"
-    );
 
-    let session = DiagSession {
-        session_id: session_id.clone(),
-        ring_path: ring_path.clone(),
-    };
+    let session = HandshakeApp::create_and_install_diag_ring().unwrap_or_else(|| {
+        panic!(
+            "MT-106 capstone needs the real HandshakeApp diagnostics ring to install before \
+             Palmistry launch"
+        )
+    });
+    let session_id = session.session_id.clone();
+    diagnostics::set_preinstalled_diag_session(session.clone());
     let control_socket = control_socket_name(&session_id);
-    let mut palmistry = launch_palmistry_at(&exe, &session, &ring_path, &control_socket)
+    let palmistry = launch_palmistry_at(&exe, &session, &session.ring_path, &control_socket)
         .expect("launch real palmistry");
     assert!(
         palmistry.handshake_acked(),
         "Palmistry handshake must ack before registering child stall watch; degrade reason: {:?}",
         palmistry.handshake_error()
     );
+
+    let mut harness: Harness<HandshakeApp> =
+        Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
+    assert_eq!(
+        harness.state().diag_session(),
+        Some(&session),
+        "the real HandshakeApp must reuse the preinstalled diagnostics ring Palmistry is watching"
+    );
+    harness.state_mut().set_palmistry_handle(palmistry);
+    harness.step();
 
     let liveness_path = dir.join(format!("child-{session_id}.progress"));
     let child = spawn_child_stall_helper(&exe, &liveness_path).expect("spawn child-stall helper");
@@ -201,14 +210,13 @@ fn in_app_stall_and_real_child_stall_are_both_reported_in_bounded_time() {
     );
 
     let child_session_id = 1_060_001;
-    palmistry
-        .register_child_liveness_file(
-            child.id(),
-            child_session_id,
-            &liveness_path,
-            Duration::from_millis(700),
-        )
-        .expect("register child liveness with Palmistry over held control socket");
+    diagnostics::enqueue_palmistry_child_liveness_file(
+        child.id(),
+        child_session_id,
+        &liveness_path,
+        Duration::from_millis(700),
+    );
+    harness.step();
 
     diagnostics::start_global_operation_watchdog();
     let operation = diagnostics::global_operation_watchdog().register(
@@ -221,6 +229,7 @@ fn in_app_stall_and_real_child_stall_are_both_reported_in_bounded_time() {
     let mut last_child_stall = false;
     let mut last_records = Vec::new();
     let observed = wait_until(Duration::from_secs(8), || {
+        harness.step();
         last_stalled_operation = diagnostics::snapshot_last_n(64).iter().any(|event| {
             event.event_code == DiagEventCode::StalledOperation.as_u16()
                 && event.sequence_id == operation.operation_id()
@@ -257,19 +266,11 @@ fn in_app_stall_and_real_child_stall_are_both_reported_in_bounded_time() {
     }
     operation.complete();
 
-    let _ = palmistry.deregister_child(child.id(), child_session_id);
+    diagnostics::enqueue_palmistry_child_deregister(child.id(), child_session_id);
+    harness.step();
     drop(child);
-    let outcome = palmistry.request_shutdown_and_wait(Duration::from_secs(10));
-    match outcome {
-        ShutdownOutcome::ExitedCleanly(status) => {
-            assert!(
-                status.success(),
-                "Palmistry should exit cleanly: {status:?}"
-            );
-        }
-        other => panic!("Palmistry should shutdown cleanly after MT-106 capstone, got {other:?}"),
-    }
+    drop(harness);
 
     let _ = std::fs::remove_file(&liveness_path);
-    let _ = std::fs::remove_file(&ring_path);
+    let _ = std::fs::remove_file(&session.ring_path);
 }

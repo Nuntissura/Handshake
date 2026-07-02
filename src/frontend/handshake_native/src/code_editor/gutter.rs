@@ -103,7 +103,11 @@ pub struct GutterMarker {
 
 impl GutterMarker {
     /// A diagnostic marker on `line` with `severity` and `message`.
-    pub fn diagnostic(line: usize, severity: DiagnosticSeverity, message: impl Into<String>) -> Self {
+    pub fn diagnostic(
+        line: usize,
+        severity: DiagnosticSeverity,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             line,
             kind: GutterMarkerKind::Diagnostic(severity),
@@ -211,9 +215,21 @@ impl Gutter {
         } else {
             0.0
         };
-        let breakpoint_w = if config.show_breakpoints { BREAKPOINT_COL_W } else { 0.0 };
-        let fold_w = if config.show_fold_triangles { FOLD_COL_W } else { 0.0 };
-        let diagnostic_w = if config.show_diagnostics { DIAGNOSTIC_COL_W } else { 0.0 };
+        let breakpoint_w = if config.show_breakpoints {
+            BREAKPOINT_COL_W
+        } else {
+            0.0
+        };
+        let fold_w = if config.show_fold_triangles {
+            FOLD_COL_W
+        } else {
+            0.0
+        };
+        let diagnostic_w = if config.show_diagnostics {
+            DIAGNOSTIC_COL_W
+        } else {
+            0.0
+        };
         // A small left pad so the breakpoint circle is not flush against the pane edge.
         4.0 + breakpoint_w + fold_w + number_w + diagnostic_w
     }
@@ -258,10 +274,24 @@ impl Gutter {
         // Column x-anchors inside the strip (left to right), mirroring `width_for`.
         let left = strip_rect.left() + 4.0;
         let breakpoint_x = left;
-        let fold_x = breakpoint_x + if config.show_breakpoints { BREAKPOINT_COL_W } else { 0.0 };
-        let number_left = fold_x + if config.show_fold_triangles { FOLD_COL_W } else { 0.0 };
+        let fold_x = breakpoint_x
+            + if config.show_breakpoints {
+                BREAKPOINT_COL_W
+            } else {
+                0.0
+            };
+        let number_left = fold_x
+            + if config.show_fold_triangles {
+                FOLD_COL_W
+            } else {
+                0.0
+            };
         let number_right = number_left
-            + if config.show_line_numbers { digits as f32 * geometry.char_width } else { 0.0 };
+            + if config.show_line_numbers {
+                digits as f32 * geometry.char_width
+            } else {
+                0.0
+            };
         let diagnostic_x = strip_rect.right() - DIAGNOSTIC_COL_W * 0.5 - 2.0;
 
         let mono = egui::FontId::monospace(super::panel::MONO_FONT_SIZE);
@@ -345,7 +375,10 @@ impl Gutter {
                 };
                 let bp_rect = egui::Rect::from_min_max(
                     egui::pos2(breakpoint_x, row_top),
-                    egui::pos2(bp_right.max(breakpoint_x + BREAKPOINT_COL_W), row_top + geometry.line_height),
+                    egui::pos2(
+                        bp_right.max(breakpoint_x + BREAKPOINT_COL_W),
+                        row_top + geometry.line_height,
+                    ),
                 );
                 let bp_resp = ui.interact(bp_rect, row_id.with("bp"), egui::Sense::click());
                 if bp_resp.clicked() {
@@ -452,7 +485,8 @@ pub fn fold_triangle_glyph(ui: &egui::Ui, is_open: bool) -> &'static str {
     let unicode = if is_open { "\u{25BC}" } else { "\u{25B6}" };
     let ch = if is_open { '\u{25BC}' } else { '\u{25B6}' };
     // `has_glyph` lazily lays out the glyph (so it takes `&mut FontsView`); use `fonts_mut`.
-    let has = ui.fonts_mut(|f| f.has_glyph(&egui::FontId::monospace(super::panel::MONO_FONT_SIZE), ch));
+    let has =
+        ui.fonts_mut(|f| f.has_glyph(&egui::FontId::monospace(super::panel::MONO_FONT_SIZE), ch));
     if has {
         unicode
     } else if is_open {
@@ -475,7 +509,11 @@ mod tests {
         assert_eq!(digit_count(10), 2);
         assert_eq!(digit_count(99), 2);
         assert_eq!(digit_count(100), 3);
-        assert_eq!(digit_count(1000), 4, "exact power of ten is 4 digits (float log10 trap)");
+        assert_eq!(
+            digit_count(1000),
+            4,
+            "exact power of ten is 4 digits (float log10 trap)"
+        );
         assert_eq!(digit_count(9999), 4);
         assert_eq!(digit_count(10000), 5);
     }
@@ -487,17 +525,29 @@ mod tests {
         let w1 = Gutter::width_for(1, cw, &cfg);
         let w100 = Gutter::width_for(100, cw, &cfg);
         let w10000 = Gutter::width_for(10000, cw, &cfg);
-        assert!(w100 > w1, "100-line gutter wider than 1-line (more digits): {w100} > {w1}");
-        assert!(w10000 > w100, "10000-line gutter wider than 100-line: {w10000} > {w100}");
+        assert!(
+            w100 > w1,
+            "100-line gutter wider than 1-line (more digits): {w100} > {w1}"
+        );
+        assert!(
+            w10000 > w100,
+            "10000-line gutter wider than 100-line: {w10000} > {w100}"
+        );
         // The width delta between 1 and 10000 lines is exactly (5-1)=4 extra digit columns.
-        assert!((w10000 - w1 - 4.0 * cw).abs() < 0.001, "width delta == 4 digit columns");
+        assert!(
+            (w10000 - w1 - 4.0 * cw).abs() < 0.001,
+            "width delta == 4 digit columns"
+        );
     }
 
     #[test]
     fn config_off_columns_shrink_width() {
         let cw = 8.0;
         let full = GutterConfig::default();
-        let no_numbers = GutterConfig { show_line_numbers: false, ..full };
+        let no_numbers = GutterConfig {
+            show_line_numbers: false,
+            ..full
+        };
         assert!(
             Gutter::width_for(1000, cw, &no_numbers) < Gutter::width_for(1000, cw, &full),
             "hiding line numbers shrinks the gutter"
@@ -512,9 +562,19 @@ mod tests {
             GutterMarker::diagnostic(5, DiagnosticSeverity::Warning, "warn on 5"),
             GutterMarker::diagnostic(7, DiagnosticSeverity::Warning, "warn on 7"),
         ];
-        assert_eq!(worst_diagnostic_on(&markers, 5), Some(DiagnosticSeverity::Error));
-        assert_eq!(worst_diagnostic_on(&markers, 7), Some(DiagnosticSeverity::Warning));
-        assert_eq!(worst_diagnostic_on(&markers, 9), None, "no marker on line 9");
+        assert_eq!(
+            worst_diagnostic_on(&markers, 5),
+            Some(DiagnosticSeverity::Error)
+        );
+        assert_eq!(
+            worst_diagnostic_on(&markers, 7),
+            Some(DiagnosticSeverity::Warning)
+        );
+        assert_eq!(
+            worst_diagnostic_on(&markers, 9),
+            None,
+            "no marker on line 9"
+        );
     }
 
     #[test]
@@ -540,13 +600,20 @@ mod tests {
             GutterMarker::diagnostic(3, DiagnosticSeverity::Warning, "unused variable"),
         ];
         let msgs = diagnostic_messages_on(&markers, 3);
-        assert_eq!(msgs, vec!["error: unexpected token", "warning: unused variable"]);
+        assert_eq!(
+            msgs,
+            vec!["error: unexpected token", "warning: unused variable"]
+        );
     }
 
     #[test]
     fn gutter_marker_list_correct_for_one_error_on_line_5() {
         // AC-001 basis: a buffer with one error on line 5 yields exactly one diagnostic marker.
-        let markers = [GutterMarker::diagnostic(5, DiagnosticSeverity::Error, "boom")];
+        let markers = [GutterMarker::diagnostic(
+            5,
+            DiagnosticSeverity::Error,
+            "boom",
+        )];
         let diags: Vec<&GutterMarker> = markers
             .iter()
             .filter(|m| matches!(m.kind, GutterMarkerKind::Diagnostic(_)))

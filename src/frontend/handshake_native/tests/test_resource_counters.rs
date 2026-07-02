@@ -116,7 +116,11 @@ fn samples_current_process_returns_plausible_integers() {
     }
     std::hint::black_box(acc);
     let second = sampler.sample();
-    assert!(second.rss_kb > 0, "RSS stays positive on the second sample (rss_kb={})", second.rss_kb);
+    assert!(
+        second.rss_kb > 0,
+        "RSS stays positive on the second sample (rss_kb={})",
+        second.rss_kb
+    );
     // cpu_milli is a u64 (non-negative by type) on both reads — a real read, not absurd.
     assert!(
         first.cpu_milli < 100_000_000,
@@ -165,13 +169,33 @@ fn resource_sample_reaches_the_ring() {
 
     // The built event is the typed ResourceSample shape (no content).
     let event = captured.expect("record_sample emitted exactly one event");
-    assert_eq!(event.event_code, DiagEventCode::ResourceSample.as_u16(), "code is ResourceSample");
-    assert_eq!(event.phase_marker, DiagPhase::Tick.as_u8(), "phase Tick (a periodic sample)");
+    assert_eq!(
+        event.event_code,
+        DiagEventCode::ResourceSample.as_u16(),
+        "code is ResourceSample"
+    );
+    assert_eq!(
+        event.phase_marker,
+        DiagPhase::Tick.as_u8(),
+        "phase Tick (a periodic sample)"
+    );
     assert_eq!(event.severity, DiagSeverity::Info.as_u8(), "severity Info");
-    assert_eq!(event.counter_a, sample.cpu_milli, "counter_a carries cpu_milli (typed integer)");
-    assert_eq!(event.counter_b, sample.rss_kb, "counter_b carries rss_kb (typed integer)");
-    assert!(event.counter_b > 0, "rss_kb is a real read (> 0 for a live process)");
-    assert_eq!(event._reserved, [0u8; 4], "no content smuggled through padding");
+    assert_eq!(
+        event.counter_a, sample.cpu_milli,
+        "counter_a carries cpu_milli (typed integer)"
+    );
+    assert_eq!(
+        event.counter_b, sample.rss_kb,
+        "counter_b carries rss_kb (typed integer)"
+    );
+    assert!(
+        event.counter_b > 0,
+        "rss_kb is a real read (> 0 for a live process)"
+    );
+    assert_eq!(
+        event._reserved, [0u8; 4],
+        "no content smuggled through padding"
+    );
 
     // A SEPARATE reader on the SAME backing file reads the sample back from the shared-memory ring.
     let reader = DiagRingReader::open(&path).expect("open ring reader on the same backing file");
@@ -180,8 +204,14 @@ fn resource_sample_reaches_the_ring() {
         .iter()
         .find(|e| e.event_code == DiagEventCode::ResourceSample.as_u16())
         .expect("the ResourceSample reached the shared-memory ring (Palmistry-visible)");
-    assert_eq!(ring_sample.counter_a, sample.cpu_milli, "ring read-back cpu_milli matches");
-    assert_eq!(ring_sample.counter_b, sample.rss_kb, "ring read-back rss_kb matches");
+    assert_eq!(
+        ring_sample.counter_a, sample.cpu_milli,
+        "ring read-back cpu_milli matches"
+    );
+    assert_eq!(
+        ring_sample.counter_b, sample.rss_kb,
+        "ring read-back rss_kb matches"
+    );
 
     drop(reader);
     drop(recorder);
@@ -204,13 +234,13 @@ fn live_gpu_info_captured_from_wgpu_render_state() {
     // a REAL adapter (the same way the existing standalone-render tests do). Without `.wgpu()` the kittest
     // builds a `CreationContext` with no render state and `GpuInfo::capture` correctly returns None
     // (graceful degradation) — so the LIVE-capture proof requires the wgpu harness.
-    let harness: Harness<HandshakeApp> =
-        Harness::builder().wgpu().build_eframe(|cc| HandshakeApp::new(cc));
+    let harness: Harness<HandshakeApp> = Harness::builder()
+        .wgpu()
+        .build_eframe(|cc| HandshakeApp::new(cc));
 
-    let gpu = harness
-        .state()
-        .gpu_info()
-        .expect("the .wgpu() kittest harness populates cc.wgpu_render_state, so GpuInfo is captured");
+    let gpu = harness.state().gpu_info().expect(
+        "the .wgpu() kittest harness populates cc.wgpu_render_state, so GpuInfo is captured",
+    );
 
     // A real adapter was read from the existing eframe wgpu render state.
     assert!(
@@ -242,7 +272,10 @@ fn live_gpu_info_captured_from_wgpu_render_state() {
     let buffer = diagnostics::snapshot_last_n(BUFFER_CAP);
     for e in &buffer {
         // _reserved is the only non-counter bytes; it must stay zeroed (no content channel).
-        assert_eq!(e._reserved, [0u8; 4], "no event smuggles content through the reserved padding");
+        assert_eq!(
+            e._reserved, [0u8; 4],
+            "no event smuggles content through the reserved padding"
+        );
     }
 
     assert_no_local_artifact_dir();
@@ -281,7 +314,10 @@ fn live_sampling_is_bounded_and_does_not_stutter() {
     let samples_taken = sample_count_after - sample_count_before;
 
     // The frame loop genuinely ran the frames.
-    assert!(frames_run >= steps, "the steps ran real frames (ran {frames_run} >= {steps})");
+    assert!(
+        frames_run >= steps,
+        "the steps ran real frames (ran {frames_run} >= {steps})"
+    );
 
     // BOUNDED: far fewer samples than frames. Over a tight ~40-step loop (well under 1s) the cadence
     // gate emits at most a couple of samples (the first one, plus possibly a second if the loop crossed a

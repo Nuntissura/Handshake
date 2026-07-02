@@ -3,15 +3,15 @@
 // After build_installer.ps1 stages the single-installer bundle, this test walks the staging tree and
 // asserts EVERY required runtime asset is present inside the bundle (so a clean profile needs nothing
 // external), and asserts NO disallowed system-level WebView2Loader.dll ships at the bundle top level or
-// under bundled/. It writes tests/native_gui/artifacts/bundle_deps_audit_report.json.
+// under bundled/. It writes bundle_deps_audit_report.json under the external artifact root.
 //
 // It reuses installer::check_bundle_integrity_at as the canonical required-asset rule set (the same
 // rules the runtime --self-check uses), so the audit and the runtime check can never silently diverge.
 //
 // DEVIATION (path): named tests/native_gui/bundled_deps_audit.rs in the contract; lives at
 // tests/bundled_deps_audit.rs for the cargo integration-test target-name reason documented in
-// installer_build_smoke.rs and MT-004's test_single_binary.rs. The JSON report still lands in
-// tests/native_gui/artifacts/.
+// installer_build_smoke.rs and MT-004's test_single_binary.rs. The JSON report lands in the external
+// Handshake_Artifacts root; repo-local proof artifacts are forbidden.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -27,7 +27,19 @@ fn build_script() -> PathBuf {
 }
 
 fn artifacts_dir() -> PathBuf {
-    crate_root().join("tests").join("native_gui").join("artifacts")
+    if let Ok(root) = std::env::var("HANDSHAKE_ARTIFACTS_ROOT") {
+        if !root.trim().is_empty() {
+            return PathBuf::from(root)
+                .join("handshake-test")
+                .join("native_gui");
+        }
+    }
+    if let Ok(dir) = std::env::var("HANDSHAKE_PROOF_ARTIFACT_DIR") {
+        if !dir.trim().is_empty() {
+            return PathBuf::from(dir);
+        }
+    }
+    crate_root().join("../../../../Handshake_Artifacts/handshake-test/native_gui")
 }
 
 /// Mirror build_installer.ps1's short-target-dir selection so the audit finds the staging tree.
@@ -74,9 +86,7 @@ fn collect(root: &Path, dir: &Path, out: &mut Vec<String>) {
 /// Ensure the staging tree exists; build it if missing (idempotent — the smoke may have built it).
 fn ensure_staged() -> PathBuf {
     let staging = short_target_dir().join("release-native").join("staging");
-    if staging.is_dir()
-        && staging.join("handshake-native.exe").is_file()
-    {
+    if staging.is_dir() && staging.join("handshake-native.exe").is_file() {
         return staging;
     }
     let script = build_script();
@@ -125,8 +135,7 @@ fn bundle_contains_all_required_deps_and_no_system_webview() {
     // ever bundled — not as a system-level dependency. No browser_pane is bundled today.)
     let disallowed_system_webview = files.iter().any(|f| {
         let lower = f.to_ascii_lowercase();
-        lower.ends_with("webview2loader.dll")
-            && !lower.starts_with("bundled/browser_pane/")
+        lower.ends_with("webview2loader.dll") && !lower.starts_with("bundled/browser_pane/")
     });
     assert!(
         !disallowed_system_webview,
@@ -148,8 +157,14 @@ fn bundle_contains_all_required_deps_and_no_system_webview() {
         })
         .cloned();
 
-    assert!(has("handshake-native.exe"), "native binary missing from bundle");
-    assert!(postgres_binary.is_some(), "bundled postgres pg_ctl.exe missing");
+    assert!(
+        has("handshake-native.exe"),
+        "native binary missing from bundle"
+    );
+    assert!(
+        postgres_binary.is_some(),
+        "bundled postgres pg_ctl.exe missing"
+    );
     assert!(font_file.is_some(), "no bundled font file");
 
     // --- write the report (HBR-VIS) ---

@@ -235,7 +235,8 @@ fn send_control(
             continue;
         }
         let remaining = deadline.saturating_duration_since(Instant::now());
-        return read_control_line_bounded(&mut conn, remaining).map(|line| line.trim_end().to_string());
+        return read_control_line_bounded(&mut conn, remaining)
+            .map(|line| line.trim_end().to_string());
     }
     Err(last_err.unwrap_or_else(|| {
         std::io::Error::new(
@@ -674,8 +675,8 @@ fn clean_shutdown_writes_no_crash_record_or_minidump() {
         Err(err) => {
             let code = wait_for_exit(watcher.child_mut(), Duration::from_secs(2));
             if code == Some(0) {
-                let survivor =
-                    read_json(&surv, Duration::from_secs(2)).expect("clean lifecycle survivor record");
+                let survivor = read_json(&surv, Duration::from_secs(2))
+                    .expect("clean lifecycle survivor record");
                 assert_eq!(
                     survivor["shutdown_received"],
                     serde_json::Value::Bool(true),

@@ -317,7 +317,10 @@ pub enum CodeSymbolSearchOutcome {
     None,
     /// The operator picked a result: insert a `code` hsLink atom with this `(symbol_entity_id,
     /// display_name)` and close the dialog.
-    Selected { symbol_entity_id: String, display_name: String },
+    Selected {
+        symbol_entity_id: String,
+        display_name: String,
+    },
     /// The operator cancelled (Escape / close button); close the dialog without inserting.
     Cancelled,
 }
@@ -372,8 +375,11 @@ pub fn render_code_symbol_search_dialog(
                 for sym in state.results.clone() {
                     let label = ui.add(
                         egui::Label::new(
-                            egui::RichText::new(format!("{}  ({})", sym.display_name, sym.symbol_kind))
-                                .color(palette.accent),
+                            egui::RichText::new(format!(
+                                "{}  ({})",
+                                sym.display_name, sym.symbol_kind
+                            ))
+                            .color(palette.accent),
                         )
                         .sense(egui::Sense::click()),
                     );
@@ -447,8 +453,14 @@ mod tests {
     fn code_symbol_search_author_ids_match_contract() {
         // WP-KERNEL-012 MT-034 (AC-5): the code-symbol search dialog ids + roles.
         assert_eq!(CODE_SYMBOL_SEARCH_AUTHOR_ID, "code-symbol-search");
-        assert_eq!(CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID, "code-symbol-search-input");
-        assert_eq!(code_symbol_result_author_id("ent-1"), "code-symbol-result-ent-1");
+        assert_eq!(
+            CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
+            "code-symbol-search-input"
+        );
+        assert_eq!(
+            code_symbol_result_author_id("ent-1"),
+            "code-symbol-result-ent-1"
+        );
         assert_eq!(CODE_SYMBOL_SEARCH_ROLE, accesskit::Role::Dialog);
         assert_eq!(CODE_SYMBOL_SEARCH_INPUT_ROLE, accesskit::Role::TextInput);
     }
@@ -501,7 +513,10 @@ mod tests {
     #[test]
     fn open_trigger_with_filter() {
         // "/head" with caret at end (5): trigger at 0, filter "head".
-        assert_eq!(open_slash_trigger("/head", 5), Some((0, "head".to_string())));
+        assert_eq!(
+            open_slash_trigger("/head", 5),
+            Some((0, "head".to_string()))
+        );
     }
 
     #[test]
@@ -526,7 +541,11 @@ mod tests {
     fn menu_state_delete_len_is_slash_plus_filter() {
         // RISK-3: the delete length is exactly 1 (the `/`) + the filter char count.
         let mut st = SlashMenuState::open(vec![0, 0], 0);
-        assert_eq!(st.trigger_delete_len(), 1, "empty filter -> delete just the '/'");
+        assert_eq!(
+            st.trigger_delete_len(),
+            1,
+            "empty filter -> delete just the '/'"
+        );
         st.filter = "head".to_string();
         assert_eq!(st.trigger_delete_len(), 5, "'/' + 'head' = 5 chars");
     }

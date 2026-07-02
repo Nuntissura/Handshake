@@ -84,7 +84,13 @@ const TEST_BASE: &str = "http://127.0.0.1:37501";
 
 // ── Mock-response builders (the native projection of a real loom_search_v2 response) ────────────────
 
-fn hit(block_id: &str, content_type: &str, title: &str, score: f64, highlight: &str) -> LoomSearchV2Hit {
+fn hit(
+    block_id: &str,
+    content_type: &str,
+    title: &str,
+    score: f64,
+    highlight: &str,
+) -> LoomSearchV2Hit {
     LoomSearchV2Hit {
         block: LoomSearchBlock {
             block_id: block_id.to_owned(),
@@ -107,8 +113,20 @@ fn mock_response() -> LoomSearchV2Response {
     facets.insert("code".to_owned(), 1);
     LoomSearchV2Response {
         hits: vec![
-            hit("blk-1", "note", "First Note", 0.912, "<mark>alpha</mark> beta"),
-            hit("blk-2", "note", "Second Note", 0.640, "gamma <mark>delta</mark>"),
+            hit(
+                "blk-1",
+                "note",
+                "First Note",
+                0.912,
+                "<mark>alpha</mark> beta",
+            ),
+            hit(
+                "blk-2",
+                "note",
+                "Second Note",
+                0.640,
+                "gamma <mark>delta</mark>",
+            ),
             hit("blk-3", "code", "Some Code", 0.501, "plain excerpt"),
         ],
         content_type_facets: facets,
@@ -139,7 +157,9 @@ fn harness_for<'a>(
             let pal = HsTheme::Dark.palette();
             let opened_cb = Arc::clone(&opened);
             let mut on_open = move |id: &str| opened_cb.lock().unwrap().push(id.to_owned());
-            let mut cbs = LoomSearchV2Callbacks { on_open_block: &mut on_open };
+            let mut cbs = LoomSearchV2Callbacks {
+                on_open_block: &mut on_open,
+            };
             handshake_native::loom_search_v2::show(
                 ui,
                 &mut state.lock().unwrap(),
@@ -188,16 +208,39 @@ fn accesskit_tree_has_all_contract_author_ids() {
     harness.run();
 
     let ids = author_ids(&harness);
-    for required in [QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID, STATUS_AUTHOR_ID] {
-        assert!(ids.contains(required), "PT-3: required author_id '{required}' missing from {ids:?}");
+    for required in [
+        QUERY_AUTHOR_ID,
+        SEARCH_AUTHOR_ID,
+        SAVE_VIEW_AUTHOR_ID,
+        STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            ids.contains(required),
+            "PT-3: required author_id '{required}' missing from {ids:?}"
+        );
     }
     // Facet ids for both content types.
-    assert!(ids.contains(&facet_author_id("note")), "PT-3: facet.note missing");
-    assert!(ids.contains(&facet_author_id("code")), "PT-3: facet.code missing");
+    assert!(
+        ids.contains(&facet_author_id("note")),
+        "PT-3: facet.note missing"
+    );
+    assert!(
+        ids.contains(&facet_author_id("code")),
+        "PT-3: facet.code missing"
+    );
     // A result row id (the contract names `loom-search-v2.result.{block_id_0}`).
-    assert!(ids.contains(&result_author_id("blk-1")), "PT-3: result.blk-1 missing");
-    assert!(ids.contains(&result_author_id("blk-2")), "PT-3: result.blk-2 missing");
-    assert!(ids.contains(&result_author_id("blk-3")), "PT-3: result.blk-3 missing");
+    assert!(
+        ids.contains(&result_author_id("blk-1")),
+        "PT-3: result.blk-1 missing"
+    );
+    assert!(
+        ids.contains(&result_author_id("blk-2")),
+        "PT-3: result.blk-2 missing"
+    );
+    assert!(
+        ids.contains(&result_author_id("blk-3")),
+        "PT-3: result.blk-3 missing"
+    );
 
     println!("PT-3/AC-1/AC-8: all 6 contract author_ids present in the live AccessKit tree");
     assert_no_local_artifact_dir();
@@ -219,7 +262,9 @@ fn status_line_reflects_semantic_off() {
 
     // The status label text is queryable by label (it is a plain egui::Label).
     harness.get_by_label("3 results (keyword/fuzzy only)");
-    println!("AC-3: status line shows '3 results (keyword/fuzzy only)' when semantic_available=false");
+    println!(
+        "AC-3: status line shows '3 results (keyword/fuzzy only)' when semantic_available=false"
+    );
     assert_no_local_artifact_dir();
 }
 
@@ -243,7 +288,11 @@ fn clicking_result_row_opens_block() {
     harness.run();
 
     let opened = opened_ck.lock().unwrap();
-    assert_eq!(opened.as_slice(), ["blk-2"], "AC-6: on_open_block called with the clicked block_id");
+    assert_eq!(
+        opened.as_slice(),
+        ["blk-2"],
+        "AC-6: on_open_block called with the clicked block_id"
+    );
     println!("AC-6: clicking result row blk-2 invoked on_open_block('blk-2')");
     assert_no_local_artifact_dir();
 }
@@ -330,17 +379,33 @@ fn highlight_layout_job_colors_marked_runs() {
     let text = egui::Color32::from_gray(200);
     let job = highlight_layout_job("<mark>foo</mark> bar <mark>baz</mark>", &pal, text);
     // The LayoutJob must have 3 sections; the 1st and 3rd carry the highlight background, the 2nd none.
-    assert_eq!(job.sections.len(), 3, "AC-5: 3 layout sections for foo/bar/baz");
-    assert_eq!(job.sections[0].format.background, pal.search_highlight_bg, "AC-5: 'foo' marked");
+    assert_eq!(
+        job.sections.len(),
+        3,
+        "AC-5: 3 layout sections for foo/bar/baz"
+    );
+    assert_eq!(
+        job.sections[0].format.background, pal.search_highlight_bg,
+        "AC-5: 'foo' marked"
+    );
     assert_eq!(
         job.sections[1].format.background,
         egui::Color32::TRANSPARENT,
         "AC-5: ' bar ' not marked"
     );
-    assert_eq!(job.sections[2].format.background, pal.search_highlight_bg, "AC-5: 'baz' marked");
+    assert_eq!(
+        job.sections[2].format.background, pal.search_highlight_bg,
+        "AC-5: 'baz' marked"
+    );
     // And the raw `<mark>` tokens must NOT appear in the rendered text.
-    assert!(!job.text.contains("<mark>"), "AC-5: no raw <mark> tag in rendered text");
-    assert_eq!(job.text, "foo bar baz", "AC-5: markers stripped, text preserved");
+    assert!(
+        !job.text.contains("<mark>"),
+        "AC-5: no raw <mark> tag in rendered text"
+    );
+    assert_eq!(
+        job.text, "foo bar baz",
+        "AC-5: markers stripped, text preserved"
+    );
     println!("AC-5: <mark> runs render as colored LayoutJob sections, no raw HTML");
     assert_no_local_artifact_dir();
 }
@@ -354,10 +419,16 @@ fn search_request_url_and_body() {
     let client = LoomSearchV2Client::new(TEST_BASE, rt().handle().clone());
     let body = LoomSearchV2Body::baseline("hello", Some("note".to_owned()));
     let spec = client.search_request("ws-1", &body);
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws-1/loom/search-v2");
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws-1/loom/search-v2"
+    );
     let json = spec.body.expect("search body");
     assert_eq!(json.get("query").and_then(|x| x.as_str()), Some("hello"));
-    assert_eq!(json.get("content_type").and_then(|x| x.as_str()), Some("note"));
+    assert_eq!(
+        json.get("content_type").and_then(|x| x.as_str()),
+        Some("note")
+    );
     assert_eq!(json.get("graph_boost").and_then(|x| x.as_f64()), Some(1.0));
     assert_eq!(json.get("limit").and_then(|x| x.as_u64()), Some(25));
     println!("PROOF6: search POST /loom/search-v2 body = {{query, content_type, graph_boost:1.0, limit:25}}");
@@ -369,7 +440,10 @@ fn search_request_omits_content_type_when_unfiltered() {
     let body = LoomSearchV2Body::baseline("hello", None);
     let spec = client.search_request("ws-1", &body);
     let json = spec.body.expect("search body");
-    assert!(json.get("content_type").is_none(), "unfiltered search omits content_type");
+    assert!(
+        json.get("content_type").is_none(),
+        "unfiltered search omits content_type"
+    );
 }
 
 #[test]
@@ -377,16 +451,27 @@ fn save_view_request_uses_verified_definitions_route() {
     let client = LoomSearchV2Client::new(TEST_BASE, rt().handle().clone());
     let spec = client.save_view_request("ws-1", "hello world", Some("note"));
     // MT-027's VERIFIED createBlockView route — NOT the MT-028 contract's stale bare /loom/views.
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws-1/loom/views/definitions");
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws-1/loom/views/definitions"
+    );
     let json = spec.body.expect("save body");
-    assert_eq!(json.get("title").and_then(|x| x.as_str()), Some("Search: hello world"));
+    assert_eq!(
+        json.get("title").and_then(|x| x.as_str()),
+        Some("Search: hello world")
+    );
     let def = json.get("definition").expect("definition");
     assert_eq!(def.get("kind").and_then(|x| x.as_str()), Some("table"));
     assert_eq!(
-        def.get("query").and_then(|q| q.get("content_type")).and_then(|x| x.as_str()),
+        def.get("query")
+            .and_then(|q| q.get("content_type"))
+            .and_then(|x| x.as_str()),
         Some("note")
     );
-    let cols = def.get("columns").and_then(|c| c.as_array()).expect("columns");
+    let cols = def
+        .get("columns")
+        .and_then(|c| c.as_array())
+        .expect("columns");
     let cols: Vec<&str> = cols.iter().filter_map(|c| c.as_str()).collect();
     assert_eq!(cols, ["title", "content_type", "updated"]);
     println!("PROOF6: save-as-view POST /loom/views/definitions body = {{title, definition{{kind,query,columns}}}}");
@@ -397,8 +482,14 @@ fn save_view_request_empty_query_when_no_facet() {
     let client = LoomSearchV2Client::new(TEST_BASE, rt().handle().clone());
     let spec = client.save_view_request("ws-1", "hello", None);
     let json = spec.body.expect("save body");
-    let query = json.get("definition").and_then(|d| d.get("query")).expect("query");
-    assert!(query.as_object().map(|o| o.is_empty()).unwrap_or(false), "no facet => empty query object");
+    let query = json
+        .get("definition")
+        .and_then(|d| d.get("query"))
+        .expect("query");
+    assert!(
+        query.as_object().map(|o| o.is_empty()).unwrap_or(false),
+        "no facet => empty query object"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -412,7 +503,10 @@ fn no_workspace_guard_sets_error_without_search() {
     let client = LoomSearchV2Client::new(TEST_BASE, rt().handle().clone());
     state.run_search(&client, None);
     assert_eq!(state.error.as_deref(), Some("No workspace selected"));
-    assert!(!state.loading, "MC-7: no HTTP call fired (loading stays false)");
+    assert!(
+        !state.loading,
+        "MC-7: no HTTP call fired (loading stays false)"
+    );
     println!("MC-7: no-workspace search sets error 'No workspace selected', no HTTP call");
 }
 
@@ -424,7 +518,10 @@ fn no_workspace_guard_sets_error_without_search() {
 fn parser_mc1_case_from_integration_crate() {
     let segs = parse_highlight_segments("<mark>foo</mark> bar <mark>baz</mark>");
     assert_eq!(segs.len(), 3);
-    assert!(segs[0].marked && !segs[1].marked && segs[2].marked, "MC-1: mid+last marked");
+    assert!(
+        segs[0].marked && !segs[1].marked && segs[2].marked,
+        "MC-1: mid+last marked"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -449,7 +546,9 @@ fn loom_search_v2_screenshot() {
             let pal = HsTheme::Dark.palette();
             let opened_cb = Arc::clone(&opened);
             let mut on_open = move |id: &str| opened_cb.lock().unwrap().push(id.to_owned());
-            let mut cbs = LoomSearchV2Callbacks { on_open_block: &mut on_open };
+            let mut cbs = LoomSearchV2Callbacks {
+                on_open_block: &mut on_open,
+            };
             handshake_native::loom_search_v2::show(
                 ui,
                 &mut state.lock().unwrap(),
@@ -467,7 +566,8 @@ fn loom_search_v2_screenshot() {
             let (w, h) = (image.width(), image.height());
             assert!(w > 0 && h > 0, "rendered image must be non-empty");
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut white = 0u32;
             // The <mark> amber is rgb(255,214,0); sample for its presence to PROVE the highlight rendered.
             let mut amber = 0u32;
@@ -493,7 +593,11 @@ fn loom_search_v2_screenshot() {
                 "screenshot: surface must not be ~all-white (white frac {})",
                 white as f32 / total as f32
             );
-            assert!(counts.len() >= 2, "screenshot: >= 2 distinct colours expected, got {}", counts.len());
+            assert!(
+                counts.len() >= 2,
+                "screenshot: >= 2 distinct colours expected, got {}",
+                counts.len()
+            );
 
             let ext_dir = external_artifact_dir("wp-kernel-012-mt-028");
             let _ = std::fs::create_dir_all(&ext_dir);
@@ -544,7 +648,9 @@ fn loom_search_v2_registry() -> PaneRegistry {
 fn pane_opens_via_registry_and_renders_real_panel() {
     // A real client (no backend reached — the panel renders the seeded response; no search fires).
     let client = LoomSearchV2Client::new(TEST_BASE, rt().handle().clone());
-    let shared = Arc::new(Mutex::new(LoomSearchV2PaneShared::new(HsTheme::Dark.palette())));
+    let shared = Arc::new(Mutex::new(LoomSearchV2PaneShared::new(
+        HsTheme::Dark.palette(),
+    )));
     {
         // The shell pushes the live workspace id + palette into the shared cell each frame; mirror that.
         let mut g = shared.lock().unwrap();
@@ -555,8 +661,11 @@ fn pane_opens_via_registry_and_renders_real_panel() {
     let mut state = LoomSearchV2PanelState::new();
     state.query = "alpha".to_owned();
     state.response = Some(mock_response());
-    let factory: Box<dyn PaneFactory> =
-        Box::new(LoomSearchV2PaneFactory::with_state(client, Arc::clone(&shared), state));
+    let factory: Box<dyn PaneFactory> = Box::new(LoomSearchV2PaneFactory::with_state(
+        client,
+        Arc::clone(&shared),
+        state,
+    ));
 
     let reg = loom_search_v2_registry();
     let mut harness = Harness::builder()
@@ -569,14 +678,25 @@ fn pane_opens_via_registry_and_renders_real_panel() {
 
     // The REAL panel rendered (not the placeholder): the 6 contract author_ids are in the live tree.
     let ids = author_ids(&harness);
-    for required in [QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID, STATUS_AUTHOR_ID] {
+    for required in [
+        QUERY_AUTHOR_ID,
+        SEARCH_AUTHOR_ID,
+        SAVE_VIEW_AUTHOR_ID,
+        STATUS_AUTHOR_ID,
+    ] {
         assert!(
             ids.contains(required),
             "AC-9: required author_id '{required}' missing — the pane rendered the placeholder, not the real panel ({ids:?})"
         );
     }
-    assert!(ids.contains(&facet_author_id("note")), "AC-9: facet.note missing from registry-dispatched pane");
-    assert!(ids.contains(&result_author_id("blk-1")), "AC-9: result.blk-1 missing from registry-dispatched pane");
+    assert!(
+        ids.contains(&facet_author_id("note")),
+        "AC-9: facet.note missing from registry-dispatched pane"
+    );
+    assert!(
+        ids.contains(&result_author_id("blk-1")),
+        "AC-9: result.blk-1 missing from registry-dispatched pane"
+    );
 
     // A result-row click through the registry-dispatched pane routes the block id into the shared cell
     // the shell drains (open-in-place). Proves on_open_block is wired by the factory, not just show().
@@ -609,8 +729,9 @@ fn loom_search_v2_live_pg() {
     use handshake_native::backend_client::LoomSearchCell;
     use std::time::{Duration, Instant};
 
-    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID")
-        .expect("set HSK_TEST_WORKSPACE_ID to a workspace seeded with >=3 differing-content_type blocks");
+    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID").expect(
+        "set HSK_TEST_WORKSPACE_ID to a workspace seeded with >=3 differing-content_type blocks",
+    );
     let query = std::env::var("HSK_TEST_QUERY").unwrap_or_else(|_| "the".to_owned());
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -636,14 +757,30 @@ fn loom_search_v2_live_pg() {
     };
 
     let resp = delivered.expect("PT-1: real search succeeded against the live backend");
-    assert!(!resp.hits.is_empty(), "PT-1: expected >= 1 hit for query '{query}'");
+    assert!(
+        !resp.hits.is_empty(),
+        "PT-1: expected >= 1 hit for query '{query}'"
+    );
     for h in &resp.hits {
-        assert!(!h.block.block_id.is_empty(), "PT-1: each hit carries a block_id");
-        assert!(h.score > 0.0, "PT-1: each hit has score > 0.0 (got {})", h.score);
+        assert!(
+            !h.block.block_id.is_empty(),
+            "PT-1: each hit carries a block_id"
+        );
+        assert!(
+            h.score > 0.0,
+            "PT-1: each hit has score > 0.0 (got {})",
+            h.score
+        );
     }
-    assert!(!resp.content_type_facets.is_empty(), "PT-1: content_type_facets populated");
+    assert!(
+        !resp.content_type_facets.is_empty(),
+        "PT-1: content_type_facets populated"
+    );
     let first_highlight = resp.hits.iter().find(|h| !h.highlight.is_empty());
-    assert!(first_highlight.is_some(), "PT-1: at least one hit has a non-empty highlight");
+    assert!(
+        first_highlight.is_some(),
+        "PT-1: at least one hit has a non-empty highlight"
+    );
     println!(
         "PT-1 PASS: {} hits, {} facets, semantic_available={}, total={} from real PG /loom/search-v2",
         resp.hits.len(),
@@ -684,6 +821,9 @@ fn loom_search_v2_save_view_live_pg() {
     };
 
     let block_id = delivered.expect("PT-2: save-as-view succeeded against the live backend");
-    assert!(!block_id.is_empty(), "PT-2: createBlockView returned a non-empty view block_id");
+    assert!(
+        !block_id.is_empty(),
+        "PT-2: createBlockView returned a non-empty view block_id"
+    );
     println!("PT-2 PASS: save-as-view created Loom view block_id={block_id} via POST /loom/views/definitions");
 }

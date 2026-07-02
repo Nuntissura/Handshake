@@ -485,7 +485,9 @@ impl std::fmt::Display for LoomError {
             Self::NotFound(d) => write!(f, "not found (404): {d}"),
             Self::Conflict(d) => write!(f, "conflict (409): {d}"),
             Self::Server(d) => write!(f, "server error (5xx): {d}"),
-            Self::UnexpectedStatus { status, body } => write!(f, "unexpected status {status}: {body}"),
+            Self::UnexpectedStatus { status, body } => {
+                write!(f, "unexpected status {status}: {body}")
+            }
             Self::Transport(e) => write!(f, "transport error: {e}"),
             Self::Parse(e) => write!(f, "parse error: {e}"),
         }
@@ -574,10 +576,14 @@ impl LoomClient {
     }
 
     /// Calls `GET /workspaces/:ws/loom/blocks/:block_id` (get_loom_block) -> the [`LoomBlock`].
-    pub async fn get_loom_block(&self, workspace_id: &str, block_id: &str) -> LoomResult<LoomBlock> {
-        let builder = self
-            .client
-            .get(self.url(&format!("/workspaces/{workspace_id}/loom/blocks/{block_id}")));
+    pub async fn get_loom_block(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> LoomResult<LoomBlock> {
+        let builder = self.client.get(self.url(&format!(
+            "/workspaces/{workspace_id}/loom/blocks/{block_id}"
+        )));
         self.send_json(builder).await
     }
 
@@ -591,16 +597,18 @@ impl LoomClient {
     ) -> LoomResult<LoomBlock> {
         let builder = self
             .client
-            .patch(self.url(&format!("/workspaces/{workspace_id}/loom/blocks/{block_id}")))
+            .patch(self.url(&format!(
+                "/workspaces/{workspace_id}/loom/blocks/{block_id}"
+            )))
             .json(body);
         self.send_json(builder).await
     }
 
     /// Calls `DELETE /workspaces/:ws/loom/blocks/:block_id` (delete_loom_block) -> the `{status}` ack.
     pub async fn delete_loom_block(&self, workspace_id: &str, block_id: &str) -> LoomResult<Value> {
-        let builder = self
-            .client
-            .delete(self.url(&format!("/workspaces/{workspace_id}/loom/blocks/{block_id}")));
+        let builder = self.client.delete(self.url(&format!(
+            "/workspaces/{workspace_id}/loom/blocks/{block_id}"
+        )));
         self.send_json(builder).await
     }
 
@@ -732,9 +740,9 @@ impl LoomClient {
         workspace_id: &str,
         folder_id: &str,
     ) -> LoomResult<LoomFolder> {
-        let builder = self
-            .client
-            .get(self.url(&format!("/workspaces/{workspace_id}/loom/folders/{folder_id}")));
+        let builder = self.client.get(self.url(&format!(
+            "/workspaces/{workspace_id}/loom/folders/{folder_id}"
+        )));
         self.send_json(builder).await
     }
 
@@ -749,7 +757,9 @@ impl LoomClient {
     ) -> LoomResult<LoomFolder> {
         let builder = self
             .client
-            .patch(self.url(&format!("/workspaces/{workspace_id}/loom/folders/{folder_id}")))
+            .patch(self.url(&format!(
+                "/workspaces/{workspace_id}/loom/folders/{folder_id}"
+            )))
             .json(update);
         self.send_json(builder).await
     }
@@ -760,9 +770,9 @@ impl LoomClient {
         workspace_id: &str,
         folder_id: &str,
     ) -> LoomResult<Value> {
-        let builder = self
-            .client
-            .delete(self.url(&format!("/workspaces/{workspace_id}/loom/folders/{folder_id}")));
+        let builder = self.client.delete(self.url(&format!(
+            "/workspaces/{workspace_id}/loom/folders/{folder_id}"
+        )));
         self.send_json(builder).await
     }
 
@@ -837,9 +847,9 @@ impl LoomClient {
         workspace_id: &str,
         tag_block_id: &str,
     ) -> LoomResult<Value> {
-        let builder = self
-            .client
-            .get(self.url(&format!("/workspaces/{workspace_id}/loom/tags/{tag_block_id}")));
+        let builder = self.client.get(self.url(&format!(
+            "/workspaces/{workspace_id}/loom/tags/{tag_block_id}"
+        )));
         self.send_json(builder).await
     }
 
@@ -888,7 +898,11 @@ impl LoomClient {
     /// Calls `GET /workspaces/:ws/loom/graph/traverse` (traverse_loom_graph) -> the traversal result as
     /// a `Value`. A typed graph model is extracted per-widget; the native graph pane reuses
     /// [`crate::loom_graph`].
-    pub async fn traverse_loom_graph(&self, workspace_id: &str, query: &[(&str, &str)]) -> LoomResult<Value> {
+    pub async fn traverse_loom_graph(
+        &self,
+        workspace_id: &str,
+        query: &[(&str, &str)],
+    ) -> LoomResult<Value> {
         let builder = self
             .client
             .get(self.url(&format!("/workspaces/{workspace_id}/loom/graph/traverse")))
@@ -898,7 +912,11 @@ impl LoomClient {
 
     /// Calls `GET /workspaces/:ws/loom/graph/local` (local_loom_graph) -> the local-neighborhood graph
     /// as a `Value`.
-    pub async fn local_loom_graph(&self, workspace_id: &str, query: &[(&str, &str)]) -> LoomResult<Value> {
+    pub async fn local_loom_graph(
+        &self,
+        workspace_id: &str,
+        query: &[(&str, &str)],
+    ) -> LoomResult<Value> {
         let builder = self
             .client
             .get(self.url(&format!("/workspaces/{workspace_id}/loom/graph/local")))
@@ -909,7 +927,11 @@ impl LoomClient {
     /// Calls `GET /workspaces/:ws/loom/graph/global` (global_loom_graph) -> the global project graph as
     /// a `Value`. The global graph body can be large; the consuming pane deserializes off the UI thread
     /// (RISK-6).
-    pub async fn global_loom_graph(&self, workspace_id: &str, query: &[(&str, &str)]) -> LoomResult<Value> {
+    pub async fn global_loom_graph(
+        &self,
+        workspace_id: &str,
+        query: &[(&str, &str)],
+    ) -> LoomResult<Value> {
         let builder = self
             .client
             .get(self.url(&format!("/workspaces/{workspace_id}/loom/graph/global")))
@@ -929,7 +951,9 @@ impl LoomClient {
     ) -> LoomResult<Value> {
         let builder = self
             .client
-            .get(self.url(&format!("/workspaces/{workspace_id}/loom/views/{view_type}")))
+            .get(self.url(&format!(
+                "/workspaces/{workspace_id}/loom/views/{view_type}"
+            )))
             .query(query);
         self.send_json(builder).await
     }
@@ -1020,7 +1044,9 @@ impl LoomClient {
     pub async fn create_block_view(&self, workspace_id: &str, body: &Value) -> LoomResult<Value> {
         let builder = self
             .client
-            .post(self.url(&format!("/workspaces/{workspace_id}/loom/views/definitions")))
+            .post(self.url(&format!(
+                "/workspaces/{workspace_id}/loom/views/definitions"
+            )))
             .json(body);
         self.send_json(builder).await
     }
@@ -1097,7 +1123,11 @@ impl LoomClient {
     /// Calls `POST /workspaces/:ws/loom/wiki/bootstrap` (bootstrap_project_wiki) -> the bootstrap outcome
     /// as a `Value`. `body` is the optional `{page_token_budget?}` (pass `serde_json::Value::Null` /
     /// `json!({})` for defaults).
-    pub async fn bootstrap_project_wiki(&self, workspace_id: &str, body: &Value) -> LoomResult<Value> {
+    pub async fn bootstrap_project_wiki(
+        &self,
+        workspace_id: &str,
+        body: &Value,
+    ) -> LoomResult<Value> {
         let builder = self
             .client
             .post(self.url(&format!("/workspaces/{workspace_id}/loom/wiki/bootstrap")))
@@ -1107,7 +1137,11 @@ impl LoomClient {
 
     /// Calls `POST /workspaces/:ws/loom/wiki/drift-check` (project_wiki_drift_check) -> the drift report
     /// as a `Value`. `body` is the optional `{persist?}`.
-    pub async fn project_wiki_drift_check(&self, workspace_id: &str, body: &Value) -> LoomResult<Value> {
+    pub async fn project_wiki_drift_check(
+        &self,
+        workspace_id: &str,
+        body: &Value,
+    ) -> LoomResult<Value> {
         let builder = self
             .client
             .post(self.url(&format!("/workspaces/{workspace_id}/loom/wiki/drift-check")))
@@ -1293,7 +1327,8 @@ mod tests {
         }
         // RISK-1 / MC-1: an UNKNOWN backend variant deserializes to Unknown, never an error/panic.
         let future: LoomBlockContentType =
-            serde_json::from_value(json!("a_brand_new_backend_type")).expect("unknown must not fail");
+            serde_json::from_value(json!("a_brand_new_backend_type"))
+                .expect("unknown must not fail");
         assert_eq!(future, LoomBlockContentType::Unknown);
     }
 
@@ -1317,7 +1352,10 @@ mod tests {
     #[test]
     fn status_map_400_404_409_5xx_are_distinct_variants() {
         assert!(matches!(
-            map_error_status(400, &json!({"error": "HSK-400-LOOM-JOURNAL-DATE"}).to_string()),
+            map_error_status(
+                400,
+                &json!({"error": "HSK-400-LOOM-JOURNAL-DATE"}).to_string()
+            ),
             LoomError::BadRequest(_)
         ));
         assert!(matches!(
@@ -1325,7 +1363,10 @@ mod tests {
             LoomError::NotFound(_)
         ));
         assert!(matches!(
-            map_error_status(409, &json!({"error": "HSK-409-LOOM-AI-NO-MODEL"}).to_string()),
+            map_error_status(
+                409,
+                &json!({"error": "HSK-409-LOOM-AI-NO-MODEL"}).to_string()
+            ),
             LoomError::Conflict(_)
         ));
         assert!(matches!(
@@ -1347,12 +1388,19 @@ mod tests {
             ..Default::default()
         };
         let v = serde_json::to_value(&patch).unwrap();
-        assert_eq!(v["add_tags"], json!(["BLK-tag-hub-1"]), "add_tags is a block-id array");
+        assert_eq!(
+            v["add_tags"],
+            json!(["BLK-tag-hub-1"]),
+            "add_tags is a block-id array"
+        );
         assert!(
             v.get("remove_tags").is_none(),
             "an empty remove_tags is OMITTED from the wire: {v}"
         );
-        assert!(v.get("title").is_none(), "an absent title is omitted (unchanged): {v}");
+        assert!(
+            v.get("title").is_none(),
+            "an absent title is omitted (unchanged): {v}"
+        );
     }
 
     #[test]
@@ -1369,7 +1417,10 @@ mod tests {
             "the search-v2 body must NOT carry a fabricated embedding: {v}"
         );
         // content_type omitted when None; an empty tag_ids omitted.
-        assert!(v.get("content_type").is_none(), "absent content_type omitted: {v}");
+        assert!(
+            v.get("content_type").is_none(),
+            "absent content_type omitted: {v}"
+        );
         assert!(v.get("tag_ids").is_none(), "empty tag_ids omitted: {v}");
     }
 
@@ -1385,7 +1436,11 @@ mod tests {
             journal_date: None,
         };
         let v = serde_json::to_value(&body).unwrap();
-        assert_eq!(v["content_type"], json!("note"), "content_type serializes snake_case");
+        assert_eq!(
+            v["content_type"],
+            json!("note"),
+            "content_type serializes snake_case"
+        );
         assert_eq!(v["title"], json!("Untitled"));
         assert!(v.get("block_id").is_none(), "absent block_id omitted: {v}");
         assert!(v.get("pinned").is_none(), "absent pinned omitted: {v}");
@@ -1404,13 +1459,17 @@ mod tests {
             "resolved": false,
             "unresolved_reason": "loom_block_has_no_source_document"
         });
-        let parsed: LoomTransclusionResponse = serde_json::from_value(body).expect("unresolved must parse");
+        let parsed: LoomTransclusionResponse =
+            serde_json::from_value(body).expect("unresolved must parse");
         assert!(!parsed.resolved, "resolved=false is preserved");
         assert_eq!(
             parsed.unresolved_reason.as_deref(),
             Some("loom_block_has_no_source_document"),
             "the typed unresolved reason drives a visible indicator, not a blank"
         );
-        assert!(parsed.content_json.is_none(), "no source content when unresolved");
+        assert!(
+            parsed.content_json.is_none(),
+            "no source content when unresolved"
+        );
     }
 }

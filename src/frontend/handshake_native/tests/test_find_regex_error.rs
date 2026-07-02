@@ -12,15 +12,25 @@ use handshake_native::code_editor::{CodeEditorPanel, FindEngine, FindQuery, Text
 fn find_regex_error_invalid_no_panic_empty_matches_with_error() {
     let buf = TextBuffer::new("some (text) here with [brackets]");
     // An unclosed group is a classic mid-typing invalid pattern.
-    let q = FindQuery { pattern: "(".into(), is_regex: true, ..Default::default() };
+    let q = FindQuery {
+        pattern: "(".into(),
+        is_regex: true,
+        ..Default::default()
+    };
 
     // No panic, empty matches.
     let matches = FindEngine::search(&q, &buf);
-    assert!(matches.is_empty(), "an invalid regex finds nothing (no panic)");
+    assert!(
+        matches.is_empty(),
+        "an invalid regex finds nothing (no panic)"
+    );
 
     // A non-empty compile-error string is surfaced.
     let err = FindEngine::compile_error(&q);
-    assert!(err.is_some() && !err.unwrap().is_empty(), "invalid regex yields an error string");
+    assert!(
+        err.is_some() && !err.unwrap().is_empty(),
+        "invalid regex yields an error string"
+    );
 }
 
 #[test]
@@ -32,14 +42,23 @@ fn find_regex_error_panel_surfaces_error_in_find_state() {
     panel.set_find_query("([a-z");
 
     let state = panel.find_state().expect("find bar open");
-    assert!(state.matches.is_empty(), "AC-003: no matches for an invalid regex");
-    assert!(!state.error.is_empty(), "AC-003: FindState.error carries the regex compile error");
+    assert!(
+        state.matches.is_empty(),
+        "AC-003: no matches for an invalid regex"
+    );
+    assert!(
+        !state.error.is_empty(),
+        "AC-003: FindState.error carries the regex compile error"
+    );
 
     // Fixing the pattern clears the error and finds the match.
     panel.set_find_query("[a-z]");
     let fixed = panel.find_state().unwrap();
     assert!(fixed.error.is_empty(), "a valid pattern clears the error");
-    assert!(!fixed.matches.is_empty(), "the corrected pattern finds matches");
+    assert!(
+        !fixed.matches.is_empty(),
+        "the corrected pattern finds matches"
+    );
 }
 
 #[test]
@@ -48,7 +67,15 @@ fn find_regex_error_catastrophic_pattern_does_not_hang() {
     // RE2-style (linear time), so this returns immediately; a backtracking engine (fancy-regex) would
     // hang for seconds. The test simply completing is the proof.
     let buf = TextBuffer::new(&"a".repeat(5000));
-    let q = FindQuery { pattern: "(a+)+$".into(), is_regex: true, ..Default::default() };
+    let q = FindQuery {
+        pattern: "(a+)+$".into(),
+        is_regex: true,
+        ..Default::default()
+    };
     let matches = FindEngine::search(&q, &buf);
-    assert_eq!(matches.len(), 1, "the linear engine matches the whole run without hanging");
+    assert_eq!(
+        matches.len(),
+        1,
+        "the linear engine matches the whole run without hanging"
+    );
 }

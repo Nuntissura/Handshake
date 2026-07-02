@@ -50,10 +50,24 @@ fn parity_local_graph() {
         "/workspaces/{}/loom/graph/local?start_block_id={block_id}&max_depth=2",
         be.workspace_id
     ));
-    let nodes = graph.get("nodes").and_then(|n| n.as_array()).map(|a| a.len()).unwrap_or(0);
-    let edges = graph.get("edges").and_then(|e| e.as_array()).map(|a| a.len()).unwrap_or(0);
-    assert!(nodes >= 1, "E3-23: the local graph (depth 2) must report >= 1 node (got {nodes})");
-    assert!(edges >= 1, "E3-23: the local graph (depth 2) must report >= 1 edge (got {edges})");
+    let nodes = graph
+        .get("nodes")
+        .and_then(|n| n.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    let edges = graph
+        .get("edges")
+        .and_then(|e| e.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    assert!(
+        nodes >= 1,
+        "E3-23: the local graph (depth 2) must report >= 1 node (got {nodes})"
+    );
+    assert!(
+        edges >= 1,
+        "E3-23: the local graph (depth 2) must report >= 1 edge (got {edges})"
+    );
     println!("E3-23 PASS: local graph depth-2 -> {nodes} nodes, {edges} edges from real PG");
     mark_pass("E3-23");
 }
@@ -65,10 +79,23 @@ fn parity_local_graph() {
 fn parity_global_graph() {
     let be = require_live_backend();
     // The REAL global-graph route is /loom/graph/global (loom.rs:268-272); returns LoomGraph { nodes, .. }.
-    let graph = be.get_json(&format!("/workspaces/{}/loom/graph/global", be.workspace_id));
-    let nodes = graph.get("nodes").and_then(|n| n.as_array()).cloned().unwrap_or_default();
-    assert!(!nodes.is_empty(), "E3-24: the global graph (depth 1) must report >= 1 node");
-    println!("E3-24 PASS: global graph depth-1 -> {} nodes (workspace root present)", nodes.len());
+    let graph = be.get_json(&format!(
+        "/workspaces/{}/loom/graph/global",
+        be.workspace_id
+    ));
+    let nodes = graph
+        .get("nodes")
+        .and_then(|n| n.as_array())
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        !nodes.is_empty(),
+        "E3-24: the global graph (depth 1) must report >= 1 node"
+    );
+    println!(
+        "E3-24 PASS: global graph depth-1 -> {} nodes (workspace root present)",
+        nodes.len()
+    );
     mark_pass("E3-24");
 }
 
@@ -79,10 +106,20 @@ fn parity_global_graph() {
 fn parity_folder_tree() {
     let be = require_live_backend();
     let folders = be.get_json(&format!("/workspaces/{}/loom/folders", be.workspace_id));
-    let count = folders.as_array().map(|a| a.len())
-        .or_else(|| folders.get("folders").and_then(|f| f.as_array()).map(|a| a.len()))
+    let count = folders
+        .as_array()
+        .map(|a| a.len())
+        .or_else(|| {
+            folders
+                .get("folders")
+                .and_then(|f| f.as_array())
+                .map(|a| a.len())
+        })
         .unwrap_or(0);
-    assert!(count >= 1, "E3-25: the folder tree must list >= 1 folder (got {count})");
+    assert!(
+        count >= 1,
+        "E3-25: the folder tree must list >= 1 folder (got {count})"
+    );
     println!("E3-25 PASS: folder tree lists {count} folder(s) with hierarchy from real PG");
     mark_pass("E3-25");
 }
@@ -101,7 +138,9 @@ fn parity_color_labels() {
     );
     let reloaded = be.get_json(&format!("/workspaces/{}/loom/folders", be.workspace_id));
     assert!(
-        serde_json::to_string(&reloaded).unwrap().contains("#ff8800"),
+        serde_json::to_string(&reloaded)
+            .unwrap()
+            .contains("#ff8800"),
         "E3-26: the folder color label must be preserved after reload"
     );
     println!("E3-26 PASS: folder color label #ff8800 preserved across reload");
@@ -142,7 +181,10 @@ fn parity_pins() {
     // GET /loom/views/pins -> { view_type: "pins", blocks: [...] } (loom.rs:255-258,3112). There is no
     // `/loom/blocks?pinned=` filter route.
     be.put_json(
-        &format!("/workspaces/{}/loom/blocks/{block_id}/pin-order", be.workspace_id),
+        &format!(
+            "/workspaces/{}/loom/blocks/{block_id}/pin-order",
+            be.workspace_id
+        ),
         &serde_json::json!({ "pin_order": 0 }),
     );
     let pinned = be.get_json(&format!("/workspaces/{}/loom/views/pins", be.workspace_id));
@@ -166,10 +208,20 @@ fn parity_backlinks() {
         be.workspace_id
     ));
     // The endpoint returns the set of blocks that link TO block_id; with a seeded A->B edge it is non-empty.
-    let count = backlinks.as_array().map(|a| a.len())
-        .or_else(|| backlinks.get("backlinks").and_then(|b| b.as_array()).map(|a| a.len()))
+    let count = backlinks
+        .as_array()
+        .map(|a| a.len())
+        .or_else(|| {
+            backlinks
+                .get("backlinks")
+                .and_then(|b| b.as_array())
+                .map(|a| a.len())
+        })
         .unwrap_or(0);
-    assert!(count >= 1, "E3-29: the backlinks of {block_id} must include >= 1 referencing block");
+    assert!(
+        count >= 1,
+        "E3-29: the backlinks of {block_id} must include >= 1 referencing block"
+    );
     println!("E3-29 PASS: {block_id} has {count} backlink(s) from real PG");
     mark_pass("E3-29");
 }
@@ -185,10 +237,20 @@ fn parity_unlinked_mentions() {
         "/workspaces/{}/loom/blocks/{block_id}/unlinked-mentions",
         be.workspace_id
     ));
-    let count = mentions.as_array().map(|a| a.len())
-        .or_else(|| mentions.get("mentions").and_then(|m| m.as_array()).map(|a| a.len()))
+    let count = mentions
+        .as_array()
+        .map(|a| a.len())
+        .or_else(|| {
+            mentions
+                .get("mentions")
+                .and_then(|m| m.as_array())
+                .map(|a| a.len())
+        })
         .unwrap_or(0);
-    assert!(count >= 1, "E3-30: the unlinked-mention scan must surface >= 1 mentioning block");
+    assert!(
+        count >= 1,
+        "E3-30: the unlinked-mention scan must surface >= 1 mentioning block"
+    );
     println!("E3-30 PASS: {block_id} has {count} unlinked mention(s) from real PG");
     mark_pass("E3-30");
 }
@@ -204,10 +266,20 @@ fn parity_breadcrumbs() {
         "/workspaces/{}/loom/blocks/{block_id}/breadcrumbs",
         be.workspace_id
     ));
-    let count = crumbs.as_array().map(|a| a.len())
-        .or_else(|| crumbs.get("breadcrumbs").and_then(|b| b.as_array()).map(|a| a.len()))
+    let count = crumbs
+        .as_array()
+        .map(|a| a.len())
+        .or_else(|| {
+            crumbs
+                .get("breadcrumbs")
+                .and_then(|b| b.as_array())
+                .map(|a| a.len())
+        })
         .unwrap_or(0);
-    assert!(count >= 1, "E3-31: breadcrumbs for {block_id} must return >= 1 path segment");
+    assert!(
+        count >= 1,
+        "E3-31: breadcrumbs for {block_id} must return >= 1 path segment"
+    );
     println!("E3-31 PASS: {block_id} breadcrumbs path has {count} segment(s)");
     mark_pass("E3-31");
 }
@@ -222,15 +294,22 @@ fn parity_wiki_page_projection() {
     // plain block GET. It returns LoomWikiProjection (flattened) + staleness_verdict; the flattened
     // `rendered_content` (loom.rs:766, storage/loom.rs) is the compiled wiki markdown with resolved
     // wikilinks. A managed-PG run seeds a wiki page and sets HSK_TEST_WIKI_PROJECTION_ID.
-    let projection_id = std::env::var("HSK_TEST_WIKI_PROJECTION_ID")
-        .expect("E3-32 requires_pg: set HSK_TEST_WIKI_PROJECTION_ID to a real compiled wiki page id");
-    let wiki = be.get_json(&format!("/workspaces/{}/loom/wiki/{projection_id}", be.workspace_id));
+    let projection_id = std::env::var("HSK_TEST_WIKI_PROJECTION_ID").expect(
+        "E3-32 requires_pg: set HSK_TEST_WIKI_PROJECTION_ID to a real compiled wiki page id",
+    );
+    let wiki = be.get_json(&format!(
+        "/workspaces/{}/loom/wiki/{projection_id}",
+        be.workspace_id
+    ));
     let has_body = wiki
         .get("rendered_content")
         .and_then(|c| c.as_str())
         .map(|s| !s.is_empty())
         .unwrap_or(false);
-    assert!(has_body, "E3-32: the wiki-page projection must return non-empty rendered_content (got {wiki})");
+    assert!(
+        has_body,
+        "E3-32: the wiki-page projection must return non-empty rendered_content (got {wiki})"
+    );
     println!("E3-32 PASS: wiki-page projection {projection_id} resolved wikilinks");
     mark_pass("E3-32");
 }
@@ -250,13 +329,19 @@ fn parity_canvas_board_placement() {
         &format!("/workspaces/{}/loom/canvas-boards/{board_id}/placements", be.workspace_id),
         &serde_json::json!({ "placed_block_id": block_id, "x": 100.0, "y": 100.0, "w": 200.0, "h": 120.0 }),
     );
-    let placement_id = placement["placement_id"].as_str()
+    let placement_id = placement["placement_id"]
+        .as_str()
         .expect("E3-33: placement returns a placement_id");
     // Verify the placement appears in the board GET response (the AC: "verifies the placement is
     // returned in the board GET response").
-    let board = be.get_json(&format!("/workspaces/{}/loom/canvas-boards/{board_id}", be.workspace_id));
+    let board = be.get_json(&format!(
+        "/workspaces/{}/loom/canvas-boards/{board_id}",
+        be.workspace_id
+    ));
     assert!(
-        serde_json::to_string(&board).unwrap().contains(placement_id),
+        serde_json::to_string(&board)
+            .unwrap()
+            .contains(placement_id),
         "E3-33: the new placement {placement_id} must appear in the board view"
     );
     println!("E3-33 PASS: canvas placement {placement_id} of block {block_id} returned in the board view");
@@ -281,11 +366,21 @@ fn parity_block_collection_table() {
     // Execute via /results (BlockViewResultsRequest { limit?, offset? }) -> BlockViewResults
     // { kind, blocks, groups, total_returned } (loom.rs:366,1643).
     let results = be.post_json(
-        &format!("/workspaces/{}/loom/views/definitions/{view_id}/results", be.workspace_id),
+        &format!(
+            "/workspaces/{}/loom/views/definitions/{view_id}/results",
+            be.workspace_id
+        ),
         &serde_json::json!({}),
     );
-    let rows = results.get("blocks").and_then(|r| r.as_array()).map(|a| a.len()).unwrap_or(0);
-    assert!(rows > 0, "E3-34: the table view query must return > 0 blocks (got {rows})");
+    let rows = results
+        .get("blocks")
+        .and_then(|r| r.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    assert!(
+        rows > 0,
+        "E3-34: the table view query must return > 0 blocks (got {rows})"
+    );
     println!("E3-34 PASS: block-collection table view returned {rows} row(s)");
     mark_pass("E3-34");
 }
@@ -307,7 +402,10 @@ fn parity_block_collection_kanban() {
     );
     // Re-query via the REAL /loom/views/definitions/{id}/results route (loom.rs:366), not /block-views.
     let results = be.post_json(
-        &format!("/workspaces/{}/loom/views/definitions/{view_id}/results", be.workspace_id),
+        &format!(
+            "/workspaces/{}/loom/views/definitions/{view_id}/results",
+            be.workspace_id
+        ),
         &serde_json::json!({}),
     );
     let s = serde_json::to_string(&results).unwrap();
@@ -332,7 +430,10 @@ fn parity_block_collection_calendar() {
     // results route is /loom/views/definitions/{id}/results with { limit?, offset? } (loom.rs:366,4073).
     // The seeded daily-journal block carries today's date, so it surfaces in the calendar results.
     let results = be.post_json(
-        &format!("/workspaces/{}/loom/views/definitions/{view_id}/results", be.workspace_id),
+        &format!(
+            "/workspaces/{}/loom/views/definitions/{view_id}/results",
+            be.workspace_id
+        ),
         &serde_json::json!({}),
     );
     assert!(

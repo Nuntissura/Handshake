@@ -43,10 +43,10 @@ use handshake_native::rich_editor::formatting::toolbar::{
     all_toolbar_commands, toolbar_button_author_id, EditorToolbar,
 };
 use handshake_native::rich_editor::formatting::FormattingCommand;
-use handshake_native::rich_editor::renderer::input_handler::{
-    self, EditContext,
+use handshake_native::rich_editor::renderer::input_handler::{self, EditContext};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
 };
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic — the
 /// crate sits at `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..`
@@ -143,10 +143,10 @@ fn toolbar_renders_all_category_groups() {
 
     // One representative command per category group (history|format|block|list|table).
     let reps = [
-        FormattingCommand::Undo,                          // history
-        FormattingCommand::ToggleBold,                    // format
-        FormattingCommand::SetHeading(1),                 // block
-        FormattingCommand::ToggleBulletList,              // list
+        FormattingCommand::Undo,                             // history
+        FormattingCommand::ToggleBold,                       // format
+        FormattingCommand::SetHeading(1),                    // block
+        FormattingCommand::ToggleBulletList,                 // list
         FormattingCommand::InsertTable { rows: 3, cols: 3 }, // table
     ];
     for cmd in &reps {
@@ -271,7 +271,9 @@ fn overflow_button_renders_when_narrow() {
             } = &mut *st;
             let cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
             // Force a narrow row so overflow triggers deterministically.
-            EditorToolbar::new(cctx).with_forced_max_width(120.0).show(ui);
+            EditorToolbar::new(cctx)
+                .with_forced_max_width(120.0)
+                .show(ui);
         });
     // Run multiple frames to prove the popup id is stable (MC-005: it must not vanish on
     // a fresh-id frame). The `…` button node is present every frame.
@@ -285,7 +287,9 @@ fn overflow_button_renders_when_narrow() {
         "AC-11: a forced-narrow toolbar must render the '…' overflow button \
          (author_id='toolbar-btn-overflow'); present ids: {ids:?}"
     );
-    println!("AC-11: overflow '…' button present under a forced-narrow toolbar (stable across 3 frames)");
+    println!(
+        "AC-11: overflow '…' button present under a forced-narrow toolbar (stable across 3 frames)"
+    );
 }
 
 // ── AC-1 + PT-2: screenshot of the toolbar row above the content ───────────────────────
@@ -310,7 +314,8 @@ fn toolbar_screenshot() {
             // Pixel proof: the toolbar glyphs + the styled demo doc produce multiple
             // distinct foreground colors over the background. Sample every 4th pixel.
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut i = 0usize;
             while i + 4 <= raw.len() {
                 let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
@@ -335,7 +340,10 @@ fn toolbar_screenshot() {
                  colors; got {} (bg={bg:?})",
                 foreground.len()
             );
-            assert!(saved, "the mt013_toolbar.png screenshot must save to the external artifact root");
+            assert!(
+                saved,
+                "the mt013_toolbar.png screenshot must save to the external artifact root"
+            );
             assert_no_local_artifact_dir();
         }
         Err(e) => {
@@ -373,7 +381,10 @@ fn tab_indents_only_inside_a_list() {
     };
     // In a list: Tab -> sink, Shift+Tab -> lift.
     assert_eq!(
-        input_handler::decode_formatting_commands(std::slice::from_ref(&tab), /*caret_in_list=*/ true),
+        input_handler::decode_formatting_commands(
+            std::slice::from_ref(&tab),
+            /*caret_in_list=*/ true
+        ),
         vec![FormattingCommand::SinkListItem],
         "AC-9: Tab inside a list calls sink_list_item"
     );
@@ -403,6 +414,9 @@ fn all_toolbar_commands_have_unique_author_ids() {
         );
         assert!(seen.insert(id.clone()), "duplicate toolbar author_id: {id}");
     }
-    assert!(seen.len() >= 8, "the toolbar exposes the full command catalog (>= 8 buttons)");
+    assert!(
+        seen.len() >= 8,
+        "the toolbar exposes the full command catalog (>= 8 buttons)"
+    );
     println!("{} unique toolbar-btn author_ids", seen.len());
 }

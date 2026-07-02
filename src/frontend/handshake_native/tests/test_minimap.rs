@@ -81,7 +81,9 @@ fn minimap_live_midpoint_click_scrolls_to_middle() {
     // Drive a REAL minimap click at the vertical midpoint through the harness and verify the editor
     // scrolls toward the middle line (the public scroll surface moves).
     let total_lines = 400usize;
-    let src: String = (0..total_lines).map(|i| format!("line_{i} = {i};\n")).collect();
+    let src: String = (0..total_lines)
+        .map(|i| format!("line_{i} = {i};\n"))
+        .collect();
     let panel = Arc::new(CodeEditorPanel::new(&src, "rs"));
     panel.set_show_minimap(true);
     panel.set_show_outline(false); // isolate the minimap interaction for this test.
@@ -100,7 +102,10 @@ fn minimap_live_midpoint_click_scrolls_to_middle() {
     let minimap_present = root
         .children_recursive()
         .any(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_MINIMAP_AUTHOR_ID));
-    assert!(minimap_present, "AC-003: the code_editor_minimap node is present in the live tree");
+    assert!(
+        minimap_present,
+        "AC-003: the code_editor_minimap node is present in the live tree"
+    );
 
     // The panel captures the minimap's screen rect each frame (the deterministic geometry surface the
     // midpoint click computes against).
@@ -140,8 +145,8 @@ fn minimap_live_midpoint_click_scrolls_to_middle() {
     let middle_line = total_lines / 2;
     // The painted window moved toward the middle line: either it now contains the middle line, or its
     // start advanced substantially from the top toward the middle.
-    let near_middle = after.contains(&middle_line)
-        || (after.start as i64 - middle_line as i64).abs() <= 3 * 50; // generous: viewport rows
+    let near_middle =
+        after.contains(&middle_line) || (after.start as i64 - middle_line as i64).abs() <= 3 * 50; // generous: viewport rows
     assert!(
         after != before && near_middle,
         "AC-006: a midpoint minimap click scrolled the editor toward the middle line {middle_line} (before {before:?}, after {after:?})"
@@ -186,10 +191,22 @@ fn three_panel_layout_screenshot() {
             _ => {}
         }
     }
-    assert_eq!(outline_role.as_deref(), Some("Tree"), "AC-003: outline present (Role::Tree)");
-    assert_eq!(minimap_role.as_deref(), Some("ScrollBar"), "AC-003: minimap present (Role::ScrollBar)");
-    let outline_rect = panel.last_outline_rect().expect("AC-003: outline rect captured");
-    let minimap_rect = panel.last_minimap_rect().expect("AC-003: minimap rect captured");
+    assert_eq!(
+        outline_role.as_deref(),
+        Some("Tree"),
+        "AC-003: outline present (Role::Tree)"
+    );
+    assert_eq!(
+        minimap_role.as_deref(),
+        Some("ScrollBar"),
+        "AC-003: minimap present (Role::ScrollBar)"
+    );
+    let outline_rect = panel
+        .last_outline_rect()
+        .expect("AC-003: outline rect captured");
+    let minimap_rect = panel
+        .last_minimap_rect()
+        .expect("AC-003: minimap rect captured");
 
     // Three distinct regions with correct widths + left/right placement.
     assert!(
@@ -235,7 +252,10 @@ fn three_panel_layout_screenshot() {
                 minimap_rect.left() - outline_rect.right(),
                 abs.display()
             );
-            assert!(saved, "PT-003: the three-panel screenshot PNG saved to the external artifact root");
+            assert!(
+                saved,
+                "PT-003: the three-panel screenshot PNG saved to the external artifact root"
+            );
         }
         Err(e) => {
             println!(

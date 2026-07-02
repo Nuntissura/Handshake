@@ -341,8 +341,10 @@ impl TabBarState {
         // Identity-track the active tab so we can recover its new index after the stable partition.
         // We tag each tab with its original index, partition, then find where the active one landed.
         let active = self.active_index.min(self.tabs.len() - 1);
-        let mut tagged: Vec<(usize, TabState)> =
-            std::mem::take(&mut self.tabs).into_iter().enumerate().collect();
+        let mut tagged: Vec<(usize, TabState)> = std::mem::take(&mut self.tabs)
+            .into_iter()
+            .enumerate()
+            .collect();
         // Stable partition: pinned first. `sort_by_key` is stable in std, so relative order within
         // each group is preserved.
         tagged.sort_by_key(|(_, t)| !t.pinned); // false(pinned)=0 sorts before true(unpinned)=1
@@ -517,8 +519,14 @@ pub fn apply_drop(
     source_bar: &mut TabBarState,
     target_bar: &mut TabBarState,
 ) -> bool {
-    debug_assert_eq!(source_bar.pane_id, payload.source_pane_id, "source bar must match payload");
-    debug_assert_eq!(target_bar.pane_id, target.target_pane_id, "target bar must match target");
+    debug_assert_eq!(
+        source_bar.pane_id, payload.source_pane_id,
+        "source bar must match payload"
+    );
+    debug_assert_eq!(
+        target_bar.pane_id, target.target_pane_id,
+        "target bar must match target"
+    );
 
     if payload.source_pane_id == target.target_pane_id {
         // Same pane: a reorder, not a cross-pane move. (Callers normally pass the SAME bar twice via
@@ -536,7 +544,11 @@ pub fn apply_drop(
 
 /// Apply a same-pane reorder drop (source and target are the one bar). Separate entry point because
 /// [`apply_drop`] needs two distinct `&mut` borrows, which Rust forbids for the same bar.
-pub fn apply_drop_same_pane(payload: &TabDragPayload, target: &TabDropTarget, bar: &mut TabBarState) {
+pub fn apply_drop_same_pane(
+    payload: &TabDragPayload,
+    target: &TabDropTarget,
+    bar: &mut TabBarState,
+) {
     bar.reorder_tab(payload.tab_index, target.insert_before_index);
 }
 
@@ -650,7 +662,14 @@ impl TabBar {
                 egui::ScrollArea::horizontal()
                     .id_salt(("tab-bar-scroll", &pane_id))
                     .show(ui, |ui| {
-                        Self::render_tabs(ui, state, &pane_id, colors, active_module, &mut response);
+                        Self::render_tabs(
+                            ui,
+                            state,
+                            &pane_id,
+                            colors,
+                            active_module,
+                            &mut response,
+                        );
                     });
             });
         });
@@ -704,7 +723,11 @@ impl TabBar {
         // ── Live AccessKit: the bar container is a TabList ───────────────────────────────────────
         // Register the bar id on its rect first so the node attaches under the correct parent, then
         // enrich it (Role::TabList + author_id). Sense::focusable so keyboard nav can land on the bar.
-        ui.interact(bar_rect, bar_egui_id, egui::Sense::focusable_noninteractive());
+        ui.interact(
+            bar_rect,
+            bar_egui_id,
+            egui::Sense::focusable_noninteractive(),
+        );
         ui.ctx().accesskit_node_builder(bar_egui_id, |node| {
             node.set_role(accesskit::Role::TabList);
             node.set_author_id(tabbar_author_id(&pane_id));
@@ -749,7 +772,15 @@ impl TabBar {
             // by the body's drag/click sense (the two rects do not overlap).
             ui.horizontal(|ui| {
                 Self::render_tab_body(
-                    ui, state, tab, index, is_active, pane_id, colors, module_badge, response,
+                    ui,
+                    state,
+                    tab,
+                    index,
+                    is_active,
+                    pane_id,
+                    colors,
+                    module_badge,
+                    response,
                 );
                 if !tab.pinned {
                     Self::render_close_button(ui, &tab.label(), index, pane_id, colors, response);
@@ -777,11 +808,16 @@ impl TabBar {
         // land on the SAME node — otherwise `allocate_exact_size`'s auto-generated id would carry the
         // label+bbox while a separate empty node carried the author_id (and the close button would be
         // unaddressable / lack a bounding box for pointer clicks).
-        let (close_rect, _) = ui.allocate_exact_size(egui::vec2(close_w, height), egui::Sense::hover());
+        let (close_rect, _) =
+            ui.allocate_exact_size(egui::vec2(close_w, height), egui::Sense::hover());
         let close_resp = ui.interact(close_rect, close_id, egui::Sense::click());
 
         if ui.is_rect_visible(close_rect) {
-            let close_color = if close_resp.hovered() { colors.accent } else { colors.text };
+            let close_color = if close_resp.hovered() {
+                colors.accent
+            } else {
+                colors.text
+            };
             let cg = ui.painter().layout_no_wrap(
                 CLOSE_GLYPH.to_owned(),
                 egui::FontId::proportional(14.0),
@@ -802,7 +838,11 @@ impl TabBar {
         }
         // AccessKit: the close button is a Role::Button (from widget_info) addressable out-of-process.
         close_resp.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), format!("Close {label}"))
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::Button,
+                ui.is_enabled(),
+                format!("Close {label}"),
+            )
         });
         ui.ctx().accesskit_node_builder(close_id, |node| {
             node.set_author_id(tab_close_author_id(pane_id, index));
@@ -828,7 +868,9 @@ impl TabBar {
 
         // Width of the body content = [pin glyph] [dirty dot] [label] [module badge suffix].
         let font = egui::FontId::proportional(13.0);
-        let label_galley = ui.painter().layout_no_wrap(label.clone(), font, colors.text);
+        let label_galley = ui
+            .painter()
+            .layout_no_wrap(label.clone(), font, colors.text);
         // MT-013 module/type badge, painted as a smaller, subtler `(LAB)` suffix after the label
         // (the contract's "shorter suffix format for space efficiency"). Empty -> no badge, no width.
         let badge_text = if module_badge.is_empty() {
@@ -848,7 +890,11 @@ impl TabBar {
         let badge_w = badge_galley.as_ref().map(|g| g.size().x).unwrap_or(0.0);
         let pad = 6.0;
         let glyph_w = if tab.pinned { 12.0 } else { 0.0 };
-        let dot_w = if tab.dirty { DIRTY_DOT_RADIUS * 2.0 + 4.0 } else { 0.0 };
+        let dot_w = if tab.dirty {
+            DIRTY_DOT_RADIUS * 2.0 + 4.0
+        } else {
+            0.0
+        };
         let content_w = pad + glyph_w + dot_w + label_galley.size().x + badge_w + pad;
         let height = TAB_BAR_HEIGHT - 6.0;
 
@@ -863,7 +909,11 @@ impl TabBar {
             let (rect, _) =
                 ui.allocate_exact_size(egui::vec2(content_w, height), egui::Sense::hover());
             if ui.is_rect_visible(rect) {
-                let bg = if is_active { colors.active_bg } else { colors.inactive_bg };
+                let bg = if is_active {
+                    colors.active_bg
+                } else {
+                    colors.inactive_bg
+                };
                 ui.painter().rect_filled(rect, 3.0, bg);
 
                 let mut cursor_x = rect.left() + pad;
@@ -876,15 +926,21 @@ impl TabBar {
                         egui::FontId::proportional(10.0),
                         colors.accent,
                     );
-                    ui.painter()
-                        .galley(egui::pos2(cursor_x, mid_y - g.size().y * 0.5), g, colors.accent);
+                    ui.painter().galley(
+                        egui::pos2(cursor_x, mid_y - g.size().y * 0.5),
+                        g,
+                        colors.accent,
+                    );
                     cursor_x += glyph_w;
                 }
                 // Dirty-dot: a filled circle in the accent color, left of the label.
                 if tab.dirty {
                     let dot_x = cursor_x + DIRTY_DOT_RADIUS;
-                    ui.painter()
-                        .circle_filled(egui::pos2(dot_x, mid_y), DIRTY_DOT_RADIUS, colors.accent);
+                    ui.painter().circle_filled(
+                        egui::pos2(dot_x, mid_y),
+                        DIRTY_DOT_RADIUS,
+                        colors.accent,
+                    );
                     cursor_x += dot_w;
                 }
                 // Label.
@@ -937,9 +993,7 @@ impl TabBar {
                     TabMenuAction::Close => response.closed_index = Some(index),
                     TabMenuAction::CloseOthers => response.close_others_index = Some(index),
                     TabMenuAction::CloseAll => response.close_all = true,
-                    TabMenuAction::TogglePin => {
-                        response.pin_toggled = Some((index, !tab.pinned))
-                    }
+                    TabMenuAction::TogglePin => response.pin_toggled = Some((index, !tab.pinned)),
                     TabMenuAction::PopOut => response.pop_out_requested = true,
                 }
             }
@@ -950,8 +1004,7 @@ impl TabBar {
         // trigger). Red-team control: gate on `has_focus()` so the key never fires for an unfocused
         // surface and never leaks to global shortcuts. `request_open` uses the SAME popup id `show_on`
         // reads, so the keyboard-opened menu is the identical popup the right-click opens.
-        if tab_resp.has_focus()
-            && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift)
+        if tab_resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift)
         {
             crate::context_menu::request_open(ui.ctx(), tab_resp.id, tab_resp.rect.left_bottom());
         }
@@ -960,8 +1013,12 @@ impl TabBar {
         // derived Action::Click/Action::Focus from Sense::click(), so we only ADD identity here
         // (mirrors `emit_interactive_node` for the theme toggle).
         tab_resp.widget_info(|| {
-            let mut info =
-                egui::WidgetInfo::selected(egui::WidgetType::Button, ui.is_enabled(), is_active, &label);
+            let mut info = egui::WidgetInfo::selected(
+                egui::WidgetType::Button,
+                ui.is_enabled(),
+                is_active,
+                &label,
+            );
             info.label = Some(label.clone());
             info
         });
@@ -1017,7 +1074,11 @@ mod tests {
                 tab(PaneType::Workspace), // dup of #0
             ],
         );
-        assert_eq!(bar.tabs.len(), 2, "duplicate (pane_type, content_id) removed");
+        assert_eq!(
+            bar.tabs.len(),
+            2,
+            "duplicate (pane_type, content_id) removed"
+        );
         assert_eq!(bar.active_index, 0);
     }
 
@@ -1068,9 +1129,12 @@ mod tests {
     fn close_pinned_is_noop() {
         let mut bar = named_bar(&[PaneType::Workspace, PaneType::InferenceLab]);
         bar.pin_tab(1); // pins InferenceLab; stabilize moves it to front
-        // After pin, InferenceLab is index 0. Closing it must be a no-op.
+                        // After pin, InferenceLab is index 0. Closing it must be a no-op.
         let pinned_idx = bar.tabs.iter().position(|t| t.pinned).unwrap();
-        assert!(!bar.close_tab(pinned_idx), "closing a pinned tab is a no-op");
+        assert!(
+            !bar.close_tab(pinned_idx),
+            "closing a pinned tab is a no-op"
+        );
         assert_eq!(bar.tabs.len(), 2, "no tab removed");
     }
 
@@ -1097,7 +1161,10 @@ mod tests {
         assert!(bar.tabs[0].pinned);
         assert_eq!(bar.tabs[1].pane_type, PaneType::Workspace);
         assert_eq!(bar.tabs[2].pane_type, PaneType::InferenceLab);
-        assert_eq!(bar.active_index, 0, "active follows the previously-active tab (C) to its new slot");
+        assert_eq!(
+            bar.active_index, 0,
+            "active follows the previously-active tab (C) to its new slot"
+        );
     }
 
     #[test]
@@ -1166,7 +1233,7 @@ mod tests {
         assert_eq!(
             order,
             vec![
-                PaneType::Workspace,   // pinned, first-seen
+                PaneType::Workspace,     // pinned, first-seen
                 PaneType::AtelierEditor, // pinned, second-seen
                 PaneType::InferenceLab,  // unpinned, first-seen
                 PaneType::Swarm,         // unpinned, second-seen
@@ -1186,10 +1253,7 @@ mod tests {
                 tab(PaneType::AtelierEditor),
             ],
         );
-        let mut target = TabBarState::new(
-            Arc::from("pane-b"),
-            vec![tab(PaneType::Problems)],
-        );
+        let mut target = TabBarState::new(Arc::from("pane-b"), vec![tab(PaneType::Problems)]);
 
         let payload = TabDragPayload::from_tab(source.pane_id.clone(), 1, &source.tabs[1]);
         let drop = TabDropTarget {
@@ -1200,12 +1264,19 @@ mod tests {
 
         assert_eq!(source.tabs.len(), 2, "source lost exactly one tab");
         assert!(
-            !source.tabs.iter().any(|t| t.pane_type == PaneType::InferenceLab),
+            !source
+                .tabs
+                .iter()
+                .any(|t| t.pane_type == PaneType::InferenceLab),
             "moved tab no longer in source"
         );
         assert_eq!(target.tabs.len(), 2, "target gained exactly one tab");
         assert_eq!(
-            target.tabs.iter().filter(|t| t.pane_type == PaneType::InferenceLab).count(),
+            target
+                .tabs
+                .iter()
+                .filter(|t| t.pane_type == PaneType::InferenceLab)
+                .count(),
             1,
             "moved tab appears exactly once in target (no duplication)"
         );
@@ -1247,14 +1318,21 @@ mod tests {
             insert_before_index: 2,
         };
         apply_drop_same_pane(&payload, &drop, &mut bar);
-        assert_eq!(bar.tabs[2].pane_type, PaneType::Workspace, "tab moved to the end");
+        assert_eq!(
+            bar.tabs[2].pane_type,
+            PaneType::Workspace,
+            "tab moved to the end"
+        );
     }
 
     #[test]
     fn default_label_matches_react_tab_label_map() {
         // Spot-check the React TAB_LABEL_BY_ID strings the contract enumerates.
         assert_eq!(PaneType::Workspace.default_label(), "Workspace");
-        assert_eq!(PaneType::MediaDownloader.default_label(), "Media Downloader");
+        assert_eq!(
+            PaneType::MediaDownloader.default_label(),
+            "Media Downloader"
+        );
         assert_eq!(PaneType::FontManager.default_label(), "Fonts");
         assert_eq!(PaneType::FlightRecorder.default_label(), "Flight Recorder");
         assert_eq!(PaneType::KernelDcc.default_label(), "Kernel DCC");
@@ -1307,9 +1385,15 @@ mod tests {
         // chrome (10/20/21) and dividers (30/31).
         let pane_base = crate::accessibility::PANE_NODE_ID_BASE;
         for (slot, id) in TABBAR_SLOTS {
-            assert!(id < pane_base, "tabbar id {id} for {slot} below pane base {pane_base}");
+            assert!(
+                id < pane_base,
+                "tabbar id {id} for {slot} below pane base {pane_base}"
+            );
             for fixed in [10_u64, 20, 21, 30, 31] {
-                assert_ne!(id, fixed, "tabbar id {id} collides with fixed chrome/divider id {fixed}");
+                assert_ne!(
+                    id, fixed,
+                    "tabbar id {id} collides with fixed chrome/divider id {fixed}"
+                );
             }
         }
         // The four ids are distinct.

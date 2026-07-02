@@ -26,9 +26,6 @@ use sqlx::{
 };
 use uuid::Uuid;
 
-const DEFAULT_LOCAL_POSTGRES_URL: &str =
-    "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable";
-
 const RUNTIME_TABLES: &[&str] = &[
     "kernel_session_checkpoint",
     "kernel_event_ledger",
@@ -1045,10 +1042,8 @@ fn block_on_runtime<F: Future>(future: F) -> F::Output {
 }
 
 fn postgres_url() -> String {
-    std::env::var("POSTGRES_TEST_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| DEFAULT_LOCAL_POSTGRES_URL.to_string())
+    block_on_runtime(handshake_core::storage::tests::postgres_test_base_url())
+        .expect("resolve real PostgreSQL test URL")
 }
 
 fn append_schema_search_path(url: &str, schema: &str) -> String {

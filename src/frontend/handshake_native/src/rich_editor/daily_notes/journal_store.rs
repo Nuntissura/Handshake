@@ -247,7 +247,10 @@ impl JournalBackend for ReqwestJournalBackend {
                 .map_err(|e| JournalError::OpenFailed(format!("open {date} failed: {e}")))?;
             let status = response.status();
             if !status.is_success() {
-                return Err(JournalError::OpenFailed(status_reason(status.as_u16(), "open daily journal")));
+                return Err(JournalError::OpenFailed(status_reason(
+                    status.as_u16(),
+                    "open daily journal",
+                )));
             }
             let block: JournalBlock = response
                 .json()
@@ -279,7 +282,9 @@ impl JournalBackend for ReqwestJournalBackend {
                 .json()
                 .await
                 .map_err(|e| JournalError::DocLoadFailed(format!("load body invalid: {e}")))?;
-            Ok(JournalDocLoad { body: parsed.document })
+            Ok(JournalDocLoad {
+                body: parsed.document,
+            })
         })
     }
 
@@ -307,13 +312,18 @@ impl JournalBackend for ReqwestJournalBackend {
                 .map_err(|e| JournalError::CreateFailed(format!("create failed: {e}")))?;
             let status = response.status();
             if !status.is_success() {
-                return Err(JournalError::CreateFailed(status_reason(status.as_u16(), "create document")));
+                return Err(JournalError::CreateFailed(status_reason(
+                    status.as_u16(),
+                    "create document",
+                )));
             }
             let parsed: CreateDocEnvelope = response
                 .json()
                 .await
                 .map_err(|e| JournalError::CreateFailed(format!("create body invalid: {e}")))?;
-            Ok(JournalDocLoad { body: parsed.document })
+            Ok(JournalDocLoad {
+                body: parsed.document,
+            })
         })
     }
 }
@@ -380,7 +390,10 @@ impl JournalSaveSeam for ReqwestSaveSeam {
                 .map_err(|e| JournalError::SaveFailed(format!("save failed: {e}")))?;
             let status = response.status();
             if !status.is_success() {
-                return Err(JournalError::SaveFailed(status_reason(status.as_u16(), "save document")));
+                return Err(JournalError::SaveFailed(status_reason(
+                    status.as_u16(),
+                    "save document",
+                )));
             }
             let v: serde_json::Value = response
                 .json()
@@ -474,7 +487,11 @@ impl JournalReady {
     /// public seam (mirroring `RichEditorState::with_properties`) so a screenshot test in the external
     /// integration-test crate can construct a deterministic Ready state WITHOUT a live backend or async
     /// timing (the `#[cfg(test)]` `stage_*` seams are only visible to in-crate unit tests).
-    pub fn new(date: impl Into<String>, block: JournalBlock, doc: Option<RichDocumentBody>) -> Self {
+    pub fn new(
+        date: impl Into<String>,
+        block: JournalBlock,
+        doc: Option<RichDocumentBody>,
+    ) -> Self {
         Self {
             date: date.into(),
             block,
@@ -492,7 +509,11 @@ impl JournalReady {
 
 /// The result delivered into the load cell when an `openDailyJournal` (+ optional doc load) completes,
 /// tagged with the generation it was issued for (MC-002 cancellation): `(generation, date, result)`.
-type LoadResult = (u64, String, Result<(JournalBlock, Option<RichDocumentBody>), JournalError>);
+type LoadResult = (
+    u64,
+    String,
+    Result<(JournalBlock, Option<RichDocumentBody>), JournalError>,
+);
 
 /// One-slot delivery cell for the off-thread journal load.
 type LoadCell = Arc<Mutex<Option<LoadResult>>>;
@@ -592,10 +613,12 @@ impl JournalStore {
             let result = match backend.open_daily_journal(&workspace_id, &date).await {
                 Ok(block) => match block.document_id.clone() {
                     // The block links a document → load it (so the renderer paints the journal content).
-                    Some(doc_id) if !doc_id.trim().is_empty() => match backend.load_document(&doc_id).await {
-                        Ok(load) => Ok((block, Some(load.body))),
-                        Err(e) => Err(e),
-                    },
+                    Some(doc_id) if !doc_id.trim().is_empty() => {
+                        match backend.load_document(&doc_id).await {
+                            Ok(load) => Ok((block, Some(load.body))),
+                            Err(e) => Err(e),
+                        }
+                    }
                     // No linked document → Ready with no doc (the "Start writing" state).
                     _ => Ok((block, None)),
                 },
@@ -753,7 +776,10 @@ impl JournalStore {
 
     /// Seed the state machine directly into Error for `date` with `kind` (public test seam).
     pub fn seed_error(&mut self, date: impl Into<String>, kind: JournalError) {
-        self.state = JournalState::Error { date: date.into(), kind };
+        self.state = JournalState::Error {
+            date: date.into(),
+            kind,
+        };
     }
 
     /// Seed the state machine directly into Loading for `date` (public test seam — renders the spinner
@@ -779,7 +805,11 @@ impl JournalStore {
     /// Stage a load delivery into the cell tagged with the CURRENT generation (test seam). The journal
     /// block + optional document are delivered as if `openDailyJournal` (+ doc load) had completed.
     #[cfg(test)]
-    pub fn stage_load(&self, date: &str, result: Result<(JournalBlock, Option<RichDocumentBody>), JournalError>) {
+    pub fn stage_load(
+        &self,
+        date: &str,
+        result: Result<(JournalBlock, Option<RichDocumentBody>), JournalError>,
+    ) {
         *self.load_cell.lock().unwrap() = Some((self.generation, date.to_owned(), result));
     }
 
@@ -848,10 +878,18 @@ mod tests {
         }
     }
     impl JournalBackend for MockBackend {
-        fn open_daily_journal<'a>(&'a self, _ws: &'a str, date: &'a str) -> JournalFuture<'a, JournalBlock> {
+        fn open_daily_journal<'a>(
+            &'a self,
+            _ws: &'a str,
+            date: &'a str,
+        ) -> JournalFuture<'a, JournalBlock> {
             *self.open_calls.lock().unwrap() += 1;
             let date = date.to_owned();
-            let doc_id = if self.link_document { Some("KRD-1".to_owned()) } else { None };
+            let doc_id = if self.link_document {
+                Some("KRD-1".to_owned())
+            } else {
+                None
+            };
             Box::pin(async move {
                 Ok(JournalBlock {
                     block_id: format!("LB-{date}"),
@@ -865,9 +903,17 @@ mod tests {
         }
         fn load_document<'a>(&'a self, id: &'a str) -> JournalFuture<'a, JournalDocLoad> {
             let id = id.to_owned();
-            Box::pin(async move { Ok(JournalDocLoad { body: doc_body(&id, 3) }) })
+            Box::pin(async move {
+                Ok(JournalDocLoad {
+                    body: doc_body(&id, 3),
+                })
+            })
         }
-        fn create_document<'a>(&'a self, _ws: &'a str, title: &'a str) -> JournalFuture<'a, JournalDocLoad> {
+        fn create_document<'a>(
+            &'a self,
+            _ws: &'a str,
+            title: &'a str,
+        ) -> JournalFuture<'a, JournalDocLoad> {
             *self.create_calls.lock().unwrap() += 1;
             let title = title.to_owned();
             Box::pin(async move {
@@ -883,18 +929,28 @@ mod tests {
     }
     impl MockSaveSeam {
         fn new() -> Self {
-            Self { calls: Mutex::new(0) }
+            Self {
+                calls: Mutex::new(0),
+            }
         }
     }
     impl JournalSaveSeam for MockSaveSeam {
-        fn save<'a>(&'a self, _id: &'a str, expected: u64, _c: serde_json::Value) -> JournalFuture<'a, u64> {
+        fn save<'a>(
+            &'a self,
+            _id: &'a str,
+            expected: u64,
+            _c: serde_json::Value,
+        ) -> JournalFuture<'a, u64> {
             *self.calls.lock().unwrap() += 1;
             Box::pin(async move { Ok(expected + 1) })
         }
     }
 
     fn store(link_document: bool) -> JournalStore {
-        JournalStore::headless(Arc::new(MockBackend::new(link_document)), Arc::new(MockSaveSeam::new()))
+        JournalStore::headless(
+            Arc::new(MockBackend::new(link_document)),
+            Arc::new(MockSaveSeam::new()),
+        )
     }
 
     #[test]
@@ -928,8 +984,14 @@ mod tests {
         // No runtime → must NOT enter Loading (nothing would resolve it → perpetual spinner). Stays Idle.
         let mut s = store(true);
         s.open("2026-06-19");
-        assert!(matches!(s.state, JournalState::Idle), "headless stays Idle (no perpetual spinner)");
-        assert_eq!(s.generation, 1, "the generation still bumps so a staged delivery matches");
+        assert!(
+            matches!(s.state, JournalState::Idle),
+            "headless stays Idle (no perpetual spinner)"
+        );
+        assert_eq!(
+            s.generation, 1,
+            "the generation still bumps so a staged delivery matches"
+        );
     }
 
     #[test]
@@ -937,12 +999,21 @@ mod tests {
         // AC-2 + state-machine: staging a successful load (block + doc) drains to Ready with the doc.
         let mut s = store(true);
         s.open("2026-06-19");
-        s.stage_load("2026-06-19", Ok((block("2026-06-19", Some("KRD-1")), Some(doc_body("KRD-1", 3)))));
+        s.stage_load(
+            "2026-06-19",
+            Ok((
+                block("2026-06-19", Some("KRD-1")),
+                Some(doc_body("KRD-1", 3)),
+            )),
+        );
         assert!(s.drain());
         let ready = s.state.ready().expect("Ready after a successful load");
         assert_eq!(ready.date, "2026-06-19");
         assert_eq!(ready.block.document_id.as_deref(), Some("KRD-1"));
-        assert!(!ready.needs_document(), "a linked document means no 'Start writing'");
+        assert!(
+            !ready.needs_document(),
+            "a linked document means no 'Start writing'"
+        );
     }
 
     #[test]
@@ -952,7 +1023,10 @@ mod tests {
         s.stage_load("2026-06-19", Ok((block("2026-06-19", None), None)));
         assert!(s.drain());
         let ready = s.state.ready().expect("Ready");
-        assert!(ready.needs_document(), "no document → the 'Start writing' state");
+        assert!(
+            ready.needs_document(),
+            "no document → the 'Start writing' state"
+        );
     }
 
     #[test]
@@ -960,7 +1034,10 @@ mod tests {
         // AC-7: a simulated openDailyJournal failure → Error state with a typed kind (chip + Retry).
         let mut s = store(true);
         s.open("2026-06-19");
-        s.stage_load("2026-06-19", Err(JournalError::OpenFailed("HTTP 500".into())));
+        s.stage_load(
+            "2026-06-19",
+            Err(JournalError::OpenFailed("HTTP 500".into())),
+        );
         assert!(s.drain());
         let err = s.state.error().expect("Error after a failed open");
         assert_eq!(err.kind_str(), "open_failed");
@@ -977,12 +1054,23 @@ mod tests {
         assert_ne!(stale_gen, fresh_gen);
 
         // The stale (2026-06-18) load lands late → dropped, state unchanged (still Idle headless).
-        s.stage_load_gen(stale_gen, "2026-06-18", Ok((block("2026-06-18", None), None)));
+        s.stage_load_gen(
+            stale_gen,
+            "2026-06-18",
+            Ok((block("2026-06-18", None), None)),
+        );
         assert!(!s.drain(), "MC-002: a stale-generation load is dropped");
-        assert!(s.state.ready().is_none(), "the stale load did not become Ready");
+        assert!(
+            s.state.ready().is_none(),
+            "the stale load did not become Ready"
+        );
 
         // The fresh (2026-06-19) load lands → applied.
-        s.stage_load_gen(fresh_gen, "2026-06-19", Ok((block("2026-06-19", None), None)));
+        s.stage_load_gen(
+            fresh_gen,
+            "2026-06-19",
+            Ok((block("2026-06-19", None), None)),
+        );
         assert!(s.drain());
         assert_eq!(s.state.ready().unwrap().date, "2026-06-19");
     }
@@ -1000,7 +1088,10 @@ mod tests {
         s.stage_create(Ok(doc_body("KRD-NEW", 1)));
         assert!(s.drain());
         let ready = s.state.ready().unwrap();
-        assert!(!ready.needs_document(), "the created document fills the Ready state");
+        assert!(
+            !ready.needs_document(),
+            "the created document fills the Ready state"
+        );
         assert_eq!(ready.block.document_id.as_deref(), Some("KRD-NEW"));
         assert!(!ready.is_creating);
     }
@@ -1010,14 +1101,23 @@ mod tests {
         // MC-001: dispatch_save is a no-op while a save is already in flight (the caller re-arms).
         let mut s = store(true);
         s.open("2026-06-19");
-        s.stage_load("2026-06-19", Ok((block("2026-06-19", Some("KRD-1")), Some(doc_body("KRD-1", 3)))));
+        s.stage_load(
+            "2026-06-19",
+            Ok((
+                block("2026-06-19", Some("KRD-1")),
+                Some(doc_body("KRD-1", 3)),
+            )),
+        );
         assert!(s.drain());
         // Force the save status to InFlight, then dispatch → should be skipped (no panic, stays InFlight).
         if let JournalState::Ready(r) = &mut s.state {
             r.save = SaveStatus::InFlight;
         }
         s.dispatch_save(serde_json::json!({ "type": "doc" }));
-        assert!(matches!(s.state.ready().unwrap().save, SaveStatus::InFlight));
+        assert!(matches!(
+            s.state.ready().unwrap().save,
+            SaveStatus::InFlight
+        ));
     }
 
     #[test]
@@ -1026,40 +1126,77 @@ mod tests {
         // sends the correct expected_version — the optimistic-concurrency contract).
         let mut s = store(true);
         s.open("2026-06-19");
-        s.stage_load("2026-06-19", Ok((block("2026-06-19", Some("KRD-1")), Some(doc_body("KRD-1", 3)))));
+        s.stage_load(
+            "2026-06-19",
+            Ok((
+                block("2026-06-19", Some("KRD-1")),
+                Some(doc_body("KRD-1", 3)),
+            )),
+        );
         assert!(s.drain());
         s.stage_save(Ok(4));
         assert!(s.drain());
         let ready = s.state.ready().unwrap();
         assert!(matches!(ready.save, SaveStatus::Saved));
-        assert_eq!(ready.doc.as_ref().unwrap().doc_version, 4, "the version bumped after the save");
+        assert_eq!(
+            ready.doc.as_ref().unwrap().doc_version,
+            4,
+            "the version bumped after the save"
+        );
     }
 
     #[test]
     fn drain_save_failure_records_typed_error_chip() {
         let mut s = store(true);
         s.open("2026-06-19");
-        s.stage_load("2026-06-19", Ok((block("2026-06-19", Some("KRD-1")), Some(doc_body("KRD-1", 3)))));
+        s.stage_load(
+            "2026-06-19",
+            Ok((
+                block("2026-06-19", Some("KRD-1")),
+                Some(doc_body("KRD-1", 3)),
+            )),
+        );
         assert!(s.drain());
         s.stage_save(Err(JournalError::SaveFailed("HTTP 409".into())));
         assert!(s.drain());
-        assert!(matches!(s.state.ready().unwrap().save, SaveStatus::Failed(_)));
+        assert!(matches!(
+            s.state.ready().unwrap().save,
+            SaveStatus::Failed(_)
+        ));
     }
 
     #[test]
     fn error_kind_strings_are_stable() {
-        assert_eq!(JournalError::OpenFailed("x".into()).kind_str(), "open_failed");
-        assert_eq!(JournalError::DocLoadFailed("x".into()).kind_str(), "doc_load_failed");
-        assert_eq!(JournalError::SaveFailed("x".into()).kind_str(), "save_failed");
-        assert_eq!(JournalError::CreateFailed("x".into()).kind_str(), "create_failed");
+        assert_eq!(
+            JournalError::OpenFailed("x".into()).kind_str(),
+            "open_failed"
+        );
+        assert_eq!(
+            JournalError::DocLoadFailed("x".into()).kind_str(),
+            "doc_load_failed"
+        );
+        assert_eq!(
+            JournalError::SaveFailed("x".into()).kind_str(),
+            "save_failed"
+        );
+        assert_eq!(
+            JournalError::CreateFailed("x".into()).kind_str(),
+            "create_failed"
+        );
     }
 
     #[test]
     fn production_request_urls_are_verified() {
         // The production reqwest backend builds the VERIFIED endpoint URLs.
         let b = ReqwestJournalBackend::new("http://h");
-        assert_eq!(b.journal_url("ws", "2026-06-19"), "http://h/workspaces/ws/loom/journals/2026-06-19");
-        assert_eq!(b.document_url("KRD-1"), "http://h/knowledge/documents/KRD-1");
+        assert_eq!(
+            b.journal_url("ws", "2026-06-19"),
+            "http://h/workspaces/ws/loom/journals/2026-06-19"
+        );
+        assert_eq!(
+            b.document_url("KRD-1"),
+            "http://h/knowledge/documents/KRD-1"
+        );
         assert_eq!(b.create_document_url(), "http://h/knowledge/documents");
     }
 }

@@ -69,7 +69,11 @@ pub struct CompletionState {
 impl CompletionState {
     /// Build a state for `items` anchored at `anchor`, with the first item selected.
     pub fn new(items: Vec<CompletionItem>, anchor: egui::Pos2) -> Self {
-        Self { items, selected_index: 0, anchor }
+        Self {
+            items,
+            selected_index: 0,
+            anchor,
+        }
     }
 
     /// Move the selection down one row, wrapping (the ArrowDown binding). No-op on an empty list.
@@ -91,7 +95,8 @@ impl CompletionState {
 
     /// The currently-selected item (the one Enter accepts), or `None` on an empty list.
     pub fn selected(&self) -> Option<&CompletionItem> {
-        self.items.get(self.selected_index.min(self.items.len().saturating_sub(1)))
+        self.items
+            .get(self.selected_index.min(self.items.len().saturating_sub(1)))
     }
 }
 
@@ -127,11 +132,7 @@ impl CompletionPopup {
     /// `instance` is the panel's AccessKit instance suffix (empty for the default panel) so a diff
     /// view's two editors do not collide on the popup author_ids (RISK-004, the same scheme the panel
     /// nodes use).
-    pub fn show(
-        ctx: &egui::Context,
-        state: &CompletionState,
-        instance: &str,
-    ) -> CompletionOutcome {
+    pub fn show(ctx: &egui::Context, state: &CompletionState, instance: &str) -> CompletionOutcome {
         if state.items.is_empty() {
             return CompletionOutcome::None;
         }
@@ -382,7 +383,9 @@ fn item_node_id(n: usize, instance: &str) -> egui::Id {
         // SAFETY: each `n` maps to a distinct fixed slot in the disjoint overlay band; never reused.
         unsafe { egui::Id::from_high_entropy_bits(COMPLETION_ITEM_NODE_ID_BASE + n as u64) }
     } else {
-        egui::Id::new(format!("{CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX}{n}#{instance}"))
+        egui::Id::new(format!(
+            "{CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX}{n}#{instance}"
+        ))
     }
 }
 
@@ -424,10 +427,8 @@ mod tests {
 
     #[test]
     fn completion_state_selection_wraps() {
-        let mut state = CompletionState::new(
-            vec![item("a"), item("b"), item("c")],
-            egui::pos2(0.0, 0.0),
-        );
+        let mut state =
+            CompletionState::new(vec![item("a"), item("b"), item("c")], egui::pos2(0.0, 0.0));
         assert_eq!(state.selected_index, 0);
         state.select_next();
         assert_eq!(state.selected_index, 1);

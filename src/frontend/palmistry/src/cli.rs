@@ -50,7 +50,10 @@ pub const ENV_CONTROL_SOCK: &str = "HANDSHAKE_CONTROL_SOCK";
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CliError {
     /// A required input was absent from both the CLI args and the environment.
-    Missing { field: &'static str, env: &'static str },
+    Missing {
+        field: &'static str,
+        env: &'static str,
+    },
     /// A required input was present but empty / whitespace-only.
     Empty { field: &'static str },
     /// The parent PID was present but did not parse as a non-zero u32.
@@ -106,10 +109,7 @@ impl PalmistryConfig {
     /// drive every branch (missing/empty/bad-pid/unknown-flag) WITHOUT mutating the real process
     /// environment — which is essential because the test binary is multi-threaded and a global env
     /// mutation would race other tests (RISK: flaky env-dependent tests).
-    pub fn parse(
-        args: &[String],
-        env: impl Fn(&str) -> Option<String>,
-    ) -> Result<Self, CliError> {
+    pub fn parse(args: &[String], env: impl Fn(&str) -> Option<String>) -> Result<Self, CliError> {
         let mut raw = RawInputs::default();
 
         // --- CLI flags (override env) ---
@@ -138,7 +138,11 @@ impl PalmistryConfig {
                     raw.control_socket = Some(next(i)?);
                     i += 2;
                 }
-                other => return Err(CliError::UnknownArg { arg: other.to_string() }),
+                other => {
+                    return Err(CliError::UnknownArg {
+                        arg: other.to_string(),
+                    })
+                }
             }
         }
 
@@ -162,7 +166,9 @@ impl PalmistryConfig {
             .parse()
             .ok()
             .filter(|&p| p != 0)
-            .ok_or_else(|| CliError::BadPid { value: parent_pid_str.clone() })?;
+            .ok_or_else(|| CliError::BadPid {
+                value: parent_pid_str.clone(),
+            })?;
 
         Ok(Self {
             parent_pid,
@@ -322,7 +328,12 @@ mod tests {
         let mut args = full_args();
         args[1] = "notapid".into();
         let err = PalmistryConfig::parse(&args, no_env).unwrap_err();
-        assert_eq!(err, CliError::BadPid { value: "notapid".into() });
+        assert_eq!(
+            err,
+            CliError::BadPid {
+                value: "notapid".into()
+            }
+        );
     }
 
     #[test]
@@ -330,7 +341,12 @@ mod tests {
         let mut args = full_args();
         args[3] = "   ".into(); // whitespace session id
         let err = PalmistryConfig::parse(&args, no_env).unwrap_err();
-        assert_eq!(err, CliError::Empty { field: "session_id" });
+        assert_eq!(
+            err,
+            CliError::Empty {
+                field: "session_id"
+            }
+        );
     }
 
     #[test]
@@ -349,6 +365,11 @@ mod tests {
     fn refuses_unknown_arg() {
         let args = vec!["--bogus".into()];
         let err = PalmistryConfig::parse(&args, no_env).unwrap_err();
-        assert_eq!(err, CliError::UnknownArg { arg: "--bogus".into() });
+        assert_eq!(
+            err,
+            CliError::UnknownArg {
+                arg: "--bogus".into()
+            }
+        );
     }
 }

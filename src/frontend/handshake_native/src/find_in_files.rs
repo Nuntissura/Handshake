@@ -331,7 +331,8 @@ pub struct MatchPreview {
 /// replaced by `inserted`, mirroring the React `replacementMatchPreview`. Slicing is done on CHAR
 /// boundaries so a multibyte char near the window edge never panics.
 fn match_preview(text: &str, start: usize, end: usize, inserted: &str) -> MatchPreview {
-    let preview_start = floor_char_boundary(text, start.saturating_sub(MATCH_PREVIEW_CONTEXT_CHARS));
+    let preview_start =
+        floor_char_boundary(text, start.saturating_sub(MATCH_PREVIEW_CONTEXT_CHARS));
     let preview_end = ceil_char_boundary(text, (end + MATCH_PREVIEW_CONTEXT_CHARS).min(text.len()));
     let before_preview = text[preview_start..preview_end].to_owned();
     let after_preview = format!(
@@ -340,7 +341,10 @@ fn match_preview(text: &str, start: usize, end: usize, inserted: &str) -> MatchP
         inserted,
         &text[end..preview_end]
     );
-    MatchPreview { before_preview, after_preview }
+    MatchPreview {
+        before_preview,
+        after_preview,
+    }
 }
 
 /// Round `idx` DOWN to the nearest char boundary in `s` (std's `floor_char_boundary` is unstable, so
@@ -431,7 +435,11 @@ pub fn replace_segment(
             let caps = regex.captures_at(text, start);
             let groups: Vec<String> = match caps {
                 Some(caps) => (1..caps.len())
-                    .map(|i| caps.get(i).map(|g| g.as_str().to_owned()).unwrap_or_default())
+                    .map(|i| {
+                        caps.get(i)
+                            .map(|g| g.as_str().to_owned())
+                            .unwrap_or_default()
+                    })
                     .collect(),
                 None => Vec::new(),
             };
@@ -448,10 +456,18 @@ pub fn replace_segment(
     }
 
     if count == 0 {
-        return SegmentReplaceResult { text: text.to_owned(), count: 0, match_previews: Vec::new() };
+        return SegmentReplaceResult {
+            text: text.to_owned(),
+            count: 0,
+            match_previews: Vec::new(),
+        };
     }
     next.push_str(&text[last_index..]);
-    SegmentReplaceResult { text: next, count, match_previews }
+    SegmentReplaceResult {
+        text: next,
+        count,
+        match_previews,
+    }
 }
 
 // ── content_json walk (mirrors the React replaceInContent, RISK-4) ────────────────────────────────────
@@ -619,7 +635,11 @@ pub fn document_id_from_hit(hit: &LoomGraphSearchHit) -> Option<String> {
 /// (`WorkspaceSearchPanel.tsx:344-361`): when NONE of case/word/regex is set, every hit passes; otherwise
 /// the compiled regex must match the `title\nexcerpt` haystack respecting the whole-word boundary. A
 /// query that fails to compile passes everything (the backend already filtered).
-pub fn hit_matches_client_options(hit: &LoomGraphSearchHit, query: &str, opts: MatchOptions) -> bool {
+pub fn hit_matches_client_options(
+    hit: &LoomGraphSearchHit,
+    query: &str,
+    opts: MatchOptions,
+) -> bool {
     if query.trim().is_empty() {
         return true;
     }
@@ -735,7 +755,11 @@ impl SearchBookmark {
     /// search replaces (dedups) the prior bookmark.
     pub fn stable_id(&self) -> String {
         let parts = [
-            if self.query.trim().is_empty() { "empty" } else { self.query.trim() },
+            if self.query.trim().is_empty() {
+                "empty"
+            } else {
+                self.query.trim()
+            },
             self.kind.wire(),
             self.tag_filter.trim(),
             self.path_filter.trim(),
@@ -743,14 +767,29 @@ impl SearchBookmark {
             if self.whole_word { "word" } else { "" },
             if self.is_regex { "regex" } else { "" },
         ];
-        let joined = parts.iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(" ");
+        let joined = parts
+            .iter()
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" ");
         let stable: String = joined
             .to_lowercase()
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '-' })
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                    c
+                } else {
+                    '-'
+                }
+            })
             .collect();
         let trimmed = stable.trim_matches('-');
-        if trimmed.is_empty() { "item".to_owned() } else { trimmed.to_owned() }
+        if trimmed.is_empty() {
+            "item".to_owned()
+        } else {
+            trimmed.to_owned()
+        }
     }
 
     /// The display label (the React `bookmarkLabelForSearch`): the query if any, else the kind/filters.
@@ -759,12 +798,20 @@ impl SearchBookmark {
         if !q.is_empty() {
             return q.to_owned();
         }
-        let kind_label = if self.kind == KindFilter::All { "" } else { self.kind.label() };
+        let kind_label = if self.kind == KindFilter::All {
+            ""
+        } else {
+            self.kind.label()
+        };
         let parts: Vec<&str> = [kind_label, self.tag_filter.trim(), self.path_filter.trim()]
             .into_iter()
             .filter(|s| !s.is_empty())
             .collect();
-        if parts.is_empty() { "Filtered search".to_owned() } else { parts.join(" / ") }
+        if parts.is_empty() {
+            "Filtered search".to_owned()
+        } else {
+            parts.join(" / ")
+        }
     }
 
     /// Serialize to the per-bookmark JSON shape the `bookmark_state.bookmarks[]` blob carries (React
@@ -943,7 +990,13 @@ impl FindInFilesPanelState {
 
     /// The current search-plan key (for the stale-result guard).
     pub fn current_search_key(&self) -> String {
-        search_plan_key(&self.query, self.kind, &self.tag_filter, &self.path_filter, self.options())
+        search_plan_key(
+            &self.query,
+            self.kind,
+            &self.tag_filter,
+            &self.path_filter,
+            self.options(),
+        )
     }
 
     /// The current replace-plan key (for the stale-preview guard).
@@ -1087,7 +1140,10 @@ impl FindInFilesPanelState {
                 self.preview_plan_key = None;
                 self.error = Some(msg);
             }
-            ReplaceDelivery::Applied { receipts, plan_count } => {
+            ReplaceDelivery::Applied {
+                receipts,
+                plan_count,
+            } => {
                 self.replace_status = Some(format!(
                     "Applied {plan_count} document replacement plan(s); receipts: {}",
                     receipts.join(", ")
@@ -1174,7 +1230,8 @@ impl FindInFilesPanelState {
         // STALE-RESULT guard: the results must have been fetched under the CURRENT search params.
         if self.result_set_key.as_deref() != Some(&self.current_search_key()) {
             self.replace_status = Some(
-                "Search results are stale; run Search again before previewing replacements.".to_owned(),
+                "Search results are stale; run Search again before previewing replacements."
+                    .to_owned(),
             );
             self.preview_plans = Vec::new();
             self.preview_plan_key = None;
@@ -1189,7 +1246,8 @@ impl FindInFilesPanelState {
             .filter(|id| seen.insert(id.clone()))
             .collect();
         if document_ids.is_empty() {
-            self.replace_status = Some("No editable rich documents in the backend result set.".to_owned());
+            self.replace_status =
+                Some("No editable rich documents in the backend result set.".to_owned());
             self.preview_plans = Vec::new();
             self.preview_plan_key = None;
             return;
@@ -1234,7 +1292,11 @@ impl FindInFilesPanelState {
         if let Ok(mut slot) = self.replace_cell.lock() {
             *slot = None;
         }
-        client.apply_plans(ws, self.preview_plans.clone(), Arc::clone(&self.replace_cell));
+        client.apply_plans(
+            ws,
+            self.preview_plans.clone(),
+            Arc::clone(&self.replace_cell),
+        );
     }
 
     /// Load the saved bookmarks for `workspace_id` (called when the panel mounts). No-op when no
@@ -1282,9 +1344,19 @@ impl FindInFilesPanelState {
         bookmark.label = bookmark.display_label();
         // Dedup by id, newest first, cap at 20.
         let mut next: Vec<SearchBookmark> = vec![bookmark.clone()];
-        next.extend(self.bookmarks.iter().filter(|b| b.id != bookmark.id).cloned());
+        next.extend(
+            self.bookmarks
+                .iter()
+                .filter(|b| b.id != bookmark.id)
+                .cloned(),
+        );
         next.truncate(MAX_WORKSPACE_SEARCH_BOOKMARKS);
-        self.persist_bookmarks(client, ws, next, format!("Saved search bookmark {}", bookmark.label));
+        self.persist_bookmarks(
+            client,
+            ws,
+            next,
+            format!("Saved search bookmark {}", bookmark.label),
+        );
     }
 
     /// Restore a bookmark into the live query/filter/option fields (purely local — no HTTP). Clears the
@@ -1316,8 +1388,12 @@ impl FindInFilesPanelState {
         let Some(ws) = workspace_id else {
             return;
         };
-        let next: Vec<SearchBookmark> =
-            self.bookmarks.iter().filter(|b| b.id != bookmark_id).cloned().collect();
+        let next: Vec<SearchBookmark> = self
+            .bookmarks
+            .iter()
+            .filter(|b| b.id != bookmark_id)
+            .cloned()
+            .collect();
         self.persist_bookmarks(client, ws, next, "Removed search bookmark".to_owned());
     }
 
@@ -1362,13 +1438,22 @@ impl FindInFilesPanelState {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReplaceDelivery {
     /// Preview computed `plans` under `key`.
-    Preview { plans: Vec<ReplacementPlan>, key: String },
+    Preview {
+        plans: Vec<ReplacementPlan>,
+        key: String,
+    },
     /// Preview failed (a document load failed).
     PreviewError(String),
     /// All `plan_count` plans applied; `receipts` are the per-document save receipt ids.
-    Applied { receipts: Vec<String>, plan_count: usize },
+    Applied {
+        receipts: Vec<String>,
+        plan_count: usize,
+    },
     /// Apply failed partway: `receipts` of the docs already saved are preserved; `error` is the failure.
-    AppliedPartial { receipts: Vec<String>, error: String },
+    AppliedPartial {
+        receipts: Vec<String>,
+        error: String,
+    },
 }
 
 /// A monotonic ISO-8601-ish timestamp for the bookmark `savedAt` field. Uses `chrono` (already a
@@ -1461,8 +1546,7 @@ pub fn show(
         accessibility::emit_interactive_node(ui.ctx(), resp.id, REPLACE_AUTHOR_ID);
 
         let preview_enabled = state.result_set_key.is_some();
-        let preview_btn =
-            ui.add_enabled(preview_enabled, egui::Button::new("Preview Replace"));
+        let preview_btn = ui.add_enabled(preview_enabled, egui::Button::new("Preview Replace"));
         accessibility::emit_interactive_node(ui.ctx(), preview_btn.id, PREVIEW_REPLACE_AUTHOR_ID);
         if preview_btn.clicked() {
             fire_preview = true;
@@ -1597,32 +1681,34 @@ pub fn show(
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 for plan in &state.preview_plans {
-                    let header =
-                        egui::CollapsingHeader::new(format!("{} ({})", plan.title, plan.match_count))
-                            .id_salt(preview_author_id(&plan.document_id))
-                            .show(ui, |ui| {
-                                ui.label(
-                                    egui::RichText::new(format!("before: {}", plan.before_preview))
-                                        .small()
-                                        .weak(),
-                                );
-                                // Render the after-preview with the matched replacement highlighted via
-                                // the theme `search_highlight_bg` token (NO Color32 literal — the theme
-                                // guard). Each per-match after_preview is a small highlighted chip.
-                                for mp in &plan.match_previews {
-                                    let mut job = egui::text::LayoutJob::default();
-                                    job.append(
-                                        &mp.after_preview,
-                                        0.0,
-                                        egui::TextFormat {
-                                            color: text_color,
-                                            background: palette.search_highlight_bg,
-                                            ..Default::default()
-                                        },
-                                    );
-                                    ui.label(job);
-                                }
-                            });
+                    let header = egui::CollapsingHeader::new(format!(
+                        "{} ({})",
+                        plan.title, plan.match_count
+                    ))
+                    .id_salt(preview_author_id(&plan.document_id))
+                    .show(ui, |ui| {
+                        ui.label(
+                            egui::RichText::new(format!("before: {}", plan.before_preview))
+                                .small()
+                                .weak(),
+                        );
+                        // Render the after-preview with the matched replacement highlighted via
+                        // the theme `search_highlight_bg` token (NO Color32 literal — the theme
+                        // guard). Each per-match after_preview is a small highlighted chip.
+                        for mp in &plan.match_previews {
+                            let mut job = egui::text::LayoutJob::default();
+                            job.append(
+                                &mp.after_preview,
+                                0.0,
+                                egui::TextFormat {
+                                    color: text_color,
+                                    background: palette.search_highlight_bg,
+                                    ..Default::default()
+                                },
+                            );
+                            ui.label(job);
+                        }
+                    });
                     accessibility::emit_interactive_node(
                         ui.ctx(),
                         header.header_response.id,
@@ -1634,7 +1720,10 @@ pub fn show(
 
     // ── Dispatch deferred actions (after immutable borrows end) ──
     if let Some(vi) = open_hit_index {
-        if let Some(hit) = visible_indices.get(vi).and_then(|&ri| state.results.get(ri)) {
+        if let Some(hit) = visible_indices
+            .get(vi)
+            .and_then(|&ri| state.results.get(ri))
+        {
             (callbacks.on_open_hit)(hit);
         }
     }
@@ -1709,7 +1798,12 @@ impl FindInFilesPaneFactory {
         doc_client: RichDocClient,
         shared: Arc<Mutex<FindInFilesPaneShared>>,
     ) -> Self {
-        Self::with_state(search_client, doc_client, shared, FindInFilesPanelState::new())
+        Self::with_state(
+            search_client,
+            doc_client,
+            shared,
+            FindInFilesPanelState::new(),
+        )
     }
 
     pub fn with_state(
@@ -1759,7 +1853,9 @@ impl PaneFactory for FindInFilesPaneFactory {
                 guard.open_requests.push(hit.clone());
             }
         };
-        let mut callbacks = FindInFilesCallbacks { on_open_hit: &mut on_open };
+        let mut callbacks = FindInFilesCallbacks {
+            on_open_hit: &mut on_open,
+        };
         show(
             ui,
             &mut state,
@@ -1796,15 +1892,27 @@ mod tests {
         // RISK-8: `a.b` in non-regex mode must NOT match `acb` (the dot is escaped to literal).
         let re = compile_search_regex("a.b", MatchOptions::default()).unwrap();
         assert!(re.is_match("a.b"), "literal dot matches a.b");
-        assert!(!re.is_match("acb"), "RISK-8: escaped dot does NOT match acb");
+        assert!(
+            !re.is_match("acb"),
+            "RISK-8: escaped dot does NOT match acb"
+        );
     }
 
     #[test]
     fn compile_regex_invalid_pattern_is_err() {
         // PT-4: an invalid regex returns Err with a non-empty message (no panic).
-        let err = compile_search_regex("[invalid", MatchOptions { is_regex: true, ..Default::default() })
-            .unwrap_err();
-        assert!(!err.is_empty(), "PT-4: invalid regex yields a non-empty error");
+        let err = compile_search_regex(
+            "[invalid",
+            MatchOptions {
+                is_regex: true,
+                ..Default::default()
+            },
+        )
+        .unwrap_err();
+        assert!(
+            !err.is_empty(),
+            "PT-4: invalid regex yields a non-empty error"
+        );
     }
 
     #[test]
@@ -1815,18 +1923,45 @@ mod tests {
     #[test]
     fn case_insensitive_by_default() {
         let re = compile_search_regex("Foo", MatchOptions::default()).unwrap();
-        assert!(re.is_match("foo") && re.is_match("FOO"), "case-insensitive when not case_sensitive");
-        let re2 = compile_search_regex("Foo", MatchOptions { case_sensitive: true, ..Default::default() })
-            .unwrap();
-        assert!(re2.is_match("Foo") && !re2.is_match("foo"), "case-sensitive when set");
+        assert!(
+            re.is_match("foo") && re.is_match("FOO"),
+            "case-insensitive when not case_sensitive"
+        );
+        let re2 = compile_search_regex(
+            "Foo",
+            MatchOptions {
+                case_sensitive: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(
+            re2.is_match("Foo") && !re2.is_match("foo"),
+            "case-sensitive when set"
+        );
     }
 
     #[test]
     fn replace_segment_zero_length_match_terminates() {
         // RISK-3: a pattern that can match empty (`a*`) must terminate (no infinite loop) and replace
         // the non-empty runs only.
-        let re = compile_search_regex("a*", MatchOptions { is_regex: true, ..Default::default() }).unwrap();
-        let res = replace_segment("baaab", &re, "X", MatchOptions { is_regex: true, ..Default::default() });
+        let re = compile_search_regex(
+            "a*",
+            MatchOptions {
+                is_regex: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let res = replace_segment(
+            "baaab",
+            &re,
+            "X",
+            MatchOptions {
+                is_regex: true,
+                ..Default::default()
+            },
+        );
         // The non-empty `aaa` run is replaced; the zero-length matches at b-positions are skipped.
         assert!(res.text.contains('X'), "the aaa run was replaced");
         assert!(res.count >= 1, "at least one non-empty match replaced");
@@ -1834,28 +1969,71 @@ mod tests {
 
     #[test]
     fn replace_segment_whole_word_skips_substring() {
-        let re = compile_search_regex("cat", MatchOptions { whole_word: true, ..Default::default() }).unwrap();
-        let res = replace_segment("cat category", &re, "dog", MatchOptions { whole_word: true, ..Default::default() });
-        assert_eq!(res.count, 1, "only the standalone 'cat' replaced, not 'cat' inside 'category'");
+        let re = compile_search_regex(
+            "cat",
+            MatchOptions {
+                whole_word: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let res = replace_segment(
+            "cat category",
+            &re,
+            "dog",
+            MatchOptions {
+                whole_word: true,
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            res.count, 1,
+            "only the standalone 'cat' replaced, not 'cat' inside 'category'"
+        );
         assert_eq!(res.text, "dog category");
     }
 
     #[test]
     fn replace_segment_regex_group_expansion() {
-        let re = compile_search_regex(r"(\w+)@(\w+)", MatchOptions { is_regex: true, ..Default::default() }).unwrap();
+        let re = compile_search_regex(
+            r"(\w+)@(\w+)",
+            MatchOptions {
+                is_regex: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
         let res = replace_segment(
             "user@host",
             &re,
             "$2.$1",
-            MatchOptions { is_regex: true, ..Default::default() },
+            MatchOptions {
+                is_regex: true,
+                ..Default::default()
+            },
         );
         assert_eq!(res.text, "host.user", "$1/$2 group expansion");
     }
 
     #[test]
     fn replace_segment_dollar_literals() {
-        let re = compile_search_regex("x", MatchOptions { is_regex: true, ..Default::default() }).unwrap();
-        let res = replace_segment("x", &re, "$$$&", MatchOptions { is_regex: true, ..Default::default() });
+        let re = compile_search_regex(
+            "x",
+            MatchOptions {
+                is_regex: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let res = replace_segment(
+            "x",
+            &re,
+            "$$$&",
+            MatchOptions {
+                is_regex: true,
+                ..Default::default()
+            },
+        );
         assert_eq!(res.text, "$x", "$$ => literal $, $& => whole match");
     }
 
@@ -1901,7 +2079,11 @@ mod tests {
             metadata: json!({ "document_id": "DOC-1" }),
             block: None,
         };
-        assert_eq!(document_id_from_hit(&hit_bad), None, "RISK-5: non-KRD id rejected");
+        assert_eq!(
+            document_id_from_hit(&hit_bad),
+            None,
+            "RISK-5: non-KRD id rejected"
+        );
 
         let hit_good = LoomGraphSearchHit {
             source_kind: "loom_block".into(),
@@ -1974,14 +2156,19 @@ mod tests {
         assert!(s.can_apply(), "fresh preview => can apply");
         // Change the query AFTER the preview => the plan key no longer matches => cannot apply.
         s.query = "dogs".into();
-        assert!(!s.can_apply(), "RISK-2/MC-2: a since-changed query makes the preview stale");
+        assert!(
+            !s.can_apply(),
+            "RISK-2/MC-2: a since-changed query makes the preview stale"
+        );
     }
 
     #[test]
     fn no_workspace_search_sets_error_without_loading() {
         let mut s = FindInFilesPanelState::new();
         s.query = "x".into();
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         let client = WorkspaceSearchClient::new("http://test.local", rt.handle().clone());
         s.run_search(&client, None);
         assert_eq!(s.error.as_deref(), Some("No workspace selected"));
@@ -1993,12 +2180,23 @@ mod tests {
         let mut s = FindInFilesPanelState::new();
         s.query = "cats".into();
         // result_set_key reflects an OLD query; the current query differs => stale.
-        s.result_set_key = Some(search_plan_key("old", KindFilter::All, "", "", MatchOptions::default()));
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        s.result_set_key = Some(search_plan_key(
+            "old",
+            KindFilter::All,
+            "",
+            "",
+            MatchOptions::default(),
+        ));
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         let client = RichDocClient::new("http://test.local", rt.handle().clone());
         s.run_preview_replace(&client, Some("ws-1"));
         assert!(
-            s.replace_status.as_deref().unwrap_or_default().contains("stale"),
+            s.replace_status
+                .as_deref()
+                .unwrap_or_default()
+                .contains("stale"),
             "RISK-2/MC-2: stale results show the warning, compute no preview"
         );
         assert!(s.preview_plans.is_empty());
@@ -2043,12 +2241,18 @@ mod tests {
             })
             .collect();
         let blob = bookmark_state_blob(&many);
-        assert_eq!(blob["bookmarks"].as_array().unwrap().len(), MAX_WORKSPACE_SEARCH_BOOKMARKS);
+        assert_eq!(
+            blob["bookmarks"].as_array().unwrap().len(),
+            MAX_WORKSPACE_SEARCH_BOOKMARKS
+        );
     }
 
     #[test]
     fn result_author_id_sanitizes_ref_id() {
-        assert_eq!(result_author_id("loom_block", "blk/1:x"), "find-in-files.result.loom_block.blk-1-x");
+        assert_eq!(
+            result_author_id("loom_block", "blk/1:x"),
+            "find-in-files.result.loom_block.blk-1-x"
+        );
     }
 
     #[test]

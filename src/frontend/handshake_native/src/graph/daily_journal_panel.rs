@@ -171,16 +171,20 @@ impl DailyJournalPanel {
                 // ── Date header (Role::Label) + prev/next-day nav (REUSED MT-019 DateNavWidget) ──────────
                 let header_text = state.nav.current_display();
                 let header_resp = ui.add(egui::Label::new(
-                    egui::RichText::new(&header_text).color(palette.text).strong().heading(),
+                    egui::RichText::new(&header_text)
+                        .color(palette.text)
+                        .strong()
+                        .heading(),
                 ));
                 let header_author = DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID.to_owned();
                 let header_value = header_text.clone();
-                ui.ctx().accesskit_node_builder(header_resp.id, move |node| {
-                    node.set_role(accesskit::Role::Label);
-                    node.set_author_id(header_author.clone());
-                    node.set_label("Daily journal date".to_owned());
-                    node.set_value(header_value.clone());
-                });
+                ui.ctx()
+                    .accesskit_node_builder(header_resp.id, move |node| {
+                        node.set_role(accesskit::Role::Label);
+                        node.set_author_id(header_author.clone());
+                        node.set_label("Daily journal date".to_owned());
+                        node.set_value(header_value.clone());
+                    });
 
                 // The MT-019 date nav (prev/next/today + calendar popup) — NOT a second date-picker.
                 let nav_outcome = DateNavWidget::new(&mut state.nav, palette).show(ui);
@@ -237,9 +241,11 @@ impl DailyJournalPanel {
                                     let doc_ids: Vec<DocId> = collect_edited_doc_ids(spans);
                                     if doc_ids.is_empty() {
                                         ui.label(
-                                            egui::RichText::new("No documents edited during this block")
-                                                .color(palette.text_subtle)
-                                                .italics(),
+                                            egui::RichText::new(
+                                                "No documents edited during this block",
+                                            )
+                                            .color(palette.text_subtle)
+                                            .italics(),
                                         );
                                     } else {
                                         ui.horizontal_wrapped(|ui| {
@@ -276,9 +282,11 @@ impl DailyJournalPanel {
                                 }
                                 ActivityCorrelation::NoEvent => {
                                     ui.label(
-                                        egui::RichText::new("No calendar event linked for this date")
-                                            .color(palette.text_subtle)
-                                            .italics(),
+                                        egui::RichText::new(
+                                            "No calendar event linked for this date",
+                                        )
+                                        .color(palette.text_subtle)
+                                        .italics(),
                                     );
                                 }
                             }
@@ -370,7 +378,10 @@ mod tests {
         let mut state = DailyJournalState::new(nav(d(2026, 6, 21)));
         state.set_calendar_unavailable();
         assert!(state.event.is_none());
-        assert!(state.event_unavailable, "the chip shows the unavailable empty-state");
+        assert!(
+            state.event_unavailable,
+            "the chip shows the unavailable empty-state"
+        );
         assert_eq!(state.activity, ActivityCorrelation::Unavailable);
     }
 

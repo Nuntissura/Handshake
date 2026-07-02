@@ -190,14 +190,20 @@ pub fn safe_session_token(session_id: &str) -> String {
 /// `minidump` reader expects. LOCAL filesystem only — never a URL (§6.13.8).
 pub fn minidump_path_for(ring_path: &Path, session_id: &str) -> PathBuf {
     let dir = ring_path.parent().unwrap_or_else(|| Path::new("."));
-    dir.join(format!("palmistry-crash-{}.dmp", safe_session_token(session_id)))
+    dir.join(format!(
+        "palmistry-crash-{}.dmp",
+        safe_session_token(session_id)
+    ))
 }
 
 /// The LOCAL crash-record JSON path for a session, a sibling of the ring file:
 /// `<ring_dir>/palmistry-crash-<session>.json`. The TYPED-ALLOWLIST metadata MT-093 reads.
 pub fn crash_record_path_for(ring_path: &Path, session_id: &str) -> PathBuf {
     let dir = ring_path.parent().unwrap_or_else(|| Path::new("."));
-    dir.join(format!("palmistry-crash-{}.json", safe_session_token(session_id)))
+    dir.join(format!(
+        "palmistry-crash-{}.json",
+        safe_session_token(session_id)
+    ))
 }
 
 /// Persist a [`CrashRecord`] as pretty JSON to its LOCAL sibling path. Best-effort durable evidence; the
@@ -361,7 +367,10 @@ mod tests {
         assert_eq!(rec.last_heartbeat_counter, 42);
         assert_eq!(rec.last_heartbeat_ts_nanos, 123_456);
         assert_eq!(rec.faulting_thread_id, 0, "no CrashContext => no thread id");
-        assert!(rec.minidump_path.is_none(), "the floor case writes NO minidump");
+        assert!(
+            rec.minidump_path.is_none(),
+            "the floor case writes NO minidump"
+        );
         assert_eq!(rec.crash_event_code, DiagEventCode::CrashDetected.as_u16());
 
         // Serialize and assert the JSON carries NO free-text/project-content key — only the typed
@@ -397,7 +406,10 @@ mod tests {
         assert_eq!(rec.detection, CrashDetection::CrashContextMinidump);
         assert_eq!(rec.faulting_thread_id, 99);
         assert_eq!(rec.minidump_path.as_deref(), Some(path.as_path()));
-        assert!(rec.exit_code.is_none(), "the process had not exited when dumped");
+        assert!(
+            rec.exit_code.is_none(),
+            "the process had not exited when dumped"
+        );
     }
 
     #[test]
@@ -408,8 +420,7 @@ mod tests {
         let rec = CrashRecord::post_mortem("persist-sess", 1, Some(1), None, &[]);
         let out = persist_crash_record(&ring, &rec).unwrap();
         assert!(out.exists(), "crash record JSON must be written locally");
-        let back: CrashRecord =
-            serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
+        let back: CrashRecord = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
         assert_eq!(back, rec, "round-trips through the local JSON");
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -450,7 +461,11 @@ mod tests {
         let server_shutdown = Arc::clone(&shutdown);
         let server_loop = std::thread::spawn(move || {
             // The SHIPPED handler is moved in here — `Server::run` calls its real trait methods.
-            let _ = server.run(Box::new(handler), &server_shutdown, Some(Duration::from_secs(5)));
+            let _ = server.run(
+                Box::new(handler),
+                &server_shutdown,
+                Some(Duration::from_secs(5)),
+            );
         });
 
         // A REAL crash-handler client connects and reports the faulting thread id through the real
@@ -466,7 +481,8 @@ mod tests {
         #[allow(unsafe_code)]
         let attached = crash_handler::CrashHandler::attach(unsafe {
             crash_handler::make_crash_event(move |cc: &crash_handler::CrashContext| {
-                let _ = client_cb.send_message(MSG_KIND_FAULTING_THREAD_ID, PROBE_TID.to_le_bytes());
+                let _ =
+                    client_cb.send_message(MSG_KIND_FAULTING_THREAD_ID, PROBE_TID.to_le_bytes());
                 crash_handler::CrashEventResult::Handled(client_cb.request_dump(cc).is_ok())
             })
         })
@@ -488,9 +504,16 @@ mod tests {
             PROBE_TID,
             "the shipped handler's on_message must decode the typed 8-byte LE faulting thread id"
         );
-        assert!(dump_path.exists(), "the shipped handler must write the dump to its local path");
+        assert!(
+            dump_path.exists(),
+            "the shipped handler must write the dump to its local path"
+        );
         let bytes = std::fs::read(&dump_path).expect("read dump");
-        assert!(bytes.len() > 1024, "a real minidump is non-trivial, got {} bytes", bytes.len());
+        assert!(
+            bytes.len() > 1024,
+            "a real minidump is non-trivial, got {} bytes",
+            bytes.len()
+        );
 
         let _ = std::fs::remove_file(&dump_path);
         let _ = std::fs::remove_file(&socket);

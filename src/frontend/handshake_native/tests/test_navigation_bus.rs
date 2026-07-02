@@ -23,7 +23,9 @@ use handshake_native::navigation_bus::{dispatch, NavError, NavigationTarget};
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
-use handshake_native::quick_switcher::{resolve_open_target, LoomGraphSearchHit, QuickSwitcherTarget};
+use handshake_native::quick_switcher::{
+    resolve_open_target, LoomGraphSearchHit, QuickSwitcherTarget,
+};
 
 /// A live shell with the seeded 2x2 panes re-typed so the top-left slot hosts the code editor and the
 /// top-right slot hosts the Notes/rich editor — the two MT-079-mounted editor surfaces a NavigationTarget
@@ -88,7 +90,9 @@ fn quick_switcher_target_routes_into_correct_pane_by_id() {
     let qs_target = resolve_open_target(&hit);
     assert_eq!(
         qs_target,
-        QuickSwitcherTarget::Document { document_id: "KRD-routed-1".to_owned() },
+        QuickSwitcherTarget::Document {
+            document_id: "KRD-routed-1".to_owned()
+        },
         "the document hit resolves to a Document target (the quick-switcher selection)",
     );
     let QuickSwitcherTarget::Document { document_id } = qs_target else {
@@ -97,9 +101,15 @@ fn quick_switcher_target_routes_into_correct_pane_by_id() {
 
     // Dispatch the OpenNote NavigationTarget through the MT-070 bus on the LIVE shell. The bus delegates
     // to ShellNavigator::open_document, which (MT-079) opens + FOCUSES the mounted Notes editor pane.
-    let target = NavigationTarget::OpenNote { note_id: document_id };
+    let target = NavigationTarget::OpenNote {
+        note_id: document_id,
+    };
     let result = dispatch(&mut app, &target);
-    assert_eq!(result, Ok(()), "the bus routed the quick-switcher selection onto a real mounted pane");
+    assert_eq!(
+        result,
+        Ok(()),
+        "the bus routed the quick-switcher selection onto a real mounted pane"
+    );
 
     // AC-070-3: the bus routed the selection INTO the correct pane addressed by a STABLE id — the shell's
     // `open_navigator_tab` set `active_pane` to the landing pane id. Assert the focused pane id equals the
@@ -153,7 +163,9 @@ fn unknown_pane_focus_returns_pane_not_found_never_panics() {
 
     let focus_err = dispatch(
         &mut app,
-        &NavigationTarget::FocusPane { pane_id: PaneId::from("pane-closed") },
+        &NavigationTarget::FocusPane {
+            pane_id: PaneId::from("pane-closed"),
+        },
     );
     assert!(
         matches!(&focus_err, Err(NavError::PaneNotFound { .. })),

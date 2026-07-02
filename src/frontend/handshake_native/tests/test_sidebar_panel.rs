@@ -54,9 +54,9 @@ use egui_kittest::Harness;
 
 use handshake_native::graph::sidebar_panel::{
     backlink_row_author_id, breadcrumb_author_id, favorite_row_author_id, pin_remove_author_id,
-    pin_row_author_id, section_retry_author_id, unlinked_row_author_id, BacklinkRow, LoomSidebarPanel,
-    SectionKind, SidebarBlock, SidebarEvent, UnlinkedRow, BACKLINK_ROW_AUTHOR_ID_PREFIX,
-    BREADCRUMB_AUTHOR_ID_PREFIX, PIN_ROW_AUTHOR_ID_PREFIX,
+    pin_row_author_id, section_retry_author_id, unlinked_row_author_id, BacklinkRow,
+    LoomSidebarPanel, SectionKind, SidebarBlock, SidebarEvent, UnlinkedRow,
+    BACKLINK_ROW_AUTHOR_ID_PREFIX, BREADCRUMB_AUTHOR_ID_PREFIX, PIN_ROW_AUTHOR_ID_PREFIX,
 };
 use handshake_native::theme::HsTheme;
 
@@ -174,7 +174,11 @@ fn proof2_two_pin_rows_present() {
 
     // AC7: the specific row ids + their remove buttons are present.
     for id in ["block-001", "block-002"] {
-        assert!(ids.contains(&pin_row_author_id(id)), "AC7: '{}' must be present", pin_row_author_id(id));
+        assert!(
+            ids.contains(&pin_row_author_id(id)),
+            "AC7: '{}' must be present",
+            pin_row_author_id(id)
+        );
         assert!(
             ids.contains(&pin_remove_author_id(id)),
             "AC7: remove button '{}' must be present",
@@ -182,7 +186,10 @@ fn proof2_two_pin_rows_present() {
         );
     }
     // The favorite row is present too (AC7).
-    assert!(ids.contains(&favorite_row_author_id("block-003")), "AC7: favorite row present");
+    assert!(
+        ids.contains(&favorite_row_author_id("block-003")),
+        "AC7: favorite row present"
+    );
 
     // Role check: a pin row is a ListItem; its remove button is a Button.
     assert_eq!(
@@ -211,7 +218,9 @@ fn proof3_remove_pin_fires_event_and_drops_row() {
     // The kittest predicate receives the AccessKit node directly (`accesskit_consumer::Node`).
     let target = pin_remove_author_id("block-001");
     harness
-        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(target.as_str()))
+        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(target.as_str())
+        })
         .click();
     harness.run();
 
@@ -232,8 +241,13 @@ fn proof3_remove_pin_fires_event_and_drops_row() {
         "PROOF3/AC2: sidebar.pin.block-001 must be gone after the optimistic removal (ids={ids:?})"
     );
     // block-002 is unaffected.
-    assert!(ids.contains(&pin_row_author_id("block-002")), "PROOF3: the other pin row remains");
-    println!("PROOF3: remove-pin fired RemovePin + the row left the AccessKit tree (events={ev:?})");
+    assert!(
+        ids.contains(&pin_row_author_id("block-002")),
+        "PROOF3: the other pin row remains"
+    );
+    println!(
+        "PROOF3: remove-pin fired RemovePin + the row left the AccessKit tree (events={ev:?})"
+    );
 }
 
 #[test]
@@ -281,24 +295,29 @@ fn ac3_remove_favorite_fires_event_and_request_shape() {
     let mut harness = sidebar_harness(Arc::clone(&panel), Arc::clone(&events));
     harness.run();
 
-    let fav_target =
-        handshake_native::graph::sidebar_panel::favorite_remove_author_id("block-003");
+    let fav_target = handshake_native::graph::sidebar_panel::favorite_remove_author_id("block-003");
     harness
-        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(fav_target.as_str()))
+        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(fav_target.as_str())
+        })
         .click();
     harness.run();
 
     let ev = events.lock().unwrap().clone();
     assert!(
-        ev.iter()
-            .any(|e| matches!(e, SidebarEvent::RemoveFavorite { block_id } if block_id == "block-003")),
+        ev.iter().any(
+            |e| matches!(e, SidebarEvent::RemoveFavorite { block_id } if block_id == "block-003")
+        ),
         "AC3: favorite remove must fire RemoveFavorite{{block-003}} (got {ev:?})"
     );
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     let client = LoomSidebarClient::new("http://test.local:1234", rt.handle().clone());
     let unfav = client.unfavorite_request("ws1", "block-003");
-    assert_eq!(unfav.url, "http://test.local:1234/workspaces/ws1/loom/blocks/block-003");
+    assert_eq!(
+        unfav.url,
+        "http://test.local:1234/workspaces/ws1/loom/blocks/block-003"
+    );
     assert_eq!(
         unfav.body,
         Some(serde_json::json!({ "favorite": false })),
@@ -313,14 +332,21 @@ fn ac3_remove_favorite_fires_event_and_request_shape() {
 fn proof4_backlink_node_present_for_active_block() {
     let mut p = seeded_sidebar();
     p.active_block_id = Some("block-A".to_owned());
-    p.set_backlinks(vec![BacklinkRow::new("block-src", "Source Block", "mention")]);
+    p.set_backlinks(vec![BacklinkRow::new(
+        "block-src",
+        "Source Block",
+        "mention",
+    )]);
     let panel = shared(p);
     let events = Arc::new(Mutex::new(Vec::new()));
     let mut harness = sidebar_harness(Arc::clone(&panel), Arc::clone(&events));
     harness.run();
 
     let ids = author_ids(&harness);
-    let backlink_count = ids.iter().filter(|a| a.starts_with(BACKLINK_ROW_AUTHOR_ID_PREFIX)).count();
+    let backlink_count = ids
+        .iter()
+        .filter(|a| a.starts_with(BACKLINK_ROW_AUTHOR_ID_PREFIX))
+        .count();
     assert_eq!(
         backlink_count, 1,
         "PROOF4/AC4: exactly 1 sidebar.backlink.* node expected, got {backlink_count} (ids={ids:?})"
@@ -349,8 +375,13 @@ fn proof4_backlink_node_present_for_active_block() {
             desc_has_edge_type = true;
         }
     }
-    assert!(desc_has_edge_type, "AC4: the backlink node was not found for the edge_type check");
-    println!("PROOF4: 1 sidebar.backlink.* node present for the active block (edge_type on description)");
+    assert!(
+        desc_has_edge_type,
+        "AC4: the backlink node was not found for the edge_type check"
+    );
+    println!(
+        "PROOF4: 1 sidebar.backlink.* node present for the active block (edge_type on description)"
+    );
 }
 
 // ── AC5: unlinked section renders + dedups against backlinks ──────────────────────────────────────────
@@ -359,7 +390,11 @@ fn proof4_backlink_node_present_for_active_block() {
 fn ac5_unlinked_rows_render_and_dedup() {
     let mut p = seeded_sidebar();
     p.active_block_id = Some("block-A".to_owned());
-    p.set_backlinks(vec![BacklinkRow::new("block-src", "Source Block", "mention")]);
+    p.set_backlinks(vec![BacklinkRow::new(
+        "block-src",
+        "Source Block",
+        "mention",
+    )]);
     p.set_unlinked(vec![
         UnlinkedRow::new("block-src", "Source Block"), // already a backlink -> deduped out
         UnlinkedRow::new("block-A", "The Active Block"), // the active block -> deduped out
@@ -383,7 +418,9 @@ fn ac5_unlinked_rows_render_and_dedup() {
         !ids.contains(&unlinked_row_author_id("block-A")),
         "AC5/MC-4: the active block can never be its own unlinked mention"
     );
-    println!("AC5: unlinked section shows only the genuine row (deduped vs backlinks + active block)");
+    println!(
+        "AC5: unlinked section shows only the genuine row (deduped vs backlinks + active block)"
+    );
 }
 
 // ── PROOF5 + AC6: opening 3 blocks yields 3 ordered breadcrumb Link nodes; clicking one fires Open ─────
@@ -401,7 +438,10 @@ fn proof5_three_breadcrumbs_in_order() {
     harness.run();
 
     let ids = author_ids(&harness);
-    let crumb_count = ids.iter().filter(|a| a.starts_with(BREADCRUMB_AUTHOR_ID_PREFIX)).count();
+    let crumb_count = ids
+        .iter()
+        .filter(|a| a.starts_with(BREADCRUMB_AUTHOR_ID_PREFIX))
+        .count();
     assert_eq!(
         crumb_count, 3,
         "PROOF5: exactly 3 sidebar.breadcrumb.* nodes expected, got {crumb_count} (ids={ids:?})"
@@ -426,7 +466,8 @@ fn proof5_three_breadcrumbs_in_order() {
     harness.run();
     let ev = events.lock().unwrap().clone();
     assert!(
-        ev.iter().any(|e| matches!(e, SidebarEvent::Open { block_id } if block_id == "blk-2")),
+        ev.iter()
+            .any(|e| matches!(e, SidebarEvent::Open { block_id } if block_id == "blk-2")),
         "AC6: clicking the 'Second' crumb must fire Open{{blk-2}} (got {ev:?})"
     );
     println!("PROOF5: 3 ordered sidebar.breadcrumb.* Link nodes; crumb click fired Open(blk-2)");
@@ -498,12 +539,15 @@ fn ac9_section_error_shows_retry_in_that_section_only() {
     // Clicking Retry fires Retry{Pins}.
     let retry_target = section_retry_author_id(SectionKind::Pins);
     harness
-        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(retry_target.as_str()))
+        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(retry_target.as_str())
+        })
         .click();
     harness.run();
     let ev = events.lock().unwrap().clone();
     assert!(
-        ev.iter().any(|e| matches!(e, SidebarEvent::Retry { section } if *section == SectionKind::Pins)),
+        ev.iter()
+            .any(|e| matches!(e, SidebarEvent::Retry { section } if *section == SectionKind::Pins)),
         "AC9: Retry click must fire Retry{{Pins}} (got {ev:?})"
     );
     println!("AC9: Pins error showed an inline Retry (Favorites unaffected); Retry click fired Retry{{Pins}}");
@@ -518,28 +562,34 @@ fn sidebar_read_requests_hit_verified_routes() {
     let client = LoomSidebarClient::new("http://test.local:1234", rt.handle().clone());
 
     let pins = client.pins_request("ws7");
-    assert_eq!(pins.url, "http://test.local:1234/workspaces/ws7/loom/views/pins");
+    assert_eq!(
+        pins.url,
+        "http://test.local:1234/workspaces/ws7/loom/views/pins"
+    );
     assert_eq!(pins.query, vec![("limit".to_owned(), "100".to_owned())]);
 
     let favs = client.favorites_request("ws7");
-    assert_eq!(favs.url, "http://test.local:1234/workspaces/ws7/loom/views/favorites");
+    assert_eq!(
+        favs.url,
+        "http://test.local:1234/workspaces/ws7/loom/views/favorites"
+    );
     assert_eq!(favs.query, vec![("limit".to_owned(), "100".to_owned())]);
 
     let backlinks = client.backlinks_request("ws7", "block-A");
     assert_eq!(
-        backlinks.url,
-        "http://test.local:1234/workspaces/ws7/loom/blocks/block-A/backlinks",
+        backlinks.url, "http://test.local:1234/workspaces/ws7/loom/blocks/block-A/backlinks",
         "verified dedicated MT-178 backlinks route (not graph-search)"
     );
     assert!(backlinks.query.is_empty());
 
     let unlinked = client.unlinked_request("ws7", "block-A");
     assert_eq!(
-        unlinked.url,
-        "http://test.local:1234/workspaces/ws7/loom/blocks/block-A/unlinked-mentions",
+        unlinked.url, "http://test.local:1234/workspaces/ws7/loom/blocks/block-A/unlinked-mentions",
         "verified dedicated MT-178 per-block unlinked-mentions route (not /views/unlinked)"
     );
-    println!("verified: pins/favorites/backlinks/unlinked GET routes match the real MT-178/183 backend");
+    println!(
+        "verified: pins/favorites/backlinks/unlinked GET routes match the real MT-178/183 backend"
+    );
 }
 
 // ── HBR-VIS screenshots: the sidebar renders pins + favorites + an active block's backlinks ───────────
@@ -560,7 +610,11 @@ fn sidebar_panel_screenshot() {
     let _g = wgpu_guard();
     let mut p = seeded_sidebar();
     p.active_block_id = Some("block-A".to_owned());
-    p.set_backlinks(vec![BacklinkRow::new("block-src", "Source Block", "mention")]);
+    p.set_backlinks(vec![BacklinkRow::new(
+        "block-src",
+        "Source Block",
+        "mention",
+    )]);
     p.set_unlinked(vec![UnlinkedRow::new("block-u", "Unlinked Mentioner")]);
     p.push_breadcrumb("blk-1", "Project Notes");
     p.push_breadcrumb("block-A", "Active Block");
@@ -623,7 +677,9 @@ fn pins_list_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let pins = data.expect("live PG fetch delivered within 5s").expect("live PG fetch ok");
+    let pins = data
+        .expect("live PG fetch delivered within 5s")
+        .expect("live PG fetch ok");
     assert!(
         pins.len() >= 2,
         "AC1 live: >= 2 seeded pinned blocks expected from GET /loom/views/pins, got {}",
@@ -637,7 +693,9 @@ fn pins_list_live_pg() {
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded pinned block"]
 #[cfg(feature = "integration")]
 fn remove_pin_live_pg() {
-    use handshake_native::backend_client::{DrawerActionCell, LoomSidebarClient, SidebarBlockListCell};
+    use handshake_native::backend_client::{
+        DrawerActionCell, LoomSidebarClient, SidebarBlockListCell,
+    };
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     let client = LoomSidebarClient::production(rt.handle().clone());
@@ -652,7 +710,8 @@ fn remove_pin_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    done.expect("two-call removal delivered within 5s").expect("two-call removal ok");
+    done.expect("two-call removal delivered within 5s")
+        .expect("two-call removal ok");
 
     // Re-fetch pins; the removed block must be gone.
     let cell: SidebarBlockListCell = Arc::new(Mutex::new(None));
@@ -693,11 +752,16 @@ fn backlinks_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let backlinks = data.expect("live PG fetch delivered within 5s").expect("live PG fetch ok");
+    let backlinks = data
+        .expect("live PG fetch delivered within 5s")
+        .expect("live PG fetch ok");
     assert!(
         !backlinks.is_empty(),
         "AC4 live: the seeded block must have >= 1 backlink, got {}",
         backlinks.len()
     );
-    println!("AC4 live PG: {} backlinks for the active block", backlinks.len());
+    println!(
+        "AC4 live PG: {} backlinks for the active block",
+        backlinks.len()
+    );
 }

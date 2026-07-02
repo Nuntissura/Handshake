@@ -109,7 +109,10 @@ impl StageContent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EmbedTarget {
     /// Insert the embed atom into a note's rich-text document (the pane id + the target document id).
-    Note { pane_id: String, document_id: String },
+    Note {
+        pane_id: String,
+        document_id: String,
+    },
     /// Insert the embed atom onto a canvas board (the pane id + the canvas id).
     Canvas { pane_id: String, canvas_id: String },
 }
@@ -144,7 +147,11 @@ pub struct StagePane {
 pub enum EmbedBackOutcome {
     /// The capture was embedded: carries the inserted embed atom's artifact id + its SHA-256 provenance
     /// summary (so the pane shows the evidence anchor).
-    Embedded { artifact_id: String, sha256: String, target_pane: String },
+    Embedded {
+        artifact_id: String,
+        sha256: String,
+        target_pane: String,
+    },
     /// The embed-back route is absent in this build (the typed blocker). Carries the probed path.
     EndpointAbsent { probed_path: String },
     /// The fetched artifact had no SHA-256 / manifest provenance, so it was refused.
@@ -165,7 +172,11 @@ impl EmbedBackOutcome {
     /// A one-line human/agent summary (the AccessKit value on the embed-back status line).
     pub fn summary(&self) -> String {
         match self {
-            EmbedBackOutcome::Embedded { artifact_id, sha256, target_pane } => format!(
+            EmbedBackOutcome::Embedded {
+                artifact_id,
+                sha256,
+                target_pane,
+            } => format!(
                 "Embedded {artifact_id} into {target_pane} (sha256 {})",
                 short_sha(sha256)
             ),
@@ -173,7 +184,8 @@ impl EmbedBackOutcome {
                 format!("Stage embed-back endpoint not present (probed {probed_path})")
             }
             EmbedBackOutcome::ProvenanceMissing => {
-                "Embed-back refused: fetched capture has no SHA-256 / manifest provenance".to_owned()
+                "Embed-back refused: fetched capture has no SHA-256 / manifest provenance"
+                    .to_owned()
             }
             EmbedBackOutcome::TargetGone { pane_id } => {
                 format!("Embed-back target pane '{pane_id}' is no longer live")
@@ -237,7 +249,9 @@ impl StagePane {
     {
         // RISK-007/MC-007: re-resolve the embed target at embed time; refuse a dangling pane.
         if !is_target_live(target.pane_id()) {
-            let outcome = EmbedBackOutcome::TargetGone { pane_id: target.pane_id().to_owned() };
+            let outcome = EmbedBackOutcome::TargetGone {
+                pane_id: target.pane_id().to_owned(),
+            };
             self.last_embed_back = Some(outcome.clone());
             return outcome;
         }
@@ -351,32 +365,35 @@ impl StagePane {
                 let routed_resp = ui
                     .scope_builder(egui::UiBuilder::new().id_salt(routed_id), |ui| {
                         ui.label(
-                            egui::RichText::new("Routed content").color(palette.text_subtle).small(),
+                            egui::RichText::new("Routed content")
+                                .color(palette.text_subtle)
+                                .small(),
                         );
                         ui.label(egui::RichText::new(self.content.summary()).color(palette.text));
                     })
                     .response;
                 let routed_author = STAGE_ROUTED_CONTENT_AUTHOR_ID.to_owned();
                 let routed_value = self.content.summary();
-                ui.ctx().accesskit_node_builder(routed_resp.id, move |node| {
-                    node.set_role(accesskit::Role::GenericContainer);
-                    node.set_author_id(routed_author.clone());
-                    node.set_label("Routed content".to_owned());
-                    node.set_value(routed_value.clone());
-                });
+                ui.ctx()
+                    .accesskit_node_builder(routed_resp.id, move |node| {
+                        node.set_role(accesskit::Role::GenericContainer);
+                        node.set_author_id(routed_author.clone());
+                        node.set_label("Routed content".to_owned());
+                        node.set_value(routed_value.clone());
+                    });
 
                 ui.separator();
 
                 // The "Capture -> Embed back" action button (Role::Button). Enabled only when content has
                 // been routed (an empty stage has nothing to capture).
                 let has_content = self.content.is_some();
-                let btn = egui::Button::new(
-                    egui::RichText::new("Capture → Embed back").color(if has_content {
+                let btn = egui::Button::new(egui::RichText::new("Capture → Embed back").color(
+                    if has_content {
                         palette.accent
                     } else {
                         palette.text_subtle
-                    }),
-                );
+                    },
+                ));
                 let btn_resp = ui.add_enabled(has_content, btn);
                 crate::accessibility::emit_interactive_node(
                     ui.ctx(),
@@ -437,14 +454,18 @@ pub fn push_route_to_stage_undo(
     let undo_weak = weak.clone();
     let undo_fn: UndoFn = Arc::new(move || match undo_weak.upgrade() {
         Some(pane) => {
-            pane.lock().unwrap_or_else(|e| e.into_inner()).set_content(previous.clone());
+            pane.lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .set_content(previous.clone());
             UndoResult::ok()
         }
         None => UndoResult::pane_dropped(),
     });
     let redo_fn: UndoFn = Arc::new(move || match weak.upgrade() {
         Some(pane) => {
-            pane.lock().unwrap_or_else(|e| e.into_inner()).set_content(next.clone());
+            pane.lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .set_content(next.clone());
             UndoResult::ok()
         }
         None => UndoResult::pane_dropped(),
@@ -491,13 +512,21 @@ mod tests {
     /// Each content variant produces a sensible one-line summary (the AccessKit value).
     #[test]
     fn content_summaries_are_descriptive() {
-        assert!(StageContent::Document(doc("DOC-1", "My Note")).summary().contains("My Note"));
+        assert!(StageContent::Document(doc("DOC-1", "My Note"))
+            .summary()
+            .contains("My Note"));
         // A blank-title document falls back to its id.
-        assert!(StageContent::Document(doc("DOC-2", "")).summary().contains("DOC-2"));
+        assert!(StageContent::Document(doc("DOC-2", ""))
+            .summary()
+            .contains("DOC-2"));
         let sel = StageContent::Selection("hello world".to_owned(), "DOC-3".to_owned());
         assert!(sel.summary().contains("DOC-3"));
         assert!(sel.summary().contains("hello world"));
-        let item = StageContent::AtelierItem(AtelierRef::new("char-1", AtelierItemKind::Character, "Aria"));
+        let item = StageContent::AtelierItem(AtelierRef::new(
+            "char-1",
+            AtelierItemKind::Character,
+            "Aria",
+        ));
         assert!(item.summary().contains("Character"));
         assert!(item.summary().contains("Aria"));
     }

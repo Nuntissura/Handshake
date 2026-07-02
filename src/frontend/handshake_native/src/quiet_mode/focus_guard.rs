@@ -127,7 +127,10 @@ mod tests {
     #[test]
     fn assert_quiet_mode_installed_reports_non_empty_ban_list() {
         assert_eq!(assert_quiet_mode_installed(), BANNED_FOCUS_APIS.len());
-        assert!(assert_quiet_mode_installed() > 0, "ban list must be non-empty");
+        assert!(
+            assert_quiet_mode_installed() > 0,
+            "ban list must be non-empty"
+        );
     }
 
     #[test]

@@ -69,7 +69,10 @@ pub fn resolved_author_id(resolved_target_id: &str) -> String {
 /// — the same logical dangling target — share one id and never produce a duplicate author_id
 /// (RISK-004/MC-004).
 pub fn unresolved_author_id(target_value: &str) -> String {
-    format!("outgoing.unresolved.{}", resolver::normalize_target(target_value))
+    format!(
+        "outgoing.unresolved.{}",
+        resolver::normalize_target(target_value)
+    )
 }
 
 /// The kind of outgoing link an entry represents. A `[[target]]` wikilink (`hsLink` atom) is
@@ -207,7 +210,9 @@ fn node_to_outgoing_link(node: &serde_json::Value) -> Option<OutgoingLink> {
             // `target_value` is the parser's trimmed ref value; the explicit alias is the label only
             // when it is NOT the parser's default (the bare value / `prefix:value`).
             let alias = match &parsed.kind {
-                WikilinkKind::Known(_) if parsed.label != parsed.ref_value => Some(parsed.label.clone()),
+                WikilinkKind::Known(_) if parsed.label != parsed.ref_value => {
+                    Some(parsed.label.clone())
+                }
                 WikilinkKind::Unknown(_)
                     if parsed.label != format!("{}:{}", parsed.raw_prefix, parsed.ref_value) =>
                 {
@@ -297,7 +302,9 @@ impl NavTarget {
 
     /// Build a [`NavTarget::Unresolved`] for a dangling entry click.
     pub fn unresolved(value: impl Into<String>) -> Self {
-        NavTarget::Unresolved { value: value.into() }
+        NavTarget::Unresolved {
+            value: value.into(),
+        }
     }
 }
 
@@ -343,7 +350,12 @@ impl OutgoingLinksPanel {
     /// `loading`, shows a spinner; if `error`, shows the error text; if BOTH buckets are empty (and not
     /// loading / no error), shows the literal [`EMPTY_TEXT`] with NO spinner and NO panic
     /// (RISK-006/MC-006).
-    pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette, on_open: &mut dyn FnMut(NavTarget)) {
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        on_open: &mut dyn FnMut(NavTarget),
+    ) {
         let header = format!("Outgoing Links ({})", self.total());
         ui.label(egui::RichText::new(header).strong().color(palette.text));
 
@@ -384,7 +396,12 @@ impl OutgoingLinksPanel {
                         egui::Label::new(egui::RichText::new(row_text).color(palette.accent))
                             .sense(egui::Sense::click()),
                     );
-                    emit_node_author(ui.ctx(), row.id, accesskit::Role::Link, &resolved_author_id(&id));
+                    emit_node_author(
+                        ui.ctx(),
+                        row.id,
+                        accesskit::Role::Link,
+                        &resolved_author_id(&id),
+                    );
                     if row.clicked() {
                         on_open(NavTarget::block(id));
                     }
@@ -501,9 +518,16 @@ mod tests {
         });
         let links = extract_outgoing_links(&doc);
         assert_eq!(links.len(), 2);
-        assert_eq!(links[0].alias.as_deref(), Some("My Alias"), "explicit alias preserved");
+        assert_eq!(
+            links[0].alias.as_deref(),
+            Some("My Alias"),
+            "explicit alias preserved"
+        );
         assert_eq!(links[0].display_text(), "My Alias");
-        assert_eq!(links[1].alias, None, "a label equal to the value is not an alias");
+        assert_eq!(
+            links[1].alias, None,
+            "a label equal to the value is not an alias"
+        );
         assert_eq!(links[1].display_text(), "Plain");
     }
 
@@ -524,8 +548,16 @@ mod tests {
             }]
         });
         let links = extract_outgoing_links(&doc);
-        assert_eq!(links.len(), 2, "the two wikilinks dedup to one; the transclusion is distinct");
-        assert_eq!(links[0].alias.as_deref(), Some("First"), "first alias kept on dedup");
+        assert_eq!(
+            links.len(),
+            2,
+            "the two wikilinks dedup to one; the transclusion is distinct"
+        );
+        assert_eq!(
+            links[0].alias.as_deref(),
+            Some("First"),
+            "first alias kept on dedup"
+        );
         assert_eq!(links[0].kind, LinkKind::Wikilink);
         assert_eq!(links[1].kind, LinkKind::Transclusion);
     }
@@ -545,7 +577,10 @@ mod tests {
                 ]
             }]
         });
-        assert!(extract_outgoing_links(&malformed).is_empty(), "blank/missing targets are skipped");
+        assert!(
+            extract_outgoing_links(&malformed).is_empty(),
+            "blank/missing targets are skipped"
+        );
     }
 
     /// A resolver index that knows `ExistingNote` (and the transclusion block) but NOT `DoesNotExist`.
@@ -564,19 +599,34 @@ mod tests {
         let links = extract_outgoing_links(&doc_with_links());
         let (resolved, unresolved) = bucket_links(links, &seeded_index());
         // ExistingNote + the transclusion resolve; DoesNotExist does not.
-        let resolved_wikilinks: Vec<_> =
-            resolved.iter().filter(|l| l.kind == LinkKind::Wikilink).collect();
-        let unresolved_wikilinks: Vec<_> =
-            unresolved.iter().filter(|l| l.kind == LinkKind::Wikilink).collect();
-        assert_eq!(resolved_wikilinks.len(), 1, "exactly one resolved wikilink (ExistingNote)");
-        assert_eq!(unresolved_wikilinks.len(), 1, "exactly one unresolved wikilink (DoesNotExist)");
+        let resolved_wikilinks: Vec<_> = resolved
+            .iter()
+            .filter(|l| l.kind == LinkKind::Wikilink)
+            .collect();
+        let unresolved_wikilinks: Vec<_> = unresolved
+            .iter()
+            .filter(|l| l.kind == LinkKind::Wikilink)
+            .collect();
+        assert_eq!(
+            resolved_wikilinks.len(),
+            1,
+            "exactly one resolved wikilink (ExistingNote)"
+        );
+        assert_eq!(
+            unresolved_wikilinks.len(),
+            1,
+            "exactly one unresolved wikilink (DoesNotExist)"
+        );
         assert_eq!(resolved_wikilinks[0].target_value, "ExistingNote");
         assert_eq!(
             resolved_wikilinks[0].resolved_target_id.as_deref(),
             Some("DOC-existing"),
             "resolved entry carries the live document id (the nav target)"
         );
-        assert_eq!(unresolved_wikilinks[0].resolved_target_id, None, "dangling entry has no id");
+        assert_eq!(
+            unresolved_wikilinks[0].resolved_target_id, None,
+            "dangling entry has no id"
+        );
     }
 
     #[test]
@@ -587,7 +637,10 @@ mod tests {
         assert_eq!(RESOLVED_SECTION_AUTHOR_ID, "outgoing.section.resolved");
         assert_eq!(UNRESOLVED_SECTION_AUTHOR_ID, "outgoing.section.unresolved");
         assert_eq!(resolved_author_id("DOC-7"), "outgoing.resolved.DOC-7");
-        assert_eq!(unresolved_author_id("Foo Bar"), "outgoing.unresolved.foo bar");
+        assert_eq!(
+            unresolved_author_id("Foo Bar"),
+            "outgoing.unresolved.foo bar"
+        );
         assert_eq!(
             unresolved_author_id("  foo   bar "),
             unresolved_author_id("Foo Bar"),
@@ -597,10 +650,15 @@ mod tests {
 
     #[test]
     fn nav_target_constructors() {
-        assert_eq!(NavTarget::block("X"), NavTarget::Block { id: "X".to_owned() });
+        assert_eq!(
+            NavTarget::block("X"),
+            NavTarget::Block { id: "X".to_owned() }
+        );
         assert_eq!(
             NavTarget::unresolved("Y"),
-            NavTarget::Unresolved { value: "Y".to_owned() }
+            NavTarget::Unresolved {
+                value: "Y".to_owned()
+            }
         );
     }
 
@@ -627,7 +685,8 @@ mod tests {
         );
         // No local regex/parser: forbid `Regex::new` and a `WIKILINK_REGEX`-style local pattern here.
         assert!(
-            !production_source().contains("Regex::new") && !production_source().contains("regex::Regex"),
+            !production_source().contains("Regex::new")
+                && !production_source().contains("regex::Regex"),
             "AC-003 / MC-001: no local regex parser may be defined in outgoing_links_panel.rs"
         );
     }
@@ -642,7 +701,8 @@ mod tests {
         );
         // The widget must not instantiate its own event channel / sender (a new nav channel).
         assert!(
-            !production_source().contains("std::sync::mpsc") && !production_source().contains("channel("),
+            !production_source().contains("std::sync::mpsc")
+                && !production_source().contains("channel("),
             "MC-008: no new navigation channel may be created in the panel"
         );
     }
@@ -652,7 +712,14 @@ mod tests {
         // AC-008 / RISK-007 / MC-007: read-only via the bound GETs; the module adds NO HTTP client, NO
         // backend write, and NO SQLite. (Resolution is the host's job off the render path; this module
         // is pure extraction + bucketing + the widget.)
-        for forbidden in ["sqlite", "rusqlite", "reqwest::Client", "POST ", "PUT ", "DELETE "] {
+        for forbidden in [
+            "sqlite",
+            "rusqlite",
+            "reqwest::Client",
+            "POST ",
+            "PUT ",
+            "DELETE ",
+        ] {
             assert!(
                 !production_source().contains(forbidden),
                 "MC-007: outgoing_links_panel.rs must not contain '{forbidden}' (read-only, no SQLite, no backend write)"

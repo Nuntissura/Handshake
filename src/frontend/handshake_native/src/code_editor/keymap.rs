@@ -52,12 +52,24 @@ pub struct KeyChord {
 impl KeyChord {
     /// A chord with no modifiers (e.g. a bare `F12`, `Escape`, `Tab`).
     pub const fn plain(key: egui::Key) -> Self {
-        Self { key, ctrl: false, alt: false, shift: false, mac_cmd: false }
+        Self {
+            key,
+            ctrl: false,
+            alt: false,
+            shift: false,
+            mac_cmd: false,
+        }
     }
 
     /// A chord with explicit modifier flags.
     pub const fn new(key: egui::Key, ctrl: bool, alt: bool, shift: bool, mac_cmd: bool) -> Self {
-        Self { key, ctrl, alt, shift, mac_cmd }
+        Self {
+            key,
+            ctrl,
+            alt,
+            shift,
+            mac_cmd,
+        }
     }
 
     /// Build a chord from an [`egui::Key`] plus an [`egui::Modifiers`], normalizing onto the explicit
@@ -83,7 +95,11 @@ impl KeyChord {
             mac_cmd: self.mac_cmd,
             // `command` is the OS-normalized convenience flag egui sets; mirror ctrl on non-mac and
             // mac_cmd on mac so a chord we hand back to egui round-trips.
-            command: if cfg!(target_os = "macos") { self.mac_cmd } else { self.ctrl },
+            command: if cfg!(target_os = "macos") {
+                self.mac_cmd
+            } else {
+                self.ctrl
+            },
         }
     }
 }
@@ -99,9 +115,21 @@ pub const fn mod_is_ctrl() -> bool {
 /// `alt`/`shift`. This keeps the binding table OS-agnostic (implementation note 1 / RISK-004).
 pub fn mod_chord(key: egui::Key, alt: bool, shift: bool) -> KeyChord {
     if mod_is_ctrl() {
-        KeyChord { key, ctrl: true, alt, shift, mac_cmd: false }
+        KeyChord {
+            key,
+            ctrl: true,
+            alt,
+            shift,
+            mac_cmd: false,
+        }
     } else {
-        KeyChord { key, ctrl: false, alt, shift, mac_cmd: true }
+        KeyChord {
+            key,
+            ctrl: false,
+            alt,
+            shift,
+            mac_cmd: true,
+        }
     }
 }
 
@@ -470,7 +498,12 @@ pub struct KeyBinding {
 impl KeyBinding {
     /// A single-chord binding.
     pub fn single(chord: KeyChord, action: CodeEditorAction, description: &'static str) -> Self {
-        Self { chord, second: None, action, description }
+        Self {
+            chord,
+            second: None,
+            action,
+            description,
+        }
     }
 
     /// A two-chord binding (`prefix` then `second`).
@@ -480,7 +513,12 @@ impl KeyBinding {
         action: CodeEditorAction,
         description: &'static str,
     ) -> Self {
-        Self { chord: prefix, second: Some(second), action, description }
+        Self {
+            chord: prefix,
+            second: Some(second),
+            action,
+            description,
+        }
     }
 
     /// True when this binding requires a second chord.
@@ -527,8 +565,20 @@ impl Keymap {
         let ms = |k: Key| mod_chord(k, false, true); // Mod+Shift
         let ma = |k: Key| mod_chord(k, true, false); // Mod+Alt
         let plain = KeyChord::plain;
-        let shift = |k: Key| KeyChord { key: k, ctrl: false, alt: false, shift: true, mac_cmd: false };
-        let alt = |k: Key| KeyChord { key: k, ctrl: false, alt: true, shift: false, mac_cmd: false };
+        let shift = |k: Key| KeyChord {
+            key: k,
+            ctrl: false,
+            alt: false,
+            shift: true,
+            mac_cmd: false,
+        };
+        let alt = |k: Key| KeyChord {
+            key: k,
+            ctrl: false,
+            alt: true,
+            shift: false,
+            mac_cmd: false,
+        };
 
         let bindings = vec![
             // ── Find / replace / go-to-line (MT-004 / MT-006) ──
@@ -560,7 +610,11 @@ impl Keymap {
             // regression). Alt+ArrowLeft/Right do not collide with the plain ArrowLeft/Right caret moves
             // (different modifier flags) or with Alt+ArrowUp/Down (different key).
             KeyBinding::single(plain(Key::F8), A::GoToNextDiagnostic, "Go to next problem"),
-            KeyBinding::single(shift(Key::F8), A::GoToPrevDiagnostic, "Go to previous problem"),
+            KeyBinding::single(
+                shift(Key::F8),
+                A::GoToPrevDiagnostic,
+                "Go to previous problem",
+            ),
             KeyBinding::single(alt(Key::ArrowLeft), A::NavigateBack, "Navigate back"),
             KeyBinding::single(alt(Key::ArrowRight), A::NavigateForward, "Navigate forward"),
             // ── In-file Go to Symbol (MT-053) ── Ctrl+Shift+O (Cmd+Shift+O on macOS) opens the
@@ -576,7 +630,13 @@ impl Keymap {
             // ── Formatting (MT-050) ── Alt+Shift+F = Format Document (VS Code parity). Format Selection has
             // NO default binding (menu / context-menu invoked, matching VS Code).
             KeyBinding::single(
-                KeyChord { key: Key::F, ctrl: false, alt: true, shift: true, mac_cmd: false },
+                KeyChord {
+                    key: Key::F,
+                    ctrl: false,
+                    alt: true,
+                    shift: true,
+                    mac_cmd: false,
+                },
                 A::FormatDocument,
                 "Format document",
             ),
@@ -585,7 +645,11 @@ impl Keymap {
             // Tab is context-sensitive: AcceptCompletion when the popup is open, else InsertTab. The
             // binding maps Tab to InsertTab; the dispatcher promotes it to AcceptCompletion when the
             // popup is open (step 3 precedence).
-            KeyBinding::single(plain(Key::Tab), A::InsertTab, "Insert tab / accept completion"),
+            KeyBinding::single(
+                plain(Key::Tab),
+                A::InsertTab,
+                "Insert tab / accept completion",
+            ),
             // ── History / save ──
             KeyBinding::single(m(Key::Z), A::Undo, "Undo"),
             KeyBinding::single(m(Key::Y), A::Redo, "Redo"),
@@ -604,7 +668,11 @@ impl Keymap {
             KeyBinding::single(plain(Key::ArrowUp), A::MoveCursorUp, "Move up"),
             KeyBinding::single(plain(Key::ArrowDown), A::MoveCursorDown, "Move down"),
             KeyBinding::single(m(Key::ArrowLeft), A::MoveCursorWordLeft, "Move word left"),
-            KeyBinding::single(m(Key::ArrowRight), A::MoveCursorWordRight, "Move word right"),
+            KeyBinding::single(
+                m(Key::ArrowRight),
+                A::MoveCursorWordRight,
+                "Move word right",
+            ),
             KeyBinding::single(plain(Key::Home), A::MoveCursorLineStart, "Line start"),
             KeyBinding::single(plain(Key::End), A::MoveCursorLineEnd, "Line end"),
             KeyBinding::single(m(Key::Home), A::MoveCursorDocStart, "Document start"),
@@ -615,12 +683,24 @@ impl Keymap {
             KeyBinding::single(shift(Key::ArrowUp), A::SelectUp, "Select up"),
             KeyBinding::single(shift(Key::ArrowDown), A::SelectDown, "Select down"),
             KeyBinding::single(
-                KeyChord { key: Key::Home, ctrl: false, alt: false, shift: true, mac_cmd: false },
+                KeyChord {
+                    key: Key::Home,
+                    ctrl: false,
+                    alt: false,
+                    shift: true,
+                    mac_cmd: false,
+                },
                 A::SelectLineStart,
                 "Select to line start",
             ),
             KeyBinding::single(
-                KeyChord { key: Key::End, ctrl: false, alt: false, shift: true, mac_cmd: false },
+                KeyChord {
+                    key: Key::End,
+                    ctrl: false,
+                    alt: false,
+                    shift: true,
+                    mac_cmd: false,
+                },
                 A::SelectLineEnd,
                 "Select to line end",
             ),
@@ -643,7 +723,9 @@ impl Keymap {
     /// True when `chord` is the PREFIX of some two-chord binding (e.g. `Ctrl+K`). The dispatcher uses
     /// this to enter the "pending second chord" state (RISK-001 / MC-001).
     pub fn resolve_prefix(&self, chord: KeyChord) -> bool {
-        self.bindings.iter().any(|b| b.second.is_some() && b.chord == chord)
+        self.bindings
+            .iter()
+            .any(|b| b.second.is_some() && b.chord == chord)
     }
 
     /// Resolve a `(prefix, second)` two-chord pair to its action. `None` when no two-chord binding has
@@ -665,7 +747,11 @@ impl Keymap {
     /// All bindings for a given action (the React `bindingsForAction`) — for showing the chord hint in
     /// the UI / manual.
     pub fn bindings_for_action(&self, action: CodeEditorAction) -> Vec<KeyBinding> {
-        self.bindings.iter().copied().filter(|b| b.action == action).collect()
+        self.bindings
+            .iter()
+            .copied()
+            .filter(|b| b.action == action)
+            .collect()
     }
 
     /// Merge operator overrides over the default table (the MT `Keymap::from_settings`). Each override's
@@ -747,35 +833,86 @@ mod tests {
     fn default_table_resolves_core_chords() {
         let km = Keymap::default_vscode();
         // Mod = Ctrl on the CI/dev host (Windows/Linux).
-        let ctrl = |k: Key| KeyChord { key: k, ctrl: true, alt: false, shift: false, mac_cmd: false };
+        let ctrl = |k: Key| KeyChord {
+            key: k,
+            ctrl: true,
+            alt: false,
+            shift: false,
+            mac_cmd: false,
+        };
         assert_eq!(km.resolve(ctrl(Key::F)), Some(CodeEditorAction::OpenFind));
-        assert_eq!(km.resolve(ctrl(Key::H)), Some(CodeEditorAction::OpenReplace));
+        assert_eq!(
+            km.resolve(ctrl(Key::H)),
+            Some(CodeEditorAction::OpenReplace)
+        );
         assert_eq!(km.resolve(ctrl(Key::G)), Some(CodeEditorAction::GoToLine));
-        assert_eq!(km.resolve(ctrl(Key::D)), Some(CodeEditorAction::SelectNextOccurrence));
-        assert_eq!(km.resolve(KeyChord::plain(Key::F12)), Some(CodeEditorAction::GoToDefinition));
+        assert_eq!(
+            km.resolve(ctrl(Key::D)),
+            Some(CodeEditorAction::SelectNextOccurrence)
+        );
+        assert_eq!(
+            km.resolve(KeyChord::plain(Key::F12)),
+            Some(CodeEditorAction::GoToDefinition)
+        );
         assert_eq!(km.resolve(ctrl(Key::S)), Some(CodeEditorAction::Save));
     }
 
     #[test]
     fn unbound_chord_resolves_to_none() {
         let km = Keymap::default_vscode();
-        let weird = KeyChord { key: Key::Q, ctrl: true, alt: true, shift: true, mac_cmd: false };
+        let weird = KeyChord {
+            key: Key::Q,
+            ctrl: true,
+            alt: true,
+            shift: true,
+            mac_cmd: false,
+        };
         assert_eq!(km.resolve(weird), None);
     }
 
     #[test]
     fn two_chord_prefix_does_not_resolve_as_single() {
         let km = Keymap::default_vscode();
-        let ctrl_k = KeyChord { key: Key::K, ctrl: true, alt: false, shift: false, mac_cmd: false };
+        let ctrl_k = KeyChord {
+            key: Key::K,
+            ctrl: true,
+            alt: false,
+            shift: false,
+            mac_cmd: false,
+        };
         // Ctrl+K is a prefix, not a single action.
         assert_eq!(km.resolve(ctrl_k), None);
         assert!(km.resolve_prefix(ctrl_k), "Ctrl+K is a two-chord prefix");
-        let ctrl_0 = KeyChord { key: Key::Num0, ctrl: true, alt: false, shift: false, mac_cmd: false };
-        let ctrl_j = KeyChord { key: Key::J, ctrl: true, alt: false, shift: false, mac_cmd: false };
-        assert_eq!(km.resolve_second(ctrl_k, ctrl_0), Some(CodeEditorAction::FoldAll));
-        assert_eq!(km.resolve_second(ctrl_k, ctrl_j), Some(CodeEditorAction::UnfoldAll));
+        let ctrl_0 = KeyChord {
+            key: Key::Num0,
+            ctrl: true,
+            alt: false,
+            shift: false,
+            mac_cmd: false,
+        };
+        let ctrl_j = KeyChord {
+            key: Key::J,
+            ctrl: true,
+            alt: false,
+            shift: false,
+            mac_cmd: false,
+        };
+        assert_eq!(
+            km.resolve_second(ctrl_k, ctrl_0),
+            Some(CodeEditorAction::FoldAll)
+        );
+        assert_eq!(
+            km.resolve_second(ctrl_k, ctrl_j),
+            Some(CodeEditorAction::UnfoldAll)
+        );
         // A wrong second chord after the prefix resolves to nothing (pending cleared, no action).
-        let ctrl_x = KeyChord { key: Key::X, ctrl: true, alt: false, shift: false, mac_cmd: false };
+        let ctrl_x = KeyChord {
+            key: Key::X,
+            ctrl: true,
+            alt: false,
+            shift: false,
+            mac_cmd: false,
+        };
         assert_eq!(km.resolve_second(ctrl_k, ctrl_x), None);
     }
 }

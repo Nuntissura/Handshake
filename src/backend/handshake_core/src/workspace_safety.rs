@@ -360,11 +360,16 @@ pub fn session_worktree_path(repo_root: &Path, session_id: &str) -> PathBuf {
             return PathBuf::from(trimmed).join(session_id);
         }
     }
+    default_session_worktree_root(repo_root).join(session_id)
+}
+
+pub fn default_session_worktree_root(repo_root: &Path) -> PathBuf {
     repo_root
         .parent()
         .unwrap_or(repo_root)
+        .join("Handshake_Artifacts")
+        .join("handshake-tool")
         .join("session_worktrees")
-        .join(session_id)
 }
 
 pub fn ensure_session_worktree_allocation(
@@ -515,6 +520,19 @@ mod tests {
         );
         assert!(registry.get(&removed.session_id).is_none());
         assert_eq!(registry.len(), 0);
+    }
+
+    #[test]
+    fn default_session_worktree_root_uses_shared_artifacts_folder() {
+        let repo_root =
+            PathBuf::from("D:/Projects/Handshake/Handshake Worktrees/wtc-native-editors-v1");
+
+        assert_eq!(
+            default_session_worktree_root(&repo_root),
+            PathBuf::from(
+                "D:/Projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-tool/session_worktrees"
+            )
+        );
     }
 
     // ---------------------------------------------------------------

@@ -40,11 +40,21 @@ fn rename_workspace_edit_applies_two_files_descending_offset() {
                 edits: vec![
                     // `foo` at line 0 col 3..6 (the definition), and line 1 col 11..14 (the call).
                     TextEdit {
-                        range: LspRange { start_line: 0, start_char: 3, end_line: 0, end_char: 6 },
+                        range: LspRange {
+                            start_line: 0,
+                            start_char: 3,
+                            end_line: 0,
+                            end_char: 6,
+                        },
                         new_text: "frobnicate".into(),
                     },
                     TextEdit {
-                        range: LspRange { start_line: 1, start_char: 11, end_line: 1, end_char: 14 },
+                        range: LspRange {
+                            start_line: 1,
+                            start_char: 11,
+                            end_line: 1,
+                            end_char: 14,
+                        },
                         new_text: "frobnicate".into(),
                     },
                 ],
@@ -58,11 +68,21 @@ fn rename_workspace_edit_applies_two_files_descending_offset() {
                     // applying the FIRST (col 11..14) lengthens the line, so the SECOND's original col
                     // 18..21 would point at the WRONG text unless we apply descending.
                     TextEdit {
-                        range: LspRange { start_line: 0, start_char: 11, end_line: 0, end_char: 14 },
+                        range: LspRange {
+                            start_line: 0,
+                            start_char: 11,
+                            end_line: 0,
+                            end_char: 14,
+                        },
                         new_text: "frobnicate".into(),
                     },
                     TextEdit {
-                        range: LspRange { start_line: 0, start_char: 18, end_line: 0, end_char: 21 },
+                        range: LspRange {
+                            start_line: 0,
+                            start_char: 18,
+                            end_line: 0,
+                            end_char: 21,
+                        },
                         new_text: "frobnicate".into(),
                     },
                 ],
@@ -90,8 +110,7 @@ fn rename_workspace_edit_applies_two_files_descending_offset() {
     assert_eq!(report.files_changed, vec!["file:///a.rs", "file:///b.rs"]);
     assert_eq!(report.edits_applied, 4, "AC-002: all 4 occurrences applied");
     assert_eq!(
-        buffers["file:///a.rs"],
-        "fn frobnicate() {}\nfn bar() { frobnicate(); }",
+        buffers["file:///a.rs"], "fn frobnicate() {}\nfn bar() { frobnicate(); }",
         "AC-002: file a renamed exactly"
     );
     assert_eq!(
@@ -104,7 +123,10 @@ fn rename_workspace_edit_applies_two_files_descending_offset() {
     // offset), then edit[1] at its ORIGINAL byte range — the naive bug.
     let edits = &preview.files[1].edits;
     let correct = apply_text_edits_to_string(file_b, edits).unwrap();
-    assert_eq!(correct, buffers["file:///b.rs"], "the descending apply equals the real result");
+    assert_eq!(
+        correct, buffers["file:///b.rs"],
+        "the descending apply equals the real result"
+    );
     // Naive ascending: resolve both ranges against the ORIGINAL text, apply low-offset first.
     let mut naive = file_b.to_owned();
     // edit[0] = col 11..14 ("foo" -> "frobnicate"): replace bytes 11..14.
@@ -193,10 +215,12 @@ async fn run_rename_over_mock_transport(
     let client_arc = Arc::new(client);
 
     let req_client = Arc::clone(&client_arc);
-    let pos = lsp_types::Position { line: 0, character: 4 };
-    let request = tokio::spawn(async move {
-        req_client.rename("file:///x.rs", pos, "renamed").await
-    });
+    let pos = lsp_types::Position {
+        line: 0,
+        character: 4,
+    };
+    let request =
+        tokio::spawn(async move { req_client.rename("file:///x.rs", pos, "renamed").await });
 
     // Observe the framed request the client wrote over the REAL transport.
     let req = client_arc
@@ -228,7 +252,10 @@ async fn run_rename_over_mock_transport(
     });
     let frame = LspClient::frame_message_for_test(&response);
     use tokio::io::AsyncWriteExt;
-    server.write_all(&frame).await.expect("write response frame");
+    server
+        .write_all(&frame)
+        .await
+        .expect("write response frame");
     server.flush().await.expect("flush");
 
     let edit = tokio::time::timeout(std::time::Duration::from_secs(5), request)

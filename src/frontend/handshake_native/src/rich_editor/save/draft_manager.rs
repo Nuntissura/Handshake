@@ -136,7 +136,10 @@ impl ReqwestDraftBackend {
         }
     }
     fn draft_url(&self, document_id: &str) -> String {
-        format!("{}/knowledge/documents/{}/draft", self.base_url, document_id)
+        format!(
+            "{}/knowledge/documents/{}/draft",
+            self.base_url, document_id
+        )
     }
 }
 
@@ -152,9 +155,9 @@ impl DraftBackend for ReqwestDraftBackend {
                 &document_id_owned,
                 &session_run_id,
             )
-                .send()
-                .await
-                .map_err(|e| DraftError::Network(e.to_string()))?;
+            .send()
+            .await
+            .map_err(|e| DraftError::Network(e.to_string()))?;
             let status = resp.status();
             if !status.is_success() {
                 let text = resp.text().await.unwrap_or_default();
@@ -184,13 +187,16 @@ impl DraftBackend for ReqwestDraftBackend {
                 "content_json": content_json,
             });
             let resp = super::save_manager::attach_doc_headers(
-                client.put(&url).timeout(Duration::from_secs(10)).json(&body),
+                client
+                    .put(&url)
+                    .timeout(Duration::from_secs(10))
+                    .json(&body),
                 &document_id_owned,
                 &session_run_id,
             )
-                .send()
-                .await
-                .map_err(|e| DraftError::Network(e.to_string()))?;
+            .send()
+            .await
+            .map_err(|e| DraftError::Network(e.to_string()))?;
             let status = resp.status();
             if !status.is_success() {
                 let text = resp.text().await.unwrap_or_default();
@@ -211,9 +217,9 @@ impl DraftBackend for ReqwestDraftBackend {
                 &document_id_owned,
                 &session_run_id,
             )
-                .send()
-                .await
-                .map_err(|e| DraftError::Network(e.to_string()))?;
+            .send()
+            .await
+            .map_err(|e| DraftError::Network(e.to_string()))?;
             let status = resp.status();
             if !status.is_success() {
                 let text = resp.text().await.unwrap_or_default();
@@ -239,7 +245,10 @@ pub enum DraftState {
     /// A recoverable draft exists; the banner is shown until Restore/Discard. `shown` lets the UI
     /// dismiss the banner without discarding the draft (e.g. the operator ignores it and keeps
     /// editing — the draft stays on the server).
-    Available { draft: Box<RichDocumentDraft>, shown: bool },
+    Available {
+        draft: Box<RichDocumentDraft>,
+        shown: bool,
+    },
     /// The operator discarded the draft (the banner is gone and the server draft was cleared).
     Discarded,
 }
@@ -307,8 +316,16 @@ impl DraftManager {
         base_doc_version: u64,
         base_content: &JsonValue,
     ) -> Self {
-        let backend = Arc::new(ReqwestDraftBackend::new(crate::backend_client::BACKEND_BASE_URL));
-        Self::new(backend, Some(runtime), document_id, base_doc_version, base_content)
+        let backend = Arc::new(ReqwestDraftBackend::new(
+            crate::backend_client::BACKEND_BASE_URL,
+        ));
+        Self::new(
+            backend,
+            Some(runtime),
+            document_id,
+            base_doc_version,
+            base_content,
+        )
     }
 
     /// On document mount: spawn `GET /draft`. Only enters `Checking` when a runtime actually
@@ -386,7 +403,12 @@ impl DraftManager {
     /// `base_content_sha256` as the canonical hash of the BASE server content (set on load),
     /// records the request (test seam), spawns the PUT, and resets the debounce window. Returns
     /// `true` when an upsert was dispatched.
-    pub fn maybe_upsert(&mut self, content_json: JsonValue, now: Instant, save_in_flight: bool) -> bool {
+    pub fn maybe_upsert(
+        &mut self,
+        content_json: JsonValue,
+        now: Instant,
+        save_in_flight: bool,
+    ) -> bool {
         if save_in_flight {
             return false; // MC-002: never upsert a draft during a canonical save.
         }
@@ -502,13 +524,17 @@ mod tests {
     }
     impl MockDraftBackend {
         fn new(load: Result<RichDocumentDraftLoad, DraftError>) -> Self {
-            Self { load: Mutex::new(Some(load)) }
+            Self {
+                load: Mutex::new(Some(load)),
+            }
         }
     }
     impl DraftBackend for MockDraftBackend {
         fn load_draft(&self, _id: &str) -> DraftLoadFuture {
             let staged = self.load.lock().unwrap().clone();
-            Box::pin(async move { staged.unwrap_or(Err(DraftError::Network("no staged load".into()))) })
+            Box::pin(
+                async move { staged.unwrap_or(Err(DraftError::Network("no staged load".into()))) },
+            )
         }
         fn upsert_draft(&self, _id: &str, _v: u64, _h: String, _c: JsonValue) -> DraftWriteFuture {
             Box::pin(async { Ok(()) })
@@ -538,7 +564,9 @@ mod tests {
             base_doc_version: 3,
             base_content_sha256: canonical_content_sha256(&base_content()),
             draft_content_sha256: "deadbeef".into(),
-            content_json: Some(json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"draft text"}]}]})),
+            content_json: Some(
+                json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"draft text"}]}]}),
+            ),
         };
         m.deliver_load_for_test(Ok(RichDocumentDraftLoad {
             current_doc_version: 3,
@@ -581,7 +609,9 @@ mod tests {
             }),
             shown: true,
         };
-        let restored = m.restore_draft().expect("restore returns the draft content");
+        let restored = m
+            .restore_draft()
+            .expect("restore returns the draft content");
         assert_eq!(restored, draft_content);
         assert_eq!(m.state, DraftState::None, "banner gone after restore");
     }
@@ -612,7 +642,11 @@ mod tests {
         let t0 = Instant::now();
         m.mark_dirty(t0);
         // Not yet due at 4.9s.
-        assert!(!m.maybe_upsert(json!({"type":"doc","content":[]}), t0 + Duration::from_millis(4900), false));
+        assert!(!m.maybe_upsert(
+            json!({"type":"doc","content":[]}),
+            t0 + Duration::from_millis(4900),
+            false
+        ));
         assert!(m.last_upsert.is_none());
         // Due at exactly 5s.
         let content = json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"edit"}]}]});
@@ -622,7 +656,10 @@ mod tests {
         assert_eq!(req.base_doc_version, 3);
         assert_eq!(req.content_json, content);
         // The exact assertion: base_content_sha256 == the canonical hash of the base content.
-        assert_eq!(req.base_content_sha256, canonical_content_sha256(&base_content()));
+        assert_eq!(
+            req.base_content_sha256,
+            canonical_content_sha256(&base_content())
+        );
     }
 
     #[test]
@@ -632,7 +669,11 @@ mod tests {
         let mut m = mgr();
         let t0 = Instant::now();
         m.mark_dirty(t0);
-        let fired = m.maybe_upsert(json!({}), t0 + Duration::from_secs(10), /* save_in_flight */ true);
+        let fired = m.maybe_upsert(
+            json!({}),
+            t0 + Duration::from_secs(10),
+            /* save_in_flight */ true,
+        );
         assert!(!fired, "no draft upsert while a save is in flight");
         assert!(m.last_upsert.is_none());
     }
@@ -645,7 +686,10 @@ mod tests {
         m.clear_after_save(4, &saved);
         assert_eq!(m.base_doc_version, 4, "re-based on the new server version");
         assert_eq!(m.base_content_sha256, canonical_content_sha256(&saved));
-        assert!(!m.upsert_due(Instant::now() + Duration::from_secs(10)), "debounce reset");
+        assert!(
+            !m.upsert_due(Instant::now() + Duration::from_secs(10)),
+            "debounce reset"
+        );
         assert_eq!(m.state, DraftState::None);
     }
 }

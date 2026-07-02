@@ -25,7 +25,10 @@ use crate::rich_editor::embeds::asset_resolver::MediaEmbedKind;
 use crate::theme::HsPalette;
 
 use super::caret::{DocCaret, CARET_WIDTH_PTS};
-use super::line_layout::{self, BLOCK_GAP_PTS, BLOCKQUOTE_BAR_WIDTH_PTS, BLOCKQUOTE_INDENT_PTS, CODE_PADDING_PTS, LIST_INDENT_PTS};
+use super::line_layout::{
+    self, BLOCKQUOTE_BAR_WIDTH_PTS, BLOCKQUOTE_INDENT_PTS, BLOCK_GAP_PTS, CODE_PADDING_PTS,
+    LIST_INDENT_PTS,
+};
 
 /// What a block paint produced, so the widget can advance the layout cursor and (for the
 /// caret's block) know the galley to hit-test. Returned by [`paint_block`].
@@ -54,23 +57,59 @@ pub fn paint_block(
     bold_available: bool,
 ) -> BlockPaint {
     match block.kind {
-        NodeKind::Paragraph | NodeKind::Heading(_) => {
-            paint_inline_block(painter, block, top_left, content_width, palette, caret_offset, 0.0, bold_available)
+        NodeKind::Paragraph | NodeKind::Heading(_) => paint_inline_block(
+            painter,
+            block,
+            top_left,
+            content_width,
+            palette,
+            caret_offset,
+            0.0,
+            bold_available,
+        ),
+        NodeKind::Blockquote => paint_blockquote(
+            painter,
+            block,
+            top_left,
+            content_width,
+            palette,
+            caret_offset,
+            bold_available,
+        ),
+        NodeKind::CodeBlock => paint_code_block(
+            painter,
+            block,
+            top_left,
+            content_width,
+            palette,
+            caret_offset,
+            bold_available,
+        ),
+        NodeKind::BulletList | NodeKind::OrderedList => paint_list(
+            painter,
+            block,
+            top_left,
+            content_width,
+            palette,
+            bold_available,
+        ),
+        NodeKind::Table => paint_table(
+            painter,
+            block,
+            top_left,
+            content_width,
+            palette,
+            bold_available,
+        ),
+        NodeKind::HorizontalRule => {
+            paint_horizontal_rule(painter, top_left, content_width, palette)
         }
-        NodeKind::Blockquote => {
-            paint_blockquote(painter, block, top_left, content_width, palette, caret_offset, bold_available)
-        }
-        NodeKind::CodeBlock => {
-            paint_code_block(painter, block, top_left, content_width, palette, caret_offset, bold_available)
-        }
-        NodeKind::BulletList | NodeKind::OrderedList => {
-            paint_list(painter, block, top_left, content_width, palette, bold_available)
-        }
-        NodeKind::Table => paint_table(painter, block, top_left, content_width, palette, bold_available),
-        NodeKind::HorizontalRule => paint_horizontal_rule(painter, top_left, content_width, palette),
         // Atoms / structural-only kinds that are not a top-level paint target in the
         // vertical slice render nothing and consume a single gap so layout stays sane.
-        _ => BlockPaint { height: BLOCK_GAP_PTS, caret_galley: None },
+        _ => BlockPaint {
+            height: BLOCK_GAP_PTS,
+            caret_galley: None,
+        },
     }
 }
 
@@ -199,7 +238,10 @@ fn paint_inline_block(
         // Repack into the BlockPaint shape (origin + galley); the caret CCursor index is
         // applied by the caller via resolve_caret_rect.
         let caret_galley = caret_galley.map(|(g, o, _)| (g, o));
-        return BlockPaint { height: height + BLOCK_GAP_PTS, caret_galley };
+        return BlockPaint {
+            height: height + BLOCK_GAP_PTS,
+            caret_galley,
+        };
     }
 
     // ── RTL base path (MT-078 AC1/AC5) ───────────────────────────────────────────────────────────────
@@ -228,7 +270,11 @@ fn paint_inline_block(
             wrap_width,
         );
         let note_x = (origin.x + wrap_width - note_galley.rect.width()).max(origin.x);
-        painter.galley(egui::pos2(note_x, note_y), note_galley.clone(), palette.text_subtle);
+        painter.galley(
+            egui::pos2(note_x, note_y),
+            note_galley.clone(),
+            palette.text_subtle,
+        );
         height += note_galley.rect.height() + 2.0;
     }
 
@@ -239,7 +285,10 @@ fn paint_inline_block(
     // mapping across reordered runs is the shaping follow-on). The behavioral edit proof (AC4) is on the
     // logical-order EDIT model (input_handler), which is direction-agnostic and unaffected.
     let caret_galley = caret_offset.map(|_off| (Arc::clone(&galley), right_anchor));
-    BlockPaint { height: height + BLOCK_GAP_PTS, caret_galley }
+    BlockPaint {
+        height: height + BLOCK_GAP_PTS,
+        caret_galley,
+    }
 }
 
 /// Paint a blockquote: a left accent bar + a tinted background, content indented. The
@@ -256,17 +305,18 @@ fn paint_blockquote(
     bold_available: bool,
 ) -> BlockPaint {
     // Resolve the inner inline block to render (first block child), else the quote itself.
-    let inner = block.children.iter().find_map(Child::as_block).unwrap_or(block);
+    let inner = block
+        .children
+        .iter()
+        .find_map(Child::as_block)
+        .unwrap_or(block);
     let wrap_width = (content_width - BLOCKQUOTE_INDENT_PTS).max(1.0);
     let layout = line_layout::layout_block(inner, palette, wrap_width, bold_available);
     let galley = painter.layout_job(layout.job);
     let text_height = galley.rect.height().max(line_layout::BASE_FONT_SIZE);
 
     // Tinted background behind the whole quote (theme accent_soft — a real theme token).
-    let bg_rect = Rect::from_min_size(
-        top_left,
-        Vec2::new(content_width, text_height),
-    );
+    let bg_rect = Rect::from_min_size(top_left, Vec2::new(content_width, text_height));
     painter.rect_filled(bg_rect, 2.0, palette.accent_soft);
     // The 3px left bar in the accent color (contract step 2).
     let bar_rect = Rect::from_min_size(top_left, Vec2::new(BLOCKQUOTE_BAR_WIDTH_PTS, text_height));
@@ -276,7 +326,10 @@ fn paint_blockquote(
     painter.galley(origin, Arc::clone(&galley), palette.text);
 
     let caret_galley = caret_offset.map(|_| (Arc::clone(&galley), origin));
-    BlockPaint { height: text_height + BLOCK_GAP_PTS, caret_galley }
+    BlockPaint {
+        height: text_height + BLOCK_GAP_PTS,
+        caret_galley,
+    }
 }
 
 /// Paint a code block: a rounded tinted rect (theme `surface` over the editor `bg`) with
@@ -311,7 +364,10 @@ fn paint_code_block(
     painter.galley(origin, Arc::clone(&galley), palette.text_subtle);
 
     let caret_galley = caret_offset.map(|_| (Arc::clone(&galley), origin));
-    BlockPaint { height: box_height + BLOCK_GAP_PTS, caret_galley }
+    BlockPaint {
+        height: box_height + BLOCK_GAP_PTS,
+        caret_galley,
+    }
 }
 
 /// Paint a list (bullet/ordered): each list item gets a `•` or `N.` prefix, then its
@@ -346,7 +402,11 @@ fn paint_list(
             palette.text_subtle,
         );
         // Paint the item content (its first inline child block, else the item itself).
-        let inner = item.children.iter().find_map(Child::as_block).unwrap_or(item);
+        let inner = item
+            .children
+            .iter()
+            .find_map(Child::as_block)
+            .unwrap_or(item);
         let wrap_width = (content_width - LIST_INDENT_PTS).max(1.0);
         let layout = line_layout::layout_block(inner, palette, wrap_width, bold_available);
         let galley = painter.layout_job(layout.job);
@@ -357,7 +417,10 @@ fn paint_list(
         number += 1;
     }
     let height = (y - top_left.y).max(line_layout::BASE_FONT_SIZE);
-    BlockPaint { height: height + BLOCK_GAP_PTS, caret_galley: None }
+    BlockPaint {
+        height: height + BLOCK_GAP_PTS,
+        caret_galley: None,
+    }
 }
 
 /// Paint a table: a grid of cells. Column widths are equal (content_width / cols);
@@ -374,7 +437,10 @@ fn paint_table(
 ) -> BlockPaint {
     let rows: Vec<&BlockNode> = block.children.iter().filter_map(Child::as_block).collect();
     if rows.is_empty() {
-        return BlockPaint { height: BLOCK_GAP_PTS, caret_galley: None };
+        return BlockPaint {
+            height: BLOCK_GAP_PTS,
+            caret_galley: None,
+        };
     }
     let cols = rows
         .iter()
@@ -400,19 +466,22 @@ fn paint_table(
             // CLIP cell content to its rect so long text cannot overflow into the
             // neighbor (MC-006). A child painter with the cell clip rect bounds the paint.
             let cell_painter = painter.with_clip_rect(cell_rect);
-            let inner = cell.children.iter().find_map(Child::as_block).unwrap_or(cell);
+            let inner = cell
+                .children
+                .iter()
+                .find_map(Child::as_block)
+                .unwrap_or(cell);
             let layout = line_layout::layout_block(inner, palette, col_w - 6.0, bold_available);
             let galley = cell_painter.layout_job(layout.job);
-            cell_painter.galley(
-                egui::pos2(x + 3.0, y + 4.0),
-                galley,
-                palette.text,
-            );
+            cell_painter.galley(egui::pos2(x + 3.0, y + 4.0), galley, palette.text);
         }
         y += row_h;
     }
     let height = (y - top_left.y).max(row_h);
-    BlockPaint { height: height + BLOCK_GAP_PTS, caret_galley: None }
+    BlockPaint {
+        height: height + BLOCK_GAP_PTS,
+        caret_galley: None,
+    }
 }
 
 /// Paint a horizontal rule: a 1px theme-border line across the content width.
@@ -424,10 +493,16 @@ fn paint_horizontal_rule(
 ) -> BlockPaint {
     let y = top_left.y + line_layout::BASE_FONT_SIZE / 2.0;
     painter.line_segment(
-        [egui::pos2(top_left.x, y), egui::pos2(top_left.x + content_width, y)],
+        [
+            egui::pos2(top_left.x, y),
+            egui::pos2(top_left.x + content_width, y),
+        ],
         Stroke::new(1.0, palette.border),
     );
-    BlockPaint { height: line_layout::BASE_FONT_SIZE + BLOCK_GAP_PTS, caret_galley: None }
+    BlockPaint {
+        height: line_layout::BASE_FONT_SIZE + BLOCK_GAP_PTS,
+        caret_galley: None,
+    }
 }
 
 /// Resolve the caret's pixel rect from a block's galley + paint origin + char offset,
@@ -452,7 +527,10 @@ pub fn paint_caret(
     let local = galley.pos_from_cursor(cursor);
     let caret_rect = Rect::from_min_size(
         egui::pos2(origin.x + local.min.x, origin.y + local.min.y),
-        Vec2::new(CARET_WIDTH_PTS, local.height().max(line_layout::BASE_FONT_SIZE)),
+        Vec2::new(
+            CARET_WIDTH_PTS,
+            local.height().max(line_layout::BASE_FONT_SIZE),
+        ),
     );
     painter.rect_filled(caret_rect, 0.0, palette.text);
 }
@@ -499,7 +577,10 @@ pub fn paint_preedit(
     // Build a single-run underlined galley for the preedit text using the canonical per-run
     // styling (so the underline stroke + text color are theme tokens). The Underline mark
     // makes `text_format_for_run` emit a 1px underline stroke in the run color.
-    let style = line_layout::BlockTextStyle { size: block_font_size, force_monospace: false };
+    let style = line_layout::BlockTextStyle {
+        size: block_font_size,
+        force_monospace: false,
+    };
     let fmt = line_layout::text_format_for_run(&[Mark::Underline], style, palette, bold_available);
     let mut job = LayoutJob::default();
     job.append(preedit_text, 0.0, fmt);
@@ -520,7 +601,10 @@ pub fn paint_preedit(
         egui::pos2(caret_x, caret_screen.y),
         Vec2::new(CARET_WIDTH_PTS, run_h),
     );
-    Some(PreeditPaint { overall_rect, caret_rect })
+    Some(PreeditPaint {
+        overall_rect,
+        caret_rect,
+    })
 }
 
 /// A small helper for tests / callers: a fully-transparent color sentinel is never used;
@@ -586,14 +670,22 @@ pub fn md_span_text_format(
         marks.push(Mark::Strike);
     }
     if style.link {
-        marks.push(Mark::Link { href: String::new() });
+        marks.push(Mark::Link {
+            href: String::new(),
+        });
     }
     // A code span keeps the base size in monospace (force_monospace mirrors the editor's code style);
     // every other span uses the caller-provided size (body or a heading-scaled size).
     let block_style = if style.code {
-        super::line_layout::BlockTextStyle { size, force_monospace: true }
+        super::line_layout::BlockTextStyle {
+            size,
+            force_monospace: true,
+        }
     } else {
-        super::line_layout::BlockTextStyle { size, force_monospace: false }
+        super::line_layout::BlockTextStyle {
+            size,
+            force_monospace: false,
+        }
     };
     super::line_layout::text_format_for_run(&marks, block_style, palette, bold_available)
 }
@@ -634,7 +726,15 @@ mod tests {
     fn paragraph_paint_reports_positive_height_and_caret_galley() {
         with_painter(|painter, pal, bold| {
             let block = BlockNode::paragraph("Hello world");
-            let bp = paint_block(painter, &block, egui::pos2(0.0, 0.0), 400.0, pal, Some(5), bold);
+            let bp = paint_block(
+                painter,
+                &block,
+                egui::pos2(0.0, 0.0),
+                400.0,
+                pal,
+                Some(5),
+                bold,
+            );
             assert!(bp.height > 0.0);
             assert!(bp.caret_galley.is_some(), "caret block returns its galley");
         });
@@ -667,7 +767,10 @@ mod tests {
         // bold section uses the bold family (the shell fonts are installed in the test
         // harness, so bold_available is true and the bold family is selected).
         with_painter(|painter, pal, bold| {
-            assert!(bold, "the test harness installs the shell fonts -> bold family bound");
+            assert!(
+                bold,
+                "the test harness installs the shell fonts -> bold family bound"
+            );
             let bolded = BlockNode::with_children(
                 NodeKind::Paragraph,
                 vec![
@@ -684,7 +787,8 @@ mod tests {
                 egui::FontFamily::Name(line_layout::BOLD_FAMILY_NAME.into()),
             );
             let g_bold = painter.layout_job(lb.job);
-            let g_plain = painter.layout_job(line_layout::layout_block(&plain, pal, 1000.0, bold).job);
+            let g_plain =
+                painter.layout_job(line_layout::layout_block(&plain, pal, 1000.0, bold).job);
             // Both galleys carry the same text content.
             assert_eq!(g_bold.job.text, "Hello world");
             assert_eq!(g_plain.job.text, "Hello world");
@@ -700,14 +804,25 @@ mod tests {
         let mut out = None;
         let _ = ctx.run(Default::default(), |ctx| {
             // No install_fonts here -> Inter-Bold is not bound.
-            assert!(!line_layout::bold_family_available(ctx), "bold not bound in bare ctx");
+            assert!(
+                !line_layout::bold_family_available(ctx),
+                "bold not bound in bare ctx"
+            );
             let painter = ctx.layer_painter(egui::LayerId::background());
             let bolded = BlockNode::with_children(
                 NodeKind::Paragraph,
                 vec![Child::Text(TextLeaf::with_marks("world", vec![Mark::Bold]))],
             );
             // bold_available=false -> proportional family -> layout_job must not panic.
-            let bp = paint_block(&painter, &bolded, egui::pos2(0.0, 0.0), 400.0, &pal, None, false);
+            let bp = paint_block(
+                &painter,
+                &bolded,
+                egui::pos2(0.0, 0.0),
+                400.0,
+                &pal,
+                None,
+                false,
+            );
             out = Some(bp.height);
         });
         assert!(out.unwrap() > 0.0);
@@ -727,7 +842,10 @@ mod tests {
             // non-degenerate rect for offset 3 of "Hello".
             let cursor = egui::epaint::text::cursor::CCursor::new(3);
             let r = galley.pos_from_cursor(cursor);
-            assert!(r.min.x > 0.0, "caret after 3 chars is to the right of the start");
+            assert!(
+                r.min.x > 0.0,
+                "caret after 3 chars is to the right of the start"
+            );
             // Offset 0 caret is at x≈0.
             let r0 = galley.pos_from_cursor(egui::epaint::text::cursor::CCursor::new(0));
             assert!(r0.min.x <= r.min.x, "caret x grows with offset");
@@ -741,11 +859,17 @@ mod tests {
         // RISK-5: an empty paragraph still lays out (one empty section) and reports a
         // sane height; no panic.
         with_painter(|painter, pal, bold| {
-            let empty = BlockNode::with_children(
-                NodeKind::Paragraph,
-                vec![Child::Text(TextLeaf::new(""))],
+            let empty =
+                BlockNode::with_children(NodeKind::Paragraph, vec![Child::Text(TextLeaf::new(""))]);
+            let bp = paint_block(
+                painter,
+                &empty,
+                egui::pos2(0.0, 0.0),
+                400.0,
+                pal,
+                Some(0),
+                bold,
             );
-            let bp = paint_block(painter, &empty, egui::pos2(0.0, 0.0), 400.0, pal, Some(0), bold);
             assert!(bp.height > 0.0);
         });
     }
@@ -764,15 +888,40 @@ mod tests {
                 NodeKind::Blockquote,
                 vec![Child::Block(BlockNode::paragraph("quoted"))],
             );
-            let bp_q = paint_block(painter, &quote, egui::pos2(0.0, 0.0), 400.0, pal, None, bold);
+            let bp_q = paint_block(
+                painter,
+                &quote,
+                egui::pos2(0.0, 0.0),
+                400.0,
+                pal,
+                None,
+                bold,
+            );
             assert!(bp_q.height > 0.0);
 
             // A 1x2 table: one row, two cells.
-            let cell_a = BlockNode::with_children(NodeKind::TableCell, vec![Child::Block(BlockNode::paragraph("a"))]);
-            let cell_b = BlockNode::with_children(NodeKind::TableCell, vec![Child::Block(BlockNode::paragraph("b"))]);
-            let row = BlockNode::with_children(NodeKind::TableRow, vec![Child::Block(cell_a), Child::Block(cell_b)]);
+            let cell_a = BlockNode::with_children(
+                NodeKind::TableCell,
+                vec![Child::Block(BlockNode::paragraph("a"))],
+            );
+            let cell_b = BlockNode::with_children(
+                NodeKind::TableCell,
+                vec![Child::Block(BlockNode::paragraph("b"))],
+            );
+            let row = BlockNode::with_children(
+                NodeKind::TableRow,
+                vec![Child::Block(cell_a), Child::Block(cell_b)],
+            );
             let table = BlockNode::with_children(NodeKind::Table, vec![Child::Block(row)]);
-            let bp_t = paint_block(painter, &table, egui::pos2(0.0, 0.0), 400.0, pal, None, bold);
+            let bp_t = paint_block(
+                painter,
+                &table,
+                egui::pos2(0.0, 0.0),
+                400.0,
+                pal,
+                None,
+                bold,
+            );
             assert!(bp_t.height > 0.0);
         });
     }
@@ -780,13 +929,41 @@ mod tests {
     #[test]
     fn list_paints_with_prefixes() {
         with_painter(|painter, pal, bold| {
-            let item1 = BlockNode::with_children(NodeKind::ListItem, vec![Child::Block(BlockNode::paragraph("one"))]);
-            let item2 = BlockNode::with_children(NodeKind::ListItem, vec![Child::Block(BlockNode::paragraph("two"))]);
-            let bullets = BlockNode::with_children(NodeKind::BulletList, vec![Child::Block(item1.clone()), Child::Block(item2.clone())]);
-            let bp = paint_block(painter, &bullets, egui::pos2(0.0, 0.0), 400.0, pal, None, bold);
+            let item1 = BlockNode::with_children(
+                NodeKind::ListItem,
+                vec![Child::Block(BlockNode::paragraph("one"))],
+            );
+            let item2 = BlockNode::with_children(
+                NodeKind::ListItem,
+                vec![Child::Block(BlockNode::paragraph("two"))],
+            );
+            let bullets = BlockNode::with_children(
+                NodeKind::BulletList,
+                vec![Child::Block(item1.clone()), Child::Block(item2.clone())],
+            );
+            let bp = paint_block(
+                painter,
+                &bullets,
+                egui::pos2(0.0, 0.0),
+                400.0,
+                pal,
+                None,
+                bold,
+            );
             assert!(bp.height > line_layout::BASE_FONT_SIZE, "two items stack");
-            let ordered = BlockNode::with_children(NodeKind::OrderedList, vec![Child::Block(item1), Child::Block(item2)]);
-            let bp_o = paint_block(painter, &ordered, egui::pos2(0.0, 0.0), 400.0, pal, None, bold);
+            let ordered = BlockNode::with_children(
+                NodeKind::OrderedList,
+                vec![Child::Block(item1), Child::Block(item2)],
+            );
+            let bp_o = paint_block(
+                painter,
+                &ordered,
+                egui::pos2(0.0, 0.0),
+                400.0,
+                pal,
+                None,
+                bold,
+            );
             assert!(bp_o.height > 0.0);
         });
     }

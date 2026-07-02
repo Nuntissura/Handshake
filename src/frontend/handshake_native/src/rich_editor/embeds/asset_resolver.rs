@@ -232,7 +232,10 @@ impl EmbedResolutionState {
     /// True when this state is terminal (Ok or Err) — a terminal state is NOT re-fetched
     /// (AC-9 caching: the resolver skips an asset that already resolved or failed).
     pub fn is_terminal(&self) -> bool {
-        matches!(self, EmbedResolutionState::Ok(_) | EmbedResolutionState::Err(_))
+        matches!(
+            self,
+            EmbedResolutionState::Ok(_) | EmbedResolutionState::Err(_)
+        )
     }
 }
 
@@ -313,12 +316,18 @@ pub fn asset_metadata_url(base_url: &str, workspace_id: &str, asset_id: &str) ->
 
 /// `GET /workspaces/{ws}/assets/{id}/content` — full-res content bytes.
 pub fn asset_content_url(base_url: &str, workspace_id: &str, asset_id: &str) -> String {
-    format!("{}/content", asset_metadata_url(base_url, workspace_id, asset_id))
+    format!(
+        "{}/content",
+        asset_metadata_url(base_url, workspace_id, asset_id)
+    )
 }
 
 /// `GET /workspaces/{ws}/assets/{id}/thumbnail` — thumbnail bytes.
 pub fn asset_thumbnail_url(base_url: &str, workspace_id: &str, asset_id: &str) -> String {
-    format!("{}/thumbnail", asset_metadata_url(base_url, workspace_id, asset_id))
+    format!(
+        "{}/thumbnail",
+        asset_metadata_url(base_url, workspace_id, asset_id)
+    )
 }
 
 /// A boxed, `Send` future yielding fetched asset metadata, returned by
@@ -331,8 +340,7 @@ pub type MetadataFuture<'a> =
 /// A boxed, `Send` future yielding fetched asset CONTENT bytes (the raw image/video bytes from
 /// `GET /workspaces/{ws}/assets/{id}/content`), returned by [`AssetMetadataFetcher::fetch_content`].
 /// These are the bytes the image-embed pipeline decodes off-thread (MC-001) into a texture.
-pub type ContentFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<Vec<u8>, EmbedError>> + Send + 'a>>;
+pub type ContentFuture<'a> = Pin<Box<dyn Future<Output = Result<Vec<u8>, EmbedError>> + Send + 'a>>;
 
 /// The transport an async resolution uses to fetch asset metadata AND content bytes. A trait
 /// (rather than a hard `reqwest` call) so the FULL resolution + content-fetch + decode path —
@@ -346,7 +354,8 @@ pub trait AssetMetadataFetcher: Send + Sync {
     /// Fetch the asset metadata for `(workspace_id, asset_id)`. The id is ALREADY validated by
     /// [`validate_asset_ref`] before this is called. Returns the typed metadata or a typed
     /// [`EmbedError`] (NotFound / Forbidden / ServerError / NetworkError).
-    fn fetch_metadata<'a>(&'a self, workspace_id: &'a str, asset_id: &'a str) -> MetadataFuture<'a>;
+    fn fetch_metadata<'a>(&'a self, workspace_id: &'a str, asset_id: &'a str)
+        -> MetadataFuture<'a>;
 
     /// Fetch the raw CONTENT bytes for `(workspace_id, asset_id)` (`GET .../content`). These feed
     /// the off-thread image decode (MC-001). The id is ALREADY validated before this is called.
@@ -432,19 +441,23 @@ impl ReqwestAssetFetcher {
 }
 
 impl AssetMetadataFetcher for ReqwestAssetFetcher {
-    fn fetch_metadata<'a>(&'a self, workspace_id: &'a str, asset_id: &'a str) -> MetadataFuture<'a> {
+    fn fetch_metadata<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        asset_id: &'a str,
+    ) -> MetadataFuture<'a> {
         let url = asset_metadata_url(&self.base_url, workspace_id, asset_id);
         let client = self.client.clone();
         let asset_id = asset_id.to_owned();
         Box::pin(async move {
-            let response = client
-                .get(&url)
-                .send()
-                .await
-                .map_err(|e| EmbedError::NetworkError(format!("asset metadata request failed: {e}")))?;
+            let response = client.get(&url).send().await.map_err(|e| {
+                EmbedError::NetworkError(format!("asset metadata request failed: {e}"))
+            })?;
             let status = response.status();
             if status.as_u16() == 404 {
-                return Err(EmbedError::NotFound(format!("asset '{asset_id}' not found")));
+                return Err(EmbedError::NotFound(format!(
+                    "asset '{asset_id}' not found"
+                )));
             }
             if status.as_u16() == 401 || status.as_u16() == 403 {
                 return Err(EmbedError::Forbidden(format!(
@@ -456,10 +469,9 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
                     "asset metadata request returned HTTP {status}"
                 )));
             }
-            let metadata: EmbedAssetMetadata = response
-                .json()
-                .await
-                .map_err(|e| EmbedError::ServerError(format!("asset metadata body is invalid: {e}")))?;
+            let metadata: EmbedAssetMetadata = response.json().await.map_err(|e| {
+                EmbedError::ServerError(format!("asset metadata body is invalid: {e}"))
+            })?;
             Ok(metadata)
         })
     }
@@ -469,14 +481,14 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
         let client = self.client.clone();
         let asset_id = asset_id.to_owned();
         Box::pin(async move {
-            let response = client
-                .get(&url)
-                .send()
-                .await
-                .map_err(|e| EmbedError::NetworkError(format!("asset content request failed: {e}")))?;
+            let response = client.get(&url).send().await.map_err(|e| {
+                EmbedError::NetworkError(format!("asset content request failed: {e}"))
+            })?;
             let status = response.status();
             if status.as_u16() == 404 {
-                return Err(EmbedError::NotFound(format!("asset content '{asset_id}' not found")));
+                return Err(EmbedError::NotFound(format!(
+                    "asset content '{asset_id}' not found"
+                )));
             }
             if status.as_u16() == 401 || status.as_u16() == 403 {
                 return Err(EmbedError::Forbidden(format!(
@@ -488,10 +500,9 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
                     "asset content request returned HTTP {status}"
                 )));
             }
-            let bytes = response
-                .bytes()
-                .await
-                .map_err(|e| EmbedError::NetworkError(format!("asset content body read failed: {e}")))?;
+            let bytes = response.bytes().await.map_err(|e| {
+                EmbedError::NetworkError(format!("asset content body read failed: {e}"))
+            })?;
             Ok(bytes.to_vec())
         })
     }
@@ -549,7 +560,10 @@ pub async fn resolve_sequence(
                 .expect("embed-sequence semaphore is never closed before all permits return");
             let resolution =
                 resolve_one(kind, &workspace_id, &member, &base_url, fetcher.as_ref()).await;
-            SequenceItem { ref_value: member, resolution }
+            SequenceItem {
+                ref_value: member,
+                resolution,
+            }
         }));
     }
 
@@ -603,13 +617,18 @@ impl EmbedResolutionCache {
     pub fn needs_fetch(&self, asset_id: &str) -> bool {
         match self.states.get(asset_id) {
             None => true,
-            Some(state) => !state.is_terminal() && !matches!(state, EmbedResolutionState::Resolving),
+            Some(state) => {
+                !state.is_terminal() && !matches!(state, EmbedResolutionState::Resolving)
+            }
         }
     }
 
     /// True when `asset_id` is currently marked `Resolving` (a fetch is in flight).
     pub fn is_resolving(&self, asset_id: &str) -> bool {
-        matches!(self.states.get(asset_id), Some(EmbedResolutionState::Resolving))
+        matches!(
+            self.states.get(asset_id),
+            Some(EmbedResolutionState::Resolving)
+        )
     }
 
     /// Number of cached entries (test/diagnostic helper).
@@ -640,7 +659,14 @@ mod tests {
     #[test]
     fn traversal_dotdot_rejected_anywhere_mc003() {
         // MC-003: `..` ANYWHERE in the string is rejected, not just a leading path component.
-        for bad in ["..", "../../etc/passwd", "..hidden", "a..b", "secret..", "foo/../bar"] {
+        for bad in [
+            "..",
+            "../../etc/passwd",
+            "..hidden",
+            "a..b",
+            "secret..",
+            "foo/../bar",
+        ] {
             let err = validate_asset_ref(bad).unwrap_err();
             assert_eq!(
                 err.kind_str(),
@@ -653,22 +679,43 @@ mod tests {
     #[test]
     fn path_separators_rejected() {
         for bad in ["dir/asset", "dir\\asset", "a/b/c"] {
-            assert_eq!(validate_asset_ref(bad).unwrap_err().kind_str(), "traversal_rejected");
+            assert_eq!(
+                validate_asset_ref(bad).unwrap_err().kind_str(),
+                "traversal_rejected"
+            );
         }
     }
 
     #[test]
     fn absolute_paths_rejected() {
         // Leading slash / backslash and drive letters.
-        assert_eq!(validate_asset_ref("/etc/passwd").unwrap_err().kind_str(), "absolute_path_rejected");
-        assert_eq!(validate_asset_ref("\\\\unc\\share").unwrap_err().kind_str(), "absolute_path_rejected");
-        assert_eq!(validate_asset_ref("C:\\Windows").unwrap_err().kind_str(), "absolute_path_rejected");
-        assert_eq!(validate_asset_ref("D:/x").unwrap_err().kind_str(), "absolute_path_rejected");
+        assert_eq!(
+            validate_asset_ref("/etc/passwd").unwrap_err().kind_str(),
+            "absolute_path_rejected"
+        );
+        assert_eq!(
+            validate_asset_ref("\\\\unc\\share").unwrap_err().kind_str(),
+            "absolute_path_rejected"
+        );
+        assert_eq!(
+            validate_asset_ref("C:\\Windows").unwrap_err().kind_str(),
+            "absolute_path_rejected"
+        );
+        assert_eq!(
+            validate_asset_ref("D:/x").unwrap_err().kind_str(),
+            "absolute_path_rejected"
+        );
     }
 
     #[test]
     fn schemes_rejected() {
-        for bad in ["http://evil.test/x", "https://x", "file:///etc", "javascript:alert(1)", "data:text/html"] {
+        for bad in [
+            "http://evil.test/x",
+            "https://x",
+            "file:///etc",
+            "javascript:alert(1)",
+            "data:text/html",
+        ] {
             assert_eq!(
                 validate_asset_ref(bad).unwrap_err().kind_str(),
                 "scheme_rejected",
@@ -683,9 +730,15 @@ mod tests {
         assert_eq!(validate_asset_ref("  a-b_c.d  ").unwrap(), "a-b_c.d");
         // Over-length is invalid_ref.
         let long = "a".repeat(ASSET_ID_MAX_LENGTH + 1);
-        assert_eq!(validate_asset_ref(&long).unwrap_err().kind_str(), "invalid_ref");
+        assert_eq!(
+            validate_asset_ref(&long).unwrap_err().kind_str(),
+            "invalid_ref"
+        );
         // Illegal characters (space) -> invalid_ref.
-        assert_eq!(validate_asset_ref("a b").unwrap_err().kind_str(), "invalid_ref");
+        assert_eq!(
+            validate_asset_ref("a b").unwrap_err().kind_str(),
+            "invalid_ref"
+        );
     }
 
     #[test]
@@ -725,7 +778,12 @@ mod tests {
 
     #[test]
     fn ref_kind_round_trips() {
-        for k in [MediaEmbedKind::Images, MediaEmbedKind::Video, MediaEmbedKind::Album, MediaEmbedKind::Slideshow] {
+        for k in [
+            MediaEmbedKind::Images,
+            MediaEmbedKind::Video,
+            MediaEmbedKind::Album,
+            MediaEmbedKind::Slideshow,
+        ] {
             assert_eq!(MediaEmbedKind::from_ref_kind(k.ref_kind()), Some(k));
         }
         assert_eq!(MediaEmbedKind::from_ref_kind("wp"), None);
@@ -798,20 +856,36 @@ mod tests {
     async fn resolve_one_validates_before_any_fetch_ac3() {
         // AC-3: a `..` ref is rejected with TraversalRejected BEFORE any fetch is issued.
         let fetcher = MockFetcher::new("image/png", 0);
-        let err = resolve_one(MediaEmbedKind::Images, "ws", "../secret", "http://b", &fetcher)
-            .await
-            .unwrap_err();
+        let err = resolve_one(
+            MediaEmbedKind::Images,
+            "ws",
+            "../secret",
+            "http://b",
+            &fetcher,
+        )
+        .await
+        .unwrap_err();
         assert_eq!(err.kind_str(), "traversal_rejected");
-        assert_eq!(fetcher.call_count(), 0, "AC-3: NO HTTP call may be made for a rejected ref");
+        assert_eq!(
+            fetcher.call_count(),
+            0,
+            "AC-3: NO HTTP call may be made for a rejected ref"
+        );
     }
 
     #[tokio::test]
     async fn resolve_one_rejects_scheme_before_fetch_ac4() {
         // AC-4: an http:// ref is SchemeRejected with no fetch.
         let fetcher = MockFetcher::new("image/png", 0);
-        let err = resolve_one(MediaEmbedKind::Images, "ws", "http://evil/x", "http://b", &fetcher)
-            .await
-            .unwrap_err();
+        let err = resolve_one(
+            MediaEmbedKind::Images,
+            "ws",
+            "http://evil/x",
+            "http://b",
+            &fetcher,
+        )
+        .await
+        .unwrap_err();
         assert_eq!(err.kind_str(), "scheme_rejected");
         assert_eq!(fetcher.call_count(), 0);
     }
@@ -819,13 +893,24 @@ mod tests {
     #[tokio::test]
     async fn resolve_one_ok_builds_urls() {
         let fetcher = MockFetcher::new("image/png", 0);
-        let resolved =
-            resolve_one(MediaEmbedKind::Images, "ws1", "a1", "http://127.0.0.1:37501", &fetcher)
-                .await
-                .unwrap();
+        let resolved = resolve_one(
+            MediaEmbedKind::Images,
+            "ws1",
+            "a1",
+            "http://127.0.0.1:37501",
+            &fetcher,
+        )
+        .await
+        .unwrap();
         assert_eq!(resolved.asset.asset_id, "a1");
-        assert_eq!(resolved.content_url, "http://127.0.0.1:37501/workspaces/ws1/assets/a1/content");
-        assert_eq!(resolved.thumbnail_url, "http://127.0.0.1:37501/workspaces/ws1/assets/a1/thumbnail");
+        assert_eq!(
+            resolved.content_url,
+            "http://127.0.0.1:37501/workspaces/ws1/assets/a1/content"
+        );
+        assert_eq!(
+            resolved.thumbnail_url,
+            "http://127.0.0.1:37501/workspaces/ws1/assets/a1/thumbnail"
+        );
         assert_eq!(fetcher.call_count(), 1);
     }
 
@@ -857,10 +942,15 @@ mod tests {
         let ref_value = refs.join(",");
         let fetcher: Arc<MockFetcher> = Arc::new(MockFetcher::new("image/png", 30));
         let fetcher_dyn: Arc<dyn AssetMetadataFetcher> = fetcher.clone();
-        let items =
-            resolve_sequence(MediaEmbedKind::Album, "ws", &ref_value, "http://b", fetcher_dyn)
-                .await
-                .unwrap();
+        let items = resolve_sequence(
+            MediaEmbedKind::Album,
+            "ws",
+            &ref_value,
+            "http://b",
+            fetcher_dyn,
+        )
+        .await
+        .unwrap();
         assert_eq!(items.len(), 12, "all 12 members resolved");
         assert_eq!(fetcher.call_count(), 12);
         assert!(
@@ -875,12 +965,21 @@ mod tests {
         // A 3-member sequence where the middle ref is a traversal: the bad member is a per-item
         // Err while the other two resolve OK (not all-or-nothing).
         let fetcher: Arc<dyn AssetMetadataFetcher> = Arc::new(MockFetcher::new("image/png", 0));
-        let items = resolve_sequence(MediaEmbedKind::Slideshow, "ws", "a1, ../bad , a3", "http://b", fetcher)
-            .await
-            .unwrap();
+        let items = resolve_sequence(
+            MediaEmbedKind::Slideshow,
+            "ws",
+            "a1, ../bad , a3",
+            "http://b",
+            fetcher,
+        )
+        .await
+        .unwrap();
         assert_eq!(items.len(), 3);
         assert!(items[0].resolution.is_ok());
-        assert_eq!(items[1].resolution.as_ref().unwrap_err().kind_str(), "traversal_rejected");
+        assert_eq!(
+            items[1].resolution.as_ref().unwrap_err().kind_str(),
+            "traversal_rejected"
+        );
         assert!(items[2].resolution.is_ok());
     }
 
@@ -888,13 +987,22 @@ mod tests {
     async fn empty_and_oversized_sequences_are_typed_errors() {
         let fetcher: Arc<dyn AssetMetadataFetcher> = Arc::new(MockFetcher::new("image/png", 0));
         assert_eq!(
-            resolve_sequence(MediaEmbedKind::Album, "ws", "  ,  ", "http://b", Arc::clone(&fetcher))
-                .await
-                .unwrap_err()
-                .kind_str(),
+            resolve_sequence(
+                MediaEmbedKind::Album,
+                "ws",
+                "  ,  ",
+                "http://b",
+                Arc::clone(&fetcher)
+            )
+            .await
+            .unwrap_err()
+            .kind_str(),
             "empty_ref"
         );
-        let huge: String = (0..(MAX_SEQUENCE_ITEMS + 1)).map(|i| format!("a{i}")).collect::<Vec<_>>().join(",");
+        let huge: String = (0..(MAX_SEQUENCE_ITEMS + 1))
+            .map(|i| format!("a{i}"))
+            .collect::<Vec<_>>()
+            .join(",");
         assert_eq!(
             resolve_sequence(MediaEmbedKind::Album, "ws", &huge, "http://b", fetcher)
                 .await
@@ -911,7 +1019,10 @@ mod tests {
         let mut cache = EmbedResolutionCache::new();
         assert!(cache.needs_fetch("a1"), "absent -> needs fetch");
         cache.insert("a1", EmbedResolutionState::Resolving);
-        assert!(!cache.needs_fetch("a1"), "resolving -> in flight, do not re-spawn");
+        assert!(
+            !cache.needs_fetch("a1"),
+            "resolving -> in flight, do not re-spawn"
+        );
         assert!(cache.is_resolving("a1"));
         cache.insert(
             "a1",
@@ -931,9 +1042,18 @@ mod tests {
                 thumbnail_url: "t".into(),
             }),
         );
-        assert!(!cache.needs_fetch("a1"), "AC-9: a resolved (Ok) asset is NEVER re-fetched");
-        cache.insert("a2", EmbedResolutionState::Err(EmbedError::NotFound("a2".into())));
-        assert!(!cache.needs_fetch("a2"), "AC-9: a failed (Err) asset is NEVER re-fetched");
+        assert!(
+            !cache.needs_fetch("a1"),
+            "AC-9: a resolved (Ok) asset is NEVER re-fetched"
+        );
+        cache.insert(
+            "a2",
+            EmbedResolutionState::Err(EmbedError::NotFound("a2".into())),
+        );
+        assert!(
+            !cache.needs_fetch("a2"),
+            "AC-9: a failed (Err) asset is NEVER re-fetched"
+        );
         assert_eq!(cache.len(), 2);
     }
 
@@ -950,7 +1070,8 @@ mod tests {
             let asset_id = "a1";
             if cache.needs_fetch(asset_id) {
                 cache.insert(asset_id, EmbedResolutionState::Resolving);
-                let res = resolve_one(MediaEmbedKind::Images, "ws", asset_id, "http://b", fetcher).await;
+                let res =
+                    resolve_one(MediaEmbedKind::Images, "ws", asset_id, "http://b", fetcher).await;
                 cache.insert(
                     asset_id,
                     match res {
@@ -964,6 +1085,10 @@ mod tests {
         assert_eq!(fetcher.call_count(), 1, "first render fetches once");
         // Pass 2: cached terminal -> NO fetch.
         render_pass(&mut cache, &fetcher).await;
-        assert_eq!(fetcher.call_count(), 1, "AC-9: second render issues NO second fetch");
+        assert_eq!(
+            fetcher.call_count(),
+            1,
+            "AC-9: second render issues NO second fetch"
+        );
     }
 }

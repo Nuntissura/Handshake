@@ -34,7 +34,10 @@ use crate::context_menu_surfaces::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CanvasBoardEvent {
     /// Open the placed block in a tab (block placements only).
-    OpenBlock { placement_id: String, block_id: String },
+    OpenBlock {
+        placement_id: String,
+        block_id: String,
+    },
     /// Enter inline text-edit on the card (card placements only).
     EditCard { placement_id: String },
     /// Remove all VISUAL-only edges connected to this placement.
@@ -117,14 +120,19 @@ impl CanvasBoardSurface {
                 );
                 let resp = ui.interact(rect, id, egui::Sense::click());
                 if ui.is_rect_visible(rect) {
-                    let bg = if resp.hovered() { colors.card_hover_bg } else { colors.card_bg };
+                    let bg = if resp.hovered() {
+                        colors.card_hover_bg
+                    } else {
+                        colors.card_bg
+                    };
                     ui.painter().rect_filled(rect, 4.0, bg);
                     let galley = ui.painter().layout_no_wrap(
                         label.clone(),
                         egui::FontId::proportional(13.0),
                         colors.card_text,
                     );
-                    let pos = egui::pos2(rect.left() + 8.0, rect.center().y - galley.size().y * 0.5);
+                    let pos =
+                        egui::pos2(rect.left() + 8.0, rect.center().y - galley.size().y * 0.5);
                     ui.painter().galley(pos, galley, colors.card_text);
                 }
                 resp.widget_info(|| {
@@ -166,7 +174,10 @@ impl CanvasBoardSurface {
         Some(match action {
             CanvasNodeMenuAction::OpenBlock => {
                 let block_id = placement.block_id.clone()?;
-                CanvasBoardEvent::OpenBlock { placement_id, block_id }
+                CanvasBoardEvent::OpenBlock {
+                    placement_id,
+                    block_id,
+                }
             }
             CanvasNodeMenuAction::EditCard => CanvasBoardEvent::EditCard { placement_id },
             CanvasNodeMenuAction::RemoveEdges => CanvasBoardEvent::RemoveEdges { placement_id },
@@ -183,7 +194,10 @@ impl CanvasBoardSurface {
 
 /// Stable AccessKit author_id for a placement: `canvas_node_{placement_id}` (slug-safe).
 pub fn canvas_node_author_id(placement_id: &str) -> String {
-    format!("canvas_node_{}", crate::project_tree::stable_part(placement_id))
+    format!(
+        "canvas_node_{}",
+        crate::project_tree::stable_part(placement_id)
+    )
 }
 
 #[cfg(test)]
@@ -208,7 +222,9 @@ mod tests {
         let surface = CanvasBoardSurface::new(vec![block_placement()]);
         assert_eq!(
             surface.event_for(CanvasNodeMenuAction::Remove, &surface.placements[0]),
-            Some(CanvasBoardEvent::Remove { placement_id: "pl-1".to_owned() }),
+            Some(CanvasBoardEvent::Remove {
+                placement_id: "pl-1".to_owned()
+            }),
         );
     }
 
@@ -229,7 +245,9 @@ mod tests {
         let surface = CanvasBoardSurface::new(vec![block_placement()]);
         assert_eq!(
             surface.event_for(CanvasNodeMenuAction::MoveToFront, &surface.placements[0]),
-            Some(CanvasBoardEvent::MoveToFront { placement_id: "pl-1".to_owned() }),
+            Some(CanvasBoardEvent::MoveToFront {
+                placement_id: "pl-1".to_owned()
+            }),
         );
     }
 }

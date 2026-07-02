@@ -163,8 +163,11 @@ impl MemoryKind {
     }
 
     /// The three kinds in their fixed render order (Episodic, Semantic, Procedural).
-    pub const ORDER: [MemoryKind; 3] =
-        [MemoryKind::Episodic, MemoryKind::Semantic, MemoryKind::Procedural];
+    pub const ORDER: [MemoryKind; 3] = [
+        MemoryKind::Episodic,
+        MemoryKind::Semantic,
+        MemoryKind::Procedural,
+    ];
 }
 
 /// The provenance reference an item carries so the navigation bus can resolve it to a concrete editor
@@ -402,7 +405,9 @@ impl MemoryContext {
             "ws={}|doc={}|cur={}|sel_len={}",
             self.workspace_id,
             self.document_id.as_deref().unwrap_or("-"),
-            self.cursor_byte.map(|c| c.to_string()).unwrap_or_else(|| "-".to_owned()),
+            self.cursor_byte
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "-".to_owned()),
             self.selection_text.as_ref().map(|s| s.len()).unwrap_or(0),
         )
     }
@@ -687,7 +692,10 @@ mod tests {
         let dropped = clamp_pack_items(&mut pack);
         assert_eq!(pack.items.len(), MEMORY_PACK_MAX_ITEMS);
         assert_eq!(pack.items.len(), 24);
-        assert!(pack.truncated, "AC-002: truncated must be set true after clamp");
+        assert!(
+            pack.truncated,
+            "AC-002: truncated must be set true after clamp"
+        );
         assert_eq!(dropped, 6, "AC-002: 6 items dropped (30 - 24)");
     }
 
@@ -697,7 +705,8 @@ mod tests {
         let items: Vec<_> = (0..10)
             .map(|n| json!({"id": format!("i{n}"), "kind": "semantic", "summary": "x", "source": {"uri": "loom://x"}}))
             .collect();
-        let mut pack: MemoryPack = serde_json::from_value(json!({"context_key": "k", "items": items})).unwrap();
+        let mut pack: MemoryPack =
+            serde_json::from_value(json!({"context_key": "k", "items": items})).unwrap();
         let dropped = clamp_pack_items(&mut pack);
         assert_eq!(dropped, 0);
         assert_eq!(pack.items.len(), 10);
@@ -708,9 +717,19 @@ mod tests {
     /// uri, document_id, or event_id; an all-absent source is non-navigable.
     #[test]
     fn provenance_validate_and_precedence() {
-        let nav_uri = MemorySource { uri: Some("loom://b".into()), ..Default::default() };
-        let nav_doc = MemorySource { document_id: Some("D".into()), byte_range: Some((1, 2)), ..Default::default() };
-        let nav_evt = MemorySource { event_id: Some("EV".into()), ..Default::default() };
+        let nav_uri = MemorySource {
+            uri: Some("loom://b".into()),
+            ..Default::default()
+        };
+        let nav_doc = MemorySource {
+            document_id: Some("D".into()),
+            byte_range: Some((1, 2)),
+            ..Default::default()
+        };
+        let nav_evt = MemorySource {
+            event_id: Some("EV".into()),
+            ..Default::default()
+        };
         let dead = MemorySource::default();
         assert!(nav_uri.validate());
         assert!(nav_doc.validate());
@@ -727,13 +746,18 @@ mod tests {
         pack.token_estimate = Some(400);
         assert!(!pack.over_token_budget());
         pack.token_estimate = None;
-        assert!(!pack.over_token_budget(), "absent estimate is not over budget");
+        assert!(
+            !pack.over_token_budget(),
+            "absent estimate is not over budget"
+        );
     }
 
     /// EndpointMissing is the typed-blocker variant.
     #[test]
     fn endpoint_missing_is_typed_blocker() {
-        let err = MemoryClientError::EndpointMissing { probed_path: "/workspaces/W/memory/pack".into() };
+        let err = MemoryClientError::EndpointMissing {
+            probed_path: "/workspaces/W/memory/pack".into(),
+        };
         assert!(err.is_endpoint_missing());
         assert!(!MemoryClientError::Decode("x".into()).is_endpoint_missing());
         // The display string names the probed path so the validator sees the exact missing route.
@@ -748,7 +772,10 @@ mod tests {
         assert_eq!(ctx.workspace_id, "W1");
         assert_eq!(ctx.document_id.as_deref(), Some("D1"));
         assert_eq!(ctx.cursor_byte, Some(42));
-        assert!(ctx.selection_text.as_ref().unwrap().chars().count() <= 512, "selection bounded");
+        assert!(
+            ctx.selection_text.as_ref().unwrap().chars().count() <= 512,
+            "selection bounded"
+        );
         // The query carries the context + the present fields only.
         let pairs = ctx.query_pairs();
         assert!(pairs.iter().any(|(k, _)| *k == "document_id"));
@@ -799,13 +826,20 @@ mod tests {
                 {"id": "future", "kind": "telemetric", "summary": "future", "source": {"event_id": "F"}}
             ]
         });
-        let pack: MemoryPack =
-            serde_json::from_value(raw).expect("must_fix #2: an unknown class must NOT fail decode");
-        assert_eq!(pack.items.len(), 2, "only the two known-kind items survive (working + telemetric dropped)");
+        let pack: MemoryPack = serde_json::from_value(raw)
+            .expect("must_fix #2: an unknown class must NOT fail decode");
+        assert_eq!(
+            pack.items.len(),
+            2,
+            "only the two known-kind items survive (working + telemetric dropped)"
+        );
         assert_eq!(pack.items_of_kind(MemoryKind::Episodic).count(), 1);
         assert_eq!(pack.items_of_kind(MemoryKind::Semantic).count(), 1);
         // The dropped item ids are gone (no panic, no fatal).
-        assert!(pack.items.iter().all(|i| i.id != "work" && i.id != "future"));
+        assert!(pack
+            .items
+            .iter()
+            .all(|i| i.id != "work" && i.id != "future"));
     }
 
     /// must_fix #2: a capsule whose items are ALL unknown classes decodes to an EMPTY pack (each item
@@ -820,19 +854,40 @@ mod tests {
                 {"id": "w2", "kind": "working", "summary": "b", "source": {"event_id": "E2"}}
             ]
         });
-        let pack: MemoryPack = serde_json::from_value(raw).expect("all-unknown must decode to empty, not fail");
-        assert!(pack.items.is_empty(), "all unknown-class items skipped -> empty pack (neutral state)");
+        let pack: MemoryPack =
+            serde_json::from_value(raw).expect("all-unknown must decode to empty, not fail");
+        assert!(
+            pack.items.is_empty(),
+            "all unknown-class items skipped -> empty pack (neutral state)"
+        );
     }
 
     /// [`MemoryKind::from_wire`] maps the three rendered kinds and returns `None` for anything else
     /// (the tolerance primitive the capsule decoder uses).
     #[test]
     fn from_wire_maps_known_and_rejects_unknown() {
-        assert_eq!(MemoryKind::from_wire("episodic"), Some(MemoryKind::Episodic));
-        assert_eq!(MemoryKind::from_wire("semantic"), Some(MemoryKind::Semantic));
-        assert_eq!(MemoryKind::from_wire("procedural"), Some(MemoryKind::Procedural));
-        assert_eq!(MemoryKind::from_wire("working"), None, "backend's 4th class is not a rendered kind");
-        assert_eq!(MemoryKind::from_wire("EPISODIC"), None, "wire is lowercase; case-sensitive");
+        assert_eq!(
+            MemoryKind::from_wire("episodic"),
+            Some(MemoryKind::Episodic)
+        );
+        assert_eq!(
+            MemoryKind::from_wire("semantic"),
+            Some(MemoryKind::Semantic)
+        );
+        assert_eq!(
+            MemoryKind::from_wire("procedural"),
+            Some(MemoryKind::Procedural)
+        );
+        assert_eq!(
+            MemoryKind::from_wire("working"),
+            None,
+            "backend's 4th class is not a rendered kind"
+        );
+        assert_eq!(
+            MemoryKind::from_wire("EPISODIC"),
+            None,
+            "wire is lowercase; case-sensitive"
+        );
         assert_eq!(MemoryKind::from_wire(""), None);
     }
 }

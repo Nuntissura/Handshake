@@ -23,11 +23,6 @@ use handshake_core::storage::StorageError;
 async fn backend_or_blocked() -> PostgresTestBackend {
     match postgres_backend_with_pool_from_env().await {
         Ok(backend) => backend,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: WP-009 CRDT concurrency tests require POSTGRES_TEST_URL; {msg}"
-            );
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }

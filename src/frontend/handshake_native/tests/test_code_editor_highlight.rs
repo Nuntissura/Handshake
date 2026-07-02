@@ -40,8 +40,14 @@ fn add(a: i32, b: i32) -> i32 {
     println!(
         "PASS highlighter_rust: {} spans (keywords={}, functions={})",
         spans.len(),
-        spans.iter().filter(|s| s.scope == HighlightScope::Keyword).count(),
-        spans.iter().filter(|s| s.scope == HighlightScope::Function).count(),
+        spans
+            .iter()
+            .filter(|s| s.scope == HighlightScope::Keyword)
+            .count(),
+        spans
+            .iter()
+            .filter(|s| s.scope == HighlightScope::Function)
+            .count(),
     );
 }
 
@@ -67,7 +73,10 @@ function greet(name) {
     println!(
         "PASS highlighter_js: {} spans (strings={})",
         spans.len(),
-        spans.iter().filter(|s| s.scope == HighlightScope::String).count(),
+        spans
+            .iter()
+            .filter(|s| s.scope == HighlightScope::String)
+            .count(),
     );
 }
 
@@ -81,16 +90,25 @@ fn highlighter_spans_align_to_real_tokens() {
     let spans = hl.highlight(src.as_bytes());
     let bytes = src.as_bytes();
 
-    let kw = spans.iter().find(|s| s.scope == HighlightScope::Keyword).unwrap();
+    let kw = spans
+        .iter()
+        .find(|s| s.scope == HighlightScope::Keyword)
+        .unwrap();
     let kw_text = std::str::from_utf8(&bytes[kw.byte_range.clone()]).unwrap();
     assert!(
         matches!(kw_text, "fn" | "let"),
         "keyword span must cover a keyword token, got {kw_text:?}"
     );
 
-    let st = spans.iter().find(|s| s.scope == HighlightScope::String).unwrap();
+    let st = spans
+        .iter()
+        .find(|s| s.scope == HighlightScope::String)
+        .unwrap();
     let st_text = std::str::from_utf8(&bytes[st.byte_range.clone()]).unwrap();
-    assert_eq!(st_text, "\"hi\"", "string span must cover the quoted literal");
+    assert_eq!(
+        st_text, "\"hi\"",
+        "string span must cover the quoted literal"
+    );
 }
 
 #[test]

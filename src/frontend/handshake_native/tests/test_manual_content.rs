@@ -259,8 +259,9 @@ fn mt104_terminal_and_model_topics_are_honest_blockers() {
         "model topic must document provider row ids for no-context steering"
     );
     assert!(
-        model.contains("Settings -> Model Session is read-only/not-yet-wired"),
-        "model topic must not imply Settings values drive the MT-101 launch"
+        model.contains("settings.model-session.open-launch")
+            && model.contains("launch-dialog seeds, not persistent hidden model defaults"),
+        "model topic must document the wired Settings action without implying hidden durable defaults"
     );
 }
 

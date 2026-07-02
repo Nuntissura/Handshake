@@ -44,10 +44,16 @@ impl DocPosition {
 pub fn resolve(doc: &BlockNode, abs: usize) -> Option<DocPosition> {
     let mut remaining = abs;
     let mut last_leaf: Option<DocPosition> = None;
-    walk_resolve(doc, &mut Vec::new(), &mut remaining, &mut last_leaf, &mut None)
-        // If `found` short-circuited it is returned by walk_resolve; otherwise the
-        // offset ran past the end and we clamp to the last seen leaf.
-        .or(last_leaf)
+    walk_resolve(
+        doc,
+        &mut Vec::new(),
+        &mut remaining,
+        &mut last_leaf,
+        &mut None,
+    )
+    // If `found` short-circuited it is returned by walk_resolve; otherwise the
+    // offset ran past the end and we clamp to the last seen leaf.
+    .or(last_leaf)
 }
 
 /// Recursive helper for [`resolve`]. Returns `Some(pos)` as soon as the target leaf
@@ -132,12 +138,15 @@ pub fn absolute_offset(doc: &BlockNode, pos: &DocPosition) -> usize {
 
 #[cfg(test)]
 mod tests {
+    use super::super::node::{BlockNode, Child, NodeKind, TextLeaf};
     use super::*;
-    use super::super::node::{BlockNode, NodeKind, TextLeaf, Child};
 
     fn sample_doc() -> BlockNode {
         // doc > [ paragraph("hello"), paragraph("world") ]
-        BlockNode::doc(vec![BlockNode::paragraph("hello"), BlockNode::paragraph("world")])
+        BlockNode::doc(vec![
+            BlockNode::paragraph("hello"),
+            BlockNode::paragraph("world"),
+        ])
     }
 
     #[test]

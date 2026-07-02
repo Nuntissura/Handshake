@@ -29,7 +29,8 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use handshake_diag_ring::{
-    DiagEvent, DiagRingWriter, DiagTier, ThreeTierDiagnosticWiringRecord, TierWiring, DEFAULT_CAPACITY,
+    DiagEvent, DiagRingWriter, DiagTier, ThreeTierDiagnosticWiringRecord, TierWiring,
+    DEFAULT_CAPACITY,
 };
 
 use palmistry::crash_capture::{CrashDetection, CrashRecord};
@@ -118,7 +119,8 @@ fn freeze_end_to_end_detect_survive_record_on_real_ring() {
 
     // The REAL ring the Tier-2 writer would create. We write through the SAME `DiagRingWriter` Handshake
     // uses (no test reimplementation of the ring), so the layout Palmistry maps is byte-identical.
-    let writer = DiagRingWriter::create(&ring_path, DEFAULT_CAPACITY).expect("create real MT-081 ring");
+    let writer =
+        DiagRingWriter::create(&ring_path, DEFAULT_CAPACITY).expect("create real MT-081 ring");
     // A couple of typed events (POD integers) so the last-N evidence read is non-empty — these are the
     // events the writer "published before it froze" that stay readable zero-coop.
     writer.write(DiagEvent::heartbeat(1, 10, 1, 100));
@@ -138,7 +140,11 @@ fn freeze_end_to_end_detect_survive_record_on_real_ring() {
     for counter in 1..=5u64 {
         writer.write_heartbeat(counter, counter * 1000);
         let hb = reader.read_heartbeat();
-        let state = detector.poll(base + Duration::from_millis(counter * 10), hb, &not_responding);
+        let state = detector.poll(
+            base + Duration::from_millis(counter * 10),
+            hb,
+            &not_responding,
+        );
         assert_eq!(
             state,
             FreezeState::Healthy,
@@ -149,8 +155,13 @@ fn freeze_end_to_end_detect_survive_record_on_real_ring() {
     // PHASE B — FREEZE: the writer STALLS (no more heartbeat writes). The reader still maps the ring and
     // returns the LAST heartbeat (counter 5) with zero cooperation. After the threshold elapses, the
     // double-signal gate confirms a freeze.
-    let last_hb = reader.read_heartbeat().expect("the stale heartbeat stays readable zero-coop");
-    assert_eq!(last_hb.counter, 5, "the reader observes the frozen-at-5 heartbeat");
+    let last_hb = reader
+        .read_heartbeat()
+        .expect("the stale heartbeat stays readable zero-coop");
+    assert_eq!(
+        last_hb.counter, 5,
+        "the reader observes the frozen-at-5 heartbeat"
+    );
     let frozen_state = detector.poll(
         base + Duration::from_millis(5_000),
         reader.read_heartbeat(),
@@ -160,13 +171,22 @@ fn freeze_end_to_end_detect_survive_record_on_real_ring() {
         FreezeState::Frozen(report) => report,
         other => panic!("AC-016-1: a stalled heartbeat + NotResponding probe must CONFIRM a freeze, got {other:?}"),
     };
-    assert_eq!(report.last_heartbeat_counter, 5, "the freeze report carries the last published counter");
-    assert!(report.stale_ms >= 100, "the freeze report carries the stale duration");
+    assert_eq!(
+        report.last_heartbeat_counter, 5,
+        "the freeze report carries the last published counter"
+    );
+    assert!(
+        report.stale_ms >= 100,
+        "the freeze report carries the stale duration"
+    );
 
     // The last-N typed events the writer published before the freeze stay readable zero-coop (the crash/
     // freeze evidence bundle). They are POD integers — never text.
     let events = reader.read_last_events(8);
-    assert!(!events.is_empty(), "the last-N events before the freeze stay readable zero-coop");
+    assert!(
+        !events.is_empty(),
+        "the last-N events before the freeze stay readable zero-coop"
+    );
     let evidence_count = last_event_count(&events);
 
     // SURVIVE + RECORD: build the typed survivor record and persist it durably (§6.13.7). Then simulate a
@@ -184,17 +204,29 @@ fn freeze_end_to_end_detect_survive_record_on_real_ring() {
         );
         // The record is typed-allowlist clean (no project content) BEFORE it ever touches disk.
         assert_typed_allowlist(&record).expect("freeze survivor record is typed-allowlist clean");
-        store.put(record).expect("persist the freeze survivor record")
+        store
+            .put(record)
+            .expect("persist the freeze survivor record")
     }; // store dropped — simulate the Palmistry process exiting.
-    assert!(persisted_path.exists(), "the durable freeze record exists on disk");
+    assert!(
+        persisted_path.exists(),
+        "the durable freeze record exists on disk"
+    );
 
     // A RESTARTED Palmistry reads the pending freeze record back (it survived the watcher's own restart).
     let restarted = SurvivorStore::open(&store_dir).expect("restart Palmistry on the same store");
-    assert_eq!(restarted.records().len(), 1, "the freeze record survived a Palmistry restart");
+    assert_eq!(
+        restarted.records().len(),
+        1,
+        "the freeze record survived a Palmistry restart"
+    );
     let back = &restarted.records()[0].record;
     assert_eq!(back.kind, SurvivorRecordKind::Freeze);
     assert_eq!(back.last_heartbeat_counter, 5);
-    assert!(!back.forwarded, "still pending FR forward after the restart");
+    assert!(
+        !back.forwarded,
+        "still pending FR forward after the restart"
+    );
 
     drop(reader);
     drop(writer);
@@ -237,8 +269,14 @@ fn crash_end_to_end_floor_record_survive_and_clean_shutdown_gate() {
         &last_events,
     );
     assert_eq!(crash.detection, CrashDetection::PostMortemNoContext);
-    assert!(crash.minidump_path.is_none(), "the floor case writes NO minidump");
-    assert_eq!(crash.last_heartbeat_counter, 9, "the crash record bundles the last ring heartbeat");
+    assert!(
+        crash.minidump_path.is_none(),
+        "the floor case writes NO minidump"
+    );
+    assert_eq!(
+        crash.last_heartbeat_counter, 9,
+        "the crash record bundles the last ring heartbeat"
+    );
 
     // SURVIVE + RECORD: persist the crash survivor record durably + read it back after a restart.
     let store_dir = survivor_store_dir("crash");
@@ -247,11 +285,20 @@ fn crash_end_to_end_floor_record_survive_and_clean_shutdown_gate() {
         let mut store = SurvivorStore::open(&store_dir).expect("open store");
         let record = SurvivorRecord::from_crash(&crash);
         assert_typed_allowlist(&record).expect("crash survivor record is typed-allowlist clean");
-        store.put(record).expect("persist the crash survivor record");
+        store
+            .put(record)
+            .expect("persist the crash survivor record");
     }
     let restarted = SurvivorStore::open(&store_dir).expect("restart on the same store");
-    assert_eq!(restarted.records().len(), 1, "the crash record survived a Palmistry restart");
-    assert_eq!(restarted.records()[0].record.kind, SurvivorRecordKind::Crash);
+    assert_eq!(
+        restarted.records().len(),
+        1,
+        "the crash record survived a Palmistry restart"
+    );
+    assert_eq!(
+        restarted.records()[0].record.kind,
+        SurvivorRecordKind::Crash
+    );
 
     // (b) The §6.13 CLEAN-SHUTDOWN GATE: a clean lifecycle records no crash. Drive the REAL lifecycle
     // state machine to a clean Shutdown (no parent death) and assert the terminal reason + survivor facts.
@@ -259,8 +306,13 @@ fn crash_end_to_end_floor_record_survive_and_clean_shutdown_gate() {
     let run = std::sync::atomic::AtomicBool::new(true);
     state.request_shutdown(); // an explicit Shutdown arrives while the parent is alive.
     let reason = run_lifecycle(&state, &run, fast_lifecycle_config());
-    assert_eq!(reason, ExitReason::CleanShutdown, "a clean shutdown is not a crash");
-    let lifecycle_record = build_survivor_record("mt096-clean-sess", std::process::id(), &state, reason);
+    assert_eq!(
+        reason,
+        ExitReason::CleanShutdown,
+        "a clean shutdown is not a crash"
+    );
+    let lifecycle_record =
+        build_survivor_record("mt096-clean-sess", std::process::id(), &state, reason);
     assert!(
         !lifecycle_record.abnormal_parent_exit,
         "AC-016-2: a clean shutdown records NO abnormal exit (the §6.13 clean-shutdown gate)"
@@ -357,16 +409,23 @@ fn palmistry_tier_three_evidence_record_is_well_formed() {
             ),
         ],
     );
-    record.validate().expect("the Palmistry-side three-tier evidence record is well-formed");
+    record
+        .validate()
+        .expect("the Palmistry-side three-tier evidence record is well-formed");
 
     let out_dir = external_artifact_dir("wp-kernel-012-mt-096").join("palmistry-evidence");
     let written = record
         .emit(&out_dir)
         .expect("emit the Palmistry-side three-tier evidence to the external root");
-    assert!(written.exists(), "the three-tier evidence file was written externally");
+    assert!(
+        written.exists(),
+        "the three-tier evidence file was written externally"
+    );
     println!(
         "MT-096 Palmistry three-tier evidence: {}",
-        std::fs::canonicalize(&written).unwrap_or(written.clone()).display()
+        std::fs::canonicalize(&written)
+            .unwrap_or(written.clone())
+            .display()
     );
     assert_no_local_artifact_dir();
 }
@@ -384,7 +443,8 @@ fn tier3_artifacts_are_typed_allowlist_only() {
         last_heartbeat_counter: 42,
         last_heartbeat_ts_nanos: 123,
     };
-    let freeze = SurvivorRecord::from_freeze("sess-a", 1, &report, 3, SurvivorProbeResult::NotResponding);
+    let freeze =
+        SurvivorRecord::from_freeze("sess-a", 1, &report, 3, SurvivorProbeResult::NotResponding);
     let crash_rec = CrashRecord::post_mortem("sess-b", 2, Some(3), None, &[]);
     let crash = SurvivorRecord::from_crash(&crash_rec);
 

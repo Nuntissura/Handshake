@@ -123,7 +123,9 @@ static AVAILABLE_LANGUAGES: std::sync::OnceLock<Vec<LanguageId>> = std::sync::On
 /// The constant result is process-cached (see [`AVAILABLE_LANGUAGES`]); each call after the first clones
 /// the cached list instead of rebuilding the tree-sitter registry (per-frame status-bar safe).
 pub fn available_languages() -> Vec<LanguageId> {
-    AVAILABLE_LANGUAGES.get_or_init(compute_available_languages).clone()
+    AVAILABLE_LANGUAGES
+        .get_or_init(compute_available_languages)
+        .clone()
 }
 
 /// Build the bundled+heuristic picker list ONCE (called by the [`AVAILABLE_LANGUAGES`] cache). Anchors
@@ -269,7 +271,11 @@ fn interpreter_to_family(interp: &str) -> Option<&'static str> {
 /// when no marker matches (so the extension layer then decides).
 fn detect_content(full_text: &str) -> Option<&'static str> {
     let trimmed = full_text.trim_start_matches(['\u{feff}', ' ', '\t', '\r', '\n']);
-    let lower_head: String = trimmed.chars().take(64).collect::<String>().to_ascii_lowercase();
+    let lower_head: String = trimmed
+        .chars()
+        .take(64)
+        .collect::<String>()
+        .to_ascii_lowercase();
 
     if lower_head.starts_with("<?php") {
         return Some("php");
@@ -335,7 +341,12 @@ mod tests {
     fn shebang_beats_extension() {
         // A file named `.txt` (no grammar) whose shebang is python resolves to python via the shebang
         // layer — NOT the extension fallback (RISK-003).
-        let d = detect_language(None, Some("noext.txt"), b"#!/usr/bin/env python3\n", "print(1)\n");
+        let d = detect_language(
+            None,
+            Some("noext.txt"),
+            b"#!/usr/bin/env python3\n",
+            "print(1)\n",
+        );
         assert_eq!(d.source, DetectionSource::Shebang);
         assert_eq!(d.detected.as_str(), "python");
 
@@ -351,7 +362,12 @@ mod tests {
         assert_eq!(d.source, DetectionSource::Content);
         assert_eq!(d.detected.as_str(), "php");
 
-        let go = detect_language(None, Some("main.txt"), b"package main\n", "package main\n\nfunc main() {}\n");
+        let go = detect_language(
+            None,
+            Some("main.txt"),
+            b"package main\n",
+            "package main\n\nfunc main() {}\n",
+        );
         assert_eq!(go.source, DetectionSource::Content);
         assert_eq!(go.detected.as_str(), "go");
 
@@ -394,15 +410,25 @@ mod tests {
         assert!(langs[0].is_plain_text());
         // The bundled grammars (rust, javascript) are present — matching the highlighter (AC-001).
         assert!(langs.iter().any(|l| l.as_str() == "rust"), "rust in picker");
-        assert!(langs.iter().any(|l| l.as_str() == "javascript"), "javascript in picker");
+        assert!(
+            langs.iter().any(|l| l.as_str() == "javascript"),
+            "javascript in picker"
+        );
         // The heuristic-only families a shebang/content layer can report are selectable.
         for fam in ["python", "shell", "go", "php", "html", "json"] {
-            assert!(langs.iter().any(|l| l.as_str() == fam), "{fam} selectable in picker");
+            assert!(
+                langs.iter().any(|l| l.as_str() == fam),
+                "{fam} selectable in picker"
+            );
         }
         // No duplicates.
         let mut seen = std::collections::HashSet::new();
         for l in &langs {
-            assert!(seen.insert(l.as_str().to_owned()), "no duplicate language {}", l.as_str());
+            assert!(
+                seen.insert(l.as_str().to_owned()),
+                "no duplicate language {}",
+                l.as_str()
+            );
         }
     }
 

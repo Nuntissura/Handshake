@@ -100,7 +100,10 @@ mod tests {
         s.next(3);
         assert_eq!(s.current_index, 2);
         s.next(3);
-        assert_eq!(s.current_index, 0, "AC-5: after the last image, next wraps to the first");
+        assert_eq!(
+            s.current_index, 0,
+            "AC-5: after the last image, next wraps to the first"
+        );
     }
 
     #[test]

@@ -16,11 +16,17 @@ fn breakpoint_set_toggle_adds_then_removes() {
     assert!(!set.contains(3), "line 3 has no breakpoint initially");
     // Toggle ON.
     assert_eq!(set.toggle(3), BreakpointAction::Set);
-    assert!(set.contains(3), "line 3 has a breakpoint after the first toggle");
+    assert!(
+        set.contains(3),
+        "line 3 has a breakpoint after the first toggle"
+    );
     assert_eq!(set.len(), 1);
     // Toggle OFF (idempotent in pairs — AC-002).
     assert_eq!(set.toggle(3), BreakpointAction::Clear);
-    assert!(!set.contains(3), "line 3 breakpoint removed after the second toggle");
+    assert!(
+        !set.contains(3),
+        "line 3 breakpoint removed after the second toggle"
+    );
     assert!(set.is_empty());
 }
 
@@ -33,7 +39,11 @@ fn breakpoint_set_contains_is_independent_per_line() {
     assert!(set.contains(10));
     assert!(!set.contains(5), "an untoggled line has no breakpoint");
     let lines: Vec<usize> = set.iter().collect();
-    assert_eq!(lines, vec![2, 10], "iter yields the live breakpoints ascending");
+    assert_eq!(
+        lines,
+        vec![2, 10],
+        "iter yields the live breakpoints ascending"
+    );
 }
 
 #[test]
@@ -71,7 +81,7 @@ fn panel_breakpoint_publish_is_benign_after_receiver_dropped() {
     let panel = CodeEditorPanel::new("a\nb\nc", "txt");
     let rx = panel.subscribe_breakpoints().expect("receiver available");
     drop(rx); // simulate the DAP client disconnecting
-    // These must complete without blocking/panicking (the unbounded send().ok() discards the Err).
+              // These must complete without blocking/panicking (the unbounded send().ok() discards the Err).
     assert_eq!(panel.toggle_breakpoint(0), BreakpointAction::Set);
     assert_eq!(panel.toggle_breakpoint(0), BreakpointAction::Clear);
     // A second subscribe returns None (the channel has a single consumer).
@@ -85,5 +95,8 @@ fn panel_clear_breakpoints_resets_all() {
     panel.toggle_breakpoint(2);
     assert_eq!(panel.breakpoint_set().len(), 2);
     panel.clear_breakpoints();
-    assert!(panel.breakpoint_set().is_empty(), "clear_breakpoints removes every breakpoint");
+    assert!(
+        panel.breakpoint_set().is_empty(),
+        "clear_breakpoints removes every breakpoint"
+    );
 }

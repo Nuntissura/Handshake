@@ -52,7 +52,10 @@ fn ctrl_f() -> egui::Event {
         physical_key: None,
         pressed: true,
         repeat: false,
-        modifiers: egui::Modifiers { ctrl: true, ..Default::default() },
+        modifiers: egui::Modifiers {
+            ctrl: true,
+            ..Default::default()
+        },
     }
 }
 
@@ -164,7 +167,10 @@ fn find_bar_escape_removes_find_state() {
     harness.run();
     harness.run();
     assert!(!panel.is_find_open(), "AC-006: Escape closed the find bar");
-    assert!(panel.find_state().is_none(), "AC-006: find_state cleared -> no highlights next frame");
+    assert!(
+        panel.find_state().is_none(),
+        "AC-006: find_state cleared -> no highlights next frame"
+    );
 
     // The find-bar AccessKit node is gone from the live tree.
     assert!(

@@ -103,8 +103,8 @@ use sha2::{Digest, Sha256};
 use handshake_native::interop::{
     build_from_selection, embed_artifact_as_nodeview, ActivitySpan, CalendarEvent,
     CalendarInteropService, CrossRefError, DocId, EditorSurfaceKind, FindNotesSearch,
-    LocusInteropService, LocusRefKind, SharedSelection, StageArtifactRef,
-    StageManifest, StageRouteSource,
+    LocusInteropService, LocusRefKind, SharedSelection, StageArtifactRef, StageManifest,
+    StageRouteSource,
 };
 use handshake_native::stage_pane::{
     EmbedTarget, StageContent, StagePane, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID, STAGE_PANE_AUTHOR_ID,
@@ -124,8 +124,12 @@ use handshake_native::backend_client::{
     LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response,
 };
 use handshake_native::interop::{parse_locus_ref, LOCUS_REF_KIND};
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
+};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::wikilinks::inline_view::locus_ref_chip_author_id;
 use handshake_native::theme::{HsPalette, HsTheme};
 
@@ -452,8 +456,13 @@ impl FindNotesSearch for CountingReverseLookup {
         &'a self,
         _workspace_id: &'a str,
         body: &'a LoomSearchV2Body,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>> + Send + 'a>>
-    {
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>>
+                + Send
+                + 'a,
+        >,
+    > {
         self.calls.fetch_add(1, Ordering::SeqCst);
         *self.last_query.lock().unwrap() = Some(body.query.clone());
         let hits = self.hits.clone();
@@ -468,7 +477,12 @@ impl FindNotesSearch for CountingReverseLookup {
     }
 }
 
-fn loom_hit(block_id: &str, title: Option<&str>, content_type: &str, highlight: &str) -> LoomSearchV2Hit {
+fn loom_hit(
+    block_id: &str,
+    title: Option<&str>,
+    content_type: &str,
+    highlight: &str,
+) -> LoomSearchV2Hit {
     LoomSearchV2Hit {
         block: LoomSearchBlock {
             block_id: block_id.to_owned(),
@@ -575,7 +589,10 @@ fn other_pillar_op01_stage_route_embed_back() {
     assert_eq!(payload.content_kind(), "selection");
     match &payload.source {
         StageRouteSource::Selection { text, .. } => {
-            assert_eq!(text, routed_text, "OP-01: the routed selection text is the exact payload");
+            assert_eq!(
+                text, routed_text,
+                "OP-01: the routed selection text is the exact payload"
+            );
         }
         other => panic!("OP-01: expected a Selection route source, got {other:?}"),
     }
@@ -586,7 +603,10 @@ fn other_pillar_op01_stage_route_embed_back() {
         routed_text.to_owned(),
         "pane-rich:0-38".to_owned(),
     ));
-    assert!(pane.content.is_some(), "OP-01: the Stage pane shows the routed content");
+    assert!(
+        pane.content.is_some(),
+        "OP-01: the Stage pane shows the routed content"
+    );
 
     // (2) The embed-back leg: the Stage produces an artifact whose evidence-grade SHA-256 is the digest of
     // the EXACT routed bytes. The embed-back NodeView must carry that SHA-256 manifest provenance, and it
@@ -599,23 +619,33 @@ fn other_pillar_op01_stage_route_embed_back() {
         "OP-01: the artifact carries the SHA-256 of the routed bytes"
     );
 
-    let view = embed_artifact_as_nodeview(&artifact).expect("OP-01: an evidence-grade artifact embeds");
+    let view =
+        embed_artifact_as_nodeview(&artifact).expect("OP-01: an evidence-grade artifact embeds");
     // The inserted NodeView is the MT-014 embed atom (an hsLink), carrying the provenance descriptor.
-    assert_eq!(view.node.ref_kind, "stage_capture", "OP-01: the MT-014 hsLink ref_kind discriminator");
+    assert_eq!(
+        view.node.ref_kind, "stage_capture",
+        "OP-01: the MT-014 hsLink ref_kind discriminator"
+    );
     assert_eq!(view.node.ref_value, "ART-OP01");
     // The provenance SHA-256 EQUALS the recomputed digest of the routed bytes (the core OP-01 guarantee).
     assert_eq!(
         view.provenance.sha256, recomputed,
         "OP-01: the embed-back provenance sha256 MUST equal the recomputed SHA-256 of the routed bytes"
     );
-    assert!(!view.provenance.sha256.is_empty(), "OP-01: the provenance is non-empty");
+    assert!(
+        !view.provenance.sha256.is_empty(),
+        "OP-01: the provenance is non-empty"
+    );
 
     // The embed-back inserts the MT-014 NodeView into the live note target (the round-trip landing).
     use std::cell::RefCell;
     use std::rc::Rc;
     let inserted: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
     let cap = inserted.clone();
-    let target = EmbedTarget::Note { pane_id: "pane-rich".to_owned(), document_id: "DOC-OP01".to_owned() };
+    let target = EmbedTarget::Note {
+        pane_id: "pane-rich".to_owned(),
+        document_id: "DOC-OP01".to_owned(),
+    };
     let outcome = pane.capture_and_embed_back(
         Ok(artifact.clone()),
         &target,
@@ -623,7 +653,10 @@ fn other_pillar_op01_stage_route_embed_back() {
         |v, _t| cap.borrow_mut().push(v.provenance.sha256.clone()),
     );
     assert!(
-        matches!(outcome, handshake_native::stage_pane::EmbedBackOutcome::Embedded { .. }),
+        matches!(
+            outcome,
+            handshake_native::stage_pane::EmbedBackOutcome::Embedded { .. }
+        ),
         "OP-01: the embed-back inserts the MT-014 NodeView into the note, got {outcome:?}"
     );
     assert_eq!(
@@ -656,11 +689,20 @@ fn other_pillar_op02_calendar_bind_activity_span() {
     let svc = CalendarInteropService::with_base_url("http://unused", "WS-MT074", backend.clone());
     let date = d(2026, 6, 21);
     let (a, b) = rt().block_on(async {
-        let a = svc.open_or_create_daily_note(date).await.expect("OP-02: first open");
-        let b = svc.open_or_create_daily_note(date).await.expect("OP-02: second open");
+        let a = svc
+            .open_or_create_daily_note(date)
+            .await
+            .expect("OP-02: first open");
+        let b = svc
+            .open_or_create_daily_note(date)
+            .await
+            .expect("OP-02: second open");
         (a, b)
     });
-    assert_eq!(a.doc_id, b.doc_id, "OP-02: same date -> same DocId (bidirectional binding persists)");
+    assert_eq!(
+        a.doc_id, b.doc_id,
+        "OP-02: same date -> same DocId (bidirectional binding persists)"
+    );
     assert_eq!(a.doc_id, DocId("DOC-2026-06-21".to_owned()));
     assert_eq!(
         backend.opens.load(Ordering::SeqCst),
@@ -719,15 +761,25 @@ fn other_pillar_op03_locus_resolve_reverse() {
         "status": "Ready for Dev"
     });
     let (base_url, server) = spawn_oneshot_server("HTTP/1.1 200 OK", body);
-    let svc = LocusInteropService::with_base_url(base_url, "WS-MT074", Arc::new(CountingReverseLookup::new(vec![])));
+    let svc = LocusInteropService::with_base_url(
+        base_url,
+        "WS-MT074",
+        Arc::new(CountingReverseLookup::new(vec![])),
+    );
     let wp = parse_locus_ref("locus://wp/WP-KERNEL-012").expect("OP-03: a valid wp ref parses");
     let record = rt()
         .block_on(async { svc.resolve_locus_ref(&wp).await })
         .expect("OP-03: a 200 body resolves to a record");
     let _ = server.join();
     assert_eq!(record.kind, LocusRefKind::WorkPacket);
-    assert_eq!(record.id, "WP-KERNEL-012", "OP-03: resolve returns the target's stable id");
-    assert!(!record.title.is_empty(), "OP-03: a resolved record has a resolvable (non-empty) title");
+    assert_eq!(
+        record.id, "WP-KERNEL-012",
+        "OP-03: resolve returns the target's stable id"
+    );
+    assert!(
+        !record.title.is_empty(),
+        "OP-03: a resolved record has a resolvable (non-empty) title"
+    );
 
     // (2) The reverse-lookup leg: seed a doc whose content carries `locus://mt/MT-066`; the reverse lookup
     // lists it, keyed on the NORMALIZED single key, driven through the REAL MT-034 find_notes_with pipeline
@@ -735,8 +787,18 @@ fn other_pillar_op03_locus_resolve_reverse() {
     // + listing; the live PG-backed index is the gated half).
     let referencing_doc = "DOC-OP03-NOTE";
     let hits = vec![
-        loom_hit(referencing_doc, Some("Design notes"), "note", "tracks locus://mt/MT-066 here"),
-        loom_hit(referencing_doc, Some("Design notes"), "journal", "again locus://mt/MT-066"),
+        loom_hit(
+            referencing_doc,
+            Some("Design notes"),
+            "note",
+            "tracks locus://mt/MT-066 here",
+        ),
+        loom_hit(
+            referencing_doc,
+            Some("Design notes"),
+            "journal",
+            "again locus://mt/MT-066",
+        ),
     ];
     let lookup = Arc::new(CountingReverseLookup::new(hits));
     let lookup_dyn: Arc<dyn FindNotesSearch> = lookup.clone();
@@ -826,9 +888,9 @@ fn other_pillar_op04_swarm_accesskit() {
 
     // ── Locus edge: mount the real rich editor over a doc carrying a locus-ref chip. ──
     let locus_uri = "locus://wp/WP-KERNEL-012";
-    let locus_state = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::new(doc_with_locus_ref(
-        locus_uri, "WP-KERNEL-012", true,
-    ))));
+    let locus_state = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::new(
+        doc_with_locus_ref(locus_uri, "WP-KERNEL-012", true),
+    )));
     let locus_state_ui = std::sync::Arc::clone(&locus_state);
     let mut locus_harness = Harness::builder()
         .with_size(egui::vec2(800.0, 480.0))
@@ -839,7 +901,10 @@ fn other_pillar_op04_swarm_accesskit() {
     locus_harness.run();
 
     let locus_chip_id = locus_ref_chip_author_id(locus_uri);
-    assert_eq!(locus_chip_id, "locus-ref-chip-wp-WP-KERNEL-012", "OP-04: the contract locus chip author_id");
+    assert_eq!(
+        locus_chip_id, "locus-ref-chip-wp-WP-KERNEL-012",
+        "OP-04: the contract locus chip author_id"
+    );
 
     // The three interop-edge triggers a swarm agent drives PURELY by author_id (CTRL-5: never by
     // coordinates, never by label-scraping). The Stage embed-back button, the Calendar event chip, and the
@@ -882,7 +947,8 @@ fn other_pillar_op04_swarm_accesskit() {
         assert!(
             has_no_random_segment(&edge.trigger_author_id),
             "CTRL-5: the '{}' trigger author_id '{}' must be deterministic (no random segment)",
-            edge.edge, edge.trigger_author_id
+            edge.edge,
+            edge.trigger_author_id
         );
         let found = find_node(&harness.root(), &edge.trigger_author_id).unwrap_or_else(|| {
             panic!(
@@ -924,8 +990,9 @@ fn other_pillar_op04_swarm_accesskit() {
         }
     };
     for (edge, author_id, first_node_id) in &first_ids {
-        let again = find_node(&harness_for(edge).root(), author_id)
-            .unwrap_or_else(|| panic!("CTRL-5: the '{edge}' trigger '{author_id}' must still resolve on re-query"));
+        let again = find_node(&harness_for(edge).root(), author_id).unwrap_or_else(|| {
+            panic!("CTRL-5: the '{edge}' trigger '{author_id}' must still resolve on re-query")
+        });
         assert_eq!(
             again.node_id, *first_node_id,
             "CTRL-5: the '{edge}' trigger '{author_id}' NodeId must be STABLE across frame re-queries"
@@ -1003,7 +1070,9 @@ fn other_pillar_op04_swarm_accesskit() {
             ext_path.display()
         );
     } else {
-        println!("OP-04 screenshot: GPU readback unavailable on this host (structural proof stands)");
+        println!(
+            "OP-04 screenshot: GPU readback unavailable on this host (structural proof stands)"
+        );
     }
 
     // The contract proof_target greps for `accesskit.*driven` on this scenario's stdout.
@@ -1031,17 +1100,32 @@ fn other_pillar_typed_blocker_manifest() {
         let line = blocker.line();
         println!("{line}");
         assert!(line.starts_with("BLOCKER[kind="), "structured blocker form");
-        assert!(line.contains("detail='") && line.contains("source_mt="), "detail + source_mt present");
+        assert!(
+            line.contains("detail='") && line.contains("source_mt="),
+            "detail + source_mt present"
+        );
     }
     let all = OTHER_PILLAR_TYPED_BLOCKERS
         .iter()
         .map(|b| b.line())
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(all.contains("stage") && all.contains("MT-066"), "OP-01 route gap attributed to MT-066");
-    assert!(all.contains("calendar") && all.contains("MT-067"), "OP-02 route gap attributed to MT-067");
-    assert!(all.contains("locus") && all.contains("MT-068"), "OP-03 route gap attributed to MT-068");
-    assert!(all.contains("no_managed_postgres"), "the no-managed-PostgreSQL blocker is present");
+    assert!(
+        all.contains("stage") && all.contains("MT-066"),
+        "OP-01 route gap attributed to MT-066"
+    );
+    assert!(
+        all.contains("calendar") && all.contains("MT-067"),
+        "OP-02 route gap attributed to MT-067"
+    );
+    assert!(
+        all.contains("locus") && all.contains("MT-068"),
+        "OP-03 route gap attributed to MT-068"
+    );
+    assert!(
+        all.contains("no_managed_postgres"),
+        "the no-managed-PostgreSQL blocker is present"
+    );
 
     // Validate the sibling JSON manifest: exactly 4 entries (OP-01..OP-04), each with the required fields,
     // 0 FAIL entries, and every BLOCKED entry carrying a typed blocker string.
@@ -1049,7 +1133,11 @@ fn other_pillar_typed_blocker_manifest() {
     let manifest: serde_json::Value =
         serde_json::from_str(manifest_src).expect("the manifest is valid JSON");
     let entries = manifest.as_array().expect("the manifest is a JSON array");
-    assert_eq!(entries.len(), 4, "the manifest has exactly 4 entries (OP-01..OP-04)");
+    assert_eq!(
+        entries.len(),
+        4,
+        "the manifest has exactly 4 entries (OP-01..OP-04)"
+    );
 
     let required_fields = [
         "scenario_id",
@@ -1072,8 +1160,14 @@ fn other_pillar_typed_blocker_manifest() {
                 "every manifest entry must have the field '{field}' (entry: {entry})"
             );
         }
-        let id = entry["scenario_id"].as_str().expect("scenario_id is a string").to_owned();
-        assert!(seen_ids.insert(id.clone()), "duplicate scenario_id '{id}' in the manifest");
+        let id = entry["scenario_id"]
+            .as_str()
+            .expect("scenario_id is a string")
+            .to_owned();
+        assert!(
+            seen_ids.insert(id.clone()),
+            "duplicate scenario_id '{id}' in the manifest"
+        );
         let status = entry["status"].as_str().expect("status is a string");
         if status == "FAIL" {
             fail_count += 1;
@@ -1092,9 +1186,15 @@ fn other_pillar_typed_blocker_manifest() {
             "the proof_fn '{proof_fn}' must name the scenario's proof function"
         );
     }
-    assert_eq!(fail_count, 0, "after a full passing run the manifest has 0 FAIL entries");
+    assert_eq!(
+        fail_count, 0,
+        "after a full passing run the manifest has 0 FAIL entries"
+    );
     for expected in ["OP-01", "OP-02", "OP-03", "OP-04"] {
-        assert!(seen_ids.contains(expected), "the manifest contains scenario {expected}");
+        assert!(
+            seen_ids.contains(expected),
+            "the manifest contains scenario {expected}"
+        );
     }
     println!("blocker-manifest OK: 4 typed blockers (3 missing_api + no_managed_postgres) emitted; the JSON manifest has 4 entries, 0 FAIL; the 3 live edge-drive proofs go green unchanged when the routes + a managed PG land");
 }
@@ -1112,7 +1212,10 @@ fn other_pillar_fr_route_resolved() {
     // backward-compatible `/events`), and main.rs nests the api router under `/api` — so the FR read route
     // the live FR-event assertions use is `GET /api/flight_recorder` (verified read-only, not a blocker).
     let fr_route = "/api/flight_recorder";
-    assert_eq!(fr_route, "/api/flight_recorder", "the resolved FR read route name");
+    assert_eq!(
+        fr_route, "/api/flight_recorder",
+        "the resolved FR read route name"
+    );
     // The expected interop FR event kinds the gated live proofs assert in order (verified against the
     // upstream MT-036 event constructors: STAGE_ROUTE/STAGE_EMBED_BACK use the MT-036 `route_to_stage`
     // action; the calendar/locus kinds are the contract-named kinds the next-WP backend ingestion must
@@ -1125,7 +1228,11 @@ fn other_pillar_fr_route_resolved() {
         "LOCUS_REF_RESOLVED",
         "LOCUS_REVERSE_LOOKUP",
     ];
-    assert_eq!(expected_kinds.len(), 6, "six expected interop FR event kinds across the three edges");
+    assert_eq!(
+        expected_kinds.len(),
+        6,
+        "six expected interop FR event kinds across the three edges"
+    );
     println!(
         "FR-route OK: GET {fr_route} resolved (exists in api/mod.rs -> flight_recorder::routes, nested \
          under /api); the live FR-event assertions read it and poll for the expected kinds {expected_kinds:?}. \
@@ -1202,7 +1309,14 @@ fn other_pillar_no_local_store_no_fake_db() {
     let fake_db = concat!("mo", "ck");
     let inmem_db_token = concat!("in_", "memory", "_db");
     let mem_dsn = concat!(":", ":mem", "ory:");
-    let forbidden = [local_db, local_db_driver, sql_orm, fake_db, inmem_db_token, mem_dsn];
+    let forbidden = [
+        local_db,
+        local_db_driver,
+        sql_orm,
+        fake_db,
+        inmem_db_token,
+        mem_dsn,
+    ];
     let lowered = suite_src.to_ascii_lowercase();
     for token in forbidden {
         assert!(
@@ -1305,10 +1419,11 @@ impl Drop for PgRowCleanup {
         // Best-effort cleanup of the throwaway workspace's rows via the existing workspace-delete API
         // (the live backend owns the cascade). Never panics in Drop.
         let url = format!("{}/workspaces/{}", self.base_url, self.workspace_id);
-        if let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() {
-            let _ = rt.block_on(async {
-                reqwest::Client::new().delete(&url).send().await
-            });
+        if let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        {
+            let _ = rt.block_on(async { reqwest::Client::new().delete(&url).send().await });
         }
     }
 }
@@ -1322,7 +1437,9 @@ fn poll_flight_recorder(base: &str, expected_kinds: &[&str]) -> serde_json::Valu
     let rt = rt();
     let mut last = serde_json::Value::Null;
     for _ in 0..5 {
-        if let Ok(body) = rt.block_on(async { reqwest::get(&url).await?.json::<serde_json::Value>().await }) {
+        if let Ok(body) =
+            rt.block_on(async { reqwest::get(&url).await?.json::<serde_json::Value>().await })
+        {
             let s = body.to_string();
             // In-order containment: each expected kind appears after the previous one.
             let mut pos = 0usize;
@@ -1355,10 +1472,16 @@ fn poll_flight_recorder(base: &str, expected_kinds: &[&str]) -> serde_json::Valu
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: POST /stage/route + GET /stage/artifacts absent (MT-066) + native-editor FR ingestion absent + no managed PostgreSQL"]
 fn other_pillar_op01_stage_route_embed_back_live() {
     let dsn = resolve_live_pg_dsn();
-    assert!(dsn.to_ascii_lowercase().starts_with("postgres"), "live store must be PostgreSQL");
+    assert!(
+        dsn.to_ascii_lowercase().starts_with("postgres"),
+        "live store must be PostgreSQL"
+    );
     let base = LIVE_BACKEND_BASE_URL.to_owned();
     let workspace_id = format!("ws-mt074-stage-{}", std::process::id());
-    let _cleanup = PgRowCleanup { base_url: base.clone(), workspace_id: workspace_id.clone() };
+    let _cleanup = PgRowCleanup {
+        base_url: base.clone(),
+        workspace_id: workspace_id.clone(),
+    };
 
     // When the live /stage/ route + native-editor FR ingestion exist, this drives route-to-stage, runs
     // embed-back, saves the note via PUT /workspaces/{id}/knowledge/documents/{doc_id}, reloads via GET,
@@ -1379,10 +1502,16 @@ fn other_pillar_op01_stage_route_embed_back_live() {
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: /calendar/events + /calendar/activity-spans absent (MT-067) + no managed PostgreSQL"]
 fn other_pillar_op02_calendar_bind_activity_span_live() {
     let dsn = resolve_live_pg_dsn();
-    assert!(dsn.to_ascii_lowercase().starts_with("postgres"), "live store must be PostgreSQL");
+    assert!(
+        dsn.to_ascii_lowercase().starts_with("postgres"),
+        "live store must be PostgreSQL"
+    );
     let base = LIVE_BACKEND_BASE_URL.to_owned();
     let workspace_id = format!("ws-mt074-cal-{}", std::process::id());
-    let _cleanup = PgRowCleanup { base_url: base.clone(), workspace_id: workspace_id.clone() };
+    let _cleanup = PgRowCleanup {
+        base_url: base.clone(),
+        workspace_id: workspace_id.clone(),
+    };
 
     let _ = poll_flight_recorder(&base, &["CALENDAR_EVENT_BOUND", "ACTIVITY_SPAN_CORRELATED"]);
     panic!("OP-02 LIVE BLOCKER[kind=missing_api detail='/calendar/events + /calendar/activity-spans absent' source_mt=MT-067]: gated until the routes land");
@@ -1397,10 +1526,16 @@ fn other_pillar_op02_calendar_bind_activity_span_live() {
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: /locus/work-packets + /locus/microtasks absent (MT-068) + no managed PostgreSQL"]
 fn other_pillar_op03_locus_resolve_reverse_live() {
     let dsn = resolve_live_pg_dsn();
-    assert!(dsn.to_ascii_lowercase().starts_with("postgres"), "live store must be PostgreSQL");
+    assert!(
+        dsn.to_ascii_lowercase().starts_with("postgres"),
+        "live store must be PostgreSQL"
+    );
     let base = LIVE_BACKEND_BASE_URL.to_owned();
     let workspace_id = format!("ws-mt074-locus-{}", std::process::id());
-    let _cleanup = PgRowCleanup { base_url: base.clone(), workspace_id: workspace_id.clone() };
+    let _cleanup = PgRowCleanup {
+        base_url: base.clone(),
+        workspace_id: workspace_id.clone(),
+    };
 
     let _ = poll_flight_recorder(&base, &["LOCUS_REF_RESOLVED", "LOCUS_REVERSE_LOOKUP"]);
     panic!("OP-03 LIVE BLOCKER[kind=missing_api detail='/locus/work-packets + /locus/microtasks absent' source_mt=MT-068]: gated until the routes land");
@@ -1417,9 +1552,16 @@ fn other_pillar_surface_anchor() {
     scenario_fns.insert("OP-02", "other_pillar_op02_calendar_bind_activity_span");
     scenario_fns.insert("OP-03", "other_pillar_op03_locus_resolve_reverse");
     scenario_fns.insert("OP-04", "other_pillar_op04_swarm_accesskit");
-    assert_eq!(scenario_fns.len(), 4, "four contract scenarios OP-01..OP-04");
+    assert_eq!(
+        scenario_fns.len(),
+        4,
+        "four contract scenarios OP-01..OP-04"
+    );
     for id in ["OP-01", "OP-02", "OP-03", "OP-04"] {
-        assert!(scenario_fns.contains_key(id), "scenario {id} maps to its proof fn");
+        assert!(
+            scenario_fns.contains_key(id),
+            "scenario {id} maps to its proof fn"
+        );
     }
     println!("surface anchor OK: 4 contract scenarios OP-01..OP-04 map to their proof fns");
 }

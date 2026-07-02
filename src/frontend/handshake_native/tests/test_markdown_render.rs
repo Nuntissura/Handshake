@@ -232,11 +232,11 @@ fn pt2_read_only_wiki_renders_formatted_markdown_not_raw() {
 fn pt3_render_malformed_markdown_is_panic_free() {
     // Each of these is a known-malformed user markdown shape; parse + RENDER must complete with no panic.
     let malformed = [
-        "```\nunterminated code fence body\nstill open",          // unterminated fence
-        "| a | b | c |\n|---|---|---|\n| 1 |\n",                   // ragged table row
-        "#\n##\n",                                                  // empty headings
-        &"  ".repeat(0),                                            // empty
-        "> quote\n> - nested\n>   - deeper\n>     - deepest\n",   // nested list-in-quote
+        "```\nunterminated code fence body\nstill open", // unterminated fence
+        "| a | b | c |\n|---|---|---|\n| 1 |\n",         // ragged table row
+        "#\n##\n",                                       // empty headings
+        &"  ".repeat(0),                                 // empty
+        "> quote\n> - nested\n>   - deeper\n>     - deepest\n", // nested list-in-quote
         "**unclosed bold and _unclosed italic and `unclosed code", // unbalanced inline
         "a paragraph then a [link with no close](http://x and trailing words", // odd link
     ];
@@ -307,7 +307,9 @@ fn pt4_edit_overlay_still_binds_raw_markdown() {
     // Click the Edit button (enters edit_mode).
     let edit_target = edit_author_id("proj-001");
     harness
-        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(edit_target.as_str()))
+        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(edit_target.as_str())
+        })
         .click();
     harness.run();
 
@@ -419,7 +421,10 @@ fn mt059_wiki_markdown_screenshot() {
             let _ = std::fs::create_dir_all(&ext_dir);
             let png = ext_dir.join("mt059_wiki_markdown.png");
             let saved = image.save(&png).is_ok();
-            println!("HBR-VIS: {w}x{h} mt059 wiki-markdown screenshot, saved={saved} ({})", png.display());
+            println!(
+                "HBR-VIS: {w}x{h} mt059 wiki-markdown screenshot, saved={saved} ({})",
+                png.display()
+            );
         }
         Err(e) => {
             println!(

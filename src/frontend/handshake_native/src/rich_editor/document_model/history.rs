@@ -100,11 +100,7 @@ impl UndoManager {
         // The entry to undo is `undone` steps back from the end.
         let idx = self.history.len() - 1 - self.undone;
         let receipt = &self.history[idx];
-        let tx = Transaction::new(
-            receipt.inverse.clone(),
-            ActorKind::System,
-            "undo",
-        );
+        let tx = Transaction::new(receipt.inverse.clone(), ActorKind::System, "undo");
         apply_transaction(doc, tx)?;
         self.undone += 1;
         Ok(true)
@@ -120,11 +116,7 @@ impl UndoManager {
         // The entry to redo is the one most recently undone: `undone-1` from the end.
         let idx = self.history.len() - self.undone;
         let receipt = &self.history[idx];
-        let tx = Transaction::new(
-            receipt.forward.clone(),
-            ActorKind::System,
-            "redo",
-        );
+        let tx = Transaction::new(receipt.forward.clone(), ActorKind::System, "redo");
         apply_transaction(doc, tx)?;
         self.undone -= 1;
         Ok(true)
@@ -139,9 +131,9 @@ impl Default for UndoManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::node::BlockNode;
     use super::super::transform::Step;
+    use super::*;
 
     fn doc() -> BlockNode {
         BlockNode::doc(vec![BlockNode::paragraph("")])
@@ -167,7 +159,11 @@ mod tests {
             um.push(r);
         }
         assert_eq!(
-            d.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+            d.children[0].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string(),
             "abc"
         );
         um.undo(&mut d).unwrap();
@@ -186,12 +182,20 @@ mod tests {
         um.push(r);
         um.undo(&mut d).unwrap();
         assert_eq!(
-            d.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+            d.children[0].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string(),
             ""
         );
         um.redo(&mut d).unwrap();
         assert_eq!(
-            d.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+            d.children[0].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string(),
             "x"
         );
     }

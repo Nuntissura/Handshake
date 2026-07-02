@@ -28,7 +28,9 @@ use egui_kittest::Harness;
 
 use handshake_native::loom_graph::{GraphNode, LoomGraphColors, LoomGraphSurface};
 use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
+};
 use handshake_native::theme::HsTheme;
 
 use interconnect_support::{
@@ -40,7 +42,11 @@ use interconnect_support::{
 fn note_with_wikilink(target_block_id: &str, label: &str) -> BlockNode {
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::new("links to ")));
-    para.children.push(Child::HsLink(HsLinkNode::new("file", target_block_id, label)));
+    para.children.push(Child::HsLink(HsLinkNode::new(
+        "file",
+        target_block_id,
+        label,
+    )));
     BlockNode::doc(vec![para])
 }
 
@@ -72,7 +78,9 @@ fn created_doc_id(created: &serde_json::Value) -> String {
         .and_then(|v| v.as_str())
         .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
         .or_else(|| created.get("id").and_then(|v| v.as_str()))
-        .expect("requires_pg: created document returns a rich_document_id (document.rich_document_id)")
+        .expect(
+            "requires_pg: created document returns a rich_document_id (document.rich_document_id)",
+        )
         .to_owned()
 }
 
@@ -103,8 +111,11 @@ fn create_block(be: &LiveBackend, content_type: &str, title: &str) -> String {
         &format!("/workspaces/{ws}/loom/blocks"),
         &serde_json::json!({ "title": title, "content_type": content_type }),
     );
-    block["block_id"].as_str().or_else(|| block["id"].as_str())
-        .expect("requires_pg: created block id").to_owned()
+    block["block_id"]
+        .as_str()
+        .or_else(|| block["id"].as_str())
+        .expect("requires_pg: created block id")
+        .to_owned()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -148,13 +159,19 @@ fn interconnect_ic10_backlink_cross_surface() {
 
     // GET /loom/blocks/{B}/backlinks must contain loom_A after the save.
     let backlinks = be.get_json(&format!("/workspaces/{ws}/loom/blocks/{loom_b}/backlinks"));
-    let found = backlinks.as_array().map(|a| {
-        a.iter().any(|b| {
-            b["source_block_id"].as_str() == Some(loom_a.as_str())
-                || b["block_id"].as_str() == Some(loom_a.as_str())
+    let found = backlinks
+        .as_array()
+        .map(|a| {
+            a.iter().any(|b| {
+                b["source_block_id"].as_str() == Some(loom_a.as_str())
+                    || b["block_id"].as_str() == Some(loom_a.as_str())
+            })
         })
-    }).unwrap_or(false);
-    assert!(found, "IC-10: GET /loom/blocks/{loom_b}/backlinks contains loom_A after note A is saved");
+        .unwrap_or(false);
+    assert!(
+        found,
+        "IC-10: GET /loom/blocks/{loom_b}/backlinks contains loom_A after note A is saved"
+    );
 
     let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{loom_b}"));
@@ -189,8 +206,12 @@ fn interconnect_ic11_search_v2_across_surfaces() {
             &serde_json::json!({ "query": PROBE, "graph_boost": 1.0, "limit": 25 }),
         );
         hits = resp["hits"].as_array().cloned().unwrap_or_default();
-        let has_note = hits.iter().any(|h| h["block"]["block_id"].as_str() == Some(note_block.as_str()));
-        let has_code = hits.iter().any(|h| h["block"]["block_id"].as_str() == Some(code_block.as_str()));
+        let has_note = hits
+            .iter()
+            .any(|h| h["block"]["block_id"].as_str() == Some(note_block.as_str()));
+        let has_code = hits
+            .iter()
+            .any(|h| h["block"]["block_id"].as_str() == Some(code_block.as_str()));
         if has_note && has_code {
             found_both = true;
             break;
@@ -199,7 +220,10 @@ fn interconnect_ic11_search_v2_across_surfaces() {
             std::thread::sleep(Duration::from_millis(200));
         }
     }
-    assert!(found_both, "IC-11 / CTRL-6: search_index_not_ready — both blocks not indexed within 1s budget");
+    assert!(
+        found_both,
+        "IC-11 / CTRL-6: search_index_not_ready — both blocks not indexed within 1s budget"
+    );
 
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{note_block}"));
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{code_block}"));
@@ -223,11 +247,21 @@ fn ic12_graph_renders_two_nodes_without_panic() {
 
     // Two cross-surface nodes (a note block A + a code-file block B), the topology IC-12 renders.
     let node_a = GraphNode::new(
-        LoomNodeState { block_id: "loom_A".into(), pinned: false, favorite: false, has_edges: true },
+        LoomNodeState {
+            block_id: "loom_A".into(),
+            pinned: false,
+            favorite: false,
+            has_edges: true,
+        },
         "loom_A note",
     );
     let node_b = GraphNode::new(
-        LoomNodeState { block_id: "loom_B".into(), pinned: false, favorite: false, has_edges: true },
+        LoomNodeState {
+            block_id: "loom_B".into(),
+            pinned: false,
+            favorite: false,
+            has_edges: true,
+        },
         "loom_B code",
     );
     let surface = LoomGraphSurface::with_workspace(vec![node_a, node_b], "ws-mt046");
@@ -248,8 +282,14 @@ fn ic12_graph_renders_two_nodes_without_panic() {
 
     // Both cross-surface nodes are addressable at distinct ids in the live tree.
     let ids = author_ids(&harness);
-    assert!(ids.contains(&loom_node_author_id("loom_A")), "IC-12: loom_A node present; got {ids:?}");
-    assert!(ids.contains(&loom_node_author_id("loom_B")), "IC-12: loom_B node present; got {ids:?}");
+    assert!(
+        ids.contains(&loom_node_author_id("loom_A")),
+        "IC-12: loom_A node present; got {ids:?}"
+    );
+    assert!(
+        ids.contains(&loom_node_author_id("loom_B")),
+        "IC-12: loom_B node present; got {ids:?}"
+    );
     assert_no_local_artifact_dir();
     println!("IC-12 structural: the native graph surface rendered two distinct cross-surface nodes without panic");
 }
@@ -261,7 +301,8 @@ fn ic12_graph_renders_two_nodes_without_panic() {
 fn interconnect_ic12_graph_cross_surface_edges() {
     let be = require_live_backend();
     let ws = be.workspace_id.clone();
-    let loom_a = std::env::var("HSK_TEST_LOOM_A").expect("requires_pg: seed HSK_TEST_LOOM_A (a block linked to B)");
+    let loom_a = std::env::var("HSK_TEST_LOOM_A")
+        .expect("requires_pg: seed HSK_TEST_LOOM_A (a block linked to B)");
     // The REAL block-neighborhood graph route is /loom/graph/local (loom.rs:264 local_loom_graph) with query
     // params start_block_id + max_depth, returning storage::LoomGraph { nodes, edges, .. } (loom.rs:996).
     // There is NO bare /loom/graph route (only /graph/traverse, /graph/local, /graph/global).
@@ -270,10 +311,20 @@ fn interconnect_ic12_graph_cross_surface_edges() {
     ));
     let nodes = graph["nodes"].as_array().cloned().unwrap_or_default();
     let edges = graph["edges"].as_array().cloned().unwrap_or_default();
-    assert!(nodes.len() >= 2, "IC-12: the graph returns >= 2 nodes (loom_A + loom_B)");
-    assert!(!edges.is_empty(), "IC-12: the graph returns a connecting edge between the cross-surface nodes");
+    assert!(
+        nodes.len() >= 2,
+        "IC-12: the graph returns >= 2 nodes (loom_A + loom_B)"
+    );
+    assert!(
+        !edges.is_empty(),
+        "IC-12: the graph returns a connecting edge between the cross-surface nodes"
+    );
     mark_status("IC-12", "PASS");
-    println!("IC-12 LIVE-PG PASS: graph/local max_depth=2 from loom_A has {} nodes + {} edges", nodes.len(), edges.len());
+    println!(
+        "IC-12 LIVE-PG PASS: graph/local max_depth=2 from loom_A has {} nodes + {} edges",
+        nodes.len(),
+        edges.len()
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -297,8 +348,10 @@ fn interconnect_ic13_ai_link_suggestion() {
     // Without SKIP_AI_TESTS the scenario still requires a live AI + PG endpoint; it is not exercised in the
     // headless suite, so it stays SKIPPED here too (the real run is a separately-gated operator run). We do
     // NOT fabricate a suggestion or a PASS.
-    println!("AI INTERCONNECT TEST SKIPPED: no live AI model endpoint in the headless suite (IC-13). \
-              status=SKIPPED — run against a real AI + managed PG to PASS; never faked.");
+    println!(
+        "AI INTERCONNECT TEST SKIPPED: no live AI model endpoint in the headless suite (IC-13). \
+              status=SKIPPED — run against a real AI + managed PG to PASS; never faked."
+    );
     mark_status("IC-13", "SKIPPED");
     assert_no_local_artifact_dir();
 }
@@ -330,13 +383,23 @@ fn interconnect_ic14_quick_switcher_both_editors() {
     for attempt in 0..5 {
         // The REAL q-route backing the quick-switcher: GET /loom/search?q= -> Vec<LoomBlockSearchResult>.
         let resp = be.get_json(&format!("/workspaces/{ws}/loom/search?q={PROBE}"));
-        results = resp["results"].as_array().cloned()
-            .or_else(|| resp.as_array().cloned()).unwrap_or_default();
+        results = resp["results"]
+            .as_array()
+            .cloned()
+            .or_else(|| resp.as_array().cloned())
+            .unwrap_or_default();
         let block_id = |r: &serde_json::Value| -> Option<String> {
-            r["block"]["block_id"].as_str().or_else(|| r["block_id"].as_str()).map(str::to_owned)
+            r["block"]["block_id"]
+                .as_str()
+                .or_else(|| r["block_id"].as_str())
+                .map(str::to_owned)
         };
-        let has_note = results.iter().any(|r| block_id(r).as_deref() == Some(note_block.as_str()));
-        let has_code = results.iter().any(|r| block_id(r).as_deref() == Some(code_block.as_str()));
+        let has_note = results
+            .iter()
+            .any(|r| block_id(r).as_deref() == Some(note_block.as_str()));
+        let has_code = results
+            .iter()
+            .any(|r| block_id(r).as_deref() == Some(code_block.as_str()));
         if has_note && has_code {
             found_both = true;
             break;
@@ -345,15 +408,27 @@ fn interconnect_ic14_quick_switcher_both_editors() {
             std::thread::sleep(Duration::from_millis(200));
         }
     }
-    assert!(found_both, "IC-14: the quick-switcher q-route returns BOTH the note + code block for {PROBE}");
+    assert!(
+        found_both,
+        "IC-14: the quick-switcher q-route returns BOTH the note + code block for {PROBE}"
+    );
     // Each matching result's block carries the required fields.
     for r in &results {
         let block = r.get("block").unwrap_or(r);
         let bid = block["block_id"].as_str();
         if bid == Some(note_block.as_str()) || bid == Some(code_block.as_str()) {
-            assert!(block.get("title").is_some(), "IC-14: result block has a title");
-            assert!(block.get("content_type").is_some(), "IC-14: result block has a content_type");
-            assert!(block.get("updated_at").is_some(), "IC-14: result block has updated_at");
+            assert!(
+                block.get("title").is_some(),
+                "IC-14: result block has a title"
+            );
+            assert!(
+                block.get("content_type").is_some(),
+                "IC-14: result block has a content_type"
+            );
+            assert!(
+                block.get("updated_at").is_some(),
+                "IC-14: result block has updated_at"
+            );
         }
     }
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{note_block}"));

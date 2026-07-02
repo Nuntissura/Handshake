@@ -66,9 +66,17 @@ mod tests {
         // "今天我写了很多字" = 8 ideographs -> 8 words (the documented per-ideograph CJK rule).
         let s = "今天我写了很多字";
         assert_eq!(s.chars().count(), 8, "sanity: 8 ideographs");
-        assert_eq!(word_count(s), 8, "spaceless CJK counts per UAX#29 word (per-ideograph), not as 1 whitespace token");
+        assert_eq!(
+            word_count(s),
+            8,
+            "spaceless CJK counts per UAX#29 word (per-ideograph), not as 1 whitespace token"
+        );
         // The old whitespace split would have returned 1 — prove we are NOT doing that.
-        assert_ne!(word_count(s), 1, "must not collapse a CJK sentence to a single word");
+        assert_ne!(
+            word_count(s),
+            1,
+            "must not collapse a CJK sentence to a single word"
+        );
     }
 
     #[test]
@@ -83,8 +91,15 @@ mod tests {
     fn char_count_is_grapheme_clusters_not_scalars() {
         // AC6: the family emoji is ONE character, not 7 codepoints.
         let family = "👨‍👩‍👧";
-        assert!(family.chars().count() >= 5, "sanity: the family emoji is many scalars");
-        assert_eq!(char_count(family), 1, "the family emoji counts as ONE character (grapheme cluster)");
+        assert!(
+            family.chars().count() >= 5,
+            "sanity: the family emoji is many scalars"
+        );
+        assert_eq!(
+            char_count(family),
+            1,
+            "the family emoji counts as ONE character (grapheme cluster)"
+        );
         // Combining accent: "e" + U+0301 = 1 character.
         assert_eq!(char_count("e\u{0301}"), 1);
         // Flag: two regional indicators = 1 character.

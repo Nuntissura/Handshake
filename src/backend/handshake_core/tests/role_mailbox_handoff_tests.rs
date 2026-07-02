@@ -123,13 +123,8 @@ fn mt_183_announce_back_without_prior_handoff_typed_error() {
 fn mt_183_dangling_correlation_typed_error() {
     // (e) Announce-back references a bundle that the verifier doesn't know.
     let bundle = sample_bundle();
-    let body = AnnounceBackComposer::compose(
-        &bundle,
-        "ok",
-        vec![],
-        CompletionState::Completed,
-        vec![],
-    );
+    let body =
+        AnnounceBackComposer::compose(&bundle, "ok", vec![], CompletionState::Completed, vec![]);
     // Empty map -> dangling correlation.
     let bundles = HashMap::new();
     let err = AnnounceBackComposer::verify_announce_back_pairing(&body, &bundles);
@@ -257,13 +252,8 @@ fn mt_183_tampered_bundle_pairing_fails() {
     // hash. If the verifier's bundle map contains a tampered bundle, the
     // pairing must fail with HashMismatch.
     let mut bundle = sample_bundle();
-    let body = AnnounceBackComposer::compose(
-        &bundle,
-        "ok",
-        vec![],
-        CompletionState::Completed,
-        vec![],
-    );
+    let body =
+        AnnounceBackComposer::compose(&bundle, "ok", vec![], CompletionState::Completed, vec![]);
     bundle.context_summary = "TAMPERED".to_string();
     let mut bundles = HashMap::new();
     bundles.insert(bundle.bundle_id, bundle.clone());
@@ -420,7 +410,7 @@ fn mt_183_handoff_bundle_with_transcript_pointer_round_trip() {
 // ====================================================================
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_insert_handoff_bundle_recomputes_hash_and_rejects_tampered_input() {
     // (f) Direct insert with a tampered content_hash -> MailboxError::HashMismatch.
     let pool = postgres_pool().await;
@@ -463,7 +453,7 @@ async fn mt_183_insert_handoff_bundle_recomputes_hash_and_rejects_tampered_input
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_get_handoff_bundle_round_trip_preserves_fields_and_verify_hash() {
     // (g) Insert -> get -> verify all fields round-trip and verify_hash() passes.
     let pool = postgres_pool().await;
@@ -482,10 +472,7 @@ async fn mt_183_get_handoff_bundle_round_trip_preserves_fields_and_verify_hash()
         .target_role(RoleId::Validator)
         .target_executor_kind(ExecutorKind::Validator)
         .context_summary("review handoff")
-        .linked_artifacts(vec![
-            sample_artifact("art-1"),
-            sample_artifact("art-2"),
-        ])
+        .linked_artifacts(vec![sample_artifact("art-1"), sample_artifact("art-2")])
         .transcript(TranscriptPointer {
             transcript_id: "t-99".to_string(),
             uri: "s3://bucket/t-99".to_string(),
@@ -523,7 +510,7 @@ async fn mt_183_get_handoff_bundle_round_trip_preserves_fields_and_verify_hash()
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_list_handoff_bundles_for_thread_chronological() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -562,7 +549,7 @@ async fn mt_183_list_handoff_bundles_for_thread_chronological() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_get_handoff_bundle_unknown_returns_none() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -576,7 +563,7 @@ async fn mt_183_get_handoff_bundle_unknown_returns_none() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_insert_with_clean_hash_then_get_then_verify_chain_end_to_end() {
     // End-to-end: insert bundle, compose AnnounceBack with a provenance
     // chain referring to a stored message, verify chain + bundle pairing.
@@ -677,7 +664,8 @@ fn sample_open_thread() -> RoleMailboxThread {
 }
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL for role_mailbox_handoff_tests");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }

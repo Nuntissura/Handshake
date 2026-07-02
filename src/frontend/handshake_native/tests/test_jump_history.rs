@@ -43,7 +43,11 @@ fn jump_history_back_restores_prior_position() {
     // line 80. Navigate Back restores line 10.
     h.record(entry("a.rs", 10));
     let back = h.back(entry("a.rs", 80));
-    assert_eq!(back, Some(entry("a.rs", 10)), "Navigate Back restores the prior position");
+    assert_eq!(
+        back,
+        Some(entry("a.rs", 10)),
+        "Navigate Back restores the prior position"
+    );
 }
 
 #[test]
@@ -67,7 +71,11 @@ fn jump_history_forward_returns_to_origin() {
     let mut h = JumpHistory::new();
     h.record(entry("a.rs", 10));
     assert_eq!(h.back(entry("a.rs", 80)), Some(entry("a.rs", 10)));
-    assert_eq!(h.forward(), Some(entry("a.rs", 80)), "Forward returns to where Back left from");
+    assert_eq!(
+        h.forward(),
+        Some(entry("a.rs", 80)),
+        "Forward returns to where Back left from"
+    );
 }
 
 // ── AC-004 / PT-004: cross-file path retention ─────────────────────────────────────────────────────
@@ -78,7 +86,9 @@ fn jump_history_cross_file() {
     // entry whose file_path == A (NOT the currently focused B).
     let mut h = JumpHistory::new();
     h.record(entry("src/a.rs", 42));
-    let restored = h.back(entry("src/b.rs", 7)).expect("Back returns the source entry");
+    let restored = h
+        .back(entry("src/b.rs", 7))
+        .expect("Back returns the source entry");
     assert_eq!(
         restored.file_path,
         PathBuf::from("src/a.rs"),
@@ -103,10 +113,20 @@ fn navigate_back_to_missing_file_is_graceful() {
 
     panel.dispatch_action(CodeEditorAction::NavigateBack);
 
-    assert_eq!(caret_line(&panel), before, "caret in the current file is NOT moved by a cross-file Back");
-    let pending = panel.pending_cross_file_jump().expect("a cross-file target was parked");
+    assert_eq!(
+        caret_line(&panel),
+        before,
+        "caret in the current file is NOT moved by a cross-file Back"
+    );
+    let pending = panel
+        .pending_cross_file_jump()
+        .expect("a cross-file target was parked");
     assert_eq!(pending.file_path, PathBuf::from("other.rs"));
-    assert_eq!(pending.position, pos(12), "the parked target carries the source line for the host");
+    assert_eq!(
+        pending.position,
+        pos(12),
+        "the parked target carries the source line for the host"
+    );
 }
 
 // ── MC-006: only navigation jumps record (not typing/arrow moves) ──────────────────────────────────
@@ -120,18 +140,32 @@ fn only_navigation_jumps_record_through_the_panel() {
     panel.dispatch_action(CodeEditorAction::MoveCursorDown);
     panel.dispatch_action(CodeEditorAction::MoveCursorDown);
     panel.dispatch_action(CodeEditorAction::MoveCursorRight);
-    assert!(!panel.can_navigate_back(), "arrow caret moves must not record a jump (RISK-006)");
+    assert!(
+        !panel.can_navigate_back(),
+        "arrow caret moves must not record a jump (RISK-006)"
+    );
 
     // A navigation jump (goto-line) DOES record. Open the palette, target line 20, submit.
     panel.open_goto_line();
     panel.set_goto_line_input("20");
     assert!(panel.submit_goto_line(), "goto-line navigated");
-    assert!(panel.can_navigate_back(), "a goto-line navigation recorded a back entry");
+    assert!(
+        panel.can_navigate_back(),
+        "a goto-line navigation recorded a back entry"
+    );
 
     // Navigate Back returns to the pre-jump line (line 2, where the two MoveCursorDown left the caret).
     panel.dispatch_action(CodeEditorAction::NavigateBack);
-    assert_eq!(caret_line(&panel), 2, "Navigate Back restores the pre-goto-line caret line");
+    assert_eq!(
+        caret_line(&panel),
+        2,
+        "Navigate Back restores the pre-goto-line caret line"
+    );
     // Forward returns to line 19 (the goto-line target, 1-based 20 -> 0-based 19).
     panel.dispatch_action(CodeEditorAction::NavigateForward);
-    assert_eq!(caret_line(&panel), 19, "Navigate Forward returns to the goto-line target");
+    assert_eq!(
+        caret_line(&panel),
+        19,
+        "Navigate Forward returns to the goto-line target"
+    );
 }

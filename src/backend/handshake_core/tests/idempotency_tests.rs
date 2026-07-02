@@ -43,11 +43,12 @@ fn event(session_id: Uuid, seq: i64) -> EventLedgerRow {
 }
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url =
-        std::env::var("POSTGRES_TEST_URL").expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL unset");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL test URL");
     let mut conn = sqlx::PgConnection::connect(&url)
         .await
-        .expect("connect POSTGRES_TEST_URL");
+        .expect("connect PostgreSQL test URL");
     let schema = format!("mt194_test_{}", Uuid::now_v7().simple());
     sqlx::query(&format!(r#"CREATE SCHEMA "{schema}""#))
         .execute(&mut conn)
@@ -403,7 +404,7 @@ async fn mt194_replay_reuses_ledger_and_does_not_repeat_side_effects() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test idempotency_tests -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test idempotency_tests -- --ignored`"]
 async fn mt194_postgres_ledger_distinguishes_side_effect_targets_and_dedupes_duplicates() {
     let pool = postgres_pool().await;
     let ledger = IdempotencyLedger::new(pool.clone());

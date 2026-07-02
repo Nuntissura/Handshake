@@ -359,7 +359,10 @@ pub enum LocusInteropError {
 impl std::fmt::Display for LocusInteropError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NoWorkspace => write!(f, "Locus interop: no workspace context (a Locus read needs a workspace id)"),
+            Self::NoWorkspace => write!(
+                f,
+                "Locus interop: no workspace context (a Locus read needs a workspace id)"
+            ),
             Self::LocusReadApiUnavailable { endpoint } => write!(
                 f,
                 "Locus read endpoint not present in this build (probed {endpoint})"
@@ -562,7 +565,9 @@ impl LocusInteropService {
             return Err(LocusInteropError::LocusReadApiUnavailable { endpoint: path });
         }
         if !status.is_success() {
-            return Err(LocusInteropError::Http { status: status.as_u16() });
+            return Err(LocusInteropError::Http {
+                status: status.as_u16(),
+            });
         }
         let body: LocusRecordWire = resp
             .json()
@@ -586,9 +591,13 @@ impl LocusInteropService {
         }
         // The SINGLE shared key (RISK-001): the normalized `locus://` ref value, the same key resolution
         // uses. The MT-034 search keys on this value, restricted to rich-doc content types (RISK-1 reuse).
-        let notes = find_notes_with(self.reverse_lookup.as_ref(), &r.normalized, &self.workspace_id)
-            .await
-            .map_err(LocusInteropError::from)?;
+        let notes = find_notes_with(
+            self.reverse_lookup.as_ref(),
+            &r.normalized,
+            &self.workspace_id,
+        )
+        .await
+        .map_err(LocusInteropError::from)?;
         // De-duplicate on (document_id, block_id) (AC-004) — a ref mentioned in both a `note` and a
         // `journal` block of the same document is listed once per (doc, block).
         let mut seen = std::collections::HashSet::new();
@@ -649,7 +658,10 @@ mod tests {
         let wp = parse_locus_ref("locus://wp/WP-KERNEL-012").expect("a valid wp ref");
         assert_eq!(wp.kind, LocusRefKind::WorkPacket);
         assert_eq!(wp.id, "WP-KERNEL-012", "the id preserves original case");
-        assert_eq!(wp.normalized, "locus://wp/wp-kernel-012", "the normalized key is lower-cased");
+        assert_eq!(
+            wp.normalized, "locus://wp/wp-kernel-012",
+            "the normalized key is lower-cased"
+        );
         assert_eq!(wp.to_uri(), "locus://wp/WP-KERNEL-012");
 
         let mt = parse_locus_ref("locus://mt/MT-034").expect("a valid mt ref");
@@ -674,7 +686,10 @@ mod tests {
         let wp = parse_locus_ref("WP-KERNEL-012").expect("bare wp id");
         assert_eq!(wp.kind, LocusRefKind::WorkPacket);
         assert_eq!(wp.id, "WP-KERNEL-012");
-        assert_eq!(wp.normalized, "locus://wp/wp-kernel-012", "bare id normalizes to the same key as the URI form");
+        assert_eq!(
+            wp.normalized, "locus://wp/wp-kernel-012",
+            "bare id normalizes to the same key as the URI form"
+        );
         let mt = parse_locus_ref("MT-034").expect("bare mt id");
         assert_eq!(mt.kind, LocusRefKind::Microtask);
         assert_eq!(mt.normalized, "locus://mt/mt-034");
@@ -682,7 +697,9 @@ mod tests {
         // authoring forms never disagree in resolution/reverse lookup).
         assert_eq!(
             parse_locus_ref("WP-KERNEL-012").unwrap().normalized,
-            parse_locus_ref("locus://wp/WP-KERNEL-012").unwrap().normalized
+            parse_locus_ref("locus://wp/WP-KERNEL-012")
+                .unwrap()
+                .normalized
         );
     }
 
@@ -690,13 +707,22 @@ mod tests {
     fn parse_locus_ref_rejects_invalid() {
         // AC-001: an invalid scheme / shape / kind returns None (never a panic).
         assert!(parse_locus_ref("https://wp/WP-1").is_none(), "wrong scheme");
-        assert!(parse_locus_ref("loom://ws/blk").is_none(), "the loom scheme is not a locus ref");
+        assert!(
+            parse_locus_ref("loom://ws/blk").is_none(),
+            "the loom scheme is not a locus ref"
+        );
         assert!(parse_locus_ref("locus://wp").is_none(), "no id segment");
-        assert!(parse_locus_ref("locus://zz/WP-1").is_none(), "unknown kind segment");
+        assert!(
+            parse_locus_ref("locus://zz/WP-1").is_none(),
+            "unknown kind segment"
+        );
         assert!(parse_locus_ref("locus://wp/").is_none(), "empty id");
         assert!(parse_locus_ref("just text").is_none(), "not a ref");
         assert!(parse_locus_ref("").is_none(), "empty");
-        assert!(parse_locus_ref("FOO-123").is_none(), "a non-WP/MT bare id is not a locus ref");
+        assert!(
+            parse_locus_ref("FOO-123").is_none(),
+            "a non-WP/MT bare id is not a locus ref"
+        );
     }
 
     #[test]
@@ -705,8 +731,14 @@ mod tests {
         // given work unit regardless of input casing/whitespace, so the two directions never disagree.
         let a = parse_locus_ref("locus://wp/WP-KERNEL-012").unwrap();
         let b = parse_locus_ref("  locus://WP/wp-kernel-012  ").unwrap();
-        assert_eq!(a.normalized, b.normalized, "casing + whitespace collapse to one key");
-        assert_eq!(a.normalized, normalize_locus_id(LocusRefKind::WorkPacket, "WP-KERNEL-012"));
+        assert_eq!(
+            a.normalized, b.normalized,
+            "casing + whitespace collapse to one key"
+        );
+        assert_eq!(
+            a.normalized,
+            normalize_locus_id(LocusRefKind::WorkPacket, "WP-KERNEL-012")
+        );
     }
 
     // ── Typed blocker (AC-005) + two failure modes distinct (RISK-003) ───────────────────────────────
@@ -717,17 +749,25 @@ mod tests {
             endpoint: "/workspaces/WS-1/locus/work-packets/WP-KERNEL-012".into(),
         };
         assert!(blocker.is_read_api_unavailable());
-        assert!(!blocker.is_record_not_found(), "the blocker is NOT a record-not-found 404");
+        assert!(
+            !blocker.is_record_not_found(),
+            "the blocker is NOT a record-not-found 404"
+        );
         // A live-endpoint 404 is the OTHER failure mode — distinct, greys the chip differently.
         let not_found = LocusInteropError::NotFound { id: "WP-9".into() };
         assert!(not_found.is_record_not_found());
-        assert!(!not_found.is_read_api_unavailable(), "a 404 is NOT the typed blocker (RISK-003)");
+        assert!(
+            !not_found.is_read_api_unavailable(),
+            "a 404 is NOT the typed blocker (RISK-003)"
+        );
         // The blocker names the probed endpoint (for the chip tooltip + the validator).
         assert_eq!(
             blocker.unavailable_endpoint(),
             Some("/workspaces/WS-1/locus/work-packets/WP-KERNEL-012")
         );
-        assert!(blocker.unavailable_tooltip().contains("/locus/work-packets/WP-KERNEL-012"));
+        assert!(blocker
+            .unavailable_tooltip()
+            .contains("/locus/work-packets/WP-KERNEL-012"));
         assert!(blocker.unavailable_tooltip().contains("not exposed"));
     }
 

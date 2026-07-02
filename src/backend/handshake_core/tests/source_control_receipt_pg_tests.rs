@@ -20,17 +20,12 @@ use tokio::net::TcpListener;
 async fn postgres_or_blocked() -> Arc<dyn Database> {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: MT-253 source-control receipt PG test requires POSTGRES_TEST_URL; {msg}"
-            );
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn source_control_stage_and_commit_append_real_event_ledger_receipts() {
     let db = postgres_or_blocked().await;
 
@@ -67,7 +62,10 @@ async fn source_control_stage_and_commit_append_real_event_ledger_receipts() {
         .as_str()
         .expect("stage receipt id")
         .to_string();
-    assert!(stage_receipt_id.starts_with("KE-"), "got {stage_receipt_id}");
+    assert!(
+        stage_receipt_id.starts_with("KE-"),
+        "got {stage_receipt_id}"
+    );
 
     let commit: Value = http
         .post(format!("{base}/source-control/commit"))
@@ -125,7 +123,10 @@ async fn source_control_stage_and_commit_append_real_event_ledger_receipts() {
         "SOURCE_CONTROL_OPERATION_RECORDED"
     );
     assert_eq!(commit_event.payload["operation"], "commit");
-    assert_eq!(commit_event.payload["commit_message"], "mt253 receipt commit");
+    assert_eq!(
+        commit_event.payload["commit_message"],
+        "mt253 receipt commit"
+    );
     assert_eq!(commit_event.payload["phase"], "pre_git_write");
     assert_eq!(
         commit_event.payload["authority_source"],

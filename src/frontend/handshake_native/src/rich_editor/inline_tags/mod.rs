@@ -42,6 +42,4 @@ pub use inline_chip::{
     tag_menu_items, TagActivated, TagAutocompleteState, TagEdge, TagEdgePayload, TagMenuItem,
     TAG_REF_KIND,
 };
-pub use parser::{
-    normalize_tag, open_tag_query, parse_inline_tags, tag_to_hs_link, Tag, TagToken,
-};
+pub use parser::{normalize_tag, open_tag_query, parse_inline_tags, tag_to_hs_link, Tag, TagToken};

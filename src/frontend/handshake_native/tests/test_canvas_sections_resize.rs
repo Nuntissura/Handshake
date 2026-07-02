@@ -219,7 +219,11 @@ fn canvas_resize_handle_fires_one_debounced_patch() {
     // it, in EXACT screen coords read from the live canvas rect.
     let (cx0, cy0, w0, h0) = {
         let b = board.lock().unwrap();
-        let c = b.placements.iter().find(|p| p.placement_id == "p-001").unwrap();
+        let c = b
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-001")
+            .unwrap();
         (c.x, c.y, c.w, c.h)
     };
     let handle = canvas_to_screen(&board, egui::pos2(cx0 + w0 - 3.0, cy0 + h0 - 3.0));
@@ -230,11 +234,21 @@ fn canvas_resize_handle_fires_one_debounced_patch() {
     // AC-061-1: the live w/h grew (optimistic in-flight resize applied during the drag).
     let (w1, h1) = {
         let b = board.lock().unwrap();
-        let c = b.placements.iter().find(|p| p.placement_id == "p-001").unwrap();
+        let c = b
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-001")
+            .unwrap();
         (c.w, c.h)
     };
-    assert!(w1 > w0 + 30.0, "AC-061-1: resize must GROW the card width live (got {w0} -> {w1})");
-    assert!(h1 > h0 + 20.0, "AC-061-1: resize must GROW the card height live (got {h0} -> {h1})");
+    assert!(
+        w1 > w0 + 30.0,
+        "AC-061-1: resize must GROW the card width live (got {w0} -> {w1})"
+    );
+    assert!(
+        h1 > h0 + 20.0,
+        "AC-061-1: resize must GROW the card height live (got {h0} -> {h1})"
+    );
 
     // RISK-061-1 / MC-061-1: EXACTLY ONE ResizePlacement fired for the whole gesture (debounced to
     // drag-stop), carrying the final geometry (== the live w/h after the drag).
@@ -256,7 +270,10 @@ fn canvas_resize_handle_fires_one_debounced_patch() {
     );
     let (id, w, h) = &resize_events[0];
     assert_eq!(id, "p-001", "the resize targets the dragged card");
-    assert!((w - w1).abs() < 0.5 && (h - h1).abs() < 0.5, "the PATCH carries the final geometry");
+    assert!(
+        (w - w1).abs() < 0.5 && (h - h1).abs() < 0.5,
+        "the PATCH carries the final geometry"
+    );
 
     // Host applies the PATCH + refreshes via getCanvasBoard: server geometry becomes authoritative.
     {
@@ -271,10 +288,17 @@ fn canvas_resize_handle_fires_one_debounced_patch() {
     harness.run();
     let (wf, hf) = {
         let b = board.lock().unwrap();
-        let c = b.placements.iter().find(|p| p.placement_id == "p-001").unwrap();
+        let c = b
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-001")
+            .unwrap();
         (c.w, c.h)
     };
-    assert!((wf - w1).abs() < 0.5 && (hf - h1).abs() < 0.5, "server geometry survives the refresh");
+    assert!(
+        (wf - w1).abs() < 0.5 && (hf - h1).abs() < 0.5,
+        "server geometry survives the refresh"
+    );
     println!("PT-061-1/AC-061-1: resize drag grew card {w0}x{h0} -> {wf}x{hf}, ONE ResizePlacement fired");
 }
 
@@ -288,7 +312,11 @@ fn canvas_drop_into_section_assigns_then_clears() {
     // ungrouped (the card we'll drag into / out of the frame).
     let mut board = seeded_board(2);
     {
-        let c = board.placements.iter_mut().find(|p| p.placement_id == "p-001").unwrap();
+        let c = board
+            .placements
+            .iter_mut()
+            .find(|p| p.placement_id == "p-001")
+            .unwrap();
         c.group_id = Some("g-research".to_owned());
         // Make the frame large so a dragged card can land inside it deterministically.
         c.x = 40.0;
@@ -300,7 +328,11 @@ fn canvas_drop_into_section_assigns_then_clears() {
     // topmost card under the pointer even after it is dropped on top of the (large) p-001 frame anchor —
     // the just-moved card is the one the next drag grabs (realistic + unambiguous hit-test).
     {
-        let c = board.placements.iter_mut().find(|p| p.placement_id == "p-002").unwrap();
+        let c = board
+            .placements
+            .iter_mut()
+            .find(|p| p.placement_id == "p-002")
+            .unwrap();
         c.group_id = None;
         c.x = 600.0;
         c.y = 60.0;
@@ -322,7 +354,11 @@ fn canvas_drop_into_section_assigns_then_clears() {
     // Drag p-002's body CENTRE onto a point well INSIDE the frame (canvas (200,200), inside p-001's rect).
     let p2_canvas_center = {
         let b = board.lock().unwrap();
-        let c = b.placements.iter().find(|p| p.placement_id == "p-002").unwrap();
+        let c = b
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-002")
+            .unwrap();
         egui::pos2(c.x + c.w * 0.5, c.y + c.h * 0.5)
     };
     let p2_center = canvas_to_screen(&board, p2_canvas_center);
@@ -331,12 +367,25 @@ fn canvas_drop_into_section_assigns_then_clears() {
 
     // AC-061-3 (assign): an AssignSection{Some("g-research")} fired for p-002, and the card now reflects
     // the group locally (the AccessKit data-group-id updates this frame).
-    let assigned = events_ck.lock().unwrap().iter().any(|e| matches!(e,
+    let assigned = events_ck.lock().unwrap().iter().any(|e| {
+        matches!(e,
         CanvasEvent::AssignSection { placement_id, group_id: Some(g) }
-            if placement_id == "p-002" && g == "g-research"));
-    assert!(assigned, "AC-061-3: drop INSIDE the frame must AssignSection{{Some(g-research)}}");
+            if placement_id == "p-002" && g == "g-research")
+    });
+    assert!(
+        assigned,
+        "AC-061-3: drop INSIDE the frame must AssignSection{{Some(g-research)}}"
+    );
     assert_eq!(
-        board.lock().unwrap().placements.iter().find(|p| p.placement_id == "p-002").unwrap().group_id.as_deref(),
+        board
+            .lock()
+            .unwrap()
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-002")
+            .unwrap()
+            .group_id
+            .as_deref(),
         Some("g-research"),
         "the dropped card's group_id is set locally (optimistic, confirmed by the next refresh)"
     );
@@ -346,7 +395,11 @@ fn canvas_drop_into_section_assigns_then_clears() {
     events_ck.lock().unwrap().clear();
     let p2_now_canvas = {
         let b = board.lock().unwrap();
-        let c = b.placements.iter().find(|p| p.placement_id == "p-002").unwrap();
+        let c = b
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-002")
+            .unwrap();
         egui::pos2(c.x + c.w * 0.5, c.y + c.h * 0.5)
     };
     let p2_now = canvas_to_screen(&board, p2_now_canvas);
@@ -354,15 +407,29 @@ fn canvas_drop_into_section_assigns_then_clears() {
     let outside = canvas_to_screen(&board, egui::pos2(820.0, 600.0));
     drag(&mut harness, p2_now, outside);
 
-    let cleared = events_ck.lock().unwrap().iter().any(|e| matches!(e,
-        CanvasEvent::AssignSection { placement_id, group_id: None } if placement_id == "p-002"));
-    assert!(cleared, "AC-061-3: drop OUTSIDE all frames must AssignSection{{None}} (clear)");
+    let cleared = events_ck.lock().unwrap().iter().any(|e| {
+        matches!(e,
+        CanvasEvent::AssignSection { placement_id, group_id: None } if placement_id == "p-002")
+    });
+    assert!(
+        cleared,
+        "AC-061-3: drop OUTSIDE all frames must AssignSection{{None}} (clear)"
+    );
     assert_eq!(
-        board.lock().unwrap().placements.iter().find(|p| p.placement_id == "p-002").unwrap().group_id,
+        board
+            .lock()
+            .unwrap()
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-002")
+            .unwrap()
+            .group_id,
         None,
         "the card's group_id is cleared locally on a drop outside all frames"
     );
-    println!("PT-061-2/AC-061-3: drop-inside assigned g-research; drop-outside cleared the section");
+    println!(
+        "PT-061-2/AC-061-3: drop-inside assigned g-research; drop-outside cleared the section"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -406,7 +473,11 @@ fn canvas_text_card_inline_edit_commit_and_refresh() {
     harness.event(egui::Event::Text("edited body!".to_owned()));
     harness.run();
     assert!(
-        board.lock().unwrap().editing_buffer().contains("edited body!"),
+        board
+            .lock()
+            .unwrap()
+            .editing_buffer()
+            .contains("edited body!"),
         "the typed text landed in the inline editor buffer (got {:?})",
         board.lock().unwrap().editing_buffer()
     );
@@ -416,7 +487,10 @@ fn canvas_text_card_inline_edit_commit_and_refresh() {
         physical_key: None,
         pressed: true,
         repeat: false,
-        modifiers: egui::Modifiers { command: true, ..Default::default() },
+        modifiers: egui::Modifiers {
+            command: true,
+            ..Default::default()
+        },
     });
     harness.run();
     harness.run();
@@ -446,9 +520,12 @@ fn canvas_text_card_inline_edit_commit_and_refresh() {
         )),
         _ => None,
     });
-    let (block_id, title, pending_body, attempted_route, required_route) =
-        blocker.expect("AC-061-4: committing a text-card edit must fire the typed TextCardEditBlocked");
-    assert_eq!(block_id, "block-text", "the blocker carries the card's backing block id (diagnostic)");
+    let (block_id, title, pending_body, attempted_route, required_route) = blocker
+        .expect("AC-061-4: committing a text-card edit must fire the typed TextCardEditBlocked");
+    assert_eq!(
+        block_id, "block-text",
+        "the blocker carries the card's backing block id (diagnostic)"
+    );
     assert_eq!(title, "Note A", "the blocker carries the card title");
     assert!(
         pending_body.contains("edited body!"),
@@ -462,7 +539,11 @@ fn canvas_text_card_inline_edit_commit_and_refresh() {
         required_route.contains("/knowledge/documents/") && required_route.contains("UNBOUND"),
         "the blocker names the real, unbound edit route (got {required_route:?})"
     );
-    assert_eq!(board.lock().unwrap().editing_card_id(), None, "edit mode exits on commit");
+    assert_eq!(
+        board.lock().unwrap().editing_card_id(),
+        None,
+        "edit mode exits on commit"
+    );
     // Sanity: NO real persistence event exists — the only edit-commit event is the typed blocker.
     println!(
         "PT-061-3/AC-061-4: inline edit is LIVE; commit emits TextCardEditBlocked (cards endpoint \
@@ -488,7 +569,11 @@ fn canvas_text_card_escape_discards_without_event() {
     // Enter edit mode by double-clicking the text card.
     let text_center = canvas_to_screen(&board, egui::pos2(40.0 + 120.0, 60.0 + 70.0));
     double_click(&mut harness, text_center);
-    assert_eq!(board.lock().unwrap().editing_card_id(), Some("p-text"), "entered edit mode");
+    assert_eq!(
+        board.lock().unwrap().editing_card_id(),
+        Some("p-text"),
+        "entered edit mode"
+    );
 
     // Type then press Escape -> the edit is discarded with NO EditTextCard event.
     harness.event(egui::Event::Text("scratch".to_owned()));
@@ -502,13 +587,20 @@ fn canvas_text_card_escape_discards_without_event() {
     });
     harness.run();
 
-    assert_eq!(board.lock().unwrap().editing_card_id(), None, "Escape exits edit mode");
+    assert_eq!(
+        board.lock().unwrap().editing_card_id(),
+        None,
+        "Escape exits edit mode"
+    );
     let any_edit = events_ck
         .lock()
         .unwrap()
         .iter()
         .any(|e| matches!(e, CanvasEvent::TextCardEditBlocked { .. }));
-    assert!(!any_edit, "AC-061-4: Escape must NOT fire a commit/blocker event (no server call)");
+    assert!(
+        !any_edit,
+        "AC-061-4: Escape must NOT fire a commit/blocker event (no server call)"
+    );
     println!("PT-061-3/AC-061-4: Escape discarded the inline edit with no server event");
 }
 
@@ -547,7 +639,9 @@ fn canvas_block_card_double_click_navigates_not_edits() {
         !any_edit,
         "a block card double-click never fires a text-card edit/blocker event (never inline-editable)"
     );
-    println!("AC-061-5: block-backed card double-click stayed non-editable (navigates, never forks)");
+    println!(
+        "AC-061-5: block-backed card double-click stayed non-editable (navigates, never forks)"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -559,7 +653,11 @@ fn canvas_section_and_resize_accesskit_nodes_present() {
     // Two cards grouped into one section so a frame is derived + a section node is emitted.
     let mut board = seeded_board(2);
     for pid in ["p-001", "p-002"] {
-        let c = board.placements.iter_mut().find(|p| p.placement_id == pid).unwrap();
+        let c = board
+            .placements
+            .iter_mut()
+            .find(|p| p.placement_id == pid)
+            .unwrap();
         c.group_id = Some("g-alpha".to_owned());
     }
     let mut labels = BTreeMap::new();
@@ -575,7 +673,10 @@ fn canvas_section_and_resize_accesskit_nodes_present() {
 
     // AC-061-2 / AC-061-6: the section frame node is present with the section label.
     let section_id = section_author_id("g-alpha");
-    assert!(ids.contains(&section_id), "AC-061-2: '{section_id}' section node present in {ids:?}");
+    assert!(
+        ids.contains(&section_id),
+        "AC-061-2: '{section_id}' section node present in {ids:?}"
+    );
     assert_eq!(
         label_for(&harness, &section_id).as_deref(),
         Some("Alpha Section"),
@@ -585,18 +686,35 @@ fn canvas_section_and_resize_accesskit_nodes_present() {
     // AC-061-6: each card's resize handle node is present and extends (does not collide with) the card id.
     for pid in ["p-001", "p-002"] {
         let resize_id = placement_resize_author_id(pid);
-        assert!(ids.contains(&resize_id), "AC-061-6: '{resize_id}' resize-handle node present");
+        assert!(
+            ids.contains(&resize_id),
+            "AC-061-6: '{resize_id}' resize-handle node present"
+        );
     }
 
     // The MT-026 placement card ids still coexist (the new ids EXTEND, not replace — RISK-061-6 no
     // collision).
-    assert!(ids.contains("canvas.placement.p-001"), "MT-026 card node still present (no collision)");
-    assert!(ids.contains("canvas.placement.p-001.resize"), "MT-061 resize node coexists");
+    assert!(
+        ids.contains("canvas.placement.p-001"),
+        "MT-026 card node still present (no collision)"
+    );
+    assert!(
+        ids.contains("canvas.placement.p-001.resize"),
+        "MT-061 resize node coexists"
+    );
 
     // Exactly one section node for the one distinct group_id.
-    let section_count = ids.iter().filter(|a| a.starts_with("canvas.section.")).count();
-    assert_eq!(section_count, 1, "PT-061-4: exactly one section node for one group_id (got {section_count})");
-    println!("PT-061-4/AC-061-2/AC-061-6: canvas.section.g-alpha + 2x canvas.placement.*.resize present");
+    let section_count = ids
+        .iter()
+        .filter(|a| a.starts_with("canvas.section."))
+        .count();
+    assert_eq!(
+        section_count, 1,
+        "PT-061-4: exactly one section node for one group_id (got {section_count})"
+    );
+    println!(
+        "PT-061-4/AC-061-2/AC-061-6: canvas.section.g-alpha + 2x canvas.placement.*.resize present"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -613,23 +731,38 @@ fn canvas_reference_invariant_block_id_set_unchanged() {
 
     let before: std::collections::BTreeSet<String> = {
         let b = board.lock().unwrap();
-        b.placements.iter().map(|p| p.placed_block_id.clone()).collect()
+        b.placements
+            .iter()
+            .map(|p| p.placed_block_id.clone())
+            .collect()
     };
 
     // RESIZE p-001 via a real handle drag.
     let (cx0, cy0, w0, h0) = {
         let b = board.lock().unwrap();
-        let c = b.placements.iter().find(|p| p.placement_id == "p-001").unwrap();
+        let c = b
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-001")
+            .unwrap();
         (c.x, c.y, c.w, c.h)
     };
     let handle = canvas_to_screen(&board, egui::pos2(cx0 + w0 - 3.0, cy0 + h0 - 3.0));
-    drag(&mut harness, handle, egui::pos2(handle.x + 50.0, handle.y + 30.0));
+    drag(
+        &mut harness,
+        handle,
+        egui::pos2(handle.x + 50.0, handle.y + 30.0),
+    );
 
     // SECTION-ASSIGN p-001: drag its body a little (no frame exists yet, so this clears — still a
     // placement-only mutation). The invariant is about block_ids, which neither op touches.
     let p1_canvas = {
         let b = board.lock().unwrap();
-        let c = b.placements.iter().find(|p| p.placement_id == "p-001").unwrap();
+        let c = b
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-001")
+            .unwrap();
         egui::pos2(c.x + c.w * 0.5, c.y + c.h * 0.5)
     };
     let p1c = canvas_to_screen(&board, p1_canvas);
@@ -637,11 +770,23 @@ fn canvas_reference_invariant_block_id_set_unchanged() {
 
     let after: std::collections::BTreeSet<String> = {
         let b = board.lock().unwrap();
-        b.placements.iter().map(|p| p.placed_block_id.clone()).collect()
+        b.placements
+            .iter()
+            .map(|p| p.placed_block_id.clone())
+            .collect()
     };
-    assert_eq!(before, after, "PT-061-5/AC-061-5: the block_id SET is invariant across resize+section");
-    assert_eq!(board.lock().unwrap().placements.len(), 2, "no placement duplicated (reference, not copy)");
-    println!("PT-061-5/AC-061-5: block_id set unchanged across a live resize + section-assign cycle");
+    assert_eq!(
+        before, after,
+        "PT-061-5/AC-061-5: the block_id SET is invariant across resize+section"
+    );
+    assert_eq!(
+        board.lock().unwrap().placements.len(),
+        2,
+        "no placement duplicated (reference, not copy)"
+    );
+    println!(
+        "PT-061-5/AC-061-5: block_id set unchanged across a live resize + section-assign cycle"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -653,7 +798,11 @@ fn canvas_section_frame_screenshot() {
     let _g = wgpu_guard();
     let mut board = seeded_board(2);
     for pid in ["p-001", "p-002"] {
-        let c = board.placements.iter_mut().find(|p| p.placement_id == pid).unwrap();
+        let c = board
+            .placements
+            .iter_mut()
+            .find(|p| p.placement_id == pid)
+            .unwrap();
         c.group_id = Some("g-alpha".to_owned());
     }
     let mut labels = BTreeMap::new();
@@ -681,7 +830,8 @@ fn canvas_section_frame_screenshot() {
             let (w, h) = (image.width(), image.height());
             assert!(w > 0 && h > 0, "rendered image must be non-empty");
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut white = 0u32;
             let mut i = 0usize;
             while i + 4 <= raw.len() {
@@ -739,6 +889,13 @@ fn section_layer_derives_one_frame_per_group_from_board() {
     board.placements[1].group_id = Some("g-a".to_owned());
     board.placements[2].group_id = Some("g-b".to_owned());
     let layer: SectionLayer = board.section_layer();
-    assert_eq!(layer.frames.len(), 2, "two distinct group_ids => two frames");
-    assert!(layer.frame("g-a").is_some() && layer.frame("g-b").is_some(), "both frames derived");
+    assert_eq!(
+        layer.frames.len(),
+        2,
+        "two distinct group_ids => two frames"
+    );
+    assert!(
+        layer.frame("g-a").is_some() && layer.frame("g-b").is_some(),
+        "both frames derived"
+    );
 }

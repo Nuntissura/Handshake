@@ -343,7 +343,7 @@ fn mt_180_lease_active_predicate_distinguishes_released_and_expired() {
 // ============================================================
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_acquire_on_fresh_thread_succeeds() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -364,7 +364,7 @@ async fn mt_180_postgres_acquire_on_fresh_thread_succeeds() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_second_acquire_returns_held_by_other() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -388,7 +388,7 @@ async fn mt_180_postgres_second_acquire_returns_held_by_other() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_acquire_after_expiry_succeeds() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -427,7 +427,7 @@ async fn mt_180_postgres_acquire_after_expiry_succeeds() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_acquire_rejects_executor_kind_not_in_allowlist() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -447,7 +447,7 @@ async fn mt_180_postgres_acquire_rejects_executor_kind_not_in_allowlist() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_acquire_rejects_terminal_thread() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -469,7 +469,7 @@ async fn mt_180_postgres_acquire_rejects_terminal_thread() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_acquire_on_missing_thread_rejects_not_found() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -485,7 +485,7 @@ async fn mt_180_postgres_acquire_on_missing_thread_rejects_not_found() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_parallel_acquire_exactly_one_winner() {
     let pool = postgres_pool().await;
     let repo = Arc::new(RoleMailboxRepository::new(pool));
@@ -537,7 +537,7 @@ async fn mt_180_postgres_parallel_acquire_exactly_one_winner() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_partial_unique_index_blocks_direct_insert() {
     // red_team.minimum_controls #1: the partial unique index must
     // prevent a second active lease at the database level, bypassing
@@ -583,14 +583,12 @@ async fn mt_180_postgres_partial_unique_index_blocks_direct_insert() {
                 db.message()
             );
         }
-        other => panic!(
-            "direct second-active INSERT must fail with database error; got {other:?}"
-        ),
+        other => panic!("direct second-active INSERT must fail with database error; got {other:?}"),
     }
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_extend_after_expiry_rejects() {
     // red_team.minimum_controls #3: extend cannot bypass expiry.
     let pool = postgres_pool().await;
@@ -606,14 +604,12 @@ async fn mt_180_postgres_extend_after_expiry_rejects() {
         .unwrap();
     // Force the lease to be expired by direct UPDATE — this is the
     // out-of-API control surface for testing time-dependent behaviour.
-    sqlx::query(
-        r#"UPDATE role_mailbox_claim_lease SET expires_at_utc = $1 WHERE lease_id = $2"#,
-    )
-    .bind(Utc::now() - chrono::Duration::seconds(60))
-    .bind(l.lease_id)
-    .execute(&pool)
-    .await
-    .expect("force expiry");
+    sqlx::query(r#"UPDATE role_mailbox_claim_lease SET expires_at_utc = $1 WHERE lease_id = $2"#)
+        .bind(Utc::now() - chrono::Duration::seconds(60))
+        .bind(l.lease_id)
+        .execute(&pool)
+        .await
+        .expect("force expiry");
 
     let res = repo.extend_lease(l.lease_id, 60).await;
     assert!(
@@ -623,7 +619,7 @@ async fn mt_180_postgres_extend_after_expiry_rejects() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_extend_extends_expiry() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -655,7 +651,7 @@ async fn mt_180_postgres_extend_extends_expiry() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_release_frees_thread_for_reacquire() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -686,7 +682,7 @@ async fn mt_180_postgres_release_frees_thread_for_reacquire() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_release_unknown_lease_rejects_not_found() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -700,7 +696,7 @@ async fn mt_180_postgres_release_unknown_lease_rejects_not_found() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_takeover_never_policy_rejects() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -725,7 +721,7 @@ async fn mt_180_postgres_takeover_never_policy_rejects() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_takeover_atomically_releases_predecessor() {
     // validator_focus: takeover policy enforced atomically with
     // predecessor release.
@@ -776,7 +772,7 @@ async fn mt_180_postgres_takeover_atomically_releases_predecessor() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_takeover_chain_queryable_via_ancestry() {
     // red_team.minimum_controls #2: the takeover audit chain must be
     // queryable. Build a 3-deep chain and assert
@@ -837,7 +833,7 @@ async fn mt_180_postgres_takeover_chain_queryable_via_ancestry() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_takeover_operator_only_rejects_non_operator() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -870,7 +866,7 @@ async fn mt_180_postgres_takeover_operator_only_rejects_non_operator() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_takeover_on_lease_expiry_rejects_unexpired_predecessor() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -903,7 +899,7 @@ async fn mt_180_postgres_takeover_on_lease_expiry_rejects_unexpired_predecessor(
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_concurrent_acquire_and_release_safe() {
     // Adversarial: alternating release+acquire from two contexts. The
     // FOR UPDATE row lock + partial unique index must keep us at all
@@ -949,10 +945,7 @@ async fn mt_180_postgres_concurrent_acquire_and_release_safe() {
     assert_eq!(wins, 1, "post-release race must yield exactly one winner");
 
     // The chain must contain both acquisitions.
-    let chain = repo
-        .list_lease_chain_for_thread(tid)
-        .await
-        .expect("chain");
+    let chain = repo.list_lease_chain_for_thread(tid).await.expect("chain");
     assert!(
         chain.len() >= 2,
         "chain must contain at least the released and the new lease (got {})",
@@ -961,7 +954,7 @@ async fn mt_180_postgres_concurrent_acquire_and_release_safe() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_get_active_lease_returns_none_when_released() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -985,7 +978,7 @@ async fn mt_180_postgres_get_active_lease_returns_none_when_released() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_180_postgres_repo_lease_methods_round_trip_via_repo_only() {
     // Cross-check that the repo-only path can complete the full
     // acquire / extend / release / takeover cycle and the underlying
@@ -1048,7 +1041,10 @@ fn sample_open_thread_with_allowlist(
     allowlist: Vec<ExecutorKind>,
 ) -> RoleMailboxThread {
     RoleMailboxThread::open(
-        format!("mt-180-test-{}", Utc::now().timestamp_nanos_opt().unwrap_or(0)),
+        format!(
+            "mt-180-test-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        ),
         LinkedRecordKind::Wp,
         Some("WP-KERNEL-004".to_string()),
         allowlist,
@@ -1068,8 +1064,9 @@ fn sample_lease_request(kind: ExecutorKind) -> LeaseRequest {
 }
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL for role_mailbox_lease_tests");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }
 

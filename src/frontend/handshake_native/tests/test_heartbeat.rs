@@ -97,10 +97,11 @@ fn heartbeat_advances_by_n_over_n_frames() {
         Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
 
     // Optional cross-process arm: read the live ring IF this test owns the global writer this run.
-    let ring = harness
-        .state()
-        .diag_session()
-        .and_then(|s| DiagRingReader::open(&s.ring_path).ok().map(|r| (s.ring_path.clone(), r)));
+    let ring = harness.state().diag_session().and_then(|s| {
+        DiagRingReader::open(&s.ring_path)
+            .ok()
+            .map(|r| (s.ring_path.clone(), r))
+    });
 
     let counter_before = harness.state().frame_counter();
     assert!(
@@ -156,7 +157,9 @@ fn heartbeat_advances_by_n_over_n_frames() {
     );
 
     if let Some((ring_path, reader)) = ring {
-        let hb_after = reader.read_heartbeat().expect("a consistent final live-ring heartbeat read");
+        let hb_after = reader
+            .read_heartbeat()
+            .expect("a consistent final live-ring heartbeat read");
         let hb_base = hb_before.expect("baseline heartbeat was read when the ring exists");
         assert_eq!(
             hb_after.counter - hb_base.counter,
@@ -212,7 +215,11 @@ fn heartbeat_publishes_to_ring_cross_process() {
             "the separate ring reader sees the exact published heartbeat counter (#{counter})"
         );
         if let Some(pc) = last_counter {
-            assert_eq!(hb.counter, pc + 1, "the cross-process counter advances by exactly 1 per write");
+            assert_eq!(
+                hb.counter,
+                pc + 1,
+                "the cross-process counter advances by exactly 1 per write"
+            );
         }
         // AC-004-2: the timestamp is monotonic — strictly non-decreasing, never backward.
         if let Some(pt) = last_ts {
@@ -227,8 +234,13 @@ fn heartbeat_publishes_to_ring_cross_process() {
     }
 
     // Over the whole run the counter advanced by exactly N and the monotonic clock strictly advanced.
-    let final_hb = reader.read_heartbeat().expect("final consistent heartbeat read");
-    assert_eq!(final_hb.counter, n, "cross-process counter advanced by exactly N over N publishes");
+    let final_hb = reader
+        .read_heartbeat()
+        .expect("final consistent heartbeat read");
+    assert_eq!(
+        final_hb.counter, n,
+        "cross-process counter advanced by exactly N over N publishes"
+    );
     assert!(
         final_hb.timestamp_nanos >= last_ts.unwrap(),
         "final monotonic timestamp did not go backward"
@@ -423,7 +435,9 @@ fn heartbeat_write_is_wait_free_and_alloc_free() {
     let bump_pos = update_fn
         .find("self.bump_heartbeat()")
         .expect("update() calls self.bump_heartbeat()");
-    let ui_pos = update_fn.find("self.ui(ctx)").expect("update() calls self.ui(ctx)");
+    let ui_pos = update_fn
+        .find("self.ui(ctx)")
+        .expect("update() calls self.ui(ctx)");
     assert!(
         bump_pos < ui_pos,
         "the heartbeat bump must run at the TOP of update(), BEFORE self.ui(ctx), so a freeze inside \
@@ -471,7 +485,11 @@ fn heartbeat_no_op_without_writer() {
          buffer stayed empty (got {} events)",
         snap.len()
     );
-    assert_eq!(recorder.dropped_count(), 0, "no records, so nothing dropped");
+    assert_eq!(
+        recorder.dropped_count(),
+        0,
+        "no records, so nothing dropped"
+    );
 
     // The free-function global path must also be a no-op (no panic) when called with no writer in this
     // binary's global. (This deliberately initializes the global writer-less; it runs LAST relative to

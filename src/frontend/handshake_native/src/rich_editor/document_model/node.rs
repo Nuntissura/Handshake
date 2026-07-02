@@ -317,7 +317,11 @@ pub struct HsLinkNode {
 
 impl HsLinkNode {
     /// Build an hsLink node, defaulting `resolved` to `true` (the React node default).
-    pub fn new(ref_kind: impl Into<String>, ref_value: impl Into<String>, label: impl Into<String>) -> Self {
+    pub fn new(
+        ref_kind: impl Into<String>,
+        ref_value: impl Into<String>,
+        label: impl Into<String>,
+    ) -> Self {
         Self {
             ref_kind: ref_kind.into(),
             ref_value: ref_value.into(),
@@ -350,7 +354,9 @@ pub struct TransclusionNode {
 impl TransclusionNode {
     /// Build a transclusion atom referencing the LoomBlock `ref_value`.
     pub fn new(ref_value: impl Into<String>) -> Self {
-        Self { ref_value: ref_value.into() }
+        Self {
+            ref_value: ref_value.into(),
+        }
     }
 }
 
@@ -474,7 +480,10 @@ impl BlockNode {
 
     /// A `doc` root wrapping `blocks`.
     pub fn doc(blocks: Vec<BlockNode>) -> Self {
-        Self::with_children(NodeKind::Doc, blocks.into_iter().map(Child::Block).collect())
+        Self::with_children(
+            NodeKind::Doc,
+            blocks.into_iter().map(Child::Block).collect(),
+        )
     }
 
     /// A `paragraph` holding a single text leaf with the given text and no marks.

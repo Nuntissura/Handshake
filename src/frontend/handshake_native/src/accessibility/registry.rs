@@ -32,19 +32,8 @@ use crate::command_palette::{
     PALETTE_DIALOG_AUTHOR_ID, PALETTE_DIALOG_NODE_ID, PALETTE_LIST_AUTHOR_ID, PALETTE_LIST_NODE_ID,
     PALETTE_SEARCH_AUTHOR_ID, PALETTE_SEARCH_NODE_ID,
 };
-use crate::quick_switcher::{
-    SWITCHER_DIALOG_AUTHOR_ID, SWITCHER_DIALOG_NODE_ID, SWITCHER_LIST_AUTHOR_ID,
-    SWITCHER_LIST_NODE_ID, SWITCHER_SEARCH_AUTHOR_ID, SWITCHER_SEARCH_NODE_ID,
-};
-use crate::settings_dialog::{
-    SETTINGS_DIALOG_AUTHOR_ID, SETTINGS_DIALOG_NODE_ID, SETTINGS_LIST_AUTHOR_ID,
-    SETTINGS_LIST_NODE_ID, SETTINGS_SEARCH_AUTHOR_ID, SETTINGS_SEARCH_NODE_ID,
-};
 use crate::fems::memory_proposal::{FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_DIALOG_NODE_ID};
 use crate::left_rail::LEFT_RAIL_BUTTONS;
-use crate::split_layout::{
-    DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
-};
 use crate::module_switcher::{MODULE_DEFINITIONS, MODULE_NODE_ID_BASE};
 use crate::pane_header::{PANE_LOCK_SLOTS, PANE_TITLE_SLOTS};
 use crate::popout_window::MERGE_BACK_SLOTS;
@@ -53,15 +42,26 @@ use crate::project_tree::{
     BOOKMARKS_AUTHOR_ID, BOOKMARKS_NODE_ID, PROJECT_TREE_AUTHOR_ID, PROJECT_TREE_NODE_ID,
 };
 use crate::quick_links::{QUICK_LINKS_AUTHOR_ID, QUICK_LINKS_NODE_ID};
+use crate::quick_switcher::{
+    SWITCHER_DIALOG_AUTHOR_ID, SWITCHER_DIALOG_NODE_ID, SWITCHER_LIST_AUTHOR_ID,
+    SWITCHER_LIST_NODE_ID, SWITCHER_SEARCH_AUTHOR_ID, SWITCHER_SEARCH_NODE_ID,
+};
 use crate::rails::SCROLLBAR_V_NODE_IDS;
 use crate::search_rail::{
     RAIL_CLEAR_AUTHOR_ID, RAIL_CLEAR_NODE_ID, RAIL_INPUT_AUTHOR_ID, RAIL_INPUT_NODE_ID,
     RAIL_LOOM_AUTHOR_ID, RAIL_LOOM_NODE_ID,
 };
+use crate::settings_dialog::{
+    SETTINGS_DIALOG_AUTHOR_ID, SETTINGS_DIALOG_NODE_ID, SETTINGS_LIST_AUTHOR_ID,
+    SETTINGS_LIST_NODE_ID, SETTINGS_SEARCH_AUTHOR_ID, SETTINGS_SEARCH_NODE_ID,
+};
+use crate::split_layout::{
+    DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
+};
 use crate::stash_shelf::{
     DRAWER_AFFORDANCE_AUTHOR_ID, DRAWER_AFFORDANCE_NODE_ID, DRAWER_CARD_AUTHOR_IDS,
-    DRAWER_CARD_NODE_IDS, DRAWER_OVERFLOW_AUTHOR_IDS, DRAWER_OVERFLOW_NODE_IDS, DRAWER_RESIZE_AUTHOR_ID,
-    DRAWER_RESIZE_NODE_ID, DRAWER_SHELF_AUTHOR_ID, DRAWER_SHELF_NODE_ID,
+    DRAWER_CARD_NODE_IDS, DRAWER_OVERFLOW_AUTHOR_IDS, DRAWER_OVERFLOW_NODE_IDS,
+    DRAWER_RESIZE_AUTHOR_ID, DRAWER_RESIZE_NODE_ID, DRAWER_SHELF_AUTHOR_ID, DRAWER_SHELF_NODE_ID,
 };
 use crate::tab_bar::TABBAR_SLOTS;
 use crate::top_menu_bar::{MENU_BAR_NODE_ID_BASE, MENU_DEFINITIONS};
@@ -687,7 +687,10 @@ mod tests {
         update.nodes.push((accesskit::NodeId(2), btn));
 
         let unnamed = std::panic::catch_unwind(|| assert_no_unnamed_interactive(&update));
-        assert!(unnamed.is_err(), "gate must panic on an unnamed clickable node");
+        assert!(
+            unnamed.is_err(),
+            "gate must panic on an unnamed clickable node"
+        );
 
         // Same node, now named -> passes, and reports 1 interactive node inspected.
         let mut named_update = accesskit::TreeUpdate {
@@ -713,12 +716,14 @@ mod tests {
         };
         // A label with no actions and a group container -- neither carries an author_id, and neither
         // should trip the gate.
-        update
-            .nodes
-            .push((accesskit::NodeId(2), accesskit::Node::new(accesskit::Role::Label)));
-        update
-            .nodes
-            .push((accesskit::NodeId(3), accesskit::Node::new(accesskit::Role::Group)));
+        update.nodes.push((
+            accesskit::NodeId(2),
+            accesskit::Node::new(accesskit::Role::Label),
+        ));
+        update.nodes.push((
+            accesskit::NodeId(3),
+            accesskit::Node::new(accesskit::Role::Group),
+        ));
         let count = assert_no_unnamed_interactive(&update);
         assert_eq!(count, 0, "no interactive nodes present");
     }

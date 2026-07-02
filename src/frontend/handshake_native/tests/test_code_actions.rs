@@ -205,9 +205,15 @@ fn code_action_apply_replaces_token_via_mt048_apply_path() {
         .apply_selected(&mut buffer, &mut cursors, "file:///mock.rs", 1)
         .expect("AC-002: the edit-bearing action applies");
     match applied {
-        AppliedAction::Edit { in_file_edits, cross_file } => {
+        AppliedAction::Edit {
+            in_file_edits,
+            cross_file,
+        } => {
             assert_eq!(in_file_edits, 1, "AC-002: one in-file edit applied");
-            assert!(cross_file.files.is_empty(), "AC-002: no cross-file edits in this fix");
+            assert!(
+                cross_file.files.is_empty(),
+                "AC-002: no cross-file edits in this fix"
+            );
         }
         other => panic!("AC-002: expected an Edit apply, got {other:?}"),
     }
@@ -216,8 +222,13 @@ fn code_action_apply_replaces_token_via_mt048_apply_path() {
         "let bar = 1;",
         "AC-002: the buffer reflects the WorkspaceEdit replacement (foo -> bar), applied via MT-048"
     );
-    assert!(!controller.is_menu_open(), "AC-002: the menu closes after apply");
-    println!("PT-002 code_action_apply: 'let foo = 1;' -> 'let bar = 1;' via the MT-048 apply path");
+    assert!(
+        !controller.is_menu_open(),
+        "AC-002: the menu closes after apply"
+    );
+    println!(
+        "PT-002 code_action_apply: 'let foo = 1;' -> 'let bar = 1;' via the MT-048 apply path"
+    );
 }
 
 // ── PT-003 / AC-003: the gutter lightbulb renders on the diagnostic line that has actions ──────────────
@@ -241,8 +252,14 @@ fn code_action_lightbulb_on_diagnostic_screenshot() {
         is_preferred: true,
     };
     panel.set_quickfix_actions(0, vec![action], false);
-    assert!(panel.has_quickfix_on_line(0), "AC-003: line 0 (the diagnostic line) has an action");
-    assert!(!panel.has_quickfix_on_line(1), "AC-003: line 1 (no diagnostic) has NO action / no bulb");
+    assert!(
+        panel.has_quickfix_on_line(0),
+        "AC-003: line 0 (the diagnostic line) has an action"
+    );
+    assert!(
+        !panel.has_quickfix_on_line(1),
+        "AC-003: line 1 (no diagnostic) has NO action / no bulb"
+    );
 
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
@@ -265,7 +282,12 @@ fn code_action_lightbulb_on_diagnostic_screenshot() {
             let mut amber = 0usize;
             let mut i = 0usize;
             while i + 4 <= raw.len() {
-                let (r, g, b, a) = (raw[i] as i32, raw[i + 1] as i32, raw[i + 2] as i32, raw[i + 3]);
+                let (r, g, b, a) = (
+                    raw[i] as i32,
+                    raw[i + 1] as i32,
+                    raw[i + 2] as i32,
+                    raw[i + 3],
+                );
                 if a != 0 && r > 150 && g > 110 && b < r - 40 && b < g {
                     amber += 1;
                 }
@@ -324,7 +346,10 @@ fn code_action_menu_accesskit_tree() {
     ];
     // Open the menu directly (the deterministic path; a live trigger delivers the same state off-thread).
     panel.set_quickfix_actions(0, actions, /* open_menu */ true);
-    assert!(panel.is_quickfix_menu_open(), "AC-004: the quick-fix menu is open");
+    assert!(
+        panel.is_quickfix_menu_open(),
+        "AC-004: the quick-fix menu is open"
+    );
 
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
@@ -401,7 +426,10 @@ fn code_action_ctrl_period_and_degrade() {
     };
     // The deterministic open-menu path proves the menu surfaces the actions + is selectable.
     panel.set_quickfix_actions(0, vec![action], true);
-    assert!(panel.is_quickfix_menu_open(), "AC-005: the menu is open with actions");
+    assert!(
+        panel.is_quickfix_menu_open(),
+        "AC-005: the menu is open with actions"
+    );
     assert_eq!(
         panel.quickfix_action_titles(),
         vec!["Replace foo with bar".to_owned()],
@@ -477,16 +505,24 @@ fn code_action_context_menu_routes_to_shared_controller() {
         serde_json::from_value(two_quickfix_response_result()).expect("parse");
     let items = normalize_code_actions(raw);
     panel.set_quickfix_actions(0, items, true);
-    assert!(panel.is_quickfix_menu_open(), "AC-007: the shared controller menu is open");
+    assert!(
+        panel.is_quickfix_menu_open(),
+        "AC-007: the shared controller menu is open"
+    );
     // Apply the selected (edit-bearing) action through the panel's single apply path.
-    let applied = panel.apply_quickfix().expect("AC-007: the shared apply path applies the edit");
+    let applied = panel
+        .apply_quickfix()
+        .expect("AC-007: the shared apply path applies the edit");
     matches!(applied, AppliedAction::Edit { .. });
     assert_eq!(
         panel.buffer().to_string(),
         "let bar = 1;",
         "AC-007: the single shared apply path applies the WorkspaceEdit once (no duplicate logic)"
     );
-    assert!(!panel.is_quickfix_menu_open(), "AC-007: the menu closes after the shared apply");
+    assert!(
+        !panel.is_quickfix_menu_open(),
+        "AC-007: the menu closes after the shared apply"
+    );
     println!("PT (AC-007) code_action_context_menu_routes: ctx-menu node present; shared apply path applies once");
 }
 
@@ -515,7 +551,10 @@ fn code_action_cross_file_disk_write_failure_is_surfaced() {
             .map(|d| d.as_nanos())
             .unwrap_or(0)
     ));
-    assert!(!missing.exists(), "the cross-file target must not exist on disk for this proof");
+    assert!(
+        !missing.exists(),
+        "the cross-file target must not exist on disk for this proof"
+    );
     let missing_uri = lsp_types::Url::from_file_path(&missing)
         .map(|u| u.to_string())
         .unwrap_or_else(|_| format!("file:///{}", missing.display()));
@@ -526,8 +565,14 @@ fn code_action_cross_file_disk_write_failure_is_surfaced() {
         lsp_types::Url::parse("file:///mock.rs").unwrap(),
         vec![lsp_types::TextEdit {
             range: lsp_types::Range {
-                start: lsp_types::Position { line: 0, character: 4 },
-                end: lsp_types::Position { line: 0, character: 7 },
+                start: lsp_types::Position {
+                    line: 0,
+                    character: 4,
+                },
+                end: lsp_types::Position {
+                    line: 0,
+                    character: 7,
+                },
             },
             new_text: "bar".into(),
         }],
@@ -536,8 +581,14 @@ fn code_action_cross_file_disk_write_failure_is_surfaced() {
         lsp_types::Url::parse(&missing_uri).unwrap(),
         vec![lsp_types::TextEdit {
             range: lsp_types::Range {
-                start: lsp_types::Position { line: 0, character: 0 },
-                end: lsp_types::Position { line: 0, character: 0 },
+                start: lsp_types::Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: lsp_types::Position {
+                    line: 0,
+                    character: 0,
+                },
             },
             new_text: "// added\n".into(),
         }],
@@ -557,9 +608,9 @@ fn code_action_cross_file_disk_write_failure_is_surfaced() {
     panel.set_quickfix_actions(0, vec![item], true);
 
     // Apply through the panel's single apply path. This must NOT panic even though the cross-file write fails.
-    let applied = panel
-        .apply_quickfix()
-        .expect("the apply returns an outcome (the in-file part applies; the cross-file part is surfaced)");
+    let applied = panel.apply_quickfix().expect(
+        "the apply returns an outcome (the in-file part applies; the cross-file part is surfaced)",
+    );
     assert!(
         matches!(applied, AppliedAction::Edit { .. }),
         "an edit-bearing action returns an Edit outcome"
@@ -576,14 +627,18 @@ fn code_action_cross_file_disk_write_failure_is_surfaced() {
     let cross = panel
         .last_quickfix_cross_file_result()
         .expect("MC-005: a cross-file apply recorded an outcome (never silently dropped)");
-    let err = cross.expect_err("MC-005: the failing cross-file disk write surfaces an Err, not a silent Ok");
+    let err = cross
+        .expect_err("MC-005: the failing cross-file disk write surfaces an Err, not a silent Ok");
     assert!(
         err.contains("rename apply failed"),
         "MC-005: the surfaced error names the rename apply failure (got: {err:?})"
     );
 
     // The target file was never created (the failed write left no partial artifact under temp).
-    assert!(!missing.exists(), "the missing cross-file target was not created by the failed apply");
+    assert!(
+        !missing.exists(),
+        "the missing cross-file target was not created by the failed apply"
+    );
 
     println!(
         "PT (RISK-005/MC-005) code_action_cross_file_disk_write_failure_is_surfaced: \

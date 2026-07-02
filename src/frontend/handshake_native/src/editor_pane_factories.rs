@@ -71,7 +71,10 @@ pub struct EditorSessionContext {
 impl EditorSessionContext {
     /// A bound context (the production wiring point: `workspace_id` + the app runtime handle).
     pub fn new(workspace_id: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
-        Self { workspace_id: workspace_id.into(), runtime: Some(runtime) }
+        Self {
+            workspace_id: workspace_id.into(),
+            runtime: Some(runtime),
+        }
     }
 
     /// Whether this context carries enough to thread real session state into an editor (a non-empty
@@ -192,7 +195,8 @@ impl CodeEditorPaneMount {
     pub fn wire_if_needed(&self) {
         use std::sync::atomic::Ordering;
         if !self.command_wired.swap(true, Ordering::Relaxed) {
-            self.panel.set_command_palette_sender(self.command_sender.clone());
+            self.panel
+                .set_command_palette_sender(self.command_sender.clone());
         }
         if self.wired.load(Ordering::Relaxed) {
             return;
@@ -379,7 +383,9 @@ pub type SharedPalette = Arc<Mutex<HsPalette>>;
 
 /// Read the current palette out of the shared cell (a clone, so the lock is released before render).
 fn palette_of(cell: &SharedPalette) -> HsPalette {
-    cell.lock().map(|p| p.clone()).unwrap_or_else(|p| p.into_inner().clone())
+    cell.lock()
+        .map(|p| p.clone())
+        .unwrap_or_else(|p| p.into_inner().clone())
 }
 
 /// WP-KERNEL-012 MT-080 (GROUP A / MT-026): the live CANVAS-board pane factory. Registered over
@@ -402,7 +408,11 @@ impl CanvasBoardPaneMount {
         palette: SharedPalette,
         events: Arc<Mutex<Vec<crate::graph::canvas_board::CanvasEvent>>>,
     ) -> Self {
-        Self { board, palette, events }
+        Self {
+            board,
+            palette,
+            events,
+        }
     }
 }
 
@@ -456,7 +466,11 @@ impl GraphViewPaneMount {
         palette: SharedPalette,
         events: Arc<Mutex<Vec<crate::graph::graph_view::GraphEvent>>>,
     ) -> Self {
-        Self { view, palette, events }
+        Self {
+            view,
+            palette,
+            events,
+        }
     }
 }
 
@@ -501,7 +515,11 @@ impl OutgoingLinksPaneMount {
         palette: SharedPalette,
         nav: Arc<Mutex<Vec<crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget>>>,
     ) -> Self {
-        Self { panel, palette, nav }
+        Self {
+            panel,
+            palette,
+            nav,
+        }
     }
 }
 
@@ -514,11 +532,12 @@ impl PaneFactory for OutgoingLinksPaneMount {
         let palette = palette_of(&self.palette);
         let nav = Arc::clone(&self.nav);
         if let Ok(mut panel) = self.panel.lock() {
-            let mut on_open = |target: crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget| {
-                if let Ok(mut q) = nav.lock() {
-                    q.push(target);
-                }
-            };
+            let mut on_open =
+                |target: crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget| {
+                    if let Ok(mut q) = nav.lock() {
+                        q.push(target);
+                    }
+                };
             panel.show(ui, &palette, &mut on_open);
         }
     }
@@ -541,7 +560,11 @@ impl RelevantMemoryPaneMount {
         palette: SharedPalette,
         nav: Arc<Mutex<Vec<crate::fems::relevant_memory_panel::MemoryNavTarget>>>,
     ) -> Self {
-        Self { panel, palette, nav }
+        Self {
+            panel,
+            palette,
+            nav,
+        }
     }
 }
 
@@ -583,7 +606,11 @@ impl StagePaneMount {
         palette: SharedPalette,
         embed_requested: Arc<std::sync::atomic::AtomicBool>,
     ) -> Self {
-        Self { pane, palette, embed_requested }
+        Self {
+            pane,
+            palette,
+            embed_requested,
+        }
     }
 }
 
@@ -597,7 +624,8 @@ impl PaneFactory for StagePaneMount {
         if let Ok(mut pane) = self.pane.lock() {
             let embed = pane.show_round_trip(ui, &palette);
             if embed {
-                self.embed_requested.store(true, std::sync::atomic::Ordering::Relaxed);
+                self.embed_requested
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
             }
         }
     }
@@ -619,7 +647,11 @@ impl DailyJournalPaneMount {
         palette: SharedPalette,
         events: Arc<Mutex<Vec<crate::graph::daily_journal_panel::DailyJournalEvent>>>,
     ) -> Self {
-        Self { state, palette, events }
+        Self {
+            state,
+            palette,
+            events,
+        }
     }
 }
 
@@ -658,7 +690,11 @@ impl ManualPaneMount {
         state: Arc<Mutex<crate::manual_pane::ManualPaneState>>,
         palette: SharedPalette,
     ) -> Self {
-        Self { registry, state, palette }
+        Self {
+            registry,
+            state,
+            palette,
+        }
     }
 }
 
@@ -685,18 +721,27 @@ mod tests {
     use crate::rich_editor::document_model::node::BlockNode;
 
     fn rt() -> tokio::runtime::Runtime {
-        tokio::runtime::Builder::new_current_thread().build().unwrap()
+        tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap()
     }
 
     #[test]
     fn session_context_is_bound_only_with_workspace_and_runtime() {
         let rt = rt();
         assert!(!EditorSessionContext::default().is_bound());
-        assert!(!EditorSessionContext { workspace_id: "ws".into(), runtime: None }.is_bound());
+        assert!(!EditorSessionContext {
+            workspace_id: "ws".into(),
+            runtime: None
+        }
+        .is_bound());
         assert!(EditorSessionContext::new("ws-1", rt.handle().clone()).is_bound());
         // Empty workspace + a runtime is still UNbound (a half-built context never installs wired state).
-        assert!(!EditorSessionContext { workspace_id: String::new(), runtime: Some(rt.handle().clone()) }
-            .is_bound());
+        assert!(!EditorSessionContext {
+            workspace_id: String::new(),
+            runtime: Some(rt.handle().clone())
+        }
+        .is_bound());
     }
 
     #[test]
@@ -708,15 +753,20 @@ mod tests {
         assert_eq!(mount.pane_type(), PaneType::CodeSymbol);
         // No bound session yet: wire_if_needed installs the command sender but NOT the runtime/workspace.
         mount.wire_if_needed();
-        assert!(!mount.is_wired(), "an unbound session must not mark the panel wired");
+        assert!(
+            !mount.is_wired(),
+            "an unbound session must not mark the panel wired"
+        );
     }
 
     #[test]
     fn code_mount_threads_runtime_and_workspace_when_bound() {
         let rt = rt();
         let panel = Arc::new(CodeEditorPanel::new("fn main() {}", "rs"));
-        let session: SharedSessionContext =
-            Arc::new(Mutex::new(EditorSessionContext::new("ws-42", rt.handle().clone())));
+        let session: SharedSessionContext = Arc::new(Mutex::new(EditorSessionContext::new(
+            "ws-42",
+            rt.handle().clone(),
+        )));
         let (tx, _rx) = std::sync::mpsc::channel::<CodeEditorAction>();
         let mount = CodeEditorPaneMount::new(Arc::clone(&panel), session, tx);
         mount.wire_if_needed();
@@ -731,11 +781,12 @@ mod tests {
         let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
             BlockNode::paragraph("hi"),
         ]))));
-        let session: SharedSessionContext =
-            Arc::new(Mutex::new(EditorSessionContext::new("ws-9", rt.handle().clone())));
+        let session: SharedSessionContext = Arc::new(Mutex::new(EditorSessionContext::new(
+            "ws-9",
+            rt.handle().clone(),
+        )));
         let events = RichPaneEvents::new();
-        let mount =
-            RichEditorPaneMount::new(Arc::clone(&state), session, events.clone(), "DOC-1");
+        let mount = RichEditorPaneMount::new(Arc::clone(&state), session, events.clone(), "DOC-1");
         assert_eq!(mount.pane_type(), PaneType::LoomWikiPage);
         mount.wire_if_needed();
         assert!(mount.is_wired());
@@ -743,15 +794,29 @@ mod tests {
         assert_eq!(state.lock().unwrap().wikilinks.workspace_id, "ws-9");
 
         // Enqueue an event the way the editor would, then drain: it reaches the shared outbound queue.
-        state.lock().unwrap().pending_events.push(EditorEvent::WikilinkActivated {
-            ref_kind: "note".into(),
-            ref_value: "DOC-2".into(),
-            resolved: true,
-        });
+        state
+            .lock()
+            .unwrap()
+            .pending_events
+            .push(EditorEvent::WikilinkActivated {
+                ref_kind: "note".into(),
+                ref_value: "DOC-2".into(),
+                resolved: true,
+            });
         mount.drain_events();
-        assert!(state.lock().unwrap().pending_events.is_empty(), "drained from the editor state");
+        assert!(
+            state.lock().unwrap().pending_events.is_empty(),
+            "drained from the editor state"
+        );
         let routed = events.take();
-        assert_eq!(routed.len(), 1, "the event reached the shell's outbound queue");
-        assert!(events.is_empty(), "take() leaves the queue empty (routed exactly once)");
+        assert_eq!(
+            routed.len(),
+            1,
+            "the event reached the shell's outbound queue"
+        );
+        assert!(
+            events.is_empty(),
+            "take() leaves the queue empty (routed exactly once)"
+        );
     }
 }

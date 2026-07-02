@@ -74,7 +74,10 @@ pub fn scoped_author_id(base: &str, instance: &str) -> String {
 
 /// The author_id for the `i`-th menu item (`code_editor_quickfix_item_{i}`), pane-scoped.
 pub fn quickfix_item_author_id(index: usize, instance: &str) -> String {
-    scoped_author_id(&format!("{CODE_EDITOR_QUICKFIX_ITEM_AUTHOR_PREFIX}{index}"), instance)
+    scoped_author_id(
+        &format!("{CODE_EDITOR_QUICKFIX_ITEM_AUTHOR_PREFIX}{index}"),
+        instance,
+    )
 }
 
 /// The author_id for the gutter lightbulb on `line` (`code_editor_quickfix_lightbulb_{line}`),
@@ -111,7 +114,10 @@ impl std::fmt::Display for CodeActionError {
                 write!(f, "the buffer changed since the code action was requested")
             }
             CodeActionError::BadRange => {
-                write!(f, "a code action edit range did not resolve to a valid buffer range")
+                write!(
+                    f,
+                    "a code action edit range did not resolve to a valid buffer range"
+                )
             }
         }
     }
@@ -134,9 +140,7 @@ pub enum AppliedAction {
     /// The action carried only a `command` (no edit). The caller must route it through
     /// `workspace/executeCommand`; the `command`/`arguments` are carried here. If the server cannot
     /// execute commands the caller no-ops gracefully (RISK-003 — never silently dropped).
-    Command {
-        command: LspCommand,
-    },
+    Command { command: LspCommand },
     /// The action carried neither an edit nor a command (a disabled/empty action): a graceful no-op.
     NoOp,
 }
@@ -219,7 +223,9 @@ impl LspCommand {
 /// Normalize a whole `textDocument/codeAction` response array into [`CodeActionItem`]s, preserving order
 /// (the server orders preferred/relevant fixes first) (AC-001 / RISK-003). Both wire shapes are handled
 /// by [`CodeActionItem::from_lsp`]; neither is dropped.
-pub fn normalize_code_actions(response: Vec<lsp_types::CodeActionOrCommand>) -> Vec<CodeActionItem> {
+pub fn normalize_code_actions(
+    response: Vec<lsp_types::CodeActionOrCommand>,
+) -> Vec<CodeActionItem> {
     response.into_iter().map(CodeActionItem::from_lsp).collect()
 }
 
@@ -364,7 +370,10 @@ impl CodeActionController {
 
     /// Whether a code-action request is currently in flight (the debounce guard reads it).
     pub fn request_in_flight(&self) -> bool {
-        self.state.as_ref().map(|s| s.request_in_flight).unwrap_or(false)
+        self.state
+            .as_ref()
+            .map(|s| s.request_in_flight)
+            .unwrap_or(false)
     }
 
     /// The line a request is in flight / actions are loaded for, or `None` when idle.
@@ -385,7 +394,12 @@ impl CodeActionController {
         }
         match latest {
             Some(result) => {
-                self.set_actions(result.line, result.buffer_version, result.actions, result.open_menu);
+                self.set_actions(
+                    result.line,
+                    result.buffer_version,
+                    result.actions,
+                    result.open_menu,
+                );
                 true
             }
             None => false,
@@ -455,7 +469,10 @@ impl CodeActionController {
 
     /// The currently-selected action title, or `None`.
     pub fn selected_title(&self) -> Option<String> {
-        self.state.as_ref().and_then(|s| s.selected()).map(|a| a.title.clone())
+        self.state
+            .as_ref()
+            .and_then(|s| s.selected())
+            .map(|a| a.title.clone())
     }
 
     /// Apply the SELECTED action to `buffer` + reconcile `cursors`, REUSING the MT-048 apply path
@@ -484,7 +501,10 @@ impl CodeActionController {
         if state.buffer_version != live_buffer_version {
             return Err(CodeActionError::StaleBuffer);
         }
-        let action = state.selected().ok_or(CodeActionError::NoSuchAction)?.clone();
+        let action = state
+            .selected()
+            .ok_or(CodeActionError::NoSuchAction)?
+            .clone();
 
         // An action with a WorkspaceEdit: split it into THIS file's edits (applied here via MT-048) and
         // any cross-file edits (returned for the caller's multi-file apply — RISK-005 / MC-005).
@@ -679,7 +699,9 @@ pub fn draw_lightbulb(
     let glyph_size = 13.0;
     // A small click target centered on the glyph.
     let rect = egui::Rect::from_center_size(pos, egui::vec2(glyph_size + 2.0, glyph_size + 2.0));
-    let id = ui.id().with(("code-editor-quickfix-lightbulb", instance, line));
+    let id = ui
+        .id()
+        .with(("code-editor-quickfix-lightbulb", instance, line));
     let response = ui.interact(rect, id, egui::Sense::click());
     ui.painter().text(
         pos,
@@ -711,7 +733,10 @@ fn quickfix_menu_node_id(instance: &str) -> egui::Id {
         // band's 710..715); never reused, so it cannot self-collide.
         unsafe { egui::Id::from_high_entropy_bits(QUICKFIX_MENU_NODE_ID) }
     } else {
-        egui::Id::new(scoped_author_id(CODE_EDITOR_QUICKFIX_MENU_AUTHOR_ID, instance))
+        egui::Id::new(scoped_author_id(
+            CODE_EDITOR_QUICKFIX_MENU_AUTHOR_ID,
+            instance,
+        ))
     }
 }
 
@@ -763,7 +788,10 @@ mod tests {
         // The bare Command -> command-only item.
         assert_eq!(items[0].title, "Organize Imports");
         assert!(items[0].edit.is_none(), "a bare Command has no edit");
-        assert_eq!(items[0].command.as_ref().unwrap().command, "editor.organizeImports");
+        assert_eq!(
+            items[0].command.as_ref().unwrap().command,
+            "editor.organizeImports"
+        );
         assert_eq!(items[0].command.as_ref().unwrap().arguments.len(), 1);
         // The full CodeAction -> kind + is_preferred preserved.
         assert_eq!(items[1].title, "Add missing semicolon");
@@ -786,12 +814,18 @@ mod tests {
             is_preferred: false,
         };
         c.set_actions(4, 1, vec![item], false);
-        assert!(c.has_actions_on_line(4), "the requested line with an action lights up");
+        assert!(
+            c.has_actions_on_line(4),
+            "the requested line with an action lights up"
+        );
         assert!(!c.has_actions_on_line(3), "a different line does not");
         assert!(!c.has_actions_on_line(5), "a different line does not");
         // An empty list on line 7 -> no lightbulb (AC-006 degradation shape).
         c.set_actions(7, 2, Vec::new(), false);
-        assert!(!c.has_actions_on_line(7), "an empty action list draws no lightbulb");
+        assert!(
+            !c.has_actions_on_line(7),
+            "an empty action list draws no lightbulb"
+        );
     }
 
     /// `apply_selected` REJECTS a stale buffer (RISK-007 / MC-007) instead of applying stale ranges.
@@ -814,7 +848,11 @@ mod tests {
             .apply_selected(&mut buffer, &mut cursors, "file:///x.rs", 7)
             .expect_err("a stale buffer must be rejected");
         assert_eq!(err, CodeActionError::StaleBuffer);
-        assert_eq!(buffer.to_string(), "let foo = 1;", "the buffer is untouched on a stale reject");
+        assert_eq!(
+            buffer.to_string(),
+            "let foo = 1;",
+            "the buffer is untouched on a stale reject"
+        );
     }
 
     /// `apply_selected` applies an in-file WorkspaceEdit via the MT-048 apply path (AC-002).
@@ -837,13 +875,20 @@ mod tests {
             .apply_selected(&mut buffer, &mut cursors, "file:///x.rs", 3)
             .expect("the in-file edit applies");
         match applied {
-            AppliedAction::Edit { in_file_edits, cross_file } => {
+            AppliedAction::Edit {
+                in_file_edits,
+                cross_file,
+            } => {
                 assert_eq!(in_file_edits, 1);
                 assert!(cross_file.files.is_empty(), "no cross-file edits");
             }
             other => panic!("expected an Edit apply, got {other:?}"),
         }
-        assert_eq!(buffer.to_string(), "let bar = 1;", "AC-002: the buffer reflects the replacement");
+        assert_eq!(
+            buffer.to_string(),
+            "let bar = 1;",
+            "AC-002: the buffer reflects the replacement"
+        );
         assert!(!c.is_menu_open(), "the menu closes after apply");
     }
 
@@ -916,15 +961,26 @@ mod tests {
             .apply_selected(&mut buffer, &mut cursors, "file:///x.rs", 1)
             .expect("the cross-file edit applies in-file + carries the rest forward");
         match applied {
-            AppliedAction::Edit { in_file_edits, cross_file } => {
+            AppliedAction::Edit {
+                in_file_edits,
+                cross_file,
+            } => {
                 assert_eq!(in_file_edits, 1, "the active file's edit applied here");
-                assert_eq!(cross_file.files.len(), 1, "the other file is carried forward, not dropped");
+                assert_eq!(
+                    cross_file.files.len(),
+                    1,
+                    "the other file is carried forward, not dropped"
+                );
                 assert_eq!(cross_file.files[0].uri, "file:///y.rs");
                 assert_eq!(cross_file.files[0].edits.len(), 1);
             }
             other => panic!("expected an Edit apply, got {other:?}"),
         }
-        assert_eq!(buffer.to_string(), "let bar = 1;", "the active file is renamed in place");
+        assert_eq!(
+            buffer.to_string(),
+            "let bar = 1;",
+            "the active file is renamed in place"
+        );
     }
 
     /// The selection wraps with Up/Down and the menu opens/closes.
@@ -950,14 +1006,23 @@ mod tests {
         assert_eq!(c.selected_title().as_deref(), Some("Fix 2"));
         c.close_menu();
         assert!(!c.is_menu_open(), "close_menu closes the popup");
-        assert!(c.has_actions_on_line(2), "the lightbulb stays lit after the menu closes");
+        assert!(
+            c.has_actions_on_line(2),
+            "the lightbulb stays lit after the menu closes"
+        );
     }
 
     /// Author-id helpers are pane-scoped (RISK-004 / MC-004): two instances do not collide.
     #[test]
     fn author_ids_are_pane_scoped() {
-        assert_eq!(quickfix_item_author_id(2, ""), "code_editor_quickfix_item_2");
-        assert_eq!(quickfix_item_author_id(2, "right"), "code_editor_quickfix_item_2#right");
+        assert_eq!(
+            quickfix_item_author_id(2, ""),
+            "code_editor_quickfix_item_2"
+        );
+        assert_eq!(
+            quickfix_item_author_id(2, "right"),
+            "code_editor_quickfix_item_2#right"
+        );
         assert_eq!(
             quickfix_lightbulb_author_id(5, "left"),
             "code_editor_quickfix_lightbulb_5#left"
@@ -972,8 +1037,14 @@ mod tests {
 
     fn lsp_range(sl: u32, sc: u32, el: u32, ec: u32) -> lsp_types::Range {
         lsp_types::Range {
-            start: lsp_types::Position { line: sl, character: sc },
-            end: lsp_types::Position { line: el, character: ec },
+            start: lsp_types::Position {
+                line: sl,
+                character: sc,
+            },
+            end: lsp_types::Position {
+                line: el,
+                character: ec,
+            },
         }
     }
 
@@ -988,7 +1059,10 @@ mod tests {
         let mut changes = std::collections::HashMap::new();
         changes.insert(
             lsp_types::Url::parse(uri).unwrap(),
-            vec![lsp_types::TextEdit { range: lsp_range(sl, sc, el, ec), new_text: new_text.into() }],
+            vec![lsp_types::TextEdit {
+                range: lsp_range(sl, sc, el, ec),
+                new_text: new_text.into(),
+            }],
         );
         lsp_types::WorkspaceEdit {
             changes: Some(changes),

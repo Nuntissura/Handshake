@@ -203,11 +203,17 @@ fn parity_multi_cursor_insert() {
         .collect();
 
     let mut cursors = CursorSet::new();
-    cursors.set_cursors(line_starts.iter().map(|b| Cursor::caret(*b)).collect(), &buffer);
+    cursors.set_cursors(
+        line_starts.iter().map(|b| Cursor::caret(*b)).collect(),
+        &buffer,
+    );
     assert_eq!(cursors.len(), 5, "E1-03: 5 simultaneous cursors set");
 
     let applied = cursors.insert_at_all("// ", &mut buffer);
-    assert_eq!(applied, 5, "E1-03: insert applied at all 5 cursor positions");
+    assert_eq!(
+        applied, 5,
+        "E1-03: insert applied at all 5 cursor positions"
+    );
 
     let expected = "// aaa\n// bbb\n// ccc\n// ddd\n// eee\n";
     assert_eq!(
@@ -231,13 +237,24 @@ fn parity_find_replace() {
 
     let query = FindQuery::literal("foo");
     let matches = FindEngine::search(&query, &buffer);
-    assert_eq!(matches.len(), 500, "E1-04: search must collect 500 match spans (got {})", matches.len());
+    assert_eq!(
+        matches.len(),
+        500,
+        "E1-04: search must collect 500 match spans (got {})",
+        matches.len()
+    );
 
     let replaced = FindEngine::replace_all(&mut buffer, &matches, "bar");
-    assert_eq!(replaced, 500, "E1-04: replace-all must rewrite all 500 matches");
+    assert_eq!(
+        replaced, 500,
+        "E1-04: replace-all must rewrite all 500 matches"
+    );
 
     let final_text = buffer.to_string();
-    assert!(!final_text.contains("foo"), "E1-04: no 'foo' remains after replace-all");
+    assert!(
+        !final_text.contains("foo"),
+        "E1-04: no 'foo' remains after replace-all"
+    );
     assert_eq!(
         final_text.matches("bar").count(),
         500,
@@ -261,7 +278,9 @@ fn parity_code_folding() {
         .highlighter_for_extension("rs")
         .expect("E1-05: rust highlighter");
     let _ = hl.highlight(src.as_bytes());
-    let tree = hl.tree().expect("E1-05: a parse tree is available for fold computation");
+    let tree = hl
+        .tree()
+        .expect("E1-05: a parse tree is available for fold computation");
 
     let fold_buffer = TextBuffer::new(src);
     let provider = FoldProvider::new();
@@ -274,11 +293,17 @@ fn parity_code_folding() {
     // Fold the first region (the outer fn). Hidden-line count must equal that region's collapsed lines.
     let first = regions[0].clone();
     let expected_hidden = first.collapsed_line_count();
-    assert!(expected_hidden >= 1, "E1-05: the folded fn must hide >= 1 line (got {expected_hidden})");
+    assert!(
+        expected_hidden >= 1,
+        "E1-05: the folded fn must hide >= 1 line (got {expected_hidden})"
+    );
 
     let mut fold_set = FoldSet::from_regions(regions);
     let toggled_on = fold_set.toggle(first.start_line);
-    assert!(toggled_on, "E1-05: toggling the region collapses it (returns true)");
+    assert!(
+        toggled_on,
+        "E1-05: toggling the region collapses it (returns true)"
+    );
     assert_eq!(
         fold_set.hidden_line_count(),
         expected_hidden,
@@ -322,7 +347,10 @@ fn parity_minimap_glyph_count() {
     );
     // Round-trip: the line for the last row resolves back inside the buffer (no out-of-bounds).
     let line_for_last = Minimap::line_for_row(last_row, ratio);
-    assert!(line_for_last < total_lines, "E1-06: line for the last minimap row is in-bounds");
+    assert!(
+        line_for_last < total_lines,
+        "E1-06: line for the last minimap row is in-bounds"
+    );
 
     println!(
         "E1-06 PASS: minimap {row_count} rows track {total_lines} buffer lines (ratio {ratio})"
@@ -388,19 +416,33 @@ fn parity_gutter_diagnostics() {
     // marker sits on the requested line with the requested severity.
     let panel = CodeEditorPanel::new("fn main() {\n    let x: u8 = 256;\n}\n", "rs");
     let diag_line = 1usize; // the overflow line (0-based)
-    let marker = GutterMarker::diagnostic(diag_line, DiagnosticSeverity::Error, "literal out of range");
+    let marker =
+        GutterMarker::diagnostic(diag_line, DiagnosticSeverity::Error, "literal out of range");
     panel.push_diagnostics(vec![marker.clone()]);
 
     let markers = panel.diagnostic_markers();
-    assert_eq!(markers.len(), 1, "E1-08: exactly one diagnostic marker is stored");
+    assert_eq!(
+        markers.len(),
+        1,
+        "E1-08: exactly one diagnostic marker is stored"
+    );
     let m = &markers[0];
-    assert_eq!(m.line, diag_line, "E1-08: the diagnostic sits on the injected line {diag_line}");
+    assert_eq!(
+        m.line, diag_line,
+        "E1-08: the diagnostic sits on the injected line {diag_line}"
+    );
     assert!(
-        matches!(m.kind, GutterMarkerKind::Diagnostic(DiagnosticSeverity::Error)),
+        matches!(
+            m.kind,
+            GutterMarkerKind::Diagnostic(DiagnosticSeverity::Error)
+        ),
         "E1-08: the marker is an Error diagnostic (got {:?})",
         m.kind
     );
-    assert_eq!(m.message, "literal out of range", "E1-08: the diagnostic message round-trips");
+    assert_eq!(
+        m.message, "literal out of range",
+        "E1-08: the diagnostic message round-trips"
+    );
 
     println!(
         "E1-08 PASS: gutter diagnostic injected on line {diag_line} (severity Error) and read back at \
@@ -453,12 +495,18 @@ fn parity_lsp_completion_round_trip() {
             });
             use tokio::io::AsyncWriteExt;
             let frame = LspClient::frame_message_for_test(&response);
-            server_write.write_all(&frame).await.expect("E1-09: mock server writes the response frame");
+            server_write
+                .write_all(&frame)
+                .await
+                .expect("E1-09: mock server writes the response frame");
             server_write.flush().await.ok();
         });
 
         // The client requests completion at a position; the reader loop routes the response back.
-        let pos = lsp_types::Position { line: 0, character: 0 };
+        let pos = lsp_types::Position {
+            line: 0,
+            character: 0,
+        };
         let items = client.completion("file:///parity.rs", pos).await;
         server.await.ok();
         items
@@ -468,7 +516,10 @@ fn parity_lsp_completion_round_trip() {
         !items.is_empty(),
         "E1-09: the LSP completion round-trip must return >= 1 CompletionItem (got 0)"
     );
-    assert_eq!(items[0].label, "println!", "E1-09: the returned CompletionItem label round-trips");
+    assert_eq!(
+        items[0].label, "println!",
+        "E1-09: the returned CompletionItem label round-trips"
+    );
 
     println!(
         "E1-09 PASS: LSP completion round-trip via the in-process transport returned {} item(s) \
@@ -503,8 +554,14 @@ fn parity_diff_editor_line_counts() {
         .map(|b| b.right_lines.len())
         .sum();
 
-    assert_eq!(removed_lines, 1, "E1-10: exactly 1 removed line ('beta') (got {removed_lines})");
-    assert_eq!(added_lines, 1, "E1-10: exactly 1 added line ('epsilon') (got {added_lines})");
+    assert_eq!(
+        removed_lines, 1,
+        "E1-10: exactly 1 removed line ('beta') (got {removed_lines})"
+    );
+    assert_eq!(
+        added_lines, 1,
+        "E1-10: exactly 1 added line ('epsilon') (got {added_lines})"
+    );
 
     println!(
         "E1-10 PASS: two-buffer diff -> {added_lines} added, {removed_lines} removed line(s) \
@@ -523,7 +580,11 @@ fn accesskit_parity_dashboard() {
     // read the parity status by stable id. Reuses the egui accesskit_node_builder pattern from
     // block_collection_view (no shell fork). We assert the first/last feature rows are addressable.
     let feature_ids: Vec<String> = load_manifest_feature_ids();
-    assert_eq!(feature_ids.len(), 43, "manifest must declare 43 features for the dashboard");
+    assert_eq!(
+        feature_ids.len(),
+        43,
+        "manifest must declare 43 features for the dashboard"
+    );
     let ids = Arc::new(Mutex::new(feature_ids.clone()));
 
     let ids_ui = Arc::clone(&ids);
@@ -562,10 +623,22 @@ fn accesskit_parity_dashboard() {
         }
     }
     // The first and last feature rows must be addressable by their stable author_id.
-    let first = format!("parity.manifest.feature.{}.row", feature_ids.first().unwrap());
-    let last = format!("parity.manifest.feature.{}.row", feature_ids.last().unwrap());
-    assert!(found.contains(&first), "E-dashboard: first feature row '{first}' must be AccessKit-addressable");
-    assert!(found.contains(&last), "E-dashboard: last feature row '{last}' must be AccessKit-addressable");
+    let first = format!(
+        "parity.manifest.feature.{}.row",
+        feature_ids.first().unwrap()
+    );
+    let last = format!(
+        "parity.manifest.feature.{}.row",
+        feature_ids.last().unwrap()
+    );
+    assert!(
+        found.contains(&first),
+        "E-dashboard: first feature row '{first}' must be AccessKit-addressable"
+    );
+    assert!(
+        found.contains(&last),
+        "E-dashboard: last feature row '{last}' must be AccessKit-addressable"
+    );
 
     println!(
         "PASS: parity dashboard exposes {} feature rows by stable AccessKit author_id (Role::Row)",
@@ -581,10 +654,17 @@ fn load_manifest_feature_ids() -> Vec<String> {
     arr.as_array()
         .expect("manifest is a JSON array")
         .iter()
-        .map(|e| e["feature_id"].as_str().expect("feature_id is a string").to_owned())
+        .map(|e| {
+            e["feature_id"]
+                .as_str()
+                .expect("feature_id is a string")
+                .to_owned()
+        })
         .collect()
 }
 
 fn manifest_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("parity_manifest.json")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("parity_manifest.json")
 }

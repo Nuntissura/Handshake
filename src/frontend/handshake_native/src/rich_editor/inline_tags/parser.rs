@@ -47,7 +47,9 @@ impl Tag {
     /// Build a tag from a body WITHOUT the leading `#` (trimmed of surrounding whitespace). The body is
     /// stored verbatim (case preserved); the canonical identity is derived via [`Tag::canonical`].
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into().trim().to_owned() }
+        Self {
+            name: name.into().trim().to_owned(),
+        }
     }
 
     /// The canonical identity key for edge identity + property/inline convergence (RISK-001 / MC-001):
@@ -243,8 +245,16 @@ mod tests {
     fn tag_identity_and_display_label() {
         let t = Tag::new("Rust");
         assert_eq!(t.name, "Rust", "display name keeps the author's case");
-        assert_eq!(t.canonical(), "rust", "the canonical identity is lower-cased");
-        assert_eq!(t.display_label(), "#Rust", "the chip label is #Name with the author's case");
+        assert_eq!(
+            t.canonical(),
+            "rust",
+            "the canonical identity is lower-cased"
+        );
+        assert_eq!(
+            t.display_label(),
+            "#Rust",
+            "the chip label is #Name with the author's case"
+        );
         // A leading/trailing-space body is trimmed.
         assert_eq!(Tag::new("  wip  ").name, "wip");
     }
@@ -266,18 +276,36 @@ mod tests {
     #[test]
     fn word_boundary_rejects_mid_word_hash_ac001() {
         // AC-001 / RISK-002 / MC-002 adversarial corpus: a `#` preceded by a word char is NOT a tag.
-        assert!(parse_inline_tags("C#").is_empty(), "C# is not a tag (# preceded by 'C')");
-        assert!(parse_inline_tags("a#b").is_empty(), "a#b is not a tag (# preceded by 'a')");
-        assert!(parse_inline_tags("foo#bar baz").is_empty(), "foo#bar is mid-word");
+        assert!(
+            parse_inline_tags("C#").is_empty(),
+            "C# is not a tag (# preceded by 'C')"
+        );
+        assert!(
+            parse_inline_tags("a#b").is_empty(),
+            "a#b is not a tag (# preceded by 'a')"
+        );
+        assert!(
+            parse_inline_tags("foo#bar baz").is_empty(),
+            "foo#bar is mid-word"
+        );
         // A URL fragment: `http://x#y` — the `#` is preceded by 'x' (a word char) -> NOT a tag.
-        assert!(parse_inline_tags("see http://x#y here").is_empty(), "a URL fragment is not a tag");
+        assert!(
+            parse_inline_tags("see http://x#y here").is_empty(),
+            "a URL fragment is not a tag"
+        );
     }
 
     #[test]
     fn bare_and_empty_body_hash_are_not_tags_mc002() {
         assert!(parse_inline_tags("#").is_empty(), "a bare # is not a tag");
-        assert!(parse_inline_tags("# foo").is_empty(), "# followed by a space (empty body) is not a tag");
-        assert!(parse_inline_tags("end. # ").is_empty(), "# with no body char after it is not a tag");
+        assert!(
+            parse_inline_tags("# foo").is_empty(),
+            "# followed by a space (empty body) is not a tag"
+        );
+        assert!(
+            parse_inline_tags("end. # ").is_empty(),
+            "# with no body char after it is not a tag"
+        );
     }
 
     #[test]
@@ -286,7 +314,11 @@ mod tests {
         let toks = parse_inline_tags("see #wip, today");
         assert_eq!(toks.len(), 1, "trailing comma ends the tag (got {toks:?})");
         assert_eq!(toks[0].tag.name, "wip");
-        assert_eq!(&"see #wip, today"[toks[0].byte_range.clone()], "#wip", "the comma is NOT in the range");
+        assert_eq!(
+            &"see #wip, today"[toks[0].byte_range.clone()],
+            "#wip",
+            "the comma is NOT in the range"
+        );
 
         let nested = parse_inline_tags("#area/sub end");
         assert_eq!(nested.len(), 1);
@@ -303,7 +335,11 @@ mod tests {
         // RISK-003 / MC-003: a multi-byte emoji before the tag must not mis-slice the byte range.
         let text = "🚀 #rust"; // the rocket is 4 bytes; the `#` is at byte 5 (space at 4).
         let toks = parse_inline_tags(text);
-        assert_eq!(toks.len(), 1, "the tag after an emoji is found (got {toks:?})");
+        assert_eq!(
+            toks.len(),
+            1,
+            "the tag after an emoji is found (got {toks:?})"
+        );
         assert_eq!(toks[0].tag.name, "rust");
         // The byte range slices cleanly on a char boundary to `#rust`.
         assert_eq!(&text[toks[0].byte_range.clone()], "#rust");
@@ -319,9 +355,18 @@ mod tests {
         // The Tag -> hsLink atom round-trips content_json: ref_kind=tag, ref_value=canonical, label=#name.
         let link = tag_to_hs_link(&Tag::new("Rust"));
         assert_eq!(link.ref_kind, "tag");
-        assert_eq!(link.ref_value, "rust", "ref_value is the canonical identity (property-tag convergence key)");
-        assert_eq!(link.label, "#Rust", "the chip label is #Name with the author's case");
-        assert!(link.resolved, "a committed tag is a resolved live link to its hub");
+        assert_eq!(
+            link.ref_value, "rust",
+            "ref_value is the canonical identity (property-tag convergence key)"
+        );
+        assert_eq!(
+            link.label, "#Rust",
+            "the chip label is #Name with the author's case"
+        );
+        assert!(
+            link.resolved,
+            "a committed tag is a resolved live link to its hub"
+        );
     }
 
     #[test]
@@ -333,7 +378,10 @@ mod tests {
         // At the very start of the line.
         assert_eq!(open_tag_query("#wip"), Some((0, "wip".to_owned())));
         // Nested tag in progress.
-        assert_eq!(open_tag_query("see #area/su"), Some((4, "area/su".to_owned())));
+        assert_eq!(
+            open_tag_query("see #area/su"),
+            Some((4, "area/su".to_owned()))
+        );
     }
 
     #[test]
@@ -342,7 +390,11 @@ mod tests {
         assert_eq!(open_tag_query("C#"), None, "C# is not an open tag trigger");
         assert_eq!(open_tag_query("a#b"), None);
         // A space after the body closes the trigger (the body ended).
-        assert_eq!(open_tag_query("#wip "), None, "a trailing space closes the trigger");
+        assert_eq!(
+            open_tag_query("#wip "),
+            None,
+            "a trailing space closes the trigger"
+        );
         assert_eq!(open_tag_query("#wip done"), None);
         // No `#` at all.
         assert_eq!(open_tag_query("plain text"), None);

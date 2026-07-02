@@ -32,7 +32,9 @@ use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
 use handshake_native::rich_editor::find_replace::scanner::FindQuery;
 use handshake_native::rich_editor::find_replace::FindReplaceState;
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic — the crate sits
 /// at `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where `Handshake_Artifacts`
@@ -92,10 +94,13 @@ fn gpu_lock() -> MutexGuard<'static, ()> {
 /// A wgpu harness (for the screenshot proofs that need a rendered PNG).
 fn editor_harness_gpu<'a>(state: Arc<Mutex<RichEditorState>>, size: egui::Vec2) -> Harness<'a, ()> {
     let state_for_ui = Arc::clone(&state);
-    Harness::builder().with_size(size).wgpu().build_ui(move |ui| {
-        handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
-        RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
-    })
+    Harness::builder()
+        .with_size(size)
+        .wgpu()
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        })
 }
 
 /// Focus the editor SURFACE (the focusable `rich-editor-surface` node) by sending it an AccessKit
@@ -122,7 +127,11 @@ fn ctrl_key(harness: &mut Harness<()>, key: egui::Key) {
         physical_key: None,
         pressed: true,
         repeat: false,
-        modifiers: egui::Modifiers { ctrl: true, command: true, ..Default::default() },
+        modifiers: egui::Modifiers {
+            ctrl: true,
+            command: true,
+            ..Default::default()
+        },
     });
 }
 
@@ -139,13 +148,22 @@ fn ctrl_f_opens_find_only_panel() {
     harness.step();
     focus_editor(&mut harness);
 
-    assert!(state.lock().unwrap().find_replace.is_none(), "panel starts closed");
+    assert!(
+        state.lock().unwrap().find_replace.is_none(),
+        "panel starts closed"
+    );
     ctrl_key(&mut harness, egui::Key::F);
     harness.step();
 
     let st = state.lock().unwrap();
-    let panel = st.find_replace.as_ref().expect("AC-1: Ctrl+F opens the find panel");
-    assert!(!panel.with_replace, "AC-1: Ctrl+F opens find-ONLY mode (no replace row)");
+    let panel = st
+        .find_replace
+        .as_ref()
+        .expect("AC-1: Ctrl+F opens the find panel");
+    assert!(
+        !panel.with_replace,
+        "AC-1: Ctrl+F opens find-ONLY mode (no replace row)"
+    );
     println!("AC-1: Ctrl+F opened the find panel in find-only mode");
 }
 
@@ -166,8 +184,14 @@ fn ctrl_h_opens_find_replace_panel() {
     harness.step();
 
     let st = state.lock().unwrap();
-    let panel = st.find_replace.as_ref().expect("AC-2: Ctrl+H opens the panel");
-    assert!(panel.with_replace, "AC-2: Ctrl+H opens the panel with the replace row visible");
+    let panel = st
+        .find_replace
+        .as_ref()
+        .expect("AC-2: Ctrl+H opens the panel");
+    assert!(
+        panel.with_replace,
+        "AC-2: Ctrl+H opens the panel with the replace row visible"
+    );
     println!("AC-2: Ctrl+H opened the find+replace panel (replace row visible)");
 }
 
@@ -196,8 +220,16 @@ fn typing_query_scans_and_count_advances() {
         let st = state.lock().unwrap();
         let panel = st.find_replace.as_ref().unwrap();
         // foo bar foo (2) + another foo line (1) + let foo = foo; (2) == 5.
-        assert_eq!(panel.scan.len(), 5, "AC-3: typing 'foo' finds all five occurrences");
-        assert_eq!(panel.count_label(), "5 matches", "no active match yet -> '{{N}} matches'");
+        assert_eq!(
+            panel.scan.len(),
+            5,
+            "AC-3: typing 'foo' finds all five occurrences"
+        );
+        assert_eq!(
+            panel.count_label(),
+            "5 matches",
+            "no active match yet -> '{{N}} matches'"
+        );
     }
     // Advance to the first match (Enter / next).
     {
@@ -249,9 +281,14 @@ fn accesskit_ids_present_when_panel_open() {
         "find-close",
     ];
     for id in required {
-        assert!(found.contains(id), "AC-10: the live tree must contain AccessKit id '{id}' (found: {found:?})");
+        assert!(
+            found.contains(id),
+            "AC-10: the live tree must contain AccessKit id '{id}' (found: {found:?})"
+        );
     }
-    println!("AC-10: all required find/replace AccessKit ids present in the live tree: {required:?}");
+    println!(
+        "AC-10: all required find/replace AccessKit ids present in the live tree: {required:?}"
+    );
 }
 
 // ── AC-6: an invalid regex shows the find-error node + clears highlights ────────────────────────
@@ -278,8 +315,14 @@ fn invalid_regex_shows_error_node_and_clears_matches() {
     {
         let st = state.lock().unwrap();
         let panel = st.find_replace.as_ref().unwrap();
-        assert!(panel.scan.error.is_some(), "AC-6: an invalid regex sets the error");
-        assert!(panel.scan.is_empty(), "AC-6: an invalid regex clears all matches");
+        assert!(
+            panel.scan.error.is_some(),
+            "AC-6: an invalid regex sets the error"
+        );
+        assert!(
+            panel.scan.is_empty(),
+            "AC-6: an invalid regex clears all matches"
+        );
     }
     // The find-error node is present in the live tree.
     let mut error_present = false;
@@ -288,7 +331,10 @@ fn invalid_regex_shows_error_node_and_clears_matches() {
             error_present = true;
         }
     }
-    assert!(error_present, "AC-6: the 'find-error' node renders for an invalid regex");
+    assert!(
+        error_present,
+        "AC-6: the 'find-error' node renders for an invalid regex"
+    );
     println!("AC-6: invalid regex -> find-error node present, matches cleared");
 }
 
@@ -311,7 +357,10 @@ fn escape_closes_panel_and_clears_highlights() {
     harness.step(); // the find input requests focus this frame.
     harness.step();
 
-    assert!(state.lock().unwrap().find_replace.is_some(), "panel open before Escape");
+    assert!(
+        state.lock().unwrap().find_replace.is_some(),
+        "panel open before Escape"
+    );
     // Escape (no modifiers) reaches the focused find input -> Close outcome -> panel dropped.
     harness.event(egui::Event::Key {
         key: egui::Key::Escape,
@@ -373,7 +422,11 @@ fn replace_panel_screenshot() {
     focus_editor(&mut harness);
     harness.step();
     harness.step();
-    save_screenshot(&mut harness, "mt018_replace_panel.png", "PT-3 replace panel");
+    save_screenshot(
+        &mut harness,
+        "mt018_replace_panel.png",
+        "PT-3 replace panel",
+    );
     assert_no_local_artifact_dir();
 }
 
@@ -391,7 +444,8 @@ fn save_screenshot(harness: &mut Harness<()>, file: &str, label: &str) {
             let saved = image.save(&path).is_ok();
 
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut i = 0usize;
             while i + 4 <= raw.len() {
                 let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
@@ -415,7 +469,10 @@ fn save_screenshot(harness: &mut Harness<()>, file: &str, label: &str) {
                 "{label}: the panel over the styled doc must produce >= 2 distinct foreground colors; got {} (bg={bg:?})",
                 foreground.len()
             );
-            assert!(saved, "{label}: the screenshot must be saved to the external artifact root");
+            assert!(
+                saved,
+                "{label}: the screenshot must be saved to the external artifact root"
+            );
         }
         Err(e) => {
             println!(

@@ -1,36 +1,32 @@
 use super::{
     validate_job_contract, AccessMode, AiJob, AiJobListFilter, Asset, Block, BlockUpdate,
     BlockViewDefinition, BlockViewGroupBy, BlockViewKind, BlockViewLane, BlockViewRecord,
-    BlockViewResults, BLOCK_VIEW_UNTAGGED_LANE,
-    BronzeRecord, CalendarEvent, CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
-    CalendarEventVisibility, CalendarEventWindowQuery, CalendarSource, CalendarSourceProviderType,
-    CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy,
-    CalendarSyncStateStage, Canvas, CanvasEdge, CanvasGraph, CanvasNode, DebugBreakpoint,
-    DebugBreakpointInput, DefaultStorageGuard,
-    Document, EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
-    JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult,
-    LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement,
-    LoomCanvasPlacementUpdate, LoomCanvasVisualEdge, LoomCollection, LoomCollectionMember,
-    LoomCollectionWithMembers, LoomEdge,
-    LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
+    BlockViewResults, BronzeRecord, CalendarEvent, CalendarEventExportMode, CalendarEventStatus,
+    CalendarEventUpsert, CalendarEventVisibility, CalendarEventWindowQuery, CalendarSource,
+    CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
+    CalendarSourceWritePolicy, CalendarSyncStateStage, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
+    DebugBreakpoint, DebugBreakpointInput, DefaultStorageGuard, Document, EmbeddingModelRecord,
+    EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate, LoomBlock,
+    LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult, LoomBlockUpdate,
+    LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementUpdate,
+    LoomCanvasVisualEdge, LoomCollection, LoomCollectionMember, LoomCollectionWithMembers,
+    LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
     LoomSearchFilters, LoomSearchResultKind, LoomSearchSourceKind, LoomSearchV2Hit,
-    LoomSearchV2Request, LoomSearchV2Response, LoomSourceAnchor,
-    MediaAssetTier, MediaTier, MediaTierStatus, MediaTierUpsert,
-    LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType, LoomVisualDebugBacklinkState,
-    LoomVisualDebugBacklinkSummary, LoomVisualDebugCounts, LoomVisualDebugFolderSummary,
-    LoomVisualDebugGraphEdgeSummary, LoomVisualDebugGraphNodeSummary, LoomVisualDebugGraphState,
-    LoomVisualDebugSearchHitSummary, LoomVisualDebugSearchState, LoomVisualDebugSnapshot,
-    MergeBackArtifact, ModelSession, ModelSessionState, MutationMetadata, NewAiJob, NewAsset,
-    NewBlock, NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
-    NewLoomEdge, NewModelSession, NewNodeExecution, NewSessionMessage, NewSilverRecord,
-    NewWorkspace, PlannedOperation, PreviewStatus, QuickSwitcherRecent, QuickSwitcherRecentInput,
-    SafetyMode, SessionCheckpoint, SessionMessage, SessionMessageRole, SilverRecord, StorageError,
-    StorageGuard, StorageResult, WorkbenchLayoutState, WorkbenchLayoutStateInput,
-    WorkflowNodeExecution, WorkflowRun, Workspace, WorkspaceSearchBookmarkState,
-    WorkspaceSearchBookmarkStateInput, WorkspaceSettingsState, WorkspaceSettingsStateInput,
-    NewLoomCanvasPlacement,
-    WriteContext, LOOM_CANVAS_BOARD_SCHEMA_ID, LOOM_VISUAL_DEBUG_SCHEMA_ID,
-    WORKBENCH_LAYOUT_SCHEMA_ID,
+    LoomSearchV2Request, LoomSearchV2Response, LoomSourceAnchor, LoomViewFilters, LoomViewGroup,
+    LoomViewResponse, LoomViewType, LoomVisualDebugBacklinkState, LoomVisualDebugBacklinkSummary,
+    LoomVisualDebugCounts, LoomVisualDebugFolderSummary, LoomVisualDebugGraphEdgeSummary,
+    LoomVisualDebugGraphNodeSummary, LoomVisualDebugGraphState, LoomVisualDebugSearchHitSummary,
+    LoomVisualDebugSearchState, LoomVisualDebugSnapshot, MediaAssetTier, MediaTier,
+    MediaTierStatus, MediaTierUpsert, MergeBackArtifact, ModelSession, ModelSessionState,
+    MutationMetadata, NewAiJob, NewAsset, NewBlock, NewBronzeRecord, NewCanvas, NewCanvasEdge,
+    NewCanvasNode, NewDocument, NewLoomBlock, NewLoomCanvasPlacement, NewLoomEdge, NewModelSession,
+    NewNodeExecution, NewSessionMessage, NewSilverRecord, NewWorkspace, PlannedOperation,
+    PreviewStatus, QuickSwitcherRecent, QuickSwitcherRecentInput, SafetyMode, SessionCheckpoint,
+    SessionMessage, SessionMessageRole, SilverRecord, StorageError, StorageGuard, StorageResult,
+    WorkbenchLayoutState, WorkbenchLayoutStateInput, WorkflowNodeExecution, WorkflowRun, Workspace,
+    WorkspaceSearchBookmarkState, WorkspaceSearchBookmarkStateInput, WorkspaceSettingsState,
+    WorkspaceSettingsStateInput, WriteContext, BLOCK_VIEW_UNTAGGED_LANE,
+    LOOM_CANVAS_BOARD_SCHEMA_ID, LOOM_VISUAL_DEBUG_SCHEMA_ID, WORKBENCH_LAYOUT_SCHEMA_ID,
     WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID, WORKSPACE_SETTINGS_SCHEMA_ID,
 };
 use crate::kernel::{
@@ -1578,7 +1574,8 @@ impl PostgresDatabase {
         };
 
         push_clause(&mut qb);
-        qb.push("b.workspace_id = ").push_bind(workspace_id.to_string());
+        qb.push("b.workspace_id = ")
+            .push_bind(workspace_id.to_string());
 
         if let Some(content_type) = &filters.content_type {
             push_clause(&mut qb);
@@ -3366,16 +3363,22 @@ fn order_loom_graph_results_for_breadth(
 /// by a typed block field value. Lane membership is a pure projection of the
 /// block's own field (read from authority rows), never view-local state. Lanes
 /// appear in first-seen order to keep lane order stable across re-queries.
-fn partition_blocks_by_field(blocks: &[LoomBlock], field: &super::BlockViewField) -> Vec<BlockViewLane> {
+fn partition_blocks_by_field(
+    blocks: &[LoomBlock],
+    field: &super::BlockViewField,
+) -> Vec<BlockViewLane> {
     use super::BlockViewField;
     let mut lanes: Vec<BlockViewLane> = Vec::new();
     for block in blocks {
         let key = match field {
             BlockViewField::ContentType => block.content_type.as_str().to_string(),
             BlockViewField::Pinned => if block.pinned { "pinned" } else { "unpinned" }.to_string(),
-            BlockViewField::Favorite => {
-                if block.favorite { "favorite" } else { "not_favorite" }.to_string()
+            BlockViewField::Favorite => if block.favorite {
+                "favorite"
+            } else {
+                "not_favorite"
             }
+            .to_string(),
             BlockViewField::JournalDate => block
                 .journal_date
                 .clone()
@@ -8027,13 +8030,15 @@ impl super::Database for PostgresDatabase {
             }
         }
         qb.push(", ").push_bind(embedding_model);
-        qb.push(", NOW()) ON CONFLICT (block_id) DO UPDATE SET \
+        qb.push(
+            ", NOW()) ON CONFLICT (block_id) DO UPDATE SET \
              workspace_id = EXCLUDED.workspace_id, \
              content_type = EXCLUDED.content_type, \
              search_text = EXCLUDED.search_text, \
              embedding = EXCLUDED.embedding, \
              embedding_model = EXCLUDED.embedding_model, \
-             indexed_at = NOW()");
+             indexed_at = NOW()",
+        );
         qb.build().execute(&self.pool).await?;
         Ok(())
     }
@@ -8052,7 +8057,11 @@ impl super::Database for PostgresDatabase {
                 total: 0,
             });
         }
-        let limit = if request.limit == 0 { 25 } else { request.limit } as i64;
+        let limit = if request.limit == 0 {
+            25
+        } else {
+            request.limit
+        } as i64;
         let offset = request.offset as i64;
         let graph_boost = request.graph_boost.max(0.0);
         let semantic_available = request.query_embedding.is_some();
@@ -8099,7 +8108,8 @@ impl super::Database for PostgresDatabase {
         qb.push_bind(workspace_id);
 
         if let Some(content_type) = request.content_type.as_ref() {
-            qb.push(" AND si.content_type = ").push_bind(content_type.as_str());
+            qb.push(" AND si.content_type = ")
+                .push_bind(content_type.as_str());
         }
         if !request.tag_ids.is_empty() {
             qb.push(
@@ -8127,8 +8137,10 @@ impl super::Database for PostgresDatabase {
         qb.push(")) SELECT block_id, content_type, fts_rank, trgm_sim, vector_sim, edge_degree, highlight, \
                  (fts_rank * 1.0 + trgm_sim * 0.6 + vector_sim * 1.2 + (edge_degree::float8 * ");
         qb.push_bind(graph_boost);
-        qb.push(")) AS fused_score, COUNT(*) OVER () AS total_count \
-                 FROM scored ORDER BY fused_score DESC, block_id ASC LIMIT ");
+        qb.push(
+            ")) AS fused_score, COUNT(*) OVER () AS total_count \
+                 FROM scored ORDER BY fused_score DESC, block_id ASC LIMIT ",
+        );
         qb.push_bind(limit);
         qb.push(" OFFSET ").push_bind(offset);
 
@@ -8171,7 +8183,8 @@ impl super::Database for PostgresDatabase {
         let facet_rows = facet_qb.build().fetch_all(&self.pool).await?;
         let mut content_type_facets = std::collections::BTreeMap::new();
         for row in &facet_rows {
-            content_type_facets.insert(row.get::<String, _>("content_type"), row.get::<i64, _>("n"));
+            content_type_facets
+                .insert(row.get::<String, _>("content_type"), row.get::<i64, _>("n"));
         }
 
         Ok(LoomSearchV2Response {
@@ -8809,8 +8822,9 @@ impl super::Database for PostgresDatabase {
 
         let row = row.ok_or(StorageError::NotFound("loom_block"))?;
         let definition_raw: Option<String> = row.get("view_definition_json");
-        let definition_raw =
-            definition_raw.ok_or(StorageError::Validation("view_def block missing definition"))?;
+        let definition_raw = definition_raw.ok_or(StorageError::Validation(
+            "view_def block missing definition",
+        ))?;
         let definition: BlockViewDefinition = serde_json::from_str(&definition_raw)?;
         let block = map_loom_block(row)?;
         Ok(BlockViewRecord { block, definition })
@@ -9140,10 +9154,7 @@ impl super::Database for PostgresDatabase {
             KernelEventType::KnowledgeWorkspaceSearchBookmarkStateRecorded,
             KernelActor::System("workspace-search-bookmarks-ui".to_string()),
         )
-        .aggregate(
-            "workspace_search_bookmark_state",
-            workspace_id.to_string(),
-        )
+        .aggregate("workspace_search_bookmark_state", workspace_id.to_string())
         .source_component("workspace_search_bookmark_state")
         .payload(payload)
         .build()
@@ -9279,8 +9290,10 @@ impl super::Database for PostgresDatabase {
         .bind(rich_document_id)
         .fetch_all(&mut *tx)
         .await?;
-        let out: Vec<DebugBreakpoint> =
-            rows.iter().map(map_debug_breakpoint).collect::<StorageResult<_>>()?;
+        let out: Vec<DebugBreakpoint> = rows
+            .iter()
+            .map(map_debug_breakpoint)
+            .collect::<StorageResult<_>>()?;
         tx.commit().await?;
         Ok(out)
     }
@@ -12724,12 +12737,14 @@ impl super::Database for PostgresDatabase {
         validate_job_contract(&job.job_kind, &job.profile_id, &job.protocol_id)?;
 
         let id = Uuid::now_v7().to_string();
+        let workflow_run_id = matches!(job.job_kind, JobKind::ModelRun).then(Uuid::now_v7);
         let now = Utc::now();
         let job_inputs = job.job_inputs.clone().map(|value| value.to_string());
         let metrics_json = serde_json::to_string(&job.metrics)?;
         let entity_refs_json = serde_json::to_string(&job.entity_refs)?;
         let planned_ops_json = serde_json::to_string(&job.planned_operations)?;
 
+        let mut tx = self.pool.begin().await?;
         let row = sqlx::query(
             r#"
             INSERT INTO ai_jobs (
@@ -12776,7 +12791,7 @@ impl super::Database for PostgresDatabase {
         )
         .bind(&id)
         .bind(job.trace_id.to_string())
-        .bind(Option::<String>::None)
+        .bind(workflow_run_id.map(|run_id| run_id.to_string()))
         .bind(job.job_kind.as_str())
         .bind(JobState::Queued.as_str())
         .bind(&job.status_reason)
@@ -12791,9 +12806,27 @@ impl super::Database for PostgresDatabase {
         .bind(&job_inputs)
         .bind(now)
         .bind(now)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await?;
 
+        if let Some(run_id) = workflow_run_id {
+            sqlx::query(
+                r#"
+                INSERT INTO workflow_runs (id, job_id, status, last_heartbeat, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                "#,
+            )
+            .bind(run_id.to_string())
+            .bind(&id)
+            .bind(JobState::Queued.as_str())
+            .bind(now)
+            .bind(now)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
         map_ai_job(row)
     }
 

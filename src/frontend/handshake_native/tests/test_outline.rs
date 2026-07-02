@@ -66,8 +66,13 @@ fn assert_no_local_artifact_dir() {
 }
 
 /// True when any node in an outline forest (recursive) has the given heading text.
-fn contains_text(roots: &[handshake_native::rich_editor::outline_panel::OutlineNode], text: &str) -> bool {
-    roots.iter().any(|n| n.text == text || contains_text(&n.children, text))
+fn contains_text(
+    roots: &[handshake_native::rich_editor::outline_panel::OutlineNode],
+    text: &str,
+) -> bool {
+    roots
+        .iter()
+        .any(|n| n.text == text || contains_text(&n.children, text))
 }
 
 /// Collect every author_id present in the live AccessKit tree.
@@ -156,8 +161,16 @@ fn pt004_outline_accesskit_tree_and_treeitems_with_press() {
             _ => {}
         }
     }
-    assert_eq!(container_role.as_deref(), Some("Tree"), "AC-005: container role must be Tree");
-    assert_eq!(entry_role.as_deref(), Some("TreeItem"), "AC-005: entry role must be TreeItem");
+    assert_eq!(
+        container_role.as_deref(),
+        Some("Tree"),
+        "AC-005: container role must be Tree"
+    );
+    assert_eq!(
+        entry_role.as_deref(),
+        Some("TreeItem"),
+        "AC-005: entry role must be TreeItem"
+    );
     assert!(
         entry_supports_click,
         "AC-005: the entry must carry a Press (Action::Click) so a swarm agent can invoke scroll-to-heading"
@@ -185,7 +198,10 @@ fn pt002_click_entry_scrolls_and_selects_via_caret_model() {
     let gamma_block_id = block_author_id(&[3]);
     let gamma_entry = outline_entry_author_id(&gamma_block_id);
     let ids = author_ids(&harness);
-    assert!(ids.contains(&gamma_entry), "the Gamma entry `{gamma_entry}` must be addressable; ids: {ids:?}");
+    assert!(
+        ids.contains(&gamma_entry),
+        "the Gamma entry `{gamma_entry}` must be addressable; ids: {ids:?}"
+    );
 
     let entry = harness.get_by(|n| n.author_id() == Some(gamma_entry.as_str()));
     entry.click();
@@ -249,7 +265,9 @@ fn pt003_live_update_on_heading_add_and_no_rebuild_when_unchanged() {
     // rebuilds the tree (live update — AC-004).
     {
         let mut st = state.lock().unwrap();
-        st.doc.children.push(Child::Block(BlockNode::heading(2, "Epsilon")));
+        st.doc
+            .children
+            .push(Child::Block(BlockNode::heading(2, "Epsilon")));
     }
     harness.run();
     harness.run(); // settle
@@ -299,7 +317,9 @@ fn ac006_collapse_state_survives_live_rebuild() {
     // stay collapsed (RISK-004 / MC-004 — collapse carried forward by block_id).
     {
         let mut st = state.lock().unwrap();
-        st.doc.children.push(Child::Block(BlockNode::heading(2, "Zeta")));
+        st.doc
+            .children
+            .push(Child::Block(BlockNode::heading(2, "Zeta")));
     }
     harness.run();
     harness.run();
@@ -363,7 +383,8 @@ fn hbr_vis_outline_screenshot() {
             // Pixel proof: the outline renders a dark bg + foreground glyphs (heading labels + carets),
             // so there are >= 2 distinct foreground colors over the bg. Sample every 4th pixel.
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut i = 0usize;
             while i + 4 <= raw.len() {
                 let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
@@ -388,7 +409,10 @@ fn hbr_vis_outline_screenshot() {
                  over the bg); got {} (bg={bg:?})",
                 foreground.len()
             );
-            assert!(saved, "the mt056_outline.png screenshot must be saved to the external artifact root");
+            assert!(
+                saved,
+                "the mt056_outline.png screenshot must be saved to the external artifact root"
+            );
             assert_no_local_artifact_dir();
         }
         Err(e) => {

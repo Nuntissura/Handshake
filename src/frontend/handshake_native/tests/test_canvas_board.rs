@@ -172,12 +172,21 @@ fn canvas_accesskit_placements_and_toolbar() {
         EDGE_MODE_AUTHOR_ID,
         STATUS_AUTHOR_ID,
     ] {
-        assert!(ids.contains(required), "AC9: toolbar author_id '{required}' missing from {ids:?}");
+        assert!(
+            ids.contains(required),
+            "AC9: toolbar author_id '{required}' missing from {ids:?}"
+        );
     }
 
     // PROOF2: the two placement nodes are present and their labels are the LIVE block titles.
-    assert!(ids.contains(&placement_author_id("p-001")), "PROOF2: canvas.placement.p-001 present");
-    assert!(ids.contains(&placement_author_id("p-002")), "PROOF2: canvas.placement.p-002 present");
+    assert!(
+        ids.contains(&placement_author_id("p-001")),
+        "PROOF2: canvas.placement.p-001 present"
+    );
+    assert!(
+        ids.contains(&placement_author_id("p-002")),
+        "PROOF2: canvas.placement.p-002 present"
+    );
     assert_eq!(
         label_for(&harness, &placement_author_id("p-001")).as_deref(),
         Some("Block 1"),
@@ -193,9 +202,14 @@ fn canvas_accesskit_placements_and_toolbar() {
     // CARD count excludes both the `.remove` button and the `.resize` handle suffixes.
     let placement_count = ids
         .iter()
-        .filter(|a| a.starts_with("canvas.placement.") && !a.ends_with(".remove") && !a.ends_with(".resize"))
+        .filter(|a| {
+            a.starts_with("canvas.placement.") && !a.ends_with(".remove") && !a.ends_with(".resize")
+        })
         .count();
-    assert_eq!(placement_count, 2, "PROOF2: exactly 2 placement nodes (got {placement_count})");
+    assert_eq!(
+        placement_count, 2,
+        "PROOF2: exactly 2 placement nodes (got {placement_count})"
+    );
 
     println!("PROOF2/AC9: 2 placement nodes with live-title labels + toolbar ids present");
 }
@@ -212,19 +226,24 @@ fn canvas_zoom_label_and_buttons() {
 
     // AC1/AC3: the zoom value label reads "1.00x" at zoom 1.0.
     let zoom_val = value_for(&harness, ZOOM_VALUE_AUTHOR_ID);
-    assert_eq!(zoom_val.as_deref(), Some("1.00x"), "AC3: zoom label must read '1.00x'");
+    assert_eq!(
+        zoom_val.as_deref(),
+        Some("1.00x"),
+        "AC3: zoom label must read '1.00x'"
+    );
 
     // Click zoom-in -> zoom rises to 1.25 and a ViewportChanged event fires (AC3). The button's
     // AccessKit label is the descriptive "Zoom in" (emit_button_node overrides the glyph text).
     harness.get_by_label("Zoom in").click();
     harness.run();
     let zoom = board.lock().unwrap().zoom;
-    assert!((zoom - 1.25).abs() < 1e-3, "AC3: zoom-in must raise zoom to 1.25 (got {zoom})");
-    let fired = events_ck
-        .lock()
-        .unwrap()
-        .iter()
-        .any(|e| matches!(e, CanvasEvent::ViewportChanged { zoom, .. } if (*zoom - 1.25).abs() < 1e-3));
+    assert!(
+        (zoom - 1.25).abs() < 1e-3,
+        "AC3: zoom-in must raise zoom to 1.25 (got {zoom})"
+    );
+    let fired = events_ck.lock().unwrap().iter().any(
+        |e| matches!(e, CanvasEvent::ViewportChanged { zoom, .. } if (*zoom - 1.25).abs() < 1e-3),
+    );
     assert!(fired, "AC3: zoom-in must fire ViewportChanged{{zoom:1.25}}");
     println!("AC3: zoom label '1.00x' -> zoom-in raised to 1.25 + ViewportChanged fired");
 }
@@ -243,13 +262,18 @@ fn canvas_pan_buttons() {
     harness.get_by_label("Pan right").click();
     harness.run();
     let pan1 = board.lock().unwrap().pan.x;
-    assert!((pan1 - pan0 - 40.0).abs() < 1e-3, "AC2: pan-right must add 40px (got Δ{})", pan1 - pan0);
-    let fired = events_ck
-        .lock()
-        .unwrap()
-        .iter()
-        .any(|e| matches!(e, CanvasEvent::ViewportChanged { pan_x, .. } if (*pan_x - pan1).abs() < 1e-3));
-    assert!(fired, "AC2: pan must fire ViewportChanged with the new pan_x");
+    assert!(
+        (pan1 - pan0 - 40.0).abs() < 1e-3,
+        "AC2: pan-right must add 40px (got Δ{})",
+        pan1 - pan0
+    );
+    let fired = events_ck.lock().unwrap().iter().any(
+        |e| matches!(e, CanvasEvent::ViewportChanged { pan_x, .. } if (*pan_x - pan1).abs() < 1e-3),
+    );
+    assert!(
+        fired,
+        "AC2: pan must fire ViewportChanged with the new pan_x"
+    );
     println!("AC2: pan-right shifted pan by +40 + ViewportChanged fired");
 }
 
@@ -266,9 +290,14 @@ fn canvas_add_card() {
     harness.get_by_label("Add text card").click();
     harness.run();
     let ev = events_ck.lock().unwrap().clone();
-    let ok = ev.iter().any(|e| matches!(e, CanvasEvent::AddCard { title, x, y }
-        if title.starts_with("Card ") && *x == 40.0 && *y == 40.0));
-    assert!(ok, "AC5: '+ Text card' must fire AddCard with a 'Card <ts>' title at (40,40) (got {ev:?})");
+    let ok = ev.iter().any(|e| {
+        matches!(e, CanvasEvent::AddCard { title, x, y }
+        if title.starts_with("Card ") && *x == 40.0 && *y == 40.0)
+    });
+    assert!(
+        ok,
+        "AC5: '+ Text card' must fire AddCard with a 'Card <ts>' title at (40,40) (got {ev:?})"
+    );
     println!("AC5: add-card fired AddCard with timestamp title");
 }
 
@@ -304,26 +333,45 @@ fn canvas_place_block_fallback_field() {
 
     let ev = events_ck.lock().unwrap().clone();
     let placed = ev.iter().find_map(|e| match e {
-        CanvasEvent::PlaceBlock { placed_block_id, x, y } if placed_block_id == "block-drop-1" => {
-            Some((*x, *y))
-        }
+        CanvasEvent::PlaceBlock {
+            placed_block_id,
+            x,
+            y,
+        } if placed_block_id == "block-drop-1" => Some((*x, *y)),
         _ => None,
     });
-    let (px, py) = placed.expect("PROOF3/AC4/MC-2: 'Place' must fire PlaceBlock for the typed block id");
+    let (px, py) =
+        placed.expect("PROOF3/AC4/MC-2: 'Place' must fire PlaceBlock for the typed block id");
     // The default place position is the visible canvas centre in canvas space — a finite, on-board point.
-    assert!(px.is_finite() && py.is_finite(), "PROOF3: place position must be finite (got {px},{py})");
+    assert!(
+        px.is_finite() && py.is_finite(),
+        "PROOF3: place position must be finite (got {px},{py})"
+    );
     // The field is cleared after a successful place (no accidental double-place on the next click).
-    assert!(board.lock().unwrap().place_block_input.is_empty(), "field cleared after place");
+    assert!(
+        board.lock().unwrap().place_block_input.is_empty(),
+        "field cleared after place"
+    );
     // Find the author_id is present (AC9 coverage of the new control).
     let ids = author_ids(&harness);
-    assert!(ids.contains(PLACE_BLOCK_AUTHOR_ID), "AC9: '{PLACE_BLOCK_AUTHOR_ID}' present");
+    assert!(
+        ids.contains(PLACE_BLOCK_AUTHOR_ID),
+        "AC9: '{PLACE_BLOCK_AUTHOR_ID}' present"
+    );
 
     // Host applies the place + refreshes: the board now has a 3rd placement (PROOF3 '3 nodes after
     // refresh'). The placement appears at the emitted canvas position with the live title resolved.
     {
         let mut b = board.lock().unwrap();
         let mut kept: Vec<CanvasPlacementCard> = b.placements.clone();
-        let mut card = CanvasPlacementCard::new("p-003", "block-drop-1", px, py, DEFAULT_CARD_W, DEFAULT_CARD_H);
+        let mut card = CanvasPlacementCard::new(
+            "p-003",
+            "block-drop-1",
+            px,
+            py,
+            DEFAULT_CARD_W,
+            DEFAULT_CARD_H,
+        );
         card.live_title = Some("Dropped Block".to_owned());
         card.live_content_type = Some("note".to_owned());
         kept.push(card);
@@ -334,10 +382,18 @@ fn canvas_place_block_fallback_field() {
     let placement_count = ids
         .iter()
         // MT-061 `.resize` handle nodes share the `canvas.placement.` prefix; exclude them (+ `.remove`).
-        .filter(|a| a.starts_with("canvas.placement.") && !a.ends_with(".remove") && !a.ends_with(".resize"))
+        .filter(|a| {
+            a.starts_with("canvas.placement.") && !a.ends_with(".remove") && !a.ends_with(".resize")
+        })
         .count();
-    assert_eq!(placement_count, 3, "PROOF3/AC4: 3 placement nodes after the place + refresh");
-    assert!(ids.contains(&placement_author_id("p-003")), "PROOF3: the placed card node is present");
+    assert_eq!(
+        placement_count, 3,
+        "PROOF3/AC4: 3 placement nodes after the place + refresh"
+    );
+    assert!(
+        ids.contains(&placement_author_id("p-003")),
+        "PROOF3: the placed card node is present"
+    );
     println!("PROOF3/AC4/MC-2: fallback 'Place' fired PlaceBlock(block-drop-1) at ({px},{py}); 3 nodes after refresh");
 }
 
@@ -376,9 +432,11 @@ fn canvas_drop_to_place_via_drag_payload() {
 
     let ev = events_ck.lock().unwrap().clone();
     let placed = ev.iter().find_map(|e| match e {
-        CanvasEvent::PlaceBlock { placed_block_id, x, y } if placed_block_id == "block-drop-2" => {
-            Some((*x, *y))
-        }
+        CanvasEvent::PlaceBlock {
+            placed_block_id,
+            x,
+            y,
+        } if placed_block_id == "block-drop-2" => Some((*x, *y)),
         _ => None,
     });
     let (px, py) = placed.expect("AC4: a payload released over the canvas must fire PlaceBlock");
@@ -386,7 +444,10 @@ fn canvas_drop_to_place_via_drag_payload() {
     // The emitted position must be the drop point mapped through screen_to_canvas (pan=0, zoom=1, so it
     // equals drop_pos - origin). origin is the canvas rect top-left, which is > 0 (below the toolbar),
     // so the canvas x/y are strictly less than the screen drop coordinates and finite.
-    assert!(px.is_finite() && py.is_finite(), "AC4: placed position must be finite (got {px},{py})");
+    assert!(
+        px.is_finite() && py.is_finite(),
+        "AC4: placed position must be finite (got {px},{py})"
+    );
     assert!(
         px < drop_pos.x && py < drop_pos.y,
         "AC4: canvas pos must be screen pos minus the canvas origin (got {px},{py} vs screen {drop_pos:?})"
@@ -422,17 +483,29 @@ fn canvas_group_two() {
 
     let ev = events_ck.lock().unwrap().clone();
     let grouped = ev.iter().find_map(|e| match e {
-        CanvasEvent::Group { placement_ids, group_id } if placement_ids.len() == 2 => Some(group_id.clone()),
+        CanvasEvent::Group {
+            placement_ids,
+            group_id,
+        } if placement_ids.len() == 2 => Some(group_id.clone()),
         _ => None,
     });
-    let group_id = grouped.expect("AC6: Group(2) must fire CanvasEvent::Group for the 2 selected cards");
+    let group_id =
+        grouped.expect("AC6: Group(2) must fire CanvasEvent::Group for the 2 selected cards");
 
     // AC6: each affected card's AccessKit value carries the group_id (data-group-id).
     let v1 = value_for(&harness, &placement_author_id("p-001")).unwrap_or_default();
     let v2 = value_for(&harness, &placement_author_id("p-002")).unwrap_or_default();
-    assert!(v1.contains(&group_id), "AC6: p-001 must expose group_id '{group_id}' (got '{v1}')");
-    assert!(v2.contains(&group_id), "AC6: p-002 must expose group_id '{group_id}' (got '{v2}')");
-    println!("AC6: Group(2) fired Group + both cards expose group_id '{group_id}' on AccessKit value");
+    assert!(
+        v1.contains(&group_id),
+        "AC6: p-001 must expose group_id '{group_id}' (got '{v1}')"
+    );
+    assert!(
+        v2.contains(&group_id),
+        "AC6: p-002 must expose group_id '{group_id}' (got '{v2}')"
+    );
+    println!(
+        "AC6: Group(2) fired Group + both cards expose group_id '{group_id}' on AccessKit value"
+    );
 }
 
 // ── PROOF4 (AC7): semantic edge — start from p-001, click p-002 => SemanticEdge(block-001,block-002) ─
@@ -455,7 +528,11 @@ fn canvas_semantic_edge() {
     // Click 'Draw edge from selected' -> edge_from = p-001.
     harness.get_by_label("Draw edge from selected").click();
     harness.run();
-    assert_eq!(board.lock().unwrap().edge_from.as_deref(), Some("p-001"), "edge_from set to p-001");
+    assert_eq!(
+        board.lock().unwrap().edge_from.as_deref(),
+        Some("p-001"),
+        "edge_from set to p-001"
+    );
 
     // Click the second card (p-002) by injecting a pointer click at its on-screen centre. The board's
     // canvas rect starts below the toolbar+status strip; we compute the card centre via the SAME
@@ -464,7 +541,11 @@ fn canvas_semantic_edge() {
     // default layout: toolbar+status ≈ 60px tall, so origin.y ≈ 60, origin.x ≈ 8 (panel margin).
     let (cx, cy) = {
         let b = board.lock().unwrap();
-        let card = b.placements.iter().find(|p| p.placement_id == "p-002").unwrap();
+        let card = b
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-002")
+            .unwrap();
         // canvas centre in canvas space:
         (card.x + card.w * 0.5, card.y + card.h * 0.5)
     };
@@ -486,14 +567,20 @@ fn canvas_semantic_edge() {
     harness.run();
 
     let ev = events_ck.lock().unwrap().clone();
-    let ok = ev.iter().any(|e| matches!(e, CanvasEvent::SemanticEdge { source_block_id, target_block_id }
-        if source_block_id == "block-001" && target_block_id == "block-002"));
+    let ok = ev.iter().any(|e| {
+        matches!(e, CanvasEvent::SemanticEdge { source_block_id, target_block_id }
+        if source_block_id == "block-001" && target_block_id == "block-002")
+    });
     assert!(
         ok,
         "PROOF4/AC7: semantic edge must fire SemanticEdge{{source:block-001,target:block-002}} (got {ev:?})"
     );
     // edge_from must be cleared after completing the edge (RISK-6 no double-mutate).
-    assert_eq!(board.lock().unwrap().edge_from, None, "edge_from cleared after edge draw");
+    assert_eq!(
+        board.lock().unwrap().edge_from,
+        None,
+        "edge_from cleared after edge draw"
+    );
     println!("PROOF4/AC7: semantic edge fired SemanticEdge(block-001 -> block-002)");
 }
 
@@ -507,10 +594,18 @@ fn canvas_visual_edge_mode() {
     let events = Arc::new(Mutex::new(Vec::new()));
     let mut harness = harness_for(Arc::clone(&board), events);
     harness.run();
-    assert_eq!(board.lock().unwrap().edge_mode, EdgeMode::Semantic, "default mode is Semantic");
+    assert_eq!(
+        board.lock().unwrap().edge_mode,
+        EdgeMode::Semantic,
+        "default mode is Semantic"
+    );
     harness.get_by_label("Edge: Semantic").click();
     harness.run();
-    assert_eq!(board.lock().unwrap().edge_mode, EdgeMode::Visual, "AC7: edge-mode toggle -> Visual");
+    assert_eq!(
+        board.lock().unwrap().edge_mode,
+        EdgeMode::Visual,
+        "AC7: edge-mode toggle -> Visual"
+    );
     println!("AC7: edge-mode toggle switched Semantic -> Visual");
 }
 
@@ -530,22 +625,40 @@ fn canvas_remove_placement() {
     harness.run();
 
     let ev = events_ck.lock().unwrap().clone();
-    let removed = ev.iter().any(|e| matches!(e, CanvasEvent::RemovePlacement { placement_id } if placement_id == "p-001"));
-    assert!(removed, "PROOF5/AC8: remove button must fire RemovePlacement{{p-001}} (got {ev:?})");
+    let removed = ev.iter().any(
+        |e| matches!(e, CanvasEvent::RemovePlacement { placement_id } if placement_id == "p-001"),
+    );
+    assert!(
+        removed,
+        "PROOF5/AC8: remove button must fire RemovePlacement{{p-001}} (got {ev:?})"
+    );
 
     // Simulate the host applying the removal + refresh: drop p-001 from the board.
     {
         let mut b = board.lock().unwrap();
-        let kept: Vec<CanvasPlacementCard> =
-            b.placements.iter().filter(|p| p.placement_id != "p-001").cloned().collect();
+        let kept: Vec<CanvasPlacementCard> = b
+            .placements
+            .iter()
+            .filter(|p| p.placement_id != "p-001")
+            .cloned()
+            .collect();
         b.set_board(kept, vec![], egui::Vec2::ZERO, 1.0);
     }
     harness.run();
     let ids = author_ids(&harness);
-    assert!(!ids.contains(&placement_author_id("p-001")), "PROOF5/AC8: p-001 absent after refresh");
-    assert!(ids.contains(&placement_author_id("p-002")), "PROOF5: p-002 still present");
+    assert!(
+        !ids.contains(&placement_author_id("p-001")),
+        "PROOF5/AC8: p-001 absent after refresh"
+    );
+    assert!(
+        ids.contains(&placement_author_id("p-002")),
+        "PROOF5: p-002 still present"
+    );
     // The remove author_id must also be gone (no dangling remove button).
-    assert!(!ids.contains(&placement_remove_author_id("p-001")), "PROOF5: remove node gone too");
+    assert!(
+        !ids.contains(&placement_remove_author_id("p-001")),
+        "PROOF5: remove node gone too"
+    );
     println!("PROOF5/AC8: remove fired RemovePlacement(p-001); node absent after refresh");
 }
 
@@ -559,10 +672,19 @@ fn canvas_empty_no_stale_text() {
     harness.run();
 
     let ids = author_ids(&harness);
-    let placement_count = ids.iter().filter(|a| a.starts_with("canvas.placement.")).count();
-    assert_eq!(placement_count, 0, "AC10: empty board has 0 placement nodes");
+    let placement_count = ids
+        .iter()
+        .filter(|a| a.starts_with("canvas.placement."))
+        .count();
+    assert_eq!(
+        placement_count, 0,
+        "AC10: empty board has 0 placement nodes"
+    );
     // No "(stale reference)" anywhere — there are no cards at all.
-    assert!(harness.query_by_label("(stale reference)").is_none(), "AC10: no stale-reference text");
+    assert!(
+        harness.query_by_label("(stale reference)").is_none(),
+        "AC10: no stale-reference text"
+    );
     // The status bar reports "0 placements".
     assert_eq!(
         value_for(&harness, STATUS_AUTHOR_ID).as_deref(),
@@ -598,7 +720,8 @@ fn canvas_screenshot_has_card() {
             let (w, h) = (image.width(), image.height());
             assert!(w > 0 && h > 0, "rendered image must be non-empty");
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut white = 0u32;
             let mut i = 0usize;
             while i + 4 <= raw.len() {
@@ -663,7 +786,10 @@ fn test_client() -> CanvasBoardClient {
 fn client_get_board_url_corrected() {
     let c = test_client();
     let spec = c.get_board_request("ws1", "cb1");
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1");
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1"
+    );
     assert!(spec.query.is_empty());
 }
 
@@ -671,10 +797,18 @@ fn client_get_board_url_corrected() {
 fn client_viewport_body_is_board_state_wrapped() {
     let c = test_client();
     let spec = c.viewport_request("ws1", "cb1", 12.0, -8.0, 1.5);
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1/viewport");
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1/viewport"
+    );
     let body = spec.body.expect("viewport has a body");
-    let bs = body.get("board_state").expect("board_state wrapper (NOT top-level pan/zoom)");
-    assert_eq!(bs.get("schema_id").and_then(|x| x.as_str()), Some("hsk.loom_canvas_board@1"));
+    let bs = body
+        .get("board_state")
+        .expect("board_state wrapper (NOT top-level pan/zoom)");
+    assert_eq!(
+        bs.get("schema_id").and_then(|x| x.as_str()),
+        Some("hsk.loom_canvas_board@1")
+    );
     assert_eq!(bs.get("pan_x").and_then(|x| x.as_f64()), Some(12.0));
     assert_eq!(bs.get("pan_y").and_then(|x| x.as_f64()), Some(-8.0));
     assert_eq!(bs.get("zoom").and_then(|x| x.as_f64()), Some(1.5));
@@ -684,9 +818,15 @@ fn client_viewport_body_is_board_state_wrapped() {
 fn client_place_block_body() {
     let c = test_client();
     let spec = c.place_block_request("ws1", "cb1", "blk-9", 100.0, 200.0, 200.0, 120.0);
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1/placements");
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1/placements"
+    );
     let body = spec.body.unwrap();
-    assert_eq!(body.get("placed_block_id").and_then(|x| x.as_str()), Some("blk-9"));
+    assert_eq!(
+        body.get("placed_block_id").and_then(|x| x.as_str()),
+        Some("blk-9")
+    );
     assert_eq!(body.get("x").and_then(|x| x.as_f64()), Some(100.0));
     assert_eq!(body.get("y").and_then(|x| x.as_f64()), Some(200.0));
 }
@@ -696,10 +836,19 @@ fn client_placement_routes_corrected() {
     // The MT contract said `.../canvas/{cb}/placements/{p}`; the REAL route is `.../canvas-placements/{p}`.
     let c = test_client();
     let group = c.group_request("ws1", "p-1", "grp-7");
-    assert_eq!(group.url, "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-placements/p-1");
-    assert_eq!(group.body.unwrap().get("group_id").and_then(|x| x.as_str()), Some("grp-7"));
+    assert_eq!(
+        group.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-placements/p-1"
+    );
+    assert_eq!(
+        group.body.unwrap().get("group_id").and_then(|x| x.as_str()),
+        Some("grp-7")
+    );
     let remove = c.remove_placement_request("ws1", "p-1");
-    assert_eq!(remove.url, "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-placements/p-1");
+    assert_eq!(
+        remove.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-placements/p-1"
+    );
     assert!(remove.body.is_none(), "DELETE is bodyless");
 }
 
@@ -709,23 +858,44 @@ fn client_semantic_and_visual_edge_bodies() {
     let sem = c.semantic_edge_request("ws1", "src", "tgt");
     assert_eq!(sem.url, "http://127.0.0.1:37501/workspaces/ws1/loom/edges");
     let sb = sem.body.unwrap();
-    assert_eq!(sb.get("source_block_id").and_then(|x| x.as_str()), Some("src"));
-    assert_eq!(sb.get("target_block_id").and_then(|x| x.as_str()), Some("tgt"));
-    assert_eq!(sb.get("edge_type").and_then(|x| x.as_str()), Some("mention"));
+    assert_eq!(
+        sb.get("source_block_id").and_then(|x| x.as_str()),
+        Some("src")
+    );
+    assert_eq!(
+        sb.get("target_block_id").and_then(|x| x.as_str()),
+        Some("tgt")
+    );
+    assert_eq!(
+        sb.get("edge_type").and_then(|x| x.as_str()),
+        Some("mention")
+    );
     assert_eq!(sb.get("created_by").and_then(|x| x.as_str()), Some("user"));
 
     let vis = c.visual_edge_request("ws1", "cb1", "p-1", "p-2");
-    assert_eq!(vis.url, "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1/visual-edges");
+    assert_eq!(
+        vis.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1/visual-edges"
+    );
     let vb = vis.body.unwrap();
-    assert_eq!(vb.get("from_placement_id").and_then(|x| x.as_str()), Some("p-1"));
-    assert_eq!(vb.get("to_placement_id").and_then(|x| x.as_str()), Some("p-2"));
+    assert_eq!(
+        vb.get("from_placement_id").and_then(|x| x.as_str()),
+        Some("p-1")
+    );
+    assert_eq!(
+        vb.get("to_placement_id").and_then(|x| x.as_str()),
+        Some("p-2")
+    );
 }
 
 #[test]
 fn client_get_block_url() {
     let c = test_client();
     let spec = c.get_block_request("ws1", "blk-1");
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws1/loom/blocks/blk-1");
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/blocks/blk-1"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -754,7 +924,9 @@ fn canvas_board_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let data = data.expect("live PG fetch within 5s").expect("live PG fetch ok");
+    let data = data
+        .expect("live PG fetch within 5s")
+        .expect("live PG fetch ok");
     assert!(
         data.placements.len() >= 2,
         "AC1 live: >= 2 seeded placements expected, got {}",
@@ -765,14 +937,21 @@ fn canvas_board_live_pg() {
     use handshake_native::backend_client::{CanvasBoardOpCell, LiveBlockCell};
     let first = data.placements[0].clone();
     let op: CanvasBoardOpCell = Arc::new(Mutex::new(None));
-    client.dispatch(client.remove_placement_request("ws-live", &first.placement_id), Arc::clone(&op));
+    client.dispatch(
+        client.remove_placement_request("ws-live", &first.placement_id),
+        Arc::clone(&op),
+    );
     for _ in 0..50 {
         if op.lock().unwrap().is_some() {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    op.lock().unwrap().clone().expect("remove delivered").expect("remove ok");
+    op.lock()
+        .unwrap()
+        .clone()
+        .expect("remove delivered")
+        .expect("remove ok");
     let block_cell: LiveBlockCell = Arc::new(Mutex::new(None));
     client.resolve_block("ws-live", &first.placed_block_id, Arc::clone(&block_cell));
     for _ in 0..50 {
@@ -781,7 +960,17 @@ fn canvas_board_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let (_, resolved) = block_cell.lock().unwrap().clone().expect("block resolve delivered");
-    assert!(resolved.is_ok(), "AC8 live: source block must still resolve after placement removal");
-    println!("AC1/AC8 live PG: {} placements; source block kept after placement removal", data.placements.len());
+    let (_, resolved) = block_cell
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("block resolve delivered");
+    assert!(
+        resolved.is_ok(),
+        "AC8 live: source block must still resolve after placement removal"
+    );
+    println!(
+        "AC1/AC8 live PG: {} placements; source block kept after placement removal",
+        data.placements.len()
+    );
 }

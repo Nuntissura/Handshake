@@ -36,12 +36,14 @@ use egui_kittest::Harness;
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child};
 use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
+use handshake_native::rich_editor::slash_commands::registry::EmbedKind;
 use handshake_native::rich_editor::slash_commands::{
     slash_item_author_id, SlashMenuState, SlashPrompt, SlashPromptKind, SLASH_MENU_AUTHOR_ID,
     SLASH_PROMPT_DIALOG_AUTHOR_ID, SLASH_PROMPT_INPUT_AUTHOR_ID,
 };
-use handshake_native::rich_editor::slash_commands::registry::EmbedKind;
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic — the
 /// crate sits at `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where
@@ -66,15 +68,15 @@ fn assert_no_local_artifact_dir() {
 }
 
 /// Build a harness rendering an editor over `state`, with the shell Inter fonts installed.
-fn editor_harness<'a>(
-    state: Arc<Mutex<RichEditorState>>,
-    size: egui::Vec2,
-) -> Harness<'a, ()> {
+fn editor_harness<'a>(state: Arc<Mutex<RichEditorState>>, size: egui::Vec2) -> Harness<'a, ()> {
     let state_for_ui = Arc::clone(&state);
-    Harness::builder().with_size(size).wgpu().build_ui(move |ui| {
-        handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
-        RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
-    })
+    Harness::builder()
+        .with_size(size)
+        .wgpu()
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        })
 }
 
 /// A non-wgpu harness (for the focus/input + AccessKit tests that don't need a rendered PNG).
@@ -224,7 +226,9 @@ fn accesskit_menu_and_item_roles() {
 
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
-        let Some(author) = ak.author_id() else { continue };
+        let Some(author) = ak.author_id() else {
+            continue;
+        };
         if author == SLASH_MENU_AUTHOR_ID {
             menu_found = true;
             menu_role = format!("{:?}", ak.role());
@@ -234,8 +238,14 @@ fn accesskit_menu_and_item_roles() {
         }
     }
 
-    assert!(menu_found, "AC-6: live tree must contain the `{SLASH_MENU_AUTHOR_ID}` popup node");
-    assert_eq!(menu_role, "Menu", "AC-6: `{SLASH_MENU_AUTHOR_ID}` must be Role::Menu (got {menu_role})");
+    assert!(
+        menu_found,
+        "AC-6: live tree must contain the `{SLASH_MENU_AUTHOR_ID}` popup node"
+    );
+    assert_eq!(
+        menu_role, "Menu",
+        "AC-6: `{SLASH_MENU_AUTHOR_ID}` must be Role::Menu (got {menu_role})"
+    );
     assert!(
         item_found,
         "AC-7: live tree must contain a `slash-item-paragraph` row node"
@@ -244,7 +254,9 @@ fn accesskit_menu_and_item_roles() {
         item_role, "MenuItem",
         "AC-7: each slash item must be Role::MenuItem (got {item_role})"
     );
-    println!("AC-6/AC-7: live AccessKit tree has the slash-menu (Menu) + slash-item-* (MenuItem) nodes");
+    println!(
+        "AC-6/AC-7: live AccessKit tree has the slash-menu (Menu) + slash-item-* (MenuItem) nodes"
+    );
 }
 
 #[test]
@@ -271,8 +283,13 @@ fn no_unnamed_interactive_nodes_with_menu_open() {
         .accesskit_update
         .expect("AccessKit update produced");
     let inspected = handshake_native::accessibility::assert_no_unnamed_interactive(&update);
-    println!("HBR-SWARM: inspected {inspected} interactive nodes with the slash menu open, all named");
-    assert!(inspected > 0, "the open-menu tree must contain >= 1 interactive node");
+    println!(
+        "HBR-SWARM: inspected {inspected} interactive nodes with the slash menu open, all named"
+    );
+    assert!(
+        inspected > 0,
+        "the open-menu tree must contain >= 1 interactive node"
+    );
 }
 
 // ── AC-9: embed prompt modal opens + a confirmed asset id inserts an embed atom ────────────
@@ -302,8 +319,14 @@ fn embed_prompt_modal_opens_in_live_tree() {
             _ => {}
         }
     }
-    assert!(dialog_found, "AC-9: the `{SLASH_PROMPT_DIALOG_AUTHOR_ID}` modal must be in the live tree");
-    assert!(input_found, "AC-9: the `{SLASH_PROMPT_INPUT_AUTHOR_ID}` field must be in the live tree");
+    assert!(
+        dialog_found,
+        "AC-9: the `{SLASH_PROMPT_DIALOG_AUTHOR_ID}` modal must be in the live tree"
+    );
+    assert!(
+        input_found,
+        "AC-9: the `{SLASH_PROMPT_INPUT_AUTHOR_ID}` field must be in the live tree"
+    );
     println!("AC-9: the embed prompt modal + input render in the live AccessKit tree");
 }
 
@@ -337,16 +360,24 @@ fn embed_prompt_confirm_inserts_embed_atom() {
     harness.step();
 
     let st = state.lock().unwrap();
-    assert!(st.slash_menu.is_none(), "AC-9: confirming the prompt closes the slash surface");
+    assert!(
+        st.slash_menu.is_none(),
+        "AC-9: confirming the prompt closes the slash surface"
+    );
     let para = st.doc.children[0].as_block().unwrap();
     let atom = para
         .children
         .iter()
         .find_map(Child::as_hs_link)
         .expect("AC-9: a confirmed embed inserts an hsLink atom");
-    assert_eq!(atom.ref_kind, "images", "the inserted embed is an image embed");
+    assert_eq!(
+        atom.ref_kind, "images",
+        "the inserted embed is an image embed"
+    );
     assert_eq!(atom.ref_value, "asset-xyz");
-    println!("AC-9: confirming the embed prompt inserted an image embed atom (ref_value=asset-xyz)");
+    println!(
+        "AC-9: confirming the embed prompt inserted an image embed atom (ref_value=asset-xyz)"
+    );
 }
 
 // ── PT screenshots: open menu + filtered menu, saved to the EXTERNAL artifact root ─────────
@@ -406,10 +437,18 @@ fn slash_menu_filtered_screenshot() {
         use handshake_native::rich_editor::slash_commands::registry::filter_slash_commands;
         let rows = filter_slash_commands("head");
         let ids: Vec<&str> = rows.iter().map(|c| c.id).collect();
-        assert_eq!(ids, vec!["heading-1", "heading-2", "heading-3"], "PT-3: 'head' -> 3 headings");
+        assert_eq!(
+            ids,
+            vec!["heading-1", "heading-2", "heading-3"],
+            "PT-3: 'head' -> 3 headings"
+        );
     }
 
-    save_screenshot(&mut harness, "mt016_slash_menu_filtered.png", "PT-3 filtered menu");
+    save_screenshot(
+        &mut harness,
+        "mt016_slash_menu_filtered.png",
+        "PT-3 filtered menu",
+    );
     assert_no_local_artifact_dir();
 }
 
@@ -427,7 +466,8 @@ fn save_screenshot(harness: &mut Harness<()>, file: &str, label: &str) {
             let saved = image.save(&path).is_ok();
 
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut i = 0usize;
             while i + 4 <= raw.len() {
                 let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
@@ -451,7 +491,10 @@ fn save_screenshot(harness: &mut Harness<()>, file: &str, label: &str) {
                 "{label}: the rendered menu must produce >= 2 distinct foreground colors; got {} (bg={bg:?})",
                 foreground.len()
             );
-            assert!(saved, "{label}: the screenshot must be saved to the external artifact root");
+            assert!(
+                saved,
+                "{label}: the screenshot must be saved to the external artifact root"
+            );
         }
         Err(e) => {
             println!(

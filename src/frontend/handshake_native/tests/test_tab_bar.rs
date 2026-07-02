@@ -50,10 +50,7 @@ fn app_with_three_tabs_on_pane_a() -> HandshakeApp {
     // NOTE: stabilize_pins moves the pinned Atelier tab to the FRONT, so the live order becomes
     // [Atelier(pinned), Workspace, InferenceLab(dirty)]. The test reads author_ids by their live
     // index, so it follows the stabilized order rather than the insertion order.
-    let bar = TabBarState::new(
-        pane_a.clone(),
-        vec![workspace, inference, atelier],
-    );
+    let bar = TabBarState::new(pane_a.clone(), vec![workspace, inference, atelier]);
     app.tab_bar_states_mut().insert(pane_a, bar);
     app
 }
@@ -81,8 +78,10 @@ fn live_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<LiveNode> {
 
 #[test]
 fn live_tab_bar_emits_tablist_and_tab_nodes_with_contract_author_ids() {
-    let mut harness = Harness::builder()
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_with_three_tabs_on_pane_a());
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_three_tabs_on_pane_a(),
+    );
     harness.run();
 
     let nodes = live_nodes(&harness);
@@ -110,8 +109,10 @@ fn live_tab_bar_emits_tablist_and_tab_nodes_with_contract_author_ids() {
 
 #[test]
 fn live_active_tab_is_selected_and_dirty_tab_carries_indicator() {
-    let mut harness = Harness::builder()
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_with_three_tabs_on_pane_a());
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_three_tabs_on_pane_a(),
+    );
     harness.run();
 
     let nodes = live_nodes(&harness);
@@ -124,7 +125,11 @@ fn live_active_tab_is_selected_and_dirty_tab_carries_indicator() {
         .filter(|(a, role, _, sel, _)| role == "Tab" && *sel && a.starts_with("tab-pane-a-"))
         .map(|(a, _, _, _, _)| a.as_str())
         .collect();
-    assert_eq!(selected.len(), 1, "exactly one tab is selected (active), got {selected:?}");
+    assert_eq!(
+        selected.len(),
+        1,
+        "exactly one tab is selected (active), got {selected:?}"
+    );
 
     // The dirty InferenceLab tab carries the "dirty" indicator in its AccessKit description, so a
     // model reads unsaved-state without pixels. Find the dirty tab by its label. NOTE (MT-013): the
@@ -163,8 +168,10 @@ fn live_active_tab_is_selected_and_dirty_tab_carries_indicator() {
 
 #[test]
 fn live_pinned_tab_has_no_close_button_node() {
-    let mut harness = Harness::builder()
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_with_three_tabs_on_pane_a());
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_three_tabs_on_pane_a(),
+    );
     harness.run();
 
     let nodes = live_nodes(&harness);
@@ -189,8 +196,10 @@ fn live_pinned_tab_has_no_close_button_node() {
 
 #[test]
 fn live_click_tab_activates_it() {
-    let mut harness = Harness::builder()
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_with_three_tabs_on_pane_a());
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_three_tabs_on_pane_a(),
+    );
     // Wide+tall window so the pane has room for the MT-013 header strip ABOVE the tab strip and the
     // (now badge-widened) tab chips lay out with un-clipped, clickable bounding boxes.
     harness.set_size(egui::Vec2::new(1200.0, 800.0));
@@ -238,8 +247,10 @@ fn live_click_tab_activates_it() {
 
 #[test]
 fn live_click_close_button_removes_tab() {
-    let mut harness = Harness::builder()
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_with_three_tabs_on_pane_a());
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_three_tabs_on_pane_a(),
+    );
     // Wide+tall window so the MT-013 header strip + badge-widened tab chips lay out with un-clipped,
     // clickable close-button bounding boxes (the default size is now too tight after the header add).
     harness.set_size(egui::Vec2::new(1200.0, 800.0));
@@ -269,7 +280,10 @@ fn live_click_close_button_removes_tab() {
         .unwrap();
     assert_eq!(after.tabs.len(), 2, "one tab removed by the close button");
     assert!(
-        !after.tabs.iter().any(|t| t.pane_type == PaneType::Workspace),
+        !after
+            .tabs
+            .iter()
+            .any(|t| t.pane_type == PaneType::Workspace),
         "Workspace tab is gone"
     );
     println!("PASS: clicking a close button removes the tab (live + state)");
@@ -279,8 +293,10 @@ fn live_click_close_button_removes_tab() {
 fn live_drag_tab_across_panes_moves_it_exactly_once() {
     // Red-team CONTROL via the LIVE pointer path: drag tab-pane-a-1 and drop it onto pane-b's tab
     // bar; assert pane-a loses that tab and pane-b gains it exactly once (no duplication, no loss).
-    let mut harness = Harness::builder()
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_with_three_tabs_on_pane_a());
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_three_tabs_on_pane_a(),
+    );
     harness.set_size(egui::Vec2::new(1000.0, 700.0));
     harness.run();
     // Collapse the MT-014 left rail for this tab-drag test: an OPEN rail is a SidePanel::left that
@@ -298,8 +314,20 @@ fn live_drag_tab_across_panes_moves_it_exactly_once() {
     // Source counts before.
     let pane_a: PaneId = Arc::from("pane-a");
     let pane_b: PaneId = Arc::from("pane-b");
-    let a_before = harness.state().tab_bar_states().get(&pane_a).unwrap().tabs.len();
-    let b_before = harness.state().tab_bar_states().get(&pane_b).unwrap().tabs.len();
+    let a_before = harness
+        .state()
+        .tab_bar_states()
+        .get(&pane_a)
+        .unwrap()
+        .tabs
+        .len();
+    let b_before = harness
+        .state()
+        .tab_bar_states()
+        .get(&pane_b)
+        .unwrap()
+        .tabs
+        .len();
     assert_eq!(a_before, 3, "pane-a starts with 3 tabs");
 
     // Find a draggable tab in pane-a (Workspace is unpinned, index 1 after stabilization) and the
@@ -356,11 +384,18 @@ fn live_drag_tab_across_panes_moves_it_exactly_once() {
         b_after.tabs.len()
     );
     assert!(
-        !a_after.tabs.iter().any(|t| t.pane_type == PaneType::Workspace),
+        !a_after
+            .tabs
+            .iter()
+            .any(|t| t.pane_type == PaneType::Workspace),
         "moved Workspace tab no longer in pane-a"
     );
     assert_eq!(
-        b_after.tabs.iter().filter(|t| t.pane_type == PaneType::Workspace).count(),
+        b_after
+            .tabs
+            .iter()
+            .filter(|t| t.pane_type == PaneType::Workspace)
+            .count(),
         1,
         "moved Workspace tab appears exactly once in pane-b (no duplication)"
     );
@@ -404,9 +439,7 @@ fn live_close_five_tabs_decreases_tab_node_count_by_five() {
             .filter(|n| {
                 let ak = n.accesskit_node();
                 format!("{:?}", ak.role()) == "Tab"
-                    && ak
-                        .author_id()
-                        .is_some_and(|a| a.starts_with("tab-pane-a-"))
+                    && ak.author_id().is_some_and(|a| a.starts_with("tab-pane-a-"))
             })
             .count()
     };
@@ -429,6 +462,9 @@ fn live_close_five_tabs_decreases_tab_node_count_by_five() {
     }
 
     let remaining = count_tabs(&harness);
-    assert_eq!(remaining, 1, "five tabs closed -> one Tab node remains (was {initial})");
+    assert_eq!(
+        remaining, 1,
+        "five tabs closed -> one Tab node remains (was {initial})"
+    );
     println!("PASS: closing 5 tabs decreased live Tab node count from {initial} to {remaining}");
 }

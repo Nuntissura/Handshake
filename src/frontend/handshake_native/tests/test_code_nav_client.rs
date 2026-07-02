@@ -32,22 +32,57 @@ use handshake_native::code_editor::gutter::{DiagnosticSeverity, GutterMarkerKind
 #[test]
 fn completion_kind_mapping_matches_react_completion_kind() {
     // Port of `completionKind` (code_intelligence.ts:106), including the Function default.
-    assert_eq!(CompletionKind::from_symbol_kind("class"), CompletionKind::Class);
-    assert_eq!(CompletionKind::from_symbol_kind("struct"), CompletionKind::Class);
-    assert_eq!(CompletionKind::from_symbol_kind("enum"), CompletionKind::Enum);
-    assert_eq!(CompletionKind::from_symbol_kind("field"), CompletionKind::Field);
-    assert_eq!(CompletionKind::from_symbol_kind("module"), CompletionKind::Module);
-    assert_eq!(CompletionKind::from_symbol_kind("variable"), CompletionKind::Variable);
-    assert_eq!(CompletionKind::from_symbol_kind("function"), CompletionKind::Function);
-    assert_eq!(CompletionKind::from_symbol_kind("whatever"), CompletionKind::Function);
+    assert_eq!(
+        CompletionKind::from_symbol_kind("class"),
+        CompletionKind::Class
+    );
+    assert_eq!(
+        CompletionKind::from_symbol_kind("struct"),
+        CompletionKind::Class
+    );
+    assert_eq!(
+        CompletionKind::from_symbol_kind("enum"),
+        CompletionKind::Enum
+    );
+    assert_eq!(
+        CompletionKind::from_symbol_kind("field"),
+        CompletionKind::Field
+    );
+    assert_eq!(
+        CompletionKind::from_symbol_kind("module"),
+        CompletionKind::Module
+    );
+    assert_eq!(
+        CompletionKind::from_symbol_kind("variable"),
+        CompletionKind::Variable
+    );
+    assert_eq!(
+        CompletionKind::from_symbol_kind("function"),
+        CompletionKind::Function
+    );
+    assert_eq!(
+        CompletionKind::from_symbol_kind("whatever"),
+        CompletionKind::Function
+    );
 }
 
 #[test]
 fn staleness_label_matches_react_format() {
-    let fresh = CodeStaleness { state: Some("fresh".into()), fresh: true, ..Default::default() };
+    let fresh = CodeStaleness {
+        state: Some("fresh".into()),
+        fresh: true,
+        ..Default::default()
+    };
     assert_eq!(code_symbol_staleness_label(Some(&fresh)), "fresh (fresh)");
-    let stale = CodeStaleness { state: Some("marked_stale".into()), fresh: false, ..Default::default() };
-    assert_eq!(code_symbol_staleness_label(Some(&stale)), "marked_stale (not fresh)");
+    let stale = CodeStaleness {
+        state: Some("marked_stale".into()),
+        fresh: false,
+        ..Default::default()
+    };
+    assert_eq!(
+        code_symbol_staleness_label(Some(&stale)),
+        "marked_stale (not fresh)"
+    );
     assert_eq!(code_symbol_staleness_label(None), "unknown");
 }
 
@@ -59,7 +94,11 @@ fn completion_item_built_from_symbol_like_react_suggestions_map() {
         symbol_key: "rust:src/lib.rs#add".into(),
         display_name: "add".into(),
         symbol_kind: "function".into(),
-        staleness: Some(CodeStaleness { state: Some("fresh".into()), fresh: true, ..Default::default() }),
+        staleness: Some(CodeStaleness {
+            state: Some("fresh".into()),
+            fresh: true,
+            ..Default::default()
+        }),
         ..Default::default()
     };
     let item = CompletionItem::from_symbol(&symbol);
@@ -67,7 +106,10 @@ fn completion_item_built_from_symbol_like_react_suggestions_map() {
     assert_eq!(item.insert_text, "add");
     assert_eq!(item.detail, "function");
     assert_eq!(item.kind, CompletionKind::Function);
-    assert!(item.documentation.contains("**add**"), "doc carries the markdown heading");
+    assert!(
+        item.documentation.contains("**add**"),
+        "doc carries the markdown heading"
+    );
     assert_eq!(item.symbol_entity_id, "ent-add");
 }
 
@@ -78,7 +120,11 @@ fn markdown_for_symbol_renders_codesymbolpanel_data() {
         display_name: "add".into(),
         symbol_kind: "function".into(),
         symbol_key: "rust:src/lib.rs#add".into(),
-        staleness: Some(CodeStaleness { state: Some("fresh".into()), fresh: true, ..Default::default() }),
+        staleness: Some(CodeStaleness {
+            state: Some("fresh".into()),
+            fresh: true,
+            ..Default::default()
+        }),
         ..Default::default()
     };
     let md = markdown_for_symbol(&symbol, Some("Adds two numbers."));
@@ -91,7 +137,10 @@ fn markdown_for_symbol_renders_codesymbolpanel_data() {
 
 #[test]
 fn symbol_file_path_extracts_segment() {
-    assert_eq!(symbol_file_path("rust:src/lib.rs#add"), Some("src/lib.rs".to_owned()));
+    assert_eq!(
+        symbol_file_path("rust:src/lib.rs#add"),
+        Some("src/lib.rs".to_owned())
+    );
     assert_eq!(symbol_file_path("noseparator"), None);
 }
 
@@ -101,18 +150,34 @@ fn staleness_marker_maps_not_fresh_to_warning_on_definition_line() {
     // (0-based) line; a fresh symbol yields nothing.
     let stale = CodeSymbolNavProjection {
         display_name: "old".into(),
-        definition: Some(CodeSymbolDefinition { line_start: Some(3), ..Default::default() }),
-        staleness: Some(CodeStaleness { state: Some("marked_stale".into()), fresh: false, ..Default::default() }),
+        definition: Some(CodeSymbolDefinition {
+            line_start: Some(3),
+            ..Default::default()
+        }),
+        staleness: Some(CodeStaleness {
+            state: Some("marked_stale".into()),
+            fresh: false,
+            ..Default::default()
+        }),
         ..Default::default()
     };
     let marker = staleness_marker_for(&stale).expect("not-fresh -> marker");
     assert_eq!(marker.line, 2, "1-based line 3 -> 0-based gutter line 2");
-    assert!(matches!(marker.kind, GutterMarkerKind::Diagnostic(DiagnosticSeverity::Warning)));
+    assert!(matches!(
+        marker.kind,
+        GutterMarkerKind::Diagnostic(DiagnosticSeverity::Warning)
+    ));
     assert!(marker.message.contains("Stale code intelligence"));
 
     let fresh = CodeSymbolNavProjection {
-        definition: Some(CodeSymbolDefinition { line_start: Some(3), ..Default::default() }),
-        staleness: Some(CodeStaleness { fresh: true, ..Default::default() }),
+        definition: Some(CodeSymbolDefinition {
+            line_start: Some(3),
+            ..Default::default()
+        }),
+        staleness: Some(CodeStaleness {
+            fresh: true,
+            ..Default::default()
+        }),
         ..Default::default()
     };
     assert!(staleness_marker_for(&fresh).is_none(), "fresh -> no marker");
@@ -138,7 +203,8 @@ fn lookup_response_parses_exact_backend_body_shape() {
         "nav_receipt_event_id": "evt-1",
         "quiet_background_work_receipt_id": "rcpt-1"
     });
-    let parsed: CodeSymbolLookupResponse = serde_json::from_value(body).expect("parse backend body");
+    let parsed: CodeSymbolLookupResponse =
+        serde_json::from_value(body).expect("parse backend body");
     assert_eq!(parsed.matches.len(), 1);
     let m = &parsed.matches[0];
     assert_eq!(m.display_name, "add");
@@ -151,7 +217,13 @@ fn lookup_response_parses_exact_backend_body_shape() {
 fn lookup_cache_respects_prefix_and_caching() {
     let mut cache = CodeNavCache::new();
     assert!(cache.get("ad").is_none());
-    cache.put("ad", vec![CodeSymbolNavProjection { display_name: "add".into(), ..Default::default() }]);
+    cache.put(
+        "ad",
+        vec![CodeSymbolNavProjection {
+            display_name: "add".into(),
+            ..Default::default()
+        }],
+    );
     assert_eq!(cache.get("ad").map(|m| m.len()), Some(1));
     assert!(cache.get("xy").is_none(), "different prefix misses");
 }
@@ -252,7 +324,9 @@ mod live_backend {
                     msg.contains("non-success") || msg.contains("404"),
                     "AC-003 binding: expected a real HTTP response, got {msg}"
                 );
-                println!("AC-003 binding: get_references route responded ({msg}); content DEFERRED");
+                println!(
+                    "AC-003 binding: get_references route responded ({msg}); content DEFERRED"
+                );
             }
         }
     }

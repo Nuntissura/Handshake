@@ -78,9 +78,9 @@ use handshake_core::mt_executor::job::{
     CompletionSignal, EscalationTier, MicroTaskJob, MicroTaskJobId,
 };
 use handshake_core::process_ledger::mt_loop_control::{
-    CheckpointRepoError, EvidencePointer, LoopControlError, MtLoopCheckpoint,
-    MtLoopCheckpointRepo, MtLoopControl, MtLoopControlBudget, MtLoopState, ResumeContext,
-    VerifierFeedbackRef, COMPACT_SUMMARY_MAX_BYTES,
+    CheckpointRepoError, EvidencePointer, LoopControlError, MtLoopCheckpoint, MtLoopCheckpointRepo,
+    MtLoopControl, MtLoopControlBudget, MtLoopState, ResumeContext, VerifierFeedbackRef,
+    COMPACT_SUMMARY_MAX_BYTES,
 };
 use uuid::Uuid;
 
@@ -135,7 +135,10 @@ fn mt_185_serde_round_trip_all_state_variants() {
         let cp = sample_checkpoint(&job, variant.clone());
         let s = serde_json::to_string(&cp).expect("serialize");
         let back: MtLoopCheckpoint = serde_json::from_str(&s).expect("deserialize");
-        assert_eq!(back, cp, "round-trip must preserve every field for {variant:?}");
+        assert_eq!(
+            back, cp,
+            "round-trip must preserve every field for {variant:?}"
+        );
         assert_eq!(back.state_at_checkpoint, variant);
     }
 }
@@ -324,10 +327,7 @@ fn mt_185_verifier_feedback_loop_budget_returns_typed_error() {
         },
         Uuid::now_v7(),
     );
-    assert!(matches!(
-        res,
-        Err(LoopControlError::LoopBudgetExceeded(_))
-    ));
+    assert!(matches!(res, Err(LoopControlError::LoopBudgetExceeded(_))));
 }
 
 #[test]
@@ -469,8 +469,9 @@ fn mt_185_retry_budget_remaining_decrements_per_iteration() {
 // ----------------------------------------------------------------------------
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL test URL");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }
 
@@ -494,7 +495,7 @@ async fn enqueue_parent_job(pool: &sqlx::PgPool, wp_id: &str) -> MicroTaskJobId 
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_185_pg_persisted_checkpoint_survives_repo_handle_churn() {
     // RED-TEAM minimum control #2 surrogate: the row lives in Postgres,
     // so dropping the Rust repo handle and rebuilding a fresh one on the
@@ -548,7 +549,7 @@ async fn mt_185_pg_persisted_checkpoint_survives_repo_handle_churn() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_185_pg_latest_for_job_returns_most_recent() {
     let pool = postgres_pool().await;
     ensure_schemas(&pool).await;
@@ -595,7 +596,7 @@ async fn mt_185_pg_latest_for_job_returns_most_recent() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_185_pg_chain_for_job_returns_ascending_order() {
     let pool = postgres_pool().await;
     ensure_schemas(&pool).await;
@@ -639,7 +640,7 @@ async fn mt_185_pg_chain_for_job_returns_ascending_order() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_185_pg_cascade_delete_removes_all_checkpoints() {
     let pool = postgres_pool().await;
     ensure_schemas(&pool).await;
@@ -681,7 +682,7 @@ async fn mt_185_pg_cascade_delete_removes_all_checkpoints() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_185_pg_check_constraint_rejects_oversized_summary_via_raw_sql() {
     // Defends against a future caller that bypasses the in-Rust gate by
     // constructing an INSERT directly. The CHECK constraint in
@@ -720,7 +721,7 @@ async fn mt_185_pg_check_constraint_rejects_oversized_summary_via_raw_sql() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_185_pg_concurrent_checkpoints_do_not_double_count_retries() {
     // RED-TEAM minimum control #2 (Postgres half): 4 tasks persist 4
     // distinct checkpoints for the same job in parallel; post-race
@@ -760,7 +761,10 @@ async fn mt_185_pg_concurrent_checkpoints_do_not_double_count_retries() {
     }
 
     let count = repo.count_iterations(job_id).await.expect("count");
-    assert_eq!(count, 4, "exactly 4 checkpoints must be persisted, got {count}");
+    assert_eq!(
+        count, 4,
+        "exactly 4 checkpoints must be persisted, got {count}"
+    );
 
     let chain = repo.chain_for_job(job_id).await.expect("chain");
     let chain_ids: std::collections::HashSet<Uuid> =
@@ -779,7 +783,7 @@ async fn mt_185_pg_concurrent_checkpoints_do_not_double_count_retries() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_185_pg_cross_executor_resume_byte_identical() {
     // RED-TEAM minimum control #3 (Postgres half): two repo handles with
     // different session_ids reading the same persisted checkpoint must
@@ -845,9 +849,8 @@ async fn mt_185_pg_cross_executor_resume_byte_identical() {
 // so future renames don't silently break the typed-error boundary.
 #[test]
 fn mt_185_checkpoint_repo_error_carries_loop_control_variant() {
-    let err: CheckpointRepoError = CheckpointRepoError::LoopControl(
-        LoopControlError::LoopBudgetExceeded("test".to_string()),
-    );
+    let err: CheckpointRepoError =
+        CheckpointRepoError::LoopControl(LoopControlError::LoopBudgetExceeded("test".to_string()));
     let s = format!("{err}");
     assert!(s.contains("loop control") || s.contains("loop budget"));
 }

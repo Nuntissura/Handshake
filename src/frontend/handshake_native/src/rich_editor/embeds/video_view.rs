@@ -50,7 +50,9 @@ pub struct VideoViewState {
 impl VideoViewState {
     /// A fresh state (URL not yet revealed).
     pub fn new() -> Self {
-        Self { url_revealed: false }
+        Self {
+            url_revealed: false,
+        }
     }
 }
 
@@ -99,7 +101,10 @@ mod tests {
     }
     impl MockPlayHandler {
         fn new() -> Self {
-            Self { calls: Cell::new(0), last_url: std::cell::RefCell::new(String::new()) }
+            Self {
+                calls: Cell::new(0),
+                last_url: std::cell::RefCell::new(String::new()),
+            }
         }
     }
     impl VideoPlayHandler for MockPlayHandler {
@@ -116,8 +121,16 @@ mod tests {
         let handler = MockPlayHandler::new();
         let url = "http://127.0.0.1:37501/workspaces/ws/assets/v1/content";
         let activation = handler.on_play(url);
-        assert_eq!(handler.calls.get(), 1, "play click invokes the handler exactly once");
-        assert_eq!(*handler.last_url.borrow(), url, "AC-7: the handler receives the content URL");
+        assert_eq!(
+            handler.calls.get(),
+            1,
+            "play click invokes the handler exactly once"
+        );
+        assert_eq!(
+            *handler.last_url.borrow(),
+            url,
+            "AC-7: the handler receives the content URL"
+        );
         assert_eq!(
             activation,
             VideoActivation::ShowUrlInline,

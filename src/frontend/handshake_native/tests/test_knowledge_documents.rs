@@ -184,22 +184,40 @@ fn ac_load_document_deserializes_real_backend_shape() {
     let resp = resp.expect("load against a real-shape 200 body must deserialize, not panic/err");
     // Externally-meaningful assertions on the typed projection.
     assert_eq!(
-        resp.document.get("rich_document_id").and_then(Value::as_str),
+        resp.document
+            .get("rich_document_id")
+            .and_then(Value::as_str),
         Some("KRD-abc123"),
         "the typed response exposes the real document id"
     );
-    assert!(resp.tree.schema_matches, "the block tree schema_matches is parsed");
-    assert_eq!(resp.tree.block_ids, vec!["blk-1", "blk-2"], "block_ids parsed from the real tree shape");
+    assert!(
+        resp.tree.schema_matches,
+        "the block tree schema_matches is parsed"
+    );
+    assert_eq!(
+        resp.tree.block_ids,
+        vec!["blk-1", "blk-2"],
+        "block_ids parsed from the real tree shape"
+    );
 
     // The client used the mock's injected base URL and attached the three required identity headers.
     assert!(
-        exchange.captured_request_line.starts_with("GET /knowledge/documents/KRD-abc123"),
+        exchange
+            .captured_request_line
+            .starts_with("GET /knowledge/documents/KRD-abc123"),
         "load hits GET /knowledge/documents/:id : {}",
         exchange.captured_request_line
     );
-    for required in ["x-hsk-actor-id", "x-hsk-kernel-task-run-id", "x-hsk-session-run-id"] {
+    for required in [
+        "x-hsk-actor-id",
+        "x-hsk-kernel-task-run-id",
+        "x-hsk-session-run-id",
+    ] {
         assert!(
-            exchange.captured_headers.get(required).is_some_and(|v| !v.is_empty()),
+            exchange
+                .captured_headers
+                .get(required)
+                .is_some_and(|v| !v.is_empty()),
             "the required '{required}' header reached the wire: {:?}",
             exchange.captured_headers
         );
@@ -232,24 +250,37 @@ fn ac_save_conflict_returns_distinct_save_conflict_variant() {
     match result {
         Err(KnowledgeDocumentsError::SaveConflict { server_version }) => {
             // The real backend 409 body carries no version, so None — but the variant is DISTINCT.
-            assert_eq!(server_version, None, "the real backend 409 body has no server_version");
+            assert_eq!(
+                server_version, None,
+                "the real backend 409 body has no server_version"
+            );
         }
-        other => panic!("a 409 save MUST be a DISTINCT SaveConflict (never a generic error), got {other:?}"),
+        other => panic!(
+            "a 409 save MUST be a DISTINCT SaveConflict (never a generic error), got {other:?}"
+        ),
     }
     assert!(
-        exchange.captured_request_line.starts_with("PUT /knowledge/documents/KRD-abc123/save"),
+        exchange
+            .captured_request_line
+            .starts_with("PUT /knowledge/documents/KRD-abc123/save"),
         "save hits PUT /save: {}",
         exchange.captured_request_line
     );
     // A write asserts the operator actor-kind (a missing kind 403s a write server-side).
     assert_eq!(
-        exchange.captured_headers.get("x-hsk-actor-kind").map(String::as_str),
+        exchange
+            .captured_headers
+            .get("x-hsk-actor-kind")
+            .map(String::as_str),
         Some("operator"),
         "a save asserts the operator actor-kind on the wire"
     );
     // The save body carries the optimistic-concurrency token.
     let sent: Value = serde_json::from_str(&exchange.captured_body).unwrap();
-    assert_eq!(sent["expected_version"], 1, "the save body sends expected_version");
+    assert_eq!(
+        sent["expected_version"], 1,
+        "the save body sends expected_version"
+    );
 }
 
 // ── AC: a 400 (mock returns the missing-actor-id body) -> typed BadRequest. ────────────────────────
@@ -286,7 +317,9 @@ fn control_move_double_option_serializes_three_ways_on_the_wire() {
         let _ = rt().block_on(async { client.move_document(&headers, "KRD-1", &req).await });
         let exchange = server.join().unwrap();
         assert!(
-            exchange.captured_request_line.starts_with("POST /knowledge/documents/KRD-1/move"),
+            exchange
+                .captured_request_line
+                .starts_with("POST /knowledge/documents/KRD-1/move"),
             "move hits POST /move: {}",
             exchange.captured_request_line
         );
@@ -305,8 +338,15 @@ fn control_move_double_option_serializes_three_ways_on_the_wire() {
         project_ref: Some(None),
         folder_ref: None,
     });
-    assert_eq!(cleared["project_ref"], Value::Null, "Some(None) sends explicit null: {cleared}");
-    assert!(cleared.get("folder_ref").is_none(), "the absent folder_ref stays omitted: {cleared}");
+    assert_eq!(
+        cleared["project_ref"],
+        Value::Null,
+        "Some(None) sends explicit null: {cleared}"
+    );
+    assert!(
+        cleared.get("folder_ref").is_none(),
+        "the absent folder_ref stays omitted: {cleared}"
+    );
 
     // 3) String (set) -> the key is present with the string value.
     let set = capture_move_body(MoveDocumentRequest {
@@ -339,7 +379,9 @@ fn control_batch_over_100_is_rejected_client_side_before_send() {
             assert_eq!(len, 101);
             assert_eq!(max, 100);
         }
-        other => panic!("a >100 batch MUST be a client-side BatchTooLarge BEFORE send, got {other:?}"),
+        other => {
+            panic!("a >100 batch MUST be a client-side BatchTooLarge BEFORE send, got {other:?}")
+        }
     }
 
     // An empty batch is likewise rejected client-side.
@@ -372,12 +414,18 @@ fn control_history_limit_clamped_client_side() {
 
     let resp = rt().block_on(async {
         client
-            .load_history(&headers, "KRD-1", 9999 /* over cap */, -42 /* negative */)
+            .load_history(
+                &headers, "KRD-1", 9999, /* over cap */
+                -42,  /* negative */
+            )
             .await
     });
     let exchange = server.join().unwrap();
     let resp = resp.expect("history list deserializes the real shape");
-    assert_eq!(resp.limit, HISTORY_MAX_LIMIT, "the response echoes the clamped limit");
+    assert_eq!(
+        resp.limit, HISTORY_MAX_LIMIT,
+        "the response echoes the clamped limit"
+    );
 
     // The clamp happened CLIENT-SIDE: the request query carries limit=200 (cap) and offset=0 (>=0).
     assert!(

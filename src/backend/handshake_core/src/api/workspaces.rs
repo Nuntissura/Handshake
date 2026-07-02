@@ -1,23 +1,22 @@
 use axum::{
-    Json, Router,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     routing::{delete, get, post, put},
+    Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::fs;
 use uuid::Uuid;
 
 use crate::ace::validators::atelier_scope::{
-    AtelierScopeError, DocPatchsetV1, SelectionRangeV1, apply_selection_bounded_patchsets,
-    sha256_hex,
+    apply_selection_bounded_patchsets, sha256_hex, AtelierScopeError, DocPatchsetV1,
+    SelectionRangeV1,
 };
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::runtime_governance::RuntimeGovernancePaths;
 use crate::workflows::build_dcc_control_plane_snapshot;
 use crate::{
-    AppState,
     diagnostics::{
         DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
     },
@@ -30,6 +29,7 @@ use crate::{
         WorkbenchLayoutStateInput, WorkspaceSearchBookmarkStateInput, WorkspaceSettingsStateInput,
         WriteActorKind, WriteContext,
     },
+    AppState,
 };
 
 pub fn routes(state: AppState) -> Router {
@@ -1445,12 +1445,12 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::diagnostics::DiagFilter;
     use crate::flight_recorder::{
-        EventFilter, FlightRecorderEventType, duckdb::DuckDbFlightRecorder,
+        duckdb::DuckDbFlightRecorder, EventFilter, FlightRecorderEventType,
     };
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{
-        AccessMode, Database, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob,
-        PlannedOperation, SafetyMode, tests::optional_postgres_backend_with_pool_from_env,
+        tests::optional_postgres_backend_with_pool_from_env, AccessMode, Database, EntityRef,
+        JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation, SafetyMode,
     };
     use axum::extract::{Path, State};
     use serde_json::json;
@@ -1491,8 +1491,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verify_atelier_apply_provenance_accepts_matching_job_output()
-    -> Result<(), Box<dyn std::error::Error>> {
+    async fn verify_atelier_apply_provenance_accepts_matching_job_output(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
@@ -1611,8 +1611,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verify_atelier_apply_provenance_rejects_selection_mismatch_as_stale()
-    -> Result<(), Box<dyn std::error::Error>> {
+    async fn verify_atelier_apply_provenance_rejects_selection_mismatch_as_stale(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
@@ -1718,8 +1718,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verify_atelier_apply_provenance_rejects_patchset_mismatch_as_provenance_mismatch()
-    -> Result<(), Box<dyn std::error::Error>> {
+    async fn verify_atelier_apply_provenance_rejects_patchset_mismatch_as_provenance_mismatch(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
@@ -1830,8 +1830,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn replace_blocks_rejects_ai_when_context_missing()
-    -> Result<(), Box<dyn std::error::Error>> {
+    async fn replace_blocks_rejects_ai_when_context_missing(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
@@ -1918,8 +1918,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn replace_blocks_accepts_ai_and_persists_traceability()
-    -> Result<(), Box<dyn std::error::Error>> {
+    async fn replace_blocks_accepts_ai_and_persists_traceability(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
@@ -2025,12 +2025,12 @@ mod tests {
     /// EventLedger receipt per save. This proves saved searches are canonical
     /// state and the UI is a projection.
     #[tokio::test]
-    async fn mt258_search_bookmarks_persist_to_postgres_and_event_ledger()
-    -> Result<(), Box<dyn std::error::Error>> {
+    async fn mt258_search_bookmarks_persist_to_postgres_and_event_ledger(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         use crate::kernel::KernelEventType;
 
         let Some(state) = setup_state().await? else {
-            eprintln!("SKIP MT-258 search-bookmark route proof: POSTGRES_TEST_URL unavailable");
+            eprintln!("SKIP MT-258 search-bookmark route proof: PostgreSQL backend unavailable");
             return Ok(());
         };
         let workspace = state
@@ -2045,13 +2045,11 @@ mod tests {
         let workspace_id = workspace.id.clone();
 
         // No saved searches yet: GET returns an empty projection.
-        let empty = get_workspace_search_bookmarks(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-        )
-        .await
-        .map_err(|(status, Json(body))| format!("get failed {status}: {}", body.error))?
-        .0;
+        let empty =
+            get_workspace_search_bookmarks(State(state.clone()), Path(workspace_id.clone()))
+                .await
+                .map_err(|(status, Json(body))| format!("get failed {status}: {}", body.error))?
+                .0;
         assert!(
             empty.bookmark_state.is_none(),
             "fresh workspace has no saved searches"
@@ -2089,13 +2087,11 @@ mod tests {
         assert!(!first_event_id.trim().is_empty());
 
         // Re-read straight from Postgres (new GET) confirms durability.
-        let reread = get_workspace_search_bookmarks(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-        )
-        .await
-        .map_err(|(status, Json(body))| format!("re-read failed {status}: {}", body.error))?
-        .0;
+        let reread =
+            get_workspace_search_bookmarks(State(state.clone()), Path(workspace_id.clone()))
+                .await
+                .map_err(|(status, Json(body))| format!("re-read failed {status}: {}", body.error))?
+                .0;
         assert_eq!(
             reread.bookmark_state.as_ref(),
             Some(&bookmark),
@@ -2137,10 +2133,7 @@ mod tests {
         // The EventLedger holds a durable receipt for this workspace aggregate.
         let events = state
             .storage
-            .list_kernel_events_for_aggregate(
-                "workspace_search_bookmark_state",
-                &workspace_id,
-            )
+            .list_kernel_events_for_aggregate("workspace_search_bookmark_state", &workspace_id)
             .await?;
         let receipts: Vec<_> = events
             .iter()

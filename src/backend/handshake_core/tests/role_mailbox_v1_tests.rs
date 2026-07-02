@@ -210,7 +210,7 @@ fn mt_179_unknown_family_decodes_to_unknown_variant() {
 // MT-176/MT-177/MT-178 Postgres-gated tests.
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_postgres_repo_thread_lifecycle_round_trip() {
     let pool = postgres_pool().await;
     let repo = handshake_core::role_mailbox_v1::repo::RoleMailboxRepository::new(pool);
@@ -247,7 +247,7 @@ async fn mt_177_postgres_repo_thread_lifecycle_round_trip() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_178_exporter_idempotent_writes() {
     use handshake_core::role_mailbox_v1::exporter::{MailboxExporter, MailboxExporterConfig};
     use std::collections::BTreeMap;
@@ -281,7 +281,8 @@ async fn mt_178_exporter_idempotent_writes() {
 }
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url =
-        std::env::var("POSTGRES_TEST_URL").expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL for role_mailbox_v1_tests");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }

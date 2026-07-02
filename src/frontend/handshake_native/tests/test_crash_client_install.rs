@@ -43,7 +43,9 @@ fn crash_client_install_signals_minidumper_and_dumps_out_of_process() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let json: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
-        panic!("selftest must print a JSON verdict; got stdout={stdout:?} stderr={stderr:?} err={e}")
+        panic!(
+            "selftest must print a JSON verdict; got stdout={stdout:?} stderr={stderr:?} err={e}"
+        )
     });
 
     // The selftest exits 0 ONLY when every stage held: the callback ran, the simulated exception was
@@ -53,17 +55,24 @@ fn crash_client_install_signals_minidumper_and_dumps_out_of_process() {
         Some(0),
         "AC-012-4: the crash-client selftest must pass (json={json}, stderr={stderr})"
     );
-    assert_eq!(json["ok"], serde_json::Value::Bool(true), "verdict ok must be true: {json}");
     assert_eq!(
-        json["callback_ran"], serde_json::Value::Bool(true),
+        json["ok"],
+        serde_json::Value::Bool(true),
+        "verdict ok must be true: {json}"
+    );
+    assert_eq!(
+        json["callback_ran"],
+        serde_json::Value::Bool(true),
         "AC-012-4: the crash-handler callback MUST have run on the (simulated) exception: {json}"
     );
     assert_eq!(
-        json["sim_handled"], serde_json::Value::Bool(true),
+        json["sim_handled"],
+        serde_json::Value::Bool(true),
         "AC-012-4: the callback must report it HANDLED the crash (it signalled the client): {json}"
     );
     assert_eq!(
-        json["minidump_captured"], serde_json::Value::Bool(true),
+        json["minidump_captured"],
+        serde_json::Value::Bool(true),
         "AC-012-4: a minidump must have been written OUT-OF-PROCESS by the server: {json}"
     );
     assert!(

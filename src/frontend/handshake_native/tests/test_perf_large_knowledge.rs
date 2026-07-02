@@ -88,7 +88,11 @@ fn perf_lk02_graph_layout() {
             "mention",
         ));
     }
-    assert_eq!(edges.len(), synth_node_count * 2, "LK-02: ~2000 edges synthesized for the 1000-node target");
+    assert_eq!(
+        edges.len(),
+        synth_node_count * 2,
+        "LK-02: ~2000 edges synthesized for the 1000-node target"
+    );
 
     let mut view = LoomGraphView::global("mt045-lk02");
     view.set_graph(nodes, edges); // seeds positions (setup) AND truncates to NODE_CAP
@@ -106,7 +110,10 @@ fn perf_lk02_graph_layout() {
         view.total_available, synth_node_count,
         "LK-02: set_graph must record the true total (1000) in total_available for the truncation notice"
     );
-    assert!(!view.layout_stable(), "LK-02: a fresh {laid_out}-node layout is not yet stable");
+    assert!(
+        !view.layout_stable(),
+        "LK-02: a fresh {laid_out}-node layout is not yet stable"
+    );
 
     // MEASURED: drive the REAL force layout to its stop condition (converged OR the iteration budget),
     // i.e. ONE full layout-to-stable pass over the laid-out (capped) set. step_layout runs ITERS_PER_FRAME
@@ -118,14 +125,26 @@ fn perf_lk02_graph_layout() {
             frames += 1;
             // Hard safety bound (the layout's own MAX_LAYOUT_ITERS already caps it; this guards the test
             // loop from any never-stable regression so a bug fails fast, not hangs).
-            assert!(frames < 100_000, "LK-02: layout must reach a stop condition, not spin forever");
+            assert!(
+                frames < 100_000,
+                "LK-02: layout must reach a stop condition, not spin forever"
+            );
         }
     });
 
     // Positions must be finite after the run (the force clamp guards 1/d^2 blow-up).
-    let finite = view.nodes.iter().all(|n| n.x.is_finite() && n.y.is_finite());
-    assert!(finite, "LK-02: all {laid_out} laid-out node positions must be finite after layout");
-    assert!(view.layout_stable(), "LK-02: the layout must report stable after the run");
+    let finite = view
+        .nodes
+        .iter()
+        .all(|n| n.x.is_finite() && n.y.is_finite());
+    assert!(
+        finite,
+        "LK-02: all {laid_out} laid-out node positions must be finite after layout"
+    );
+    assert!(
+        view.layout_stable(),
+        "LK-02: the layout must report stable after the run"
+    );
     assert!(
         budget.passes(elapsed_ms),
         "LK-02: {laid_out}-node force-layout {elapsed_ms} ms must be <= {} ms (override {})",
@@ -165,23 +184,48 @@ fn perf_lk01_graph_load() {
             created_ids.push(id.to_owned());
         }
     }
-    let _guard = BlockGuard { be: &be, ids: created_ids.clone() };
-    assert!(created_ids.len() >= 1000, "LK-01: 1000 blocks created (got {})", created_ids.len());
+    let _guard = BlockGuard {
+        be: &be,
+        ids: created_ids.clone(),
+    };
+    assert!(
+        created_ids.len() >= 1000,
+        "LK-01: 1000 blocks created (got {})",
+        created_ids.len()
+    );
 
     // MEASURED: the graph QUERY only (depth=2).
     let (graph, elapsed_ms) = time_ms(|| {
-        be.get_json(&format!("/workspaces/{}/loom/graph/global?depth=2", be.workspace_id))
+        be.get_json(&format!(
+            "/workspaces/{}/loom/graph/global?depth=2",
+            be.workspace_id
+        ))
     });
     let node_count = graph
         .get("nodes")
         .and_then(|v| v.as_array())
         .map(|a| a.len())
-        .or_else(|| graph.get("node_count").and_then(|v| v.as_u64()).map(|n| n as usize))
+        .or_else(|| {
+            graph
+                .get("node_count")
+                .and_then(|v| v.as_u64())
+                .map(|n| n as usize)
+        })
         .unwrap_or(0);
-    assert!(node_count >= 1000, "LK-01: the graph must report >= 1000 nodes (got {node_count})");
-    assert!(budget.passes(elapsed_ms), "LK-01: graph query {elapsed_ms} ms must be <= {} ms", budget.ceiling);
+    assert!(
+        node_count >= 1000,
+        "LK-01: the graph must report >= 1000 nodes (got {node_count})"
+    );
+    assert!(
+        budget.passes(elapsed_ms),
+        "LK-01: graph query {elapsed_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
 
-    println!("LK-01 measured={elapsed_ms}ms (<= {}ms) PASS — graph load, {node_count} nodes (live PG)", budget.ceiling);
+    println!(
+        "LK-01 measured={elapsed_ms}ms (<= {}ms) PASS — graph load, {node_count} nodes (live PG)",
+        budget.ceiling
+    );
     record("LK-01", elapsed_ms as f64, "PASS");
 }
 
@@ -196,7 +240,9 @@ fn perf_lk03_tag_hub() {
     // FIXTURE (NOT timed, impl note 8): a tag-hub block + 5000 blocks each carrying that tag (an edge
     // from the tag hub to each block). Created in batches; NOT counted in the budget. The seeded tag
     // block id is read from HSK_TEST_TAG_BLOCK_ID when the operator pre-seeds (large batch is slow).
-    let tag_block_id = std::env::var("HSK_TEST_TAG_BLOCK_ID").ok().filter(|s| !s.is_empty());
+    let tag_block_id = std::env::var("HSK_TEST_TAG_BLOCK_ID")
+        .ok()
+        .filter(|s| !s.is_empty());
     let (tag_id, mut created_ids): (String, Vec<String>) = if let Some(id) = tag_block_id {
         (id, Vec::new()) // pre-seeded by the operator; no cleanup of pre-seeded rows
     } else {
@@ -206,7 +252,11 @@ fn perf_lk03_tag_hub() {
             // a content-type variant; "tag" is an EDGE type). Verified at storage/loom.rs:45,64,80.
             &serde_json::json!({ "content_type": "tag_hub", "title": "mt045-lk03-taghub" }),
         );
-        let tag_id = tag.get("block_id").and_then(|v| v.as_str()).expect("LK-03: tag block_id").to_owned();
+        let tag_id = tag
+            .get("block_id")
+            .and_then(|v| v.as_str())
+            .expect("LK-03: tag block_id")
+            .to_owned();
         let mut ids = vec![tag_id.clone()];
         for i in 0..5000usize {
             let blk = be.post_json(
@@ -232,23 +282,47 @@ fn perf_lk03_tag_hub() {
         }
         (tag_id, ids)
     };
-    let _guard = BlockGuard { be: &be, ids: std::mem::take(&mut created_ids) };
+    let _guard = BlockGuard {
+        be: &be,
+        ids: std::mem::take(&mut created_ids),
+    };
 
     // MEASURED: the tag-hub QUERY only.
     let (resp, elapsed_ms) = time_ms(|| {
-        be.get_json(&format!("/workspaces/{}/loom/tags/{}/blocks?limit=10000", be.workspace_id, tag_id))
+        be.get_json(&format!(
+            "/workspaces/{}/loom/tags/{}/blocks?limit=10000",
+            be.workspace_id, tag_id
+        ))
     });
     let hit_count = resp
         .as_array()
         .map(|a| a.len())
-        .or_else(|| resp.get("blocks").and_then(|v| v.as_array()).map(|a| a.len()))
-        .or_else(|| resp.get("hit_count").and_then(|v| v.as_u64()).map(|n| n as usize))
+        .or_else(|| {
+            resp.get("blocks")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+        })
+        .or_else(|| {
+            resp.get("hit_count")
+                .and_then(|v| v.as_u64())
+                .map(|n| n as usize)
+        })
         .unwrap_or(0);
-    assert_eq!(hit_count, 5000, "LK-03: the tag hub must return exactly 5000 blocks (got {hit_count})");
-    assert!(budget.passes(elapsed_ms), "LK-03: tag query {elapsed_ms} ms must be <= {} ms", budget.ceiling);
+    assert_eq!(
+        hit_count, 5000,
+        "LK-03: the tag hub must return exactly 5000 blocks (got {hit_count})"
+    );
+    assert!(
+        budget.passes(elapsed_ms),
+        "LK-03: tag query {elapsed_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
 
     // proof_target #5 greps for 'hit_count=5000'.
-    println!("LK-03 measured={elapsed_ms}ms (<= {}ms) PASS — tag hub hit_count={hit_count} (live PG)", budget.ceiling);
+    println!(
+        "LK-03 measured={elapsed_ms}ms (<= {}ms) PASS — tag hub hit_count={hit_count} (live PG)",
+        budget.ceiling
+    );
     record("LK-03", elapsed_ms as f64, "PASS");
 }
 
@@ -265,7 +339,11 @@ fn perf_lk04_search_index() {
     let mut created_ids: Vec<String> = Vec::new();
     if std::env::var("HSK_TEST_SEARCH_PRESEEDED").as_deref() != Ok("1") {
         for i in 0..5000usize {
-            let title = if i % 50 == 0 { format!("ZEBRAQUERY doc {i}") } else { format!("plain doc {i}") };
+            let title = if i % 50 == 0 {
+                format!("ZEBRAQUERY doc {i}")
+            } else {
+                format!("plain doc {i}")
+            };
             let blk = be.post_json(
                 &format!("/workspaces/{}/loom/blocks", be.workspace_id),
                 &serde_json::json!({ "content_type": "note", "title": title }),
@@ -275,7 +353,10 @@ fn perf_lk04_search_index() {
             }
         }
     }
-    let _guard = BlockGuard { be: &be, ids: created_ids.clone() };
+    let _guard = BlockGuard {
+        be: &be,
+        ids: created_ids.clone(),
+    };
 
     // MEASURED: the search QUERY only.
     let (resp, elapsed_ms) = time_ms(|| {
@@ -288,11 +369,22 @@ fn perf_lk04_search_index() {
         .get("hits")
         .and_then(|v| v.as_array())
         .map(|a| a.len())
-        .or_else(|| resp.get("results").and_then(|v| v.as_array()).map(|a| a.len()))
+        .or_else(|| {
+            resp.get("results")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+        })
         .or_else(|| resp.as_array().map(|a| a.len()))
         .unwrap_or(0);
-    assert!((50..=200).contains(&hits), "LK-04: search must return 50..200 hits (got {hits})");
-    assert!(budget.passes(elapsed_ms), "LK-04: search {elapsed_ms} ms must be <= {} ms", budget.ceiling);
+    assert!(
+        (50..=200).contains(&hits),
+        "LK-04: search must return 50..200 hits (got {hits})"
+    );
+    assert!(
+        budget.passes(elapsed_ms),
+        "LK-04: search {elapsed_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
 
     println!("LK-04 measured={elapsed_ms}ms (<= {}ms) PASS — search-v2 returned {hits} hits over 5000 blocks (live PG)", budget.ceiling);
     record("LK-04", elapsed_ms as f64, "PASS");
@@ -314,22 +406,41 @@ fn perf_lk05_folder_tree() {
                 &format!("/workspaces/{}/loom/folders", be.workspace_id),
                 &serde_json::json!({ "name": format!("mt045-lk05-folder-{i}") }),
             );
-            if let Some(fid) = folder.get("folder_id").and_then(|v| v.as_str()).or_else(|| folder.get("id").and_then(|v| v.as_str())) {
+            if let Some(fid) = folder
+                .get("folder_id")
+                .and_then(|v| v.as_str())
+                .or_else(|| folder.get("id").and_then(|v| v.as_str()))
+            {
                 created_folders.push(fid.to_owned());
             }
         }
     }
-    let _guard = FolderGuard { be: &be, ids: created_folders.clone() };
+    let _guard = FolderGuard {
+        be: &be,
+        ids: created_folders.clone(),
+    };
 
     // MEASURED: the folder-tree QUERY only.
-    let (resp, elapsed_ms) = time_ms(|| be.get_json(&format!("/workspaces/{}/loom/folders", be.workspace_id)));
+    let (resp, elapsed_ms) =
+        time_ms(|| be.get_json(&format!("/workspaces/{}/loom/folders", be.workspace_id)));
     let folder_count = resp
         .as_array()
         .map(|a| a.len())
-        .or_else(|| resp.get("folders").and_then(|v| v.as_array()).map(|a| a.len()))
+        .or_else(|| {
+            resp.get("folders")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+        })
         .unwrap_or(0);
-    assert_eq!(folder_count, 200, "LK-05: the folder tree must return exactly 200 folders (got {folder_count})");
-    assert!(budget.passes(elapsed_ms), "LK-05: folder query {elapsed_ms} ms must be <= {} ms", budget.ceiling);
+    assert_eq!(
+        folder_count, 200,
+        "LK-05: the folder tree must return exactly 200 folders (got {folder_count})"
+    );
+    assert!(
+        budget.passes(elapsed_ms),
+        "LK-05: folder query {elapsed_ms} ms must be <= {} ms",
+        budget.ceiling
+    );
 
     println!("LK-05 measured={elapsed_ms}ms (<= {}ms) PASS — folder tree folder_count={folder_count} (live PG)", budget.ceiling);
     record("LK-05", elapsed_ms as f64, "PASS");
@@ -351,7 +462,10 @@ struct BlockGuard<'a> {
 impl Drop for BlockGuard<'_> {
     fn drop(&mut self) {
         for id in &self.ids {
-            let _ = self.be.delete(&format!("/workspaces/{}/loom/blocks/{}", self.be.workspace_id, id));
+            let _ = self.be.delete(&format!(
+                "/workspaces/{}/loom/blocks/{}",
+                self.be.workspace_id, id
+            ));
         }
     }
 }
@@ -365,7 +479,10 @@ struct FolderGuard<'a> {
 impl Drop for FolderGuard<'_> {
     fn drop(&mut self) {
         for id in &self.ids {
-            let _ = self.be.delete(&format!("/workspaces/{}/loom/folders/{}", self.be.workspace_id, id));
+            let _ = self.be.delete(&format!(
+                "/workspaces/{}/loom/folders/{}",
+                self.be.workspace_id, id
+            ));
         }
     }
 }

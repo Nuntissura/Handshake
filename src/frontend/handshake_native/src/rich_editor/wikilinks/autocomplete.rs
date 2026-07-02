@@ -210,7 +210,9 @@ impl AutocompleteRuntime {
         let cell = Arc::clone(&self.cell);
         let workspace_id = self.workspace_id.clone();
         runtime.spawn(async move {
-            let result = backend.search(&workspace_id, &query, AUTOCOMPLETE_LIMIT).await;
+            let result = backend
+                .search(&workspace_id, &query, AUTOCOMPLETE_LIMIT)
+                .await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((generation, result));
             }
@@ -251,7 +253,11 @@ impl AutocompleteRuntime {
     /// TEST SEAM: directly stage a delivery into the cell (so a headless test can drive [`Self::drain`]
     /// without a tokio runtime).
     #[cfg(test)]
-    pub fn stage_delivery(&self, generation: u64, result: Result<Vec<WikilinkResult>, WikilinkError>) {
+    pub fn stage_delivery(
+        &self,
+        generation: u64,
+        result: Result<Vec<WikilinkResult>, WikilinkError>,
+    ) {
         *self.cell.lock().unwrap() = Some((generation, result));
     }
 }
@@ -352,19 +358,27 @@ pub fn candidates_for_query(index: &ResolverIndex, query: &str) -> Vec<WikilinkC
         // Alias matches (matched_alias = the original-case alias).
         for alias in &doc.aliases {
             if let Some(score) = fuzzy_score(&nq, &normalize_target(alias)) {
-                consider(&mut best, &doc.document_id, score, Some(alias.clone()), &doc.display_title);
+                consider(
+                    &mut best,
+                    &doc.document_id,
+                    score,
+                    Some(alias.clone()),
+                    &doc.display_title,
+                );
             }
         }
     }
 
     let mut out: Vec<WikilinkCandidate> = best
         .into_iter()
-        .map(|(document_id, (score, matched_alias, display_title))| WikilinkCandidate {
-            document_id,
-            display_title,
-            matched_alias,
-            score,
-        })
+        .map(
+            |(document_id, (score, matched_alias, display_title))| WikilinkCandidate {
+                document_id,
+                display_title,
+                matched_alias,
+                score,
+            },
+        )
         .collect();
     // Sort by score desc, then display title asc (stable, deterministic ordering).
     out.sort_by(|a, b| {
@@ -392,11 +406,17 @@ fn consider(
                 // On an equal score, prefer the TITLE match (existing alias-only loses to a new title).
                 || (score == *existing_score && matched_alias.is_none() && existing_alias.is_some());
             if replace {
-                best.insert(document_id.to_owned(), (score, matched_alias, display_title.to_owned()));
+                best.insert(
+                    document_id.to_owned(),
+                    (score, matched_alias, display_title.to_owned()),
+                );
             }
         }
         None => {
-            best.insert(document_id.to_owned(), (score, matched_alias, display_title.to_owned()));
+            best.insert(
+                document_id.to_owned(),
+                (score, matched_alias, display_title.to_owned()),
+            );
         }
     }
 }
@@ -404,12 +424,17 @@ fn consider(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use crate::rich_editor::wikilinks::client::WikilinkFuture;
     use crate::rich_editor::wikilinks::client::{BacklinksResponse, LoomBlockTransclusion};
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn result(id: &str) -> WikilinkResult {
-        WikilinkResult { block_id: id.into(), title: id.into(), content_type: "note".into(), highlight: String::new() }
+        WikilinkResult {
+            block_id: id.into(),
+            title: id.into(),
+            content_type: "note".into(),
+            highlight: String::new(),
+        }
     }
 
     /// A counted mock backend: tracks how many times `search` is called (MC-002 debounce proof).
@@ -418,19 +443,30 @@ mod tests {
     }
     impl CountingBackend {
         fn new() -> Self {
-            Self { searches: AtomicUsize::new(0) }
+            Self {
+                searches: AtomicUsize::new(0),
+            }
         }
         fn search_count(&self) -> usize {
             self.searches.load(Ordering::SeqCst)
         }
     }
     impl WikilinkBackend for CountingBackend {
-        fn search<'a>(&'a self, _ws: &'a str, query: &'a str, _limit: usize) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
+        fn search<'a>(
+            &'a self,
+            _ws: &'a str,
+            query: &'a str,
+            _limit: usize,
+        ) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
             self.searches.fetch_add(1, Ordering::SeqCst);
             let q = query.to_owned();
             Box::pin(async move { Ok(vec![result(&format!("hit-{q}"))]) })
         }
-        fn resolve_transclusion<'a>(&'a self, _ws: &'a str, _r: &'a str) -> WikilinkFuture<'a, LoomBlockTransclusion> {
+        fn resolve_transclusion<'a>(
+            &'a self,
+            _ws: &'a str,
+            _r: &'a str,
+        ) -> WikilinkFuture<'a, LoomBlockTransclusion> {
             Box::pin(async { Err(WikilinkError::NotFound("x".into())) })
         }
         fn list_backlinks<'a>(&'a self, _d: &'a str) -> WikilinkFuture<'a, BacklinksResponse> {
@@ -441,7 +477,11 @@ mod tests {
     #[test]
     fn debounce_issues_one_search_for_five_rapid_keystrokes_mc002() {
         // MC-002: 5 rapid keystrokes (each within the debounce window) must issue ONLY 1 search.
-        let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
         let backend = Arc::new(CountingBackend::new());
         let backend_dyn: Arc<dyn WikilinkBackend> = backend.clone();
         let runtime = AutocompleteRuntime::new("ws", backend_dyn, Some(rt.handle().clone()));
@@ -455,14 +495,22 @@ mod tests {
             let now = base + Duration::from_millis((i as u64) * 10);
             runtime.maybe_search(&mut state, now);
         }
-        assert_eq!(backend.search_count(), 0, "no search fires DURING the rapid burst (still debouncing)");
+        assert_eq!(
+            backend.search_count(),
+            0,
+            "no search fires DURING the rapid burst (still debouncing)"
+        );
 
         // After the debounce window elapses past the LAST change, exactly one search fires.
         let after = base + Duration::from_millis(40 + 200);
         runtime.maybe_search(&mut state, after);
         // Give the spawned task a moment to run.
         std::thread::sleep(Duration::from_millis(50));
-        assert_eq!(backend.search_count(), 1, "MC-002: exactly ONE search after the burst debounces");
+        assert_eq!(
+            backend.search_count(),
+            1,
+            "MC-002: exactly ONE search after the burst debounces"
+        );
     }
 
     #[test]
@@ -470,12 +518,24 @@ mod tests {
         let mut state = AutocompleteState::open(0, vec![0, 0], "q".into());
         state.set_query("qq".into());
         let t0 = state.last_change.unwrap();
-        assert!(!state.should_search(t0), "no search before the window elapses");
-        assert!(!state.should_search(t0 + Duration::from_millis(149)), "still within the window");
-        assert!(state.should_search(t0 + Duration::from_millis(150)), "search at the window edge");
+        assert!(
+            !state.should_search(t0),
+            "no search before the window elapses"
+        );
+        assert!(
+            !state.should_search(t0 + Duration::from_millis(149)),
+            "still within the window"
+        );
+        assert!(
+            state.should_search(t0 + Duration::from_millis(150)),
+            "search at the window edge"
+        );
         // Once Loading, should_search is false (a search is in flight).
         state.phase = SearchPhase::Loading;
-        assert!(!state.should_search(t0 + Duration::from_secs(1)), "no re-search while Loading");
+        assert!(
+            !state.should_search(t0 + Duration::from_secs(1)),
+            "no re-search while Loading"
+        );
     }
 
     #[test]
@@ -493,12 +553,22 @@ mod tests {
 
         // A STALE result for generation 0 lands -> dropped.
         runtime.stage_delivery(0, Ok(vec![result("stale")]));
-        assert!(!runtime.drain(&mut state), "MC-004: a stale-generation result is dropped");
-        assert_eq!(state.as_ref().unwrap().phase, SearchPhase::Idle, "phase unchanged by a stale result");
+        assert!(
+            !runtime.drain(&mut state),
+            "MC-004: a stale-generation result is dropped"
+        );
+        assert_eq!(
+            state.as_ref().unwrap().phase,
+            SearchPhase::Idle,
+            "phase unchanged by a stale result"
+        );
 
         // The CURRENT-generation result lands -> applied.
         runtime.stage_delivery(live_gen, Ok(vec![result("fresh")]));
-        assert!(runtime.drain(&mut state), "the matching-generation result applies");
+        assert!(
+            runtime.drain(&mut state),
+            "the matching-generation result applies"
+        );
         assert_eq!(
             state.as_ref().unwrap().phase,
             SearchPhase::Ready(vec![result("fresh")]),
@@ -512,7 +582,10 @@ mod tests {
         let runtime = AutocompleteRuntime::new("ws", backend, None);
         runtime.stage_delivery(0, Ok(vec![result("x")]));
         let mut closed: Option<AutocompleteState> = None;
-        assert!(!runtime.drain(&mut closed), "a result for a closed popup is dropped, not a panic");
+        assert!(
+            !runtime.drain(&mut closed),
+            "a result for a closed popup is dropped, not a panic"
+        );
     }
 
     #[test]
@@ -539,8 +612,14 @@ mod tests {
         let gen0 = st.generation;
         let t0 = st.last_change;
         st.set_query("q".into()); // unchanged
-        assert_eq!(st.generation, gen0, "unchanged query does not bump generation");
-        assert_eq!(st.last_change, t0, "unchanged query does not reset the debounce clock");
+        assert_eq!(
+            st.generation, gen0,
+            "unchanged query does not bump generation"
+        );
+        assert_eq!(
+            st.last_change, t0,
+            "unchanged query does not reset the debounce clock"
+        );
         st.set_query("qq".into()); // changed
         assert_eq!(st.generation, gen0.wrapping_add(1));
     }
@@ -553,7 +632,10 @@ mod tests {
         let gen = state.as_ref().unwrap().generation;
         runtime.stage_delivery(gen, Err(WikilinkError::NetworkError("down".into())));
         assert!(runtime.drain(&mut state));
-        assert!(matches!(state.as_ref().unwrap().phase, SearchPhase::Err(WikilinkError::NetworkError(_))));
+        assert!(matches!(
+            state.as_ref().unwrap().phase,
+            SearchPhase::Err(WikilinkError::NetworkError(_))
+        ));
     }
 
     // ── WP-KERNEL-012 MT-057: alias-aware candidate provider ─────────────────────────────────────
@@ -573,13 +655,22 @@ mod tests {
         let idx = alias_index();
         let cands = candidates_for_query(&idx, "atlas");
         // DOC-1 ("Project Atlas") matches by BOTH title (contains "atlas") AND the alias "Atlas".
-        let doc1 = cands.iter().find(|c| c.document_id == "DOC-1").expect("DOC-1 present");
+        let doc1 = cands
+            .iter()
+            .find(|c| c.document_id == "DOC-1")
+            .expect("DOC-1 present");
         // Dedupe rule (impl note 3): a doc matched by both renders ONCE; the title match (exact-ish via
         // contains) here wins on score, so matched_alias is None for DOC-1 (it appears once, not twice).
         let doc1_count = cands.iter().filter(|c| c.document_id == "DOC-1").count();
-        assert_eq!(doc1_count, 1, "a doc matched by both title and alias is deduped to ONE candidate");
+        assert_eq!(
+            doc1_count, 1,
+            "a doc matched by both title and alias is deduped to ONE candidate"
+        );
         // DOC-3 ("Atlas Shrugged") starts_with "atlas" -> a strong title match, also present.
-        assert!(cands.iter().any(|c| c.document_id == "DOC-3"), "DOC-3 title-matches 'atlas'");
+        assert!(
+            cands.iter().any(|c| c.document_id == "DOC-3"),
+            "DOC-3 title-matches 'atlas'"
+        );
         assert!(doc1.display_title == "Project Atlas");
     }
 
@@ -590,13 +681,19 @@ mod tests {
         idx.add_document("DOC-9", "Quarterly Plan");
         idx.add_alias("DOC-9", "QP");
         let cands = candidates_for_query(&idx, "qp");
-        let c = cands.iter().find(|c| c.document_id == "DOC-9").expect("matched via alias");
+        let c = cands
+            .iter()
+            .find(|c| c.document_id == "DOC-9")
+            .expect("matched via alias");
         assert_eq!(
             c.matched_alias.as_deref(),
             Some("QP"),
             "AC-005: a candidate matched only by alias carries the matched_alias (original case)"
         );
-        assert_eq!(c.display_title, "Quarterly Plan", "the primary label is still the canonical title");
+        assert_eq!(
+            c.display_title, "Quarterly Plan",
+            "the primary label is still the canonical title"
+        );
     }
 
     #[test]
@@ -623,7 +720,10 @@ mod tests {
         idx.add_document("CONTAINS", "the atlas map"); // contains -> ~200+
         let cands = candidates_for_query(&idx, "atlas");
         assert_eq!(cands[0].document_id, "EXACT", "the exact match ranks first");
-        assert!(cands[0].score >= cands[1].score, "sorted by score descending");
+        assert!(
+            cands[0].score >= cands[1].score,
+            "sorted by score descending"
+        );
         assert!(cands[1].score >= cands.last().unwrap().score);
     }
 
@@ -631,7 +731,10 @@ mod tests {
     fn non_matching_query_excludes_candidate() {
         let idx = alias_index();
         let cands = candidates_for_query(&idx, "zzznope");
-        assert!(cands.is_empty(), "a query matching no title/alias yields no candidates");
+        assert!(
+            cands.is_empty(),
+            "a query matching no title/alias yields no candidates"
+        );
     }
 
     #[test]
@@ -639,6 +742,10 @@ mod tests {
         let idx = alias_index();
         let cands = candidates_for_query(&idx, "");
         // Three documents -> three candidates (one per doc, deduped).
-        assert_eq!(cands.len(), 3, "an empty query lists the indexed documents (one per doc)");
+        assert_eq!(
+            cands.len(),
+            3,
+            "an empty query lists the indexed documents (one per doc)"
+        );
     }
 }

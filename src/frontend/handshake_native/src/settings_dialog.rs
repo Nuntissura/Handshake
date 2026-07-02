@@ -59,10 +59,9 @@ use crate::workspace_settings::{
     find_keybinding_conflicts, keybinding_label_for_conflict, normalize_chord_input,
     setting_matches_query, Keybinding, NotYetWiredSetting, SettingsViewMode,
     WorkspaceSettingsState, WorkspaceTheme, ABOUT_APP_NAME, ABOUT_VERSION, APP_KEYBINDING_ACTIONS,
-    MODEL_SESSION_DEFAULT_PROVIDER_SETTING, MODEL_SESSION_DEFAULT_WRAPPER_SETTING,
-    MODEL_SESSION_LOCAL_MODEL_ROOT_SETTING, SWARM_RECONCILE_INTERVAL_SETTING,
-    SWARM_RESOURCE_POLL_INTERVAL_SETTING, TERMINAL_DEFAULT_SHELL_SETTING,
-    TERMINAL_MAX_SCROLLBACK_SETTING, TERMINAL_OUTPUT_LOGGING_SETTING,
+    SWARM_RECONCILE_INTERVAL_SETTING, SWARM_RESOURCE_POLL_INTERVAL_SETTING,
+    TERMINAL_DEFAULT_SHELL_SETTING, TERMINAL_MAX_SCROLLBACK_SETTING,
+    TERMINAL_OUTPUT_LOGGING_SETTING,
 };
 
 /// Fixed AccessKit/egui `NodeId` of the settings DIALOG root (Role::Dialog, modal). Fresh band slot 17:
@@ -90,6 +89,8 @@ pub const VIEW_MODE_COMBO_AUTHOR_ID: &str = "settings.view-mode";
 pub const SWARM_BOARD_CHECKBOX_AUTHOR_ID: &str = "settings.swarm-board-default-open";
 /// Stable author_id for the Reset panes & drawers button.
 pub const RESET_LAYOUT_AUTHOR_ID: &str = "settings.reset-layout";
+/// Stable author_id for the Settings -> Model Session action that opens the real launch dialog.
+pub const MODEL_SESSION_OPEN_LAUNCH_AUTHOR_ID: &str = "settings.model-session.open-launch";
 /// Stable author_id for the Close button.
 pub const CLOSE_AUTHOR_ID: &str = "settings.close";
 /// Author_id prefix for a per-action keybinding text input (`{prefix}{action_id}`).
@@ -133,6 +134,8 @@ pub enum SettingsOutcome {
     SwarmBoardDefaultOpenChanged(bool),
     /// The Reset panes & drawers button was clicked (same action as VIEW > Reset Layout). WIRED.
     ResetLayout,
+    /// Settings -> Model Session requested the same launch dialog as Run / command palette. WIRED.
+    OpenModelSessionLaunch,
     /// MT-072: the Editor prefs group changed (font/tab/insert-spaces/wrap/whitespace). WIRED — the
     /// shell stores the new `editor_prefs` and persists via the existing debounced `PUT`.
     EditorPrefsChanged(crate::workspace_settings::EditorPrefs),
@@ -773,7 +776,7 @@ fn render_sections(
         );
     }
 
-    // ── [5b] Model Session (not-yet-wired durable defaults) ────────────────────────────────────────
+    // ── [5b] Model Session (wired launcher entrypoint; no placeholder settings) ───────────────────
     let show_model_session = setting_matches_query(
         query,
         &["model", "session", "launch", "local", "cloud", "wrapper"],
@@ -782,9 +785,38 @@ fn render_sections(
         let model_header = egui::CollapsingHeader::new("Model Session")
             .default_open(true)
             .show(ui, |ui| {
-                not_yet_wired_row(ui, &MODEL_SESSION_DEFAULT_PROVIDER_SETTING);
-                not_yet_wired_row(ui, &MODEL_SESSION_DEFAULT_WRAPPER_SETTING);
-                not_yet_wired_row(ui, &MODEL_SESSION_LOCAL_MODEL_ROOT_SETTING);
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label("Launch surface");
+                        ui.label(
+                            egui::RichText::new(
+                                "Provider, model id, folder, and wrapper are chosen per launch.",
+                            )
+                            .small()
+                            .weak(),
+                        );
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let btn = ui.button("Open launch dialog");
+                        set_author_id(ui, btn.id, MODEL_SESSION_OPEN_LAUNCH_AUTHOR_ID);
+                        if btn.clicked() && outcome == SettingsOutcome::None {
+                            outcome = SettingsOutcome::OpenModelSessionLaunch;
+                        }
+                    });
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Initial provider");
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label("Local (editable per launch)");
+                    });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Initial wrapper");
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label("repo-folder-wrapper-v1 (editable per launch)");
+                    });
+                });
             });
         set_author_id(
             ui,

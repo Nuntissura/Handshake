@@ -293,15 +293,13 @@ fn mt_184_job_state_default_is_queued() {
 // Postgres-gated.
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_queue_atomic_claim() {
     use handshake_core::mt_executor::queue::MicroTaskQueue;
-    let pool = sqlx::PgPool::connect(
-        &std::env::var("POSTGRES_TEST_URL")
-            .expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set"),
-    )
-    .await
-    .unwrap();
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL test URL");
+    let pool = sqlx::PgPool::connect(&url).await.unwrap();
     let q = MicroTaskQueue::new(pool);
     q.ensure_schema().await.unwrap();
     let job = MicroTaskJob::queue("W-A", "MT-1", PathBuf::from("a.json"), 6, vec![]);

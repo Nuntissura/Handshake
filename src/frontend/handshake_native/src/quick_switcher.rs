@@ -188,7 +188,10 @@ pub enum QuickSwitcherTarget {
     /// Open a work packet in the Kernel DCC (`PaneType::KernelDcc`, content_id = "WP:{wp_id}").
     WorkPacket { wp_id: String },
     /// Open a microtask in the Kernel DCC (`PaneType::KernelDcc`, content_id = "MT:{wp_id?}:{mt_id}").
-    MicroTask { mt_id: String, wp_id: Option<String> },
+    MicroTask {
+        mt_id: String,
+        wp_id: Option<String>,
+    },
     /// No supported app target yet — the row renders disabled and cannot be activated.
     Unsupported,
 }
@@ -557,10 +560,7 @@ pub fn ordered_results(hits: &[LoomGraphSearchHit], recents: &[String]) -> Vec<L
     let mut ordered = hits.to_vec();
     ordered.sort_by_key(|h| {
         let key = hit_key(h);
-        recents
-            .iter()
-            .position(|r| r == &key)
-            .unwrap_or(usize::MAX)
+        recents.iter().position(|r| r == &key).unwrap_or(usize::MAX)
     });
     ordered
 }
@@ -591,7 +591,11 @@ fn stable_part(value: &str) -> String {
 
 /// The author_id of a result row: `quick-switcher.option.{source_kind}.{stable(ref_id)}`.
 fn row_author_id(hit: &LoomGraphSearchHit) -> String {
-    format!("{ROW_AUTHOR_ID_PREFIX}{}.{}", hit.source_kind, stable_part(&hit.ref_id))
+    format!(
+        "{ROW_AUTHOR_ID_PREFIX}{}.{}",
+        hit.source_kind,
+        stable_part(&hit.ref_id)
+    )
 }
 
 // ===========================================================================
@@ -1051,9 +1055,7 @@ pub fn show(ctx: &egui::Context, view: SwitcherView<'_>) -> SwitcherFrame {
     ctx.input(|i| {
         for event in &i.events {
             if let egui::Event::Key {
-                key,
-                pressed: true,
-                ..
+                key, pressed: true, ..
             } = event
             {
                 match key {
@@ -1195,7 +1197,10 @@ pub fn show(ctx: &egui::Context, view: SwitcherView<'_>) -> SwitcherFrame {
             // List container node (Role::ListBox) reserved at the fixed list id; vertical scroll of rows.
             // red-team R6/MC6: row count is capped at the search limit (25), well under the 0xFF (255)
             // author-id budget; this assert catches a future limit increase.
-            debug_assert!(rows.len() <= 255, "quick-switcher row count must stay <= 255");
+            debug_assert!(
+                rows.len() <= 255,
+                "quick-switcher row count must stay <= 255"
+            );
             ui.push_id(list_egui_id, |ui| {
                 egui::ScrollArea::vertical()
                     .max_height(340.0)
@@ -1407,7 +1412,10 @@ mod tests {
                 "switcher id {id} below pane base {}",
                 crate::accessibility::PANE_NODE_ID_BASE
             );
-            assert!(!(11..=13).contains(&id), "switcher id {id} not in palette band");
+            assert!(
+                !(11..=13).contains(&id),
+                "switcher id {id} not in palette band"
+            );
         }
         assert_ne!(SWITCHER_DIALOG_NODE_ID, SWITCHER_SEARCH_NODE_ID);
         assert_ne!(SWITCHER_SEARCH_NODE_ID, SWITCHER_LIST_NODE_ID);
@@ -1451,9 +1459,15 @@ mod tests {
     #[test]
     fn row_author_id_is_stable_slug() {
         let h = hit("work_packet", "WP-KERNEL-011");
-        assert_eq!(row_author_id(&h), "quick-switcher.option.work_packet.wp-kernel-011");
+        assert_eq!(
+            row_author_id(&h),
+            "quick-switcher.option.work_packet.wp-kernel-011"
+        );
         let h2 = hit("document", "KRD 12/34");
-        assert_eq!(row_author_id(&h2), "quick-switcher.option.document.krd-12-34");
+        assert_eq!(
+            row_author_id(&h2),
+            "quick-switcher.option.document.krd-12-34"
+        );
     }
 
     // ── ordered_results (recents-first) ────────────────────────────────────────────────────────────
@@ -1486,7 +1500,10 @@ mod tests {
         let hits = vec![hit("document", "KRD-a"), hit("symbol", "s1")];
         let ordered = ordered_results(&hits, &[]);
         let keys: Vec<String> = ordered.iter().map(hit_key).collect();
-        assert_eq!(keys, vec!["document:KRD-a".to_owned(), "symbol:s1".to_owned()]);
+        assert_eq!(
+            keys,
+            vec!["document:KRD-a".to_owned(), "symbol:s1".to_owned()]
+        );
     }
 
     // ── open_target_for_hit (faithful port) ────────────────────────────────────────────────────────
@@ -1496,7 +1513,9 @@ mod tests {
         let h = hit("wiki_page", "PROJ-42");
         assert_eq!(
             open_target_for_hit(&h),
-            QuickSwitcherTarget::WikiPage { projection_id: "PROJ-42".to_owned() }
+            QuickSwitcherTarget::WikiPage {
+                projection_id: "PROJ-42".to_owned()
+            }
         );
     }
 
@@ -1506,13 +1525,17 @@ mod tests {
         h.metadata = json!({ "page_slug": "getting-started" });
         assert_eq!(
             open_target_for_hit(&h),
-            QuickSwitcherTarget::UserManual { slug: "getting-started".to_owned() }
+            QuickSwitcherTarget::UserManual {
+                slug: "getting-started".to_owned()
+            }
         );
         // Without metadata, falls back to ref_id.
         let h2 = hit("user_manual_page", "ref-slug");
         assert_eq!(
             open_target_for_hit(&h2),
-            QuickSwitcherTarget::UserManual { slug: "ref-slug".to_owned() }
+            QuickSwitcherTarget::UserManual {
+                slug: "ref-slug".to_owned()
+            }
         );
     }
 
@@ -1523,7 +1546,9 @@ mod tests {
         // metadata rich_document_id wins over ref_id.
         assert_eq!(
             open_target_for_hit(&h),
-            QuickSwitcherTarget::Document { document_id: "KRD-99".to_owned() }
+            QuickSwitcherTarget::Document {
+                document_id: "KRD-99".to_owned()
+            }
         );
         // A document hit whose ref_id is NOT KRD-prefixed and has no metadata -> Unsupported.
         let h2 = hit("document", "plain-id");
@@ -1537,13 +1562,17 @@ mod tests {
         // block.document_id (non-KRD) -> Document target via branch 4.
         assert_eq!(
             open_target_for_hit(&h),
-            QuickSwitcherTarget::Document { document_id: "doc-xyz".to_owned() }
+            QuickSwitcherTarget::Document {
+                document_id: "doc-xyz".to_owned()
+            }
         );
         // Without a block document_id, falls through to a LoomBlock target by ref_id.
         let h2 = hit("loom_block", "blk-2");
         assert_eq!(
             open_target_for_hit(&h2),
-            QuickSwitcherTarget::LoomBlock { block_id: "blk-2".to_owned() }
+            QuickSwitcherTarget::LoomBlock {
+                block_id: "blk-2".to_owned()
+            }
         );
     }
 
@@ -1551,11 +1580,15 @@ mod tests {
     fn target_file_and_tag_hub_open_as_loom_block() {
         assert_eq!(
             open_target_for_hit(&hit("file", "f-1")),
-            QuickSwitcherTarget::LoomBlock { block_id: "f-1".to_owned() }
+            QuickSwitcherTarget::LoomBlock {
+                block_id: "f-1".to_owned()
+            }
         );
         assert_eq!(
             open_target_for_hit(&hit("tag_hub", "t-1")),
-            QuickSwitcherTarget::LoomBlock { block_id: "t-1".to_owned() }
+            QuickSwitcherTarget::LoomBlock {
+                block_id: "t-1".to_owned()
+            }
         );
     }
 
@@ -1563,7 +1596,9 @@ mod tests {
     fn target_symbol_opens_code_symbol() {
         assert_eq!(
             open_target_for_hit(&hit("symbol", "sym-9")),
-            QuickSwitcherTarget::CodeSymbol { symbol_entity_id: "sym-9".to_owned() }
+            QuickSwitcherTarget::CodeSymbol {
+                symbol_entity_id: "sym-9".to_owned()
+            }
         );
     }
 
@@ -1573,14 +1608,18 @@ mod tests {
         let h = hit("work_packet", "loom://WP-KERNEL-011/node");
         assert_eq!(
             open_target_for_hit(&h),
-            QuickSwitcherTarget::WorkPacket { wp_id: "WP-KERNEL-011".to_owned() }
+            QuickSwitcherTarget::WorkPacket {
+                wp_id: "WP-KERNEL-011".to_owned()
+            }
         );
         // metadata work_packet_id wins.
         let mut h2 = hit("work_packet", "ignored");
         h2.metadata = json!({ "work_packet_id": "WP-007" });
         assert_eq!(
             open_target_for_hit(&h2),
-            QuickSwitcherTarget::WorkPacket { wp_id: "WP-007".to_owned() }
+            QuickSwitcherTarget::WorkPacket {
+                wp_id: "WP-007".to_owned()
+            }
         );
     }
 
@@ -1599,7 +1638,10 @@ mod tests {
         let h2 = hit("micro_task", "ref MT-042 here");
         assert_eq!(
             open_target_for_hit(&h2),
-            QuickSwitcherTarget::MicroTask { mt_id: "MT-042".to_owned(), wp_id: None }
+            QuickSwitcherTarget::MicroTask {
+                mt_id: "MT-042".to_owned(),
+                wp_id: None
+            }
         );
     }
 
@@ -1617,7 +1659,10 @@ mod tests {
     fn first_id_match_finds_boundary_ids_only() {
         assert_eq!(first_id_match(Some("WP-1"), "WP-"), Some("WP-1".to_owned()));
         assert_eq!(first_id_match(Some("xWP-1"), "WP-"), None); // not a boundary
-        assert_eq!(first_id_match(Some("see WP-KERNEL-011!"), "WP-"), Some("WP-KERNEL-011".to_owned()));
+        assert_eq!(
+            first_id_match(Some("see WP-KERNEL-011!"), "WP-"),
+            Some("WP-KERNEL-011".to_owned())
+        );
         assert_eq!(first_id_match(Some("WP-"), "WP-"), None); // bare prefix, no trailing id
         assert_eq!(first_id_match(Some("no ids"), "MT-"), None);
         assert_eq!(first_id_match(None, "WP-"), None);
@@ -1654,14 +1699,18 @@ mod tests {
         assert_eq!(hits[0].excerpt, "the design...");
         assert_eq!(
             open_target_for_hit(&hits[0]),
-            QuickSwitcherTarget::Document { document_id: "KRD-123".to_owned() }
+            QuickSwitcherTarget::Document {
+                document_id: "KRD-123".to_owned()
+            }
         );
         // Defaults: excerpt empty, metadata null, block null.
         assert_eq!(hits[1].excerpt, "");
         assert!(hits[1].metadata.is_null());
         assert_eq!(
             open_target_for_hit(&hits[1]),
-            QuickSwitcherTarget::WorkPacket { wp_id: "WP-KERNEL-011".to_owned() }
+            QuickSwitcherTarget::WorkPacket {
+                wp_id: "WP-KERNEL-011".to_owned()
+            }
         );
     }
 
@@ -1682,7 +1731,10 @@ mod tests {
         let action = mgr.tick("doc", true, t0 + Duration::from_millis(160));
         assert_eq!(
             action,
-            SearchAction::Fire { query: "doc".to_owned(), sequence: 1 }
+            SearchAction::Fire {
+                query: "doc".to_owned(),
+                sequence: 1
+            }
         );
         assert!(mgr.loading());
         // A subsequent tick with the SAME query does not re-fire.
@@ -1705,7 +1757,10 @@ mod tests {
         let action = mgr.tick("doc", true, t1 + Duration::from_millis(160));
         assert_eq!(
             action,
-            SearchAction::Fire { query: "doc".to_owned(), sequence: 1 }
+            SearchAction::Fire {
+                query: "doc".to_owned(),
+                sequence: 1
+            }
         );
     }
 
@@ -1721,7 +1776,10 @@ mod tests {
         mgr2.tick("doc", true, t0 + Duration::from_millis(200)); // fires
         assert!(mgr2.loading());
         // Empty query clears everything.
-        assert_eq!(mgr2.tick("", true, t0 + Duration::from_millis(300)), SearchAction::Idle);
+        assert_eq!(
+            mgr2.tick("", true, t0 + Duration::from_millis(300)),
+            SearchAction::Idle
+        );
         assert!(!mgr2.loading());
         assert!(mgr2.results().is_empty());
         // No workspace also clears + suppresses firing.
@@ -1831,10 +1889,15 @@ mod tests {
         // recents-first ordering puts WP-2 ahead of KRD-1.
         let ordered = ordered_results(&results, &recents);
         let keys: Vec<String> = ordered.iter().map(hit_key).collect();
-        assert_eq!(keys, vec!["work_packet:WP-2".to_owned(), "document:KRD-1".to_owned()]);
+        assert_eq!(
+            keys,
+            vec!["work_packet:WP-2".to_owned(), "document:KRD-1".to_owned()]
+        );
 
         // record_recent returns the picked hit's key.
-        let recorded = transport.record_recent("ws", &results[0]).expect("record ok");
+        let recorded = transport
+            .record_recent("ws", &results[0])
+            .expect("record ok");
         assert_eq!(recorded, "document:KRD-1");
     }
 

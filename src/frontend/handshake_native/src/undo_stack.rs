@@ -72,12 +72,18 @@ pub struct UndoResult {
 impl UndoResult {
     /// A successful undo/redo.
     pub fn ok() -> Self {
-        Self { ok: true, error: None }
+        Self {
+            ok: true,
+            error: None,
+        }
     }
 
     /// A failed undo/redo carrying a reason.
     pub fn err(reason: impl Into<String>) -> Self {
-        Self { ok: false, error: Some(reason.into()) }
+        Self {
+            ok: false,
+            error: Some(reason.into()),
+        }
     }
 
     /// The canonical result when the back-referenced pane state was dropped before the undo fired
@@ -89,7 +95,10 @@ impl UndoResult {
     /// True when the canvas compensating call (or any async undo) is still in flight; the bus treats
     /// this as "dispatched, awaiting completion" rather than a hard failure.
     pub fn dispatched_async() -> Self {
-        Self { ok: true, error: None }
+        Self {
+            ok: true,
+            error: None,
+        }
     }
 }
 
@@ -128,8 +137,14 @@ impl std::fmt::Debug for UndoAction {
             .field("description", &self.description)
             .field("undo_fn", &"<fn>")
             .field("redo_fn", &"<fn>")
-            .field("undo_async_fn", &self.undo_async_fn.as_ref().map(|_| "<async fn>"))
-            .field("redo_async_fn", &self.redo_async_fn.as_ref().map(|_| "<async fn>"))
+            .field(
+                "undo_async_fn",
+                &self.undo_async_fn.as_ref().map(|_| "<async fn>"),
+            )
+            .field(
+                "redo_async_fn",
+                &self.redo_async_fn.as_ref().map(|_| "<async fn>"),
+            )
             .finish()
     }
 }
@@ -272,7 +287,12 @@ impl PaneUndoRing {
     /// The most recent `n` undo entries' descriptions, newest first (the "Show Undo History" inspector
     /// — MC-5).
     pub fn recent_descriptions(&self, n: usize) -> Vec<String> {
-        self.ring.iter().rev().take(n).map(|a| a.description.clone()).collect()
+        self.ring
+            .iter()
+            .rev()
+            .take(n)
+            .map(|a| a.description.clone())
+            .collect()
     }
 }
 
@@ -341,7 +361,12 @@ impl CrossPaneUndoRing {
 
     /// The most recent `n` cross-pane entries' descriptions, newest first (MC-5 inspector).
     pub fn recent_descriptions(&self, n: usize) -> Vec<String> {
-        self.ring.iter().rev().take(n).map(|a| a.description.clone()).collect()
+        self.ring
+            .iter()
+            .rev()
+            .take(n)
+            .map(|a| a.description.clone())
+            .collect()
     }
 }
 
@@ -416,7 +441,10 @@ impl UnifiedUndoScope {
     /// The number of undoable actions in `pane_id`'s local ring (the "Undo ({n})" indicator — AC-6).
     /// `0` when the pane has no ring yet.
     pub fn local_undo_count(&self, pane_id: &PaneId) -> usize {
-        self.pane_rings.get(pane_id).map(|r| r.undo_len()).unwrap_or(0)
+        self.pane_rings
+            .get(pane_id)
+            .map(|r| r.undo_len())
+            .unwrap_or(0)
     }
 
     /// The number of undoable cross-pane actions (the cross-pane indicator / inspector).
@@ -426,12 +454,18 @@ impl UnifiedUndoScope {
 
     /// True when `pane_id`'s local ring can undo.
     pub fn can_undo_local(&self, pane_id: &PaneId) -> bool {
-        self.pane_rings.get(pane_id).map(|r| r.can_undo()).unwrap_or(false)
+        self.pane_rings
+            .get(pane_id)
+            .map(|r| r.can_undo())
+            .unwrap_or(false)
     }
 
     /// True when `pane_id`'s local ring can redo.
     pub fn can_redo_local(&self, pane_id: &PaneId) -> bool {
-        self.pane_rings.get(pane_id).map(|r| r.can_redo()).unwrap_or(false)
+        self.pane_rings
+            .get(pane_id)
+            .map(|r| r.can_redo())
+            .unwrap_or(false)
     }
 
     /// True when the cross-pane ring can undo.
@@ -444,7 +478,10 @@ impl UnifiedUndoScope {
     pub fn is_empty(&self) -> bool {
         self.cross_pane_ring.undo_len() == 0
             && self.cross_pane_ring.redo_len() == 0
-            && self.pane_rings.values().all(|r| r.undo_len() == 0 && r.redo_len() == 0)
+            && self
+                .pane_rings
+                .values()
+                .all(|r| r.undo_len() == 0 && r.redo_len() == 0)
     }
 
     /// The most recent local + cross-pane entry descriptions for the "Show Undo History" inspector
@@ -501,8 +538,15 @@ mod tests {
             let action = scope.pop_undo_local(&p).expect("an action to undo");
             assert_eq!((action.undo_fn)(), UndoResult::ok());
         }
-        assert_eq!(*log.lock().unwrap(), vec!["c", "b", "a"], "undo fires newest-first (reverse)");
-        assert!(scope.pop_undo_local(&p).is_none(), "ring is empty after 3 undos");
+        assert_eq!(
+            *log.lock().unwrap(),
+            vec!["c", "b", "a"],
+            "undo fires newest-first (reverse)"
+        );
+        assert!(
+            scope.pop_undo_local(&p).is_none(),
+            "ring is empty after 3 undos"
+        );
     }
 
     /// (b) Redo after undo re-applies in forward order.
@@ -528,7 +572,10 @@ mod tests {
         let mut ring = PaneUndoRing::with_cap(pane("p"), 5);
         let log = Arc::new(Mutex::new(Vec::new()));
         for tag in ["1", "2", "3", "4", "5", "6"] {
-            ring.push(logging_action(Box::leak(tag.to_owned().into_boxed_str()), log.clone()));
+            ring.push(logging_action(
+                Box::leak(tag.to_owned().into_boxed_str()),
+                log.clone(),
+            ));
         }
         assert_eq!(ring.undo_len(), 5, "cap-5 ring holds 5 after 6 pushes");
         // The oldest ("1") was dropped; the newest 5 remain newest-first.
@@ -544,13 +591,21 @@ mod tests {
         for _ in 0..201 {
             pane_ring.push(logging_action("z", log.clone()));
         }
-        assert_eq!(pane_ring.undo_len(), 200, "pane ring caps at 200 after 201 pushes");
+        assert_eq!(
+            pane_ring.undo_len(),
+            200,
+            "pane ring caps at 200 after 201 pushes"
+        );
 
         let mut cross = CrossPaneUndoRing::new(); // default 50
         for _ in 0..51 {
             cross.push(logging_action("c", log.clone()));
         }
-        assert_eq!(cross.undo_len(), 50, "cross-pane ring caps at 50 after 51 pushes");
+        assert_eq!(
+            cross.undo_len(),
+            50,
+            "cross-pane ring caps at 50 after 51 pushes"
+        );
     }
 
     /// (d) Cross-pane ring undo invokes the last cross-pane action's undo_fn.
@@ -562,7 +617,10 @@ mod tests {
         scope.push_cross_pane(logging_action("route", log.clone()));
         assert_eq!(scope.cross_pane_undo_count(), 2);
         let action = scope.pop_undo_cross_pane().expect("a cross-pane action");
-        assert_eq!(action.description, "route", "the LAST cross-pane action is undone first");
+        assert_eq!(
+            action.description, "route",
+            "the LAST cross-pane action is undone first"
+        );
         (action.undo_fn)();
         assert_eq!(*log.lock().unwrap(), vec!["route"]);
     }
@@ -580,7 +638,11 @@ mod tests {
         let action = scope.pop_undo_local(&code).expect("code action");
         assert_eq!(action.description, "code-edit");
         assert_eq!(scope.local_undo_count(&code), 0, "code ring drained");
-        assert_eq!(scope.local_undo_count(&rich), 1, "rich ring UNTOUCHED by code undo (POLICY-1)");
+        assert_eq!(
+            scope.local_undo_count(&rich),
+            1,
+            "rich ring UNTOUCHED by code undo (POLICY-1)"
+        );
     }
 
     /// A fresh edit (push) after some undos clears the redo stack (linear history, no branch).
@@ -602,7 +664,10 @@ mod tests {
     #[test]
     fn fresh_scope_is_empty() {
         let scope = UnifiedUndoScope::new();
-        assert!(scope.is_empty(), "a fresh scope holds no undo state (POLICY-3 session-scoped)");
+        assert!(
+            scope.is_empty(),
+            "a fresh scope holds no undo state (POLICY-3 session-scoped)"
+        );
         assert_eq!(scope.local_undo_count(&pane("any")), 0);
         assert_eq!(scope.cross_pane_undo_count(), 0);
     }
@@ -650,12 +715,21 @@ mod tests {
             }),
             Arc::new(|| Box::pin(async { UndoResult::ok() })),
         );
-        assert!(action.is_async(), "a canvas compensating action is async (POLICY-4)");
+        assert!(
+            action.is_async(),
+            "a canvas compensating action is async (POLICY-4)"
+        );
         // Drive the async closure once on a throwaway runtime to prove it is real (not a stub).
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         let fut = (action.undo_async_fn.as_ref().unwrap())();
         let res = rt.block_on(fut);
         assert!(res.ok);
-        assert_eq!(calls.load(Ordering::SeqCst), 1, "the async compensating closure actually ran");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "the async compensating closure actually ran"
+        );
     }
 }

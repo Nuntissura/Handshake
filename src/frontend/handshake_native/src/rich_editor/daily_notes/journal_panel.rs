@@ -102,7 +102,8 @@ impl AutoSaveTimer {
     /// Whether an auto-save is due: dirty AND at least [`AUTO_SAVE_IDLE_FRAMES`] frames since the last
     /// edit. Does NOT clear `dirty` (the caller clears it after dispatching the save).
     pub fn save_due(&self) -> bool {
-        self.dirty && self.current_frame.saturating_sub(self.last_edit_frame) > AUTO_SAVE_IDLE_FRAMES
+        self.dirty
+            && self.current_frame.saturating_sub(self.last_edit_frame) > AUTO_SAVE_IDLE_FRAMES
     }
 
     /// Clear the dirty flag after a save has been dispatched (so the timer does not re-fire until the
@@ -251,8 +252,8 @@ impl JournalPanelState {
         }
         self.loaded_doc_id = Some(doc.rich_document_id.clone());
         self.auto_save.dirty = false; // a freshly loaded document is clean.
-        // Re-anchor the edit-detection fingerprint to the freshly loaded content so the load itself is
-        // NOT mistaken for an edit on the next frame (the next `detect_edits_and_tick` recomputes it).
+                                      // Re-anchor the edit-detection fingerprint to the freshly loaded content so the load itself is
+                                      // NOT mistaken for an edit on the next frame (the next `detect_edits_and_tick` recomputes it).
         self.last_content_fingerprint = None;
         true
     }
@@ -408,13 +409,12 @@ impl JournalPanelWidget {
         // even when nothing else requests a repaint (the editor only repaints while focused). One frame
         // per ~second is enough for the 180-frame (≈3 s) threshold; egui coalesces repaint requests.
         if state.auto_save.dirty {
-            ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_secs(1));
         }
         // Manual save (the contract scope's Ctrl+S / Cmd+S path). `COMMAND` is Ctrl on Windows/Linux and
         // Cmd on macOS. `consume_key` removes the chord so the editor's own keymap does not also see it.
-        if ui
-            .input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::S))
-        {
+        if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::S)) {
             state.save_now();
         }
 
@@ -475,7 +475,11 @@ impl JournalPanelWidget {
                         node.set_label(format!("Daily journal {date_label}"));
                     });
 
-                    ui.interact(full_rect, ui.id().with("journal-surface"), egui::Sense::hover())
+                    ui.interact(
+                        full_rect,
+                        ui.id().with("journal-surface"),
+                        egui::Sense::hover(),
+                    )
                 },
             )
             .inner;
@@ -500,8 +504,12 @@ impl JournalPanelWidget {
         let view = match &state.store.state {
             JournalState::Idle => View::Idle,
             JournalState::Loading { .. } => View::Loading,
-            JournalState::Error { kind, .. } => View::Error(kind.kind_str().to_owned(), kind.to_string()),
-            JournalState::Ready(r) if r.needs_document() => View::ReadyNoDoc { creating: r.is_creating },
+            JournalState::Error { kind, .. } => {
+                View::Error(kind.kind_str().to_owned(), kind.to_string())
+            }
+            JournalState::Ready(r) if r.needs_document() => View::ReadyNoDoc {
+                creating: r.is_creating,
+            },
             JournalState::Ready(_) => View::ReadyDoc,
         };
 
@@ -572,7 +580,12 @@ impl JournalPanelWidget {
     /// [`JournalPanelState::detect_edits_and_tick`] (so the document is walked at most once per frame —
     /// closing the every-frame O(doc) footer cost the review raised). When the editor is empty, fall
     /// back to the store's loaded body (e.g. for the brief window before the editor mounts).
-    fn render_footer(ui: &mut egui::Ui, state: &JournalPanelState, palette: &HsPalette, live_text: &str) {
+    fn render_footer(
+        ui: &mut egui::Ui,
+        state: &JournalPanelState,
+        palette: &HsPalette,
+        live_text: &str,
+    ) {
         let fallback;
         let text: &str = if live_text.is_empty() {
             fallback = state
@@ -645,7 +658,10 @@ impl PaneFactory for JournalPaneFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rich_editor::daily_notes::journal_store::{JournalBackend, JournalFuture, JournalBlock, JournalDocLoad, JournalError, JournalSaveSeam, RichDocumentBody};
+    use crate::rich_editor::daily_notes::journal_store::{
+        JournalBackend, JournalBlock, JournalDocLoad, JournalError, JournalFuture, JournalSaveSeam,
+        RichDocumentBody,
+    };
 
     // ── AutoSaveTimer (frame-based debounce, mock clock) ──────────────────────────────────────────
 
@@ -747,19 +763,32 @@ mod tests {
 
     struct StubBackend;
     impl JournalBackend for StubBackend {
-        fn open_daily_journal<'a>(&'a self, _w: &'a str, _d: &'a str) -> JournalFuture<'a, JournalBlock> {
+        fn open_daily_journal<'a>(
+            &'a self,
+            _w: &'a str,
+            _d: &'a str,
+        ) -> JournalFuture<'a, JournalBlock> {
             Box::pin(async { Err(JournalError::OpenFailed("stub".into())) })
         }
         fn load_document<'a>(&'a self, _d: &'a str) -> JournalFuture<'a, JournalDocLoad> {
             Box::pin(async { Err(JournalError::DocLoadFailed("stub".into())) })
         }
-        fn create_document<'a>(&'a self, _w: &'a str, _t: &'a str) -> JournalFuture<'a, JournalDocLoad> {
+        fn create_document<'a>(
+            &'a self,
+            _w: &'a str,
+            _t: &'a str,
+        ) -> JournalFuture<'a, JournalDocLoad> {
             Box::pin(async { Err(JournalError::CreateFailed("stub".into())) })
         }
     }
     struct StubSeam;
     impl JournalSaveSeam for StubSeam {
-        fn save<'a>(&'a self, _i: &'a str, v: u64, _c: serde_json::Value) -> JournalFuture<'a, u64> {
+        fn save<'a>(
+            &'a self,
+            _i: &'a str,
+            v: u64,
+            _c: serde_json::Value,
+        ) -> JournalFuture<'a, u64> {
             Box::pin(async move { Ok(v + 1) })
         }
     }
@@ -795,10 +824,16 @@ mod tests {
         };
         p.store.stage_load("2026-06-19", Ok((block, Some(body))));
         assert!(p.store.drain());
-        assert!(p.sync_editor_from_store(), "the Ready document loaded into the editor");
+        assert!(
+            p.sync_editor_from_store(),
+            "the Ready document loaded into the editor"
+        );
         // The editor's live content_json now contains the journal body text.
         let text = content_plain_text(Some(&p.current_content_json()));
-        assert!(text.contains("journal body"), "the journal body rendered into the editor (got {text:?})");
+        assert!(
+            text.contains("journal body"),
+            "the journal body rendered into the editor (got {text:?})"
+        );
         // A second sync is a no-op (already loaded).
         assert!(!p.sync_editor_from_store());
     }
@@ -813,7 +848,10 @@ mod tests {
         p.auto_save.advance(AUTO_SAVE_IDLE_FRAMES + 2);
         assert!(p.auto_save.save_due());
         let _ = p.tick_auto_save();
-        assert!(!p.auto_save.dirty, "the auto-save consumed the dirty edit (debounce satisfied)");
+        assert!(
+            !p.auto_save.dirty,
+            "the auto-save consumed the dirty edit (debounce satisfied)"
+        );
     }
 
     /// Stage a Ready state with a linked document loaded into the editor (the precondition for an edit
@@ -838,9 +876,15 @@ mod tests {
             title: Some("Daily Note".into()),
             journal_date: Some(date.format("%Y-%m-%d").to_string()),
         };
-        p.store.stage_load(&date.format("%Y-%m-%d").to_string(), Ok((block, Some(body))));
+        p.store.stage_load(
+            &date.format("%Y-%m-%d").to_string(),
+            Ok((block, Some(body))),
+        );
         assert!(p.store.drain());
-        assert!(p.sync_editor_from_store(), "the loaded document mounted into the editor");
+        assert!(
+            p.sync_editor_from_store(),
+            "the loaded document mounted into the editor"
+        );
         p
     }
 
@@ -874,7 +918,10 @@ mod tests {
         }
         // Next frame: the fingerprint changed → a genuine edit is detected.
         let _ = p.detect_edits_and_tick();
-        assert!(p.auto_save.dirty, "the editor content change was detected as an edit");
+        assert!(
+            p.auto_save.dirty,
+            "the editor content change was detected as an edit"
+        );
     }
 
     #[test]
@@ -898,8 +945,14 @@ mod tests {
             let (_t, d) = p.detect_edits_and_tick();
             dispatched |= d;
         }
-        assert!(dispatched, "the auto-save fired after the idle debounce via the show driver");
-        assert!(!p.auto_save.dirty, "the debounce consumed the dirty edit (no refire)");
+        assert!(
+            dispatched,
+            "the auto-save fired after the idle debounce via the show driver"
+        );
+        assert!(
+            !p.auto_save.dirty,
+            "the debounce consumed the dirty edit (no refire)"
+        );
     }
 
     #[test]

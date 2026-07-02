@@ -201,8 +201,14 @@ mod tests {
         let mut doc = doc_with_trigger("see [[wp:WP-");
         let removed = remove_trigger_text(&mut doc, &[0, 0], 4, 12);
         assert_eq!(removed, 8, "removed `[[wp:WP-` (8 chars)");
-        let leaf = doc.children[0].as_block().unwrap().children[0].as_text().unwrap();
-        assert_eq!(leaf.text.to_string(), "see ", "the text before the trigger is preserved");
+        let leaf = doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap();
+        assert_eq!(
+            leaf.text.to_string(),
+            "see ",
+            "the text before the trigger is preserved"
+        );
     }
 
     #[test]
@@ -211,14 +217,24 @@ mod tests {
         let mut doc = doc_with_trigger("see [[wp:WP-");
         let mut sel = Selection::caret(DocPosition::new(vec![0, 0], 12));
         let link = HsLinkNode::new("wp", "WP-KERNEL-012", "My WP");
-        assert!(confirm_wikilink(&mut doc, &mut sel, &[0, 0], 4, 12, link.clone()));
+        assert!(confirm_wikilink(
+            &mut doc,
+            &mut sel,
+            &[0, 0],
+            4,
+            12,
+            link.clone()
+        ));
 
         let para = doc.children[0].as_block().unwrap();
         // children: [ Text("see "), HsLink(wp:WP-KERNEL-012), Text("") ]
         assert_eq!(para.children[0].as_text().unwrap().text.to_string(), "see ");
         let inserted = para.children[1].as_hs_link().unwrap();
         assert_eq!(inserted, &link, "the hsLink atom is inserted, NOT a mark");
-        assert!(para.children[2].as_text().is_some(), "a trailing text leaf hosts the caret");
+        assert!(
+            para.children[2].as_text().is_some(),
+            "a trailing text leaf hosts the caret"
+        );
         // The caret sits at the trailing leaf, offset 0.
         match &sel {
             Selection::Text { head, .. } => {
@@ -235,7 +251,10 @@ mod tests {
         // leaf as the caret target rather than inserting a redundant empty leaf.
         let mut doc = BlockNode::doc(vec![BlockNode::with_children(
             NodeKind::Paragraph,
-            vec![Child::Text(TextLeaf::new("x[[wp:")), Child::Text(TextLeaf::new(" y"))],
+            vec![
+                Child::Text(TextLeaf::new("x[[wp:")),
+                Child::Text(TextLeaf::new(" y")),
+            ],
         )]);
         let mut sel = Selection::caret(DocPosition::new(vec![0, 0], 6));
         let link = HsLinkNode::new("wp", "W", "W");
@@ -255,7 +274,14 @@ mod tests {
         let mut sel = Selection::caret(DocPosition::new(vec![0, 0], 6));
         let removed = cancel_wikilink(&mut doc, &mut sel, &[0, 0], 2, 6);
         assert_eq!(removed, 4, "removed `[[fi`");
-        assert_eq!(doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(), "a ");
+        assert_eq!(
+            doc.children[0].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string(),
+            "a "
+        );
         assert!(matches!(&sel, Selection::Text { head, .. } if head.char_offset == 2));
     }
 
@@ -268,13 +294,26 @@ mod tests {
         unresolved.resolved = false;
         let mut doc = BlockNode::doc(vec![BlockNode::with_children(
             NodeKind::Paragraph,
-            vec![Child::Text(TextLeaf::new("see ")), Child::HsLink(unresolved)],
+            vec![
+                Child::Text(TextLeaf::new("see ")),
+                Child::HsLink(unresolved),
+            ],
         )]);
-        let n = rewrite_mark_to_resolved(&mut doc, &normalize_target("My New Note"), "DOC-NEW", "My New Note");
+        let n = rewrite_mark_to_resolved(
+            &mut doc,
+            &normalize_target("My New Note"),
+            "DOC-NEW",
+            "My New Note",
+        );
         assert_eq!(n, 1, "exactly one unresolved mark rewritten");
-        let link = doc.children[0].as_block().unwrap().children[1].as_hs_link().unwrap();
+        let link = doc.children[0].as_block().unwrap().children[1]
+            .as_hs_link()
+            .unwrap();
         assert!(link.resolved, "AC-002: the mark is now Resolved");
-        assert_eq!(link.ref_value, "DOC-NEW", "the mark targets the new document id");
+        assert_eq!(
+            link.ref_value, "DOC-NEW",
+            "the mark targets the new document id"
+        );
         assert_eq!(link.ref_kind, "note");
     }
 
@@ -290,11 +329,25 @@ mod tests {
             NodeKind::Paragraph,
             vec![Child::HsLink(resolved), Child::HsLink(other_unresolved)],
         )]);
-        let n = rewrite_mark_to_resolved(&mut doc, &normalize_target("My New Note"), "DOC-NEW", "My New Note");
-        assert_eq!(n, 0, "no mark matches the created title -> nothing rewritten");
+        let n = rewrite_mark_to_resolved(
+            &mut doc,
+            &normalize_target("My New Note"),
+            "DOC-NEW",
+            "My New Note",
+        );
+        assert_eq!(
+            n, 0,
+            "no mark matches the created title -> nothing rewritten"
+        );
         let para = doc.children[0].as_block().unwrap();
-        assert!(para.children[0].as_hs_link().unwrap().resolved, "the already-resolved link is untouched");
-        assert!(!para.children[1].as_hs_link().unwrap().resolved, "the non-matching unresolved link stays unresolved");
+        assert!(
+            para.children[0].as_hs_link().unwrap().resolved,
+            "the already-resolved link is untouched"
+        );
+        assert!(
+            !para.children[1].as_hs_link().unwrap().resolved,
+            "the non-matching unresolved link stays unresolved"
+        );
     }
 
     #[test]
@@ -308,11 +361,21 @@ mod tests {
             NodeKind::Paragraph,
             vec![Child::HsLink(unresolved)],
         )]);
-        let n = rewrite_mark_to_resolved(&mut doc, &normalize_target("My New Note"), "DOC-X", "My New Note");
+        let n = rewrite_mark_to_resolved(
+            &mut doc,
+            &normalize_target("My New Note"),
+            "DOC-X",
+            "My New Note",
+        );
         assert_eq!(n, 1, "a case/whitespace-different unresolved title still matches the normalized created title");
-        let link = doc.children[0].as_block().unwrap().children[0].as_hs_link().unwrap();
+        let link = doc.children[0].as_block().unwrap().children[0]
+            .as_hs_link()
+            .unwrap();
         assert_eq!(link.ref_value, "DOC-X");
-        assert_eq!(link.label, "My New Note", "a blank label is filled from the display title");
+        assert_eq!(
+            link.label, "My New Note",
+            "a blank label is filled from the display title"
+        );
     }
 
     #[test]
@@ -322,12 +385,25 @@ mod tests {
         use crate::rich_editor::document_model::doc_json::{from_json_string, to_json_string};
         let mut doc = doc_with_trigger("[[wp:");
         let mut sel = Selection::caret(DocPosition::new(vec![0, 0], 5));
-        confirm_wikilink(&mut doc, &mut sel, &[0, 0], 0, 5, HsLinkNode::new("wp", "WP-1", "One"));
+        confirm_wikilink(
+            &mut doc,
+            &mut sel,
+            &[0, 0],
+            0,
+            5,
+            HsLinkNode::new("wp", "WP-1", "One"),
+        );
         let json = to_json_string(&doc).unwrap();
         let back = from_json_string(&json).unwrap();
-        assert_eq!(doc, back, "the confirmed wikilink doc round-trips through DocJson");
+        assert_eq!(
+            doc, back,
+            "the confirmed wikilink doc round-trips through DocJson"
+        );
         // The hsLink node is present in the serialized content_json.
-        assert!(json.contains("\"hsLink\""), "the serialized doc carries an hsLink node");
+        assert!(
+            json.contains("\"hsLink\""),
+            "the serialized doc carries an hsLink node"
+        );
         assert!(json.contains("WP-1"));
     }
 }

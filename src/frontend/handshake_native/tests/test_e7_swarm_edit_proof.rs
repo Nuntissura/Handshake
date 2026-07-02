@@ -82,17 +82,18 @@ use egui_kittest::Harness;
 
 use handshake_native::accessibility::editor_action_registry::EditorActionRegistry;
 use handshake_native::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
-use handshake_native::backend_client::{
-    LoomSearchBlock, LoomSearchV2Hit, LoomSearchV2Response,
-};
+use handshake_native::backend_client::{LoomSearchBlock, LoomSearchV2Hit, LoomSearchV2Response};
 use handshake_native::loom_search_v2 as lsv2;
 use handshake_native::mcp::action::{ActionChannel, ActionError, UiAction};
 use handshake_native::rich_editor::document_model::node::{BlockNode, NodeKind};
 use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::save::draft_manager::{
-    DraftBackend, DraftError, DraftLoadFuture, DraftManager, DraftWriteFuture, RichDocumentDraftLoad,
+    DraftBackend, DraftError, DraftLoadFuture, DraftManager, DraftWriteFuture,
+    RichDocumentDraftLoad,
 };
 use handshake_native::rich_editor::save::save_manager::{
     RichDocLoad, RichDocSaveResult, SaveBackend, SaveFuture, SaveManager,
@@ -166,7 +167,10 @@ struct ProofLog {
 
 impl ProofLog {
     fn new() -> Self {
-        Self { lines: Vec::new(), seq: 0 }
+        Self {
+            lines: Vec::new(),
+            seq: 0,
+        }
     }
 
     /// A pseudo-ISO8601 monotonic timestamp token. The proof is deterministic + headless, so a wall
@@ -252,7 +256,10 @@ struct AgentChannel(Sender<AgentRequest>);
 impl AgentChannel {
     fn dispatch(&self, author_id: &str, action: UiAction) {
         // A real out-of-process agent cannot panic the UI; a closed channel just means the UI stopped.
-        let _ = self.0.send(AgentRequest { author_id: author_id.to_owned(), action });
+        let _ = self.0.send(AgentRequest {
+            author_id: author_id.to_owned(),
+            action,
+        });
     }
 }
 
@@ -260,7 +267,13 @@ impl AgentChannel {
 /// PLAN of (author_id, action) requests to play. It loops, sending each request, and returns. This mimics
 /// an external process scripting the UI by id. The `JoinHandle` lets the UI thread join it so a stuck
 /// agent (RISK-043-02) surfaces as a timeout, not a hang.
-fn spawn_agent(plan: Vec<AgentRequest>) -> (AgentChannel, Receiver<AgentRequest>, std::thread::JoinHandle<()>) {
+fn spawn_agent(
+    plan: Vec<AgentRequest>,
+) -> (
+    AgentChannel,
+    Receiver<AgentRequest>,
+    std::thread::JoinHandle<()>,
+) {
     let (tx, rx) = mpsc::channel::<AgentRequest>();
     let agent = AgentChannel(tx.clone());
     let handle = std::thread::Builder::new()
@@ -340,7 +353,9 @@ fn snapshot_harness(harness: &mut Harness<'_, ()>) -> UiTreeSnapshot {
             .map(|a| format!("{a:?}"))
             .collect();
         children.push(UiTreeNode {
-            id: author_id.clone().unwrap_or_else(|| format!("node:{node_id}")),
+            id: author_id
+                .clone()
+                .unwrap_or_else(|| format!("node:{node_id}")),
             author_id,
             node_id,
             role: format!("{:?}", ak.role()),
@@ -428,10 +443,11 @@ impl SaveBackend for SaveSpy {
         content_json: serde_json::Value,
         expected_version: u64,
     ) -> SaveFuture {
-        self.calls
-            .lock()
-            .unwrap()
-            .push((document_id.to_owned(), content_json.clone(), expected_version));
+        self.calls.lock().unwrap().push((
+            document_id.to_owned(),
+            content_json.clone(),
+            expected_version,
+        ));
         let document_id = document_id.to_owned();
         Box::pin(async move {
             Ok(RichDocSaveResult {
@@ -464,7 +480,10 @@ struct NoopDraftBackend;
 impl DraftBackend for NoopDraftBackend {
     fn load_draft(&self, _document_id: &str) -> DraftLoadFuture {
         Box::pin(async {
-            Ok(RichDocumentDraftLoad { current_doc_version: 1, draft: None })
+            Ok(RichDocumentDraftLoad {
+                current_doc_version: 1,
+                draft: None,
+            })
         })
     }
     fn upsert_draft(
@@ -514,7 +533,12 @@ fn rich_state_with_spy(
     // `editor.rich.save` dispatch -> `request_save` SPAWNS the backend call and the spy records the
     // `(document_id, content_json)` request SHAPE at call time (the E6/MT-037 save seam). The spy returns a
     // canned 200 so the state machine completes deterministically; the LIVE row write is the GATED half.
-    let save = SaveManager::new(spy as Arc<dyn SaveBackend>, Some(runtime.clone()), PROOF_DOCUMENT_ID, 1);
+    let save = SaveManager::new(
+        spy as Arc<dyn SaveBackend>,
+        Some(runtime.clone()),
+        PROOF_DOCUMENT_ID,
+        1,
+    );
     let base = serde_json::json!({"type":"doc","content":[]});
     let draft = DraftManager::new(
         Arc::new(NoopDraftBackend),
@@ -534,7 +558,9 @@ fn rich_state_with_spy(
 #[test]
 fn swarm_edit_proof_all_steps() {
     let mut log = ProofLog::new();
-    log.note("MT-043 SwarmEditProof: channel-only agent drives 4 steps via AccessKit dispatch only");
+    log.note(
+        "MT-043 SwarmEditProof: channel-only agent drives 4 steps via AccessKit dispatch only",
+    );
 
     // A real tokio runtime so the swarm-driven save dispatch actually spawns the (spied) backend call.
     // Kept alive for the whole test (dropping it would abort in-flight save tasks).
@@ -554,8 +580,14 @@ fn swarm_edit_proof_all_steps() {
     // `editor.rich.save`. (STEP 2 + STEP 3 are typed-blocker skips; STEP 4 dispatches the search action,
     // handled after the rich-pane harness against the search pane.)
     let plan = vec![
-        AgentRequest { author_id: "editor.rich.format-heading-1".to_owned(), action: UiAction::Click },
-        AgentRequest { author_id: "editor.rich.save".to_owned(), action: UiAction::Click },
+        AgentRequest {
+            author_id: "editor.rich.format-heading-1".to_owned(),
+            action: UiAction::Click,
+        },
+        AgentRequest {
+            author_id: "editor.rich.save".to_owned(),
+            action: UiAction::Click,
+        },
     ];
     let (_agent, agent_rx, agent_join) = spawn_agent(plan);
 
@@ -586,7 +618,9 @@ fn swarm_edit_proof_all_steps() {
     //     `refresh_slash_trigger` + the unfocused-surface auto-close both prevent without a `/` text token;
     //     so STEP 1 drives the EQUIVALENT stable `format-heading-1` create action MT-041 registered, which
     //     is the agent-drivable block-create surface as-delivered.)
-    let req_create = agent_rx.recv().expect("agent sent format-heading-1 request");
+    let req_create = agent_rx
+        .recv()
+        .expect("agent sent format-heading-1 request");
     assert_eq!(req_create.author_id, "editor.rich.format-heading-1");
     let create_node = {
         let snap = snapshot_harness(&mut harness);
@@ -595,7 +629,10 @@ fn swarm_edit_proof_all_steps() {
     };
     let (create_actions, create_disabled) = create_node
         .expect("STEP1/AC-043-02: editor.rich.format-heading-1 is a live AccessKit node");
-    assert!(!create_disabled, "STEP1: the format-heading-1 action node is enabled (dispatchable)");
+    assert!(
+        !create_disabled,
+        "STEP1: the format-heading-1 action node is enabled (dispatchable)"
+    );
     assert!(
         create_actions.iter().any(|a| a == "Click"),
         "STEP1/AC-043-07: the format-heading-1 node declares the Click action a swarm agent dispatches; got {create_actions:?}"
@@ -611,13 +648,19 @@ fn swarm_edit_proof_all_steps() {
     // Pump until the agent-driven dispatch has converted the caret block to a heading (the create). The
     // dispatch is consumed within the frame `run()` advances (RISK-041-04 — reaches the editor, not on a
     // timeout); the unfocused editor never spins (caret blink is focus-gated), so run() converges.
-    pump_until(&mut harness, "STEP-1-create-note", "editor.rich.format-heading-1", Duration::from_secs(5), |_| {
-        let st = state.lock().unwrap();
-        st.doc
-            .children
-            .iter()
-            .any(|c| c.as_block().is_some_and(|b| matches!(b.kind, NodeKind::Heading(_))))
-    });
+    pump_until(
+        &mut harness,
+        "STEP-1-create-note",
+        "editor.rich.format-heading-1",
+        Duration::from_secs(5),
+        |_| {
+            let st = state.lock().unwrap();
+            st.doc.children.iter().any(|c| {
+                c.as_block()
+                    .is_some_and(|b| matches!(b.kind, NodeKind::Heading(_)))
+            })
+        },
+    );
     log.dispatch("editor.rich.format-heading-1", "Click", None);
     log.response(
         "editor.rich.format-heading-1 Click -> RichDispatch::Format(SetHeading(1)) -> caret block converted to a heading (agent-produced content)",
@@ -630,13 +673,19 @@ fn swarm_edit_proof_all_steps() {
     dispatch_via_harness(&mut harness, &req_save)
         .expect("STEP1: editor.rich.save resolves to a live AccessKit node + action");
     log.dispatch("editor.rich.save", "Click", None);
-    pump_until(&mut harness, "STEP-1-create-note", "editor.rich.save", Duration::from_secs(5), |_| {
-        spy.call_count() >= 1
-    });
+    pump_until(
+        &mut harness,
+        "STEP-1-create-note",
+        "editor.rich.save",
+        Duration::from_secs(5),
+        |_| spy.call_count() >= 1,
+    );
 
     // The save request reached the E6/MT-037 save client seam with the right document id + a content body
     // carrying the AGENT-PRODUCED heading block (the create-note backend request SHAPE — provable now).
-    let (doc_id, content_json, _ver) = spy.last().expect("STEP1: a save request reached the E6 save seam");
+    let (doc_id, content_json, _ver) = spy
+        .last()
+        .expect("STEP1: a save request reached the E6 save seam");
     assert_eq!(
         doc_id, PROOF_DOCUMENT_ID,
         "STEP1/AC-043-02: the create-note save targeted the right knowledge_documents id"
@@ -668,7 +717,11 @@ fn swarm_edit_proof_all_steps() {
     // workarounds are FORBIDDEN (key-simulation: AC-043-07; an inline app code change: forbidden_paths
     // includes src/.../src/**). Per CTRL-043-06 + IN-043-11 + HBR-STOP this step is SKIPPED as a typed
     // blocker — NOT faked, NOT key-simulated, NOT masked as a pass.
-    log.dispatch("editor.code.insert-text", "SetValue", Some(r#"{"text":"print(\"swarm-proof\")"}"#));
+    log.dispatch(
+        "editor.code.insert-text",
+        "SetValue",
+        Some(r#"{"text":"print(\"swarm-proof\")"}"#),
+    );
     log.response(
         "editor.code.insert-text ABSENT — code_editor_text TextInput declares no SetValue/Focus action; \
          typed blocker filed (MT-041/E11), step skipped per CTRL-043-06",
@@ -693,7 +746,9 @@ fn swarm_edit_proof_all_steps() {
     log.dispatch(
         "editor.rich.insert-slash-command",
         "Click",
-        Some(&format!(r#"{{"kind":"wikilink","ref_kind":"note","ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#)),
+        Some(&format!(
+            r#"{{"kind":"wikilink","ref_kind":"note","ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#
+        )),
     );
 
     // (b) BLOCKER: the actual backlink (an `hsLink` atom carrying a SPECIFIC target `refValue`, the
@@ -716,7 +771,9 @@ fn swarm_edit_proof_all_steps() {
     log.dispatch(
         "wikilink-result-<target>",
         "Click",
-        Some(&format!(r#"{{"ref_kind":"note","ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#)),
+        Some(&format!(
+            r#"{{"ref_kind":"note","ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#
+        )),
     );
     log.response(
         "wikilink-result-<target> ABSENT — the MT-015 autocomplete result rows render only after a live \
@@ -732,7 +789,9 @@ fn swarm_edit_proof_all_steps() {
     // The rich-pane portion is done. Join the agent thread (it has exhausted its plan) so a stuck agent
     // would surface here, then run STEP 4 against the search pane (a fresh harness; the agent's STEP 4
     // dispatch is modeled by the same channel contract on the search surface).
-    agent_join.join().expect("swarm agent thread joined cleanly");
+    agent_join
+        .join()
+        .expect("swarm agent thread joined cleanly");
 
     // ── STEP 4: RUN SEARCH (against the LoomSearchV2 native surface) ───────────────────────────────
     log.note("STEP 4: RUN SEARCH — dispatch loom-search-v2.search; assert a result node references the note");
@@ -820,8 +879,17 @@ fn run_search_step(log: &mut ProofLog) {
             let mut on_open = |block_id: &str| {
                 *opened_for_ui.lock().unwrap() = Some(block_id.to_owned());
             };
-            let mut callbacks = lsv2::LoomSearchV2Callbacks { on_open_block: &mut on_open };
-            lsv2::show(ui, &mut p, &palette, &client, Some("ws-test"), &mut callbacks);
+            let mut callbacks = lsv2::LoomSearchV2Callbacks {
+                on_open_block: &mut on_open,
+            };
+            lsv2::show(
+                ui,
+                &mut p,
+                &palette,
+                &client,
+                Some("ws-test"),
+                &mut callbacks,
+            );
         });
 
     harness.run();
@@ -844,11 +912,22 @@ fn run_search_step(log: &mut ProofLog) {
     // firing the live search sets `loading=true` and the panel then spins forever waiting on a backend that
     // does not exist (no managed PG) — that LIVE re-fire is exactly the GATED half. Proving the action
     // resolves to a live, enabled node + Click is the provable-now swarm-navigability proof.
-    let search_req = AgentRequest { author_id: lsv2::SEARCH_AUTHOR_ID.to_owned(), action: UiAction::Click };
-    let events = resolve_to_events(&snap, &search_req)
-        .expect("STEP4/AC-043-05: loom-search-v2.search resolves to a live AccessKit node + Click action");
-    assert!(!events.is_empty(), "STEP4: the search dispatch produced an AccessKit event (well-formed swarm request)");
-    log.dispatch("loom-search-v2.search", "Click", Some(r#"{"q":"SwarmProofNote"}"#));
+    let search_req = AgentRequest {
+        author_id: lsv2::SEARCH_AUTHOR_ID.to_owned(),
+        action: UiAction::Click,
+    };
+    let events = resolve_to_events(&snap, &search_req).expect(
+        "STEP4/AC-043-05: loom-search-v2.search resolves to a live AccessKit node + Click action",
+    );
+    assert!(
+        !events.is_empty(),
+        "STEP4: the search dispatch produced an AccessKit event (well-formed swarm request)"
+    );
+    log.dispatch(
+        "loom-search-v2.search",
+        "Click",
+        Some(r#"{"q":"SwarmProofNote"}"#),
+    );
     log.response(
         &format!(
             "loom-search-v2.search resolves to a live node; loom-search-v2.result.{PROOF_NOTE_BLOCK_ID} node present referencing the created note"
@@ -863,7 +942,10 @@ fn run_search_step(log: &mut ProofLog) {
     // Dispatch the result row open via AccessKit (the swarm navigates to the found note). A real Click on
     // the result node routes the `on_open_block` callback with the created note's id (the cross-surface
     // navigation a swarm agent performs). This does NOT fire the live search, so no spinner loop.
-    let row_req = AgentRequest { author_id: result_author.clone(), action: UiAction::Click };
+    let row_req = AgentRequest {
+        author_id: result_author.clone(),
+        action: UiAction::Click,
+    };
     if dispatch_via_harness(&mut harness, &row_req).is_ok() {
         // Use bounded explicit frames (not `pump_until`'s repaint-looping `run`) so a transient panel
         // repaint cannot trip the max-steps guard; the open callback fires within a frame of the Click.
@@ -877,9 +959,15 @@ fn run_search_step(log: &mut ProofLog) {
     }
     log.dispatch(&result_author, "Click", None);
     if opened.as_deref() == Some(PROOF_NOTE_BLOCK_ID) {
-        log.response("result row open -> on_open_block(created note id) — cross-surface navigation", DbResult::Pass);
+        log.response(
+            "result row open -> on_open_block(created note id) — cross-surface navigation",
+            DbResult::Pass,
+        );
     } else {
-        log.response("result row open dispatched (open callback is host-routed)", DbResult::NoDb);
+        log.response(
+            "result row open dispatched (open callback is host-routed)",
+            DbResult::NoDb,
+        );
     }
     log.note(
         "STEP 4 GATED-half: the live POST /loom/search/v2 round-trip needs managed PostgreSQL \
@@ -902,7 +990,10 @@ fn ctrl01_agent_holds_only_a_channel_handle() {
     // request stays pure data. (A pointer into the non-Send/`'static`-bounded application state would not
     // satisfy a `'static` channel payload without an obvious `Arc`, which a reviewer + this bound catch.)
     fn assert_plain_data<T: Send + Clone + 'static>(_: &T) {}
-    let req = AgentRequest { author_id: "editor.rich.save".to_owned(), action: UiAction::Click };
+    let req = AgentRequest {
+        author_id: "editor.rich.save".to_owned(),
+        action: UiAction::Click,
+    };
     assert_plain_data(&req);
 
     // The channel payload type is `AgentRequest` — confirm the agent's only handle wraps exactly that.
@@ -926,7 +1017,12 @@ fn ac07_no_keyboard_simulation_in_test_body() {
     // The forbidden identifiers (IN-043-09). Each is checked as a call-ish token (`ident(`) so the prose
     // mentions of them in comments/strings (which DESCRIBE the constraint) do not false-positive.
     let forbidden = [
-        "send_key", "send_char", "write_text", "simulate_key", "press_key", "type_text",
+        "send_key",
+        "send_char",
+        "write_text",
+        "simulate_key",
+        "press_key",
+        "type_text",
     ];
     for tok in forbidden {
         let call = format!("{tok}(");
@@ -973,7 +1069,13 @@ fn ac09_step_timeout_fires_on_a_stuck_condition() {
                 ui.label("idle");
             });
         // A condition that is NEVER true with a tiny budget -> pump_until must panic with the step name.
-        pump_until(&mut harness, "STUCK-STEP", "never.fires", Duration::from_millis(150), |_| false);
+        pump_until(
+            &mut harness,
+            "STUCK-STEP",
+            "never.fires",
+            Duration::from_millis(150),
+            |_| false,
+        );
     }));
     let err = result.expect_err("AC-043-09: pump_until must panic on a stuck condition");
     let msg = err
@@ -985,5 +1087,7 @@ fn ac09_step_timeout_fires_on_a_stuck_condition() {
         msg.contains("SWARM_PROOF_TIMEOUT") && msg.contains("STUCK-STEP"),
         "AC-043-09: the timeout panic must name the step; got '{msg}'"
     );
-    println!("AC-043-09: pump_until fires SWARM_PROOF_TIMEOUT with the step name on a stuck condition");
+    println!(
+        "AC-043-09: pump_until fires SWARM_PROOF_TIMEOUT with the step name on a stuck condition"
+    );
 }

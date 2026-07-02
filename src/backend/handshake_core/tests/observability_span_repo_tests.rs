@@ -70,7 +70,7 @@ fn mt_197_repo_error_display() {
 // ----- Postgres-gated integration tests -----
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_session_span_round_trip() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -92,7 +92,7 @@ async fn mt_197_session_span_round_trip() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_activity_span_fk_cascade_on_delete() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -135,7 +135,7 @@ async fn mt_197_activity_span_fk_cascade_on_delete() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_attributes_are_immutable_via_trigger() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -160,7 +160,7 @@ async fn mt_197_attributes_are_immutable_via_trigger() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_check_constraint_rejects_end_before_start() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -191,7 +191,7 @@ async fn mt_197_check_constraint_rejects_end_before_start() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_cross_link_join_via_model_session_id() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -231,7 +231,7 @@ async fn mt_197_cross_link_join_via_model_session_id() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_concurrent_end_writes_exactly_one_wins() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -265,7 +265,7 @@ async fn mt_197_concurrent_end_writes_exactly_one_wins() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_event_ledger_seq_accumulates_in_array() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -311,7 +311,7 @@ async fn mt_197_event_ledger_seq_accumulates_in_array() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_update_unknown_span_returns_not_found() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -324,7 +324,7 @@ async fn mt_197_update_unknown_span_returns_not_found() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_attach_ledger_seq_unknown_span_returns_not_found() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -335,7 +335,7 @@ async fn mt_197_attach_ledger_seq_unknown_span_returns_not_found() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_activity_span_range_query_via_model_session_id() {
     let pool = postgres_pool().await;
     apply_schema(&pool).await;
@@ -389,7 +389,7 @@ async fn mt_197_activity_span_range_query_via_model_session_id() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_197_empty_query_returns_empty_vec_not_error() {
     // Folded WP-1 invariant: a model_session_id that has no spans yet
     // must still return successfully (with an empty Vec). Validators
@@ -426,8 +426,9 @@ fn sample_session_span() -> ModelSessionSpan {
 }
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url =
-        std::env::var("POSTGRES_TEST_URL").expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL for observability_span_repo_tests");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }
 

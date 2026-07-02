@@ -380,7 +380,10 @@ pub struct BatchRequest {
 /// `Some(None)` or the string for `Some(Some(s))`. This is the client mirror of the backend's
 /// `double_option` deserializer (adversarial-v2 MT-157) — it guarantees an "absent" move never
 /// silently clears a membership the caller meant to leave unchanged.
-fn serialize_double_option<S>(value: &Option<Option<String>>, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_double_option<S>(
+    value: &Option<Option<String>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -635,7 +638,10 @@ impl KnowledgeDocumentsClient {
         headers: &HskDocumentHeaders,
         body: &CreateDocumentRequest,
     ) -> DocResult<DocumentWriteResponse> {
-        let builder = self.client.post(self.url("/knowledge/documents")).json(body);
+        let builder = self
+            .client
+            .post(self.url("/knowledge/documents"))
+            .json(body);
         self.send_json(headers.apply(builder)).await
     }
 
@@ -808,9 +814,9 @@ impl KnowledgeDocumentsClient {
         headers: &HskDocumentHeaders,
         document_id: &str,
     ) -> DocResult<BrokenEmbedListResponse> {
-        let builder = self.client.get(self.url(&format!(
-            "/knowledge/documents/{document_id}/embeds/broken"
-        )));
+        let builder = self
+            .client
+            .get(self.url(&format!("/knowledge/documents/{document_id}/embeds/broken")));
         self.send_json(headers.apply(builder)).await
     }
 
@@ -1002,8 +1008,15 @@ mod tests {
             folder_ref: None,
         };
         let v = serde_json::to_value(&clear).unwrap();
-        assert_eq!(v["project_ref"], Value::Null, "Some(None) must serialize as null: {v}");
-        assert!(v.get("folder_ref").is_none(), "absent folder_ref still omitted: {v}");
+        assert_eq!(
+            v["project_ref"],
+            Value::Null,
+            "Some(None) must serialize as null: {v}"
+        );
+        assert!(
+            v.get("folder_ref").is_none(),
+            "absent folder_ref still omitted: {v}"
+        );
 
         // String (Some(Some)) -> key present, string value.
         let set = MoveDocumentRequest {
@@ -1021,7 +1034,10 @@ mod tests {
             document_id: "KRD-1".into(),
             title: "T".into(),
         };
-        assert_eq!(serde_json::to_value(&rename).unwrap()["op"], json!("rename"));
+        assert_eq!(
+            serde_json::to_value(&rename).unwrap()["op"],
+            json!("rename")
+        );
 
         let mv = BatchOperation::Move {
             document_id: "KRD-1".into(),
@@ -1030,8 +1046,15 @@ mod tests {
         };
         let v = serde_json::to_value(&mv).unwrap();
         assert_eq!(v["op"], json!("move"));
-        assert_eq!(v["project_ref"], Value::Null, "batch move keeps double-option null: {v}");
-        assert!(v.get("folder_ref").is_none(), "batch move keeps absent omitted: {v}");
+        assert_eq!(
+            v["project_ref"],
+            Value::Null,
+            "batch move keeps double-option null: {v}"
+        );
+        assert!(
+            v.get("folder_ref").is_none(),
+            "batch move keeps absent omitted: {v}"
+        );
 
         let label = BatchOperation::SetAuthorityLabel {
             document_id: "KRD-1".into(),
@@ -1045,10 +1068,16 @@ mod tests {
 
     #[test]
     fn status_map_409_is_distinct_save_conflict_not_generic() {
-        let backend_409_body = json!({"error": "conflict", "detail": "version conflict"}).to_string();
+        let backend_409_body =
+            json!({"error": "conflict", "detail": "version conflict"}).to_string();
         let err = map_error_status(409, &backend_409_body);
         assert!(
-            matches!(err, KnowledgeDocumentsError::SaveConflict { server_version: None }),
+            matches!(
+                err,
+                KnowledgeDocumentsError::SaveConflict {
+                    server_version: None
+                }
+            ),
             "the real backend 409 body (no server_version) must still be a DISTINCT SaveConflict, \
              not a generic error: {err:?}"
         );
@@ -1056,18 +1085,26 @@ mod tests {
         let future = json!({"error": "conflict", "server_version": 7}).to_string();
         assert!(matches!(
             map_error_status(409, &future),
-            KnowledgeDocumentsError::SaveConflict { server_version: Some(7) }
+            KnowledgeDocumentsError::SaveConflict {
+                server_version: Some(7)
+            }
         ));
     }
 
     #[test]
     fn status_map_400_403_404_5xx_are_distinct_variants() {
         assert!(matches!(
-            map_error_status(400, &json!({"detail": "x-hsk-actor-id header is required"}).to_string()),
+            map_error_status(
+                400,
+                &json!({"detail": "x-hsk-actor-id header is required"}).to_string()
+            ),
             KnowledgeDocumentsError::BadRequest(_)
         ));
         assert!(matches!(
-            map_error_status(403, &json!({"reason": "operator may not index"}).to_string()),
+            map_error_status(
+                403,
+                &json!({"reason": "operator may not index"}).to_string()
+            ),
             KnowledgeDocumentsError::Forbidden(_)
         ));
         assert!(matches!(
@@ -1087,7 +1124,10 @@ mod tests {
     #[test]
     fn headers_omit_actor_kind_for_read_and_set_operator_for_write() {
         let read = HskDocumentHeaders::for_read("session-1", "KRD-1");
-        assert!(read.actor_kind.is_none(), "a read omits actor-kind (least-privileged default)");
+        assert!(
+            read.actor_kind.is_none(),
+            "a read omits actor-kind (least-privileged default)"
+        );
         assert_eq!(read.kernel_task_run_id, "native-editor-doc-KRD-1");
 
         let write = HskDocumentHeaders::for_operator("session-1", "KRD-1");

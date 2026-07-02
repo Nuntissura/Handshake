@@ -114,11 +114,17 @@ mod tests {
         assert!(!set.contains(5), "no breakpoint on line 5 initially");
         // First toggle SETS the breakpoint.
         assert_eq!(set.toggle(5), BreakpointAction::Set);
-        assert!(set.contains(5), "line 5 has a breakpoint after the first toggle");
+        assert!(
+            set.contains(5),
+            "line 5 has a breakpoint after the first toggle"
+        );
         assert_eq!(set.len(), 1);
         // Second toggle CLEARS it (idempotent in pairs — AC-002).
         assert_eq!(set.toggle(5), BreakpointAction::Clear);
-        assert!(!set.contains(5), "line 5 breakpoint removed after the second toggle");
+        assert!(
+            !set.contains(5),
+            "line 5 breakpoint removed after the second toggle"
+        );
         assert!(set.is_empty());
     }
 
@@ -142,7 +148,11 @@ mod tests {
         // Toggling the same line twice nets to no change (removed), so 4 must NOT appear.
         set.toggle(4);
         let lines: Vec<usize> = set.iter().collect();
-        assert_eq!(lines, vec![1, 7], "iter yields the live breakpoints ascending, no dupes");
+        assert_eq!(
+            lines,
+            vec![1, 7],
+            "iter yields the live breakpoints ascending, no dupes"
+        );
     }
 
     #[test]

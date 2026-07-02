@@ -44,11 +44,13 @@
 //! applied (which would corrupt the rope). The `preedit_then_commit_inserts_only_commit`
 //! test proves the rope ends with only the committed text.
 
+use crate::rich_editor::document_model::history::UndoManager;
 use crate::rich_editor::document_model::node::BlockNode;
 use crate::rich_editor::document_model::position::DocPosition;
 use crate::rich_editor::document_model::selection::Selection;
-use crate::rich_editor::document_model::transform::{apply_transaction, ActorKind, Step, Transaction};
-use crate::rich_editor::document_model::history::UndoManager;
+use crate::rich_editor::document_model::transform::{
+    apply_transaction, ActorKind, Step, Transaction,
+};
 
 /// The in-progress IME composition region. `anchor` is the caret position where the
 /// composition began; `text` is the current preedit string shown (underlined) inline.
@@ -152,7 +154,11 @@ pub fn handle_ime_event(ctx: &mut ImeContext<'_>, event: &egui::ImeEvent) -> Ime
 /// point). If preedit text had been written into the rope (it is not in this MT), this is
 /// where it would be removed first. Returns the caret head when no anchor was recorded.
 fn clear_preedit_region(ctx: &mut ImeContext<'_>) -> DocPosition {
-    let anchor = ctx.preedit.anchor.clone().unwrap_or_else(|| head(ctx.selection));
+    let anchor = ctx
+        .preedit
+        .anchor
+        .clone()
+        .unwrap_or_else(|| head(ctx.selection));
     ctx.preedit.clear();
     anchor
 }
@@ -214,7 +220,11 @@ mod tests {
     }
 
     fn leaf_text(doc: &BlockNode) -> String {
-        doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string()
+        doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string()
     }
 
     #[test]
@@ -233,7 +243,10 @@ mod tests {
                 preedit: &mut pre,
                 actor_id: "operator",
             };
-            assert_eq!(handle_ime_event(&mut ctx, &egui::ImeEvent::Enabled), ImeOutcome::PreeditChanged);
+            assert_eq!(
+                handle_ime_event(&mut ctx, &egui::ImeEvent::Enabled),
+                ImeOutcome::PreeditChanged
+            );
             assert_eq!(
                 handle_ime_event(&mut ctx, &egui::ImeEvent::Preedit("nihao".into())),
                 ImeOutcome::PreeditChanged
@@ -270,9 +283,16 @@ mod tests {
         };
         handle_ime_event(&mut ctx, &egui::ImeEvent::Enabled);
         handle_ime_event(&mut ctx, &egui::ImeEvent::Preedit("abc".into()));
-        assert_eq!(handle_ime_event(&mut ctx, &egui::ImeEvent::Disabled), ImeOutcome::Cleared);
+        assert_eq!(
+            handle_ime_event(&mut ctx, &egui::ImeEvent::Disabled),
+            ImeOutcome::Cleared
+        );
         assert!(!pre.is_active());
-        assert_eq!(leaf_text(&doc), "Hi", "no rope change from a cancelled composition");
+        assert_eq!(
+            leaf_text(&doc),
+            "Hi",
+            "no rope change from a cancelled composition"
+        );
     }
 
     #[test]

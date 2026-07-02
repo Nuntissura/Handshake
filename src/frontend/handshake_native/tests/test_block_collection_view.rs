@@ -50,10 +50,10 @@ use handshake_native::graph::block_collection_view::{
     calendar_day_author_id, calendar_entry_author_id, kanban_card_author_id, kanban_lane_author_id,
     table_row_author_id, table_sort_author_id, BlockCollectionView, BlockViewDefinition,
     BlockViewEvent, BlockViewField, BlockViewGroupBy, BlockViewKind, BlockViewLane, BlockViewQuery,
-    BlockViewResults, BlockViewSort, BlockViewSortDirection, LoomBlockRow, BLOCK_VIEW_UNTAGGED_LANE,
-    CALENDAR_DAY_AUTHOR_ID_PREFIX, CALENDAR_ENTRY_AUTHOR_ID_PREFIX, KIND_KANBAN_AUTHOR_ID,
-    KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID, NEW_VIEW_CONFIRM_AUTHOR_ID, NEW_VIEW_TITLE_AUTHOR_ID,
-    TABLE_ROW_AUTHOR_ID_PREFIX,
+    BlockViewResults, BlockViewSort, BlockViewSortDirection, LoomBlockRow,
+    BLOCK_VIEW_UNTAGGED_LANE, CALENDAR_DAY_AUTHOR_ID_PREFIX, CALENDAR_ENTRY_AUTHOR_ID_PREFIX,
+    KIND_KANBAN_AUTHOR_ID, KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID, NEW_VIEW_CONFIRM_AUTHOR_ID,
+    NEW_VIEW_TITLE_AUTHOR_ID, TABLE_ROW_AUTHOR_ID_PREFIX,
 };
 use handshake_native::theme::HsTheme;
 
@@ -136,13 +136,28 @@ fn seeded_kanban() -> BlockCollectionView {
         groups: vec![
             BlockViewLane {
                 key: "tag-a".to_owned(),
-                blocks: vec![row("block-001", "Card One", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", None)],
+                blocks: vec![row(
+                    "block-001",
+                    "Card One",
+                    "2026-01-01T00:00:00Z",
+                    "2026-01-01T00:00:00Z",
+                    None,
+                )],
             },
             BlockViewLane {
                 key: "tag-b".to_owned(),
-                blocks: vec![row("block-002", "Card Two", "2026-01-02T00:00:00Z", "2026-01-02T00:00:00Z", None)],
+                blocks: vec![row(
+                    "block-002",
+                    "Card Two",
+                    "2026-01-02T00:00:00Z",
+                    "2026-01-02T00:00:00Z",
+                    None,
+                )],
             },
-            BlockViewLane { key: BLOCK_VIEW_UNTAGGED_LANE.to_owned(), blocks: vec![] },
+            BlockViewLane {
+                key: BLOCK_VIEW_UNTAGGED_LANE.to_owned(),
+                blocks: vec![],
+            },
         ],
         total_returned: 2,
     };
@@ -158,8 +173,20 @@ fn seeded_calendar() -> BlockCollectionView {
     let results = BlockViewResults {
         kind_str: "calendar".to_owned(),
         blocks: vec![
-            row("block-001", "Day One", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", Some("2026-03-01")),
-            row("block-002", "Day Two", "2026-01-02T00:00:00Z", "2026-01-02T00:00:00Z", Some("2026-03-02")),
+            row(
+                "block-001",
+                "Day One",
+                "2026-01-01T00:00:00Z",
+                "2026-01-01T00:00:00Z",
+                Some("2026-03-01"),
+            ),
+            row(
+                "block-002",
+                "Day Two",
+                "2026-01-02T00:00:00Z",
+                "2026-01-02T00:00:00Z",
+                Some("2026-03-02"),
+            ),
         ],
         groups: vec![],
         total_returned: 2,
@@ -256,23 +283,43 @@ fn table_renders_three_rows_with_titles() {
     let ids = author_ids(&harness);
 
     // AC9: the kind switcher + status + new-view controls are present.
-    for required in [KIND_TABLE_AUTHOR_ID, KIND_KANBAN_AUTHOR_ID, NEW_VIEW_AUTHOR_ID] {
-        assert!(ids.contains(required), "AC9: control '{required}' missing from {ids:?}");
+    for required in [
+        KIND_TABLE_AUTHOR_ID,
+        KIND_KANBAN_AUTHOR_ID,
+        NEW_VIEW_AUTHOR_ID,
+    ] {
+        assert!(
+            ids.contains(required),
+            "AC9: control '{required}' missing from {ids:?}"
+        );
     }
 
     // AC9: a sort header for each default column (title, updated).
-    assert!(ids.contains(&table_sort_author_id(BlockViewField::Title)), "AC9: title sort header");
-    assert!(ids.contains(&table_sort_author_id(BlockViewField::Updated)), "AC9: updated sort header");
+    assert!(
+        ids.contains(&table_sort_author_id(BlockViewField::Title)),
+        "AC9: title sort header"
+    );
+    assert!(
+        ids.contains(&table_sort_author_id(BlockViewField::Updated)),
+        "AC9: updated sort header"
+    );
 
     // PROOF2: exactly 3 row nodes, each labelled with its joined cell values (title non-empty).
     let row_count = ids
         .iter()
         .filter(|a| a.starts_with(TABLE_ROW_AUTHOR_ID_PREFIX))
         .count();
-    assert_eq!(row_count, 3, "PROOF2: exactly 3 table-row nodes (got {row_count})");
+    assert_eq!(
+        row_count, 3,
+        "PROOF2: exactly 3 table-row nodes (got {row_count})"
+    );
 
-    let label = label_for(&harness, &table_row_author_id("block-001")).expect("row block-001 present");
-    assert!(label.contains("Block 1"), "PROOF2: row label must carry the title cell (got '{label}')");
+    let label =
+        label_for(&harness, &table_row_author_id("block-001")).expect("row block-001 present");
+    assert!(
+        label.contains("Block 1"),
+        "PROOF2: row label must carry the title cell (got '{label}')"
+    );
 
     println!("PROOF2/AC1/AC9: 3 table rows with non-empty title cells + controls present");
     assert_no_local_artifact_dir();
@@ -303,7 +350,11 @@ fn table_sort_click_emits_backend_sort_then_toggles() {
         }
     };
     assert_eq!(sort.field, BlockViewField::Title);
-    assert_eq!(sort.direction, BlockViewSortDirection::Asc, "PROOF3: first click -> asc");
+    assert_eq!(
+        sort.direction,
+        BlockViewSortDirection::Asc,
+        "PROOF3: first click -> asc"
+    );
 
     // The emitted sort, persisted via the client, builds the VERIFIED updateBlockView request body.
     let client = test_client();
@@ -311,9 +362,18 @@ fn table_sort_click_emits_backend_sort_then_toggles() {
     def.sort = Some(sort);
     let spec = client.update_view_request("ws-test", "view-table", &def);
     let body = spec.body.expect("update body");
-    let body_sort = body.get("definition").and_then(|d| d.get("sort")).expect("definition.sort");
-    assert_eq!(body_sort.get("field").and_then(|x| x.as_str()), Some("title"));
-    assert_eq!(body_sort.get("direction").and_then(|x| x.as_str()), Some("asc"));
+    let body_sort = body
+        .get("definition")
+        .and_then(|d| d.get("sort"))
+        .expect("definition.sort");
+    assert_eq!(
+        body_sort.get("field").and_then(|x| x.as_str()),
+        Some("title")
+    );
+    assert_eq!(
+        body_sort.get("direction").and_then(|x| x.as_str()),
+        Some("asc")
+    );
 
     // Apply the sort to the host (mimic the host's set_loaded after the re-query) and click again ->
     // desc (same-field toggle).
@@ -334,9 +394,15 @@ fn table_sort_click_emits_backend_sort_then_toggles() {
             other => panic!("PROOF3: expected a 2nd Sort event, got {other:?}"),
         }
     };
-    assert_eq!(sort2.direction, BlockViewSortDirection::Desc, "PROOF3: 2nd click same field -> desc");
+    assert_eq!(
+        sort2.direction,
+        BlockViewSortDirection::Desc,
+        "PROOF3: 2nd click same field -> desc"
+    );
 
-    println!("PROOF3/AC2: header click emits backend Sort (asc), update body correct, 2nd click -> desc");
+    println!(
+        "PROOF3/AC2: header click emits backend Sort (asc), update body correct, 2nd click -> desc"
+    );
     assert_no_local_artifact_dir();
 }
 
@@ -357,7 +423,12 @@ fn kind_switch_emits_kind_change() {
 
     let evs = events_ck.lock().unwrap();
     assert!(
-        matches!(evs.last(), Some(BlockViewEvent::KindChange { kind: BlockViewKind::Kanban })),
+        matches!(
+            evs.last(),
+            Some(BlockViewEvent::KindChange {
+                kind: BlockViewKind::Kanban
+            })
+        ),
         "AC7: kind switcher must fire KindChange{{kanban}}, got {:?}",
         evs.last()
     );
@@ -405,9 +476,18 @@ fn kanban_card_drag_emits_card_move_then_requery_lands_card() {
 
     let ids = author_ids(&harness);
     // AC3: lanes + cards are addressable.
-    assert!(ids.contains(&kanban_lane_author_id("tag-a")), "AC3: lane tag-a present");
-    assert!(ids.contains(&kanban_lane_author_id("tag-b")), "AC3: lane tag-b present");
-    assert!(ids.contains(&kanban_card_author_id("block-001")), "AC3: card block-001 present");
+    assert!(
+        ids.contains(&kanban_lane_author_id("tag-a")),
+        "AC3: lane tag-a present"
+    );
+    assert!(
+        ids.contains(&kanban_lane_author_id("tag-b")),
+        "AC3: lane tag-b present"
+    );
+    assert!(
+        ids.contains(&kanban_card_author_id("block-001")),
+        "AC3: card block-001 present"
+    );
     // The untagged lane shows its 'Untagged' label.
     assert_eq!(
         label_for(&harness, &kanban_lane_author_id(BLOCK_VIEW_UNTAGGED_LANE)).as_deref(),
@@ -415,8 +495,10 @@ fn kanban_card_drag_emits_card_move_then_requery_lands_card() {
         "AC3: untagged lane labelled 'Untagged'"
     );
 
-    let card_center = center_of(&harness, &kanban_card_author_id("block-001")).expect("card present");
-    let lane_b_center = center_of(&harness, &kanban_lane_author_id("tag-b")).expect("lane tag-b present");
+    let card_center =
+        center_of(&harness, &kanban_card_author_id("block-001")).expect("card present");
+    let lane_b_center =
+        center_of(&harness, &kanban_lane_author_id("tag-b")).expect("lane tag-b present");
 
     // Live pointer drag: press at the card, step the pointer to lane-b (past the drag threshold), drop.
     harness.drag_at(card_center);
@@ -437,24 +519,39 @@ fn kanban_card_drag_emits_card_move_then_requery_lands_card() {
         evs.iter()
             .rev()
             .find_map(|e| match e {
-                BlockViewEvent::CardMove { block_id, add_tags, remove_tags } => {
-                    Some((block_id.clone(), add_tags.clone(), remove_tags.clone()))
-                }
+                BlockViewEvent::CardMove {
+                    block_id,
+                    add_tags,
+                    remove_tags,
+                } => Some((block_id.clone(), add_tags.clone(), remove_tags.clone())),
                 _ => None,
             })
             .expect("PROOF4: a CardMove event must fire on the drop")
     };
     assert_eq!(move_event.0, "block-001", "PROOF4: moved block id");
-    assert_eq!(move_event.1, vec!["tag-b".to_owned()], "PROOF4: add_tags = [tag-b]");
-    assert_eq!(move_event.2, vec!["tag-a".to_owned()], "PROOF4: remove_tags = [tag-a]");
+    assert_eq!(
+        move_event.1,
+        vec!["tag-b".to_owned()],
+        "PROOF4: add_tags = [tag-b]"
+    );
+    assert_eq!(
+        move_event.2,
+        vec!["tag-a".to_owned()],
+        "PROOF4: remove_tags = [tag-a]"
+    );
 
     // The VERIFIED updateLoomBlock request body (top-level add_tags/remove_tags).
     let client = test_client();
     let spec = client.card_move_request("ws-test", &move_event.0, &move_event.1, &move_event.2);
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws-test/loom/blocks/block-001");
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws-test/loom/blocks/block-001"
+    );
     let body = spec.body.unwrap();
     assert_eq!(
-        body.get("add_tags").and_then(|x| x.as_array()).map(|a| a.len()),
+        body.get("add_tags")
+            .and_then(|x| x.as_array())
+            .map(|a| a.len()),
         Some(1),
         "PROOF4: add_tags top-level array"
     );
@@ -470,15 +567,33 @@ fn kanban_card_drag_emits_card_move_then_requery_lands_card() {
             kind_str: "kanban".to_owned(),
             blocks: vec![],
             groups: vec![
-                BlockViewLane { key: "tag-a".to_owned(), blocks: vec![] },
+                BlockViewLane {
+                    key: "tag-a".to_owned(),
+                    blocks: vec![],
+                },
                 BlockViewLane {
                     key: "tag-b".to_owned(),
                     blocks: vec![
-                        row("block-002", "Card Two", "2026-01-02T00:00:00Z", "2026-01-02T00:00:00Z", None),
-                        row("block-001", "Card One", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", None),
+                        row(
+                            "block-002",
+                            "Card Two",
+                            "2026-01-02T00:00:00Z",
+                            "2026-01-02T00:00:00Z",
+                            None,
+                        ),
+                        row(
+                            "block-001",
+                            "Card One",
+                            "2026-01-01T00:00:00Z",
+                            "2026-01-01T00:00:00Z",
+                            None,
+                        ),
                     ],
                 },
-                BlockViewLane { key: BLOCK_VIEW_UNTAGGED_LANE.to_owned(), blocks: vec![] },
+                BlockViewLane {
+                    key: BLOCK_VIEW_UNTAGGED_LANE.to_owned(),
+                    blocks: vec![],
+                },
             ],
             total_returned: 2,
         };
@@ -517,10 +632,22 @@ fn calendar_renders_two_day_buckets() {
     harness.run();
 
     let ids = author_ids(&harness);
-    let day_count = ids.iter().filter(|a| a.starts_with(CALENDAR_DAY_AUTHOR_ID_PREFIX)).count();
-    let entry_count = ids.iter().filter(|a| a.starts_with(CALENDAR_ENTRY_AUTHOR_ID_PREFIX)).count();
-    assert_eq!(day_count, 2, "PROOF5: exactly 2 calendar-day nodes (got {day_count})");
-    assert_eq!(entry_count, 2, "PROOF5: exactly 2 calendar-entry nodes (1 per day, got {entry_count})");
+    let day_count = ids
+        .iter()
+        .filter(|a| a.starts_with(CALENDAR_DAY_AUTHOR_ID_PREFIX))
+        .count();
+    let entry_count = ids
+        .iter()
+        .filter(|a| a.starts_with(CALENDAR_ENTRY_AUTHOR_ID_PREFIX))
+        .count();
+    assert_eq!(
+        day_count, 2,
+        "PROOF5: exactly 2 calendar-day nodes (got {day_count})"
+    );
+    assert_eq!(
+        entry_count, 2,
+        "PROOF5: exactly 2 calendar-entry nodes (1 per day, got {entry_count})"
+    );
 
     assert!(
         ids.contains(&calendar_day_author_id("2026-03-01")),
@@ -531,8 +658,14 @@ fn calendar_renders_two_day_buckets() {
         "PROOF5: entry block-001 present"
     );
     // AC9: the date-range inputs are addressable.
-    assert!(ids.contains("bcv.calendar.date-from"), "AC9: date-from input present");
-    assert!(ids.contains("bcv.calendar.date-to"), "AC9: date-to input present");
+    assert!(
+        ids.contains("bcv.calendar.date-from"),
+        "AC9: date-from input present"
+    );
+    assert!(
+        ids.contains("bcv.calendar.date-to"),
+        "AC9: date-to input present"
+    );
 
     println!("PROOF5/AC5: 2 calendar day buckets, 1 entry each, date-range inputs present");
     assert_no_local_artifact_dir();
@@ -557,8 +690,14 @@ fn new_view_creates_and_switches() {
 
     // The popup's title field + confirm button are now in the tree.
     let ids = author_ids(&harness);
-    assert!(ids.contains(NEW_VIEW_TITLE_AUTHOR_ID), "AC8: new-view title field present");
-    assert!(ids.contains(NEW_VIEW_CONFIRM_AUTHOR_ID), "AC8: new-view confirm present");
+    assert!(
+        ids.contains(NEW_VIEW_TITLE_AUTHOR_ID),
+        "AC8: new-view title field present"
+    );
+    assert!(
+        ids.contains(NEW_VIEW_CONFIRM_AUTHOR_ID),
+        "AC8: new-view confirm present"
+    );
 
     // Type a title into the field (by author_id — the hint text is not an AccessKit label), confirm.
     type_into_author_id(&harness, NEW_VIEW_TITLE_AUTHOR_ID, "Test View");
@@ -580,11 +719,19 @@ fn new_view_creates_and_switches() {
     let client = test_client();
     let def = BlockViewDefinition::of_kind(kind);
     let spec = client.create_view_request("ws-test", &title, &def);
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws-test/loom/views/definitions");
-    let body = spec.body.unwrap();
-    assert_eq!(body.get("title").and_then(|x| x.as_str()), Some("Test View"));
     assert_eq!(
-        body.get("definition").and_then(|d| d.get("kind")).and_then(|x| x.as_str()),
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws-test/loom/views/definitions"
+    );
+    let body = spec.body.unwrap();
+    assert_eq!(
+        body.get("title").and_then(|x| x.as_str()),
+        Some("Test View")
+    );
+    assert_eq!(
+        body.get("definition")
+            .and_then(|d| d.get("kind"))
+            .and_then(|x| x.as_str()),
         Some("table"),
         "PROOF6: createBlockView body carries definition.kind"
     );
@@ -620,7 +767,10 @@ fn calendar_date_range_validates_then_emits() {
             Some(BlockViewEvent::DateRange { date_from: Some(f), date_to: None }) if f == "2026-03-01"
         )
     };
-    assert!(valid, "AC6: a valid date-range Apply must emit DateRange{{from:2026-03-01}}");
+    assert!(
+        valid,
+        "AC6: a valid date-range Apply must emit DateRange{{from:2026-03-01}}"
+    );
 
     // Now a BAD shape -> rejected (no new event, an inline error set).
     events_ck.lock().unwrap().clear();
@@ -642,7 +792,11 @@ fn calendar_date_range_validates_then_emits() {
 
 #[test]
 fn empty_states_render_without_panic() {
-    for kind in [BlockViewKind::Table, BlockViewKind::Kanban, BlockViewKind::Calendar] {
+    for kind in [
+        BlockViewKind::Table,
+        BlockViewKind::Kanban,
+        BlockViewKind::Calendar,
+    ] {
         let mut host = BlockCollectionView::new("ws", "view-empty");
         let def = BlockViewDefinition::of_kind(kind);
         host.set_loaded(def, BlockViewResults::default());
@@ -654,11 +808,13 @@ fn empty_states_render_without_panic() {
         let ids = author_ids(&harness);
         // No rows / cards / day buckets exist.
         assert!(
-            !ids.iter().any(|a| a.starts_with(TABLE_ROW_AUTHOR_ID_PREFIX)),
+            !ids.iter()
+                .any(|a| a.starts_with(TABLE_ROW_AUTHOR_ID_PREFIX)),
             "AC10 ({kind:?}): no table rows in an empty view"
         );
         assert!(
-            !ids.iter().any(|a| a.starts_with(CALENDAR_DAY_AUTHOR_ID_PREFIX)),
+            !ids.iter()
+                .any(|a| a.starts_with(CALENDAR_DAY_AUTHOR_ID_PREFIX)),
             "AC10 ({kind:?}): no calendar days in an empty view"
         );
     }
@@ -694,7 +850,8 @@ fn block_collection_view_screenshot() {
             let (w, h) = (image.width(), image.height());
             assert!(w > 0 && h > 0, "rendered image must be non-empty");
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut white = 0u32;
             let mut i = 0usize;
             while i + 4 <= raw.len() {
@@ -714,7 +871,11 @@ fn block_collection_view_screenshot() {
                 "screenshot: surface must not be ~all-white (white frac {})",
                 white as f32 / total as f32
             );
-            assert!(counts.len() >= 2, "screenshot: >= 2 distinct colours expected, got {}", counts.len());
+            assert!(
+                counts.len() >= 2,
+                "screenshot: >= 2 distinct colours expected, got {}",
+                counts.len()
+            );
 
             let ext_dir = external_artifact_dir("wp-kernel-012-mt-027");
             let _ = std::fs::create_dir_all(&ext_dir);
@@ -752,7 +913,10 @@ fn test_client() -> BlockViewClient {
 fn client_get_view_url() {
     let c = test_client();
     let spec = c.get_view_request("ws1", "view-1");
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws1/loom/views/definitions/view-1");
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/views/definitions/view-1"
+    );
     assert!(spec.query.is_empty());
 }
 
@@ -762,7 +926,10 @@ fn client_query_results_is_post_with_limit_offset_body() {
     let c = test_client();
     let spec = c.query_results_request("ws1", "view-1", 100, 0);
     assert!(
-        matches!(spec.method, handshake_native::backend_client::HttpMethod::Post),
+        matches!(
+            spec.method,
+            handshake_native::backend_client::HttpMethod::Post
+        ),
         "RISK-1: results query must be POST (got {:?})",
         spec.method
     );
@@ -779,10 +946,19 @@ fn client_query_results_is_post_with_limit_offset_body() {
 fn client_update_view_wraps_definition() {
     let c = test_client();
     let mut def = BlockViewDefinition::of_kind(BlockViewKind::Table);
-    def.sort = Some(BlockViewSort { field: BlockViewField::Updated, direction: BlockViewSortDirection::Desc });
+    def.sort = Some(BlockViewSort {
+        field: BlockViewField::Updated,
+        direction: BlockViewSortDirection::Desc,
+    });
     let spec = c.update_view_request("ws1", "view-1", &def);
-    assert!(matches!(spec.method, handshake_native::backend_client::HttpMethod::Patch));
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws1/loom/views/definitions/view-1");
+    assert!(matches!(
+        spec.method,
+        handshake_native::backend_client::HttpMethod::Patch
+    ));
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/views/definitions/view-1"
+    );
     // The body MUST be {definition: {...}} (the verified wrapped shape, NOT a bare definition).
     let body = spec.body.unwrap();
     let def_json = body.get("definition").expect("definition wrapper");
@@ -796,8 +972,14 @@ fn client_update_view_wraps_definition() {
 fn client_card_move_top_level_tags() {
     let c = test_client();
     let spec = c.card_move_request("ws1", "blk-9", &["tag-b".to_owned()], &["tag-a".to_owned()]);
-    assert!(matches!(spec.method, handshake_native::backend_client::HttpMethod::Patch));
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws1/loom/blocks/blk-9");
+    assert!(matches!(
+        spec.method,
+        handshake_native::backend_client::HttpMethod::Patch
+    ));
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/blocks/blk-9"
+    );
     let body = spec.body.unwrap();
     // add_tags/remove_tags are TOP-LEVEL (the verified LoomBlockPatchRequest shape), not nested.
     assert_eq!(body.get("add_tags").unwrap()[0].as_str(), Some("tag-b"));
@@ -809,12 +991,20 @@ fn client_create_view_body() {
     let c = test_client();
     let def = BlockViewDefinition::of_kind(BlockViewKind::Kanban);
     let spec = c.create_view_request("ws1", "My View", &def);
-    assert!(matches!(spec.method, handshake_native::backend_client::HttpMethod::Post));
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws1/loom/views/definitions");
+    assert!(matches!(
+        spec.method,
+        handshake_native::backend_client::HttpMethod::Post
+    ));
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/views/definitions"
+    );
     let body = spec.body.unwrap();
     assert_eq!(body.get("title").and_then(|x| x.as_str()), Some("My View"));
     assert_eq!(
-        body.get("definition").and_then(|d| d.get("kind")).and_then(|x| x.as_str()),
+        body.get("definition")
+            .and_then(|d| d.get("kind"))
+            .and_then(|x| x.as_str()),
         Some("kanban")
     );
 }
@@ -835,13 +1025,28 @@ fn client_date_range_serializes_as_rfc3339_backend_accepts() {
     };
     let spec = c.update_view_request("ws1", "view-cal", &def);
     let body = spec.body.unwrap();
-    let query = body.get("definition").and_then(|d| d.get("query")).expect("definition.query");
+    let query = body
+        .get("definition")
+        .and_then(|d| d.get("query"))
+        .expect("definition.query");
 
-    let from = query.get("date_from").and_then(|x| x.as_str()).expect("date_from present");
-    let to = query.get("date_to").and_then(|x| x.as_str()).expect("date_to present");
+    let from = query
+        .get("date_from")
+        .and_then(|x| x.as_str())
+        .expect("date_from present");
+    let to = query
+        .get("date_to")
+        .and_then(|x| x.as_str())
+        .expect("date_to present");
     // It is NOT the bare date-only string the backend rejects.
-    assert_ne!(from, "2026-03-01", "date_from must be expanded to a full RFC3339 instant");
-    assert_ne!(to, "2026-03-31", "date_to must be expanded to a full RFC3339 instant");
+    assert_ne!(
+        from, "2026-03-01",
+        "date_from must be expanded to a full RFC3339 instant"
+    );
+    assert_ne!(
+        to, "2026-03-31",
+        "date_to must be expanded to a full RFC3339 instant"
+    );
     // Inclusive window: from = start-of-day, to = end-of-day.
     assert_eq!(from, "2026-03-01T00:00:00Z");
     assert_eq!(to, "2026-03-31T23:59:59Z");
@@ -867,7 +1072,10 @@ fn bare_date_only_string_is_rejected_by_backend_date_type() {
     // `DateTime<Utc>` (whose Deserialize parses RFC3339) CANNOT parse. This asserts that rejection so a
     // regression that re-introduces the bare date is caught at the adapter boundary, not at runtime 422.
     let bare = chrono::DateTime::parse_from_rfc3339("2026-03-01");
-    assert!(bare.is_err(), "a bare YYYY-MM-DD must NOT parse as RFC3339/DateTime<Utc> (the must-fix #1 bug)");
+    assert!(
+        bare.is_err(),
+        "a bare YYYY-MM-DD must NOT parse as RFC3339/DateTime<Utc> (the must-fix #1 bug)"
+    );
     // The expanded instant the fix produces DOES parse.
     assert!(chrono::DateTime::parse_from_rfc3339("2026-03-01T00:00:00Z").is_ok());
 }
@@ -892,12 +1100,22 @@ fn group_by_and_full_query_survive_update_round_trip() {
     });
     // Parse the loaded definition the way getBlockView does.
     let mut def = handshake_native::backend_client::definition_from_json(&loaded);
-    assert_eq!(def.group_by, Some(BlockViewGroupBy::Tag), "loaded group_by parses");
-    assert_eq!(def.query.tag_ids, vec!["tag-a".to_owned(), "tag-b".to_owned()]);
+    assert_eq!(
+        def.group_by,
+        Some(BlockViewGroupBy::Tag),
+        "loaded group_by parses"
+    );
+    assert_eq!(
+        def.query.tag_ids,
+        vec!["tag-a".to_owned(), "tag-b".to_owned()]
+    );
     assert_eq!(def.query.content_type.as_deref(), Some("note"));
 
     // Apply a native sort edit (a header click on Updated -> asc), exactly as the host would.
-    def.sort = Some(BlockViewSort { field: BlockViewField::Updated, direction: BlockViewSortDirection::Asc });
+    def.sort = Some(BlockViewSort {
+        field: BlockViewField::Updated,
+        direction: BlockViewSortDirection::Asc,
+    });
 
     // Serialize through the SAME path updateBlockView uses.
     let c = test_client();
@@ -907,17 +1125,35 @@ fn group_by_and_full_query_survive_update_round_trip() {
 
     // group_by SURVIVED the round-trip (must-fix #3): the Kanban grouping is not wiped by the sort.
     assert_eq!(
-        def_json.get("group_by").and_then(|g| g.get("kind")).and_then(|x| x.as_str()),
+        def_json
+            .get("group_by")
+            .and_then(|g| g.get("kind"))
+            .and_then(|x| x.as_str()),
         Some("tag"),
         "must-fix #3: group_by must survive a sort updateBlockView (full-overwrite persist)"
     );
     // The server-side query filters SURVIVED (must-fix #2): not dropped to serde defaults.
     let query = def_json.get("query").expect("definition.query survived");
-    assert_eq!(query.get("content_type").and_then(|x| x.as_str()), Some("note"));
-    assert_eq!(query.get("mime").and_then(|x| x.as_str()), Some("text/markdown"));
-    let tag_ids: Vec<&str> =
-        query.get("tag_ids").and_then(|x| x.as_array()).unwrap().iter().filter_map(|x| x.as_str()).collect();
-    assert_eq!(tag_ids, vec!["tag-a", "tag-b"], "must-fix #2: tag_ids must survive the round-trip");
+    assert_eq!(
+        query.get("content_type").and_then(|x| x.as_str()),
+        Some("note")
+    );
+    assert_eq!(
+        query.get("mime").and_then(|x| x.as_str()),
+        Some("text/markdown")
+    );
+    let tag_ids: Vec<&str> = query
+        .get("tag_ids")
+        .and_then(|x| x.as_array())
+        .unwrap()
+        .iter()
+        .filter_map(|x| x.as_str())
+        .collect();
+    assert_eq!(
+        tag_ids,
+        vec!["tag-a", "tag-b"],
+        "must-fix #2: tag_ids must survive the round-trip"
+    );
     let mention_ids: Vec<&str> = query
         .get("mention_ids")
         .and_then(|x| x.as_array())
@@ -925,7 +1161,11 @@ fn group_by_and_full_query_survive_update_round_trip() {
         .iter()
         .filter_map(|x| x.as_str())
         .collect();
-    assert_eq!(mention_ids, vec!["m-1"], "must-fix #2: mention_ids must survive the round-trip");
+    assert_eq!(
+        mention_ids,
+        vec!["m-1"],
+        "must-fix #2: mention_ids must survive the round-trip"
+    );
     // And the sort we applied is present.
     let sort = def_json.get("sort").expect("sort serialized");
     assert_eq!(sort.get("field").and_then(|x| x.as_str()), Some("updated"));
@@ -942,17 +1182,31 @@ fn group_by_field_round_trips_and_native_kanban_defaults_to_tag() {
         "group_by": { "kind": "field", "field": "content_type" }
     });
     let def = handshake_native::backend_client::definition_from_json(&loaded);
-    assert_eq!(def.group_by, Some(BlockViewGroupBy::Field { field: BlockViewField::ContentType }));
+    assert_eq!(
+        def.group_by,
+        Some(BlockViewGroupBy::Field {
+            field: BlockViewField::ContentType
+        })
+    );
     let c = test_client();
     let body = c.update_view_request("ws1", "v", &def).body.unwrap();
-    let gb = body.get("definition").and_then(|d| d.get("group_by")).expect("group_by serialized");
+    let gb = body
+        .get("definition")
+        .and_then(|d| d.get("group_by"))
+        .expect("group_by serialized");
     assert_eq!(gb.get("kind").and_then(|x| x.as_str()), Some("field"));
-    assert_eq!(gb.get("field").and_then(|x| x.as_str()), Some("content_type"));
+    assert_eq!(
+        gb.get("field").and_then(|x| x.as_str()),
+        Some("content_type")
+    );
 
     // A natively-created Kanban view defaults to group_by=Tag => '+ New view' kanban produces lanes.
     let native_kanban = BlockViewDefinition::of_kind(BlockViewKind::Kanban);
     assert_eq!(native_kanban.group_by, Some(BlockViewGroupBy::Tag));
-    let native_body = c.update_view_request("ws1", "v2", &native_kanban).body.unwrap();
+    let native_body = c
+        .update_view_request("ws1", "v2", &native_kanban)
+        .body
+        .unwrap();
     assert_eq!(
         native_body
             .get("definition")
@@ -963,8 +1217,12 @@ fn group_by_field_round_trips_and_native_kanban_defaults_to_tag() {
         "native-created Kanban defaults to group_by=tag so the backend builds lanes"
     );
     // Table/calendar carry NO grouping.
-    assert!(BlockViewDefinition::of_kind(BlockViewKind::Table).group_by.is_none());
-    assert!(BlockViewDefinition::of_kind(BlockViewKind::Calendar).group_by.is_none());
+    assert!(BlockViewDefinition::of_kind(BlockViewKind::Table)
+        .group_by
+        .is_none());
+    assert!(BlockViewDefinition::of_kind(BlockViewKind::Calendar)
+        .group_by
+        .is_none());
 }
 
 // ── JSON parse proofs: the native projection of a real queryBlockViewResults / getBlockView body ──
@@ -1000,7 +1258,10 @@ fn parse_results_from_real_shape() {
     assert_eq!(results.blocks.len(), 2);
     assert_eq!(results.total_returned, 2);
     assert_eq!(results.blocks[0].display_title(), "First");
-    assert_eq!(results.blocks[0].backlink_count, 3, "derived.backlink_count parsed from nested object");
+    assert_eq!(
+        results.blocks[0].backlink_count, 3,
+        "derived.backlink_count parsed from nested object"
+    );
     assert_eq!(results.blocks[0].tag_count, 2);
     // Title null -> original_filename fallback.
     assert_eq!(results.blocks[1].display_title(), "file.md");
@@ -1038,7 +1299,10 @@ fn parse_definition_from_real_shape() {
     let def = handshake_native::backend_client::definition_from_json(&v);
     assert_eq!(def.kind, BlockViewKind::Calendar);
     assert_eq!(def.calendar_date_field, Some(BlockViewField::JournalDate));
-    assert_eq!(def.columns, vec![BlockViewField::Title, BlockViewField::Updated]);
+    assert_eq!(
+        def.columns,
+        vec![BlockViewField::Title, BlockViewField::Updated]
+    );
     assert_eq!(def.sort.unwrap().field, BlockViewField::Title);
     assert_eq!(def.sort.unwrap().direction, BlockViewSortDirection::Asc);
     // The calendar surface slices the ISO datetime to YYYY-MM-DD.
@@ -1069,7 +1333,8 @@ fn parse_empty_results_is_empty_not_error() {
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded table-kind view_def block + >= 1 result block"]
 #[cfg(feature = "integration")]
 fn table_view_loads_from_live_pg() {
-    let ws = std::env::var("HANDSHAKE_TEST_WS").expect("set HANDSHAKE_TEST_WS to a seeded workspace id");
+    let ws =
+        std::env::var("HANDSHAKE_TEST_WS").expect("set HANDSHAKE_TEST_WS to a seeded workspace id");
     let view_id = std::env::var("HANDSHAKE_TEST_TABLE_VIEW")
         .expect("set HANDSHAKE_TEST_TABLE_VIEW to a seeded table view_def block id");
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -1080,16 +1345,29 @@ fn table_view_loads_from_live_pg() {
     client.fetch_view(&ws, &view_id, Arc::clone(&record_cell));
     // `block_on_cell` already unwraps the delivery `Result`, so it returns the value directly.
     let record = block_on_cell(&record_cell);
-    assert_eq!(record.definition.kind, BlockViewKind::Table, "seeded view must be table-kind");
+    assert_eq!(
+        record.definition.kind,
+        BlockViewKind::Table,
+        "seeded view must be table-kind"
+    );
 
     let results_cell: handshake_native::backend_client::BlockViewResultsCell =
         Arc::new(Mutex::new(None));
     client.query_results(&ws, &view_id, 100, 0, Arc::clone(&results_cell));
     let results = block_on_cell(&results_cell);
-    assert!(!results.blocks.is_empty(), "AC1: a seeded table view must return >= 1 row from PG");
-    assert!(!results.blocks[0].display_title().is_empty(), "AC1: the title cell is non-empty");
+    assert!(
+        !results.blocks.is_empty(),
+        "AC1: a seeded table view must return >= 1 row from PG"
+    );
+    assert!(
+        !results.blocks[0].display_title().is_empty(),
+        "AC1: the title cell is non-empty"
+    );
 
-    println!("AC1 LIVE-PG: table view {view_id} loaded {} rows from real PG", results.blocks.len());
+    println!(
+        "AC1 LIVE-PG: table view {view_id} loaded {} rows from real PG",
+        results.blocks.len()
+    );
 }
 
 /// Drain a delivery cell, spinning the runtime until the off-thread task lands (LIVE-PG helper).

@@ -90,7 +90,10 @@ struct MockTransport {
 }
 impl MockTransport {
     fn new(fail: bool) -> Self {
-        Self { posted: Arc::new(Mutex::new(Vec::new())), fail }
+        Self {
+            posted: Arc::new(Mutex::new(Vec::new())),
+            fail,
+        }
     }
 }
 impl EventLedgerTransport for MockTransport {
@@ -134,7 +137,10 @@ impl EditorSurface for MockSurface {
         *self.selection_changes.lock().unwrap() += 1;
     }
     fn on_event_emitted(&self, event: &NativeEditorEvent, _emitter: &NativeEditorEventEmitter) {
-        self.events_observed.lock().unwrap().push(event.action.as_str().to_owned());
+        self.events_observed
+            .lock()
+            .unwrap()
+            .push(event.action.as_str().to_owned());
     }
     fn undo_local(&self) -> Option<SeamUndoResult> {
         None
@@ -171,21 +177,44 @@ fn post_body_matches_verified_runtime_chat_schema() {
     assert!(uuid::Uuid::parse_str(obj["event_id"].as_str().unwrap()).is_ok());
     assert!(chrono::DateTime::parse_from_rfc3339(obj["ts_utc"].as_str().unwrap()).is_ok());
     let sid = uuid::Uuid::parse_str(obj["session_id"].as_str().unwrap()).unwrap();
-    assert_ne!(sid, uuid::Uuid::nil(), "session_id must be a NON-NIL UUID (backend 400s otherwise)");
-    assert_eq!(obj["type"], "runtime_chat_message_appended", "type is a closed-enum value");
+    assert_ne!(
+        sid,
+        uuid::Uuid::nil(),
+        "session_id must be a NON-NIL UUID (backend 400s otherwise)"
+    );
+    assert_eq!(
+        obj["type"], "runtime_chat_message_appended",
+        "type is a closed-enum value"
+    );
     assert_eq!(obj["wsid"], "WS-7");
     assert_eq!(obj["body_sha256"], "a".repeat(64));
 
     // deny_unknown_fields: ONLY allowed snake_case keys may appear.
     let allowed: std::collections::HashSet<&str> = [
-        "schema_version", "event_id", "ts_utc", "session_id", "job_id", "work_packet_id", "spec_id",
-        "wsid", "type", "message_id", "role", "model_role", "body_sha256", "ans001_sha256",
-        "ans001_compliant", "violation_clauses",
+        "schema_version",
+        "event_id",
+        "ts_utc",
+        "session_id",
+        "job_id",
+        "work_packet_id",
+        "spec_id",
+        "wsid",
+        "type",
+        "message_id",
+        "role",
+        "model_role",
+        "body_sha256",
+        "ans001_sha256",
+        "ans001_compliant",
+        "violation_clauses",
     ]
     .into_iter()
     .collect();
     for k in obj.keys() {
-        assert!(allowed.contains(k.as_str()), "key '{k}' would trip the backend deny_unknown_fields");
+        assert!(
+            allowed.contains(k.as_str()),
+            "key '{k}' would trip the backend deny_unknown_fields"
+        );
     }
     println!("RISK-1/MC-1: build_post_body carries every required RuntimeChatEventV0_1 field, snake_case");
 }
@@ -199,8 +228,14 @@ fn failed_emit_lands_in_error_ring() {
     let res = emitter.emit_document_saved("DOC-1", "h".repeat(64), "pane-rich");
     assert_eq!(res, Err(EmitError::NoRuntime("document_saved".to_owned())));
     assert_eq!(emitter.error_ring().len(), 1);
-    assert_eq!(emitter.available_permits(), EMIT_PERMITS, "permit released, not leaked");
-    println!("AC-4: a failed emit is logged to the cap-20 error ring with no panic / no frame block");
+    assert_eq!(
+        emitter.available_permits(),
+        EMIT_PERMITS,
+        "permit released, not leaked"
+    );
+    println!(
+        "AC-4: a failed emit is logged to the cap-20 error ring with no panic / no frame block"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -210,15 +245,24 @@ async fn failed_post_with_runtime_lands_in_error_ring() {
         Arc::new(MockTransport::new(true)), // forced transport failure.
         Some(tokio::runtime::Handle::current()),
     );
-    emitter.emit_undo_fired(UndoScope::Local, "pane-rich").expect("dispatched");
+    emitter
+        .emit_undo_fired(UndoScope::Local, "pane-rich")
+        .expect("dispatched");
     for _ in 0..100 {
         if !emitter.error_ring().is_empty() {
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
-    assert_eq!(emitter.error_ring().len(), 1, "a forced transport failure is recorded, not panicked");
-    assert!(matches!(emitter.error_ring().entries()[0].error, EmitError::Transport(_)));
+    assert_eq!(
+        emitter.error_ring().len(),
+        1,
+        "a forced transport failure is recorded, not panicked"
+    );
+    assert!(matches!(
+        emitter.error_ring().entries()[0].error,
+        EmitError::Transport(_)
+    ));
 }
 
 // ── AC-5: the extension seam compiles + the EditorSurface trait is object-safe ────────────────────────
@@ -231,7 +275,9 @@ fn surface_extension_seam_is_object_safe() {
         events_observed: Arc::new(Mutex::new(Vec::new())),
     });
     assert_eq!(_boxed.surface_id(), "mock_spreadsheet");
-    println!("AC-5: surface_extension_seam compiles; EditorSurface is object-safe (Box<dyn> constructs)");
+    println!(
+        "AC-5: surface_extension_seam compiles; EditorSurface is object-safe (Box<dyn> constructs)"
+    );
 }
 
 // ── AC-6: the registry dispatches selection + event callbacks to a registered mock surface ────────────
@@ -249,14 +295,19 @@ fn registry_dispatches_to_mock_surface() {
     assert_eq!(reg.len(), 1);
 
     reg.dispatch_selection_changed(&SharedSelection::None);
-    assert_eq!(*selection_changes.lock().unwrap(), 1, "on_selection_changed fired");
+    assert_eq!(
+        *selection_changes.lock().unwrap(),
+        1,
+        "on_selection_changed fired"
+    );
 
     let emitter = NativeEditorEventEmitter::new(
         "WS-1",
         Arc::new(RuntimeChatLedgerTransport::new("http://test")),
         None,
     );
-    let event = NativeEditorEvent::document_saved("DOC-1", "h".repeat(64), "pane-rich", "act", "WS-1");
+    let event =
+        NativeEditorEvent::document_saved("DOC-1", "h".repeat(64), "pane-rich", "act", "WS-1");
     reg.dispatch_event_emitted(&event, &emitter);
     assert_eq!(
         events_observed.lock().unwrap().as_slice(),
@@ -307,13 +358,21 @@ fn flight_recorder_pane_lists_event() {
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
         match ak.author_id() {
-            Some(a) if a == FLIGHT_RECORDER_PANE_AUTHOR_ID => region_role = format!("{:?}", ak.role()),
+            Some(a) if a == FLIGHT_RECORDER_PANE_AUTHOR_ID => {
+                region_role = format!("{:?}", ak.role())
+            }
             Some(a) if a == expected_row_id => row_role = format!("{:?}", ak.role()),
             _ => {}
         }
     }
-    assert_eq!(region_role, "Region", "flight-recorder-pane must be Role::Region");
-    assert_eq!(row_role, "ListItem", "fr-event-* row must be Role::ListItem");
+    assert_eq!(
+        region_role, "Region",
+        "flight-recorder-pane must be Role::Region"
+    );
+    assert_eq!(
+        row_role, "ListItem",
+        "fr-event-* row must be Role::ListItem"
+    );
     println!("AC-7: FlightRecorderPane lists '{expected_row_id}' (ListItem) under '{FLIGHT_RECORDER_PANE_AUTHOR_ID}' (Region)");
 }
 
@@ -347,7 +406,12 @@ fn flight_recorder_pane_screenshot() {
             let _ = std::fs::create_dir_all(&ext_dir);
             let png = ext_dir.join("MT-036-flight-recorder-pane.png");
             let saved = image.save(&png).is_ok();
-            println!("HBR-VIS: {}x{} screenshot saved={saved} ({})", image.width(), image.height(), png.display());
+            println!(
+                "HBR-VIS: {}x{} screenshot saved={saved} ({})",
+                image.width(),
+                image.height(),
+                png.display()
+            );
         }
         Err(e) => {
             println!("BLOCKER(non-fatal): FR pane screenshot render unavailable (no wgpu adapter): {e}. The AccessKit proof passed; the PNG is a GPU-host item.");
@@ -372,13 +436,23 @@ async fn bus_emit_event_dispatches_to_installed_emitter() {
     let mut bus = InteractionBus::new();
     // Before installing the emitter, emit_event is an HONEST no-op (the unmounted-pane defer policy).
     assert!(
-        !bus.emit_event(NativeEditorEvent::undo_fired(UndoScope::Local, "pane-rich", "a", "WS-LIVE")),
+        !bus.emit_event(NativeEditorEvent::undo_fired(
+            UndoScope::Local,
+            "pane-rich",
+            "a",
+            "WS-LIVE"
+        )),
         "emit_event must be a no-op (false) before the emitter is installed"
     );
     bus.set_event_emitter(emitter);
     // After install, an undo_fired emit dispatches through the bus to the transport.
     assert!(
-        bus.emit_event(NativeEditorEvent::undo_fired(UndoScope::Local, "pane-rich", "a", "WS-LIVE")),
+        bus.emit_event(NativeEditorEvent::undo_fired(
+            UndoScope::Local,
+            "pane-rich",
+            "a",
+            "WS-LIVE"
+        )),
         "emit_event must dispatch (true) once the emitter is installed"
     );
     for _ in 0..100 {
@@ -388,7 +462,11 @@ async fn bus_emit_event_dispatches_to_installed_emitter() {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     let posted = mock.posted.lock().unwrap();
-    assert_eq!(posted.len(), 1, "the installed emitter posted the undo_fired event");
+    assert_eq!(
+        posted.len(),
+        1,
+        "the installed emitter posted the undo_fired event"
+    );
     assert_eq!(posted[0]["message_id"], "native_editor:undo_fired");
 }
 
@@ -407,7 +485,10 @@ async fn bus_route_to_stage_emits_route_event() {
     let mut bus = InteractionBus::new();
     bus.set_event_emitter(emitter);
     bus.register_route_to_stage_command();
-    let _ = bus.route_to_stage(&ctx, StageContent::Selection("hi".to_owned(), "DOC-1".to_owned()));
+    let _ = bus.route_to_stage(
+        &ctx,
+        StageContent::Selection("hi".to_owned(), "DOC-1".to_owned()),
+    );
     for _ in 0..100 {
         if !mock.posted.lock().unwrap().is_empty() {
             break;
@@ -415,7 +496,11 @@ async fn bus_route_to_stage_emits_route_event() {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     let posted = mock.posted.lock().unwrap();
-    assert_eq!(posted.len(), 1, "route_to_stage emitted exactly one event at the live call site");
+    assert_eq!(
+        posted.len(),
+        1,
+        "route_to_stage emitted exactly one event at the live call site"
+    );
     assert_eq!(posted[0]["message_id"], "native_editor:route_to_stage");
 }
 

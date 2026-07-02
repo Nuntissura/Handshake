@@ -33,14 +33,20 @@ fn goto_line_valid_line_navigates() {
     panel.set_goto_line_input("10");
     let navigated = panel.submit_goto_line();
     assert!(navigated, "AC-002: a valid numeric line navigates");
-    assert!(!panel.is_goto_line_open(), "a successful jump closes the palette");
+    assert!(
+        !panel.is_goto_line_open(),
+        "a successful jump closes the palette"
+    );
 
     // The caret moved to the start of 0-based line 9.
     let buffer = panel.buffer();
     let cursors = panel.cursors();
     let (caret_line, caret_col) =
         handshake_native::code_editor::byte_to_line_col(cursors.primary().head, &buffer);
-    assert_eq!(caret_line, 9, "AC-002: 1-based line 10 -> 0-based caret line 9");
+    assert_eq!(
+        caret_line, 9,
+        "AC-002: 1-based line 10 -> 0-based caret line 9"
+    );
     assert_eq!(caret_col, 0, "caret sits at the start of the target line");
 }
 
@@ -53,13 +59,19 @@ fn goto_line_clamps_past_end_to_last_line() {
     // 1-based line 9999 is far past the end -> clamps to the last buffer line (no crash, AC-002).
     panel.set_goto_line_input("9999");
     let navigated = panel.submit_goto_line();
-    assert!(navigated, "AC-002: a too-large line still navigates (clamped)");
+    assert!(
+        navigated,
+        "AC-002: a too-large line still navigates (clamped)"
+    );
 
     let buffer = panel.buffer();
     let cursors = panel.cursors();
     let (caret_line, _) =
         handshake_native::code_editor::byte_to_line_col(cursors.primary().head, &buffer);
-    assert_eq!(caret_line, last_line, "AC-002: a past-the-end line clamps to the last line");
+    assert_eq!(
+        caret_line, last_line,
+        "AC-002: a past-the-end line clamps to the last line"
+    );
 }
 
 #[test]
@@ -71,18 +83,27 @@ fn goto_line_zero_and_negative_clamp_to_first_line() {
     // "0" (RISK-003: must clamp to line 1 / 0-based 0, never panic).
     panel.open_goto_line();
     panel.set_goto_line_input("0");
-    assert!(panel.submit_goto_line(), "AC-002: '0' clamps to line 1 and navigates");
+    assert!(
+        panel.submit_goto_line(),
+        "AC-002: '0' clamps to line 1 and navigates"
+    );
     let (caret_line, _) = {
         let buffer = panel.buffer();
         handshake_native::code_editor::byte_to_line_col(panel.cursors().primary().head, &buffer)
     };
-    assert_eq!(caret_line, 0, "AC-002: 1-based '0' clamps to 0-based line 0");
+    assert_eq!(
+        caret_line, 0,
+        "AC-002: 1-based '0' clamps to 0-based line 0"
+    );
 
     // "-5" (RISK-003: negative clamps to line 0, never panics).
     panel.navigate_to_line(15);
     panel.open_goto_line();
     panel.set_goto_line_input("-5");
-    assert!(panel.submit_goto_line(), "AC-002: a negative line clamps to line 1 and navigates");
+    assert!(
+        panel.submit_goto_line(),
+        "AC-002: a negative line clamps to line 1 and navigates"
+    );
     let (caret_line, _) = {
         let buffer = panel.buffer();
         handshake_native::code_editor::byte_to_line_col(panel.cursors().primary().head, &buffer)
@@ -104,7 +125,10 @@ fn goto_line_non_numeric_does_not_navigate_or_crash() {
     panel.open_goto_line();
     panel.set_goto_line_input("not-a-number");
     let navigated = panel.submit_goto_line();
-    assert!(!navigated, "AC-002: non-numeric input does NOT navigate (no crash)");
+    assert!(
+        !navigated,
+        "AC-002: non-numeric input does NOT navigate (no crash)"
+    );
     assert!(
         panel.is_goto_line_open(),
         "AC-002: the palette stays open on invalid input so the user can correct it"
@@ -115,11 +139,17 @@ fn goto_line_non_numeric_does_not_navigate_or_crash() {
         let buffer = panel.buffer();
         handshake_native::code_editor::byte_to_line_col(panel.cursors().primary().head, &buffer).0
     };
-    assert_eq!(after, before, "AC-002: a bad go-to-line leaves the caret where it was");
+    assert_eq!(
+        after, before,
+        "AC-002: a bad go-to-line leaves the caret where it was"
+    );
 
     // An empty input likewise does not navigate.
     panel.set_goto_line_input("");
-    assert!(!panel.submit_goto_line(), "AC-002: empty input does not navigate");
+    assert!(
+        !panel.submit_goto_line(),
+        "AC-002: empty input does not navigate"
+    );
     println!("PT-002 goto_line: valid/clamped/zero/negative/non-numeric all handled without panic");
 }
 
@@ -142,10 +172,16 @@ fn goto_line_modal_ctrl_g_opens_and_navigates() {
     let closed_has_node = root
         .children_recursive()
         .any(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_GOTO_LINE_AUTHOR_ID));
-    assert!(!closed_has_node, "AC-005: no go-to-line node while the palette is closed");
+    assert!(
+        !closed_has_node,
+        "AC-005: no go-to-line node while the palette is closed"
+    );
 
     // Inject Ctrl+G (the keymap reads modifiers off the Key event itself, like the find Ctrl+F path).
-    let ctrl = egui::Modifiers { ctrl: true, ..Default::default() };
+    let ctrl = egui::Modifiers {
+        ctrl: true,
+        ..Default::default()
+    };
     harness.event(egui::Event::Key {
         key: egui::Key::G,
         physical_key: None,
@@ -156,7 +192,10 @@ fn goto_line_modal_ctrl_g_opens_and_navigates() {
     harness.run();
     harness.run();
 
-    assert!(panel.is_goto_line_open(), "AC-005: Ctrl+G opened the go-to-line palette");
+    assert!(
+        panel.is_goto_line_open(),
+        "AC-005: Ctrl+G opened the go-to-line palette"
+    );
 
     // AC-005: the live AccessKit tree now contains code_editor_goto_line with Role::TextInput.
     let root = harness.root();
@@ -192,13 +231,19 @@ fn goto_line_modal_ctrl_g_opens_and_navigates() {
     harness.run();
     harness.run();
 
-    assert!(!panel.is_goto_line_open(), "AC-005: submitting closed the palette");
+    assert!(
+        !panel.is_goto_line_open(),
+        "AC-005: submitting closed the palette"
+    );
 
     // 1-based line 5 -> 0-based caret line 4; the editor scrolled so the line is in the painted window.
     let buffer = panel.buffer();
     let (caret_line, _) =
         handshake_native::code_editor::byte_to_line_col(panel.cursors().primary().head, &buffer);
-    assert_eq!(caret_line, 4, "AC-005: typing 5 + Enter moved the caret to line 5 (0-based 4)");
+    assert_eq!(
+        caret_line, 4,
+        "AC-005: typing 5 + Enter moved the caret to line 5 (0-based 4)"
+    );
     let painted = panel.last_visible_range();
     assert!(
         painted.contains(&4),

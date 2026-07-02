@@ -288,8 +288,8 @@ impl DiagRingWriter {
 
         let cur = hb_seq.load(Ordering::Relaxed);
         hb_seq.store(cur.wrapping_add(1), Ordering::Release); // odd: write in progress
-        // Store the payload as a UNIT under the seqlock. Relaxed is fine here: the Release on the
-        // post-write seq store below provides the publish ordering for the reader's Acquire.
+                                                              // Store the payload as a UNIT under the seqlock. Relaxed is fine here: the Release on the
+                                                              // post-write seq store below provides the publish ordering for the reader's Acquire.
         hb_counter.store(counter, Ordering::Relaxed);
         hb_timestamp.store(timestamp_nanos, Ordering::Relaxed);
         hb_seq.store(cur.wrapping_add(2), Ordering::Release); // even: write complete

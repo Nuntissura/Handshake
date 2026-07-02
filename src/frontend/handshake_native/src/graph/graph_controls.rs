@@ -86,7 +86,10 @@ pub const DIM_ALPHA: u8 = 70;
 /// to `[a-z0-9-]` via [`crate::project_tree::stable_part`] (RISK-5 / MC-5) so a raw tag/folder string can
 /// never inject an unsafe author_id.
 pub fn group_author_id(key: &str) -> String {
-    format!("{GROUP_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(key))
+    format!(
+        "{GROUP_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(key)
+    )
 }
 
 /// What KIND of group a [`GraphGroup`] is: a tag (MT-023 identity = the hub title) or a folder (MT-022
@@ -159,7 +162,11 @@ impl GraphGroup {
         match &self.kind {
             GroupKind::Tag(title) => format!("#{title}"),
             GroupKind::Folder(path) => {
-                let last = path.rsplit('/').next().filter(|s| !s.is_empty()).unwrap_or(path);
+                let last = path
+                    .rsplit('/')
+                    .next()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(path);
                 format!("{last}/")
             }
         }
@@ -241,11 +248,16 @@ impl GraphControls {
         let palette = crate::theme::palette::graph_group_palette();
         // Collect distinct raw identities in a stable (sorted) order so the colour-by-discovery-order
         // assignment is deterministic across runs.
-        let mut tags: Vec<&str> = nodes.iter().flat_map(|n| n.tags.iter().map(|s| s.as_str())).collect();
+        let mut tags: Vec<&str> = nodes
+            .iter()
+            .flat_map(|n| n.tags.iter().map(|s| s.as_str()))
+            .collect();
         tags.sort_unstable();
         tags.dedup();
-        let mut folders: Vec<&str> =
-            nodes.iter().filter_map(|n| n.folder_path.as_deref()).collect();
+        let mut folders: Vec<&str> = nodes
+            .iter()
+            .filter_map(|n| n.folder_path.as_deref())
+            .collect();
         folders.sort_unstable();
         folders.dedup();
 
@@ -275,9 +287,19 @@ impl GraphControls {
 
         // Collapse / expand toggle — ALWAYS present (so a collapsed panel can be re-opened). When the
         // panel is closed, only this toggle renders, so it never steals canvas space.
-        let toggle_label = if self.panel_open { "Controls ◂" } else { "Controls ▸" };
+        let toggle_label = if self.panel_open {
+            "Controls ◂"
+        } else {
+            "Controls ▸"
+        };
         let toggle = ui.button(toggle_label);
-        emit_control_node(ui, toggle.id, TOGGLE_AUTHOR_ID, accesskit::Role::Button, "Toggle graph controls");
+        emit_control_node(
+            ui,
+            toggle.id,
+            TOGGLE_AUTHOR_ID,
+            accesskit::Role::Button,
+            "Toggle graph controls",
+        );
         if toggle.clicked() {
             self.panel_open = !self.panel_open;
         }
@@ -294,7 +316,13 @@ impl GraphControls {
                 .hint_text("search nodes…")
                 .desired_width(f32::INFINITY),
         );
-        emit_control_node(ui, search.id, SEARCH_AUTHOR_ID, accesskit::Role::TextInput, "Graph search filter");
+        emit_control_node(
+            ui,
+            search.id,
+            SEARCH_AUTHOR_ID,
+            accesskit::Role::TextInput,
+            "Graph search filter",
+        );
         if search.changed() {
             event = GraphControlsEvent::FiltersChanged;
         }
@@ -308,7 +336,13 @@ impl GraphControls {
             is_local,
             egui::Slider::new(&mut depth, MIN_LINK_DEPTH..=MAX_LINK_DEPTH).integer(),
         );
-        emit_control_node(ui, slider.id, DEPTH_AUTHOR_ID, accesskit::Role::Slider, "Graph link depth");
+        emit_control_node(
+            ui,
+            slider.id,
+            DEPTH_AUTHOR_ID,
+            accesskit::Role::Slider,
+            "Graph link depth",
+        );
         // The live value follows the drag so the UI feels responsive, but the BACKEND re-query fires only
         // on RELEASE (debounce — RISK-2 / MC-2): `drag_stopped()` is the commit, and we only emit when the
         // committed value actually differs from the last committed depth.
@@ -333,13 +367,25 @@ impl GraphControls {
 
         // ── Orphan + size toggles ────────────────────────────────────────────────────────────────────
         let orphan = ui.checkbox(&mut self.show_orphans, "Show orphans");
-        emit_control_node(ui, orphan.id, ORPHAN_AUTHOR_ID, accesskit::Role::CheckBox, "Show orphan nodes");
+        emit_control_node(
+            ui,
+            orphan.id,
+            ORPHAN_AUTHOR_ID,
+            accesskit::Role::CheckBox,
+            "Show orphan nodes",
+        );
         if orphan.changed() {
             event = GraphControlsEvent::FiltersChanged;
         }
 
         let size = ui.checkbox(&mut self.size_by_degree, "Size by degree");
-        emit_control_node(ui, size.id, SIZE_DEGREE_AUTHOR_ID, accesskit::Role::CheckBox, "Size nodes by degree");
+        emit_control_node(
+            ui,
+            size.id,
+            SIZE_DEGREE_AUTHOR_ID,
+            accesskit::Role::CheckBox,
+            "Size nodes by degree",
+        );
         if size.changed() {
             event = GraphControlsEvent::FiltersChanged;
         }
@@ -494,7 +540,13 @@ pub fn node_radius(base: f32, degree: usize, size_by_degree: bool) -> f32 {
 /// Emit a control's live AccessKit node (role + author_id + Click/Focus actions) so a swarm agent can
 /// address it by stable id (AC6 / HBR-SWARM). Mirrors the MT-021 `emit_toolbar_node` pattern: the control
 /// already has an `egui::Id` from its `Response`, so we attach the AccessKit identity to that exact id.
-fn emit_control_node(ui: &egui::Ui, id: egui::Id, author_id: &str, role: accesskit::Role, label: &str) {
+fn emit_control_node(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    role: accesskit::Role,
+    label: &str,
+) {
     let author = author_id.to_owned();
     let label = label.to_owned();
     ui.ctx().accesskit_node_builder(id, move |node| {
@@ -533,19 +585,30 @@ mod tests {
     #[test]
     fn node_degree_self_loop_counts_once() {
         let edges = vec![GraphEdge::new("a", "a", "mention")];
-        assert_eq!(node_degree("a", &edges), 1, "a self-loop is one incident edge");
+        assert_eq!(
+            node_degree("a", &edges),
+            1,
+            "a self-loop is one incident edge"
+        );
     }
 
     // ── compute_visibility: AC1 search dim ──────────────────────────────────────────────────────────
 
     #[test]
     fn search_dims_non_matching_keeps_matching_full() {
-        let nodes = vec![n("a", "Research notes"), n("b", "Daily log"), n("c", "research plan")];
+        let nodes = vec![
+            n("a", "Research notes"),
+            n("b", "Daily log"),
+            n("c", "research plan"),
+        ];
         let edges = vec![GraphEdge::new("a", "b", "mention")];
         // Case-insensitive substring "research" matches a + c, not b.
         let vis = compute_visibility(&nodes, &edges, "research", true);
         assert!(!vis["a"].dimmed, "AC1: a matches -> full opacity");
-        assert!(!vis["c"].dimmed, "AC1: c matches (case-insensitive) -> full opacity");
+        assert!(
+            !vis["c"].dimmed,
+            "AC1: c matches (case-insensitive) -> full opacity"
+        );
         assert!(vis["b"].dimmed, "AC1: b does not match -> dimmed");
         // Nobody hidden (orphans shown).
         assert!(vis.values().all(|v| !v.hidden));
@@ -555,9 +618,15 @@ mod tests {
     fn empty_search_dims_nothing() {
         let nodes = vec![n("a", "Alpha"), n("b", "Beta")];
         let vis = compute_visibility(&nodes, &[], "", true);
-        assert!(vis.values().all(|v| !v.dimmed), "AC1: empty search dims nothing");
+        assert!(
+            vis.values().all(|v| !v.dimmed),
+            "AC1: empty search dims nothing"
+        );
         let vis2 = compute_visibility(&nodes, &[], "   ", true);
-        assert!(vis2.values().all(|v| !v.dimmed), "AC1: whitespace-only search dims nothing");
+        assert!(
+            vis2.values().all(|v| !v.dimmed),
+            "AC1: whitespace-only search dims nothing"
+        );
     }
 
     // ── compute_visibility: AC2 orphan hide ─────────────────────────────────────────────────────────
@@ -570,10 +639,16 @@ mod tests {
         let off = compute_visibility(&nodes, &edges, "", false);
         assert!(!off["a"].hidden, "AC2: connected node visible");
         assert!(!off["b"].hidden, "AC2: connected node visible");
-        assert!(off["c"].hidden, "AC2: orphan hidden when show_orphans=false");
+        assert!(
+            off["c"].hidden,
+            "AC2: orphan hidden when show_orphans=false"
+        );
         // With orphans ON, nothing hidden.
         let on = compute_visibility(&nodes, &edges, "", true);
-        assert!(on.values().all(|v| !v.hidden), "AC2: all visible when show_orphans=true");
+        assert!(
+            on.values().all(|v| !v.hidden),
+            "AC2: all visible when show_orphans=true"
+        );
     }
 
     // ── assign_group_color: AC3 tag + folder + no-match fallback ────────────────────────────────────
@@ -585,8 +660,16 @@ mod tests {
         group.enabled = true;
         let tagged = n("a", "A").with_tags(vec!["research".to_owned(), "ml".to_owned()]);
         let untagged = n("b", "B").with_tags(vec!["ops".to_owned()]);
-        assert_eq!(assign_group_color(&tagged, std::slice::from_ref(&group)), Some(palette[0]), "AC3: tag match -> group color");
-        assert_eq!(assign_group_color(&untagged, std::slice::from_ref(&group)), None, "AC3: no tag match -> None (content_type fallback)");
+        assert_eq!(
+            assign_group_color(&tagged, std::slice::from_ref(&group)),
+            Some(palette[0]),
+            "AC3: tag match -> group color"
+        );
+        assert_eq!(
+            assign_group_color(&untagged, std::slice::from_ref(&group)),
+            None,
+            "AC3: no tag match -> None (content_type fallback)"
+        );
     }
 
     #[test]
@@ -598,10 +681,26 @@ mod tests {
         let exact = n("b", "B").with_folder_path("src/frontend");
         let outside = n("c", "C").with_folder_path("src/backend");
         let no_folder = n("d", "D");
-        assert_eq!(assign_group_color(&inside, std::slice::from_ref(&group)), Some(palette[1]), "AC3: folder subtree match");
-        assert_eq!(assign_group_color(&exact, std::slice::from_ref(&group)), Some(palette[1]), "AC3: exact folder match");
-        assert_eq!(assign_group_color(&outside, std::slice::from_ref(&group)), None, "AC3: sibling folder no match");
-        assert_eq!(assign_group_color(&no_folder, std::slice::from_ref(&group)), None, "AC3: no folder -> None");
+        assert_eq!(
+            assign_group_color(&inside, std::slice::from_ref(&group)),
+            Some(palette[1]),
+            "AC3: folder subtree match"
+        );
+        assert_eq!(
+            assign_group_color(&exact, std::slice::from_ref(&group)),
+            Some(palette[1]),
+            "AC3: exact folder match"
+        );
+        assert_eq!(
+            assign_group_color(&outside, std::slice::from_ref(&group)),
+            None,
+            "AC3: sibling folder no match"
+        );
+        assert_eq!(
+            assign_group_color(&no_folder, std::slice::from_ref(&group)),
+            None,
+            "AC3: no folder -> None"
+        );
     }
 
     #[test]
@@ -622,19 +721,45 @@ mod tests {
         // The folder itself and a genuine descendant DO match (subtree colouring still works).
         let exact = n("b", "B").with_folder_path("src/front");
         let child = n("c", "C").with_folder_path("src/front/widgets");
-        assert_eq!(assign_group_color(&exact, std::slice::from_ref(&group)), Some(palette[2]), "AC3: the folder itself matches");
-        assert_eq!(assign_group_color(&child, std::slice::from_ref(&group)), Some(palette[2]), "AC3: a real descendant matches");
+        assert_eq!(
+            assign_group_color(&exact, std::slice::from_ref(&group)),
+            Some(palette[2]),
+            "AC3: the folder itself matches"
+        );
+        assert_eq!(
+            assign_group_color(&child, std::slice::from_ref(&group)),
+            Some(palette[2]),
+            "AC3: a real descendant matches"
+        );
     }
 
     #[test]
     fn folder_path_in_subtree_boundary() {
         // Direct unit coverage of the boundary predicate (RISK-1 / MC-1).
-        assert!(folder_path_in_subtree("src/front", "src/front"), "the folder itself");
-        assert!(folder_path_in_subtree("src/front/a", "src/front"), "a descendant");
-        assert!(folder_path_in_subtree("src/front/a/b", "src/front"), "a deep descendant");
-        assert!(!folder_path_in_subtree("src/frontend", "src/front"), "a sibling sharing a string prefix must NOT match");
-        assert!(!folder_path_in_subtree("src", "src/front"), "an ancestor must NOT match");
-        assert!(!folder_path_in_subtree("docs/front", "src/front"), "an unrelated path must NOT match");
+        assert!(
+            folder_path_in_subtree("src/front", "src/front"),
+            "the folder itself"
+        );
+        assert!(
+            folder_path_in_subtree("src/front/a", "src/front"),
+            "a descendant"
+        );
+        assert!(
+            folder_path_in_subtree("src/front/a/b", "src/front"),
+            "a deep descendant"
+        );
+        assert!(
+            !folder_path_in_subtree("src/frontend", "src/front"),
+            "a sibling sharing a string prefix must NOT match"
+        );
+        assert!(
+            !folder_path_in_subtree("src", "src/front"),
+            "an ancestor must NOT match"
+        );
+        assert!(
+            !folder_path_in_subtree("docs/front", "src/front"),
+            "an unrelated path must NOT match"
+        );
     }
 
     #[test]
@@ -642,7 +767,11 @@ mod tests {
         let palette = graph_group_palette();
         let group = GraphGroup::new(GroupKind::Tag("research".to_owned()), palette[0]); // enabled=false
         let tagged = n("a", "A").with_tags(vec!["research".to_owned()]);
-        assert_eq!(assign_group_color(&tagged, std::slice::from_ref(&group)), None, "a disabled group never colours");
+        assert_eq!(
+            assign_group_color(&tagged, std::slice::from_ref(&group)),
+            None,
+            "a disabled group never colours"
+        );
     }
 
     #[test]
@@ -654,7 +783,10 @@ mod tests {
         g1.enabled = true;
         let node = n("a", "A").with_tags(vec!["ml".to_owned(), "research".to_owned()]);
         // node carries both tags; the FIRST enabled group in slice order wins (research = palette[0]).
-        assert_eq!(assign_group_color(&node, &[g0.clone(), g1.clone()]), Some(palette[0]));
+        assert_eq!(
+            assign_group_color(&node, &[g0.clone(), g1.clone()]),
+            Some(palette[0])
+        );
         // Reversing the order changes the winner (deterministic resolution by slice order).
         assert_eq!(assign_group_color(&node, &[g1, g0]), Some(palette[3]));
     }
@@ -664,7 +796,11 @@ mod tests {
     #[test]
     fn node_radius_off_is_base() {
         assert_eq!(node_radius(18.0, 0, false), 18.0);
-        assert_eq!(node_radius(18.0, 50, false), 18.0, "size_by_degree off ignores degree");
+        assert_eq!(
+            node_radius(18.0, 50, false),
+            18.0,
+            "size_by_degree off ignores degree"
+        );
     }
 
     #[test]
@@ -673,12 +809,21 @@ mod tests {
         let r0 = node_radius(base, 0, true);
         let r4 = node_radius(base, 4, true);
         let r25 = node_radius(base, 25, true);
-        assert_eq!(r0, base, "AC5: degree-0 node uses base radius even when size_by_degree on");
-        assert!(r4 > r0, "AC5: higher degree -> strictly larger radius ({r4} > {r0})");
+        assert_eq!(
+            r0, base,
+            "AC5: degree-0 node uses base radius even when size_by_degree on"
+        );
+        assert!(
+            r4 > r0,
+            "AC5: higher degree -> strictly larger radius ({r4} > {r0})"
+        );
         assert!(r25 > r4, "AC5: monotonic growth ({r25} > {r4})");
         // Clamp: a huge degree never exceeds 3x base.
         let r_huge = node_radius(base, 100_000, true);
-        assert!(r_huge <= base * 3.0 + 1e-3, "AC5: radius clamped to <= 3x base (got {r_huge})");
+        assert!(
+            r_huge <= base * 3.0 + 1e-3,
+            "AC5: radius clamped to <= 3x base (got {r_huge})"
+        );
         assert!(r_huge >= base, "AC5: radius never below base");
     }
 
@@ -688,26 +833,35 @@ mod tests {
         let base = 18.0;
         let orphan = node_radius(base, 0, true);
         let hub = node_radius(base, 9, true);
-        assert!(hub > orphan, "AC5: hub radius {hub} must be strictly > orphan radius {orphan}");
+        assert!(
+            hub > orphan,
+            "AC5: hub radius {hub} must be strictly > orphan radius {orphan}"
+        );
     }
 
     // ── group key sanitization: RISK-5 / MC-5 ───────────────────────────────────────────────────────
 
     #[test]
     fn group_key_and_author_id_are_sanitized() {
-        let g = GraphGroup::new(GroupKind::Folder("src/Frontend: Native!".to_owned()), graph_group_palette()[0]);
+        let g = GraphGroup::new(
+            GroupKind::Folder("src/Frontend: Native!".to_owned()),
+            graph_group_palette()[0],
+        );
         // The key has the folder- prefix + a sanitized [a-z0-9-] body.
         assert!(g.key.starts_with("folder-"), "folder key prefix");
         let body = &g.key["folder-".len()..];
         assert!(
-            body.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            body.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "RISK-5: group key body must be [a-z0-9-], got '{body}'"
         );
         let author = group_author_id(&g.key);
         assert!(author.starts_with(GROUP_AUTHOR_ID_PREFIX));
         let suffix = &author[GROUP_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "RISK-5: author_id suffix must be [a-z0-9-], got '{suffix}'"
         );
     }
@@ -716,8 +870,14 @@ mod tests {
     fn tag_and_folder_keys_never_collide_on_same_string() {
         // A tag named "research" and a folder named "research" must yield DISTINCT keys (tag- vs folder-)
         // so they cannot collide on the same AccessKit author_id.
-        let tag = GraphGroup::new(GroupKind::Tag("research".to_owned()), graph_group_palette()[0]);
-        let folder = GraphGroup::new(GroupKind::Folder("research".to_owned()), graph_group_palette()[1]);
+        let tag = GraphGroup::new(
+            GroupKind::Tag("research".to_owned()),
+            graph_group_palette()[0],
+        );
+        let folder = GraphGroup::new(
+            GroupKind::Folder("research".to_owned()),
+            graph_group_palette()[1],
+        );
         assert_ne!(tag.key, folder.key, "tag and folder keys must not collide");
         assert_eq!(tag.key, "tag-research");
         assert_eq!(folder.key, "folder-research");
@@ -728,24 +888,42 @@ mod tests {
     #[test]
     fn discover_groups_is_idempotent_and_preserves_user_state() {
         let nodes = vec![
-            n("a", "A").with_tags(vec!["research".to_owned()]).with_folder_path("src/frontend"),
+            n("a", "A")
+                .with_tags(vec!["research".to_owned()])
+                .with_folder_path("src/frontend"),
             n("b", "B").with_tags(vec!["ops".to_owned()]),
         ];
         let mut controls = GraphControls::default();
         controls.discover_groups(&nodes);
         // research, ops (tags) + src/frontend (folder) = 3 groups.
-        assert_eq!(controls.groups.len(), 3, "distinct tag + folder identities discovered");
+        assert_eq!(
+            controls.groups.len(),
+            3,
+            "distinct tag + folder identities discovered"
+        );
         // User enables + recolours the research group.
         let custom = graph_group_palette()[5];
         {
-            let g = controls.groups.iter_mut().find(|g| g.key == "tag-research").unwrap();
+            let g = controls
+                .groups
+                .iter_mut()
+                .find(|g| g.key == "tag-research")
+                .unwrap();
             g.enabled = true;
             g.color = custom;
         }
         // Re-discover (simulating a depth-change reload): NO duplicates, user state survives (RISK-7/MC-7).
         controls.discover_groups(&nodes);
-        assert_eq!(controls.groups.len(), 3, "re-discovery does not duplicate groups (idempotent)");
-        let g = controls.groups.iter().find(|g| g.key == "tag-research").unwrap();
+        assert_eq!(
+            controls.groups.len(),
+            3,
+            "re-discovery does not duplicate groups (idempotent)"
+        );
+        let g = controls
+            .groups
+            .iter()
+            .find(|g| g.key == "tag-research")
+            .unwrap();
         assert!(g.enabled, "MC-7: user-enabled state survives reload");
         assert_eq!(g.color, custom, "MC-7: user color survives reload");
     }
@@ -756,7 +934,10 @@ mod tests {
         let nodes = vec![n("a", "A"), n("b", "B")];
         let mut controls = GraphControls::default();
         controls.discover_groups(&nodes);
-        assert!(controls.groups.is_empty(), "no tag/folder identity -> no candidate groups");
+        assert!(
+            controls.groups.is_empty(),
+            "no tag/folder identity -> no candidate groups"
+        );
     }
 
     // ── defaults match the MT contract ──────────────────────────────────────────────────────────────
@@ -766,7 +947,10 @@ mod tests {
         let c = GraphControls::default();
         assert_eq!(c.search, "");
         assert!(c.groups.is_empty());
-        assert_eq!(c.link_depth, DEFAULT_LINK_DEPTH, "default depth 2 matches MT-021 backlink_depth");
+        assert_eq!(
+            c.link_depth, DEFAULT_LINK_DEPTH,
+            "default depth 2 matches MT-021 backlink_depth"
+        );
         assert_eq!(c.link_depth, 2);
         assert!(c.show_orphans, "orphans shown by default");
         assert!(!c.size_by_degree, "size-by-degree off by default");

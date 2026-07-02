@@ -42,7 +42,13 @@ fn catalog_lists_every_code_action_and_rich_commands() {
     }
 
     // Rich-editor commands are present (a representative spread — the table groups them under Rich).
-    for rich_bare in ["toggle_bold", "toggle_italic", "set_heading_1", "toggle_bullet_list", "undo"] {
+    for rich_bare in [
+        "toggle_bold",
+        "toggle_italic",
+        "set_heading_1",
+        "toggle_bullet_list",
+        "undo",
+    ] {
         let expected_id = format!("{RICH_ACTION_ID_PREFIX}{rich_bare}");
         assert!(
             catalog.iter().any(|a| a.id == expected_id),
@@ -51,8 +57,12 @@ fn catalog_lists_every_code_action_and_rich_commands() {
     }
 
     // Both surfaces are represented.
-    assert!(catalog.iter().any(|a| a.surface == EditorActionSurface::Code));
-    assert!(catalog.iter().any(|a| a.surface == EditorActionSurface::Rich));
+    assert!(catalog
+        .iter()
+        .any(|a| a.surface == EditorActionSurface::Code));
+    assert!(catalog
+        .iter()
+        .any(|a| a.surface == EditorActionSurface::Rich));
 
     // The catalog count is at least all code actions + the rich command set.
     assert!(
@@ -72,7 +82,10 @@ fn custom_binding_overrides_default_and_reset_reverts() {
         .find(|a| a.id == "code.open_find")
         .expect("code.open_find is in the catalog");
     let default_chord = find.default_chord.clone();
-    assert!(!default_chord.is_empty(), "open_find has a real default chord");
+    assert!(
+        !default_chord.is_empty(),
+        "open_find has a real default chord"
+    );
 
     let mut settings = default_workspace_settings_state();
 
@@ -91,10 +104,16 @@ fn custom_binding_overrides_default_and_reset_reverts() {
         "AC-005: a custom binding overrides the default for that action"
     );
     // Resolution "custom if present else default": the override is distinct from the default.
-    assert_ne!("Mod+Alt+F", default_chord, "the custom binding differs from the default");
+    assert_ne!(
+        "Mod+Alt+F", default_chord,
+        "the custom binding differs from the default"
+    );
 
     // Reset reverts to the default (override removed).
-    assert!(settings.clear_editor_chord("code.open_find"), "reset removed the override");
+    assert!(
+        settings.clear_editor_chord("code.open_find"),
+        "reset removed the override"
+    );
     assert_eq!(
         settings.editor_chord_override("code.open_find"),
         None,
@@ -110,11 +129,16 @@ fn editor_action_ids_are_namespaced_and_unique() {
     let mut ids = std::collections::HashSet::new();
     for action in &catalog {
         assert!(
-            action.id.starts_with(CODE_ACTION_ID_PREFIX) || action.id.starts_with(RICH_ACTION_ID_PREFIX),
+            action.id.starts_with(CODE_ACTION_ID_PREFIX)
+                || action.id.starts_with(RICH_ACTION_ID_PREFIX),
             "id '{}' is namespaced",
             action.id
         );
-        assert!(ids.insert(action.id.clone()), "RISK-005: duplicate editor action id '{}'", action.id);
+        assert!(
+            ids.insert(action.id.clone()),
+            "RISK-005: duplicate editor action id '{}'",
+            action.id
+        );
     }
     // The `undo` bare-name collision is resolved by the prefix — both exist, distinct.
     assert!(ids.contains("code.undo"), "code.undo present");

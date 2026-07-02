@@ -40,7 +40,10 @@ pub enum SchemaError {
     /// A mark was applied to a run inside a node that forbids it (e.g. any mark on a
     /// `code_block`'s text).
     #[error("node {parent:?} forbids mark {mark_type} on its text")]
-    MarkNotAllowed { parent: NodeKind, mark_type: &'static str },
+    MarkNotAllowed {
+        parent: NodeKind,
+        mark_type: &'static str,
+    },
     /// More than one `doc` root, or a `doc` nested below the root.
     #[error("doc node may only appear as the single tree root")]
     MisplacedDoc,
@@ -180,13 +183,16 @@ fn validate_subtree(node: &BlockNode, is_root: bool) -> Result<(), SchemaError> 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::node::{HeadingLevel, TextLeaf};
+    use super::*;
 
     #[test]
     fn paragraph_holds_text_not_blocks() {
         assert!(text_child_allowed(NodeKind::Paragraph));
-        assert!(!block_child_allowed(NodeKind::Paragraph, NodeKind::Paragraph));
+        assert!(!block_child_allowed(
+            NodeKind::Paragraph,
+            NodeKind::Paragraph
+        ));
     }
 
     #[test]
@@ -200,7 +206,10 @@ mod tests {
     fn code_block_forbids_marks() {
         assert!(!mark_allowed(NodeKind::CodeBlock, &Mark::Bold));
         assert!(mark_allowed(NodeKind::Paragraph, &Mark::Bold));
-        assert!(mark_allowed(NodeKind::Heading(HeadingLevel::new(1)), &Mark::Bold));
+        assert!(mark_allowed(
+            NodeKind::Heading(HeadingLevel::new(1)),
+            &Mark::Bold
+        ));
     }
 
     #[test]
@@ -209,7 +218,9 @@ mod tests {
         doc.children.push(Child::Text(TextLeaf::new("oops")));
         assert_eq!(
             validate_node(&doc),
-            Err(SchemaError::TextChildNotAllowed { parent: NodeKind::Doc })
+            Err(SchemaError::TextChildNotAllowed {
+                parent: NodeKind::Doc
+            })
         );
     }
 

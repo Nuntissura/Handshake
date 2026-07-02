@@ -117,7 +117,11 @@ fn sample_job_with_all_fields_populated() -> MicroTaskJob {
                 recorded_at_utc: now,
             },
         ],
-        task_tags: vec!["code".to_string(), "rust".to_string(), "postgres".to_string()],
+        task_tags: vec![
+            "code".to_string(),
+            "rust".to_string(),
+            "postgres".to_string(),
+        ],
         lora_id: Some("lora-v1.2".to_string()),
         mailbox_thread_id: Some(Uuid::now_v7()),
         state: MicroTaskJobState::AwaitingVerification,
@@ -141,7 +145,10 @@ fn mt_184_serde_round_trip_microtaskjob_preserves_every_field() {
     let job = sample_job_with_all_fields_populated();
     let json = serde_json::to_string(&job).expect("serialize");
     let back: MicroTaskJob = serde_json::from_str(&json).expect("deserialize");
-    assert_eq!(back, job, "MicroTaskJob serde round-trip must preserve every field");
+    assert_eq!(
+        back, job,
+        "MicroTaskJob serde round-trip must preserve every field"
+    );
 }
 
 #[test]
@@ -210,17 +217,28 @@ fn mt_184_job_state_wire_form_snake_case_locked() {
         (MicroTaskJobState::Queued, "queued"),
         (MicroTaskJobState::Claimed, "claimed"),
         (MicroTaskJobState::Running, "running"),
-        (MicroTaskJobState::AwaitingVerification, "awaiting_verification"),
+        (
+            MicroTaskJobState::AwaitingVerification,
+            "awaiting_verification",
+        ),
         (MicroTaskJobState::Escalated, "escalated"),
         (MicroTaskJobState::Completed, "completed"),
         (MicroTaskJobState::HardGated, "hard_gated"),
         (MicroTaskJobState::Cancelled, "cancelled"),
-        (MicroTaskJobState::CancellationRequested, "cancellation_requested"),
+        (
+            MicroTaskJobState::CancellationRequested,
+            "cancellation_requested",
+        ),
         (MicroTaskJobState::Failed, "failed"),
     ];
     for (state, wire) in cases {
         let s = serde_json::to_string(&state).expect("serialize");
-        assert_eq!(s, format!("\"{}\"", wire), "serde wire form for {:?}", state);
+        assert_eq!(
+            s,
+            format!("\"{}\"", wire),
+            "serde wire form for {:?}",
+            state
+        );
         assert_eq!(state.as_str(), wire, "as_str for {:?}", state);
         let back: MicroTaskJobState = serde_json::from_str(&s).expect("deserialize");
         assert_eq!(back, state);
@@ -230,10 +248,18 @@ fn mt_184_job_state_wire_form_snake_case_locked() {
 #[test]
 fn mt_184_completion_signal_serde_round_trip_all_variants() {
     let variants = [
-        CompletionSignal::Success { summary: "done".to_string() },
-        CompletionSignal::Failure { reason: "panic".to_string() },
-        CompletionSignal::NeedsVerification { reason: "awaiting validator".to_string() },
-        CompletionSignal::Escalate { reason: "tier-up requested".to_string() },
+        CompletionSignal::Success {
+            summary: "done".to_string(),
+        },
+        CompletionSignal::Failure {
+            reason: "panic".to_string(),
+        },
+        CompletionSignal::NeedsVerification {
+            reason: "awaiting validator".to_string(),
+        },
+        CompletionSignal::Escalate {
+            reason: "tier-up requested".to_string(),
+        },
     ];
     for v in variants {
         let s = serde_json::to_string(&v).expect("serialize");
@@ -265,7 +291,9 @@ fn mt_184_state_machine_canonical_happy_path_representable() {
     job.state = MicroTaskJobState::Running;
     job.state = MicroTaskJobState::AwaitingVerification;
     job.state = MicroTaskJobState::Completed;
-    job.completion_signal = Some(CompletionSignal::Success { summary: "ok".to_string() });
+    job.completion_signal = Some(CompletionSignal::Success {
+        summary: "ok".to_string(),
+    });
     assert_eq!(job.state, MicroTaskJobState::Completed);
     assert!(job.completion_signal.is_some());
 }
@@ -343,23 +371,20 @@ fn mt_184_queue_error_display_variants_are_distinct() {
 // ============================================================================
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL test URL");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }
 
 /// Build a per-test wp_id prefix so two parallel test binaries (or two
 /// sibling agents) cannot collide on the shared kernel_micro_task_job table.
 fn unique_wp_id(test_label: &str) -> String {
-    format!(
-        "WP-MT184-{}-{}",
-        test_label,
-        Uuid::now_v7().simple()
-    )
+    format!("WP-MT184-{}-{}", test_label, Uuid::now_v7().simple())
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_pg_enqueue_then_dequeue_basic() {
     let pool = postgres_pool().await;
     let queue = MicroTaskQueue::new(pool.clone());
@@ -373,7 +398,11 @@ async fn mt_184_pg_enqueue_then_dequeue_basic() {
     let session = Uuid::now_v7();
     let claimed = queue.claim_next(session).await.expect("claim");
     assert!(claimed.is_some(), "first claim must return the queued job");
-    assert_eq!(claimed.unwrap(), job_id, "claim must return the enqueued job_id");
+    assert_eq!(
+        claimed.unwrap(),
+        job_id,
+        "claim must return the enqueued job_id"
+    );
 
     let state = queue
         .get_state(job_id)
@@ -399,7 +428,7 @@ async fn mt_184_pg_enqueue_then_dequeue_basic() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_pg_atomic_claim_race_8_workers_one_winner() {
     let pool = postgres_pool().await;
     let queue = Arc::new(MicroTaskQueue::new(pool.clone()));
@@ -477,7 +506,7 @@ async fn mt_184_pg_atomic_claim_race_8_workers_one_winner() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_pg_atomic_claim_race_8_jobs_8_workers_no_double_claim() {
     let pool = postgres_pool().await;
     let queue = Arc::new(MicroTaskQueue::new(pool.clone()));
@@ -565,7 +594,7 @@ async fn mt_184_pg_atomic_claim_race_8_jobs_8_workers_no_double_claim() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_pg_fifo_order_preserved_on_claim() {
     // Enqueue 5 rows with explicit, ordered created_at_utc timestamps and
     // assert that single-threaded claim_next pulls them in chronological
@@ -638,7 +667,7 @@ async fn mt_184_pg_fifo_order_preserved_on_claim() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_pg_retry_semantics_iteration_increments_across_requeue() {
     let pool = postgres_pool().await;
     let queue = MicroTaskQueue::new(pool.clone());
@@ -677,7 +706,10 @@ async fn mt_184_pg_retry_semantics_iteration_increments_across_requeue() {
     .expect("requeue with bumped iteration_n");
 
     let after = queue.get_job(job_id).await.expect("get").unwrap();
-    assert_eq!(after.iteration_n, 1, "iteration_n must increment on re-queue");
+    assert_eq!(
+        after.iteration_n, 1,
+        "iteration_n must increment on re-queue"
+    );
     assert_eq!(after.state, MicroTaskJobState::Queued);
 
     // Now claim again and confirm iteration_n still 1 after claim transition.
@@ -725,7 +757,7 @@ async fn mt_184_pg_retry_semantics_iteration_increments_across_requeue() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_pg_failed_after_max_attempts_is_terminal() {
     // Bump iteration_n to max_iterations, set Failed, and confirm the row
     // is no longer eligible for claim (state column is the FIFO filter).
@@ -787,7 +819,7 @@ async fn mt_184_pg_failed_after_max_attempts_is_terminal() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_pg_hardgated_rejects_state_changes_away_from_hardgate() {
     let pool = postgres_pool().await;
     let queue = MicroTaskQueue::new(pool.clone());
@@ -825,7 +857,7 @@ async fn mt_184_pg_hardgated_rejects_state_changes_away_from_hardgate() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_pg_escalation_chain_monotonic_refuses_to_skip_tier() {
     let pool = postgres_pool().await;
     let queue = MicroTaskQueue::new(pool.clone());
@@ -872,7 +904,7 @@ async fn mt_184_pg_escalation_chain_monotonic_refuses_to_skip_tier() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_pg_cascade_cleanup_on_parent_job_removal() {
     // The migration declares
     //   `kernel_mt_loop_checkpoint.job_id REFERENCES kernel_micro_task_job(job_id)
@@ -904,13 +936,12 @@ async fn mt_184_pg_cascade_cleanup_on_parent_job_removal() {
     .await
     .expect("insert checkpoint");
 
-    let count_before: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM kernel_mt_loop_checkpoint WHERE job_id = $1",
-    )
-    .bind(job_id.as_uuid())
-    .fetch_one(&pool)
-    .await
-    .expect("count before");
+    let count_before: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM kernel_mt_loop_checkpoint WHERE job_id = $1")
+            .bind(job_id.as_uuid())
+            .fetch_one(&pool)
+            .await
+            .expect("count before");
     assert_eq!(count_before.0, 1, "seed checkpoint must be present");
 
     sqlx::query("DELETE FROM kernel_micro_task_job WHERE job_id = $1")
@@ -919,13 +950,12 @@ async fn mt_184_pg_cascade_cleanup_on_parent_job_removal() {
         .await
         .expect("delete parent");
 
-    let count_after: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM kernel_mt_loop_checkpoint WHERE job_id = $1",
-    )
-    .bind(job_id.as_uuid())
-    .fetch_one(&pool)
-    .await
-    .expect("count after");
+    let count_after: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM kernel_mt_loop_checkpoint WHERE job_id = $1")
+            .bind(job_id.as_uuid())
+            .fetch_one(&pool)
+            .await
+            .expect("count after");
     assert_eq!(
         count_after.0, 0,
         "ON DELETE CASCADE must drop checkpoint rows when parent job is removed"

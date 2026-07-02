@@ -76,7 +76,12 @@ pub mod interop_adapter {
     /// Build the rich-text surface's [`SharedSelection::TextRange`] from the already-materialized
     /// selected text its renderer produced (the rich editor lays out galleys and knows the rendered
     /// run); `start`/`end` are the flat character offsets into that run.
-    pub fn text_selection(pane_id: PaneId, start: usize, end: usize, text: impl Into<String>) -> SharedSelection {
+    pub fn text_selection(
+        pane_id: PaneId,
+        start: usize,
+        end: usize,
+        text: impl Into<String>,
+    ) -> SharedSelection {
         SharedSelection::TextRange {
             pane_id,
             surface: EditorSurfaceKind::RichText,
@@ -89,13 +94,20 @@ pub mod interop_adapter {
     /// Build a whole-block reference selection (a block copied as a `loom://` ref — the contract's
     /// everything-is-addressable-as-a-Loom-block edge seed).
     pub fn block_ref_selection(pane_id: PaneId, block_id: impl Into<String>) -> SharedSelection {
-        SharedSelection::BlockRef { pane_id, block_id: block_id.into() }
+        SharedSelection::BlockRef {
+            pane_id,
+            block_id: block_id.into(),
+        }
     }
 
     /// Copy a plain-text rich-text selection to the shared clipboard through the bus (Ctrl+C path on a
     /// text run). Returns `true` when non-empty text was copied. OS write goes through the mockable
     /// [`ClipboardSink`] (headless-safe — MT-017 precedent).
-    pub fn copy_text_to_bus(bus: &mut InteractionBus, text: &str, sink: &dyn ClipboardSink) -> bool {
+    pub fn copy_text_to_bus(
+        bus: &mut InteractionBus,
+        text: &str,
+        sink: &dyn ClipboardSink,
+    ) -> bool {
         if text.is_empty() {
             return false;
         }
@@ -106,7 +118,11 @@ pub mod interop_adapter {
     /// Copy a whole block as a `loom://` reference to the shared clipboard (the rich-text "copy block
     /// reference" path). The bus caches the rich `LoomBlockRef` variant so a cross-pane Paste recovers
     /// the reference the plain-text OS clipboard would have flattened to its URI string.
-    pub fn copy_block_ref_to_bus(bus: &mut InteractionBus, block_id: &str, sink: &dyn ClipboardSink) {
+    pub fn copy_block_ref_to_bus(
+        bus: &mut InteractionBus,
+        block_id: &str,
+        sink: &dyn ClipboardSink,
+    ) {
         bus.clipboard_write(ClipboardPayload::LoomBlockRef(block_id.to_owned()), sink);
     }
 
@@ -181,12 +197,18 @@ pub mod interop_adapter {
     impl RichUndoBatcher {
         /// A batcher with the default 500ms window.
         pub fn new() -> Self {
-            Self { last_push: None, window: Duration::from_millis(RICH_UNDO_BATCH_MS) }
+            Self {
+                last_push: None,
+                window: Duration::from_millis(RICH_UNDO_BATCH_MS),
+            }
         }
 
         /// A batcher with an explicit window (focused tests use a tiny window).
         pub fn with_window(window: Duration) -> Self {
-            Self { last_push: None, window }
+            Self {
+                last_push: None,
+                window,
+            }
         }
 
         /// True when a NEW undo entry should be pushed for an edit happening `at`: the first edit always

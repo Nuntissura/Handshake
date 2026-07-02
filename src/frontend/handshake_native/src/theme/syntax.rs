@@ -178,9 +178,18 @@ mod tests {
     fn builtin_palettes_are_complete_and_distinct() {
         // A struct field per scope means completeness is enforced at compile time; this asserts the two
         // tables are not accidentally identical.
-        assert_ne!(STANDARD_PALETTE.keyword, MUTED_PALETTE.keyword, "Muted and Standard keyword differ");
-        assert_ne!(STANDARD_PALETTE.string, MUTED_PALETTE.string, "Muted and Standard string differ");
+        assert_ne!(
+            STANDARD_PALETTE.keyword, MUTED_PALETTE.keyword,
+            "Muted and Standard keyword differ"
+        );
+        assert_ne!(
+            STANDARD_PALETTE.string, MUTED_PALETTE.string,
+            "Muted and Standard string differ"
+        );
         // Standard is the VS-Code-Dark-Plus keyword blue (a known anchor — guards an accidental edit).
-        assert_eq!(STANDARD_PALETTE.keyword, Color32::from_rgb(0x56, 0x9c, 0xd6));
+        assert_eq!(
+            STANDARD_PALETTE.keyword,
+            Color32::from_rgb(0x56, 0x9c, 0xd6)
+        );
     }
 }

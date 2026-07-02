@@ -16,15 +16,26 @@ fn ranges(matches: &[Match]) -> Vec<std::ops::Range<usize>> {
 #[test]
 fn find_engine_plain_case_sensitive() {
     let buf = TextBuffer::new("Foo foo FOO foo");
-    let q = FindQuery { pattern: "foo".into(), case_sensitive: true, ..Default::default() };
+    let q = FindQuery {
+        pattern: "foo".into(),
+        case_sensitive: true,
+        ..Default::default()
+    };
     assert_eq!(ranges(&FindEngine::search(&q, &buf)), vec![4..7, 12..15]);
 }
 
 #[test]
 fn find_engine_plain_case_insensitive() {
     let buf = TextBuffer::new("Foo foo FOO");
-    let q = FindQuery { pattern: "foo".into(), case_sensitive: false, ..Default::default() };
-    assert_eq!(ranges(&FindEngine::search(&q, &buf)), vec![0..3, 4..7, 8..11]);
+    let q = FindQuery {
+        pattern: "foo".into(),
+        case_sensitive: false,
+        ..Default::default()
+    };
+    assert_eq!(
+        ranges(&FindEngine::search(&q, &buf)),
+        vec![0..3, 4..7, 8..11]
+    );
 }
 
 #[test]
@@ -67,7 +78,9 @@ fn find_engine_returns_every_occurrence_in_order() {
     let m = FindEngine::search(&q, &buf);
     assert_eq!(ranges(&m), vec![0..1, 2..3, 4..5, 6..7]);
     // Ascending by start.
-    assert!(m.windows(2).all(|w| w[0].byte_range.start < w[1].byte_range.start));
+    assert!(m
+        .windows(2)
+        .all(|w| w[0].byte_range.start < w[1].byte_range.start));
 }
 
 #[test]

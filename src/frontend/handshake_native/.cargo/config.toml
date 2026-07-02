@@ -1,7 +1,7 @@
-# Dedicated artifact dir under the external root (CX-212E), separate from the shared
-# handshake-cargo-target and the toolkit-spike dir, to avoid build contention during dev.
+# Dedicated artifact dir under the canonical external Cargo artifact root (CX-212E),
+# separate from shared backend target output to avoid build contention during dev.
 [build]
-target-dir = "../../../../Handshake_Artifacts/handshake-native-target"
+target-dir = "../../../../Handshake_Artifacts/handshake-cargo-target/handshake-native"
 
 # MT-004 single-binary requirement (a): statically link the MSVC CRT so the shipped exe has NO
 # VCRUNTIME140.dll / MSVCP140.dll runtime dependency. This is a CRATE-LOCAL config (not the

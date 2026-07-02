@@ -20,15 +20,32 @@ fn cursor_column_select_three_lines_exact_offsets() {
     panel.set_box_selection(2, 3, 4, 7);
 
     let set = panel.cursors();
-    assert_eq!(set.len(), 3, "three lines in the column range -> three cursors");
+    assert_eq!(
+        set.len(),
+        3,
+        "three lines in the column range -> three cursors"
+    );
 
     // Expected per-line offsets: line L start = L*11; anchor = start+3, head = start+7.
     for (i, line) in (2..=4).enumerate() {
         let start = line * 11;
         let c = set.cursors()[i];
-        assert_eq!(c.anchor, start + 3, "line {line} anchor at col 3 (byte {})", start + 3);
-        assert_eq!(c.head, start + 7, "line {line} head at col 7 (byte {})", start + 7);
-        assert!(c.is_selection(), "line {line} cursor is a selection (col 3..7)");
+        assert_eq!(
+            c.anchor,
+            start + 3,
+            "line {line} anchor at col 3 (byte {})",
+            start + 3
+        );
+        assert_eq!(
+            c.head,
+            start + 7,
+            "line {line} head at col 7 (byte {})",
+            start + 7
+        );
+        assert!(
+            c.is_selection(),
+            "line {line} cursor is a selection (col 3..7)"
+        );
     }
 }
 
@@ -44,21 +61,38 @@ fn cursor_column_select_clamps_short_lines() {
     // Select columns 1..6 across all three lines. Lines shorter than the columns clamp to their end.
     panel.set_box_selection(0, 1, 2, 6);
     let set = panel.cursors();
-    assert_eq!(set.len(), 3, "three lines -> three cursors (even the empty last line)");
+    assert_eq!(
+        set.len(),
+        3,
+        "three lines -> three cursors (even the empty last line)"
+    );
 
     // Line 0 "ab": col 1 = byte 1, col 6 clamps to the line end (byte 2).
     let line0 = set.cursors()[0];
     assert_eq!(line0.anchor, 1, "line 0 anchor col 1");
-    assert_eq!(line0.head, 2, "line 0 head clamps to end of 'ab' (byte 2), never into the newline");
+    assert_eq!(
+        line0.head, 2,
+        "line 0 head clamps to end of 'ab' (byte 2), never into the newline"
+    );
 
     // Line 1 "wxyz" starts at byte 3: col 1 = byte 4, col 6 clamps to line end (byte 7).
     let line1 = set.cursors()[1];
-    assert_eq!(line1.anchor, line_col_to_byte(1, 1, &buf), "line 1 anchor col 1");
-    assert_eq!(line1.head, 7, "line 1 head clamps to end of 'wxyz' (byte 7)");
+    assert_eq!(
+        line1.anchor,
+        line_col_to_byte(1, 1, &buf),
+        "line 1 anchor col 1"
+    );
+    assert_eq!(
+        line1.head, 7,
+        "line 1 head clamps to end of 'wxyz' (byte 7)"
+    );
 
     // Line 2 is empty (starts at byte 8): both clamp to byte 8 -> an empty caret on that row.
     let line2 = set.cursors()[2];
-    assert_eq!(line2.anchor, line2.head, "empty line -> empty caret (valid box row)");
+    assert_eq!(
+        line2.anchor, line2.head,
+        "empty line -> empty caret (valid box row)"
+    );
 }
 
 /// The box selection is direction-agnostic: dragging bottom-up / right-to-left yields the same set.
@@ -73,7 +107,11 @@ fn cursor_column_select_is_direction_agnostic() {
     for (i, line) in (2..=4).enumerate() {
         let start = line * 11;
         let c = set.cursors()[i];
-        assert_eq!((c.anchor, c.head), (start + 3, start + 7), "reversed drag normalizes to col 3..7");
+        assert_eq!(
+            (c.anchor, c.head),
+            (start + 3, start + 7),
+            "reversed drag normalizes to col 3..7"
+        );
     }
 }
 
@@ -98,7 +136,10 @@ fn cursor_column_select_paints_multiline_selection_without_overflow_panic() {
     let head = line_col_to_byte(4, 0, &buf);
     panel.set_cursors(vec![Cursor::selection(0, head)]);
     assert_eq!(panel.cursor_count(), 1, "one multi-line selection");
-    assert!(panel.cursors().cursors()[0].is_selection(), "it is a selection, not a bare caret");
+    assert!(
+        panel.cursors().cursors()[0].is_selection(),
+        "it is a selection, not a bare caret"
+    );
 
     // Render a real frame. The overlay paint walks rows 0..=4; rows 1, 2, 3 take the whole-line branch
     // that calls line_col_to_byte(line, usize::MAX, ..). Before the saturating-add fix this panicked

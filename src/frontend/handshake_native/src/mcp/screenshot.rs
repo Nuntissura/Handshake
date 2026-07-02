@@ -118,9 +118,9 @@ mod windows_capture {
 
     use windows_sys::Win32::Foundation::{HWND, LPARAM, RECT, TRUE};
     use windows_sys::Win32::Graphics::Gdi::{
-        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, GetDIBits,
-        ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HBITMAP, HDC,
-        SRCCOPY,
+        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC,
+        GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+        HBITMAP, HDC, SRCCOPY,
     };
     // `PrintWindow` lives under `Win32::Storage::Xps` in windows-sys 0.61; `PW_RENDERFULLCONTENT` is in
     // `Win32::UI::WindowsAndMessaging`.
@@ -136,8 +136,9 @@ mod windows_capture {
         title: &str,
         pid: u32,
     ) -> Result<ScreenshotResult, ScreenshotError> {
-        let hwnd = find_window(title, pid)
-            .ok_or_else(|| ScreenshotError(format!("no visible window titled '{title}' for pid {pid}")))?;
+        let hwnd = find_window(title, pid).ok_or_else(|| {
+            ScreenshotError(format!("no visible window titled '{title}' for pid {pid}"))
+        })?;
         capture_hwnd(hwnd)
     }
 
@@ -203,7 +204,9 @@ mod windows_capture {
             let width = (rect.right - rect.left).max(0);
             let height = (rect.bottom - rect.top).max(0);
             if width == 0 || height == 0 {
-                return Err(ScreenshotError("window has zero area (minimized?)".to_owned()));
+                return Err(ScreenshotError(
+                    "window has zero area (minimized?)".to_owned(),
+                ));
             }
 
             let window_dc: HDC = GetDC(hwnd);
@@ -272,7 +275,12 @@ mod windows_capture {
             {
                 use image::ImageEncoder;
                 image::codecs::png::PngEncoder::new(&mut png_bytes)
-                    .write_image(&bgra, width as u32, height as u32, image::ExtendedColorType::Rgba8)
+                    .write_image(
+                        &bgra,
+                        width as u32,
+                        height as u32,
+                        image::ExtendedColorType::Rgba8,
+                    )
                     .map_err(|e| ScreenshotError(format!("PNG encode failed: {e}")))?;
             }
             Ok(screenshot_from_png(&png_bytes, width as u32, height as u32))

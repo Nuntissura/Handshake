@@ -61,7 +61,11 @@ impl Default for WrapConfig {
     /// each frame from the live editor-area width; 0.0 here is a safe placeholder (the 1:1 fast path
     /// never divides by it).
     fn default() -> Self {
-        Self { enabled: false, wrap_column: None, viewport_width_px: 0.0 }
+        Self {
+            enabled: false,
+            wrap_column: None,
+            viewport_width_px: 0.0,
+        }
     }
 }
 
@@ -255,7 +259,11 @@ fn wrap_one_line(
     // Strip a single trailing '\n' for wrap measurement (the newline does not occupy a visual column);
     // it is re-attached to the final fragment's byte_end below by using `line_end` for the last row.
     let has_newline = text.ends_with('\n');
-    let content = if has_newline { &text[..text.len() - 1] } else { text.as_str() };
+    let content = if has_newline {
+        &text[..text.len() - 1]
+    } else {
+        text.as_str()
+    };
 
     // A char-index list with byte offsets so a soft/hard break lands on a char boundary (RISK-002).
     // (col, byte_offset_within_content, is_whitespace) per char.
@@ -334,14 +342,22 @@ mod tests {
     }
 
     fn on_at_cols(cols: usize) -> WrapConfig {
-        WrapConfig { enabled: true, wrap_column: Some(cols), viewport_width_px: 0.0 }
+        WrapConfig {
+            enabled: true,
+            wrap_column: Some(cols),
+            viewport_width_px: 0.0,
+        }
     }
 
     #[test]
     fn wrap_disabled_is_strict_one_to_one() {
         let buf = TextBuffer::new("line0\nline1\nline2");
         let rows = layout_visual_rows(&buf, 0..buf.len_lines(), &off(), 8.0);
-        assert_eq!(rows.len(), 3, "3 logical lines -> 3 visual rows when wrap is off");
+        assert_eq!(
+            rows.len(),
+            3,
+            "3 logical lines -> 3 visual rows when wrap is off"
+        );
         for (i, r) in rows.iter().enumerate() {
             assert_eq!(r.logical_line, i);
             assert_eq!(r.wrap_index, 0, "every row is the first fragment under 1:1");
@@ -359,9 +375,17 @@ mod tests {
     fn wrap_disabled_fast_path_ignores_width() {
         // Even an absurdly small viewport never wraps when disabled (fast path).
         let buf = TextBuffer::new("a very long single logical line that would wrap if enabled");
-        let cfg = WrapConfig { enabled: false, wrap_column: None, viewport_width_px: 1.0 };
+        let cfg = WrapConfig {
+            enabled: false,
+            wrap_column: None,
+            viewport_width_px: 1.0,
+        };
         let rows = layout_visual_rows(&buf, 0..1, &cfg, 8.0);
-        assert_eq!(rows.len(), 1, "disabled => exactly one row regardless of width");
+        assert_eq!(
+            rows.len(),
+            1,
+            "disabled => exactly one row regardless of width"
+        );
         assert_eq!(rows[0].byte_range(), 0..buf.len_bytes());
     }
 
@@ -373,14 +397,26 @@ mod tests {
         let cfg = on_at_cols(80);
         let rows = layout_visual_rows(&buf, 0..1, &cfg, 8.0);
         // ceil(200/80) = 3 rows.
-        assert_eq!(rows.len(), 3, "200 chars at width 80 -> 3 rows; got {}", rows.len());
+        assert_eq!(
+            rows.len(),
+            3,
+            "200 chars at width 80 -> 3 rows; got {}",
+            rows.len()
+        );
 
         // Contiguous, non-overlapping, covering the whole logical line (AC-003).
         assert_eq!(rows[0].byte_start, 0);
         for w in rows.windows(2) {
-            assert_eq!(w[0].byte_end, w[1].byte_start, "fragments are contiguous (no gap/overlap)");
+            assert_eq!(
+                w[0].byte_end, w[1].byte_start,
+                "fragments are contiguous (no gap/overlap)"
+            );
         }
-        assert_eq!(rows.last().unwrap().byte_end, buf.len_bytes(), "union covers the whole line");
+        assert_eq!(
+            rows.last().unwrap().byte_end,
+            buf.len_bytes(),
+            "union covers the whole line"
+        );
 
         // wrap_index increments 0,1,2; all share the one logical line.
         for (i, r) in rows.iter().enumerate() {
@@ -399,10 +435,17 @@ mod tests {
         let buf = TextBuffer::new("aaaa bbbb cccc");
         let cfg = on_at_cols(6);
         let rows = layout_visual_rows(&buf, 0..1, &cfg, 8.0);
-        assert!(rows.len() >= 2, "a 14-char line at width 6 wraps; got {}", rows.len());
+        assert!(
+            rows.len() >= 2,
+            "a 14-char line at width 6 wraps; got {}",
+            rows.len()
+        );
         // The first fragment ends at a whitespace boundary (after "aaaa "), i.e. byte 5.
         let first = buf.byte_slice_to_string(rows[0].byte_range());
-        assert_eq!(first, "aaaa ", "soft break keeps the trailing space on the row; got {first:?}");
+        assert_eq!(
+            first, "aaaa ",
+            "soft break keeps the trailing space on the row; got {first:?}"
+        );
         // Contiguous + full coverage.
         for w in rows.windows(2) {
             assert_eq!(w[0].byte_end, w[1].byte_start);
@@ -415,7 +458,11 @@ mod tests {
         let buf = TextBuffer::new("short\nx");
         let cfg = on_at_cols(80);
         let rows = layout_visual_rows(&buf, 0..2, &cfg, 8.0);
-        assert_eq!(rows.len(), 2, "two short logical lines -> two rows when each fits");
+        assert_eq!(
+            rows.len(),
+            2,
+            "two short logical lines -> two rows when each fits"
+        );
         assert_eq!(rows[0].wrap_index, 0);
         assert_eq!(rows[1].wrap_index, 0);
         assert_eq!(rows[0].logical_line, 0);
@@ -424,16 +471,31 @@ mod tests {
 
     #[test]
     fn wrap_columns_derives_from_viewport_when_no_explicit_column() {
-        let cfg = WrapConfig { enabled: true, wrap_column: None, viewport_width_px: 800.0 };
+        let cfg = WrapConfig {
+            enabled: true,
+            wrap_column: None,
+            viewport_width_px: 800.0,
+        };
         // 800 / 8 = 100 columns.
         assert_eq!(cfg.wrap_columns(8.0), Some(100));
         // Disabled -> None regardless.
-        let off = WrapConfig { enabled: false, ..cfg };
+        let off = WrapConfig {
+            enabled: false,
+            ..cfg
+        };
         assert_eq!(off.wrap_columns(8.0), None);
         // Degenerate width -> None (no divide-by-zero / infinite split).
-        let bad = WrapConfig { enabled: true, wrap_column: None, viewport_width_px: 0.0 };
+        let bad = WrapConfig {
+            enabled: true,
+            wrap_column: None,
+            viewport_width_px: 0.0,
+        };
         assert_eq!(bad.wrap_columns(8.0), None);
-        let bad2 = WrapConfig { enabled: true, wrap_column: None, viewport_width_px: 800.0 };
+        let bad2 = WrapConfig {
+            enabled: true,
+            wrap_column: None,
+            viewport_width_px: 800.0,
+        };
         assert_eq!(bad2.wrap_columns(0.0), None);
     }
 
@@ -506,7 +568,11 @@ mod tests {
         // Wrap off => always 1 regardless of width.
         assert_eq!(count_visual_rows_for_line(&buf, 0, &off(), 8.0), 1);
         // Degenerate width => 1 (no infinite split).
-        let bad = WrapConfig { enabled: true, wrap_column: None, viewport_width_px: 0.0 };
+        let bad = WrapConfig {
+            enabled: true,
+            wrap_column: None,
+            viewport_width_px: 0.0,
+        };
         assert_eq!(count_visual_rows_for_line(&buf, 0, &bad, 8.0), 1);
     }
 }

@@ -42,7 +42,9 @@ pub fn mark_requires_pg(feature_id: &str) {
 
 /// The deterministic manifest path under the crate root, independent of the test's working directory.
 pub fn manifest_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("parity_manifest.json")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("parity_manifest.json")
 }
 
 /// Read-modify-write the `status` of the entry whose `feature_id` matches, under a cross-process
@@ -78,7 +80,9 @@ fn set_status(feature_id: &str, status: &str) {
         }
     };
     let Some(arr) = value.as_array_mut() else {
-        eprintln!("WARN(parity-manifest): manifest is not a JSON array; skipping {feature_id} write-back");
+        eprintln!(
+            "WARN(parity-manifest): manifest is not a JSON array; skipping {feature_id} write-back"
+        );
         return;
     };
     let mut updated = false;
@@ -90,7 +94,9 @@ fn set_status(feature_id: &str, status: &str) {
         }
     }
     if !updated {
-        eprintln!("WARN(parity-manifest): no manifest entry for feature_id={feature_id}; nothing written");
+        eprintln!(
+            "WARN(parity-manifest): no manifest entry for feature_id={feature_id}; nothing written"
+        );
         return;
     }
     // Pretty-print with a trailing newline so the file stays human-diffable.
@@ -114,8 +120,16 @@ impl FileLock {
     fn acquire(path: &std::path::Path, budget: Duration) -> Option<Self> {
         let start = Instant::now();
         loop {
-            match std::fs::OpenOptions::new().write(true).create_new(true).open(path) {
-                Ok(_) => return Some(FileLock { path: path.to_path_buf() }),
+            match std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+            {
+                Ok(_) => {
+                    return Some(FileLock {
+                        path: path.to_path_buf(),
+                    })
+                }
                 Err(_) if start.elapsed() < budget => {
                     std::thread::sleep(Duration::from_millis(5));
                 }

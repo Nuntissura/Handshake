@@ -26,10 +26,12 @@ use egui_kittest::Harness;
 
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, NodeKind, TextLeaf};
 use handshake_native::rich_editor::inline_tags::{
-    build_tag_edge_payload, inline_tag_author_id, parse_inline_tags, tag_menu_items, tag_to_hs_link,
-    Tag,
+    build_tag_edge_payload, inline_tag_author_id, parse_inline_tags, tag_menu_items,
+    tag_to_hs_link, Tag,
 };
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::wikilinks::inline_view::EditorEvent;
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. The crate sits at
@@ -88,7 +90,11 @@ fn pt001_parse_extracts_rust_and_wip_in_order_ac002() {
     assert_eq!(toks.len(), 2, "exactly two tags (got {toks:?})");
     assert_eq!(toks[0].tag.name, "rust");
     assert_eq!(toks[1].tag.name, "wip");
-    assert_eq!(&text[toks[0].byte_range.clone()], "#rust", "byte_range includes the leading #");
+    assert_eq!(
+        &text[toks[0].byte_range.clone()],
+        "#rust",
+        "byte_range includes the leading #"
+    );
     assert_eq!(&text[toks[1].byte_range.clone()], "#wip");
 }
 
@@ -100,7 +106,10 @@ fn pt001_word_boundary_adversarial_corpus_mc002() {
     assert!(parse_inline_tags("C#").is_empty(), "C# is NOT a tag");
     assert!(parse_inline_tags("a#b").is_empty(), "a#b is NOT a tag");
     assert!(parse_inline_tags("#").is_empty(), "bare # is NOT a tag");
-    assert!(parse_inline_tags("# foo").is_empty(), "# foo (empty body) is NOT a tag");
+    assert!(
+        parse_inline_tags("# foo").is_empty(),
+        "# foo (empty body) is NOT a tag"
+    );
 
     let trailing = parse_inline_tags("see #wip, today");
     assert_eq!(trailing.len(), 1, "trailing punctuation ends the tag");
@@ -123,7 +132,11 @@ fn pt001_normalization_is_the_one_identity_mc001() {
     // edge dedupe; here we assert the underlying normalization agreement.
     assert_eq!(Tag::new("Rust").canonical(), Tag::new("rust").canonical());
     assert_eq!(Tag::new("Rust").canonical(), "rust");
-    assert_eq!(Tag::new("#Rust").canonical(), "rust", "a leading # is stripped before normalization");
+    assert_eq!(
+        Tag::new("#Rust").canonical(),
+        "rust",
+        "a leading # is stripped before normalization"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -135,9 +148,21 @@ fn pt005_convergence_dedupes_inline_and_property_to_one_edge_ac005() {
     // AC-005: a document with inline #rust + a property tag 'rust' persists EXACTLY ONE loom edge for
     // 'rust' (no duplicate) — proven by the deduped edge-PAYLOAD builder (the LIVE POST is gated).
     let payload = build_tag_edge_payload(["rust", "wip"], ["Rust"]);
-    assert_eq!(payload.len(), 2, "rust (inline+property) -> one edge; +wip -> {:?}", payload.canonical_set());
-    let rust_count = payload.edges.iter().filter(|e| e.canonical == "rust").count();
-    assert_eq!(rust_count, 1, "AC-005: exactly ONE 'rust' edge despite inline + property occurrence");
+    assert_eq!(
+        payload.len(),
+        2,
+        "rust (inline+property) -> one edge; +wip -> {:?}",
+        payload.canonical_set()
+    );
+    let rust_count = payload
+        .edges
+        .iter()
+        .filter(|e| e.canonical == "rust")
+        .count();
+    assert_eq!(
+        rust_count, 1,
+        "AC-005: exactly ONE 'rust' edge despite inline + property occurrence"
+    );
     assert!(payload.canonical_set().contains(&"wip".to_owned()));
 }
 
@@ -151,17 +176,33 @@ fn pt005_convergence_from_live_document_collects_inline_atoms() {
     state.properties = Some(make_properties_with_tags(&["rust", "design"]));
 
     let inline = state.collect_inline_tags();
-    assert_eq!(inline, vec!["rust".to_owned()], "the committed inline #rust atom is collected");
+    assert_eq!(
+        inline,
+        vec!["rust".to_owned()],
+        "the committed inline #rust atom is collected"
+    );
 
     let payload = state.build_tag_edge_payload_for_save();
-    let rust_count = payload.edges.iter().filter(|e| e.canonical == "rust").count();
-    assert_eq!(rust_count, 1, "AC-005 end-to-end: inline #rust + property 'rust' -> one edge");
-    assert!(payload.canonical_set().contains(&"design".to_owned()), "the property-only tag persists too");
+    let rust_count = payload
+        .edges
+        .iter()
+        .filter(|e| e.canonical == "rust")
+        .count();
+    assert_eq!(
+        rust_count, 1,
+        "AC-005 end-to-end: inline #rust + property 'rust' -> one edge"
+    );
+    assert!(
+        payload.canonical_set().contains(&"design".to_owned()),
+        "the property-only tag persists too"
+    );
     assert_eq!(payload.len(), 2, "rust (deduped) + design");
 }
 
 /// Build a MT-017 PropertiesState carrying a local-only tag list (the convergence property half).
-fn make_properties_with_tags(tags: &[&str]) -> handshake_native::rich_editor::properties::PropertiesState {
+fn make_properties_with_tags(
+    tags: &[&str],
+) -> handshake_native::rich_editor::properties::PropertiesState {
     use handshake_native::rich_editor::properties::metadata_client::DocMetadata;
     use handshake_native::rich_editor::properties::PropertiesState;
     let meta = DocMetadata {
@@ -194,11 +235,18 @@ fn ac006_menu_lists_existing_and_offers_free_typed_new() {
     let available = vec!["rust".to_owned(), "rustaceans".to_owned()];
     // An existing prefix query lists the matches and does NOT offer 'rust' as new (it exists).
     let items = tag_menu_items("rust", &available);
-    assert!(items.iter().any(|i| i.tag.canonical() == "rust" && !i.is_new));
+    assert!(items
+        .iter()
+        .any(|i| i.tag.canonical() == "rust" && !i.is_new));
     assert!(items.iter().any(|i| i.tag.canonical() == "rustaceans"));
     // A brand-new tag offers a create row (AC-006).
     let items2 = tag_menu_items("brandnew", &available);
-    assert!(items2.iter().any(|i| i.is_new && i.tag.canonical() == "brandnew"), "AC-006: free-typed new tag committable");
+    assert!(
+        items2
+            .iter()
+            .any(|i| i.is_new && i.tag.canonical() == "brandnew"),
+        "AC-006: free-typed new tag committable"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -234,8 +282,14 @@ fn pt004_inline_tag_chip_accesskit_and_screenshot_ac004() {
             break;
         }
     }
-    assert!(chip_found, "AC-004: the inline tag renders an addressable '{expected_author}' chip node");
-    assert!(chip_is_link, "AC-004: the inline tag chip node carries Role::Link");
+    assert!(
+        chip_found,
+        "AC-004: the inline tag renders an addressable '{expected_author}' chip node"
+    );
+    assert!(
+        chip_is_link,
+        "AC-004: the inline tag chip node carries Role::Link"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -281,14 +335,24 @@ fn pt003_inline_tag_chip_click_emits_tag_activated_ac003() {
     // AC-003 / MC-005: the click emits a TagActivated{canonical:'rust'} event onto the LIVE bus (NOT a
     // WikilinkActivated, and NOT a direct hub-window open).
     let events = state.lock().unwrap().pending_events.clone();
-    let found = events.iter().any(|e| matches!(
-        e,
-        EditorEvent::TagActivated { canonical, .. } if canonical == "rust"
-    ));
-    assert!(found, "AC-003: clicking the chip emits TagActivated{{canonical:'rust'}} (got {events:?})");
+    let found = events.iter().any(|e| {
+        matches!(
+            e,
+            EditorEvent::TagActivated { canonical, .. } if canonical == "rust"
+        )
+    });
+    assert!(
+        found,
+        "AC-003: clicking the chip emits TagActivated{{canonical:'rust'}} (got {events:?})"
+    );
     // RISK-005 / MC-005: it is NOT a WikilinkActivated event (the tag is not routed as a wikilink).
-    let is_wikilink = events.iter().any(|e| matches!(e, EditorEvent::WikilinkActivated { .. }));
-    assert!(!is_wikilink, "MC-005: a tag chip emits TagActivated, never WikilinkActivated");
+    let is_wikilink = events
+        .iter()
+        .any(|e| matches!(e, EditorEvent::WikilinkActivated { .. }));
+    assert!(
+        !is_wikilink,
+        "MC-005: a tag chip emits TagActivated, never WikilinkActivated"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -337,9 +401,20 @@ fn pt002_type_hash_open_menu_select_commit_chip_live() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        assert!(st.tag_autocomplete.is_some(), "AC-001: typing `#` at a word boundary opens the tag menu");
-        assert_eq!(st.tag_autocomplete.as_ref().unwrap().query, "ru", "the live query is the typed body");
-        assert_eq!(st.block_plain_text(0).as_deref(), Some("#ru"), "the `#ru` trigger text is in the leaf");
+        assert!(
+            st.tag_autocomplete.is_some(),
+            "AC-001: typing `#` at a word boundary opens the tag menu"
+        );
+        assert_eq!(
+            st.tag_autocomplete.as_ref().unwrap().query,
+            "ru",
+            "the live query is the typed body"
+        );
+        assert_eq!(
+            st.block_plain_text(0).as_deref(),
+            Some("#ru"),
+            "the `#ru` trigger text is in the leaf"
+        );
     }
     // The LIVE menu AccessKit container is present.
     {
@@ -347,7 +422,10 @@ fn pt002_type_hash_open_menu_select_commit_chip_live() {
         let menu_found = root
             .children_recursive()
             .any(|n| n.accesskit_node().author_id() == Some("inline-tag-menu"));
-        assert!(menu_found, "the LIVE 'inline-tag-menu' popup node is in the accessibility tree");
+        assert!(
+            menu_found,
+            "the LIVE 'inline-tag-menu' popup node is in the accessibility tree"
+        );
     }
 
     // Press Enter -> commit the top row ('rust') as a tag atom; the menu closes.
@@ -356,7 +434,10 @@ fn pt002_type_hash_open_menu_select_commit_chip_live() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        assert!(st.tag_autocomplete.is_none(), "the menu closes after commit");
+        assert!(
+            st.tag_autocomplete.is_none(),
+            "the menu closes after commit"
+        );
         // The LIVE doc now has a committed inline-tag atom for 'rust'.
         let inline = st.collect_inline_tags();
         assert!(
@@ -375,7 +456,10 @@ fn pt002_type_hash_open_menu_select_commit_chip_live() {
         let chip_found = root
             .children_recursive()
             .any(|n| n.accesskit_node().author_id() == Some("inline-tag-rust"));
-        assert!(chip_found, "PT-002: the LIVE render shows the committed `inline-tag-rust` chip");
+        assert!(
+            chip_found,
+            "PT-002: the LIVE render shows the committed `inline-tag-rust` chip"
+        );
     }
 }
 
@@ -410,8 +494,14 @@ fn ac001_mid_word_hash_does_not_open_menu() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        assert!(st.tag_autocomplete.is_none(), "AC-001: a mid-word `#` (C#) does NOT open the tag menu");
-        assert!(st.collect_inline_tags().is_empty(), "AC-001: a mid-word `#` produces no tag atom");
+        assert!(
+            st.tag_autocomplete.is_none(),
+            "AC-001: a mid-word `#` (C#) does NOT open the tag menu"
+        );
+        assert!(
+            st.collect_inline_tags().is_empty(),
+            "AC-001: a mid-word `#` produces no tag atom"
+        );
     }
 }
 
@@ -474,5 +564,8 @@ fn mc006_repeated_tag_renders_valid_non_colliding_tree() {
         .iter()
         .filter(|(_, node)| node.author_id() == Some("inline-tag-rust"))
         .count();
-    assert!(tag_nodes >= 2, "MC-006: both #rust occurrences emit a distinct `inline-tag-rust` node (got {tag_nodes})");
+    assert!(
+        tag_nodes >= 2,
+        "MC-006: both #rust occurrences emit a distinct `inline-tag-rust` node (got {tag_nodes})"
+    );
 }

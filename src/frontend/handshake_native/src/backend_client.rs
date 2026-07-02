@@ -38,15 +38,25 @@ pub const BACKEND_CONNECT_TIMEOUT: Duration = Duration::from_millis(1500);
 /// outer bound on the shared pool.
 pub const BACKEND_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// WP-KERNEL-012 MT-101: model-session `/jobs` creation is a runtime launch path, not a health or
+/// layout probe. The payload carries `timeout_ms=120000`, so the native request must stay alive long
+/// enough for the backend to enqueue and return real workflow state instead of cancelling early and
+/// risking an orphaned queued job.
+pub const MODEL_SESSION_JOBS_REQUEST_TIMEOUT: Duration = Duration::from_secs(130);
+
 /// WP-KERNEL-012 MT-088: build a backend [`reqwest::Client`] carrying the backend-down timeouts
 /// ([`BACKEND_CONNECT_TIMEOUT`] + [`BACKEND_REQUEST_TIMEOUT`]). Graceful: if the builder fails for any
 /// reason it falls back to the infallible `reqwest::Client::new()` (no timeouts) rather than panicking —
 /// a missing timeout degrades to the old behavior, it never crashes startup. Used by the shared pool,
 /// the `/health` probe, and the layout transport (the UI-thread-reachable backend paths this MT fixes).
 pub fn build_backend_client() -> reqwest::Client {
+    build_backend_client_with_request_timeout(BACKEND_REQUEST_TIMEOUT)
+}
+
+fn build_backend_client_with_request_timeout(request_timeout: Duration) -> reqwest::Client {
     reqwest::Client::builder()
         .connect_timeout(BACKEND_CONNECT_TIMEOUT)
-        .timeout(BACKEND_REQUEST_TIMEOUT)
+        .timeout(request_timeout)
         .build()
         .unwrap_or_else(|e| {
             tracing::warn!(
@@ -56,6 +66,10 @@ pub fn build_backend_client() -> reqwest::Client {
             );
             reqwest::Client::new()
         })
+}
+
+fn build_model_session_backend_client() -> reqwest::Client {
+    build_backend_client_with_request_timeout(MODEL_SESSION_JOBS_REQUEST_TIMEOUT)
 }
 
 /// Return a clone of the process-wide shared backend [`reqwest::Client`] (one connection pool for the
@@ -254,6 +268,7 @@ impl fmt::Display for ModelSessionProvider {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelSessionLaunchRequest {
     pub provider: ModelSessionProvider,
+    pub session_id: String,
     pub workspace_id: String,
     pub workspace_folder: String,
     pub model_id: String,
@@ -270,6 +285,7 @@ impl ModelSessionLaunchRequest {
     ) -> Self {
         Self {
             provider,
+            session_id: uuid::Uuid::new_v4().to_string(),
             workspace_id: workspace_id.into(),
             workspace_folder: workspace_folder.into(),
             model_id: model_id.into(),
@@ -277,7 +293,18 @@ impl ModelSessionLaunchRequest {
         }
     }
 
+    pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
+        self.session_id = session_id.into();
+        self
+    }
+
     fn validate(&self) -> Result<(), ModelSessionLaunchError> {
+        if self.session_id.trim().is_empty() {
+            return Err(ModelSessionLaunchError::InvalidRequest {
+                field: "session_id",
+                reason: "session id is required".to_owned(),
+            });
+        }
         if self.workspace_folder.trim().is_empty() {
             return Err(ModelSessionLaunchError::InvalidRequest {
                 field: "workspace_folder",
@@ -302,6 +329,7 @@ impl ModelSessionLaunchRequest {
     fn trimmed(&self) -> Self {
         Self {
             provider: self.provider,
+            session_id: self.session_id.trim().to_owned(),
             workspace_id: self.workspace_id.trim().to_owned(),
             workspace_folder: self.workspace_folder.trim().to_owned(),
             model_id: self.model_id.trim().to_owned(),
@@ -316,6 +344,7 @@ impl ModelSessionLaunchRequest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelSessionDirectSpawnRequest {
     pub provider: ModelSessionProvider,
+    pub session_id: String,
     pub workspace_id: String,
     pub worktree_id: Option<String>,
     pub working_dir: String,
@@ -333,6 +362,7 @@ impl From<&ModelSessionLaunchRequest> for ModelSessionDirectSpawnRequest {
         let request = request.trimmed();
         Self {
             provider: request.provider,
+            session_id: request.session_id,
             workspace_id: request.workspace_id,
             worktree_id: None,
             working_dir: request.workspace_folder,
@@ -407,7 +437,7 @@ pub struct ModelSessionLaunchClient {
 impl ModelSessionLaunchClient {
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: build_backend_client(),
+            client: build_model_session_backend_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -449,7 +479,14 @@ impl ModelSessionLaunchClient {
         let client = self.client.clone();
         let url = spec.url.clone();
         self.runtime.spawn(async move {
-            let result = match post_json_expect_value(&client, &url, &body).await {
+            let result = match post_json_expect_value(
+                &client,
+                &url,
+                &body,
+                MODEL_SESSION_JOBS_REQUEST_TIMEOUT,
+            )
+            .await
+            {
                 Ok(raw) => ModelSessionJobResult::from_json(raw),
                 Err(e) => Err(e.to_string()),
             };
@@ -534,6 +571,7 @@ fn model_session_jobs_request(
         "launch_mode": "workspace_model_session",
         "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
         "mt_id": "MT-101",
+        "session_id": request.session_id,
         "workspace_id": request.workspace_id,
         "workspace_folder": request.workspace_folder,
         "working_dir": request.workspace_folder,
@@ -1251,10 +1289,11 @@ async fn post_json_expect_value(
     client: &reqwest::Client,
     url: &str,
     body: &serde_json::Value,
+    timeout: Duration,
 ) -> Result<serde_json::Value, AppError> {
     let resp = client
         .post(url)
-        .timeout(Duration::from_secs(5))
+        .timeout(timeout)
         .json(body)
         .send()
         .await

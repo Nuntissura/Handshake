@@ -28,26 +28,33 @@ use std::path::{Path, PathBuf};
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
+use handshake_native::backend_client::{
+    LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response,
+};
 use handshake_native::code_editor::note_refs_panel::{
-    render_note_refs_panel, row_author_id, NoteRefsState, PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
+    render_note_refs_panel, row_author_id, NoteRefsState,
+    PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
 };
 use handshake_native::code_editor::panel::CodeEditorPanel;
 use handshake_native::interop::cross_ref::FindNotesSearch;
-use handshake_native::backend_client::{LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response};
 use handshake_native::interop::{
     dispatch_code_ref_open, percent_encode_symbol, CrossRefError, InteractionBus, NoteRef,
     CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT,
 };
-use handshake_native::rich_editor::document_model::doc_json::{from_json_string, to_content_json_value};
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::document_model::doc_json::{
+    from_json_string, to_content_json_value,
+};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
+};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::slash_commands::{
     code_symbol_search::CodeSymbolSearchState, render_code_symbol_search_dialog,
     CODE_SYMBOL_SEARCH_AUTHOR_ID, CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
 };
-use handshake_native::rich_editor::wikilinks::inline_view::{
-    code_ref_chip_author_id, EditorEvent,
-};
+use handshake_native::rich_editor::wikilinks::inline_view::{code_ref_chip_author_id, EditorEvent};
 use handshake_native::rich_editor::wikilinks::parser::parse_wikilink;
 use handshake_native::theme::HsTheme;
 
@@ -89,8 +96,11 @@ fn author_ids<S>(harness: &Harness<'_, S>) -> std::collections::HashSet<String> 
 fn doc_with_code_ref(symbol_entity_id: &str, display_name: &str) -> BlockNode {
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::new("see ")));
-    para.children
-        .push(Child::HsLink(HsLinkNode::new("code", symbol_entity_id, display_name)));
+    para.children.push(Child::HsLink(HsLinkNode::new(
+        "code",
+        symbol_entity_id,
+        display_name,
+    )));
     para.children.push(Child::Text(TextLeaf::new("")));
     BlockNode::doc(vec![para])
 }
@@ -104,9 +114,18 @@ fn doc_with_code_ref(symbol_entity_id: &str, display_name: &str) -> BlockNode {
 fn ac1_code_wikilink_parses_to_code_hs_link() {
     let parsed = parse_wikilink("[[code:src/main.rs#MyStruct]]").expect("a valid code wikilink");
     let link = parsed.to_hs_link();
-    assert_eq!(link.ref_kind, "code", "AC-1: the code: prefix is a `code` ref kind");
-    assert_eq!(link.ref_value, "src/main.rs#MyStruct", "AC-1: the symbol key is the ref value");
-    assert!(link.resolved, "AC-1: the code: prefix is a known resolved kind");
+    assert_eq!(
+        link.ref_kind, "code",
+        "AC-1: the code: prefix is a `code` ref kind"
+    );
+    assert_eq!(
+        link.ref_value, "src/main.rs#MyStruct",
+        "AC-1: the symbol key is the ref value"
+    );
+    assert!(
+        link.resolved,
+        "AC-1: the code: prefix is a known resolved kind"
+    );
     println!("AC-1: [[code:src/main.rs#MyStruct]] -> hsLink(code, src/main.rs#MyStruct)");
 }
 
@@ -118,16 +137,27 @@ fn ac1_code_ref_atom_round_trips_content_json_with_symbol_id() {
     let json = handshake_native::rich_editor::document_model::doc_json::to_json_string(&doc)
         .expect("serialize");
     let back = from_json_string(&json).expect("reload");
-    assert_eq!(doc, back, "AC-1: the code-ref doc round-trips through DocJson unchanged");
+    assert_eq!(
+        doc, back,
+        "AC-1: the code-ref doc round-trips through DocJson unchanged"
+    );
 
     // The hsLink node carries the symbol id in ref_value, type=hsLink (NOT an invented code_ref node).
     let v = to_content_json_value(&doc);
     let link = &v["content"][0]["content"][1];
-    assert_eq!(link["type"], "hsLink", "AC-1: a code ref is an hsLink atom, never a `code_ref` node");
+    assert_eq!(
+        link["type"], "hsLink",
+        "AC-1: a code ref is an hsLink atom, never a `code_ref` node"
+    );
     assert_eq!(link["attrs"]["refKind"], "code");
-    assert_eq!(link["attrs"]["refValue"], "ent-MyStruct-42", "AC-1: symbol_entity_id preserved");
+    assert_eq!(
+        link["attrs"]["refValue"], "ent-MyStruct-42",
+        "AC-1: symbol_entity_id preserved"
+    );
     assert_eq!(link["attrs"]["label"], "MyStruct");
-    println!("AC-1: code hsLink atom round-trips content_json with symbol_entity_id=ent-MyStruct-42");
+    println!(
+        "AC-1: code hsLink atom round-trips content_json with symbol_entity_id=ent-MyStruct-42"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -139,9 +169,9 @@ fn ac2_click_code_ref_chip_dispatches_open_code_symbol() {
     // Render a rich editor over a doc carrying a code-ref chip. The chip's stable author_id is
     // `code-ref-chip-{symbol_entity_id}` — the kittest targets it by that id.
     let symbol_id = "ent-MyStruct-42";
-    let state = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::new(doc_with_code_ref(
-        symbol_id, "MyStruct",
-    ))));
+    let state = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::new(
+        doc_with_code_ref(symbol_id, "MyStruct"),
+    )));
     let state_ck = std::sync::Arc::clone(&state);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(800.0, 600.0))
@@ -166,26 +196,38 @@ fn ac2_click_code_ref_chip_dispatches_open_code_symbol() {
     // The host drains the editor's pending events; a code-ref click bridges to `open-code-symbol`.
     let event = {
         let st = state_ck.lock().unwrap();
-        st.pending_events
-            .iter()
-            .find_map(|e| match e {
-                EditorEvent::WikilinkActivated { ref_kind, ref_value, .. } if ref_kind == "code" => {
-                    Some((ref_kind.clone(), ref_value.clone()))
-                }
-                _ => None,
-            })
+        st.pending_events.iter().find_map(|e| match e {
+            EditorEvent::WikilinkActivated {
+                ref_kind,
+                ref_value,
+                ..
+            } if ref_kind == "code" => Some((ref_kind.clone(), ref_value.clone())),
+            _ => None,
+        })
     };
-    let (ref_kind, ref_value) = event.expect("AC-2: clicking the code-ref chip enqueues a code WikilinkActivated event");
+    let (ref_kind, ref_value) =
+        event.expect("AC-2: clicking the code-ref chip enqueues a code WikilinkActivated event");
     assert_eq!(ref_kind, "code");
-    assert_eq!(ref_value, symbol_id, "AC-2: the event carries the correct symbol entity id");
+    assert_eq!(
+        ref_value, symbol_id,
+        "AC-2: the event carries the correct symbol entity id"
+    );
 
     // The bridge stages the symbol on the bus and dispatches `open-code-symbol` (the note->code command).
     let ctx = egui::Context::default();
     let mut bus = InteractionBus::new();
     bus.register_open_code_symbol_command();
-    let evt = EditorEvent::WikilinkActivated { ref_kind, ref_value: ref_value.clone(), resolved: true };
+    let evt = EditorEvent::WikilinkActivated {
+        ref_kind,
+        ref_value: ref_value.clone(),
+        resolved: true,
+    };
     let dispatched = dispatch_code_ref_open(&ctx, &mut bus, &evt);
-    assert_eq!(dispatched.as_deref(), Some(symbol_id), "AC-2: the bridge dispatches open-code-symbol for the symbol");
+    assert_eq!(
+        dispatched.as_deref(),
+        Some(symbol_id),
+        "AC-2: the bridge dispatches open-code-symbol for the symbol"
+    );
     assert_eq!(
         bus.take_pending_code_symbol().as_deref(),
         Some(symbol_id),
@@ -219,8 +261,13 @@ impl FindNotesSearch for CountingFindNotes {
         &'a self,
         _workspace_id: &'a str,
         _body: &'a LoomSearchV2Body,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>> + Send + 'a>>
-    {
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>>
+                + Send
+                + 'a,
+        >,
+    > {
         self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let hit = LoomSearchV2Hit {
             block: LoomSearchBlock {
@@ -267,7 +314,10 @@ fn ac3_code_pane_dwell_loads_note_refs_panel() {
     let backend_dyn: std::sync::Arc<dyn FindNotesSearch> = backend.clone();
 
     // The LIVE code pane (the host the review found untouched), now mounting the NoteRefsPanel.
-    let panel = std::sync::Arc::new(CodeEditorPanel::new("fn main() { let total = MyStruct::new(); }", "rs"));
+    let panel = std::sync::Arc::new(CodeEditorPanel::new(
+        "fn main() { let total = MyStruct::new(); }",
+        "rs",
+    ));
     panel.set_runtime(rt.handle().clone());
     panel.set_workspace_id("ws-mt034");
     panel.set_find_notes_backend(backend_dyn);
@@ -278,7 +328,12 @@ fn ac3_code_pane_dwell_loads_note_refs_panel() {
     // Park the caret inside the identifier "MyStruct" BEFORE the first frame so the dwell only ever
     // observes that one symbol (a pre-frame caret at offset 0 could dwell on a different word and fire a
     // second, unrelated search — we want exactly ONE dwell crossing to prove the once-per-dwell guard).
-    let offset = panel.buffer().to_string().find("MyStruct").expect("symbol present") + 2;
+    let offset = panel
+        .buffer()
+        .to_string()
+        .find("MyStruct")
+        .expect("symbol present")
+        + 2;
     panel.set_single_cursor(offset);
 
     let panel_ui = std::sync::Arc::clone(&panel);
@@ -314,7 +369,11 @@ fn ac3_code_pane_dwell_loads_note_refs_panel() {
     let loaded = panel.note_refs_state();
     match &loaded {
         NoteRefsState::Loaded(notes) => {
-            assert_eq!(notes.len(), 1, "AC-3: the wired pipeline loaded the seeded note");
+            assert_eq!(
+                notes.len(),
+                1,
+                "AC-3: the wired pipeline loaded the seeded note"
+            );
             assert_eq!(notes[0].document_id, "DOC-7");
             assert_eq!(notes[0].document_title, "Design notes");
         }
@@ -328,7 +387,10 @@ fn ac3_code_pane_dwell_loads_note_refs_panel() {
         "AC-3: the NoteRefsPanel is mounted in the live code pane; got {ids:?}"
     );
     let row = row_author_id("DOC-7");
-    assert!(ids.contains(&row), "AC-3: the dwell-loaded note row `{row}` is present in the live pane");
+    assert!(
+        ids.contains(&row),
+        "AC-3: the dwell-loaded note row `{row}` is present in the live pane"
+    );
 
     // RISK-3 / MC-3: the dwell fired the search exactly ONCE despite many frames (no per-frame spam). One
     // dwell crossing runs one search PER rich-doc content type (`note` + `journal` = 2 backend calls); the
@@ -387,9 +449,15 @@ fn ac3_note_refs_panel_lists_and_opens_a_note() {
 
     // The panel container + the row are addressable by the contract ids.
     let ids = author_ids(&harness);
-    assert!(ids.contains(NOTE_REFS_PANEL_AUTHOR_ID), "AC-5: note-refs-panel present; got {ids:?}");
+    assert!(
+        ids.contains(NOTE_REFS_PANEL_AUTHOR_ID),
+        "AC-5: note-refs-panel present; got {ids:?}"
+    );
     let row = row_author_id("DOC-7");
-    assert!(ids.contains(&row), "AC-3/AC-5: the note row `{row}` is present");
+    assert!(
+        ids.contains(&row),
+        "AC-3/AC-5: the note row `{row}` is present"
+    );
 
     // Click the row -> the panel returns the document id the host dispatches `open-document` for.
     let row_node = harness.get_by(|n| n.author_id() == Some(row.as_str()));
@@ -405,7 +473,10 @@ fn ac3_note_refs_panel_lists_and_opens_a_note() {
     let ctx = egui::Context::default();
     let mut bus = InteractionBus::new();
     bus.register_open_document_command();
-    assert!(bus.open_document(&ctx, "DOC-7"), "AC-3: open-document is the existing cross-pane command");
+    assert!(
+        bus.open_document(&ctx, "DOC-7"),
+        "AC-3: open-document is the existing cross-pane command"
+    );
     assert_eq!(bus.take_pending_navigation().as_deref(), Some("DOC-7"));
     println!("AC-3: NoteRefsPanel listed DOC-7 (Design notes); click staged open-document DOC-7 ({CMD_OPEN_DOCUMENT})");
 }
@@ -426,11 +497,17 @@ fn ac4_unresolved_code_ref_chip_renders_without_panic() {
     };
     // The label is the greyed `unresolved` text (never a panic).
     let label = chip_label(&unresolved);
-    assert!(label.contains("unresolved"), "AC-4: a deleted symbol renders an `unresolved` chip label");
+    assert!(
+        label.contains("unresolved"),
+        "AC-4: a deleted symbol renders an `unresolved` chip label"
+    );
     // The chip colors come from the theme (the error affordance), NOT a hardcoded Color32.
     let palette = HsTheme::Dark.palette();
     let (bg, fg) = chip_colors(&unresolved, &palette);
-    assert_eq!(bg, palette.error_bg, "AC-4: an unresolved chip uses the error background (theme token)");
+    assert_eq!(
+        bg, palette.error_bg,
+        "AC-4: an unresolved chip uses the error background (theme token)"
+    );
     assert_eq!(fg, palette.error_text);
 
     // And it RENDERS in a live editor without panicking (the doc carries the unresolved code ref).
@@ -470,7 +547,9 @@ fn ac4_resolve_error_maps_unresolved() {
 #[test]
 fn ac5_code_symbol_search_dialog_accesskit_ids_present() {
     let palette = HsTheme::Dark.palette();
-    let dialog = std::sync::Arc::new(std::sync::Mutex::new(CodeSymbolSearchState::open("ws-1", None)));
+    let dialog = std::sync::Arc::new(std::sync::Mutex::new(CodeSymbolSearchState::open(
+        "ws-1", None,
+    )));
     let dialog_ui = std::sync::Arc::clone(&dialog);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(500.0, 400.0))
@@ -489,7 +568,9 @@ fn ac5_code_symbol_search_dialog_accesskit_ids_present() {
         ids.contains(CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID),
         "AC-5: the code-symbol-search-input TextField is present; got {ids:?}"
     );
-    println!("AC-5: code-symbol-search dialog exposes code-symbol-search + code-symbol-search-input");
+    println!(
+        "AC-5: code-symbol-search dialog exposes code-symbol-search + code-symbol-search-input"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -525,7 +606,9 @@ fn no_local_artifact_dir_under_crate() {
 #[cfg(feature = "integration")]
 mod live_backend {
     use handshake_native::code_editor::code_nav::CodeNavClient;
-    use handshake_native::interop::cross_ref::{find_notes_with, resolve_code_ref_with, FindNotesHttp};
+    use handshake_native::interop::cross_ref::{
+        find_notes_with, resolve_code_ref_with, FindNotesHttp,
+    };
 
     fn backend_base() -> String {
         std::env::var("HANDSHAKE_TEST_DB_URL")

@@ -186,9 +186,7 @@ pub fn classify_wikilink(prefix: &str, value: &str, label: Option<&str>) -> Pars
             let default_label = format!("{raw_prefix}:{ref_value}");
             ParsedWikilink {
                 kind: WikilinkKind::Unknown(raw_prefix.clone()),
-                label: explicit_label
-                    .map(str::to_owned)
-                    .unwrap_or(default_label),
+                label: explicit_label.map(str::to_owned).unwrap_or(default_label),
                 ref_value,
                 resolved: false,
                 raw_prefix,
@@ -315,7 +313,11 @@ mod tests {
         ];
         for (prefix, backend) in cases {
             let parsed = parse_wikilink(&format!("[[{prefix}:X]]")).expect("parseable");
-            assert_eq!(parsed.kind, WikilinkKind::Known(backend.to_owned()), "prefix {prefix}");
+            assert_eq!(
+                parsed.kind,
+                WikilinkKind::Known(backend.to_owned()),
+                "prefix {prefix}"
+            );
             assert!(parsed.resolved);
             assert_eq!(parsed.to_hs_link().ref_kind, backend);
         }
@@ -326,7 +328,8 @@ mod tests {
         // WP-KERNEL-012 MT-034 (AC-1 / cross_ref unit): `[[code:path#Symbol]]` parses to a RESOLVED
         // hsLink atom with ref_kind="code" and ref_value carrying the `path#Symbol` symbol key — the
         // node that round-trips content_json and that the backend backlink indexer keys on.
-        let parsed = parse_wikilink("[[code:src/main.rs#MyStruct]]").expect("a valid code wikilink");
+        let parsed =
+            parse_wikilink("[[code:src/main.rs#MyStruct]]").expect("a valid code wikilink");
         assert_eq!(parsed.kind, WikilinkKind::Known("code".to_owned()));
         assert_eq!(parsed.kind.ref_kind(), "code");
         assert_eq!(parsed.ref_value, "src/main.rs#MyStruct");
@@ -348,7 +351,10 @@ mod tests {
     #[test]
     fn known_without_label_defaults_to_ref_value() {
         let parsed = parse_wikilink("[[file:src/app.ts]]").expect("parseable");
-        assert_eq!(parsed.label, "src/app.ts", "known kind defaults label to the value");
+        assert_eq!(
+            parsed.label, "src/app.ts",
+            "known kind defaults label to the value"
+        );
         assert_eq!(parsed.ref_value, "src/app.ts");
     }
 
@@ -356,7 +362,10 @@ mod tests {
     fn non_wikilink_string_is_none() {
         assert!(parse_wikilink("not a link").is_none());
         assert!(parse_wikilink("[single bracket]").is_none());
-        assert!(parse_wikilink("[[no-colon]]").is_none(), "a token with no `:` is not a wikilink");
+        assert!(
+            parse_wikilink("[[no-colon]]").is_none(),
+            "a token with no `:` is not a wikilink"
+        );
         assert!(parse_wikilink("").is_none());
     }
 
@@ -388,7 +397,10 @@ mod tests {
     #[test]
     fn open_query_detects_unterminated_trigger() {
         // step 4: typing `[[` then a partial query opens the popup with the query so far.
-        assert_eq!(open_wikilink_query("hello [[wp:WP-"), Some((6, "wp:WP-".to_owned())));
+        assert_eq!(
+            open_wikilink_query("hello [[wp:WP-"),
+            Some((6, "wp:WP-".to_owned()))
+        );
         assert_eq!(open_wikilink_query("[["), Some((0, "".to_owned())));
         assert_eq!(open_wikilink_query("text [[no"), Some((5, "no".to_owned())));
     }
@@ -400,7 +412,10 @@ mod tests {
         assert_eq!(open_wikilink_query("plain text"), None);
         assert_eq!(open_wikilink_query(""), None);
         // An OPEN trigger AFTER a closed one re-opens for the new token.
-        assert_eq!(open_wikilink_query("[[wp:X]] and [[fi"), Some((13, "fi".to_owned())));
+        assert_eq!(
+            open_wikilink_query("[[wp:X]] and [[fi"),
+            Some((13, "fi".to_owned()))
+        );
     }
 
     #[test]

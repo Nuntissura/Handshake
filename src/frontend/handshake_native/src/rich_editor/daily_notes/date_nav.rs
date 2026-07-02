@@ -166,8 +166,13 @@ pub fn month_grid(year: i32, month: u32) -> Vec<Option<NaiveDate>> {
 /// The number of days in `(year, month)`, computed from the first of the NEXT month minus one day
 /// (chrono-correct for leap years, NOT a hardcoded `[31, 28, …]` table).
 pub fn days_in_month(year: i32, month: u32) -> u32 {
-    let (next_year, next_month) = if month == 12 { (year + 1, 1) } else { (year, month + 1) };
-    let first_next = NaiveDate::from_ymd_opt(next_year, next_month, 1).expect("valid first-of-month");
+    let (next_year, next_month) = if month == 12 {
+        (year + 1, 1)
+    } else {
+        (year, month + 1)
+    };
+    let first_next =
+        NaiveDate::from_ymd_opt(next_year, next_month, 1).expect("valid first-of-month");
     first_next
         .checked_sub_days(Days::new(1))
         .map(|d| d.day())
@@ -213,9 +218,14 @@ impl<'a> DateNavWidget<'a> {
             // The current-date display (an interactive label → addressable, and clicking it toggles the
             // calendar, mirroring the calendar-icon affordance for convenience).
             let display = self.nav.current_display();
-            let date_resp = ui.add(egui::Label::new(
-                egui::RichText::new(&display).color(self.palette.text).strong(),
-            ).sense(egui::Sense::click()));
+            let date_resp = ui.add(
+                egui::Label::new(
+                    egui::RichText::new(&display)
+                        .color(self.palette.text)
+                        .strong(),
+                )
+                .sense(egui::Sense::click()),
+            );
             accessibility::emit_interactive_node(ui.ctx(), date_resp.id, DATE_DISPLAY_ID);
             if date_resp.clicked() {
                 self.nav.calendar_open = !self.nav.calendar_open;
@@ -264,13 +274,21 @@ impl<'a> DateNavWidget<'a> {
 
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             ui.set_max_width(260.0);
-            ui.label(egui::RichText::new(&month_label).color(self.palette.text).strong());
+            ui.label(
+                egui::RichText::new(&month_label)
+                    .color(self.palette.text)
+                    .strong(),
+            );
             // Weekday header row (Sun..Sat).
             ui.horizontal(|ui| {
                 for wd in ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] {
                     ui.add_sized(
                         egui::vec2(30.0, 18.0),
-                        egui::Label::new(egui::RichText::new(wd).color(self.palette.text_subtle).small()),
+                        egui::Label::new(
+                            egui::RichText::new(wd)
+                                .color(self.palette.text_subtle)
+                                .small(),
+                        ),
                     );
                 }
             });
@@ -388,7 +406,11 @@ mod tests {
     fn month_grid_is_always_42_cells_mc004() {
         // MC-004: the grid is ALWAYS 6×7 = 42 cells regardless of month, so the popup never reflows.
         for (y, m) in [(2026, 6), (2023, 10), (2026, 2), (2024, 2), (2026, 12)] {
-            assert_eq!(month_grid(y, m).len(), CALENDAR_CELLS, "month {y}-{m} must have 42 cells");
+            assert_eq!(
+                month_grid(y, m).len(),
+                CALENDAR_CELLS,
+                "month {y}-{m} must have 42 cells"
+            );
         }
     }
 
@@ -403,7 +425,11 @@ mod tests {
         assert_eq!(in_month.last(), Some(&30));
         // June 1, 2026 is a Monday → lead offset 1.
         assert!(grid[0].is_none(), "the leading Sunday cell is empty");
-        assert_eq!(grid[1].map(|d| d.day()), Some(1), "June 1 sits at column 1 (Monday)");
+        assert_eq!(
+            grid[1].map(|d| d.day()),
+            Some(1),
+            "June 1 sits at column 1 (Monday)"
+        );
     }
 
     #[test]
@@ -413,7 +439,11 @@ mod tests {
         let grid = month_grid(2023, 10);
         let in_month = grid.iter().flatten().count();
         assert_eq!(in_month, 31);
-        assert_eq!(grid.len(), CALENDAR_CELLS, "still exactly 42 cells (no reflow)");
+        assert_eq!(
+            grid.len(),
+            CALENDAR_CELLS,
+            "still exactly 42 cells (no reflow)"
+        );
         // Oct 1, 2023 is a Sunday → it sits at column 0.
         assert_eq!(grid[0].map(|d| d.day()), Some(1));
     }
@@ -450,7 +480,10 @@ mod tests {
         // July 2023 starts on Saturday → cell[6] is July 1.
         let july = month_grid(2023, 7);
         assert_eq!(july[6].map(|d| d.day()), Some(1));
-        assert!((0..6).all(|i| july[i].is_none()), "Saturday start → 6 leading empties");
+        assert!(
+            (0..6).all(|i| july[i].is_none()),
+            "Saturday start → 6 leading empties"
+        );
         // Sanity: the Sunday convention matches chrono.
         assert_eq!(d(2023, 7, 1).weekday(), Weekday::Sat);
     }

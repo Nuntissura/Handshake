@@ -34,8 +34,8 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
 use handshake_native::graph::folder_tree::{
-    build_tree, color_to_hex, parse_hex_color, FolderRow, FolderTreeEvent, LeafBlock, LoomFolderTree,
-    COLOR_AUTHOR_ID_PREFIX, NODE_AUTHOR_ID_PREFIX, RETRY_AUTHOR_ID,
+    build_tree, color_to_hex, parse_hex_color, FolderRow, FolderTreeEvent, LeafBlock,
+    LoomFolderTree, COLOR_AUTHOR_ID_PREFIX, NODE_AUTHOR_ID_PREFIX, RETRY_AUTHOR_ID,
 };
 use handshake_native::theme::HsTheme;
 
@@ -114,7 +114,12 @@ fn harness_for(
 fn proof1_build_tree_from_flat_rows() {
     let rows = vec![
         FolderRow::new("f1", None, "Root", None),
-        FolderRow::new("f2", Some("f1".to_owned()), "Child", Some("#00ff00".to_owned())),
+        FolderRow::new(
+            "f2",
+            Some("f1".to_owned()),
+            "Child",
+            Some("#00ff00".to_owned()),
+        ),
         FolderRow::new("f3", None, "Other", None),
     ];
     let tree = build_tree(&rows);
@@ -142,7 +147,10 @@ fn proof2_accesskit_folder_nodes_present() {
     let ids = author_ids(&harness);
 
     // PROOF2: 2 folder-tree.node.* entries (one per seeded root folder).
-    let node_count = ids.iter().filter(|a| a.starts_with(NODE_AUTHOR_ID_PREFIX)).count();
+    let node_count = ids
+        .iter()
+        .filter(|a| a.starts_with(NODE_AUTHOR_ID_PREFIX))
+        .count();
     assert!(
         node_count >= 2,
         "PROOF2: expected >= 2 folder-tree.node.* AccessKit nodes, got {node_count} (ids={ids:?})"
@@ -159,7 +167,10 @@ fn proof2_accesskit_folder_nodes_present() {
     );
     // Each folder has a color swatch button id.
     assert!(
-        ids.iter().filter(|a| a.starts_with(COLOR_AUTHOR_ID_PREFIX)).count() >= 2,
+        ids.iter()
+            .filter(|a| a.starts_with(COLOR_AUTHOR_ID_PREFIX))
+            .count()
+            >= 2,
         "AC6: a color swatch button per folder (ids={ids:?})"
     );
 
@@ -176,7 +187,10 @@ fn proof2_accesskit_folder_nodes_present() {
             treeitem_found = true;
         }
     }
-    assert!(treeitem_found, "AC6: folder-tree.node.folder-001 not found for role check");
+    assert!(
+        treeitem_found,
+        "AC6: folder-tree.node.folder-001 not found for role check"
+    );
     println!("PROOF2 structural: {node_count} folder-tree.node.* nodes + swatch buttons present");
 }
 
@@ -186,7 +200,12 @@ fn proof2_accesskit_folder_nodes_present() {
 fn proof3_expand_folder_fires_event() {
     // ONE root folder so the disclosure triangle "▸" is unambiguous in the AccessKit tree.
     let mut tree = LoomFolderTree::new("ws-test");
-    tree.set_folders(&[FolderRow::new("folder-001", None, "Projects", Some("#ff0000".to_owned()))]);
+    tree.set_folders(&[FolderRow::new(
+        "folder-001",
+        None,
+        "Projects",
+        Some("#ff0000".to_owned()),
+    )]);
     let tree = shared(tree);
     let events = Arc::new(Mutex::new(Vec::new()));
     let mut harness = harness_for(Arc::clone(&tree), Arc::clone(&events));
@@ -198,7 +217,9 @@ fn proof3_expand_folder_fires_event() {
     harness.run();
 
     let ev = events.lock().unwrap().clone();
-    let expanded = ev.iter().any(|e| matches!(e, FolderTreeEvent::ExpandFolder { .. }));
+    let expanded = ev
+        .iter()
+        .any(|e| matches!(e, FolderTreeEvent::ExpandFolder { .. }));
     assert!(
         expanded,
         "PROOF3: clicking a collapsed folder's disclosure must emit ExpandFolder (got {ev:?})"
@@ -209,7 +230,10 @@ fn proof3_expand_folder_fires_event() {
         let t = tree.lock().unwrap();
         t.root_nodes.iter().any(|n| n.expanded)
     };
-    assert!(any_expanded, "PROOF3: the folder node is marked expanded after the click");
+    assert!(
+        any_expanded,
+        "PROOF3: the folder node is marked expanded after the click"
+    );
     println!("PROOF3: expand fired ExpandFolder + flipped node.expanded (events={ev:?})");
 }
 
@@ -237,7 +261,10 @@ fn proof3b_expanded_folder_renders_cached_children() {
     // The 3 leaf blocks now appear as folder-tree.node.* entries (AC2: children displayed beneath).
     for child in ["child-001", "child-002", "child-003"] {
         let id = format!("folder-tree.node.{child}");
-        assert!(ids.contains(&id), "AC2: leaf '{id}' must render when the folder is expanded (ids={ids:?})");
+        assert!(
+            ids.contains(&id),
+            "AC2: leaf '{id}' must render when the folder is expanded (ids={ids:?})"
+        );
     }
     // PROOF3 child count > 0 in the AccessKit tree.
     let leaf_count = ["child-001", "child-002", "child-003"]
@@ -274,7 +301,11 @@ fn proof4_recolor_request_shape() {
     // drive the widget state directly (the picker popup is an interactive egui popup; the produced
     // event is the externally-meaningful contract the host consumes).
     let red = parse_hex_color("#ff0000").unwrap();
-    assert_eq!(color_to_hex(red), "#ff0000", "PROOF4: picked Color32 -> hex round-trips for the PATCH body");
+    assert_eq!(
+        color_to_hex(red),
+        "#ff0000",
+        "PROOF4: picked Color32 -> hex round-trips for the PATCH body"
+    );
     println!("PROOF4: recolor request shape verified (URL + color-only merge-patch body)");
 }
 
@@ -379,7 +410,9 @@ fn ac7_empty_no_folders() {
     );
     let ids = author_ids(&harness);
     assert_eq!(
-        ids.iter().filter(|a| a.starts_with(NODE_AUTHOR_ID_PREFIX)).count(),
+        ids.iter()
+            .filter(|a| a.starts_with(NODE_AUTHOR_ID_PREFIX))
+            .count(),
         0,
         "AC7: no folder-tree.node.* nodes for an empty workspace"
     );
@@ -424,7 +457,10 @@ fn folder_list_request_hits_verified_route() {
     let client = LoomFolderClient::new("http://test.local:1234", rt.handle().clone());
 
     let list = client.list_folders_request("ws7");
-    assert_eq!(list.url, "http://test.local:1234/workspaces/ws7/loom/folders");
+    assert_eq!(
+        list.url,
+        "http://test.local:1234/workspaces/ws7/loom/folders"
+    );
     assert!(list.query.is_empty());
 
     let children = client.list_folder_blocks_request("ws7", "folder-001");
@@ -460,7 +496,9 @@ fn folder_tree_list_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let rows = data.expect("live PG fetch delivered within 5s").expect("live PG fetch ok");
+    let rows = data
+        .expect("live PG fetch delivered within 5s")
+        .expect("live PG fetch ok");
     assert!(
         rows.len() >= 2,
         "AC1 live: >= 2 seeded loom_folders expected from GET /loom/folders, got {}",
@@ -468,8 +506,15 @@ fn folder_tree_list_live_pg() {
     );
     // Build the tree from the live rows + assert it is non-empty (the real navigation surface).
     let tree = build_tree(&rows);
-    assert!(!tree.is_empty(), "AC1 live: the built forest has at least one root folder");
-    println!("AC1 live PG: {} folders enumerated, {} roots built", rows.len(), tree.len());
+    assert!(
+        !tree.is_empty(),
+        "AC1 live: the built forest has at least one root folder"
+    );
+    println!(
+        "AC1 live PG: {} folders enumerated, {} roots built",
+        rows.len(),
+        tree.len()
+    );
 }
 
 /// AC2 lazy-child-load against a REAL PG: expand a seeded folder, assert its blocks load. Gated.
@@ -492,11 +537,16 @@ fn folder_tree_children_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let leaves = data.expect("live PG fetch delivered within 5s").expect("live PG fetch ok");
+    let leaves = data
+        .expect("live PG fetch delivered within 5s")
+        .expect("live PG fetch ok");
     assert!(
         !leaves.is_empty(),
         "AC2 live: the seeded folder must have >= 1 member block, got {}",
         leaves.len()
     );
-    println!("AC2 live PG: {} child blocks loaded for folder-001", leaves.len());
+    println!(
+        "AC2 live PG: {} child blocks loaded for folder-001",
+        leaves.len()
+    );
 }

@@ -140,8 +140,14 @@ mod tests {
         let mut authors: HashSet<String> = HashSet::new();
         for i in 0..500usize {
             let path = [i];
-            assert!(ids.insert(block_node_id(&path)), "NodeId collision at block {i}");
-            assert!(authors.insert(block_author_id(&path)), "author_id collision at block {i}");
+            assert!(
+                ids.insert(block_node_id(&path)),
+                "NodeId collision at block {i}"
+            );
+            assert!(
+                authors.insert(block_author_id(&path)),
+                "author_id collision at block {i}"
+            );
         }
         assert_eq!(ids.len(), 500);
         assert_eq!(authors.len(), 500);
@@ -169,7 +175,10 @@ mod tests {
         for i in [0usize, 1, 499, 1000] {
             let id = block_node_id(&[i]);
             assert!(id >= BLOCK_NODE_ID_BASE, "block id below its band");
-            assert_ne!(id, RICH_EDITOR_ROOT_NODE_ID, "block id must not equal the root id");
+            assert_ne!(
+                id, RICH_EDITOR_ROOT_NODE_ID,
+                "block id must not equal the root id"
+            );
         }
     }
 

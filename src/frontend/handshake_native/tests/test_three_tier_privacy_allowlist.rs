@@ -268,7 +268,11 @@ fn survivor_store_records_are_typed_allowlist_system_wide() {
     // lifecycle `palmistry-survivor-*` schema Palmistry writes next to the ring.
     let allowed = survivor_record_allowed_keys();
 
-    for (label, raw) in [("freeze", freeze), ("crash", crash), ("lifecycle", lifecycle)] {
+    for (label, raw) in [
+        ("freeze", freeze),
+        ("crash", crash),
+        ("lifecycle", lifecycle),
+    ] {
         let value: Value = serde_json::from_str(raw).unwrap();
         assert_keys_and_values(&value, &allowed, &format!("survivor {label} record"));
     }

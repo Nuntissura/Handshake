@@ -58,8 +58,8 @@ fn app_three_tab_pane_a() -> HandshakeApp {
 }
 
 fn harness_for(app: HandshakeApp) -> Harness<'static, HandshakeApp> {
-    let mut harness = Harness::builder()
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.set_size(egui::Vec2::new(1200.0, 800.0));
     harness.run();
     // The rail-collapse flag is applied on the next frame; run once more so the 2x2 grid settles.
@@ -111,7 +111,12 @@ fn header_targets_present_menus_closed_by_default() {
     let nodes = live_author_nodes(&harness);
 
     // The four MT-020 per-pane header right-click targets are live and named.
-    for hid in ["pane-pane-a-header", "pane-pane-b-header", "pane-pane-c-header", "pane-pane-d-header"] {
+    for hid in [
+        "pane-pane-a-header",
+        "pane-pane-b-header",
+        "pane-pane-c-header",
+        "pane-pane-d-header",
+    ] {
         let found = nodes
             .iter()
             .find(|(a, _, _)| a == hid)
@@ -133,7 +138,9 @@ fn secondary_click_tab_opens_menu_with_contract_items() {
 
     // Right-click the Workspace tab (pane-a, label "Workspace"). Address by Role::Tab + label so the
     // pointer lands on the tab widget (the pane Group also carries a "Workspace" label).
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
 
@@ -160,7 +167,9 @@ fn tab_menu_close_removes_the_right_clicked_tab() {
     let mut harness = harness_for(app_three_tab_pane_a());
     assert_eq!(pane_a_tabs(&harness).len(), 3, "three tabs before close");
 
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
     // Activate "Close" — the genuine pointer path through the live menu item.
@@ -169,7 +178,10 @@ fn tab_menu_close_removes_the_right_clicked_tab() {
 
     let tabs = pane_a_tabs(&harness);
     assert_eq!(tabs.len(), 2, "Close removed one tab; got {tabs:?}");
-    assert!(!tabs.contains(&PaneType::Workspace), "the right-clicked Workspace tab is gone: {tabs:?}");
+    assert!(
+        !tabs.contains(&PaneType::Workspace),
+        "the right-clicked Workspace tab is gone: {tabs:?}"
+    );
     println!("PASS: tab menu Close removed the right-clicked tab (live + state)");
 }
 
@@ -180,14 +192,20 @@ fn tab_menu_close_others_keeps_only_the_right_clicked_tab() {
 
     // Right-click the Workspace tab (unique to pane-a; "Inference Lab" also labels pane-b's seeded
     // tab, which would make the query ambiguous), then Close Others -> only Workspace survives.
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
     harness.get_by_label("Close Others").click();
     harness.run();
 
     let tabs = pane_a_tabs(&harness);
-    assert_eq!(tabs, vec![PaneType::Workspace], "only the right-clicked tab remains: {tabs:?}");
+    assert_eq!(
+        tabs,
+        vec![PaneType::Workspace],
+        "only the right-clicked tab remains: {tabs:?}"
+    );
     println!("PASS: tab menu Close Others kept only the right-clicked tab");
 }
 
@@ -197,7 +215,9 @@ fn tab_menu_keyboard_arrow_enter_dispatches_close() {
     let mut harness = harness_for(app_three_tab_pane_a());
     assert_eq!(pane_a_tabs(&harness).len(), 3);
 
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
 
@@ -207,8 +227,15 @@ fn tab_menu_keyboard_arrow_enter_dispatches_close() {
     harness.run();
 
     let tabs = pane_a_tabs(&harness);
-    assert_eq!(tabs.len(), 2, "Enter on the highlighted Close leaf removed a tab; got {tabs:?}");
-    assert!(!tabs.contains(&PaneType::Workspace), "Workspace closed via keyboard: {tabs:?}");
+    assert_eq!(
+        tabs.len(),
+        2,
+        "Enter on the highlighted Close leaf removed a tab; got {tabs:?}"
+    );
+    assert!(
+        !tabs.contains(&PaneType::Workspace),
+        "Workspace closed via keyboard: {tabs:?}"
+    );
     println!("PASS: keyboard Enter on the open tab menu dispatched Close");
 }
 
@@ -219,19 +246,27 @@ fn tab_menu_disabled_split_does_not_fire() {
     let mut harness = harness_for(app_three_tab_pane_a());
     let before = pane_a_tabs(&harness);
 
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
 
     let nodes = live_author_nodes(&harness);
     assert!(
-        nodes.iter().any(|(a, _, _)| a == "ctx-menu.tab.split_right"),
+        nodes
+            .iter()
+            .any(|(a, _, _)| a == "ctx-menu.tab.split_right"),
         "disabled Split Right is present + addressable: {nodes:?}"
     );
     // Clicking a disabled egui item is ignored — the tab set is unchanged.
     harness.get_by_label("Split Right").click();
     harness.run();
-    assert_eq!(pane_a_tabs(&harness), before, "disabled Split Right fired no action");
+    assert_eq!(
+        pane_a_tabs(&harness),
+        before,
+        "disabled Split Right fired no action"
+    );
     println!("PASS: disabled tab menu item is addressable but does not fire (no fake-enable)");
 }
 
@@ -245,12 +280,16 @@ fn tab_menu_opens_via_shift_f10_keyboard() {
 
     // No menu before the keyboard open.
     assert!(
-        !live_author_nodes(&harness).iter().any(|(a, _, _)| a.starts_with("ctx-menu.")),
+        !live_author_nodes(&harness)
+            .iter()
+            .any(|(a, _, _)| a.starts_with("ctx-menu.")),
         "no context menu before Shift+F10"
     );
 
     // Focus the Workspace tab (the wiring gates the Shift+F10 open on the tab having focus), settle.
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").focus();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .focus();
     harness.run();
 
     // Press Shift+F10 — the keyboard context-menu trigger (egui 0.33 has no dedicated Menu key).
@@ -270,7 +309,9 @@ fn tab_menu_opens_via_shift_f10_keyboard() {
     );
     // Spot-check a known contract item is among the opened menu's nodes.
     assert!(
-        menu_items.iter().any(|a| a.as_str() == "ctx-menu.tab.close"),
+        menu_items
+            .iter()
+            .any(|a| a.as_str() == "ctx-menu.tab.close"),
         "the Shift+F10-opened menu carries the contract Close item; found {menu_items:?}"
     );
     println!(
@@ -288,7 +329,14 @@ fn secondary_click_pane_header_lock_toggles_lock_state() {
     // pane-a starts Unlocked.
     let pane_a: PaneId = Arc::from("pane-a");
     assert_eq!(
-        harness.state().pane_registry().lock().unwrap().get(&pane_a).unwrap().lock_state,
+        harness
+            .state()
+            .pane_registry()
+            .lock()
+            .unwrap()
+            .get(&pane_a)
+            .unwrap()
+            .lock_state,
         LockState::Unlocked,
     );
 
@@ -298,15 +346,29 @@ fn secondary_click_pane_header_lock_toggles_lock_state() {
 
     // The pane menu items are live.
     let nodes = live_author_nodes(&harness);
-    for leaf in ["ctx-menu.pane.lock", "ctx-menu.pane.pop_out", "ctx-menu.pane.set_type_editor"] {
-        assert!(nodes.iter().any(|(a, _, _)| a == leaf), "pane menu leaf {leaf} missing: {nodes:?}");
+    for leaf in [
+        "ctx-menu.pane.lock",
+        "ctx-menu.pane.pop_out",
+        "ctx-menu.pane.set_type_editor",
+    ] {
+        assert!(
+            nodes.iter().any(|(a, _, _)| a == leaf),
+            "pane menu leaf {leaf} missing: {nodes:?}"
+        );
     }
 
     // Activate "Lock Pane" -> the registry LockState flips to Locked.
     harness.get_by_label("Lock Pane").click();
     harness.run();
     assert_eq!(
-        harness.state().pane_registry().lock().unwrap().get(&pane_a).unwrap().lock_state,
+        harness
+            .state()
+            .pane_registry()
+            .lock()
+            .unwrap()
+            .get(&pane_a)
+            .unwrap()
+            .lock_state,
         LockState::Locked,
         "pane header menu Lock Pane locked the pane",
     );
@@ -329,7 +391,10 @@ fn pane_header_menu_set_type_is_disabled() {
         "ctx-menu.pane.set_type_browser",
         "ctx-menu.pane.close",
     ] {
-        assert!(nodes.iter().any(|(a, _, _)| a == leaf), "pane menu {leaf} present: {nodes:?}");
+        assert!(
+            nodes.iter().any(|(a, _, _)| a == leaf),
+            "pane menu {leaf} present: {nodes:?}"
+        );
     }
     println!("PASS: pane header Set Type / Close items are present but future-target (disabled)");
 }
@@ -421,7 +486,10 @@ fn explorer_document_rename_is_disabled() {
     harness.run();
 
     let nodes = live_author_nodes(&harness);
-    for leaf in ["ctx-menu.explorer.rename", "ctx-menu.explorer.reveal_in_graph"] {
+    for leaf in [
+        "ctx-menu.explorer.rename",
+        "ctx-menu.explorer.reveal_in_graph",
+    ] {
         assert!(
             nodes.iter().any(|(a, _, _)| a == leaf),
             "explorer {leaf} present + addressable on document row: {nodes:?}"
@@ -450,7 +518,10 @@ fn explorer_canvas_rename_is_disabled() {
     harness.run();
 
     let nodes = live_author_nodes(&harness);
-    for leaf in ["ctx-menu.explorer.rename", "ctx-menu.explorer.reveal_in_graph"] {
+    for leaf in [
+        "ctx-menu.explorer.rename",
+        "ctx-menu.explorer.reveal_in_graph",
+    ] {
         assert!(
             nodes.iter().any(|(a, _, _)| a == leaf),
             "explorer {leaf} present + addressable on canvas row: {nodes:?}"
@@ -480,13 +551,17 @@ fn secondary_click_project_tab_switches_project() {
 
     assert_eq!(harness.state().active_project_id(), "default-project");
 
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Second Project").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Second Project")
+        .click_secondary();
     harness.run();
     harness.run();
 
     let nodes = live_author_nodes(&harness);
     assert!(
-        nodes.iter().any(|(a, r, _)| a == "ctx-menu.project.activate" && r == "MenuItem"),
+        nodes
+            .iter()
+            .any(|(a, r, _)| a == "ctx-menu.project.activate" && r == "MenuItem"),
         "project menu Switch to Project item present: {nodes:?}"
     );
     harness.get_by_label("Switch to Project").click();
@@ -545,7 +620,11 @@ fn full_editor_availability() -> EditorBodyAvailability {
 
 /// A fully-available node (note + id + unresolved link), so every node entry is enabled.
 fn full_node_availability() -> NodeMenuAvailability {
-    NodeMenuAvailability { has_note: true, has_node_id: true, unresolved_link: true }
+    NodeMenuAvailability {
+        has_note: true,
+        has_node_id: true,
+        unresolved_link: true,
+    }
 }
 
 /// A state-less harness whose UI is a single right-clickable surface that opens the editor-body menu via
@@ -560,10 +639,15 @@ fn editor_body_harness(
         let (rect, response) =
             ui.allocate_exact_size(egui::vec2(220.0, 90.0), egui::Sense::click());
         if ui.is_rect_visible(rect) {
-            ui.painter().rect_filled(rect, 4.0, ui.visuals().faint_bg_color);
+            ui.painter()
+                .rect_filled(rect, 4.0, ui.visuals().faint_bg_color);
         }
         response.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), MT070_SURFACE_LABEL)
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::Button,
+                ui.is_enabled(),
+                MT070_SURFACE_LABEL,
+            )
         });
         if let Some(action) = show_editor_body_menu(&response, availability) {
             *captured.lock().unwrap() = Some(action);
@@ -580,10 +664,15 @@ fn node_menu_harness(
         let (rect, response) =
             ui.allocate_exact_size(egui::vec2(220.0, 90.0), egui::Sense::click());
         if ui.is_rect_visible(rect) {
-            ui.painter().rect_filled(rect, 4.0, ui.visuals().faint_bg_color);
+            ui.painter()
+                .rect_filled(rect, 4.0, ui.visuals().faint_bg_color);
         }
         response.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), MT070_SURFACE_LABEL)
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::Button,
+                ui.is_enabled(),
+                MT070_SURFACE_LABEL,
+            )
         });
         if let Some(action) = show_node_menu(&response, availability) {
             *captured.lock().unwrap() = Some(action);
@@ -615,7 +704,9 @@ fn mt070_editor_body_menu_renders_menuitems_with_stable_ids() {
     // presence after opening proves they are genuinely nested in the live popup, not memory-only).
     let closed = mt070_author_nodes(&harness);
     assert!(
-        !closed.iter().any(|(a, _, _)| a.starts_with("ctx-menu.code_editor_ctx")),
+        !closed
+            .iter()
+            .any(|(a, _, _)| a.starts_with("ctx-menu.code_editor_ctx")),
         "no editor-body menu items in the closed default frame: {closed:?}",
     );
 
@@ -631,7 +722,9 @@ fn mt070_editor_body_menu_renders_menuitems_with_stable_ids() {
         let found = nodes
             .iter()
             .find(|(a, _, _)| a == &want)
-            .unwrap_or_else(|| panic!("editor-body menu entry {want} missing/anonymous: {nodes:?}"));
+            .unwrap_or_else(|| {
+                panic!("editor-body menu entry {want} missing/anonymous: {nodes:?}")
+            });
         assert_eq!(found.1, "MenuItem", "{want} is a Role::MenuItem (AC-070-9)");
     }
     // AC-070-9 (container): the menu is open inside the WP-011 ContextMenu primitive's egui POPUP
@@ -656,12 +749,20 @@ fn mt070_editor_body_menu_renders_menuitems_with_stable_ids() {
 
 #[test]
 fn mt070_activating_rename_fires_real_rename_action() {
-    assert_activates_to(editor_body_ids::RENAME_SYMBOL, "Rename Symbol", EditorBodyMenuAction::RenameSymbol);
+    assert_activates_to(
+        editor_body_ids::RENAME_SYMBOL,
+        "Rename Symbol",
+        EditorBodyMenuAction::RenameSymbol,
+    );
 }
 
 #[test]
 fn mt070_activating_quick_fix_fires_real_quick_fix_action() {
-    assert_activates_to(editor_body_ids::QUICK_FIX, "Quick Fix...", EditorBodyMenuAction::QuickFix);
+    assert_activates_to(
+        editor_body_ids::QUICK_FIX,
+        "Quick Fix...",
+        EditorBodyMenuAction::QuickFix,
+    );
 }
 
 #[test]
@@ -757,13 +858,18 @@ fn mt070_node_menu_actions_dispatch_to_real_handlers() {
     let target = node_navigation_target(NodeMenuAction::RevealNode, &pane, "blk-9", None);
     assert_eq!(
         target,
-        Some(NavigationTarget::RevealNode { pane_id: pane.clone(), node_id: "blk-9".to_owned() }),
+        Some(NavigationTarget::RevealNode {
+            pane_id: pane.clone(),
+            node_id: "blk-9".to_owned()
+        }),
         "Reveal Node maps to a real RevealNode NavigationTarget by stable pane + node id",
     );
     let open = node_navigation_target(NodeMenuAction::OpenNote, &pane, "blk-9", Some("KRD-7"));
     assert_eq!(
         open,
-        Some(NavigationTarget::OpenNote { note_id: "KRD-7".to_owned() }),
+        Some(NavigationTarget::OpenNote {
+            note_id: "KRD-7".to_owned()
+        }),
         "Open Note maps to a real OpenNote NavigationTarget",
     );
     println!("PASS AC-070-4: node menu actions dispatch to real handlers + NavigationTargets");
@@ -802,19 +908,35 @@ fn mt070_no_required_entry_is_a_dead_handler() {
     // The menu BUILDERS render every required entry (no fake-drop), so the audit set matches the menu.
     let body_ids: Vec<&str> = editor_body_context_items(avail)
         .iter()
-        .filter(|i| !matches!(i.kind, handshake_native::context_menu::MenuItemKind::Separator))
+        .filter(|i| {
+            !matches!(
+                i.kind,
+                handshake_native::context_menu::MenuItemKind::Separator
+            )
+        })
         .map(|i| i.id)
         .collect();
     for required in EDITOR_BODY_REQUIRED_IDS {
-        assert!(body_ids.contains(required), "editor-body menu renders required id {required}");
+        assert!(
+            body_ids.contains(required),
+            "editor-body menu renders required id {required}"
+        );
     }
     let node_ids: Vec<&str> = node_context_items(navail)
         .iter()
-        .filter(|i| !matches!(i.kind, handshake_native::context_menu::MenuItemKind::Separator))
+        .filter(|i| {
+            !matches!(
+                i.kind,
+                handshake_native::context_menu::MenuItemKind::Separator
+            )
+        })
         .map(|i| i.id)
         .collect();
     for required in NODE_MENU_REQUIRED_IDS {
-        assert!(node_ids.contains(required), "node menu renders required id {required}");
+        assert!(
+            node_ids.contains(required),
+            "node menu renders required id {required}"
+        );
     }
     println!("PASS AC-070-5: no required context-menu entry is a dead/placeholder handler");
 }
@@ -852,14 +974,23 @@ fn mt070_editor_action_ids_reuse_existing_registry() {
     // in a ContextMenu and confirming the builder preserves them.
     let items = editor_body_context_items(full_editor_availability());
     let menu = ContextMenu::new("editor-body").items(items.clone());
-    assert_eq!(menu.entries().len(), items.len(), "menu uses the WP-011 ContextMenu builder verbatim");
+    assert_eq!(
+        menu.entries().len(),
+        items.len(),
+        "menu uses the WP-011 ContextMenu builder verbatim"
+    );
     // Sanity: a separator is the WP-011 primitive's separator (not a fabricated divider).
     assert!(
-        items.iter().any(|i| matches!(i.kind, handshake_native::context_menu::MenuItemKind::Separator)),
+        items.iter().any(|i| matches!(
+            i.kind,
+            handshake_native::context_menu::MenuItemKind::Separator
+        )),
         "the editor-body menu uses the WP-011 primitive's separator",
     );
     let _ = ContextMenuItem::separator(); // touch the primitive's constructor (compile-time reuse proof)
-    println!("PASS AC-070-7: editor-action ids reuse the existing registry; built via WP-011 primitive");
+    println!(
+        "PASS AC-070-7: editor-action ids reuse the existing registry; built via WP-011 primitive"
+    );
 }
 
 // ── Honest enable/disable: a dead-but-enabled entry is impossible (a no-target entry is DISABLED) ─────
@@ -872,12 +1003,17 @@ fn mt070_unavailable_entry_is_disabled_not_dead_enabled() {
     let empty = EditorBodyAvailability::default();
     let items = editor_body_context_items(empty);
     for required in EDITOR_BODY_REQUIRED_IDS {
-        let item = items
-            .iter()
-            .find(|i| i.id == *required)
-            .unwrap_or_else(|| panic!("entry {required} still RENDERED when unavailable (no fake-drop)"));
-        assert!(!item.enabled, "{required} is DISABLED when it has no target (not dead-but-enabled)");
-        assert!(item.disabled_reason.is_some(), "{required} discloses WHY it is disabled");
+        let item = items.iter().find(|i| i.id == *required).unwrap_or_else(|| {
+            panic!("entry {required} still RENDERED when unavailable (no fake-drop)")
+        });
+        assert!(
+            !item.enabled,
+            "{required} is DISABLED when it has no target (not dead-but-enabled)"
+        );
+        assert!(
+            item.disabled_reason.is_some(),
+            "{required} discloses WHY it is disabled"
+        );
         assert_eq!(
             editor_body_action_for_id(required, empty),
             None,
@@ -886,4 +1022,3 @@ fn mt070_unavailable_entry_is_disabled_not_dead_enabled() {
     }
     println!("PASS RISK-070-1: an unavailable editor-body entry is disabled+disclosed, never dead-enabled");
 }
-

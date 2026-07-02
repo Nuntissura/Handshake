@@ -391,17 +391,21 @@ model-session-launch.provider.local, model-session-launch.provider.cloud, \
 model-session-launch.folder, model-session-launch.model, model-session-launch.wrapper, \
 model-session-launch.start, model-session-launch.cancel, and model-session-launch.inline-status. \
 Submitting issues a real POST /jobs body with job_kind=model_run, protocol_id=protocol-default, no doc_id \
-for a folder-only launch, and job_inputs carrying workspace_id, workspace_folder, working_dir, \
-model_provider, model_id, backend, wrapper, wp_id, and mt_id. That proves job creation only: live local or \
-cloud execution remains NEEDS_MANAGED_RESOURCE_PROOF until a managed handshake_core returns runtime state. \
+for a folder-only launch, and job_inputs carrying session_id, workspace_id, workspace_folder, working_dir, \
+model_provider, model_id, backend, wrapper, wp_id, and mt_id. The same session_id is preserved in \
+model-session-launch-status for state recovery. That proves job creation plus durable model-session \
+correlation; live local or cloud execution remains NEEDS_MANAGED_RESOURCE_PROOF until a managed \
+handshake_core returns runtime state. \
 The direct repo-folder-bound session spawn with wrapper remains IPC-only via kernel_swarm_spawn_session in \
 app/src-tauri/src/commands/swarm_runtime.rs, so the native frontend surfaces \
 model-session-launch-status with EndpointMissing kernel_swarm_spawn_session rather than fabricating a \
-session id, running model, local GGUF load, or cloud run result. A model must not fabricate a session id \
-or claim 'model running' state unless a managed backend returns that runtime proof. Inference Lab remains available at \
-menu.run.inference-lab for broader model inspection, but it is not the MT-101 launch path. Settings -> \
-Model Session is read-only/not-yet-wired in this build; actual MT-101 launch values come only from the \
-one-shot dialog."
+running model, local GGUF load, or cloud run result. A model must not fabricate a session id as proof of \
+runtime state; the request session_id is correlation only until a managed backend returns runtime proof. \
+A model must not claim 'model running' state unless a managed backend returns that runtime proof. \
+Inference Lab remains available at menu.run.inference-lab \
+for broader model inspection, but it is not the MT-101 launch path. Settings -> Model Session exposes \
+settings.model-session.open-launch, which closes Settings and opens this same one-shot dialog; the initial \
+provider and wrapper shown there are launch-dialog seeds, not persistent hidden model defaults."
         .to_owned()
 }
 
@@ -541,8 +545,7 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             surface: ManualSurface::Code,
             action_label: "Type a command into the palette",
             mcp_tool: "set_value",
-            description:
-                "set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
+            description: "set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
         },
         AgentToolRow {
             author_id: PALETTE_LIST_AUTHOR_ID,
@@ -570,8 +573,7 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             surface: ManualSurface::Chat,
             action_label: "Read Runtime Chat endpoint status",
             mcp_tool: "list_widgets",
-            description:
-                "list_widgets surfaces runtime-chat-status with EndpointMissing and the probed route.",
+            description: "list_widgets surfaces runtime-chat-status with EndpointMissing and the probed route.",
         },
         AgentToolRow {
             author_id: crate::runtime_chat::RUNTIME_CHAT_INPUT_AUTHOR_ID,

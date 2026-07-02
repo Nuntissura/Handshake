@@ -34,11 +34,11 @@ use handshake_core::user_manual::bundle_bridge::{
     ensure_manual_page_entity, manual_bundle_candidate,
 };
 use handshake_core::user_manual::fixtures::{delete_page, insert_orphan_page, unreachable_pages};
-use handshake_core::user_manual::freshness::{FreshnessVerdictKind, check_freshness};
+use handshake_core::user_manual::freshness::{check_freshness, FreshnessVerdictKind};
 use handshake_core::user_manual::seed::{ensure_seeded, seed_corpus};
 use handshake_core::user_manual::spec_seed::spec_enrichment_seed;
 use handshake_core::user_manual::store::UserManualStore;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::path::PathBuf;
 use user_manual_support::{app_state_for, start_server};
 
@@ -119,7 +119,8 @@ async fn mt196_documented_startup_constants_match_product_source() {
         managed.contains("5544"),
         "managed_postgres.rs default port changed — update the manual"
     );
-    assert!(page_text.contains("managed_pgdata"));
+    assert!(page_text.contains("Handshake_Artifacts/handshake-product/managed_pgdata"));
+    assert!(managed.contains("handshake-product"));
     assert!(managed.contains("managed_pgdata"));
     // The documented mounts exist in main.rs (`/api` nest + merge at root).
     assert!(main_rs.contains(".nest(\"/api\", api_routes)"));
@@ -432,12 +433,10 @@ async fn mt202_bundle_cites_manual_page_with_version_and_anchor() {
         "citation must carry the drift hash prefix: {citation}"
     );
     // The bundle itself is targeted at the manual page.
-    assert!(
-        bundle
-            .allowed_context
-            .to_string()
-            .contains("user_manual_page")
-    );
+    assert!(bundle
+        .allowed_context
+        .to_string()
+        .contains("user_manual_page"));
 }
 
 // ---------------------------------------------------------------------------
@@ -727,13 +726,11 @@ async fn mt208_legacy_redirect_fixture() {
         .expect("model_manual_get maps");
     assert_eq!(alias.canonical_kind, "route");
     assert_eq!(alias.canonical_ref, "/usermanual/legacy/model-manual");
-    assert!(
-        store
-            .get_legacy_alias("model_manual_get_v2_definitely_unknown")
-            .await
-            .expect("unknown alias query")
-            .is_none()
-    );
+    assert!(store
+        .get_legacy_alias("model_manual_get_v2_definitely_unknown")
+        .await
+        .expect("unknown alias query")
+        .is_none());
 }
 
 /// MT-208: visual-navigation fixture — an orphan page (nothing links to it)

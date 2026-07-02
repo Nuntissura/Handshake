@@ -53,7 +53,7 @@ impl ScrollHost {
             content_size: 1000.0,
             viewport_size: 200.0,
             colors: RailColors::from_palette(&HsPalette::dark()),
-            node_id: SCROLLBAR_V_NODE_IDS[0].1,   // pane-a's vertical scrollbar id (40)
+            node_id: SCROLLBAR_V_NODE_IDS[0].1, // pane-a's vertical scrollbar id (40)
             author_id: SCROLLBAR_V_NODE_IDS[0].0.to_owned(), // "scrollbar-v-pane-a"
         }
     }
@@ -68,7 +68,10 @@ impl ScrollHost {
             // A vertical scrollbar rail track pinned to the right edge of the pane, full height.
             let track = egui::Rect::from_min_max(
                 egui::pos2(full.right() - 8.0, full.top()),
-                egui::pos2(full.right(), full.top() + self.viewport_size.min(full.height())),
+                egui::pos2(
+                    full.right(),
+                    full.top() + self.viewport_size.min(full.height()),
+                ),
             );
             let rail = ScrollbarRail {
                 id: scrollbar_rail_id(self.node_id),
@@ -126,7 +129,10 @@ fn overflow_pane_emits_one_scrollbar_node_with_contract_author_id() {
     assert_eq!(role, "ScrollBar", "role is ScrollBar");
     assert_eq!(author_id, "scrollbar-v-pane-a", "contract author_id");
     let v = value.expect("scrollbar carries a numeric value (offset fraction)");
-    assert!((0.0..=1.0).contains(&v), "offset fraction in [0,1]; got {v}");
+    assert!(
+        (0.0..=1.0).contains(&v),
+        "offset fraction in [0,1]; got {v}"
+    );
     println!("PASS: overflow pane emits one ScrollBar '{author_id}' value {v}");
 }
 
@@ -161,7 +167,10 @@ fn setvalue_half_moves_offset_to_half_of_scroll_range() {
     // The live node's numeric value now reads ~0.5 too.
     let bars = live_scrollbars(&harness);
     let v = bars[0].2.expect("numeric value");
-    assert!((v - 0.5).abs() < 1e-2, "live node value ~0.5 after SetValue; got {v}");
+    assert!(
+        (v - 0.5).abs() < 1e-2,
+        "live node value ~0.5 after SetValue; got {v}"
+    );
     println!("PASS: live SetValue(0.5) moved offset to {offset} (= 0.5 * {max_off})");
 }
 
@@ -181,7 +190,10 @@ fn scrollup_scrolldown_actions_step_the_offset() {
     }));
     harness.run();
     let after_down = harness.state().offset;
-    assert!((after_down - 40.0).abs() < 1e-2, "ScrollDown steps +40px; got {after_down}");
+    assert!(
+        (after_down - 40.0).abs() < 1e-2,
+        "ScrollDown steps +40px; got {after_down}"
+    );
 
     // ScrollUp returns toward 0.
     harness.event(egui::Event::AccessKitActionRequest(ActionRequest {
@@ -191,7 +203,10 @@ fn scrollup_scrolldown_actions_step_the_offset() {
     }));
     harness.run();
     let after_up = harness.state().offset;
-    assert!((after_up - 0.0).abs() < 1e-2, "ScrollUp steps -40px back to 0; got {after_up}");
+    assert!(
+        (after_up - 0.0).abs() < 1e-2,
+        "ScrollUp steps -40px back to 0; got {after_up}"
+    );
     println!("PASS: ScrollDown/ScrollUp stepped the live offset (+40 then -40)");
 }
 
@@ -224,20 +239,41 @@ fn global_scrollbar_style_sets_bar_width_and_preserves_panel_fill() {
         (style.spacing.scroll.handle_min_length - 20.0).abs() < 1e-4,
         "scrollbar handle_min_length set to 20.0 (rail min thumb)"
     );
-    assert!(!style.spacing.scroll.floating, "scrollbar reserves space (non-floating rail)");
+    assert!(
+        !style.spacing.scroll.floating,
+        "scrollbar reserves space (non-floating rail)"
+    );
     // Red-team control: backgrounds untouched.
-    assert_eq!(style.visuals.panel_fill, before_panel, "panel_fill must be unchanged");
-    assert_eq!(style.visuals.panel_fill, sentinel, "panel_fill still the sentinel");
-    assert_eq!(style.visuals.window_fill, before_window, "window_fill must be unchanged");
+    assert_eq!(
+        style.visuals.panel_fill, before_panel,
+        "panel_fill must be unchanged"
+    );
+    assert_eq!(
+        style.visuals.panel_fill, sentinel,
+        "panel_fill still the sentinel"
+    );
+    assert_eq!(
+        style.visuals.window_fill, before_window,
+        "window_fill must be unchanged"
+    );
     assert_eq!(
         style.visuals.extreme_bg_color, before_extreme,
         "extreme_bg_color (editor bg) must be unchanged"
     );
     // The handle fills DID pick up the rail palette.
     let dark = RailColors::from_palette(&HsPalette::dark());
-    assert_eq!(style.visuals.widgets.inactive.bg_fill, dark.idle, "handle idle = rail idle");
-    assert_eq!(style.visuals.widgets.hovered.bg_fill, dark.hover, "handle hover = rail hover");
-    assert_eq!(style.visuals.widgets.active.bg_fill, dark.grab, "handle grab = rail grab");
+    assert_eq!(
+        style.visuals.widgets.inactive.bg_fill, dark.idle,
+        "handle idle = rail idle"
+    );
+    assert_eq!(
+        style.visuals.widgets.hovered.bg_fill, dark.hover,
+        "handle hover = rail hover"
+    );
+    assert_eq!(
+        style.visuals.widgets.active.bg_fill, dark.grab,
+        "handle grab = rail grab"
+    );
     println!("PASS: global scrollbar style set bar_width=8 + handle colors; backgrounds preserved");
 }
 
@@ -276,10 +312,14 @@ fn capture_divider_state(name: &str, drive: impl FnOnce(&mut Harness<'_, Handsha
 
     match harness.render() {
         Ok(img) => {
-            assert!(img.width() > 0 && img.height() > 0, "{name}: non-empty render");
+            assert!(
+                img.width() > 0 && img.height() > 0,
+                "{name}: non-empty render"
+            );
             // Best-effort artifact write (CX-212E external root). Resolve relative to the crate's
             // configured target dir parent so the path is disk-agnostic.
-            let dir = std::path::Path::new("../../../../Handshake_Artifacts/handshake-test/mt010-rails");
+            let dir =
+                std::path::Path::new("../../../../Handshake_Artifacts/handshake-test/mt010-rails");
             let _ = std::fs::create_dir_all(dir);
             let path = dir.join(format!("divider-{name}.png"));
             if let Err(e) = img.save(&path) {
@@ -327,5 +367,7 @@ fn divider_state_screenshots_idle_hover_grab_dark() {
         h.hover_at(egui::pos2(grab.x, grab.y + 20.0));
         h.step();
     });
-    println!("PASS: idle/hover/grab divider states rendered through the integrated rail paint path");
+    println!(
+        "PASS: idle/hover/grab divider states rendered through the integrated rail paint path"
+    );
 }

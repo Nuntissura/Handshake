@@ -30,8 +30,8 @@ use egui_kittest::Harness;
 
 use handshake_native::app::HandshakeApp;
 use handshake_native::text_intl::{
-    break_opportunities, char_count, is_break_before, next_grapheme_boundary, prev_grapheme_boundary,
-    word_count, BreakOpportunity,
+    break_opportunities, char_count, is_break_before, next_grapheme_boundary,
+    prev_grapheme_boundary, word_count, BreakOpportunity,
 };
 
 /// Crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. The crate sits at
@@ -84,10 +84,22 @@ fn public_grapheme_boundaries_cross_clusters_whole() {
         "AC4: previous grapheme boundary removes the whole family emoji"
     );
     // Combining accent + flag + decomposed Hangul are each ONE cluster too.
-    assert_eq!(next_grapheme_boundary("e\u{0301}", 0), "e\u{0301}".len(), "combining é is one cluster");
-    assert_eq!(next_grapheme_boundary("🇯🇵", 0), "🇯🇵".len(), "flag is one cluster");
+    assert_eq!(
+        next_grapheme_boundary("e\u{0301}", 0),
+        "e\u{0301}".len(),
+        "combining é is one cluster"
+    );
+    assert_eq!(
+        next_grapheme_boundary("🇯🇵", 0),
+        "🇯🇵".len(),
+        "flag is one cluster"
+    );
     let hangul = "\u{1112}\u{1161}\u{11AB}"; // ᄒ ᅡ ᆫ -> 한
-    assert_eq!(next_grapheme_boundary(hangul, 0), hangul.len(), "decomposed Hangul syllable is one cluster");
+    assert_eq!(
+        next_grapheme_boundary(hangul, 0),
+        hangul.len(),
+        "decomposed Hangul syllable is one cluster"
+    );
 
     // AC7 no-regression: ASCII still steps one byte per cluster.
     assert_eq!(next_grapheme_boundary("hello", 0), 1);
@@ -128,17 +140,37 @@ fn public_cjk_break_opportunities_and_kinsoku() {
 #[test]
 fn public_unicode_counts_are_documented() {
     // AC5: a mixed string counts per UAX#29 words. "Hello 世界 test" -> Hello + 世 + 界 + test = 4.
-    assert_eq!(word_count("Hello 世界 test"), 4, "AC5: mixed Latin+CJK word count is 4 (documented)");
+    assert_eq!(
+        word_count("Hello 世界 test"),
+        4,
+        "AC5: mixed Latin+CJK word count is 4 (documented)"
+    );
     // A spaceless CJK sentence is NOT one word.
-    assert_eq!(word_count("今天我写了很多字"), 8, "AC5: spaceless CJK counts per-ideograph, not 1");
+    assert_eq!(
+        word_count("今天我写了很多字"),
+        8,
+        "AC5: spaceless CJK counts per-ideograph, not 1"
+    );
     // AC7 no-regression: ASCII prose unchanged.
     assert_eq!(word_count("hello world"), 2);
 
     // AC6: char count = grapheme clusters. The family emoji is ONE character.
-    assert_eq!(char_count(FAMILY), 1, "AC6: the family emoji counts as 1 character (grapheme cluster)");
-    assert_eq!(char_count("e\u{0301}"), 1, "AC6: combining é is 1 character");
+    assert_eq!(
+        char_count(FAMILY),
+        1,
+        "AC6: the family emoji counts as 1 character (grapheme cluster)"
+    );
+    assert_eq!(
+        char_count("e\u{0301}"),
+        1,
+        "AC6: combining é is 1 character"
+    );
     assert_eq!(char_count("🇯🇵"), 1, "AC6: a flag is 1 character");
-    assert_eq!(char_count("日本語"), 3, "AC6: a CJK string counts each ideograph");
+    assert_eq!(
+        char_count("日本語"),
+        3,
+        "AC6: a CJK string counts each ideograph"
+    );
     // AC7 no-regression: ASCII char count unchanged.
     assert_eq!(char_count("hello"), 5);
 }
@@ -206,10 +238,13 @@ fn cjk_paragraph_wrap_screenshot() {
             let raw = image.as_raw();
             let stride = w as usize * 4;
             // Background = the most common opaque pixel.
-            let mut bg_counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut bg_counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             for chunk in raw.chunks_exact(4) {
                 if chunk[3] != 0 {
-                    *bg_counts.entry([chunk[0], chunk[1], chunk[2], chunk[3]]).or_insert(0) += 1;
+                    *bg_counts
+                        .entry([chunk[0], chunk[1], chunk[2], chunk[3]])
+                        .or_insert(0) += 1;
                 }
             }
             let bg = bg_counts.iter().max_by_key(|(_, c)| **c).map(|(p, _)| *p);
@@ -219,9 +254,9 @@ fn cjk_paragraph_wrap_screenshot() {
             let mut bands = 0usize;
             for y in 0..h as usize {
                 let row = &raw[y * stride..(y + 1) * stride];
-                let has_fg = row.chunks_exact(4).any(|px| {
-                    px[3] != 0 && Some([px[0], px[1], px[2], px[3]]) != bg
-                });
+                let has_fg = row
+                    .chunks_exact(4)
+                    .any(|px| px[3] != 0 && Some([px[0], px[1], px[2], px[3]]) != bg);
                 if has_fg {
                     text_rows += 1;
                     if !prev_had {

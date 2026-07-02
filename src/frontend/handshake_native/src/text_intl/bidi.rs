@@ -160,7 +160,11 @@ pub fn base_direction(text: &str) -> Direction {
 pub fn reorder_line(text: &str) -> ReorderedLine {
     let base = base_direction(text);
     if text.is_empty() {
-        return ReorderedLine { visual_text: String::new(), base, runs: Vec::new() };
+        return ReorderedLine {
+            visual_text: String::new(),
+            base,
+            runs: Vec::new(),
+        };
     }
 
     let info = BidiInfo::new(text, None);
@@ -170,7 +174,10 @@ pub fn reorder_line(text: &str) -> ReorderedLine {
         return ReorderedLine {
             visual_text: text.to_string(),
             base,
-            runs: vec![VisualRun { logical_range: 0..text.len(), rtl: false }],
+            runs: vec![VisualRun {
+                logical_range: 0..text.len(),
+                rtl: false,
+            }],
         };
     };
     let line = para.range.clone();
@@ -193,10 +200,17 @@ pub fn reorder_line(text: &str) -> ReorderedLine {
         } else {
             visual_text.push_str(slice);
         }
-        runs.push(VisualRun { logical_range: run, rtl });
+        runs.push(VisualRun {
+            logical_range: run,
+            rtl,
+        });
     }
 
-    ReorderedLine { visual_text, base, runs }
+    ReorderedLine {
+        visual_text,
+        base,
+        runs,
+    }
 }
 
 /// Reverse the grapheme clusters of `s`, yielding them last-to-first. Used for emitting an RTL run in
@@ -318,23 +332,50 @@ mod tests {
         assert_eq!(base_direction("hello"), Direction::Ltr, "Latin -> LTR");
         assert_eq!(base_direction("Привет"), Direction::Ltr, "Cyrillic -> LTR");
         assert_eq!(base_direction("中文"), Direction::Ltr, "CJK -> LTR");
-        assert_eq!(base_direction(HEBREW_HELLO), Direction::Rtl, "Hebrew first-strong -> RTL");
-        assert_eq!(base_direction(ARABIC), Direction::Rtl, "Arabic first-strong -> RTL");
+        assert_eq!(
+            base_direction(HEBREW_HELLO),
+            Direction::Rtl,
+            "Hebrew first-strong -> RTL"
+        );
+        assert_eq!(
+            base_direction(ARABIC),
+            Direction::Rtl,
+            "Arabic first-strong -> RTL"
+        );
         // A line starting with digits/punctuation (no strong char) is LTR by default; a digit then Hebrew
         // is still RTL only if the FIRST STRONG char is RTL — "123" has no strong char -> LTR.
-        assert_eq!(base_direction("123"), Direction::Ltr, "digits-only -> LTR default");
+        assert_eq!(
+            base_direction("123"),
+            Direction::Ltr,
+            "digits-only -> LTR default"
+        );
         assert_eq!(base_direction(""), Direction::Ltr, "empty -> LTR default");
         // Leading LTR word makes the whole paragraph LTR even if Hebrew follows (first strong = Latin).
-        assert_eq!(base_direction("abc שלום"), Direction::Ltr, "first strong Latin -> LTR base");
+        assert_eq!(
+            base_direction("abc שלום"),
+            Direction::Ltr,
+            "first strong Latin -> LTR base"
+        );
         // Leading Hebrew then Latin -> RTL base (first strong = Hebrew).
-        assert_eq!(base_direction("שלום abc"), Direction::Rtl, "first strong Hebrew -> RTL base");
+        assert_eq!(
+            base_direction("שלום abc"),
+            Direction::Rtl,
+            "first strong Hebrew -> RTL base"
+        );
     }
 
     #[test]
     fn ltr_reorder_is_identity_no_regression() {
         // AC6 / MC-3 / RISK-2: bidi MUST be a NO-OP (identity) for pure-LTR text so MT-075/077 LTR + CJK
         // rendering is byte-for-byte unchanged. Prove it for Latin, Cyrillic, CJK, digits, mixed-with-spaces.
-        for s in ["hello world", "Привет мир", "这是中文段落", "abc 123 def", "", "a"] {
+        for s in [
+            "hello world",
+            "Привет мир",
+            "这是中文段落",
+            "abc 123 def",
+            "",
+            "a",
+        ] {
             let r = reorder_line(s);
             assert!(
                 r.is_identity(s),
@@ -344,7 +385,10 @@ mod tests {
                 r.runs
             );
             // The visual text equals the input exactly (the strongest identity statement).
-            assert_eq!(r.visual_text, s, "LTR reorder must not change the text for {s:?}");
+            assert_eq!(
+                r.visual_text, s,
+                "LTR reorder must not change the text for {s:?}"
+            );
         }
     }
 
@@ -354,7 +398,10 @@ mod tests {
         // is a single RTL run, so the whole line reverses for display).
         let r = reorder_line(HEBREW_HELLO);
         assert_eq!(r.base, Direction::Rtl, "Hebrew line base is RTL");
-        assert!(!r.is_identity(HEBREW_HELLO), "an RTL line must NOT be identity");
+        assert!(
+            !r.is_identity(HEBREW_HELLO),
+            "an RTL line must NOT be identity"
+        );
         // The visual string is the grapheme-reversed logical string (one RTL run).
         let expected_visual: String = {
             use unicode_segmentation::UnicodeSegmentation;
@@ -380,7 +427,10 @@ mod tests {
         // The base is LTR (first strong char is Latin 'a').
         assert_eq!(r.base, Direction::Ltr, "first strong is Latin -> LTR base");
         // It is NOT identity: a mixed line with an RTL run must reorder.
-        assert!(!r.is_identity(&logical), "a mixed bidi line must reorder (not identity)");
+        assert!(
+            !r.is_identity(&logical),
+            "a mixed bidi line must reorder (not identity)"
+        );
         // The visual text must contain the Hebrew run REVERSED (visual order) — assert the reversed Hebrew
         // grapheme sequence appears, and the original logical Hebrew substring does NOT appear verbatim
         // (because it was reversed for display).
@@ -415,7 +465,10 @@ mod tests {
         let mut visual_gr: Vec<&str> = r.visual_text.graphemes(true).collect();
         logical_gr.sort_unstable();
         visual_gr.sort_unstable();
-        assert_eq!(logical_gr, visual_gr, "reorder must preserve the multiset of grapheme clusters");
+        assert_eq!(
+            logical_gr, visual_gr,
+            "reorder must preserve the multiset of grapheme clusters"
+        );
     }
 
     #[test]
@@ -424,9 +477,20 @@ mod tests {
         // broken). The glyphs are present (font chain has them) but unshaped (isolated forms).
         let lim = shaping_limitation(ARABIC).expect("Arabic must raise a shaping limitation");
         assert_eq!(lim.script, ComplexScript::Arabic);
-        assert!(lim.note.to_lowercase().contains("arabic"), "note names Arabic: {:?}", lim.note);
-        assert!(lim.note.to_lowercase().contains("limit"), "note says 'limited': {:?}", lim.note);
-        assert!(!lim.pointer.is_empty(), "a future-MT pointer must be recorded");
+        assert!(
+            lim.note.to_lowercase().contains("arabic"),
+            "note names Arabic: {:?}",
+            lim.note
+        );
+        assert!(
+            lim.note.to_lowercase().contains("limit"),
+            "note says 'limited': {:?}",
+            lim.note
+        );
+        assert!(
+            !lim.pointer.is_empty(),
+            "a future-MT pointer must be recorded"
+        );
         assert_eq!(lim.pointer, SHAPING_FOLLOW_ON_POINTER);
         assert!(contains_arabic(ARABIC));
     }
@@ -434,9 +498,14 @@ mod tests {
     #[test]
     fn indic_raises_typed_limitation() {
         // AC5: Indic (Devanagari) also raises the typed limitation (conjuncts/reordering unshaped).
-        let lim = shaping_limitation(DEVANAGARI).expect("Devanagari must raise a shaping limitation");
+        let lim =
+            shaping_limitation(DEVANAGARI).expect("Devanagari must raise a shaping limitation");
         assert_eq!(lim.script, ComplexScript::Indic);
-        assert!(lim.note.to_lowercase().contains("indic"), "note names Indic: {:?}", lim.note);
+        assert!(
+            lim.note.to_lowercase().contains("indic"),
+            "note names Indic: {:?}",
+            lim.note
+        );
         assert!(contains_indic(DEVANAGARI));
     }
 
@@ -444,9 +513,18 @@ mod tests {
     fn hebrew_and_ltr_raise_no_limitation() {
         // Hebrew is NON-JOINING (the honest RTL case) — it must NOT raise a shaping limitation. Latin/CJK
         // must not either. Only Arabic/Indic do. This is what makes Hebrew the honest end-to-end RTL proof.
-        assert!(shaping_limitation(HEBREW_HELLO).is_none(), "Hebrew is fully handled — no limitation");
-        assert!(shaping_limitation("hello world").is_none(), "Latin — no limitation");
-        assert!(shaping_limitation("中文 段落").is_none(), "CJK — no limitation");
+        assert!(
+            shaping_limitation(HEBREW_HELLO).is_none(),
+            "Hebrew is fully handled — no limitation"
+        );
+        assert!(
+            shaping_limitation("hello world").is_none(),
+            "Latin — no limitation"
+        );
+        assert!(
+            shaping_limitation("中文 段落").is_none(),
+            "CJK — no limitation"
+        );
         assert!(contains_hebrew(HEBREW_HELLO));
         assert!(!contains_arabic(HEBREW_HELLO), "Hebrew is not Arabic");
     }

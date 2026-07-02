@@ -149,9 +149,11 @@ where
 
     // Inline tags first (document order), then property-only tags. Both go through the SAME
     // normalization so a tag that exists in both sets dedupes to one edge.
-    for raw in inline_tags.into_iter().map(|s| s.as_ref().to_owned()).chain(
-        property_tags.into_iter().map(|s| s.as_ref().to_owned()),
-    ) {
+    for raw in inline_tags
+        .into_iter()
+        .map(|s| s.as_ref().to_owned())
+        .chain(property_tags.into_iter().map(|s| s.as_ref().to_owned()))
+    {
         let canonical = normalize_tag(&raw);
         if canonical.is_empty() {
             continue; // not a real tag identity.
@@ -159,7 +161,11 @@ where
         if seen.insert(canonical.clone()) {
             // The display name is the original-case body without a leading `#` (first occurrence wins).
             let display = raw.trim().trim_start_matches('#').trim().to_owned();
-            let display = if display.is_empty() { canonical.clone() } else { display };
+            let display = if display.is_empty() {
+                canonical.clone()
+            } else {
+                display
+            };
             edges.push(TagEdge { canonical, display });
         }
     }
@@ -187,12 +193,18 @@ pub struct TagMenuItem {
 impl TagMenuItem {
     /// An existing-tag row (from the tag-hub list).
     pub fn existing(name: impl Into<String>) -> Self {
-        Self { tag: Tag::new(name), is_new: false }
+        Self {
+            tag: Tag::new(name),
+            is_new: false,
+        }
     }
 
     /// The synthetic "create new tag" row for a free-typed `query`.
     pub fn new_tag(name: impl Into<String>) -> Self {
-        Self { tag: Tag::new(name), is_new: true }
+        Self {
+            tag: Tag::new(name),
+            is_new: true,
+        }
     }
 
     /// The display label for the menu row (`#name`, with a `(new tag)` suffix for a create row).
@@ -227,7 +239,12 @@ impl TagAutocompleteState {
     /// Open the popup for a `#` trigger at `trigger_start_char` in the leaf at `leaf_path`, with the
     /// initial `query` typed so far.
     pub fn open(trigger_start_char: usize, leaf_path: Vec<usize>, query: String) -> Self {
-        Self { trigger_start_char, leaf_path, query, selected: 0 }
+        Self {
+            trigger_start_char,
+            leaf_path,
+            query,
+            selected: 0,
+        }
     }
 
     /// Update the typed query (a keystroke refined the trigger). Resets the selection to the top (the
@@ -292,7 +309,10 @@ pub fn tag_menu_items(query: &str, available: &[String]) -> Vec<TagMenuItem> {
         existing.push((rank, tag.name));
     }
     // Sort by rank then display name (stable, deterministic).
-    existing.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.to_lowercase().cmp(&b.1.to_lowercase())));
+    existing.sort_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then_with(|| a.1.to_lowercase().cmp(&b.1.to_lowercase()))
+    });
 
     let mut items: Vec<TagMenuItem> = existing
         .into_iter()
@@ -301,7 +321,9 @@ pub fn tag_menu_items(query: &str, available: &[String]) -> Vec<TagMenuItem> {
 
     // AC-006: offer a "create new tag" row for the free-typed query unless it already exists exactly.
     if !nq.is_empty() && !exact_existing {
-        items.push(TagMenuItem::new_tag(query.trim().trim_start_matches('#').trim()));
+        items.push(TagMenuItem::new_tag(
+            query.trim().trim_start_matches('#').trim(),
+        ));
     }
     items
 }
@@ -324,8 +346,15 @@ mod tests {
         let a = inline_tag_author_id(&Tag::new("Rust"));
         let b = inline_tag_author_id(&Tag::new("rust"));
         assert_eq!(a, "inline-tag-rust");
-        assert_eq!(a, b, "MC-006: `#Rust` and `#rust` share the canonical author_id");
-        assert_ne!(inline_tag_author_id(&Tag::new("wip")), a, "distinct tags -> distinct ids");
+        assert_eq!(
+            a, b,
+            "MC-006: `#Rust` and `#rust` share the canonical author_id"
+        );
+        assert_ne!(
+            inline_tag_author_id(&Tag::new("wip")),
+            a,
+            "distinct tags -> distinct ids"
+        );
     }
 
     #[test]
@@ -335,9 +364,15 @@ mod tests {
         let link = menu_item_to_hs_link(&TagMenuItem::existing("Rust"));
         assert!(is_tag_link(&link), "the atom is a tag link");
         assert_eq!(link.ref_kind, TAG_REF_KIND);
-        assert_eq!(link.ref_value, "rust", "ref_value is the canonical identity");
+        assert_eq!(
+            link.ref_value, "rust",
+            "ref_value is the canonical identity"
+        );
         let recovered = tag_from_link(&link);
-        assert_eq!(recovered.name, "Rust", "the display name is recovered from the chip label");
+        assert_eq!(
+            recovered.name, "Rust",
+            "the display name is recovered from the chip label"
+        );
         assert_eq!(recovered.canonical(), tag.canonical());
     }
 
@@ -347,11 +382,25 @@ mod tests {
         // 'rust' (deduped by canonical identity — no duplicate).
         let payload = build_tag_edge_payload(["rust", "wip"], ["Rust", "design"]);
         let canon = payload.canonical_set();
-        assert_eq!(payload.len(), 3, "rust (inline+property) dedupes to one; +wip +design (got {canon:?})");
-        assert_eq!(canon, vec!["rust".to_owned(), "wip".to_owned(), "design".to_owned()]);
+        assert_eq!(
+            payload.len(),
+            3,
+            "rust (inline+property) dedupes to one; +wip +design (got {canon:?})"
+        );
+        assert_eq!(
+            canon,
+            vec!["rust".to_owned(), "wip".to_owned(), "design".to_owned()]
+        );
         // The 'rust' edge appears exactly once.
-        let rust_edges = payload.edges.iter().filter(|e| e.canonical == "rust").count();
-        assert_eq!(rust_edges, 1, "AC-005: exactly ONE 'rust' edge despite inline + property occurrence");
+        let rust_edges = payload
+            .edges
+            .iter()
+            .filter(|e| e.canonical == "rust")
+            .count();
+        assert_eq!(
+            rust_edges, 1,
+            "AC-005: exactly ONE 'rust' edge despite inline + property occurrence"
+        );
     }
 
     #[test]
@@ -360,7 +409,10 @@ mod tests {
         let payload = build_tag_edge_payload(["#Rust", "", "  "], ["rust"]);
         assert_eq!(payload.len(), 1);
         assert_eq!(payload.edges[0].canonical, "rust");
-        assert_eq!(payload.edges[0].display, "Rust", "first occurrence's display case wins");
+        assert_eq!(
+            payload.edges[0].display, "Rust",
+            "first occurrence's display case wins"
+        );
     }
 
     #[test]
@@ -372,18 +424,35 @@ mod tests {
 
     #[test]
     fn menu_items_filter_and_offer_free_typed_create_ac006() {
-        let available = vec!["rust".to_owned(), "rustaceans".to_owned(), "python".to_owned()];
+        let available = vec![
+            "rust".to_owned(),
+            "rustaceans".to_owned(),
+            "python".to_owned(),
+        ];
         // Query "rust": rust (exact, no 'new' row) + rustaceans (prefix). NO create row (rust exists).
         let items = tag_menu_items("rust", &available);
         let labels: Vec<String> = items.iter().map(|i| i.label()).collect();
-        assert!(items.iter().any(|i| i.tag.canonical() == "rust" && !i.is_new), "existing rust listed");
-        assert!(items.iter().any(|i| i.tag.canonical() == "rustaceans"), "prefix rustaceans listed");
-        assert!(!items.iter().any(|i| i.is_new), "no create row when the query exactly matches an existing tag (got {labels:?})");
+        assert!(
+            items
+                .iter()
+                .any(|i| i.tag.canonical() == "rust" && !i.is_new),
+            "existing rust listed"
+        );
+        assert!(
+            items.iter().any(|i| i.tag.canonical() == "rustaceans"),
+            "prefix rustaceans listed"
+        );
+        assert!(
+            !items.iter().any(|i| i.is_new),
+            "no create row when the query exactly matches an existing tag (got {labels:?})"
+        );
 
         // AC-006: a brand-new free-typed tag not in the list IS committable via a create row.
         let items2 = tag_menu_items("newtag", &available);
         assert!(
-            items2.iter().any(|i| i.is_new && i.tag.canonical() == "newtag"),
+            items2
+                .iter()
+                .any(|i| i.is_new && i.tag.canonical() == "newtag"),
             "AC-006: a free-typed new tag offers a create row (got {:?})",
             items2.iter().map(|i| i.label()).collect::<Vec<_>>()
         );
@@ -391,7 +460,10 @@ mod tests {
         // Empty query lists existing tags, no create row.
         let items3 = tag_menu_items("", &available);
         assert!(!items3.is_empty());
-        assert!(!items3.iter().any(|i| i.is_new), "empty query offers no create row");
+        assert!(
+            !items3.iter().any(|i| i.is_new),
+            "empty query offers no create row"
+        );
     }
 
     #[test]

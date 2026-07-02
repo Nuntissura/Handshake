@@ -53,7 +53,10 @@ pub const ITEM_AUTHOR_ID_PREFIX: &str = "atelier-item-";
 /// raw id with slashes/colons (e.g. a UUID is already safe, but a fabricated id might not be) can never
 /// break AccessKit tree integrity (reuses the shell's slugger, the canvas-board pattern).
 pub fn item_author_id(item_id: &str) -> String {
-    format!("{ITEM_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(item_id))
+    format!(
+        "{ITEM_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(item_id)
+    )
 }
 
 /// Whether a section is expanded.
@@ -240,7 +243,11 @@ impl AtelierSidePanel {
 
         // ── Header strip: title + refresh ───────────────────────────────────────────────────────────
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Atelier / CKC").strong().color(palette.text));
+            ui.label(
+                egui::RichText::new("Atelier / CKC")
+                    .strong()
+                    .color(palette.text),
+            );
             let refresh = ui.button("⟳");
             emit_button_node(ui, refresh.id, REFRESH_AUTHOR_ID, "Refresh atelier");
             if refresh.clicked() {
@@ -285,7 +292,11 @@ impl AtelierSidePanel {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             // ── Section 1: Media / Characters / Moodboards (intake batches -> draggable item rows) ────
-            ui.label(egui::RichText::new("Media / Characters / Moodboards").strong().color(palette.text));
+            ui.label(
+                egui::RichText::new("Media / Characters / Moodboards")
+                    .strong()
+                    .color(palette.text),
+            );
             if self.batches.is_empty() {
                 ui.label(egui::RichText::new("No intake batches yet.").color(palette.text_subtle));
             }
@@ -294,8 +305,8 @@ impl AtelierSidePanel {
             // conflict with the per-row expand/drag handlers).
             let batches = self.batches.clone();
             for batch in &batches {
-                let expanded_here =
-                    self.expanded.as_ref().map(|(id, _)| id.as_str()) == Some(batch.batch_id.as_str());
+                let expanded_here = self.expanded.as_ref().map(|(id, _)| id.as_str())
+                    == Some(batch.batch_id.as_str());
                 let marker = if expanded_here { "▼" } else { "▶" };
                 let label = format!("{marker} {}  ({})", batch.source_label, batch.status);
                 if ui.add(egui::Button::new(label).frame(false)).clicked() {
@@ -309,14 +320,23 @@ impl AtelierSidePanel {
             ui.separator();
 
             // ── Section 2: Command Corpus ─────────────────────────────────────────────────────────────
-            ui.label(egui::RichText::new("Command Corpus").strong().color(palette.text));
+            ui.label(
+                egui::RichText::new("Command Corpus")
+                    .strong()
+                    .color(palette.text),
+            );
             if self.corpus.is_empty() {
-                ui.label(egui::RichText::new("No command-corpus entries.").color(palette.text_subtle));
+                ui.label(
+                    egui::RichText::new("No command-corpus entries.").color(palette.text_subtle),
+                );
             }
             for entry in &self.corpus {
                 ui.label(
-                    egui::RichText::new(format!("• {}  [{}]", entry.action_id, entry.execution_class))
-                        .color(palette.text_subtle),
+                    egui::RichText::new(format!(
+                        "• {}  [{}]",
+                        entry.action_id, entry.execution_class
+                    ))
+                    .color(palette.text_subtle),
                 );
             }
         });
@@ -340,7 +360,9 @@ impl AtelierSidePanel {
         if items.is_empty() {
             ui.horizontal(|ui| {
                 ui.add_space(16.0);
-                ui.label(egui::RichText::new("(no items in this batch)").color(palette.text_subtle));
+                ui.label(
+                    egui::RichText::new("(no items in this batch)").color(palette.text_subtle),
+                );
             });
             return;
         }
@@ -450,7 +472,9 @@ mod tests {
         assert!(id.starts_with(ITEM_AUTHOR_ID_PREFIX));
         let suffix = &id[ITEM_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
     }
@@ -485,8 +509,16 @@ mod tests {
             vec![],
             Some(("b-1".to_owned(), vec![item("i-1", "a.png")])),
         );
-        assert!(!panel.is_loading(), "a with_rows panel is Loaded, never Loading (no perpetual spinner)");
-        assert_eq!(panel.expanded().map(|(id, items)| (id.as_str(), items.len())), Some(("b-1", 1)));
+        assert!(
+            !panel.is_loading(),
+            "a with_rows panel is Loaded, never Loading (no perpetual spinner)"
+        );
+        assert_eq!(
+            panel
+                .expanded()
+                .map(|(id, items)| (id.as_str(), items.len())),
+            Some(("b-1", 1))
+        );
     }
 
     /// `request_load` on a no-client panel is a benign no-op (stays Loaded, no panic).
@@ -494,6 +526,9 @@ mod tests {
     fn request_load_without_client_is_benign() {
         let mut panel = AtelierSidePanel::with_rows(vec![], vec![], None);
         panel.request_load();
-        assert!(!panel.is_loading(), "no client -> request_load does not enter Loading");
+        assert!(
+            !panel.is_loading(),
+            "no client -> request_load does not enter Loading"
+        );
     }
 }

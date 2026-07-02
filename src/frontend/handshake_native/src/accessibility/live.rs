@@ -91,7 +91,12 @@ impl ChromeWidget {
 /// No-op when the `accesskit` feature is disabled on egui or AccessKit is not active this frame
 /// (`accesskit_node_builder` returns `None`); chrome still renders, it simply carries no a11y node,
 /// matching egui's own graceful-degradation contract.
-pub fn emit_chrome_node(ctx: &egui::Context, chrome: ChromeWidget, widget_id: egui::Id, label: &str) {
+pub fn emit_chrome_node(
+    ctx: &egui::Context,
+    chrome: ChromeWidget,
+    widget_id: egui::Id,
+    label: &str,
+) {
     ctx.accesskit_node_builder(widget_id, |node| {
         node.set_role(chrome.role());
         node.set_author_id(chrome.author_id().to_owned());

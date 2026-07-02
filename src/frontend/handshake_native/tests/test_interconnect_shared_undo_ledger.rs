@@ -74,11 +74,22 @@ fn interconnect_ic15_undo_rich_editor() {
         b.set_focus_owner(rich_pane.clone());
     }
     *rich_doc.lock().unwrap() = after.clone();
-    assert!(rich_doc.lock().unwrap().contains("EDIT_A"), "IC-15: the edit applied (EDIT_A present)");
-    assert_eq!(bus.lock().unwrap().local_undo_count(&rich_pane), 1, "IC-15: one entry on the shared scope");
+    assert!(
+        rich_doc.lock().unwrap().contains("EDIT_A"),
+        "IC-15: the edit applied (EDIT_A present)"
+    );
+    assert_eq!(
+        bus.lock().unwrap().local_undo_count(&rich_pane),
+        1,
+        "IC-15: one entry on the shared scope"
+    );
 
     // One undo on the SAME shared bus reverts the rich edit so EDIT_A is gone.
-    let result = bus.lock().unwrap().undo(&rich_pane).expect("an action to undo");
+    let result = bus
+        .lock()
+        .unwrap()
+        .undo(&rich_pane)
+        .expect("an action to undo");
     assert!(result.ok, "IC-15: the undo applied: {result:?}");
     assert!(
         !rich_doc.lock().unwrap().contains("EDIT_A"),
@@ -108,7 +119,10 @@ fn interconnect_ic16_undo_code_editor() {
     let before = code_panel.buffer();
     code_panel.set_text("CODE_EDIT\nfn main() {}\n");
     let after = code_panel.buffer();
-    assert!(code_panel.buffer().to_string().contains("CODE_EDIT"), "IC-16: the code edit applied");
+    assert!(
+        code_panel.buffer().to_string().contains("CODE_EDIT"),
+        "IC-16: the code edit applied"
+    );
     {
         let mut b = bus.lock().unwrap();
         handshake_native::code_editor::interop_adapter::push_code_edit_undo(
@@ -121,10 +135,18 @@ fn interconnect_ic16_undo_code_editor() {
         );
         b.set_focus_owner(code_pane.clone());
     }
-    assert_eq!(bus.lock().unwrap().local_undo_count(&code_pane), 1, "IC-16: one entry on the shared scope");
+    assert_eq!(
+        bus.lock().unwrap().local_undo_count(&code_pane),
+        1,
+        "IC-16: one entry on the shared scope"
+    );
 
     // One undo on the SAME shared bus reverts the code edit so CODE_EDIT is gone.
-    let result = bus.lock().unwrap().undo(&code_pane).expect("an action to undo");
+    let result = bus
+        .lock()
+        .unwrap()
+        .undo(&code_pane)
+        .expect("an action to undo");
     assert!(result.ok, "IC-16: the undo applied: {result:?}");
     assert!(
         !code_panel.buffer().to_string().contains("CODE_EDIT"),
@@ -139,7 +161,9 @@ fn interconnect_ic16_undo_code_editor() {
 
     mark_status("IC-16", "PASS");
     assert_no_local_artifact_dir();
-    println!("IC-16 SUBSTRATE PASS: CODE_EDIT reverted after one undo on the shared bus undo scope");
+    println!(
+        "IC-16 SUBSTRATE PASS: CODE_EDIT reverted after one undo on the shared bus undo scope"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -197,10 +221,17 @@ fn interconnect_ic18_undo_scope_policy() {
     let note_before_undo = rich_doc.lock().unwrap().clone();
     let code_before_undo = code_panel.buffer().to_string();
     assert_eq!(note_before_undo, "noteA-EDITED", "IC-18: note A was edited");
-    assert!(code_before_undo.contains("999"), "IC-18: code B was edited (most recent)");
+    assert!(
+        code_before_undo.contains("999"),
+        "IC-18: code B was edited (most recent)"
+    );
 
     // ONE undo on the focused (most-recently-edited) pane B.
-    let result = bus.lock().unwrap().undo(&code_pane).expect("an undo on the focused pane B");
+    let result = bus
+        .lock()
+        .unwrap()
+        .undo(&code_pane)
+        .expect("an undo on the focused pane B");
     assert!(result.ok, "IC-18: the single undo applied: {result:?}");
 
     // INSPECT BOTH surfaces after the one undo (CTRL-4):
@@ -221,8 +252,16 @@ fn interconnect_ic18_undo_scope_policy() {
     // the ONE shared scope, not a single global stack).
     {
         let b = bus.lock().unwrap();
-        assert_eq!(b.local_undo_count(&code_pane), 0, "IC-18: the code pane's ring drained");
-        assert_eq!(b.local_undo_count(&rich_pane), 1, "IC-18: the note pane's ring is untouched");
+        assert_eq!(
+            b.local_undo_count(&code_pane),
+            0,
+            "IC-18: the code pane's ring drained"
+        );
+        assert_eq!(
+            b.local_undo_count(&rich_pane),
+            1,
+            "IC-18: the note pane's ring is untouched"
+        );
     }
 
     mark_status("IC-18", "PASS");
@@ -247,7 +286,9 @@ fn interconnect_ic18_undo_scope_policy() {
             CTRL-7: the endpoint EXISTS (verified). Never mocks PG."]
 fn interconnect_ic17_event_ledger_records() {
     use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
-    use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
+    use handshake_native::rich_editor::document_model::node::{
+        BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
+    };
 
     let be = require_live_backend();
     let ws = be.workspace_id.clone();
@@ -268,7 +309,9 @@ fn interconnect_ic17_event_ledger_records() {
         .and_then(|v| v.as_str())
         .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
         .or_else(|| created.get("id").and_then(|v| v.as_str()))
-        .expect("requires_pg: created document returns a rich_document_id (document.rich_document_id)")
+        .expect(
+            "requires_pg: created document returns a rich_document_id (document.rich_document_id)",
+        )
         .to_owned();
     let mut version = created
         .get("document")
@@ -298,7 +341,11 @@ fn interconnect_ic17_event_ledger_records() {
     // Save #2 (with a wikilink ref in the body).
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::new("now links ")));
-    para.children.push(Child::HsLink(HsLinkNode::new("file", "linked-block-1", "linked")));
+    para.children.push(Child::HsLink(HsLinkNode::new(
+        "file",
+        "linked-block-1",
+        "linked",
+    )));
     let with_link = BlockNode::doc(vec![para]);
     let _ = be.put_json(
         &format!("/knowledge/documents/{doc_id}/save"),
@@ -309,15 +356,25 @@ fn interconnect_ic17_event_ledger_records() {
     // filtered by the `wsid` QUERY param (NOT a /workspaces path prefix), returning a bare Vec<FlightEvent>
     // (no `events` wrapper) where each event carries event_type/wsids/payload.
     let events = be.get_json(&format!("/events?wsid={ws}"));
-    let arr = events.as_array().cloned()
-        .or_else(|| events["events"].as_array().cloned()).unwrap_or_default();
-    let saved: Vec<&serde_json::Value> = arr.iter().filter(|e| {
-        let kind = e["event_type"].as_str().or_else(|| e["kind"].as_str()).unwrap_or("");
-        kind.to_uppercase().contains("KNOWLEDGE_RICH_DOCUMENT_SAVED")
-            && (e["source_block_id"].as_str() == Some(note_block_id.as_str())
-                || e.to_string().contains(&note_block_id)
-                || e.to_string().contains(&doc_id))
-    }).collect();
+    let arr = events
+        .as_array()
+        .cloned()
+        .or_else(|| events["events"].as_array().cloned())
+        .unwrap_or_default();
+    let saved: Vec<&serde_json::Value> = arr
+        .iter()
+        .filter(|e| {
+            let kind = e["event_type"]
+                .as_str()
+                .or_else(|| e["kind"].as_str())
+                .unwrap_or("");
+            kind.to_uppercase()
+                .contains("KNOWLEDGE_RICH_DOCUMENT_SAVED")
+                && (e["source_block_id"].as_str() == Some(note_block_id.as_str())
+                    || e.to_string().contains(&note_block_id)
+                    || e.to_string().contains(&doc_id))
+        })
+        .collect();
     assert!(
         saved.len() >= 2,
         "IC-17: GET /events returns >= 2 KNOWLEDGE_RICH_DOCUMENT_SAVED events for the note (got {})",
@@ -328,7 +385,9 @@ fn interconnect_ic17_event_ledger_records() {
     // timestamp when present so the assertion does not depend on the server's return order.
     let mut ordered = saved.clone();
     ordered.sort_by_key(|e| e["timestamp"].as_str().unwrap_or("").to_owned());
-    let second = ordered.get(1).expect("IC-17: a second KNOWLEDGE_RICH_DOCUMENT_SAVED event");
+    let second = ordered
+        .get(1)
+        .expect("IC-17: a second KNOWLEDGE_RICH_DOCUMENT_SAVED event");
     assert!(
         second.to_string().contains("linked-block-1"),
         "IC-17: the second save event's payload carries the wikilink block reference (got {second})"
@@ -336,7 +395,10 @@ fn interconnect_ic17_event_ledger_records() {
 
     let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     mark_status("IC-17", "PASS");
-    println!("IC-17 LIVE-PG PASS: {} KNOWLEDGE_RICH_DOCUMENT_SAVED events recorded for the note", saved.len());
+    println!(
+        "IC-17 LIVE-PG PASS: {} KNOWLEDGE_RICH_DOCUMENT_SAVED events recorded for the note",
+        saved.len()
+    );
 }
 
 // ── Hygiene guard (runs in the default suite). ────────────────────────────────────────────────────────

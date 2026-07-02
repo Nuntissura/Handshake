@@ -364,9 +364,18 @@ mod tests {
     #[test]
     fn is_addressable_guards_empty_ids() {
         assert!(LoomBlockAddr::new("ws", "blk").is_addressable());
-        assert!(!LoomBlockAddr::new("", "blk").is_addressable(), "empty workspace");
-        assert!(!LoomBlockAddr::new("ws", "").is_addressable(), "empty block (RISK-3 chip skip)");
-        assert!(!LoomBlockAddr::new("  ", "blk").is_addressable(), "whitespace workspace");
+        assert!(
+            !LoomBlockAddr::new("", "blk").is_addressable(),
+            "empty workspace"
+        );
+        assert!(
+            !LoomBlockAddr::new("ws", "").is_addressable(),
+            "empty block (RISK-3 chip skip)"
+        );
+        assert!(
+            !LoomBlockAddr::new("  ", "blk").is_addressable(),
+            "whitespace workspace"
+        );
     }
 
     #[test]
@@ -380,7 +389,10 @@ mod tests {
         assert_eq!(h1.as_str(), canonical_content_sha256(&v));
         // 64-char lowercase hex.
         assert_eq!(h1.as_str().len(), 64);
-        assert!(h1.as_str().chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(h1
+            .as_str()
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
         assert_eq!(h1.short().len(), 8, "short prefix is 8 chars");
     }
 
@@ -390,7 +402,11 @@ mod tests {
         // BYTES split a multi-byte UTF-8 char must NOT panic short() (it would panic the egui render
         // thread on a raw byte slice). short() takes the first 8 CHARS.
         let multibyte = ContentHash("éééééééééé".to_owned()); // each 'é' is 2 bytes
-        assert_eq!(multibyte.short(), "éééééééé", "first 8 chars, no byte-boundary panic");
+        assert_eq!(
+            multibyte.short(),
+            "éééééééé",
+            "first 8 chars, no byte-boundary panic"
+        );
         // A short value returns itself unchanged.
         assert_eq!(ContentHash("abc".to_owned()).short(), "abc");
         // Normal ASCII hex still yields the first 8 hex chars.
@@ -403,7 +419,10 @@ mod tests {
         // writer sorts keys) — the determinism the write-back relied on.
         let a = json!({ "a": 1, "b": 2 });
         let b = json!({ "b": 2, "a": 1 });
-        assert_eq!(ContentHash::of_content_json(&a), ContentHash::of_content_json(&b));
+        assert_eq!(
+            ContentHash::of_content_json(&a),
+            ContentHash::of_content_json(&b)
+        );
     }
 
     #[test]
@@ -418,13 +437,31 @@ mod tests {
 
     #[test]
     fn block_type_maps_content_type() {
-        assert_eq!(LoomBlockType::from_content_type("canvas"), LoomBlockType::CanvasNode);
-        assert_eq!(LoomBlockType::from_content_type("file"), LoomBlockType::CodeFileNode);
-        assert_eq!(LoomBlockType::from_content_type("note"), LoomBlockType::RichDocument);
-        assert_eq!(LoomBlockType::from_content_type("document"), LoomBlockType::RichDocument);
+        assert_eq!(
+            LoomBlockType::from_content_type("canvas"),
+            LoomBlockType::CanvasNode
+        );
+        assert_eq!(
+            LoomBlockType::from_content_type("file"),
+            LoomBlockType::CodeFileNode
+        );
+        assert_eq!(
+            LoomBlockType::from_content_type("note"),
+            LoomBlockType::RichDocument
+        );
+        assert_eq!(
+            LoomBlockType::from_content_type("document"),
+            LoomBlockType::RichDocument
+        );
         // Unknown degrades to a generic GraphNode (no panic, no fabricated specific type).
-        assert_eq!(LoomBlockType::from_content_type("tag_hub"), LoomBlockType::GraphNode);
-        assert_eq!(LoomBlockType::from_content_type(""), LoomBlockType::GraphNode);
+        assert_eq!(
+            LoomBlockType::from_content_type("tag_hub"),
+            LoomBlockType::GraphNode
+        );
+        assert_eq!(
+            LoomBlockType::from_content_type(""),
+            LoomBlockType::GraphNode
+        );
     }
 
     #[test]
@@ -477,8 +514,12 @@ mod tests {
     fn dummy_handle() -> tokio::runtime::Handle {
         use std::sync::OnceLock;
         static RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
-        RT.get_or_init(|| tokio::runtime::Builder::new_current_thread().build().unwrap())
-            .handle()
-            .clone()
+        RT.get_or_init(|| {
+            tokio::runtime::Builder::new_current_thread()
+                .build()
+                .unwrap()
+        })
+        .handle()
+        .clone()
     }
 }

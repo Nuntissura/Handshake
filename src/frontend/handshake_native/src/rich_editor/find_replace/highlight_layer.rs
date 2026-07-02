@@ -29,8 +29,8 @@ use egui::{Color32, Pos2, Rect};
 
 use crate::rich_editor::document_model::node::{BlockNode, Child};
 use crate::rich_editor::renderer::line_layout;
-use crate::theme::HsPalette;
 use crate::rich_editor::wikilinks::inline_view::chip_rect_for_span;
+use crate::theme::HsPalette;
 
 use super::scanner::FindMatch;
 
@@ -43,7 +43,11 @@ pub const OTHER_MATCH_ALPHA: u8 = 64; // 0.25 * 255
 /// is a premultiplied `Color32`; we rebuild it at the target alpha from its straight RGB so the
 /// blend reads as a translucent wash over the glyphs (CONTROL-4: the base color is a theme token).
 pub fn highlight_fill(palette: &HsPalette, is_current: bool) -> Color32 {
-    let alpha = if is_current { CURRENT_MATCH_ALPHA } else { OTHER_MATCH_ALPHA };
+    let alpha = if is_current {
+        CURRENT_MATCH_ALPHA
+    } else {
+        OTHER_MATCH_ALPHA
+    };
     let [r, g, b, _] = palette.accent.to_array();
     Color32::from_rgba_unmultiplied(r, g, b, alpha)
 }
@@ -56,7 +60,11 @@ pub fn highlight_fill(palette: &HsPalette, is_current: bool) -> Color32 {
 /// The block-galley cursor index of a leaf-local char offset is `sum(char lengths of every inline
 /// child before the leaf) + leaf_offset`, matching `line_layout::layout_block`'s append order
 /// (text runs contribute their text; an `hsLink`/transclusion atom contributes its display label).
-pub fn block_galley_cursor(block: &BlockNode, leaf_index: usize, leaf_offset: usize) -> Option<usize> {
+pub fn block_galley_cursor(
+    block: &BlockNode,
+    leaf_index: usize,
+    leaf_offset: usize,
+) -> Option<usize> {
     // The leaf must be a text child of the block.
     if !matches!(block.children.get(leaf_index), Some(Child::Text(_))) {
         return None;
@@ -168,7 +176,9 @@ pub fn paint_highlights(painter: &egui::Painter, rects: &[HighlightRect]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, Mark, NodeKind, TextLeaf};
+    use crate::rich_editor::document_model::node::{
+        BlockNode, Child, HsLinkNode, Mark, NodeKind, TextLeaf,
+    };
     use crate::rich_editor::find_replace::scanner::{FindMatch, MatchKind};
     use crate::theme::HsTheme;
 
@@ -183,8 +193,14 @@ mod tests {
         let other = highlight_fill(&pal, false);
         let [r, g, b, _] = pal.accent.to_array();
         // Both reuse the accent RGB (no hardcoded hex); only the alpha differs.
-        assert_eq!(current, Color32::from_rgba_unmultiplied(r, g, b, CURRENT_MATCH_ALPHA));
-        assert_eq!(other, Color32::from_rgba_unmultiplied(r, g, b, OTHER_MATCH_ALPHA));
+        assert_eq!(
+            current,
+            Color32::from_rgba_unmultiplied(r, g, b, CURRENT_MATCH_ALPHA)
+        );
+        assert_eq!(
+            other,
+            Color32::from_rgba_unmultiplied(r, g, b, OTHER_MATCH_ALPHA)
+        );
     }
 
     // The current-match opacity must exceed the other-match opacity (a const invariant over the two
@@ -208,7 +224,11 @@ mod tests {
         );
         assert_eq!(block_galley_cursor(&block, 0, 0), Some(0));
         assert_eq!(block_galley_cursor(&block, 0, 3), Some(3));
-        assert_eq!(block_galley_cursor(&block, 1, 0), Some(6), "leaf 1 starts after 'Hello '");
+        assert_eq!(
+            block_galley_cursor(&block, 1, 0),
+            Some(6),
+            "leaf 1 starts after 'Hello '"
+        );
         assert_eq!(block_galley_cursor(&block, 1, 2), Some(8));
     }
 
@@ -224,7 +244,11 @@ mod tests {
                 Child::Text(TextLeaf::new(" end")),
             ],
         );
-        assert_eq!(block_galley_cursor(&block, 2, 0), Some(7), "after 'see ' + chip label 'Doc'");
+        assert_eq!(
+            block_galley_cursor(&block, 2, 0),
+            Some(7),
+            "after 'see ' + chip label 'Doc'"
+        );
         assert_eq!(block_galley_cursor(&block, 2, 1), Some(8));
         // A non-text leaf index returns None (a stale span never panics).
         assert_eq!(block_galley_cursor(&block, 1, 0), None);
@@ -244,25 +268,55 @@ mod tests {
             let painter = ctx.layer_painter(egui::LayerId::background());
             let block = BlockNode::paragraph("foo bar foo");
             let matches = vec![
-                FindMatch { kind: MatchKind::Prose, node_path: vec![0, 0], char_start: 0, char_end: 3 },
-                FindMatch { kind: MatchKind::Prose, node_path: vec![0, 0], char_start: 8, char_end: 11 },
+                FindMatch {
+                    kind: MatchKind::Prose,
+                    node_path: vec![0, 0],
+                    char_start: 0,
+                    char_end: 3,
+                },
+                FindMatch {
+                    kind: MatchKind::Prose,
+                    node_path: vec![0, 0],
+                    char_start: 8,
+                    char_end: 11,
+                },
                 // A match that belongs to a DIFFERENT top-level block (index 1) — must be skipped.
-                FindMatch { kind: MatchKind::Prose, node_path: vec![1, 0], char_start: 0, char_end: 3 },
+                FindMatch {
+                    kind: MatchKind::Prose,
+                    node_path: vec![1, 0],
+                    char_start: 0,
+                    char_end: 3,
+                },
             ];
             let origin = egui::pos2(40.0, 200.0); // scrolled paint origin.
             let rects = match_highlight_rects(
-                &block, 0, &matches, Some(&matches[0]), origin, 400.0, bold, &pal, &painter,
+                &block,
+                0,
+                &matches,
+                Some(&matches[0]),
+                origin,
+                400.0,
+                bold,
+                &pal,
+                &painter,
             );
             out = Some(rects);
         });
         let rects = out.unwrap();
-        assert_eq!(rects.len(), 2, "only the two block-0 matches paint (the block-1 match is skipped)");
+        assert_eq!(
+            rects.len(),
+            2,
+            "only the two block-0 matches paint (the block-1 match is skipped)"
+        );
         // The first match is the current one (higher opacity); the second is dimmer.
         assert_eq!(rects[0].fill.a(), CURRENT_MATCH_ALPHA);
         assert_eq!(rects[1].fill.a(), OTHER_MATCH_ALPHA);
         // Both rects start at-or-below the scroll-adjusted origin Y.
         for hr in &rects {
-            assert!(hr.rect.min.y >= 200.0 - 0.01, "the rect Y follows the scroll-adjusted origin");
+            assert!(
+                hr.rect.min.y >= 200.0 - 0.01,
+                "the rect Y follows the scroll-adjusted origin"
+            );
             assert!(hr.rect.width() > 0.0, "a 3-char match has positive width");
         }
     }

@@ -19,7 +19,9 @@
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
-use handshake_native::canvas_board::{CanvasBoardColors, CanvasBoardEvent, CanvasBoardSurface, Placement};
+use handshake_native::canvas_board::{
+    CanvasBoardColors, CanvasBoardEvent, CanvasBoardSurface, Placement,
+};
 use handshake_native::context_menu_surfaces::{
     CanvasNodeKind, CanvasNodeState, ConsoleEntryKind, DrawerItemState, LoomNodeState,
 };
@@ -95,7 +97,9 @@ fn loom_node_right_click_opens_menu_and_dispatches() {
         "ctx-menu.loom.copy_block_id",
     ] {
         assert!(
-            author_nodes(&harness).iter().any(|(a, r)| a == leaf && r == "MenuItem"),
+            author_nodes(&harness)
+                .iter()
+                .any(|(a, r)| a == leaf && r == "MenuItem"),
             "loom menu leaf {leaf} missing: {:?}",
             author_nodes(&harness),
         );
@@ -106,7 +110,10 @@ fn loom_node_right_click_opens_menu_and_dispatches() {
     harness.run();
     assert_eq!(
         *captured.lock().unwrap(),
-        Some(LoomGraphEvent::SetPinned { block_id: "blk-1".to_owned(), target: true }),
+        Some(LoomGraphEvent::SetPinned {
+            block_id: "blk-1".to_owned(),
+            target: true
+        }),
         "loom Pin dispatched SetPinned with the flipped target",
     );
     println!("PASS: right-click Loom node opened menu (Open/Rename/Pin/Copy Block ID) and Pin dispatched");
@@ -152,7 +159,9 @@ fn canvas_node_right_click_opens_menu_and_remove_dispatches() {
         "ctx-menu.canvas.move_to_back",
     ] {
         assert!(
-            author_nodes(&harness).iter().any(|(a, r)| a == leaf && r == "MenuItem"),
+            author_nodes(&harness)
+                .iter()
+                .any(|(a, r)| a == leaf && r == "MenuItem"),
             "canvas menu leaf {leaf} missing: {:?}",
             author_nodes(&harness),
         );
@@ -162,7 +171,9 @@ fn canvas_node_right_click_opens_menu_and_remove_dispatches() {
     harness.run();
     assert_eq!(
         *captured.lock().unwrap(),
-        Some(CanvasBoardEvent::Remove { placement_id: "pl-1".to_owned() }),
+        Some(CanvasBoardEvent::Remove {
+            placement_id: "pl-1".to_owned()
+        }),
         "canvas Remove from Canvas dispatched Remove with the placement id (DELETE placement)",
     );
     println!("PASS: right-click canvas node opened menu and Remove from Canvas dispatched removeCanvasPlacement");
@@ -212,7 +223,9 @@ fn scm_row_right_click_opens_menu_with_contract_items() {
         "ctx-menu.scm.copy_path",
     ] {
         assert!(
-            author_nodes(&harness).iter().any(|(a, r)| a == leaf && r == "MenuItem"),
+            author_nodes(&harness)
+                .iter()
+                .any(|(a, r)| a == leaf && r == "MenuItem"),
             "scm menu leaf {leaf} missing: {:?}",
             author_nodes(&harness),
         );
@@ -238,7 +251,9 @@ fn scm_stage_dispatches_stage_event_for_the_right_path() {
 
     assert_eq!(
         *captured.lock().unwrap(),
-        Some(SourceControlEvent::Stage { path: "src/changed.rs".to_owned() }),
+        Some(SourceControlEvent::Stage {
+            path: "src/changed.rs".to_owned()
+        }),
         "scm Stage dispatched Stage for the right-clicked path (drives POST /source-control/stage)",
     );
     println!("PASS: scm Stage dispatched Stage{{path}} (the verified backend stage call payload)");
@@ -282,7 +297,9 @@ fn scm_discard_is_disabled_and_does_not_fire() {
     harness.run();
     harness.run();
     assert!(
-        author_nodes(&harness).iter().any(|(a, _)| a == "ctx-menu.scm.discard"),
+        author_nodes(&harness)
+            .iter()
+            .any(|(a, _)| a == "ctx-menu.scm.discard"),
         "discard is present + addressable (no fake-drop)",
     );
     harness.get_by_label("Discard Changes").click();
@@ -324,16 +341,24 @@ fn console_row_right_click_copy_line_copies_to_clipboard() {
         .click_secondary();
     harness.run();
     harness.run();
-    for leaf in ["ctx-menu.console.copy_line", "ctx-menu.console.copy_all", "ctx-menu.console.clear"] {
+    for leaf in [
+        "ctx-menu.console.copy_line",
+        "ctx-menu.console.copy_all",
+        "ctx-menu.console.clear",
+    ] {
         assert!(
-            author_nodes(&harness).iter().any(|(a, r)| a == leaf && r == "MenuItem"),
+            author_nodes(&harness)
+                .iter()
+                .any(|(a, r)| a == leaf && r == "MenuItem"),
             "console menu leaf {leaf} missing: {:?}",
             author_nodes(&harness),
         );
     }
     // The Filter by Kind submenu header is present.
     assert!(
-        author_nodes(&harness).iter().any(|(a, _)| a == "ctx-menu.console.filter_kind"),
+        author_nodes(&harness)
+            .iter()
+            .any(|(a, _)| a == "ctx-menu.console.filter_kind"),
         "console Filter by Kind submenu header present",
     );
 
@@ -406,7 +431,10 @@ fn drawer_item_right_click_opens_menu_and_promote_dispatches() {
     let mut harness = Harness::builder().build_ui(move |ui| {
         let surface = DrawerSurface::new(
             vec![DrawerCard::new(
-                DrawerItemState { item_id: "card-1".to_owned(), pinned: false },
+                DrawerItemState {
+                    item_id: "card-1".to_owned(),
+                    pinned: false,
+                },
                 "Stash note",
                 "card body text",
             )],
@@ -447,7 +475,9 @@ fn drawer_item_right_click_opens_menu_and_promote_dispatches() {
     harness.run();
     assert_eq!(
         *captured.lock().unwrap(),
-        Some(DrawerEvent::Promote { item_id: "card-1".to_owned() }),
+        Some(DrawerEvent::Promote {
+            item_id: "card-1".to_owned()
+        }),
         "drawer Promote to Pane dispatched Promote",
     );
     println!("PASS: right-click drawer item opened menu (Stow/Pin/Promote/Send to Pane/Copy to Prompt/Discard) and Promote dispatched");
@@ -468,7 +498,8 @@ fn ok_app() -> HandshakeApp {
 }
 
 fn app_harness(app: HandshakeApp) -> Harness<'static, HandshakeApp> {
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.set_size(egui::Vec2::new(1200.0, 800.0));
     harness.run();
     harness.run();
@@ -494,7 +525,10 @@ fn status_bar_segment_right_click_opens_menu() {
         "ctx-menu.statusbar.open_panel",
         "ctx-menu.statusbar.refresh",
     ] {
-        assert!(items.iter().any(|a| a == leaf), "statusbar menu leaf {leaf} missing: {items:?}");
+        assert!(
+            items.iter().any(|a| a == leaf),
+            "statusbar menu leaf {leaf} missing: {items:?}"
+        );
     }
     println!("PASS: right-click status bar segment opened menu (Copy/Hide/Open Problems/Refresh)");
 }
@@ -537,7 +571,10 @@ fn status_bar_open_panel_opens_the_related_pane() {
 #[test]
 fn status_bar_toggle_visibility_hides_the_segment() {
     let mut harness = app_harness(ok_app());
-    assert!(!harness.state().statusbar_segment_hidden("health"), "health visible before");
+    assert!(
+        !harness.state().statusbar_segment_hidden("health"),
+        "health visible before"
+    );
 
     harness
         .get_by_label("Backend: OK (db ok, migration Some(1))")
@@ -592,7 +629,8 @@ fn capture_one(listener: std::net::TcpListener) -> CapturedReq {
                 .lines()
                 .find_map(|l| {
                     let l = l.to_ascii_lowercase();
-                    l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().ok())
+                    l.strip_prefix("content-length:")
+                        .map(|v| v.trim().parse::<usize>().ok())
                 })
                 .flatten()
                 .unwrap_or(0);
@@ -633,15 +671,23 @@ fn app_scm_stage_event_sends_real_post_on_the_wire() {
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     let dispatched = app.apply_source_control_event(
-        SourceControlEvent::Stage { path: "src/x.rs".to_owned() },
+        SourceControlEvent::Stage {
+            path: "src/x.rs".to_owned(),
+        },
         "/repo",
     );
-    assert!(dispatched, "apply_source_control_event dispatched a backend call");
+    assert!(
+        dispatched,
+        "apply_source_control_event dispatched a backend call"
+    );
 
     let cap = capture_one(listener);
     assert_eq!(cap.request_line, "POST /source-control/stage HTTP/1.1");
     let body: serde_json::Value = serde_json::from_str(cap.body.trim()).expect("json");
-    assert_eq!(body, serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"] }));
+    assert_eq!(
+        body,
+        serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"] })
+    );
     println!("PASS: app SCM stage dispatch -> real POST /source-control/stage on the wire");
 }
 
@@ -653,7 +699,10 @@ fn app_scm_diff_event_sends_real_get_with_scope() {
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     app.apply_source_control_event(
-        SourceControlEvent::Diff { path: "src/x.rs".to_owned(), scope: ScmDiffScope::Worktree },
+        SourceControlEvent::Diff {
+            path: "src/x.rs".to_owned(),
+            scope: ScmDiffScope::Worktree,
+        },
         "/repo",
     );
     let cap = capture_one(listener);
@@ -663,7 +712,11 @@ fn app_scm_diff_event_sends_real_get_with_scope() {
         "diff GET line: {}",
         cap.request_line
     );
-    assert!(cap.request_line.contains("scope=worktree"), "scope in query: {}", cap.request_line);
+    assert!(
+        cap.request_line.contains("scope=worktree"),
+        "scope in query: {}",
+        cap.request_line
+    );
     println!("PASS: app SCM diff dispatch -> real GET /source-control/diff?scope=worktree");
 }
 
@@ -676,7 +729,9 @@ fn app_canvas_move_to_front_sends_real_patch_z_index() {
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     let dispatched = app.apply_canvas_event(
-        CanvasBoardEvent::MoveToFront { placement_id: "p9".to_owned() },
+        CanvasBoardEvent::MoveToFront {
+            placement_id: "p9".to_owned(),
+        },
         "ws1",
         &[],
     );
@@ -700,7 +755,9 @@ fn app_canvas_remove_sends_real_delete_placement() {
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     app.apply_canvas_event(
-        CanvasBoardEvent::Remove { placement_id: "p9".to_owned() },
+        CanvasBoardEvent::Remove {
+            placement_id: "p9".to_owned(),
+        },
         "ws1",
         &[],
     );
@@ -722,7 +779,9 @@ fn app_canvas_remove_edges_deletes_only_supplied_visual_edges() {
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     app.apply_canvas_event(
-        CanvasBoardEvent::RemoveEdges { placement_id: "p9".to_owned() },
+        CanvasBoardEvent::RemoveEdges {
+            placement_id: "p9".to_owned(),
+        },
         "ws1",
         &["ve7".to_owned()],
     );
@@ -743,15 +802,28 @@ fn app_loom_pin_sends_real_patch_pinned_flag() {
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     let dispatched = app.apply_loom_node_event(
-        LoomGraphEvent::SetPinned { block_id: "b3".to_owned(), target: true },
+        LoomGraphEvent::SetPinned {
+            block_id: "b3".to_owned(),
+            target: true,
+        },
         "ws1",
     );
-    assert!(dispatched, "apply_loom_node_event dispatched a backend call");
+    assert!(
+        dispatched,
+        "apply_loom_node_event dispatched a backend call"
+    );
 
     let cap = capture_one(listener);
-    assert_eq!(cap.request_line, "PATCH /workspaces/ws1/loom/blocks/b3 HTTP/1.1");
+    assert_eq!(
+        cap.request_line,
+        "PATCH /workspaces/ws1/loom/blocks/b3 HTTP/1.1"
+    );
     let body: serde_json::Value = serde_json::from_str(cap.body.trim()).expect("json");
-    assert_eq!(body, serde_json::json!({ "pinned": true }), "AC#73: body carries the pinned flag");
+    assert_eq!(
+        body,
+        serde_json::json!({ "pinned": true }),
+        "AC#73: body carries the pinned flag"
+    );
     println!("PASS: app Loom Pin -> real PATCH {{pinned:true}} on the wire (AC#73)");
 }
 
@@ -763,13 +835,23 @@ fn app_loom_favorite_sends_real_patch_favorite_flag() {
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     app.apply_loom_node_event(
-        LoomGraphEvent::SetFavorite { block_id: "b3".to_owned(), target: false },
+        LoomGraphEvent::SetFavorite {
+            block_id: "b3".to_owned(),
+            target: false,
+        },
         "ws1",
     );
     let cap = capture_one(listener);
-    assert_eq!(cap.request_line, "PATCH /workspaces/ws1/loom/blocks/b3 HTTP/1.1");
+    assert_eq!(
+        cap.request_line,
+        "PATCH /workspaces/ws1/loom/blocks/b3 HTTP/1.1"
+    );
     let body: serde_json::Value = serde_json::from_str(cap.body.trim()).expect("json");
-    assert_eq!(body, serde_json::json!({ "favorite": false }), "AC#73: body carries the favorite flag");
+    assert_eq!(
+        body,
+        serde_json::json!({ "favorite": false }),
+        "AC#73: body carries the favorite flag"
+    );
     println!("PASS: app Loom Favorite -> real PATCH {{favorite:false}} on the wire (AC#73)");
 }
 
@@ -778,9 +860,16 @@ fn app_scm_event_with_no_client_is_disclosed_no_op() {
     // Headless app (no runtime/client): a dispatch is a disclosed no-op surfaced on scm_error, never a
     // panic — the honest-failure path the rubric requires.
     let mut app = ok_app(); // with_health -> source_control_client = None
-    let dispatched = app
-        .apply_source_control_event(SourceControlEvent::Stage { path: "x".to_owned() }, "/repo");
+    let dispatched = app.apply_source_control_event(
+        SourceControlEvent::Stage {
+            path: "x".to_owned(),
+        },
+        "/repo",
+    );
     assert!(!dispatched, "no client -> no dispatch");
-    assert!(app.scm_error().is_some(), "no-client dispatch surfaces a disclosed error");
+    assert!(
+        app.scm_error().is_some(),
+        "no-client dispatch surfaces a disclosed error"
+    );
     println!("PASS: app SCM dispatch with no client is a disclosed no-op (no panic)");
 }

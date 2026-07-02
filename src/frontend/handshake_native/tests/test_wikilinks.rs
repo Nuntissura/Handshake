@@ -23,11 +23,15 @@ use std::sync::Arc;
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf, TransclusionNode};
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf, TransclusionNode,
+};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::wikilinks::client::{
-    BacklinksResponse, LoomBlockTransclusion, RichDocBacklink, WikilinkBackend, WikilinkError, WikilinkFuture,
-    WikilinkResult,
+    BacklinksResponse, LoomBlockTransclusion, RichDocBacklink, WikilinkBackend, WikilinkError,
+    WikilinkFuture, WikilinkResult,
 };
 use handshake_native::rich_editor::wikilinks::runtime::{BacklinksState, WikilinkRuntime};
 
@@ -76,11 +80,20 @@ struct MockBackend {
     search: Vec<WikilinkResult>,
 }
 impl WikilinkBackend for MockBackend {
-    fn search<'a>(&'a self, _ws: &'a str, _q: &'a str, _l: usize) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
+    fn search<'a>(
+        &'a self,
+        _ws: &'a str,
+        _q: &'a str,
+        _l: usize,
+    ) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
         let rows = self.search.clone();
         Box::pin(async move { Ok(rows) })
     }
-    fn resolve_transclusion<'a>(&'a self, _ws: &'a str, _r: &'a str) -> WikilinkFuture<'a, LoomBlockTransclusion> {
+    fn resolve_transclusion<'a>(
+        &'a self,
+        _ws: &'a str,
+        _r: &'a str,
+    ) -> WikilinkFuture<'a, LoomBlockTransclusion> {
         let result = self.transclusion.clone();
         Box::pin(async move { result })
     }
@@ -131,7 +144,11 @@ fn headless_runtime(
         Ok(resp) => BacklinksState::Loaded(resp.backlinks.clone()),
         Err(e) => BacklinksState::Failed(e.clone()),
     };
-    let mut rt = WikilinkRuntime::headless(Arc::new(MockBackend { transclusion, backlinks, search }));
+    let mut rt = WikilinkRuntime::headless(Arc::new(MockBackend {
+        transclusion,
+        backlinks,
+        search,
+    }));
     rt.backlinks = seeded_backlinks;
     rt
 }
@@ -155,7 +172,10 @@ fn mt015_wikilink_chip_screenshot() {
     let state = Arc::new(std::sync::Mutex::new(
         RichEditorState::new(doc).with_wikilink_runtime(headless_runtime(
             Err(WikilinkError::NotFound("none".into())),
-            Ok(BacklinksResponse { source_document_id: "DOC-1".into(), backlinks: vec![] }),
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-1".into(),
+                backlinks: vec![],
+            }),
             vec![],
         )),
     ));
@@ -181,7 +201,10 @@ fn mt015_wikilink_chip_screenshot() {
             break;
         }
     }
-    assert!(chip_found, "AC-3: the wikilink renders an addressable '{expected_author}' chip node");
+    assert!(
+        chip_found,
+        "AC-3: the wikilink renders an addressable '{expected_author}' chip node"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -208,7 +231,10 @@ fn mt015_wikilink_chip_click_enqueues_event() {
     let state = Arc::new(std::sync::Mutex::new(
         RichEditorState::new(doc).with_wikilink_runtime(headless_runtime(
             Err(WikilinkError::NotFound("none".into())),
-            Ok(BacklinksResponse { source_document_id: "DOC-1".into(), backlinks: vec![] }),
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-1".into(),
+                backlinks: vec![],
+            }),
             vec![],
         )),
     ));
@@ -235,7 +261,10 @@ fn mt015_wikilink_chip_click_enqueues_event() {
         handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::WikilinkActivated { ref_value, .. }
             if ref_value == "WP-7"
     ));
-    assert!(found, "AC: clicking the chip enqueues a WikilinkActivated event for WP-7 (got {events:?})");
+    assert!(
+        found,
+        "AC: clicking the chip enqueues a WikilinkActivated event for WP-7 (got {events:?})"
+    );
 }
 
 // ── AC: unresolved/unknown wikilink renders with the warning affordance ──────────────────────────
@@ -247,7 +276,10 @@ fn mt015_unknown_wikilink_renders_warning_chip() {
     let state = Arc::new(std::sync::Mutex::new(
         RichEditorState::new(doc).with_wikilink_runtime(headless_runtime(
             Err(WikilinkError::NotFound("none".into())),
-            Ok(BacklinksResponse { source_document_id: "DOC-1".into(), backlinks: vec![] }),
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-1".into(),
+                backlinks: vec![],
+            }),
             vec![],
         )),
     ));
@@ -280,8 +312,16 @@ fn mt015_autocomplete_opens_on_double_bracket_and_escape_closes() {
     let state = Arc::new(std::sync::Mutex::new(
         RichEditorState::new(doc).with_wikilink_runtime(headless_runtime(
             Err(WikilinkError::NotFound("none".into())),
-            Ok(BacklinksResponse { source_document_id: "DOC-1".into(), backlinks: vec![] }),
-            vec![WikilinkResult { block_id: "BLK-1".into(), title: "Hit One".into(), content_type: "note".into(), highlight: String::new() }],
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-1".into(),
+                backlinks: vec![],
+            }),
+            vec![WikilinkResult {
+                block_id: "BLK-1".into(),
+                title: "Hit One".into(),
+                content_type: "note".into(),
+                highlight: String::new(),
+            }],
         )),
     ));
     let state_for_ui = Arc::clone(&state);
@@ -317,7 +357,10 @@ fn mt015_autocomplete_opens_on_double_bracket_and_escape_closes() {
     // The popup opened: the state carries an autocomplete + the leaf now contains "[[".
     {
         let st = state.lock().unwrap();
-        assert!(st.wikilink_autocomplete.is_some(), "typing `[[` opens the autocomplete popup");
+        assert!(
+            st.wikilink_autocomplete.is_some(),
+            "typing `[[` opens the autocomplete popup"
+        );
         assert_eq!(
             st.block_plain_text(0).as_deref(),
             Some("[["),
@@ -334,7 +377,10 @@ fn mt015_autocomplete_opens_on_double_bracket_and_escape_closes() {
                 break;
             }
         }
-        assert!(popup_found, "AC-9: the 'wikilink-autocomplete' popup node is in the accessibility tree");
+        assert!(
+            popup_found,
+            "AC-9: the 'wikilink-autocomplete' popup node is in the accessibility tree"
+        );
     }
 
     // Press Escape: the popup closes and the `[[` trigger text is removed.
@@ -343,7 +389,10 @@ fn mt015_autocomplete_opens_on_double_bracket_and_escape_closes() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        assert!(st.wikilink_autocomplete.is_none(), "Escape closes the popup");
+        assert!(
+            st.wikilink_autocomplete.is_none(),
+            "Escape closes the popup"
+        );
         assert_eq!(
             st.block_plain_text(0).as_deref(),
             Some(""),
@@ -357,16 +406,22 @@ fn mt015_autocomplete_opens_on_double_bracket_and_escape_closes() {
 #[test]
 fn mt015_transclusion_view_screenshot() {
     let _wgpu_guard = wgpu_guard(); // serialize wgpu device creation (held for the Harness lifetime)
-    // A standalone transclusion block, with the resolution PRE-SEEDED Resolved (the runtime's
-    // resolved state, reproduced headlessly so the SCREENSHOT shows the read-through preview without
-    // a backend). The real-backend variant is the #[ignore] integration test below.
+                                    // A standalone transclusion block, with the resolution PRE-SEEDED Resolved (the runtime's
+                                    // resolved state, reproduced headlessly so the SCREENSHOT shows the read-through preview without
+                                    // a backend). The real-backend variant is the #[ignore] integration test below.
     let doc = BlockNode::doc(vec![BlockNode::with_children(
         NodeKind::Paragraph,
         vec![Child::Transclusion(TransclusionNode::new("BLK-42"))],
     )]);
     let mut runtime = headless_runtime(
-        Ok(resolved_transclusion("BLK-42", "This is the transcluded source body.")),
-        Ok(BacklinksResponse { source_document_id: "DOC-1".into(), backlinks: vec![] }),
+        Ok(resolved_transclusion(
+            "BLK-42",
+            "This is the transcluded source body.",
+        )),
+        Ok(BacklinksResponse {
+            source_document_id: "DOC-1".into(),
+            backlinks: vec![],
+        }),
         vec![],
     );
     // Pre-seed the resolved transclusion state so the view renders the preview this frame.
@@ -376,7 +431,9 @@ fn mt015_transclusion_view_screenshot() {
             resolved_transclusion("BLK-42", "This is the transcluded source body."),
         ),
     );
-    let state = Arc::new(std::sync::Mutex::new(RichEditorState::new(doc).with_wikilink_runtime(runtime)));
+    let state = Arc::new(std::sync::Mutex::new(
+        RichEditorState::new(doc).with_wikilink_runtime(runtime),
+    ));
     let state_for_ui = Arc::clone(&state);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(560.0, 320.0))
@@ -396,9 +453,14 @@ fn mt015_transclusion_view_screenshot() {
             break;
         }
     }
-    assert!(container_found, "AC: the transclusion renders an addressable 'transclusion-BLK-42' container");
     assert!(
-        harness.query_by_label_contains("transcluded source body").is_some(),
+        container_found,
+        "AC: the transclusion renders an addressable 'transclusion-BLK-42' container"
+    );
+    assert!(
+        harness
+            .query_by_label_contains("transcluded source body")
+            .is_some(),
         "AC: the transclusion shows the resolved source content_preview"
     );
 
@@ -429,7 +491,10 @@ fn mt015_transclusion_404_offers_remove_embed_mc003() {
     )]);
     let mut runtime = headless_runtime(
         Err(WikilinkError::NotFound("BLK-GONE".into())),
-        Ok(BacklinksResponse { source_document_id: "DOC-1".into(), backlinks: vec![] }),
+        Ok(BacklinksResponse {
+            source_document_id: "DOC-1".into(),
+            backlinks: vec![],
+        }),
         vec![],
     );
     // Pre-seed the Failed(NotFound) state (a 404 of a deleted block).
@@ -439,7 +504,9 @@ fn mt015_transclusion_404_offers_remove_embed_mc003() {
             WikilinkError::NotFound("BLK-GONE".into()),
         ),
     );
-    let state = Arc::new(std::sync::Mutex::new(RichEditorState::new(doc).with_wikilink_runtime(runtime)));
+    let state = Arc::new(std::sync::Mutex::new(
+        RichEditorState::new(doc).with_wikilink_runtime(runtime),
+    ));
     let state_for_ui = Arc::clone(&state);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(520.0, 240.0))
@@ -457,7 +524,10 @@ fn mt015_transclusion_404_offers_remove_embed_mc003() {
             break;
         }
     }
-    assert!(remove_found, "MC-003: a 404 transclusion offers a 'transclusion-remove-BLK-GONE' action");
+    assert!(
+        remove_found,
+        "MC-003: a 404 transclusion offers a 'transclusion-remove-BLK-GONE' action"
+    );
 
     // Click "Remove embed": the transclusion node is deleted from the doc.
     {
@@ -470,7 +540,10 @@ fn mt015_transclusion_404_offers_remove_embed_mc003() {
         let st = state.lock().unwrap();
         let para = st.doc.children[0].as_block().unwrap();
         let has_transclusion = para.children.iter().any(|c| c.as_transclusion().is_some());
-        assert!(!has_transclusion, "MC-003: clicking 'Remove embed' deletes the transclusion node");
+        assert!(
+            !has_transclusion,
+            "MC-003: clicking 'Remove embed' deletes the transclusion node"
+        );
     }
 }
 
@@ -490,7 +563,9 @@ fn mt015_backlinks_panel_screenshot() {
     );
     // Pre-seed the loaded backlinks so the panel renders the list this frame.
     runtime.backlinks = BacklinksState::Loaded(vec![backlink("DOC-2"), backlink("DOC-3")]);
-    let state = Arc::new(std::sync::Mutex::new(RichEditorState::new(doc).with_wikilink_runtime(runtime)));
+    let state = Arc::new(std::sync::Mutex::new(
+        RichEditorState::new(doc).with_wikilink_runtime(runtime),
+    ));
     let state_for_ui = Arc::clone(&state);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(560.0, 360.0))
@@ -517,7 +592,10 @@ fn mt015_backlinks_panel_screenshot() {
         }
     }
     assert!(panel_found, "AC: the 'backlinks-panel' node is present");
-    assert!(entry_found, "AC: each backlink entry ('backlink-DOC-2') is addressable");
+    assert!(
+        entry_found,
+        "AC: each backlink entry ('backlink-DOC-2') is addressable"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -543,11 +621,16 @@ fn mt015_backlinks_empty_state() {
     let doc = BlockNode::doc(vec![BlockNode::paragraph("Lonely note.")]);
     let mut runtime = headless_runtime(
         Err(WikilinkError::NotFound("none".into())),
-        Ok(BacklinksResponse { source_document_id: "DOC-1".into(), backlinks: vec![] }),
+        Ok(BacklinksResponse {
+            source_document_id: "DOC-1".into(),
+            backlinks: vec![],
+        }),
         vec![],
     );
     runtime.backlinks = BacklinksState::Loaded(vec![]);
-    let state = Arc::new(std::sync::Mutex::new(RichEditorState::new(doc).with_wikilink_runtime(runtime)));
+    let state = Arc::new(std::sync::Mutex::new(
+        RichEditorState::new(doc).with_wikilink_runtime(runtime),
+    ));
     let state_for_ui = Arc::clone(&state);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(480.0, 240.0))
@@ -556,7 +639,9 @@ fn mt015_backlinks_empty_state() {
         });
     harness.run();
     assert!(
-        harness.query_by_label_contains("No backlinks yet.").is_some(),
+        harness
+            .query_by_label_contains("No backlinks yet.")
+            .is_some(),
         "AC: the empty backlinks state reads 'No backlinks yet.'"
     );
     assert!(
@@ -592,11 +677,18 @@ fn real_transclusion_and_backlinks_against_live_backend() {
     let backend = ReqwestWikilinkBackend::new(BACKEND_BASE_URL);
 
     // Transclusion resolve.
-    let transclusion = rt.block_on(async { backend.resolve_transclusion(&workspace_id, &block_id).await });
+    let transclusion =
+        rt.block_on(async { backend.resolve_transclusion(&workspace_id, &block_id).await });
     match transclusion {
         Ok(t) => {
-            assert_eq!(t.block_id, block_id, "the real backend returned the requested block");
-            println!("PT REAL transclusion resolve: resolved={} source={:?}", t.resolved, t.source_document_id);
+            assert_eq!(
+                t.block_id, block_id,
+                "the real backend returned the requested block"
+            );
+            println!(
+                "PT REAL transclusion resolve: resolved={} source={:?}",
+                t.resolved, t.source_document_id
+            );
         }
         Err(e) => panic!("PT real transclusion resolve failed (backend up + block seeded?): {e}"),
     }
@@ -605,8 +697,14 @@ fn real_transclusion_and_backlinks_against_live_backend() {
     let backlinks = rt.block_on(async { backend.list_backlinks(&document_id).await });
     match backlinks {
         Ok(resp) => {
-            assert_eq!(resp.source_document_id, document_id, "the backlinks are for the requested document");
-            println!("PT REAL backlinks: {} backlink(s) for {document_id}", resp.backlinks.len());
+            assert_eq!(
+                resp.source_document_id, document_id,
+                "the backlinks are for the requested document"
+            );
+            println!(
+                "PT REAL backlinks: {} backlink(s) for {document_id}",
+                resp.backlinks.len()
+            );
         }
         Err(e) => panic!("PT real backlinks failed (backend up + document seeded?): {e}"),
     }

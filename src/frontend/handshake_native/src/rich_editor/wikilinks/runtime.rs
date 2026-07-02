@@ -130,7 +130,8 @@ impl CreateNoteBackend for KnowledgeCreateNoteBackend {
         &'a self,
         workspace_id: &'a str,
         title: &'a str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>>
+    {
         use crate::backend::knowledge_documents::{CreateDocumentRequest, HskDocumentHeaders};
         let workspace_id = workspace_id.to_owned();
         let title = title.to_owned();
@@ -150,8 +151,9 @@ impl CreateNoteBackend for KnowledgeCreateNoteBackend {
                 folder_ref: None,
             };
             match client.create_document(&headers, &body).await {
-                Ok(resp) => extract_document_id(&resp.document)
-                    .ok_or_else(|| "create succeeded but the response carried no document id".to_owned()),
+                Ok(resp) => extract_document_id(&resp.document).ok_or_else(|| {
+                    "create succeeded but the response carried no document id".to_owned()
+                }),
                 Err(e) => Err(e.to_string()),
             }
         })
@@ -172,10 +174,20 @@ fn extract_document_id(document: &serde_json::Value) -> Option<String> {
 fn slugify(title: &str) -> String {
     let s: String = title
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect();
     let trimmed = s.trim_matches('-');
-    if trimmed.is_empty() { "untitled".to_owned() } else { trimmed.to_owned() }
+    if trimmed.is_empty() {
+        "untitled".to_owned()
+    } else {
+        trimmed.to_owned()
+    }
 }
 
 /// One-slot delivery cell for an off-thread create-note result (WP-KERNEL-012 MT-057).
@@ -189,7 +201,8 @@ type CreateNoteDeliveryCell = Arc<Mutex<Option<CreateNoteOutcome>>>;
 type ResolverSeedDeliveryCell = Arc<Mutex<Option<Result<Vec<(String, String)>, WikilinkError>>>>;
 
 /// One-slot delivery cell for an off-thread transclusion resolution: `(ref_value, result)`.
-type TransclusionDeliveryCell = Arc<Mutex<Option<(String, Result<LoomBlockTransclusion, WikilinkError>)>>>;
+type TransclusionDeliveryCell =
+    Arc<Mutex<Option<(String, Result<LoomBlockTransclusion, WikilinkError>)>>>;
 
 /// One-slot delivery cell for an off-thread backlinks fetch, tagged with the generation it was issued
 /// for (MC-004 cancellation): `(generation, result)`.
@@ -261,7 +274,8 @@ impl WikilinkRuntime {
         runtime: Option<tokio::runtime::Handle>,
     ) -> Self {
         let workspace_id = workspace_id.into();
-        let autocomplete = AutocompleteRuntime::new(workspace_id.clone(), Arc::clone(&backend), runtime.clone());
+        let autocomplete =
+            AutocompleteRuntime::new(workspace_id.clone(), Arc::clone(&backend), runtime.clone());
         Self {
             workspace_id,
             document_id: String::new(),
@@ -321,7 +335,8 @@ impl WikilinkRuntime {
             Some(TransclusionState::Resolving) => return, // already in flight.
             _ => {}
         }
-        self.transclusions.insert(ref_value.to_owned(), TransclusionState::Resolving);
+        self.transclusions
+            .insert(ref_value.to_owned(), TransclusionState::Resolving);
         let Some(runtime) = self.runtime.clone() else {
             return;
         };
@@ -330,7 +345,9 @@ impl WikilinkRuntime {
         let workspace_id = self.workspace_id.clone();
         let ref_value = ref_value.to_owned();
         runtime.spawn(async move {
-            let result = backend.resolve_transclusion(&workspace_id, &ref_value).await;
+            let result = backend
+                .resolve_transclusion(&workspace_id, &ref_value)
+                .await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((ref_value, result));
             }
@@ -383,7 +400,8 @@ impl WikilinkRuntime {
                 let state = match result {
                     Ok(t) if t.resolved => TransclusionState::Resolved(t),
                     Ok(t) => TransclusionState::Unresolved(
-                        t.unresolved_reason.unwrap_or_else(|| "source_unresolved".to_owned()),
+                        t.unresolved_reason
+                            .unwrap_or_else(|| "source_unresolved".to_owned()),
                     ),
                     Err(e) => TransclusionState::Failed(e),
                 };
@@ -467,7 +485,11 @@ impl WikilinkRuntime {
             let result = backend
                 .search(&workspace_id, &query, limit)
                 .await
-                .map(|rows| rows.into_iter().map(|r| (r.block_id, r.title)).collect::<Vec<_>>());
+                .map(|rows| {
+                    rows.into_iter()
+                        .map(|r| (r.block_id, r.title))
+                        .collect::<Vec<_>>()
+                });
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result);
             }
@@ -513,7 +535,8 @@ impl WikilinkRuntime {
         if self.creating_titles.contains(&normalized) {
             return false;
         }
-        let (Some(backend), Some(runtime)) = (self.create_backend.clone(), self.runtime.clone()) else {
+        let (Some(backend), Some(runtime)) = (self.create_backend.clone(), self.runtime.clone())
+        else {
             return false; // headless / unwired: the test stages the outcome directly.
         };
         self.creating_titles.insert(normalized.clone());
@@ -527,7 +550,10 @@ impl WikilinkRuntime {
                     display_title,
                     document_id,
                 },
-                Err(reason) => CreateNoteOutcome::Failed { normalized_title: normalized, reason },
+                Err(reason) => CreateNoteOutcome::Failed {
+                    normalized_title: normalized,
+                    reason,
+                },
             };
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(outcome);
@@ -563,12 +589,19 @@ impl WikilinkRuntime {
     /// outcome so the widget can rewrite the originating mark / surface an error.
     fn apply_create_outcome(&mut self, outcome: CreateNoteOutcome) -> CreateNoteOutcome {
         match &outcome {
-            CreateNoteOutcome::Created { normalized_title, display_title, document_id } => {
+            CreateNoteOutcome::Created {
+                normalized_title,
+                display_title,
+                document_id,
+            } => {
                 self.creating_titles.remove(normalized_title);
                 // The new note is now resolvable by its title (live, no reload — AC-002).
-                self.resolver_index.add_document(document_id.clone(), display_title.clone());
+                self.resolver_index
+                    .add_document(document_id.clone(), display_title.clone());
             }
-            CreateNoteOutcome::Failed { normalized_title, .. } => {
+            CreateNoteOutcome::Failed {
+                normalized_title, ..
+            } => {
                 self.creating_titles.remove(normalized_title);
             }
         }
@@ -580,7 +613,11 @@ impl WikilinkRuntime {
     /// failure. Separate from [`Self::drain`] because the create outcome must flow back to the WIDGET
     /// (to mutate the document mark), whereas transclusion/backlinks land entirely inside the runtime.
     pub fn drain_create(&mut self) -> Option<CreateNoteOutcome> {
-        let taken = self.create_cell.lock().ok().and_then(|mut slot| slot.take())?;
+        let taken = self
+            .create_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take())?;
         Some(self.apply_create_outcome(taken))
     }
 
@@ -602,13 +639,21 @@ impl WikilinkRuntime {
 
     /// Stage a transclusion delivery into the cell (test seam).
     #[cfg(test)]
-    pub fn stage_transclusion(&self, ref_value: &str, result: Result<LoomBlockTransclusion, WikilinkError>) {
+    pub fn stage_transclusion(
+        &self,
+        ref_value: &str,
+        result: Result<LoomBlockTransclusion, WikilinkError>,
+    ) {
         *self.transclusion_cell.lock().unwrap() = Some((ref_value.to_owned(), result));
     }
 
     /// Stage a backlinks delivery into the cell tagged with `generation` (test seam).
     #[cfg(test)]
-    pub fn stage_backlinks(&self, generation: u64, result: Result<BacklinksResponse, WikilinkError>) {
+    pub fn stage_backlinks(
+        &self,
+        generation: u64,
+        result: Result<BacklinksResponse, WikilinkError>,
+    ) {
         *self.backlinks_cell.lock().unwrap() = Some((generation, result));
     }
 }
@@ -622,10 +667,19 @@ mod tests {
     /// A backend that always errors NotFound (drives the headless terminal-state paths).
     struct NotFoundBackend;
     impl WikilinkBackend for NotFoundBackend {
-        fn search<'a>(&'a self, _ws: &'a str, _q: &'a str, _l: usize) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
+        fn search<'a>(
+            &'a self,
+            _ws: &'a str,
+            _q: &'a str,
+            _l: usize,
+        ) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
             Box::pin(async { Ok(vec![]) })
         }
-        fn resolve_transclusion<'a>(&'a self, _ws: &'a str, r: &'a str) -> WikilinkFuture<'a, LoomBlockTransclusion> {
+        fn resolve_transclusion<'a>(
+            &'a self,
+            _ws: &'a str,
+            r: &'a str,
+        ) -> WikilinkFuture<'a, LoomBlockTransclusion> {
             let r = r.to_owned();
             Box::pin(async move { Err(WikilinkError::NotFound(r)) })
         }
@@ -668,15 +722,24 @@ mod tests {
     #[test]
     fn ensure_transclusion_is_idempotent_for_terminal_state() {
         let mut rt = rt();
-        rt.transclusions.insert("BLK-1".into(), TransclusionState::Resolved(resolved_transclusion("BLK-1")));
+        rt.transclusions.insert(
+            "BLK-1".into(),
+            TransclusionState::Resolved(resolved_transclusion("BLK-1")),
+        );
         rt.ensure_transclusion("BLK-1");
         assert!(
-            matches!(rt.transclusions.get("BLK-1"), Some(TransclusionState::Resolved(_))),
+            matches!(
+                rt.transclusions.get("BLK-1"),
+                Some(TransclusionState::Resolved(_))
+            ),
             "a terminal transclusion is not re-resolved"
         );
         // An absent one is marked Resolving (then would spawn in the runtime path).
         rt.ensure_transclusion("BLK-2");
-        assert!(matches!(rt.transclusions.get("BLK-2"), Some(TransclusionState::Resolving)));
+        assert!(matches!(
+            rt.transclusions.get("BLK-2"),
+            Some(TransclusionState::Resolving)
+        ));
     }
 
     #[test]
@@ -684,7 +747,10 @@ mod tests {
         let mut rt = rt();
         rt.stage_transclusion("BLK-9", Ok(resolved_transclusion("BLK-9")));
         assert!(rt.drain());
-        assert!(matches!(rt.transclusions.get("BLK-9"), Some(TransclusionState::Resolved(_))));
+        assert!(matches!(
+            rt.transclusions.get("BLK-9"),
+            Some(TransclusionState::Resolved(_))
+        ));
     }
 
     #[test]
@@ -710,7 +776,9 @@ mod tests {
         rt.stage_transclusion("BLK-X", Err(WikilinkError::NotFound("BLK-X".into())));
         assert!(rt.drain());
         match rt.transclusions.get("BLK-X") {
-            Some(TransclusionState::Failed(e)) => assert!(e.is_not_found(), "404 -> NotFound -> Remove embed"),
+            Some(TransclusionState::Failed(e)) => {
+                assert!(e.is_not_found(), "404 -> NotFound -> Remove embed")
+            }
             other => panic!("expected Failed(NotFound), got {other:?}"),
         }
     }
@@ -729,12 +797,30 @@ mod tests {
         assert_ne!(gen_a, gen_b);
 
         // DOC-A's STALE response lands -> dropped (generation mismatch).
-        rt.stage_backlinks(gen_a, Ok(BacklinksResponse { source_document_id: "DOC-A".into(), backlinks: vec![backlink("X")] }));
-        assert!(!rt.drain(), "MC-004: a stale-generation backlinks response is dropped");
-        assert!(matches!(rt.backlinks, BacklinksState::Idle), "state unchanged by the stale response");
+        rt.stage_backlinks(
+            gen_a,
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-A".into(),
+                backlinks: vec![backlink("X")],
+            }),
+        );
+        assert!(
+            !rt.drain(),
+            "MC-004: a stale-generation backlinks response is dropped"
+        );
+        assert!(
+            matches!(rt.backlinks, BacklinksState::Idle),
+            "state unchanged by the stale response"
+        );
 
         // DOC-B's response lands -> applied.
-        rt.stage_backlinks(gen_b, Ok(BacklinksResponse { source_document_id: "DOC-B".into(), backlinks: vec![backlink("Y"), backlink("Z")] }));
+        rt.stage_backlinks(
+            gen_b,
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-B".into(),
+                backlinks: vec![backlink("Y"), backlink("Z")],
+            }),
+        );
         assert!(rt.drain());
         match &rt.backlinks {
             BacklinksState::Loaded(links) => assert_eq!(links.len(), 2),
@@ -746,15 +832,27 @@ mod tests {
     fn set_document_clears_transclusions_and_resets_backlinks() {
         let mut rt = rt();
         rt.set_document("DOC-A");
-        rt.transclusions.insert("BLK-1".into(), TransclusionState::Resolved(resolved_transclusion("BLK-1")));
+        rt.transclusions.insert(
+            "BLK-1".into(),
+            TransclusionState::Resolved(resolved_transclusion("BLK-1")),
+        );
         rt.backlinks = BacklinksState::Loaded(vec![backlink("X")]);
         rt.set_document("DOC-B");
-        assert!(rt.transclusions.is_empty(), "a new document clears the transclusion cache");
-        assert!(matches!(rt.backlinks, BacklinksState::Idle), "a new document resets backlinks to Idle");
+        assert!(
+            rt.transclusions.is_empty(),
+            "a new document clears the transclusion cache"
+        );
+        assert!(
+            matches!(rt.backlinks, BacklinksState::Idle),
+            "a new document resets backlinks to Idle"
+        );
         // Re-setting the SAME document is a no-op (does not reset state).
         rt.backlinks = BacklinksState::Loaded(vec![backlink("Y")]);
         rt.set_document("DOC-B");
-        assert!(matches!(rt.backlinks, BacklinksState::Loaded(_)), "same-document set_document is a no-op");
+        assert!(
+            matches!(rt.backlinks, BacklinksState::Loaded(_)),
+            "same-document set_document is a no-op"
+        );
     }
 
     #[test]
@@ -780,9 +878,15 @@ mod tests {
     #[test]
     fn mark_removed_drops_the_transclusion() {
         let mut rt = rt();
-        rt.transclusions.insert("BLK-1".into(), TransclusionState::Failed(WikilinkError::NotFound("BLK-1".into())));
+        rt.transclusions.insert(
+            "BLK-1".into(),
+            TransclusionState::Failed(WikilinkError::NotFound("BLK-1".into())),
+        );
         rt.mark_removed("BLK-1");
-        assert!(!rt.transclusions.contains_key("BLK-1"), "removed transclusion is dropped from the cache");
+        assert!(
+            !rt.transclusions.contains_key("BLK-1"),
+            "removed transclusion is dropped from the cache"
+        );
         assert!(rt.removed_transclusions.contains("BLK-1"));
     }
 
@@ -795,18 +899,28 @@ mod tests {
         use crate::rich_editor::wikilinks::resolver::{resolve_wikilink, WikilinkResolution};
         let mut rt = rt();
         rt.mark_creating("My New Note");
-        assert!(rt.is_creating("my new note"), "the title is in-flight (normalized key)");
+        assert!(
+            rt.is_creating("my new note"),
+            "the title is in-flight (normalized key)"
+        );
         rt.stage_create(CreateNoteOutcome::Created {
             normalized_title: normalize_target("My New Note"),
             display_title: "My New Note".into(),
             document_id: "DOC-NEW".into(),
         });
         let outcome = rt.drain_create().expect("a staged create outcome drains");
-        assert!(matches!(outcome, CreateNoteOutcome::Created { ref document_id, .. } if document_id == "DOC-NEW"));
-        assert!(!rt.is_creating("My New Note"), "the in-flight guard is cleared after the create resolves");
+        assert!(
+            matches!(outcome, CreateNoteOutcome::Created { ref document_id, .. } if document_id == "DOC-NEW")
+        );
+        assert!(
+            !rt.is_creating("My New Note"),
+            "the in-flight guard is cleared after the create resolves"
+        );
         // The link is now live: re-resolving the same title returns Resolved (AC-002).
         let r = resolve_wikilink(&rt.resolver_index, "My New Note");
-        assert!(matches!(r, WikilinkResolution::Resolved { ref document_id, .. } if document_id == "DOC-NEW"));
+        assert!(
+            matches!(r, WikilinkResolution::Resolved { ref document_id, .. } if document_id == "DOC-NEW")
+        );
     }
 
     #[test]
@@ -822,8 +936,14 @@ mod tests {
         });
         let outcome = rt.drain_create().expect("a staged failure drains");
         assert!(matches!(outcome, CreateNoteOutcome::Failed { .. }));
-        assert!(!rt.is_creating("Doomed"), "a failed create re-enables the affordance");
-        assert!(matches!(resolve_wikilink(&rt.resolver_index, "Doomed"), WikilinkResolution::Unresolved { .. }));
+        assert!(
+            !rt.is_creating("Doomed"),
+            "a failed create re-enables the affordance"
+        );
+        assert!(matches!(
+            resolve_wikilink(&rt.resolver_index, "Doomed"),
+            WikilinkResolution::Unresolved { .. }
+        ));
     }
 
     #[test]
@@ -835,13 +955,19 @@ mod tests {
         rt.mark_creating("Atlas");
         assert!(rt.is_creating("Atlas"));
         // A dispatch for an already-in-flight title is a no-op (the guard check precedes any spawn).
-        assert!(!rt.dispatch_create_note("Atlas"), "MC-001: an in-flight title does not dispatch again");
+        assert!(
+            !rt.dispatch_create_note("Atlas"),
+            "MC-001: an in-flight title does not dispatch again"
+        );
     }
 
     #[test]
     fn dispatch_blank_title_is_noop() {
         let mut rt = rt();
-        assert!(!rt.dispatch_create_note("   "), "a blank title never dispatches a create");
+        assert!(
+            !rt.dispatch_create_note("   "),
+            "a blank title never dispatches a create"
+        );
         assert!(rt.creating_titles.is_empty());
     }
 
@@ -850,16 +976,31 @@ mod tests {
         // AC-006 / MC-002: the local alias stub populates the index IN MEMORY and flips the
         // local-only banner flag (the backend has no aliases field).
         let mut rt = rt();
-        assert!(!rt.alias_backend_gap, "no gap recognized before any alias is used");
+        assert!(
+            !rt.alias_backend_gap,
+            "no gap recognized before any alias is used"
+        );
         rt.resolver_index.add_document("DOC-1", "Project Atlas");
         rt.add_local_alias("DOC-1", "Atlas");
-        assert!(rt.alias_backend_gap, "AC-006: using the local alias stub flips the local-only banner");
-        assert_eq!(rt.resolver_index.alias_count(), 1, "the alias is in the in-memory index");
+        assert!(
+            rt.alias_backend_gap,
+            "AC-006: using the local alias stub flips the local-only banner"
+        );
+        assert_eq!(
+            rt.resolver_index.alias_count(),
+            1,
+            "the alias is in the in-memory index"
+        );
         // Resolving by the alias works (the code path is exercised + testable despite the backend gap).
-        use crate::rich_editor::wikilinks::resolver::{resolve_wikilink, MatchKind, WikilinkResolution};
+        use crate::rich_editor::wikilinks::resolver::{
+            resolve_wikilink, MatchKind, WikilinkResolution,
+        };
         assert!(matches!(
             resolve_wikilink(&rt.resolver_index, "atlas"),
-            WikilinkResolution::Resolved { matched_by: MatchKind::Alias { .. }, .. }
+            WikilinkResolution::Resolved {
+                matched_by: MatchKind::Alias { .. },
+                ..
+            }
         ));
     }
 
@@ -868,7 +1009,10 @@ mod tests {
         let mut rt = rt();
         rt.note_alias_backend_gap();
         rt.note_alias_backend_gap();
-        assert!(rt.alias_backend_gap, "the gap flag flips on (backend lacks aliases)");
+        assert!(
+            rt.alias_backend_gap,
+            "the gap flag flips on (backend lacks aliases)"
+        );
     }
 
     #[test]
@@ -876,20 +1020,35 @@ mod tests {
         // AC-003 seed: a delivered Loom-search enumeration folds into the resolver index so a
         // `[[Title]]` classifies Resolved at runtime (the inert-index defect fix). Before the seed the
         // title is Unresolved; after the drain it resolves by ExactTitle.
-        use crate::rich_editor::wikilinks::resolver::{resolve_wikilink, MatchKind, WikilinkResolution};
+        use crate::rich_editor::wikilinks::resolver::{
+            resolve_wikilink, MatchKind, WikilinkResolution,
+        };
         let mut rt = rt();
         assert!(
-            matches!(resolve_wikilink(&rt.resolver_index, "Project Atlas"), WikilinkResolution::Unresolved { .. }),
+            matches!(
+                resolve_wikilink(&rt.resolver_index, "Project Atlas"),
+                WikilinkResolution::Unresolved { .. }
+            ),
             "before seeding the title is Unresolved (empty index)"
         );
         rt.stage_resolver_seed(vec![
             ("DOC-1".into(), "Project Atlas".into()),
             ("DOC-2".into(), "Roadmap".into()),
         ]);
-        assert!(rt.is_seeding_resolver_index(), "a staged seed marks seeding in flight");
+        assert!(
+            rt.is_seeding_resolver_index(),
+            "a staged seed marks seeding in flight"
+        );
         assert!(rt.drain(), "draining the seed applies it");
-        assert!(!rt.is_seeding_resolver_index(), "the seed-in-flight guard clears after the drain");
-        assert_eq!(rt.resolver_index.title_count(), 2, "both seeded titles are indexed");
+        assert!(
+            !rt.is_seeding_resolver_index(),
+            "the seed-in-flight guard clears after the drain"
+        );
+        assert_eq!(
+            rt.resolver_index.title_count(),
+            2,
+            "both seeded titles are indexed"
+        );
         // AC-003: the seeded title now resolves at runtime (no longer Unresolved).
         assert!(matches!(
             resolve_wikilink(&rt.resolver_index, "project atlas"),
@@ -903,7 +1062,10 @@ mod tests {
         // unit/kittest that does not exercise the network is unaffected.
         let mut rt = rt();
         rt.seed_resolver_index_from_search("", 50);
-        assert!(!rt.is_seeding_resolver_index(), "no seed dispatched without a workspace/runtime");
+        assert!(
+            !rt.is_seeding_resolver_index(),
+            "no seed dispatched without a workspace/runtime"
+        );
         assert_eq!(rt.resolver_index.title_count(), 0, "index stays empty");
     }
 

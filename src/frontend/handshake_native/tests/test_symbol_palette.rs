@@ -74,7 +74,10 @@ fn symbol_palette_filters_outline_subset_and_jumps() {
     // Source the palette from the panel's MT-006 outline (the SAME list the outline panel uses — NOT a
     // re-parse). This proves AC-001's "the palette source is the MT-006 outline".
     panel.open_symbol_palette();
-    assert!(panel.is_symbol_palette_open(), "Ctrl+Shift+O entry point opens the palette");
+    assert!(
+        panel.is_symbol_palette_open(),
+        "Ctrl+Shift+O entry point opens the palette"
+    );
 
     // The unfiltered set equals the file's outline (every symbol).
     let outline = panel.outline_items();
@@ -86,7 +89,10 @@ fn symbol_palette_filters_outline_subset_and_jumps() {
         full_results.len(),
         outline.len()
     );
-    assert!(outline.len() >= 4, "outline has struct + impl + 2 methods + standalone fn");
+    assert!(
+        outline.len() >= 4,
+        "outline has struct + impl + 2 methods + standalone fn"
+    );
 
     // Fuzzy query "inc" -> a SUBSET containing 'increment'.
     panel.set_symbol_palette_query("inc");
@@ -102,13 +108,19 @@ fn symbol_palette_filters_outline_subset_and_jumps() {
         filtered.len(),
         full_results.len()
     );
-    assert_eq!(filtered[0].name, "increment", "best fuzzy match ranks first");
+    assert_eq!(
+        filtered[0].name, "increment",
+        "best fuzzy match ranks first"
+    );
 
     // Confirm -> JumpTo with the correct line + byte_range, and the caret lands on that line.
     let inc_line = outline.iter().find(|i| i.name == "increment").unwrap().line;
     let jumped = panel.confirm_symbol_palette();
     assert!(jumped, "AC-001: confirming a result jumps");
-    assert!(!panel.is_symbol_palette_open(), "a successful jump closes the palette");
+    assert!(
+        !panel.is_symbol_palette_open(),
+        "a successful jump closes the palette"
+    );
 
     let buffer = panel.buffer();
     let (caret_line, _) = byte_to_line_col(panel.cursors().primary().head, &buffer);
@@ -146,7 +158,10 @@ fn symbol_palette_jump_to_carries_byte_range_from_outline_not_reparse() {
     for (a, b) in from_panel.iter().zip(from_outline.iter()) {
         assert_eq!(a.name, b.name, "same symbol name");
         assert_eq!(a.line, b.line, "same line");
-        assert_eq!(a.byte_range, b.byte_range, "same byte_range (adapted from the outline node)");
+        assert_eq!(
+            a.byte_range, b.byte_range,
+            "same byte_range (adapted from the outline node)"
+        );
     }
 
     // And the standalone matcher round-trips a confirm.
@@ -155,7 +170,11 @@ fn symbol_palette_jump_to_carries_byte_range_from_outline_not_reparse() {
     bare.filter("standalone");
     match bare.confirm() {
         Some(SymbolPaletteAction::JumpTo { line, byte_range }) => {
-            let expected = outline.iter().find(|i| i.name == "standalone_helper").unwrap().line;
+            let expected = outline
+                .iter()
+                .find(|i| i.name == "standalone_helper")
+                .unwrap()
+                .line;
             assert_eq!(line, expected, "JumpTo line matches the outline node line");
             assert_eq!(byte_range.start, buffer.line_to_byte(expected).unwrap());
         }
@@ -185,7 +204,11 @@ fn code_editor_symbol_palette_ctrl_shift_o_opens_file_scoped() {
     assert!(!closed, "AC-003: no symbol-palette node while closed");
 
     // Inject Ctrl+Shift+O (Mod+Shift+O). The keymap reads modifiers off the event.
-    let mods = egui::Modifiers { ctrl: true, shift: true, ..Default::default() };
+    let mods = egui::Modifiers {
+        ctrl: true,
+        shift: true,
+        ..Default::default()
+    };
     harness.event(egui::Event::Key {
         key: egui::Key::O,
         physical_key: None,
@@ -196,7 +219,10 @@ fn code_editor_symbol_palette_ctrl_shift_o_opens_file_scoped() {
     harness.run();
     harness.run();
 
-    assert!(panel.is_symbol_palette_open(), "AC-003: Ctrl+Shift+O opened the in-file symbol palette");
+    assert!(
+        panel.is_symbol_palette_open(),
+        "AC-003: Ctrl+Shift+O opened the in-file symbol palette"
+    );
 
     // AC-003: the live tree now contains code_editor_symbol_palette (Role::List) AND the search input
     // code_editor_symbol_palette_search (Role::TextInput) — the FILE-SCOPED palette, NOT the global
@@ -241,7 +267,10 @@ fn code_editor_symbol_palette_ctrl_shift_o_opens_file_scoped() {
         .root()
         .children_recursive()
         .any(|n| n.accesskit_node().author_id() == Some("symbol-0"));
-    assert!(has_row, "AC-003: the open palette emits a symbol-0 result row node");
+    assert!(
+        has_row,
+        "AC-003: the open palette emits a symbol-0 result row node"
+    );
 
     // Save the screenshot to the EXTERNAL artifact root ONLY.
     match harness.render() {
@@ -250,7 +279,10 @@ fn code_editor_symbol_palette_ctrl_shift_o_opens_file_scoped() {
             let _ = std::fs::create_dir_all(&ext_dir);
             let png_path = ext_dir.join("MT-053-symbol-palette.png");
             let saved = image.save(&png_path).is_ok();
-            assert!(image.width() > 0 && image.height() > 0, "symbol-palette image non-empty");
+            assert!(
+                image.width() > 0 && image.height() > 0,
+                "symbol-palette image non-empty"
+            );
             println!(
                 "PT-003 symbol_palette: {}x{} saved={saved} ({}); Role::List present, switcher absent",
                 image.width(),
@@ -307,6 +339,9 @@ fn symbol_palette_source_has_no_reparse_or_backend() {
     parser.set_language(&lang).unwrap();
     let tree = parser.parse(SRC, None).unwrap();
     let items = OutlineProvider::compute(&tree, &buffer, "rust");
-    assert!(items.iter().any(|i| i.name == "increment"), "outline is the symbol source");
+    assert!(
+        items.iter().any(|i| i.name == "increment"),
+        "outline is the symbol source"
+    );
     println!("PT-001 AC-007: no re-parse / no backend in symbol_palette.rs (grep gate clean)");
 }

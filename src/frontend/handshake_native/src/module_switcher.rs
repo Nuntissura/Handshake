@@ -114,9 +114,8 @@ impl serde::Serialize for ModuleId {
 impl<'de> serde::Deserialize<'de> for ModuleId {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        ModuleId::parse(&s).ok_or_else(|| {
-            serde::de::Error::custom(format!("unknown module id '{s}'"))
-        })
+        ModuleId::parse(&s)
+            .ok_or_else(|| serde::de::Error::custom(format!("unknown module id '{s}'")))
     }
 }
 
@@ -246,7 +245,8 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
 /// tab (the default tab) is at index 0.
 pub fn module_tab_list(module: ModuleId, existing_pane_tabs: &[PaneType]) -> Vec<PaneType> {
     let def = module.definition();
-    let mut ordered: Vec<PaneType> = Vec::with_capacity(1 + def.tabs.len() + existing_pane_tabs.len());
+    let mut ordered: Vec<PaneType> =
+        Vec::with_capacity(1 + def.tabs.len() + existing_pane_tabs.len());
     ordered.push(def.default_tab.clone());
     ordered.extend(def.tabs.iter().cloned());
     ordered.extend(existing_pane_tabs.iter().cloned());
@@ -343,7 +343,11 @@ impl ModuleSwitcher {
         let node_id = MODULE_NODE_ID_BASE + index as u64;
         let button_id = unsafe { egui::Id::from_high_entropy_bits(node_id) };
 
-        let text_color = if is_active { colors.active_text } else { colors.text };
+        let text_color = if is_active {
+            colors.active_text
+        } else {
+            colors.text
+        };
         let font = egui::FontId::proportional(13.0);
         let galley = ui
             .painter()
@@ -367,10 +371,7 @@ impl ModuleSwitcher {
                 colors.inactive_bg
             };
             ui.painter().rect_filled(rect, 4.0, bg);
-            let text_pos = egui::pos2(
-                rect.left() + pad_x,
-                rect.center().y - galley.size().y * 0.5,
-            );
+            let text_pos = egui::pos2(rect.left() + pad_x, rect.center().y - galley.size().y * 0.5);
             ui.painter().galley(text_pos, galley, text_color);
         }
 
@@ -544,14 +545,23 @@ mod tests {
         // LAB default = inference-lab; existing pane already has workspace + inference-lab open.
         let existing = vec![PaneType::Workspace, PaneType::InferenceLab];
         let list = module_tab_list(ModuleId::Lab, &existing);
-        assert_eq!(list.first(), Some(&PaneType::InferenceLab), "default tab is first");
+        assert_eq!(
+            list.first(),
+            Some(&PaneType::InferenceLab),
+            "default tab is first"
+        );
         // inference-lab appears exactly once (dedup), and the existing-only Workspace is preserved at end.
         assert_eq!(
-            list.iter().filter(|t| **t == PaneType::InferenceLab).count(),
+            list.iter()
+                .filter(|t| **t == PaneType::InferenceLab)
+                .count(),
             1,
             "module default tab is not duplicated"
         );
-        assert!(list.contains(&PaneType::Workspace), "existing open tab preserved");
+        assert!(
+            list.contains(&PaneType::Workspace),
+            "existing open tab preserved"
+        );
         // Full expected order: [inference-lab] + LAB tabs + existing (deduped).
         assert_eq!(
             list,

@@ -20,7 +20,10 @@ pub enum Selection {
     /// a collapsed caret. `anchor` is the fixed end (where the selection started);
     /// `head` is the moving end (where the caret is) — the same anchor/head
     /// convention the code editor's `CursorSet` uses.
-    Text { anchor: DocPosition, head: DocPosition },
+    Text {
+        anchor: DocPosition,
+        head: DocPosition,
+    },
     /// A whole-node selection addressed by its child-index path from the doc root.
     Node { node_path: Vec<usize> },
 }

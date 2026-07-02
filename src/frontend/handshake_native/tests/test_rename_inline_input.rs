@@ -84,11 +84,22 @@ fn rename_inline_input_opens_prefilled_with_identifier() {
     harness.run(); // settle so the input node is emitted.
 
     // AC-001: the input is open, pre-filled with the identifier under the cursor.
-    assert!(panel.is_rename_input_open(), "AC-001: F2 on an identifier opens the inline rename input");
+    assert!(
+        panel.is_rename_input_open(),
+        "AC-001: F2 on an identifier opens the inline rename input"
+    );
     match panel.rename_state() {
-        RenameState::Editing { original, draft, .. } => {
-            assert_eq!(original, "myValue", "AC-001: the input pre-fills with the identifier");
-            assert_eq!(draft, "myValue", "AC-001: the draft starts equal to the identifier");
+        RenameState::Editing {
+            original, draft, ..
+        } => {
+            assert_eq!(
+                original, "myValue",
+                "AC-001: the input pre-fills with the identifier"
+            );
+            assert_eq!(
+                draft, "myValue",
+                "AC-001: the draft starts equal to the identifier"
+            );
         }
         other => panic!("AC-001: expected Editing, got {other:?}"),
     }
@@ -96,7 +107,10 @@ fn rename_inline_input_opens_prefilled_with_identifier() {
     // AC-001 (the AccessKit proof): the input node is Role::TextInput with value == the identifier.
     let (role, value) = find_node(&harness, CODE_EDITOR_RENAME_INPUT_AUTHOR_ID)
         .expect("AC-001: the rename input node is present in the live tree");
-    assert_eq!(role, "TextInput", "AC-001: '{CODE_EDITOR_RENAME_INPUT_AUTHOR_ID}' is a Role::TextInput");
+    assert_eq!(
+        role, "TextInput",
+        "AC-001: '{CODE_EDITOR_RENAME_INPUT_AUTHOR_ID}' is a Role::TextInput"
+    );
     assert_eq!(
         value.as_deref(),
         Some("myValue"),
@@ -111,7 +125,10 @@ fn rename_inline_input_opens_prefilled_with_identifier() {
         if let Some(range) = state.cursor.char_range() {
             let min = range.primary.index.min(range.secondary.index);
             let max = range.primary.index.max(range.secondary.index);
-            assert_eq!(min, 0, "AC-001: the selection starts at the beginning (select-all)");
+            assert_eq!(
+                min, 0,
+                "AC-001: the selection starts at the beginning (select-all)"
+            );
             assert_eq!(
                 max,
                 "myValue".chars().count(),
@@ -174,7 +191,10 @@ fn rename_accesskit_nodes_present_with_correct_roles() {
     panel.begin_rename_at_cursor();
     harness.run();
     harness.run();
-    assert!(panel.is_rename_input_open(), "AC-005: the context-menu 'Rename Symbol' path opens the input");
+    assert!(
+        panel.is_rename_input_open(),
+        "AC-005: the context-menu 'Rename Symbol' path opens the input"
+    );
     assert!(
         find_node(&harness, CODE_EDITOR_RENAME_INPUT_AUTHOR_ID).is_some(),
         "AC-006: the rename input node is present"
@@ -191,14 +211,19 @@ fn rename_accesskit_nodes_present_with_correct_roles() {
         &occurrence_ranges,
         true,
     );
-    panel.set_rename_state(RenameState::Previewing { workspace_edit: preview });
+    panel.set_rename_state(RenameState::Previewing {
+        workspace_edit: preview,
+    });
     harness.run();
     harness.run();
 
     // AC-006: the apply + cancel buttons are present with Role::Button.
     let (apply_role, _) = find_node(&harness, CODE_EDITOR_RENAME_APPLY_AUTHOR_ID)
         .expect("AC-006: the apply node is present");
-    assert_eq!(apply_role, "Button", "AC-006: '{CODE_EDITOR_RENAME_APPLY_AUTHOR_ID}' is a Role::Button");
+    assert_eq!(
+        apply_role, "Button",
+        "AC-006: '{CODE_EDITOR_RENAME_APPLY_AUTHOR_ID}' is a Role::Button"
+    );
     let (cancel_role, _) = find_node(&harness, CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID)
         .expect("AC-006: the cancel node is present");
     assert_eq!(
@@ -230,7 +255,10 @@ fn rename_input_screenshot() {
     panel.dispatch_action(CodeEditorAction::RenameSymbol);
     harness.run();
     harness.run(); // settle so the input paints.
-    assert!(panel.is_rename_input_open(), "HBR-VIS: the input is open for the screenshot");
+    assert!(
+        panel.is_rename_input_open(),
+        "HBR-VIS: the input is open for the screenshot"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -243,7 +271,10 @@ fn rename_input_screenshot() {
                 "HBR-VIS rename_input_screenshot: {w}x{h}, saved={saved} ({})",
                 png_path.display()
             );
-            assert!(saved, "the rename input screenshot saved to the external artifact root");
+            assert!(
+                saved,
+                "the rename input screenshot saved to the external artifact root"
+            );
         }
         Err(e) => {
             println!(

@@ -117,7 +117,11 @@ fn launcher_spawn_is_quiet_and_free_standing() {
     );
     // No focus-steal anywhere (also enforced crate-wide by tests/test_focus_audit_quiet.rs which scans
     // every src/**/*.rs — this file is covered there too).
-    for banned in ["SetForegroundWindow", "BringWindowToTop", "AllowSetForegroundWindow"] {
+    for banned in [
+        "SetForegroundWindow",
+        "BringWindowToTop",
+        "AllowSetForegroundWindow",
+    ] {
         assert!(
             !launcher_code.contains(banned),
             "AC-014-2: the launcher must not call the foreground/focus-steal API '{banned}'"
@@ -216,7 +220,11 @@ fn find_palmistry_binary() -> Option<PathBuf> {
             return Some(p);
         }
     }
-    let bin = if cfg!(windows) { "palmistry.exe" } else { "palmistry" };
+    let bin = if cfg!(windows) {
+        "palmistry.exe"
+    } else {
+        "palmistry"
+    };
     for base in [
         "../../../../Handshake_Artifacts/palmistry-target/debug",
         "../../../../Handshake_Artifacts/palmistry-target/release",

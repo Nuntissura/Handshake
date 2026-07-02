@@ -25,11 +25,10 @@ use egui_kittest::Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::code_editor::{
-    CodeEditorPanel, DiagnosticSeverity, GutterMarker,
-};
+use handshake_native::code_editor::{CodeEditorPanel, DiagnosticSeverity, GutterMarker};
 use handshake_native::top_menu_bar::{
-    GO_BACK_AUTHOR_ID, GO_FORWARD_AUTHOR_ID, GO_NEXT_DIAGNOSTIC_AUTHOR_ID, GO_PREV_DIAGNOSTIC_AUTHOR_ID,
+    GO_BACK_AUTHOR_ID, GO_FORWARD_AUTHOR_ID, GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
+    GO_PREV_DIAGNOSTIC_AUTHOR_ID,
 };
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
@@ -71,7 +70,10 @@ fn press_f8(harness: &mut Harness<'static>, shift: bool) {
         physical_key: None,
         pressed: true,
         repeat: false,
-        modifiers: egui::Modifiers { shift, ..Default::default() },
+        modifiers: egui::Modifiers {
+            shift,
+            ..Default::default()
+        },
     });
     harness.run();
     harness.run();
@@ -95,17 +97,37 @@ fn code_editor_f8_next_diagnostic() {
 
     // A REAL F8 event routed through process_keymap -> resolve(F8) -> GoToNextDiagnostic.
     press_f8(&mut harness, false);
-    assert_eq!(caret_line(&panel), 5, "AC-006: F8 moves the caret to the next diagnostic line (5)");
+    assert_eq!(
+        caret_line(&panel),
+        5,
+        "AC-006: F8 moves the caret to the next diagnostic line (5)"
+    );
     press_f8(&mut harness, false);
-    assert_eq!(caret_line(&panel), 10, "AC-006: F8 again advances to line 10");
+    assert_eq!(
+        caret_line(&panel),
+        10,
+        "AC-006: F8 again advances to line 10"
+    );
     press_f8(&mut harness, false);
-    assert_eq!(caret_line(&panel), 20, "AC-006: F8 again advances to line 20");
+    assert_eq!(
+        caret_line(&panel),
+        20,
+        "AC-006: F8 again advances to line 20"
+    );
     press_f8(&mut harness, false);
-    assert_eq!(caret_line(&panel), 5, "AC-006: F8 at the last marker wraps to the first (5)");
+    assert_eq!(
+        caret_line(&panel),
+        5,
+        "AC-006: F8 at the last marker wraps to the first (5)"
+    );
 
     // Shift+F8 (Go to Previous Problem) steps backward through the live path.
     press_f8(&mut harness, true);
-    assert_eq!(caret_line(&panel), 20, "Shift+F8 steps to the previous marker (wraps to 20)");
+    assert_eq!(
+        caret_line(&panel),
+        20,
+        "Shift+F8 steps to the previous marker (wraps to 20)"
+    );
 
     // HBR-VIS: screenshot the editor with diagnostics present. On a GPU host this saves a PNG to the
     // EXTERNAL artifact root; absent a wgpu adapter, record an honest non-fatal note.
@@ -118,8 +140,14 @@ fn code_editor_f8_next_diagnostic() {
             let png_path = ext_dir.join("MT-052-f8-diagnostic-nav.png");
             let saved = image.save(&png_path).is_ok();
             let abs = std::fs::canonicalize(&png_path).unwrap_or(png_path.clone());
-            println!("PT-005 F8-nav screenshot: {w}x{h}, saved={saved} ({})", abs.display());
-            assert!(saved, "PT-005: the F8-nav screenshot PNG saved to the external root");
+            println!(
+                "PT-005 F8-nav screenshot: {w}x{h}, saved={saved} ({})",
+                abs.display()
+            );
+            assert!(
+                saved,
+                "PT-005: the F8-nav screenshot PNG saved to the external root"
+            );
         }
         Err(e) => {
             println!(
@@ -179,16 +207,19 @@ fn go_menu_editor_nav_accesskit_nodes() {
     println!("PT-006 GO-menu MT-052 nodes: {found:?}");
 
     for id in required {
-        let entry = found
-            .iter()
-            .find(|(a, _, _)| a == id)
-            .unwrap_or_else(|| panic!("AC-007: GO-menu node {id} missing from the live tree: {found:?}"));
+        let entry = found.iter().find(|(a, _, _)| a == id).unwrap_or_else(|| {
+            panic!("AC-007: GO-menu node {id} missing from the live tree: {found:?}")
+        });
         assert_eq!(entry.1, "MenuItem", "AC-007: {id} is a Role::MenuItem node");
         assert!(
             entry.2,
             "AC-007: {id} is DISABLED until the editor is host-mounted (E11) — MT-050 precedent"
         );
     }
-    assert_eq!(found.len(), 4, "all four MT-052 GO-menu nodes present exactly once");
+    assert_eq!(
+        found.len(),
+        4,
+        "all four MT-052 GO-menu nodes present exactly once"
+    );
     assert_no_local_artifact_dir();
 }

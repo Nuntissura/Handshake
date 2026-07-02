@@ -22,7 +22,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use handshake_core::AppState;
 use handshake_core::api::atelier as atelier_api;
 use handshake_core::atelier::search::search_event_family;
 use handshake_core::atelier::stealth_window::stealth_ref_event_family::{
@@ -46,6 +45,7 @@ use handshake_core::llm::{
 };
 use handshake_core::storage::tests::optional_postgres_backend_with_pool_from_env;
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
+use handshake_core::AppState;
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -274,14 +274,6 @@ impl LlmClient for NoopLlmClient {
 }
 
 async fn test_app_state_from_database_url() -> Option<AppState> {
-    if std::env::var("POSTGRES_TEST_URL").is_err() {
-        let Some(url) = database_url() else {
-            eprintln!("SKIP atelier api state: DATABASE_URL not set");
-            return None;
-        };
-        std::env::set_var("POSTGRES_TEST_URL", url);
-    }
-
     let backend = optional_postgres_backend_with_pool_from_env()
         .await
         .expect("create isolated postgres test backend")?;
@@ -372,8 +364,8 @@ fn stealth_ref_tauri_commands_are_registered_and_postgres_backed() {
 }
 
 #[tokio::test]
-async fn stealth_window_api_list_is_scoped_to_calling_actor()
--> Result<(), Box<dyn std::error::Error>> {
+async fn stealth_window_api_list_is_scoped_to_calling_actor(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -429,8 +421,8 @@ async fn stealth_window_api_list_is_scoped_to_calling_actor()
 }
 
 #[tokio::test]
-async fn atelier_filesystem_health_api_records_read_only_check()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_filesystem_health_api_records_read_only_check(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -559,8 +551,8 @@ async fn atelier_filesystem_health_api_records_read_only_check()
 }
 
 #[tokio::test]
-async fn atelier_deletion_controls_api_preview_archive_and_restore()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_deletion_controls_api_preview_archive_and_restore(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -632,18 +624,14 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore()
     let archive: serde_json::Value = archive_response.json().await?;
     assert_eq!(archive["operation"], "archive_deletion_targets");
     assert_eq!(archive["target_count"], 2);
-    assert!(
-        store
-            .is_media_asset_trashed(asset_id)
-            .await
-            .expect("media marker after API archive")
-    );
-    assert!(
-        store
-            .is_sheet_version_trashed(sheet.version_id)
-            .await
-            .expect("sheet marker after API archive")
-    );
+    assert!(store
+        .is_media_asset_trashed(asset_id)
+        .await
+        .expect("media marker after API archive"));
+    assert!(store
+        .is_sheet_version_trashed(sheet.version_id)
+        .await
+        .expect("sheet marker after API archive"));
 
     let restore_response = client
         .post(format!("{base_url}/atelier/deletion/restore"))
@@ -658,26 +646,22 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore()
     let restore: serde_json::Value = restore_response.json().await?;
     assert_eq!(restore["operation"], "restore_deletion_targets");
     assert_eq!(restore["target_count"], 2);
-    assert!(
-        !store
-            .is_media_asset_trashed(asset_id)
-            .await
-            .expect("media marker after API restore")
-    );
-    assert!(
-        !store
-            .is_sheet_version_trashed(sheet.version_id)
-            .await
-            .expect("sheet marker after API restore")
-    );
+    assert!(!store
+        .is_media_asset_trashed(asset_id)
+        .await
+        .expect("media marker after API restore"));
+    assert!(!store
+        .is_sheet_version_trashed(sheet.version_id)
+        .await
+        .expect("sheet marker after API restore"));
     server.abort();
 
     Ok(())
 }
 
 #[tokio::test]
-async fn atelier_image_import_api_records_clipboard_and_url_imports()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_image_import_api_records_clipboard_and_url_imports(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -793,8 +777,8 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports()
 }
 
 #[tokio::test]
-async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_root()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_root(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -869,8 +853,8 @@ async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_roo
 }
 
 #[tokio::test]
-async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1011,8 +995,8 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle()
 }
 
 #[tokio::test]
-async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };

@@ -31,7 +31,9 @@ use std::sync::Arc;
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
-use handshake_native::code_editor::gutter::{DiagnosticSeverity, Gutter, GutterConfig, GutterMarkerKind};
+use handshake_native::code_editor::gutter::{
+    DiagnosticSeverity, Gutter, GutterConfig, GutterMarkerKind,
+};
 use handshake_native::code_editor::{CodeEditorPanel, GutterMarker};
 
 /// A real multi-line Rust function so the line-0 body region is foldable (AC-006) and there are enough
@@ -71,8 +73,14 @@ fn gutter_width_grows_with_line_count() {
     let w10000 = Gutter::width_for(10000, cw, &cfg);
     // 1 line -> 1 digit; 100 -> 3 digits; 10000 -> 5 digits. Strictly increasing.
     assert!(w1 > 0.0, "1-line gutter has a positive width");
-    assert!(w100 > w1, "100-line gutter wider than 1-line: {w100} > {w1}");
-    assert!(w10000 > w100, "10000-line gutter wider than 100-line: {w10000} > {w100}");
+    assert!(
+        w100 > w1,
+        "100-line gutter wider than 1-line: {w100} > {w1}"
+    );
+    assert!(
+        w10000 > w100,
+        "10000-line gutter wider than 100-line: {w10000} > {w100}"
+    );
     // The 1->10000 delta is exactly (5-1)=4 digit columns of extra number width.
     assert!(
         (w10000 - w1 - 4.0 * cw).abs() < 0.001,
@@ -128,19 +136,37 @@ fn gutter_push_diagnostics_updates_then_clears_without_version_bump() {
 
     // MC-004: pushing an empty vec clears the markers (so a closed/replaced file shows no stale dots).
     panel.push_diagnostics(Vec::new());
-    assert!(panel.diagnostic_markers().is_empty(), "empty push clears the markers");
-    assert_eq!(panel.buffer_version_for_test(), v0, "still no version bump on clear");
+    assert!(
+        panel.diagnostic_markers().is_empty(),
+        "empty push clears the markers"
+    );
+    assert_eq!(
+        panel.buffer_version_for_test(),
+        v0,
+        "still no version bump on clear"
+    );
 }
 
 #[test]
 fn gutter_load_file_clears_stale_diagnostics() {
     // RISK-004: opening a new file into the panel clears the previous file's diagnostics.
     let panel = CodeEditorPanel::new(RUST_FN, "rs");
-    panel.push_diagnostics(vec![GutterMarker::diagnostic(2, DiagnosticSeverity::Warning, "old")]);
+    panel.push_diagnostics(vec![GutterMarker::diagnostic(
+        2,
+        DiagnosticSeverity::Warning,
+        "old",
+    )]);
     assert_eq!(panel.diagnostic_markers().len(), 1);
     panel.load_file("src/other.rs");
-    assert!(panel.diagnostic_markers().is_empty(), "load_file cleared stale diagnostics");
-    assert_eq!(panel.file_path(), "src/other.rs", "load_file seeded the new path");
+    assert!(
+        panel.diagnostic_markers().is_empty(),
+        "load_file cleared stale diagnostics"
+    );
+    assert_eq!(
+        panel.file_path(),
+        "src/other.rs",
+        "load_file seeded the new path"
+    );
 }
 
 // ── AC-003 / PT-003: error marker on line 3 paints a red diagnostic pixel in the gutter ───────────
@@ -202,7 +228,10 @@ fn gutter_error_marker_renders_red_dot_screenshot() {
                  saved={saved} ({})",
                 abs.display()
             );
-            assert!(saved, "PT-003: the gutter-error screenshot saved to the external artifact root");
+            assert!(
+                saved,
+                "PT-003: the gutter-error screenshot saved to the external artifact root"
+            );
             assert!(
                 red_pixels > 0,
                 "AC-003: the gutter shows a red diagnostic pixel for the line-3 error (found {red_pixels})"
@@ -281,7 +310,10 @@ fn gutter_line_numbers_render_screenshot() {
                  saved={saved} ({})",
                 abs.display()
             );
-            assert!(saved, "PT-004: the line-numbers screenshot saved to the external artifact root");
+            assert!(
+                saved,
+                "PT-004: the line-numbers screenshot saved to the external artifact root"
+            );
             assert!(
                 text_pixels > 0,
                 "AC-004: the gutter renders line-number text (found {text_pixels} text pixels)"
@@ -313,7 +345,10 @@ fn gutter_breakpoint_toggle_via_click_emits_checkbox_node() {
 
     // Frame 1: render so the gutter geometry + rows are captured (the click pixel is computed from them).
     harness.run();
-    assert!(!panel.is_breakpoint_set(2), "no breakpoint on line 2 initially");
+    assert!(
+        !panel.is_breakpoint_set(2),
+        "no breakpoint on line 2 initially"
+    );
 
     // Compute the exact pixel of the breakpoint sub-column for buffer line 2 from the captured gutter
     // geometry, then inject a real Primary click there.
@@ -326,7 +361,10 @@ fn gutter_breakpoint_toggle_via_click_emits_checkbox_node() {
     harness.run(); // process the click -> toggle_breakpoint(2)
     harness.run(); // re-render so the breakpoint AccessKit node is emitted
 
-    assert!(panel.is_breakpoint_set(2), "AC-005: the gutter click set a breakpoint on line 2");
+    assert!(
+        panel.is_breakpoint_set(2),
+        "AC-005: the gutter click set a breakpoint on line 2"
+    );
 
     // PT-005: the live AccessKit tree contains code_editor_breakpoint_2 as a toggled CheckBox (the
     // field-correct accesskit 0.21.1 toggle role for the contract's ToggleButton).
@@ -360,7 +398,10 @@ fn gutter_breakpoint_toggle_via_click_emits_checkbox_node() {
     }
     harness.run();
     harness.run();
-    assert!(!panel.is_breakpoint_set(2), "a second gutter click cleared the line-2 breakpoint");
+    assert!(
+        !panel.is_breakpoint_set(2),
+        "a second gutter click cleared the line-2 breakpoint"
+    );
 }
 
 // ── AC-006 / PT-006: gutter fold-triangle click at line 0 toggles the fold ────────────────────────
@@ -370,7 +411,11 @@ fn gutter_fold_click_toggles_fold() {
     let panel = Arc::new(CodeEditorPanel::new(RUST_FN, "rs"));
     // The function-body region starts on line 0 and is UNfolded at construction.
     assert!(
-        panel.fold_set().regions.iter().any(|r| r.start_line == 0 && !r.folded),
+        panel
+            .fold_set()
+            .regions
+            .iter()
+            .any(|r| r.start_line == 0 && !r.folded),
         "a line-0 fold region exists and starts unfolded"
     );
 
@@ -400,7 +445,11 @@ fn gutter_fold_click_toggles_fold() {
 
     // AC-006: the fold is now folded, and the body line 1 is no longer painted (collapsed).
     assert!(
-        panel.fold_set().regions.iter().any(|r| r.start_line == 0 && r.folded),
+        panel
+            .fold_set()
+            .regions
+            .iter()
+            .any(|r| r.start_line == 0 && r.folded),
         "AC-006: the gutter fold-triangle click folded the line-0 region"
     );
     let folded_rows = panel.gutter_rows_for_test();

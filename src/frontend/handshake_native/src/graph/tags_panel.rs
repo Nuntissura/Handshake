@@ -102,29 +102,44 @@ pub const CHIP_SWATCH_SIZE: f32 = 12.0;
 
 /// The stable AccessKit author_id for a tag row: `tags.row.{sanitized_block_id}`.
 pub fn tag_row_author_id(block_id: &str) -> String {
-    format!("{TAG_ROW_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{TAG_ROW_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// The stable AccessKit author_id for the hub-page title label: `tag-hub.title.{sanitized_block_id}`.
 pub fn hub_title_author_id(block_id: &str) -> String {
-    format!("{HUB_TITLE_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{HUB_TITLE_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// The stable AccessKit author_id for a hub-page member row: `tag-hub.member.{sanitized_block_id}`.
 pub fn hub_member_author_id(block_id: &str) -> String {
-    format!("{HUB_MEMBER_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{HUB_MEMBER_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// The stable AccessKit author_id for the hub-page add-tag button:
 /// `tag-hub.add-tag.{sanitized_block_id}`.
 pub fn hub_add_tag_author_id(block_id: &str) -> String {
-    format!("{HUB_ADD_TAG_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{HUB_ADD_TAG_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// The stable AccessKit author_id for an add-tag popup result row:
 /// `tag-hub.add-result.{sanitized_block_id}`.
 pub fn hub_add_result_author_id(block_id: &str) -> String {
-    format!("{HUB_ADD_RESULT_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{HUB_ADD_RESULT_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// A 12-color palette of distinct, evenly-spaced hues for tag chips (RISK-3 / MC-3: >= 12 colors so
@@ -190,7 +205,11 @@ pub struct TagEntry {
 }
 
 impl TagEntry {
-    pub fn new(block_id: impl Into<String>, title: impl Into<String>, member_count: Option<u32>) -> Self {
+    pub fn new(
+        block_id: impl Into<String>,
+        title: impl Into<String>,
+        member_count: Option<u32>,
+    ) -> Self {
         Self {
             block_id: block_id.into(),
             title: title.into(),
@@ -303,7 +322,13 @@ impl LoomTagsPanel {
                 .hint_text("Filter tags...")
                 .desired_width(f32::INFINITY),
         );
-        emit_text_input_accesskit(ui, search.id, SEARCH_AUTHOR_ID, "Filter tags", &self.search_filter);
+        emit_text_input_accesskit(
+            ui,
+            search.id,
+            SEARCH_AUTHOR_ID,
+            "Filter tags",
+            &self.search_filter,
+        );
         ui.separator();
 
         // ── Top-level loading spinner (bounded: only while the initial fetch is in flight) ─────────────
@@ -349,7 +374,11 @@ impl LoomTagsPanel {
 /// Render one tag chip row: a colored leading swatch (title-hash color), the tag title, and a
 /// member-count badge. Clicking the row fires [`TagsPanelEvent::OpenTag`] (AC3). The row is an
 /// addressable AccessKit ListItem carrying the member count in its accessible description (AC7).
-fn render_tag_row(entry: &TagEntry, ui: &mut egui::Ui, palette: &HsPalette) -> Option<TagsPanelEvent> {
+fn render_tag_row(
+    entry: &TagEntry,
+    ui: &mut egui::Ui,
+    palette: &HsPalette,
+) -> Option<TagsPanelEvent> {
     let mut event = None;
     let chip_color = tag_chip_color(&entry.title);
 
@@ -383,15 +412,25 @@ fn render_tag_row(entry: &TagEntry, ui: &mut egui::Ui, palette: &HsPalette) -> O
         Some(n) => format!("{n} blocks tagged"),
         None => "member count not yet loaded".to_owned(),
     };
-    emit_list_item_accesskit(ui, resp.id, &tag_row_author_id(&entry.block_id), &entry.title, &desc);
+    emit_list_item_accesskit(
+        ui,
+        resp.id,
+        &tag_row_author_id(&entry.block_id),
+        &entry.title,
+        &desc,
+    );
 
     if resp.clicked() {
-        event = Some(TagsPanelEvent::OpenTag { block_id: entry.block_id.clone() });
+        event = Some(TagsPanelEvent::OpenTag {
+            block_id: entry.block_id.clone(),
+        });
     }
     // Secondary-click (context) opens the tag as a filter (the on_filter_tag slot). A plain
     // secondary-click is the least-intrusive filter affordance that needs no extra chrome.
     if resp.secondary_clicked() {
-        event = Some(TagsPanelEvent::FilterTag { block_id: entry.block_id.clone() });
+        event = Some(TagsPanelEvent::FilterTag {
+            block_id: entry.block_id.clone(),
+        });
     }
 
     event
@@ -573,7 +612,11 @@ impl LoomTagHubPanel {
         // ── Members header + list ───────────────────────────────────────────────────────────────────
         ui.colored_label(
             palette.text_subtle,
-            format!("{} member{}", self.members.len(), if self.members.len() == 1 { "" } else { "s" }),
+            format!(
+                "{} member{}",
+                self.members.len(),
+                if self.members.len() == 1 { "" } else { "s" }
+            ),
         );
         if self.members.is_empty() {
             ui.weak("No blocks tagged with this hub");
@@ -626,33 +669,35 @@ impl LoomTagHubPanel {
                     &self.add_search,
                 );
                 if search.changed() {
-                    event = Some(TagHubEvent::AddTagSearch { query: self.add_search.clone() });
+                    event = Some(TagHubEvent::AddTagSearch {
+                        query: self.add_search.clone(),
+                    });
                 }
                 ui.separator();
                 // The candidate results: each is a selectable, addressable row. Selecting one fires
                 // AddTagSelected (the host POSTs the tag edge then re-queries members on the response).
-                egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                    if self.add_candidates.is_empty() {
-                        ui.weak("Type to search for a block to tag");
-                    }
-                    for cand in &self.add_candidates {
-                        let resp = ui.add(
-                            egui::Label::new(&cand.title).sense(Sense::click()),
-                        );
-                        emit_list_item_accesskit(
-                            ui,
-                            resp.id,
-                            &hub_add_result_author_id(&cand.block_id),
-                            &cand.title,
-                            "Tag this block with the hub",
-                        );
-                        if resp.clicked() {
-                            event = Some(TagHubEvent::AddTagSelected {
-                                source_block_id: cand.block_id.clone(),
-                            });
+                egui::ScrollArea::vertical()
+                    .max_height(200.0)
+                    .show(ui, |ui| {
+                        if self.add_candidates.is_empty() {
+                            ui.weak("Type to search for a block to tag");
                         }
-                    }
-                });
+                        for cand in &self.add_candidates {
+                            let resp = ui.add(egui::Label::new(&cand.title).sense(Sense::click()));
+                            emit_list_item_accesskit(
+                                ui,
+                                resp.id,
+                                &hub_add_result_author_id(&cand.block_id),
+                                &cand.title,
+                                "Tag this block with the hub",
+                            );
+                            if resp.clicked() {
+                                event = Some(TagHubEvent::AddTagSelected {
+                                    source_block_id: cand.block_id.clone(),
+                                });
+                            }
+                        }
+                    });
             });
 
         event
@@ -661,7 +706,11 @@ impl LoomTagHubPanel {
 
 /// Render one hub-page member row: a content-type icon + the member title. Click => OpenMember (AC5). The
 /// row is an addressable ListItem with the stable `tag-hub.member.{block_id}` author_id (AC7).
-fn render_member_row(member: &HubMember, ui: &mut egui::Ui, palette: &HsPalette) -> Option<TagHubEvent> {
+fn render_member_row(
+    member: &HubMember,
+    ui: &mut egui::Ui,
+    palette: &HsPalette,
+) -> Option<TagHubEvent> {
     let mut event = None;
     let label = format!("{} {}", member.icon(), member.title);
     let resp = ui.add(
@@ -675,7 +724,9 @@ fn render_member_row(member: &HubMember, ui: &mut egui::Ui, palette: &HsPalette)
         &member.content_type,
     );
     if resp.clicked() {
-        event = Some(TagHubEvent::OpenMember { block_id: member.block_id.clone() });
+        event = Some(TagHubEvent::OpenMember {
+            block_id: member.block_id.clone(),
+        });
     }
     event
 }
@@ -695,7 +746,13 @@ fn emit_button_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &s
 }
 
 /// Emit a text-input's live AccessKit node (Role::TextInput + author_id + current value).
-fn emit_text_input_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str, value: &str) {
+fn emit_text_input_accesskit(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    value: &str,
+) {
     let author = author_id.to_owned();
     let label = label.to_owned();
     let value = value.to_owned();
@@ -752,12 +809,24 @@ mod tests {
         let mut panel = LoomTagsPanel::new("ws");
         panel.set_tags(tags_fixture());
         // Empty filter => all four.
-        assert_eq!(panel.filtered_tags().len(), 4, "empty filter shows all tags");
+        assert_eq!(
+            panel.filtered_tags().len(),
+            4,
+            "empty filter shows all tags"
+        );
 
         // "rust" prefix => rust + rustaceans (both start with "rust"), NOT python/design.
         panel.search_filter = "rust".to_owned();
-        let visible: Vec<&str> = panel.filtered_tags().iter().map(|t| t.title.as_str()).collect();
-        assert_eq!(visible.len(), 2, "'rust' prefix matches rust + rustaceans (got {visible:?})");
+        let visible: Vec<&str> = panel
+            .filtered_tags()
+            .iter()
+            .map(|t| t.title.as_str())
+            .collect();
+        assert_eq!(
+            visible.len(),
+            2,
+            "'rust' prefix matches rust + rustaceans (got {visible:?})"
+        );
         assert!(visible.contains(&"rust"));
         assert!(visible.contains(&"rustaceans"));
         assert!(!visible.contains(&"python"));
@@ -767,13 +836,22 @@ mod tests {
         assert_eq!(panel.filtered_tags().len(), 2, "filter is case-insensitive");
 
         // A "#"-prefixed title still matches a bare-word filter (the user types `rust`, not `#rust`).
-        panel.tags.push(TagEntry::new("tag-hub-005", "#rustlang", Some(0)));
+        panel
+            .tags
+            .push(TagEntry::new("tag-hub-005", "#rustlang", Some(0)));
         panel.search_filter = "rust".to_owned();
-        assert_eq!(panel.filtered_tags().len(), 3, "the #-prefixed title is matched by the bare filter");
+        assert_eq!(
+            panel.filtered_tags().len(),
+            3,
+            "the #-prefixed title is matched by the bare filter"
+        );
 
         // A non-matching prefix => empty.
         panel.search_filter = "zzz".to_owned();
-        assert!(panel.filtered_tags().is_empty(), "no match => empty filtered list");
+        assert!(
+            panel.filtered_tags().is_empty(),
+            "no match => empty filtered list"
+        );
     }
 
     /// PROOF1 (chip color, MC-3): the title-hash color index is stable + the palette has >= 12 colors and
@@ -784,8 +862,10 @@ mod tests {
         // time by `const _: () = assert!(TAG_CHIP_PALETTE_LEN >= 12)`; here we additionally assert the
         // CONSTRUCTED palette really yields >= 12 DISTINCT colors at runtime (a const assert can't see
         // the actual rgb values), so an accidental duplicate hue is caught, not just a short array.
-        let distinct: std::collections::HashSet<(u8, u8, u8)> =
-            tag_chip_palette().iter().map(|c| (c.r(), c.g(), c.b())).collect();
+        let distinct: std::collections::HashSet<(u8, u8, u8)> = tag_chip_palette()
+            .iter()
+            .map(|c| (c.r(), c.g(), c.b()))
+            .collect();
         assert!(
             distinct.len() >= 12,
             "RISK-3 / MC-3: >= 12 distinct chip colors required (got {} distinct)",
@@ -818,7 +898,10 @@ mod tests {
         let pal = tag_chip_palette();
         let mut seen = std::collections::HashSet::new();
         for c in pal {
-            assert!(seen.insert((c.r(), c.g(), c.b())), "chip palette colors must be distinct");
+            assert!(
+                seen.insert((c.r(), c.g(), c.b())),
+                "chip palette colors must be distinct"
+            );
         }
     }
 
@@ -829,7 +912,9 @@ mod tests {
         assert!(row.starts_with(TAG_ROW_AUTHOR_ID_PREFIX));
         let suffix = &row[TAG_ROW_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "tag row author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
         assert!(hub_title_author_id("a/b").starts_with(HUB_TITLE_AUTHOR_ID_PREFIX));
@@ -843,7 +928,11 @@ mod tests {
         let mut panel = LoomTagsPanel::new("ws");
         panel.set_tags(tags_fixture());
         panel.set_member_count("tag-hub-004", 5);
-        let e = panel.tags.iter().find(|t| t.block_id == "tag-hub-004").unwrap();
+        let e = panel
+            .tags
+            .iter()
+            .find(|t| t.block_id == "tag-hub-004")
+            .unwrap();
         assert_eq!(e.member_count, Some(5));
         // An unknown id is a no-op (no panic).
         panel.set_member_count("nope", 9);

@@ -328,7 +328,10 @@ fn insert_embed_atom(ctx: &mut SlashExecContext<'_>, kind: EmbedKind, ref_value:
 /// Insert a `loomTransclusion` atom (MT-015) referencing `ref_value` as an inline atom after
 /// the caret's text leaf. Returns `true` when inserted.
 fn insert_transclusion_atom(ctx: &mut SlashExecContext<'_>, ref_value: &str) -> bool {
-    insert_inline_atom(ctx, Child::Transclusion(TransclusionNode::new(ref_value.to_string())))
+    insert_inline_atom(
+        ctx,
+        Child::Transclusion(TransclusionNode::new(ref_value.to_string())),
+    )
 }
 
 /// WP-KERNEL-012 MT-034: insert a CODE cross-reference `hsLink` atom at the caret (the `/code-ref`
@@ -547,11 +550,19 @@ mod tests {
         undo: &'a mut UndoManager,
         sel: &'a mut Selection,
     ) -> SlashExecContext<'a> {
-        SlashExecContext { doc, history: undo, selection: sel, actor_id: "operator" }
+        SlashExecContext {
+            doc,
+            history: undo,
+            selection: sel,
+            actor_id: "operator",
+        }
     }
 
     fn cmd_by_id(id: &str) -> &'static SlashCommand {
-        SLASH_COMMANDS.iter().find(|c| c.id == id).expect("command id exists")
+        SLASH_COMMANDS
+            .iter()
+            .find(|c| c.id == id)
+            .expect("command id exists")
     }
 
     fn para_text(doc: &BlockNode, idx: usize) -> String {
@@ -583,7 +594,11 @@ mod tests {
         // The block is now a Heading(2) and the `/head` text is gone.
         let block = doc.children[0].as_block().unwrap();
         assert_eq!(block.kind, NodeKind::Heading(HeadingLevel::new(2)));
-        assert_eq!(para_text(&doc, 0), "", "the `/head` trigger text was removed");
+        assert_eq!(
+            para_text(&doc, 0),
+            "",
+            "the `/head` trigger text was removed"
+        );
     }
 
     #[test]
@@ -591,11 +606,20 @@ mod tests {
         // "/p" -> Paragraph SET; the trigger text removed. (Already a paragraph, so SetBlock is
         // an idempotent no-op on KIND, but the trigger removal IS a change.)
         let (mut doc, mut undo, mut sel) = fixture("/p", 2);
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 0, filter: "p".into(), selected: 0, prompt: None };
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 0,
+            filter: "p".into(),
+            selected: 0,
+            prompt: None,
+        };
         let cmd = cmd_by_id("paragraph");
         let outcome = execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, cmd);
         assert!(matches!(outcome, SlashExecOutcome::Done { changed: true }));
-        assert_eq!(doc.children[0].as_block().unwrap().kind, NodeKind::Paragraph);
+        assert_eq!(
+            doc.children[0].as_block().unwrap().kind,
+            NodeKind::Paragraph
+        );
         assert_eq!(para_text(&doc, 0), "");
     }
 
@@ -604,23 +628,49 @@ mod tests {
         // RISK-3: with text BEFORE the trigger ("note /head"), executing must delete ONLY the
         // `/head` (6 chars from offset 5), preserving "note ".
         let (mut doc, mut undo, mut sel) = fixture("note /head", 10);
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 5, filter: "head".into(), selected: 0, prompt: None };
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 5,
+            filter: "head".into(),
+            selected: 0,
+            prompt: None,
+        };
         let cmd = cmd_by_id("heading-1");
         execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, cmd);
-        assert_eq!(para_text(&doc, 0), "note ", "only `/head` removed, prefix preserved");
-        assert_eq!(doc.children[0].as_block().unwrap().kind, NodeKind::Heading(HeadingLevel::new(1)));
+        assert_eq!(
+            para_text(&doc, 0),
+            "note ",
+            "only `/head` removed, prefix preserved"
+        );
+        assert_eq!(
+            doc.children[0].as_block().unwrap().kind,
+            NodeKind::Heading(HeadingLevel::new(1))
+        );
     }
 
     #[test]
     fn insert_bullet_list_inserts_after_caret_block() {
         // "/" -> Bullet List inserts a NEW list after the (now-empty) paragraph.
         let (mut doc, mut undo, mut sel) = fixture("/", 1);
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 0, filter: String::new(), selected: 0, prompt: None };
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 0,
+            filter: String::new(),
+            selected: 0,
+            prompt: None,
+        };
         let cmd = cmd_by_id("bullet-list");
         let outcome = execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, cmd);
         assert!(matches!(outcome, SlashExecOutcome::Done { changed: true }));
-        assert_eq!(doc.children.len(), 2, "a new list block was inserted after the paragraph");
-        assert_eq!(doc.children[1].as_block().unwrap().kind, NodeKind::BulletList);
+        assert_eq!(
+            doc.children.len(),
+            2,
+            "a new list block was inserted after the paragraph"
+        );
+        assert_eq!(
+            doc.children[1].as_block().unwrap().kind,
+            NodeKind::BulletList
+        );
         // The caret descended into the list item's paragraph leaf.
         assert!(matches!(&sel, Selection::Text { head, .. } if head.path.len() >= 4));
     }
@@ -628,8 +678,18 @@ mod tests {
     #[test]
     fn insert_table_inserts_table_block() {
         let (mut doc, mut undo, mut sel) = fixture("/", 1);
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 0, filter: String::new(), selected: 0, prompt: None };
-        execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, cmd_by_id("table"));
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 0,
+            filter: String::new(),
+            selected: 0,
+            prompt: None,
+        };
+        execute_slash_command(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &menu,
+            cmd_by_id("table"),
+        );
         assert_eq!(doc.children[1].as_block().unwrap().kind, NodeKind::Table);
         // 3 rows, 3 cols, first row header.
         let table = doc.children[1].as_block().unwrap();
@@ -637,15 +697,31 @@ mod tests {
         let first_row = table.children[0].as_block().unwrap();
         assert_eq!(first_row.children.len(), 3);
         let header_cell = first_row.children[0].as_block().unwrap();
-        assert_eq!(header_cell.attrs.get("isHeader").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            header_cell.attrs.get("isHeader").and_then(|v| v.as_bool()),
+            Some(true)
+        );
     }
 
     #[test]
     fn insert_horizontal_rule_keeps_caret() {
         let (mut doc, mut undo, mut sel) = fixture("/", 1);
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 0, filter: String::new(), selected: 0, prompt: None };
-        execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, cmd_by_id("horizontal-rule"));
-        assert_eq!(doc.children[1].as_block().unwrap().kind, NodeKind::HorizontalRule);
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 0,
+            filter: String::new(),
+            selected: 0,
+            prompt: None,
+        };
+        execute_slash_command(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &menu,
+            cmd_by_id("horizontal-rule"),
+        );
+        assert_eq!(
+            doc.children[1].as_block().unwrap().kind,
+            NodeKind::HorizontalRule
+        );
         // Atom block: caret stays at the trigger paragraph (offset 0 after removal).
         assert!(matches!(&sel, Selection::Text { head, .. } if head.path == vec![0, 0]));
     }
@@ -653,8 +729,18 @@ mod tests {
     #[test]
     fn embed_command_opens_prompt() {
         let (mut doc, mut undo, mut sel) = fixture("/img", 4);
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 0, filter: "img".into(), selected: 0, prompt: None };
-        let outcome = execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, cmd_by_id("embed-image"));
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 0,
+            filter: "img".into(),
+            selected: 0,
+            prompt: None,
+        };
+        let outcome = execute_slash_command(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &menu,
+            cmd_by_id("embed-image"),
+        );
         match outcome {
             SlashExecOutcome::OpenPrompt(p) => {
                 assert_eq!(p.kind, SlashPromptKind::Embed(EmbedKind::Image));
@@ -669,10 +755,20 @@ mod tests {
     fn confirm_embed_prompt_inserts_hs_link_atom() {
         // AC-9: confirming a valid asset_id inserts an EmbedNode (an `hsLink` atom, ref_kind=images).
         let (mut doc, mut undo, mut sel) = fixture("", 0);
-        let prompt = SlashPrompt { kind: SlashPromptKind::Embed(EmbedKind::Image), input: "asset-123".into() };
-        assert!(confirm_prompt(&mut ctx(&mut doc, &mut undo, &mut sel), &prompt));
+        let prompt = SlashPrompt {
+            kind: SlashPromptKind::Embed(EmbedKind::Image),
+            input: "asset-123".into(),
+        };
+        assert!(confirm_prompt(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &prompt
+        ));
         let para = doc.children[0].as_block().unwrap();
-        let atom = para.children.iter().find_map(Child::as_hs_link).expect("hsLink atom inserted");
+        let atom = para
+            .children
+            .iter()
+            .find_map(Child::as_hs_link)
+            .expect("hsLink atom inserted");
         assert_eq!(atom.ref_kind, "images");
         assert_eq!(atom.ref_value, "asset-123");
     }
@@ -680,27 +776,58 @@ mod tests {
     #[test]
     fn confirm_blank_embed_prompt_is_noop() {
         let (mut doc, mut undo, mut sel) = fixture("", 0);
-        let prompt = SlashPrompt { kind: SlashPromptKind::Embed(EmbedKind::Image), input: "   ".into() };
-        assert!(!confirm_prompt(&mut ctx(&mut doc, &mut undo, &mut sel), &prompt));
+        let prompt = SlashPrompt {
+            kind: SlashPromptKind::Embed(EmbedKind::Image),
+            input: "   ".into(),
+        };
+        assert!(!confirm_prompt(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &prompt
+        ));
         // No atom inserted.
-        assert!(doc.children[0].as_block().unwrap().children.iter().all(|c| c.as_hs_link().is_none()));
+        assert!(doc.children[0]
+            .as_block()
+            .unwrap()
+            .children
+            .iter()
+            .all(|c| c.as_hs_link().is_none()));
     }
 
     #[test]
     fn confirm_transclusion_prompt_inserts_atom() {
         let (mut doc, mut undo, mut sel) = fixture("", 0);
-        let prompt = SlashPrompt { kind: SlashPromptKind::Transclusion, input: "block-77".into() };
-        assert!(confirm_prompt(&mut ctx(&mut doc, &mut undo, &mut sel), &prompt));
+        let prompt = SlashPrompt {
+            kind: SlashPromptKind::Transclusion,
+            input: "block-77".into(),
+        };
+        assert!(confirm_prompt(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &prompt
+        ));
         let para = doc.children[0].as_block().unwrap();
-        let t = para.children.iter().find_map(Child::as_transclusion).expect("transclusion atom");
+        let t = para
+            .children
+            .iter()
+            .find_map(Child::as_transclusion)
+            .expect("transclusion atom");
         assert_eq!(t.ref_value, "block-77");
     }
 
     #[test]
     fn wikilink_command_opens_autocomplete_and_inserts_brackets() {
         let (mut doc, mut undo, mut sel) = fixture("/link", 5);
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 0, filter: "link".into(), selected: 0, prompt: None };
-        let outcome = execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, cmd_by_id("insert-link"));
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 0,
+            filter: "link".into(),
+            selected: 0,
+            prompt: None,
+        };
+        let outcome = execute_slash_command(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &menu,
+            cmd_by_id("insert-link"),
+        );
         assert_eq!(outcome, SlashExecOutcome::OpenWikilinkAutocomplete);
         // The `/link` trigger removed and a `[[` inserted so the MT-015 trigger fires.
         assert_eq!(para_text(&doc, 0), "[[");
@@ -710,11 +837,25 @@ mod tests {
     fn daily_note_template_inserts_non_empty_blocks() {
         // AC-8: InsertTemplate for "Daily Note Template" inserts a predefined non-empty snippet.
         let (mut doc, mut undo, mut sel) = fixture("/", 1);
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 0, filter: String::new(), selected: 0, prompt: None };
-        let outcome = execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, cmd_by_id("template-daily-note"));
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 0,
+            filter: String::new(),
+            selected: 0,
+            prompt: None,
+        };
+        let outcome = execute_slash_command(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &menu,
+            cmd_by_id("template-daily-note"),
+        );
         assert!(matches!(outcome, SlashExecOutcome::Done { changed: true }));
         // The original empty paragraph + the heading + the bullet list = >= 3 top-level blocks.
-        assert!(doc.children.len() >= 3, "template inserted multiple blocks (got {})", doc.children.len());
+        assert!(
+            doc.children.len() >= 3,
+            "template inserted multiple blocks (got {})",
+            doc.children.len()
+        );
         // The first inserted block is the heading.
         assert_eq!(doc.children[1].as_block().unwrap().heading_level(), Some(1));
     }
@@ -724,9 +865,13 @@ mod tests {
         let (mut doc, mut undo, mut sel) = fixture("", 0);
         let prompt = SlashPrompt {
             kind: SlashPromptKind::ManualInsert,
-            input: r#"{"type":"paragraph","content":[{"type":"text","text":"agent block"}]}"#.into(),
+            input: r#"{"type":"paragraph","content":[{"type":"text","text":"agent block"}]}"#
+                .into(),
         };
-        assert!(confirm_prompt(&mut ctx(&mut doc, &mut undo, &mut sel), &prompt));
+        assert!(confirm_prompt(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &prompt
+        ));
         // The pasted paragraph was inserted after the caret block.
         assert!(doc.children.iter().any(|c| {
             c.as_block()
@@ -736,7 +881,11 @@ mod tests {
     }
 
     fn para_text_of(b: &BlockNode) -> String {
-        b.children.iter().filter_map(Child::as_text).map(|t| t.text.to_string()).collect()
+        b.children
+            .iter()
+            .filter_map(Child::as_text)
+            .map(|t| t.text.to_string())
+            .collect()
     }
 
     #[test]
@@ -744,8 +893,18 @@ mod tests {
         // The trigger removal + the SetBlock are both transactional; an undo of each reverts.
         let (mut doc, mut undo, mut sel) = fixture("/head", 5);
         let before = doc.clone();
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 0, filter: "head".into(), selected: 0, prompt: None };
-        execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, cmd_by_id("heading-1"));
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 0,
+            filter: "head".into(),
+            selected: 0,
+            prompt: None,
+        };
+        execute_slash_command(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &menu,
+            cmd_by_id("heading-1"),
+        );
         // Two transactions pushed: the DeleteText (trigger) and the SetBlock (delete+insert).
         // Undo both to get back to the original "/head" paragraph.
         undo.undo(&mut doc).unwrap();
@@ -761,7 +920,13 @@ mod tests {
         let selected = rows[0];
         assert_eq!(selected.id, "heading-1");
         let (mut doc, mut undo, mut sel) = fixture("/head", 5);
-        let menu = SlashMenuState { trigger_leaf_path: vec![0, 0], trigger_char: 0, filter: "head".into(), selected: 0, prompt: None };
+        let menu = SlashMenuState {
+            trigger_leaf_path: vec![0, 0],
+            trigger_char: 0,
+            filter: "head".into(),
+            selected: 0,
+            prompt: None,
+        };
         execute_slash_command(&mut ctx(&mut doc, &mut undo, &mut sel), &menu, selected);
         assert_eq!(doc.children[0].as_block().unwrap().heading_level(), Some(1));
     }

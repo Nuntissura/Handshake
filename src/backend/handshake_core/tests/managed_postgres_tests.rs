@@ -13,7 +13,21 @@ use handshake_core::managed_postgres::{
 use uuid::Uuid;
 
 fn temp_data_dir() -> PathBuf {
-    std::env::temp_dir().join(format!("hsk-managed-pg-it-{}", Uuid::new_v4()))
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(std::path::Path::parent)
+        .and_then(std::path::Path::parent)
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or(manifest_dir);
+    let artifact_root = repo_root
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or(repo_root)
+        .join("Handshake_Artifacts")
+        .join("handshake-test")
+        .join("managed-postgres");
+    artifact_root.join(format!("hsk-managed-pg-it-{}", Uuid::new_v4()))
 }
 
 #[tokio::test]
@@ -34,7 +48,9 @@ async fn managed_postgres_starts_accepts_connections_and_stops() {
     let managed = match ManagedPostgres::ensure_running(config).await {
         Ok(m) => m,
         Err(ManagedPostgresError::BinariesNotFound(detail)) => {
-            eprintln!("SKIP managed_postgres lifecycle test: PostgreSQL binaries not found ({detail})");
+            eprintln!(
+                "SKIP managed_postgres lifecycle test: PostgreSQL binaries not found ({detail})"
+            );
             let _ = std::fs::remove_dir_all(&data_dir);
             return;
         }

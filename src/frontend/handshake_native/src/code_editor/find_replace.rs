@@ -54,7 +54,10 @@ pub struct FindQuery {
 impl FindQuery {
     /// A plain literal query (the common case: case-insensitive, not whole-word, not regex).
     pub fn literal(pattern: impl Into<String>) -> Self {
-        Self { pattern: pattern.into(), ..Default::default() }
+        Self {
+            pattern: pattern.into(),
+            ..Default::default()
+        }
     }
 }
 
@@ -97,7 +100,11 @@ impl FindEngine {
             .filter(|r| !query.whole_word || is_whole_word(&text, r))
             .map(|byte_range| {
                 let (line, col) = byte_to_line_col(byte_range.start, buffer);
-                Match { byte_range, line, col }
+                Match {
+                    byte_range,
+                    line,
+                    col,
+                }
             })
             .collect()
     }
@@ -183,8 +190,14 @@ impl FindEngine {
             all_literal_occurrences(&hay, &need)
         } else {
             let escaped = regex::escape(needle);
-            match regex::RegexBuilder::new(&escaped).case_insensitive(true).build() {
-                Ok(re) => re.find_iter(text).map(|mat| mat.start()..mat.end()).collect(),
+            match regex::RegexBuilder::new(&escaped)
+                .case_insensitive(true)
+                .build()
+            {
+                Ok(re) => re
+                    .find_iter(text)
+                    .map(|mat| mat.start()..mat.end())
+                    .collect(),
                 Err(_) => Vec::new(),
             }
         }
@@ -259,7 +272,11 @@ mod tests {
     #[test]
     fn plain_case_sensitive_finds_exact_case() {
         let buf = TextBuffer::new("Foo foo FOO foo");
-        let q = FindQuery { pattern: "foo".into(), case_sensitive: true, ..Default::default() };
+        let q = FindQuery {
+            pattern: "foo".into(),
+            case_sensitive: true,
+            ..Default::default()
+        };
         // Only the two lowercase "foo" at bytes 4..7 and 12..15.
         assert_eq!(ranges(&FindEngine::search(&q, &buf)), vec![4..7, 12..15]);
     }
@@ -267,8 +284,15 @@ mod tests {
     #[test]
     fn plain_case_insensitive_finds_all_cases() {
         let buf = TextBuffer::new("Foo foo FOO");
-        let q = FindQuery { pattern: "foo".into(), case_sensitive: false, ..Default::default() };
-        assert_eq!(ranges(&FindEngine::search(&q, &buf)), vec![0..3, 4..7, 8..11]);
+        let q = FindQuery {
+            pattern: "foo".into(),
+            case_sensitive: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            ranges(&FindEngine::search(&q, &buf)),
+            vec![0..3, 4..7, 8..11]
+        );
     }
 
     #[test]
@@ -287,7 +311,12 @@ mod tests {
     #[test]
     fn regex_finds_pattern() {
         let buf = TextBuffer::new("fn a() {}\nfn bb() {}\nlet c = 1;");
-        let q = FindQuery { pattern: r"fn \w+".into(), is_regex: true, case_sensitive: true, ..Default::default() };
+        let q = FindQuery {
+            pattern: r"fn \w+".into(),
+            is_regex: true,
+            case_sensitive: true,
+            ..Default::default()
+        };
         // "fn a" (0..4) and "fn bb" (10..15).
         assert_eq!(ranges(&FindEngine::search(&q, &buf)), vec![0..4, 10..15]);
     }
@@ -323,7 +352,10 @@ mod tests {
         // "current match" wrapping by indexing into this full list, so the engine returns every match).
         let buf = TextBuffer::new("x x x x");
         let q = FindQuery::literal("x");
-        assert_eq!(ranges(&FindEngine::search(&q, &buf)), vec![0..1, 2..3, 4..5, 6..7]);
+        assert_eq!(
+            ranges(&FindEngine::search(&q, &buf)),
+            vec![0..1, 2..3, 4..5, 6..7]
+        );
     }
 
     #[test]
@@ -366,8 +398,15 @@ mod tests {
         // AC-003 / RISK-001: an unbalanced group is a compile error -> empty match list + a non-empty
         // error string, and absolutely no panic.
         let buf = TextBuffer::new("some (text) here");
-        let q = FindQuery { pattern: "(".into(), is_regex: true, ..Default::default() };
-        assert!(FindEngine::search(&q, &buf).is_empty(), "bad regex -> no matches");
+        let q = FindQuery {
+            pattern: "(".into(),
+            is_regex: true,
+            ..Default::default()
+        };
+        assert!(
+            FindEngine::search(&q, &buf).is_empty(),
+            "bad regex -> no matches"
+        );
         let err = FindEngine::compile_error(&q);
         assert!(err.is_some(), "bad regex -> a compile error string");
         assert!(!err.unwrap().is_empty(), "the error string is non-empty");
@@ -375,7 +414,11 @@ mod tests {
 
     #[test]
     fn valid_regex_has_no_compile_error() {
-        let q = FindQuery { pattern: r"\d+".into(), is_regex: true, ..Default::default() };
+        let q = FindQuery {
+            pattern: r"\d+".into(),
+            is_regex: true,
+            ..Default::default()
+        };
         assert!(FindEngine::compile_error(&q).is_none());
     }
 
@@ -384,7 +427,11 @@ mod tests {
         // RISK-001: the `regex` crate is linear-time, so a classic catastrophic-backtracking pattern on
         // a long input completes immediately (a backtracking engine would hang here for seconds).
         let buf = TextBuffer::new(&"a".repeat(2000));
-        let q = FindQuery { pattern: "(a+)+$".into(), is_regex: true, ..Default::default() };
+        let q = FindQuery {
+            pattern: "(a+)+$".into(),
+            is_regex: true,
+            ..Default::default()
+        };
         // Just assert it RETURNS (no hang, no panic). One match spanning the whole run is expected.
         let m = FindEngine::search(&q, &buf);
         assert_eq!(m.len(), 1);
@@ -394,10 +441,23 @@ mod tests {
     fn over_long_pattern_is_rejected() {
         let buf = TextBuffer::new("data");
         let long = "a".repeat(MAX_PATTERN_LEN + 1);
-        let q = FindQuery { pattern: long, ..Default::default() };
-        assert!(FindEngine::search(&q, &buf).is_empty(), "over-long pattern finds nothing");
-        let q_re = FindQuery { pattern: "a".repeat(MAX_PATTERN_LEN + 1), is_regex: true, ..Default::default() };
-        assert!(FindEngine::compile_error(&q_re).is_some(), "over-long regex reports the cap error");
+        let q = FindQuery {
+            pattern: long,
+            ..Default::default()
+        };
+        assert!(
+            FindEngine::search(&q, &buf).is_empty(),
+            "over-long pattern finds nothing"
+        );
+        let q_re = FindQuery {
+            pattern: "a".repeat(MAX_PATTERN_LEN + 1),
+            is_regex: true,
+            ..Default::default()
+        };
+        assert!(
+            FindEngine::compile_error(&q_re).is_some(),
+            "over-long regex reports the cap error"
+        );
     }
 
     #[test]
@@ -405,7 +465,11 @@ mod tests {
         // "café" + "CAFÉ": case-insensitive must find both with byte-correct ranges (the regex
         // fallback path). "café" = 5 bytes (é=2), "CAFÉ" = 5 bytes (É=2). Separated by a space.
         let buf = TextBuffer::new("café CAFÉ");
-        let q = FindQuery { pattern: "café".into(), case_sensitive: false, ..Default::default() };
+        let q = FindQuery {
+            pattern: "café".into(),
+            case_sensitive: false,
+            ..Default::default()
+        };
         let m = FindEngine::search(&q, &buf);
         assert_eq!(m.len(), 2, "both cases found");
         assert_eq!(m[0].byte_range, 0..5);

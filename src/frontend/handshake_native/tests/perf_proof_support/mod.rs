@@ -71,7 +71,10 @@ impl Budget {
     /// that by reading `*_MB` env vars — see [`Budget::resolve`] usage. For latency budgets the debug
     /// widening applies.
     pub fn resolve(scenario_id: &'static str, env_var: &'static str, default: u128) -> Self {
-        if let Some(v) = std::env::var(env_var).ok().and_then(|v| v.trim().parse::<u128>().ok()) {
+        if let Some(v) = std::env::var(env_var)
+            .ok()
+            .and_then(|v| v.trim().parse::<u128>().ok())
+        {
             return Budget {
                 scenario_id,
                 ceiling: v,
@@ -88,7 +91,14 @@ impl Budget {
         } else {
             (default, false)
         };
-        Budget { scenario_id, ceiling, contract_default: default, env_var, overridden: false, debug_widened }
+        Budget {
+            scenario_id,
+            ceiling,
+            contract_default: default,
+            env_var,
+            overridden: false,
+            debug_widened,
+        }
     }
 
     /// `true` when `measured <= ceiling`. Use this to assert; on PASS the caller records via [`record`].
@@ -176,14 +186,22 @@ fn write_entry(scenario_id: &str, measured_value: f64, status: &str) {
             // is the SHIPPED-target (release) number that meets the contract `budget_ms`, or a debug-build
             // number (which is gated against the debug-widened ceiling, not `budget_ms`). The committed
             // manifest is written from a `--release` run (the shipped-binary class).
-            entry["measured_profile"] =
-                serde_json::Value::String(if cfg!(debug_assertions) { "debug" } else { "release" }.to_owned());
+            entry["measured_profile"] = serde_json::Value::String(
+                if cfg!(debug_assertions) {
+                    "debug"
+                } else {
+                    "release"
+                }
+                .to_owned(),
+            );
             updated = true;
             break;
         }
     }
     if !updated {
-        eprintln!("WARN(perf-manifest): no manifest entry for scenario_id={scenario_id}; nothing written");
+        eprintln!(
+            "WARN(perf-manifest): no manifest entry for scenario_id={scenario_id}; nothing written"
+        );
         return;
     }
 
@@ -217,7 +235,10 @@ fn write_entry(scenario_id: &str, measured_value: f64, status: &str) {
 
 /// The deterministic manifest path under the crate root, independent of the test's working directory.
 pub fn manifest_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("perf_proof").join("perf_manifest.json")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("perf_proof")
+        .join("perf_manifest.json")
 }
 
 // ── Memory measurement (RISK-5 / CTRL-5: median of 3) ────────────────────────────────────────────
@@ -305,8 +326,16 @@ impl FileLock {
     fn acquire(path: &std::path::Path, budget: Duration) -> Option<Self> {
         let start = Instant::now();
         loop {
-            match std::fs::OpenOptions::new().write(true).create_new(true).open(path) {
-                Ok(_) => return Some(FileLock { path: path.to_path_buf() }),
+            match std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+            {
+                Ok(_) => {
+                    return Some(FileLock {
+                        path: path.to_path_buf(),
+                    })
+                }
                 Err(_) if start.elapsed() < budget => {
                     std::thread::sleep(Duration::from_millis(5));
                 }

@@ -24,8 +24,8 @@ use std::sync::mpsc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use palmistry::fr_forward::{
-    build_survivor_forward_body, FrForwardBlocker, FrForwarder, FrSchemaCompat, FR_INGESTION_FOLLOW_ON_WP,
-    FR_ROUTE_PATH,
+    build_survivor_forward_body, FrForwardBlocker, FrForwarder, FrSchemaCompat,
+    FR_INGESTION_FOLLOW_ON_WP, FR_ROUTE_PATH,
 };
 use palmistry::freeze_detect::FreezeReport;
 use palmistry::survivor_store::{SurvivorProbeResult, SurvivorRecord, SurvivorStore};
@@ -42,7 +42,13 @@ struct StubObservation {
 /// hard accept + read timeout so it can never block the harness), reads the request, replies with
 /// `status_code`, and sends what it observed back over the channel. Returns `(base_url, observation_rx,
 /// join_handle)`. `status_code` lets a test model an ACCEPTING FR (200) or a REJECTING FR (400).
-fn spawn_stub(status_code: u16) -> (String, mpsc::Receiver<StubObservation>, std::thread::JoinHandle<()>) {
+fn spawn_stub(
+    status_code: u16,
+) -> (
+    String,
+    mpsc::Receiver<StubObservation>,
+    std::thread::JoinHandle<()>,
+) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind ephemeral stub port");
     let addr = listener.local_addr().expect("stub addr");
     let base_url = format!("http://{addr}");
@@ -61,7 +67,11 @@ fn spawn_stub(status_code: u16) -> (String, mpsc::Receiver<StubObservation>, std
                     let _ = tx.send(obs);
                 }
                 // Reply with the requested status so the forwarder sees a real HTTP outcome.
-                let reason = if (200..300).contains(&status_code) { "OK" } else { "Bad Request" };
+                let reason = if (200..300).contains(&status_code) {
+                    "OK"
+                } else {
+                    "Bad Request"
+                };
                 let resp = format!(
                     "HTTP/1.1 {status_code} {reason}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                 );
@@ -130,7 +140,10 @@ fn temp_dir(label: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    std::env::temp_dir().join(format!("hsk-mt093-fwd-{label}-{}-{nanos}", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "hsk-mt093-fwd-{label}-{}-{nanos}",
+        std::process::id()
+    ))
 }
 
 struct DirGuard(PathBuf);
@@ -174,15 +187,23 @@ fn faithful_forward_posts_verified_route_and_body_then_marks_forwarded_idempoten
         .expect("a compatible accepting route must forward successfully");
     // Mark forwarded idempotently.
     assert!(store.mark_forwarded(&path).unwrap(), "mark forwarded");
-    assert!(store.mark_forwarded(&path).unwrap(), "second mark is an idempotent no-op");
-    assert_eq!(store.unforwarded_count(), 0, "now forwarded, not re-drained");
+    assert!(
+        store.mark_forwarded(&path).unwrap(),
+        "second mark is an idempotent no-op"
+    );
+    assert_eq!(
+        store.unforwarded_count(),
+        0,
+        "now forwarded, not re-drained"
+    );
 
     // The stub observed the EXACT verified route + a typed-allowlist survivor body.
     let obs = rx
         .recv_timeout(Duration::from_secs(5))
         .expect("stub must have observed the forward request");
     assert!(
-        obs.request_line.starts_with(&format!("POST {FR_ROUTE_PATH} ")),
+        obs.request_line
+            .starts_with(&format!("POST {FR_ROUTE_PATH} ")),
         "the forward must hit the verified FR route, got '{}'",
         obs.request_line
     );
@@ -190,7 +211,10 @@ fn faithful_forward_posts_verified_route_and_body_then_marks_forwarded_idempoten
     assert_eq!(obs.body["kind"], "freeze");
     assert_eq!(obs.body["session_id"], "sess-fwd-it");
     assert_eq!(obs.body["stale_ms"], 6000);
-    assert!(obs.body.get("message").is_none(), "no free-text field in the forward body");
+    assert!(
+        obs.body.get("message").is_none(),
+        "no free-text field in the forward body"
+    );
 
     let _ = handle.join();
 }
@@ -201,7 +225,10 @@ fn forward_body_matches_the_built_shape() {
     // wire shape is the one a reviewer asserts without IO.
     let expected = build_survivor_forward_body(&freeze_record());
     assert_eq!(expected["kind"], "freeze");
-    assert_eq!(expected["event_code"], handshake_diag_ring::DiagEventCode::FreezeSuspected.as_u16());
+    assert_eq!(
+        expected["event_code"],
+        handshake_diag_ring::DiagEventCode::FreezeSuspected.as_u16()
+    );
 }
 
 #[test]
@@ -220,15 +247,28 @@ fn forward_into_existing_incompatible_fr_is_typed_blocker_not_fake() {
         .expect_err("the incompatible FR must yield a typed blocker, never Ok");
     match err {
         FrForwardBlocker::SchemaIncompatible { follow_on_wp, .. } => {
-            assert_eq!(follow_on_wp, FR_INGESTION_FOLLOW_ON_WP, "names the WP-016 follow-on");
+            assert_eq!(
+                follow_on_wp, FR_INGESTION_FOLLOW_ON_WP,
+                "names the WP-016 follow-on"
+            );
         }
         other => panic!("expected SchemaIncompatible, got {other:?}"),
     }
     // The record STAYS local + pending (not faked forwarded).
-    assert_eq!(store.unforwarded_count(), 1, "the record stays pending after the typed blocker");
-    assert!(!store.records().iter().any(|s| s.record.forwarded), "nothing was faked-forwarded");
+    assert_eq!(
+        store.unforwarded_count(),
+        1,
+        "the record stays pending after the typed blocker"
+    );
+    assert!(
+        !store.records().iter().any(|s| s.record.forwarded),
+        "nothing was faked-forwarded"
+    );
     // mark_forwarded was NOT called for the blocked record.
-    assert!(store.records().iter().any(|s| s.path == path && !s.record.forwarded));
+    assert!(store
+        .records()
+        .iter()
+        .any(|s| s.path == path && !s.record.forwarded));
 }
 
 #[test]
@@ -255,7 +295,10 @@ fn forward_against_absent_route_is_route_absent_blocker() {
     let err = forwarder
         .forward(&freeze_record())
         .expect_err("an absent route must block");
-    assert!(matches!(err, FrForwardBlocker::RouteAbsent { .. }), "got {err:?}");
+    assert!(
+        matches!(err, FrForwardBlocker::RouteAbsent { .. }),
+        "got {err:?}"
+    );
 }
 
 #[test]
@@ -279,11 +322,17 @@ fn recovery_drain_forwards_pending_and_leaves_blocked_pending() {
             store.mark_forwarded(&stored.path).unwrap();
         }
     }
-    assert_eq!(store.unforwarded_count(), 0, "the pending record was drained + forwarded");
+    assert_eq!(
+        store.unforwarded_count(),
+        0,
+        "the pending record was drained + forwarded"
+    );
 
     let obs = rx
         .recv_timeout(Duration::from_secs(5))
         .expect("the drain must have forwarded the pending record");
-    assert!(obs.request_line.starts_with(&format!("POST {FR_ROUTE_PATH} ")));
+    assert!(obs
+        .request_line
+        .starts_with(&format!("POST {FR_ROUTE_PATH} ")));
     let _ = handle.join();
 }

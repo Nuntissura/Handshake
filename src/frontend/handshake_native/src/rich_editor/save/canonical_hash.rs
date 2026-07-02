@@ -136,7 +136,10 @@ mod tests {
         // The backend sorts keys + emits no whitespace, so `{b,a}` canonicalizes to a<b order.
         let v = json!({ "b": 1, "a": 2, "c": [3, 4] });
         let bytes = canonical_json_bytes(&v);
-        assert_eq!(String::from_utf8(bytes).unwrap(), r#"{"a":2,"b":1,"c":[3,4]}"#);
+        assert_eq!(
+            String::from_utf8(bytes).unwrap(),
+            r#"{"a":2,"b":1,"c":[3,4]}"#
+        );
     }
 
     #[test]
@@ -165,7 +168,9 @@ mod tests {
         let v = json!({});
         let h = canonical_content_sha256(&v);
         assert_eq!(h.len(), 64, "sha256 hex is 64 chars");
-        assert!(h.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(h
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
         // Known vector: sha256 of the canonical empty object "{}" (2 bytes).
         // Independently: echo -n '{}' | sha256sum -> 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
         assert_eq!(

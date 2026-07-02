@@ -38,7 +38,9 @@ use std::collections::HashMap;
 
 use serde_json::{json, Value as JsonValue};
 
-use crate::rich_editor::document_model::doc_json::{to_content_json_value, RICH_DOCUMENT_SCHEMA_VERSION};
+use crate::rich_editor::document_model::doc_json::{
+    to_content_json_value, RICH_DOCUMENT_SCHEMA_VERSION,
+};
 use crate::rich_editor::document_model::node::{BlockNode, Child, Mark, NodeKind, TextLeaf};
 
 use base64::Engine as _;
@@ -86,7 +88,9 @@ impl ExportFormat {
     /// The MIME type for this format (used by the file dialog + any future HTTP serving).
     pub fn mime(self) -> &'static str {
         match self {
-            ExportFormat::HtmlSelfContained | ExportFormat::HtmlReferenceLinked => "text/html;charset=utf-8",
+            ExportFormat::HtmlSelfContained | ExportFormat::HtmlReferenceLinked => {
+                "text/html;charset=utf-8"
+            }
             ExportFormat::Markdown => "text/markdown;charset=utf-8",
             ExportFormat::PlainText => "text/plain;charset=utf-8",
             ExportFormat::ProseMirrorJson => "application/json",
@@ -189,13 +193,22 @@ pub fn export_document(
         ExportFormat::PlainText => export_plain_text(doc).into_bytes(),
         ExportFormat::Markdown => export_markdown(doc).into_bytes(),
         ExportFormat::ProseMirrorJson => export_prosemirror_json(doc)?.into_bytes(),
-        ExportFormat::HtmlSelfContained => {
-            export_html(doc, HtmlMediaMode::SelfContained { assets }, workspace_id, base_url, title)
-                .into_bytes()
-        }
-        ExportFormat::HtmlReferenceLinked => {
-            export_html(doc, HtmlMediaMode::ReferenceLinked, workspace_id, base_url, title).into_bytes()
-        }
+        ExportFormat::HtmlSelfContained => export_html(
+            doc,
+            HtmlMediaMode::SelfContained { assets },
+            workspace_id,
+            base_url,
+            title,
+        )
+        .into_bytes(),
+        ExportFormat::HtmlReferenceLinked => export_html(
+            doc,
+            HtmlMediaMode::ReferenceLinked,
+            workspace_id,
+            base_url,
+            title,
+        )
+        .into_bytes(),
     };
     Ok(ExportOutput {
         content,
@@ -416,7 +429,11 @@ fn md_block(out: &mut String, node: &BlockNode, list_depth: usize) {
         }
         NodeKind::TaskItem => {
             // A bare task item not under a list (defensive): render as a single checkbox line.
-            let checkbox = if node.task_checked() { "- [x] " } else { "- [ ] " };
+            let checkbox = if node.task_checked() {
+                "- [x] "
+            } else {
+                "- [ ] "
+            };
             out.push_str(checkbox);
             out.push_str(&md_inline(node));
             out.push_str("\n\n");
@@ -426,9 +443,15 @@ fn md_block(out: &mut String, node: &BlockNode, list_depth: usize) {
         NodeKind::HardBreak => out.push('\n'),
         // Doc never appears as a child; rows/cells/headers are handled inside md_table. Anything
         // else as a top-level block is an unsupported/future kind: emit a comment, never panic.
-        NodeKind::Doc | NodeKind::TableRow | NodeKind::TableCell | NodeKind::TableHeader
+        NodeKind::Doc
+        | NodeKind::TableRow
+        | NodeKind::TableCell
+        | NodeKind::TableHeader
         | NodeKind::ListItem => {
-            out.push_str(&format!("<!-- unsupported: {} -->\n\n", node.kind.to_json_type()));
+            out.push_str(&format!(
+                "<!-- unsupported: {} -->\n\n",
+                node.kind.to_json_type()
+            ));
         }
     }
 }
@@ -618,7 +641,11 @@ fn walk_node_to_html(out: &mut String, node: &BlockNode, ctx: &mut HtmlExportCtx
             out.push_str("</code></pre>\n");
         }
         NodeKind::OrderedList | NodeKind::BulletList => {
-            let tag = if matches!(node.kind, NodeKind::OrderedList) { "ol" } else { "ul" };
+            let tag = if matches!(node.kind, NodeKind::OrderedList) {
+                "ol"
+            } else {
+                "ul"
+            };
             out.push_str(&format!("<{tag}>\n"));
             for child in &node.children {
                 if let Child::Block(item) = child {
@@ -651,17 +678,26 @@ fn walk_node_to_html(out: &mut String, node: &BlockNode, ctx: &mut HtmlExportCtx
                     for cell_child in &row.children {
                         if let Child::Block(cell) = cell_child {
                             // A TableHeader cell renders <th>, a TableCell <td> (MT-013/backend compat).
-                            let tag = if matches!(cell.kind, NodeKind::TableHeader) { "th" } else { "td" };
+                            let tag = if matches!(cell.kind, NodeKind::TableHeader) {
+                                "th"
+                            } else {
+                                "td"
+                            };
                             out.push_str(&format!("<{tag}>"));
                             // Cells hold block children (usually a paragraph).
                             for cc in &cell.children {
                                 match cc {
-                                    Child::Block(b) if b.kind.holds_inline_content() => html_inline(out, b),
+                                    Child::Block(b) if b.kind.holds_inline_content() => {
+                                        html_inline(out, b)
+                                    }
                                     Child::Block(b) => walk_node_to_html(out, b, ctx),
-                                    Child::Text(t) => out.push_str(&html_escape_text(&t.text.to_string())),
+                                    Child::Text(t) => {
+                                        out.push_str(&html_escape_text(&t.text.to_string()))
+                                    }
                                     Child::HsLink(l) => write_hs_link_html(out, l),
-                                    Child::Transclusion(t) => out
-                                        .push_str(&html_escape_text(&format!("[[{}]]", t.ref_value))),
+                                    Child::Transclusion(t) => out.push_str(&html_escape_text(
+                                        &format!("[[{}]]", t.ref_value),
+                                    )),
                                 }
                             }
                             out.push_str(&format!("</{tag}>"));
@@ -676,9 +712,16 @@ fn walk_node_to_html(out: &mut String, node: &BlockNode, ctx: &mut HtmlExportCtx
         NodeKind::HardBreak => out.push_str("<br>\n"),
         // Rows/cells/items are handled inside their parents; a doc is never a child. Anything
         // unexpected emits a visible comment (never silent, never panic).
-        NodeKind::Doc | NodeKind::TableRow | NodeKind::TableCell | NodeKind::TableHeader
-        | NodeKind::ListItem | NodeKind::TaskItem => {
-            out.push_str(&format!("<!-- unsupported-block: {} -->\n", node.kind.to_json_type()));
+        NodeKind::Doc
+        | NodeKind::TableRow
+        | NodeKind::TableCell
+        | NodeKind::TableHeader
+        | NodeKind::ListItem
+        | NodeKind::TaskItem => {
+            out.push_str(&format!(
+                "<!-- unsupported-block: {} -->\n",
+                node.kind.to_json_type()
+            ));
         }
     }
 }
@@ -743,7 +786,10 @@ fn write_hs_link_html(out: &mut String, l: &crate::rich_editor::document_model::
     out.push_str("\" data-hs-ref-value=\"");
     out.push_str(&html_escape_attr(&l.ref_value));
     out.push_str("\" href=\"");
-    out.push_str(&html_escape_attr(&format!("hs:{}:{}", l.ref_kind, l.ref_value)));
+    out.push_str(&html_escape_attr(&format!(
+        "hs:{}:{}",
+        l.ref_kind, l.ref_value
+    )));
     out.push_str("\">");
     out.push_str(&html_escape_text(&hs_link_text(l)));
     out.push_str("</a>");
@@ -863,7 +909,9 @@ fn html_escape_attr(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, Mark, NodeKind, TextLeaf};
+    use crate::rich_editor::document_model::node::{
+        BlockNode, Child, HsLinkNode, Mark, NodeKind, TextLeaf,
+    };
 
     fn heading_para_doc() -> BlockNode {
         let mut para = BlockNode::new(NodeKind::Paragraph);
@@ -926,7 +974,10 @@ mod tests {
         .unwrap();
         let s = out.as_str();
         assert!(s.contains("<!DOCTYPE html>"), "valid HTML5 doctype");
-        assert!(s.contains("<p>hello world</p>"), "paragraph rendered as <p>");
+        assert!(
+            s.contains("<p>hello world</p>"),
+            "paragraph rendered as <p>"
+        );
         assert_eq!(out.filename, "doc.html");
     }
 
@@ -979,7 +1030,10 @@ mod tests {
             html.contains("src=\"http://127.0.0.1:37501/workspaces/ws/assets/ASSET-1/content\""),
             "the fallback points at the backend content URL"
         );
-        assert!(!html.contains("data:image"), "the over-cap image is NOT inlined");
+        assert!(
+            !html.contains("data:image"),
+            "the over-cap image is NOT inlined"
+        );
     }
 
     #[test]
@@ -1012,9 +1066,17 @@ mod tests {
             "T",
         );
         let inlined = html.matches("src=\"data:image/png;base64,").count();
-        let total_err = html.matches("data-hs-export-error=\"total_size_exceeded\"").count();
-        assert_eq!(inlined, 5, "exactly 5 of 6 images inline before the 50 MB cap");
-        assert_eq!(total_err, 1, "the 6th image falls back with the total-cap error");
+        let total_err = html
+            .matches("data-hs-export-error=\"total_size_exceeded\"")
+            .count();
+        assert_eq!(
+            inlined, 5,
+            "exactly 5 of 6 images inline before the 50 MB cap"
+        );
+        assert_eq!(
+            total_err, 1,
+            "the 6th image falls back with the total-cap error"
+        );
     }
 
     #[test]
@@ -1028,7 +1090,10 @@ mod tests {
         // Even if (wrongly) provided bytes, video is never inlined.
         assets.insert(
             "VID-1".to_string(),
-            ResolvedAsset { bytes: vec![0u8; 10], mime: "video/mp4".to_string() },
+            ResolvedAsset {
+                bytes: vec![0u8; 10],
+                mime: "video/mp4".to_string(),
+            },
         );
         let html = export_html(
             &doc,
@@ -1037,8 +1102,13 @@ mod tests {
             "http://127.0.0.1:37501",
             "T",
         );
-        assert!(html.contains("<video controls src=\"http://127.0.0.1:37501/workspaces/ws/assets/VID-1/content\""));
-        assert!(!html.contains("data:video"), "video is never base64-inlined");
+        assert!(html.contains(
+            "<video controls src=\"http://127.0.0.1:37501/workspaces/ws/assets/VID-1/content\""
+        ));
+        assert!(
+            !html.contains("data:video"),
+            "video is never base64-inlined"
+        );
     }
 
     #[test]
@@ -1058,19 +1128,27 @@ mod tests {
         // all-kinds robustness AC / impl note).
         let mut list = BlockNode::new(NodeKind::BulletList);
         let mut item = BlockNode::new(NodeKind::ListItem);
-        item.children.push(Child::Block(BlockNode::paragraph("item")));
+        item.children
+            .push(Child::Block(BlockNode::paragraph("item")));
         list.children.push(Child::Block(item));
 
         let mut task = BlockNode::new(NodeKind::TaskItem);
-        task.attrs.insert("checked".to_string(), JsonValue::Bool(true));
+        task.attrs
+            .insert("checked".to_string(), JsonValue::Bool(true));
         task.children.push(Child::Text(TextLeaf::new("done")));
 
         let mut code = BlockNode::new(NodeKind::CodeBlock);
-        code.attrs.insert("language".to_string(), JsonValue::String("rust".to_string()));
-        code.children.push(Child::Text(TextLeaf::new("fn main(){}")));
+        code.attrs.insert(
+            "language".to_string(),
+            JsonValue::String("rust".to_string()),
+        );
+        code.children
+            .push(Child::Text(TextLeaf::new("fn main(){}")));
 
         let mut quote = BlockNode::new(NodeKind::Blockquote);
-        quote.children.push(Child::Block(BlockNode::paragraph("quoted")));
+        quote
+            .children
+            .push(Child::Block(BlockNode::paragraph("quoted")));
 
         let doc = BlockNode::doc(vec![
             BlockNode::heading(2, "H2"),

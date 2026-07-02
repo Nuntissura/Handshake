@@ -136,7 +136,10 @@ pub const TEXT_CARD_EDIT_REQUIRED_ROUTE: &str = "PUT /knowledge/documents/{rich_
 /// The stable AccessKit author_id for a placement card, sanitizing `placement_id` to `[a-z0-9-]` so a
 /// raw id with slashes/colons can never break tree integrity (reuses the shell's slugger).
 pub fn placement_author_id(placement_id: &str) -> String {
-    format!("{PLACEMENT_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(placement_id))
+    format!(
+        "{PLACEMENT_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(placement_id)
+    )
 }
 
 /// The stable AccessKit author_id for a placement card's remove button.
@@ -147,7 +150,11 @@ pub fn placement_remove_author_id(placement_id: &str) -> String {
 /// The stable AccessKit author_id for a placement card's resize handle (WP-KERNEL-012 MT-061):
 /// `canvas.placement.{sanitized_placement_id}.resize`. Extends (does not replace) the MT-026 card ids.
 pub fn placement_resize_author_id(placement_id: &str) -> String {
-    format!("{}{}", placement_author_id(placement_id), RESIZE_HANDLE_AUTHOR_ID_SUFFIX)
+    format!(
+        "{}{}",
+        placement_author_id(placement_id),
+        RESIZE_HANDLE_AUTHOR_ID_SUFFIX
+    )
 }
 
 /// What backs a placement card, deciding whether it is INLINE-EDITABLE on the canvas (WP-KERNEL-012
@@ -336,7 +343,10 @@ pub struct CanvasDragPayload {
 impl CanvasDragPayload {
     /// A payload carrying just the block id (the common inter-panel case).
     pub fn new(block_id: impl Into<String>) -> Self {
-        Self { block_id: block_id.into(), title: None }
+        Self {
+            block_id: block_id.into(),
+            title: None,
+        }
     }
 }
 
@@ -349,21 +359,35 @@ pub enum CanvasEvent {
     /// RELEASE only (RISK-3 / MC-3), never per frame.
     ViewportChanged { pan_x: f32, pan_y: f32, zoom: f32 },
     /// Place a dropped block as a reference (`POST .../placements`). `x`/`y` are in CANVAS space.
-    PlaceBlock { placed_block_id: String, x: f32, y: f32 },
+    PlaceBlock {
+        placed_block_id: String,
+        x: f32,
+        y: f32,
+    },
     /// Create a free-text note card (`POST .../cards`); `title` is the React timestamp title.
     AddCard { title: String, x: f32, y: f32 },
     /// Group the given placements under a new `group_id` (`PATCH .../canvas-placements/:id {group_id}`).
-    Group { placement_ids: Vec<String>, group_id: String },
+    Group {
+        placement_ids: Vec<String>,
+        group_id: String,
+    },
     /// WP-KERNEL-012 MT-061: persist a card's resized geometry (`PATCH .../canvas-placements/:id {w,h}`).
     /// Fired ONCE per resize gesture, on drag-STOP only (debounced — RISK-061-1 / MC-061-1); the in-flight
     /// size renders optimistically during the drag and reconciles via `getCanvasBoard` after the PATCH.
     /// `w`/`h` are in CANVAS units, already clamped to [`MIN_CARD_W`]x[`MIN_CARD_H`].
-    ResizePlacement { placement_id: String, w: f32, h: f32 },
+    ResizePlacement {
+        placement_id: String,
+        w: f32,
+        h: f32,
+    },
     /// WP-KERNEL-012 MT-061: assign (or clear) a card's section/group via the SAME placement PATCH route
     /// (`PATCH .../canvas-placements/:id {group_id}` / `{clear_group:true}`). `group_id == Some(id)`
     /// assigns the dropped card to that section; `group_id == None` CLEARS the assignment (drop outside
     /// all frames). Mutates ONLY the placement record — never the underlying block (reference-not-copy).
-    AssignSection { placement_id: String, group_id: Option<String> },
+    AssignSection {
+        placement_id: String,
+        group_id: Option<String>,
+    },
     /// WP-KERNEL-012 MT-061: a CONTRACT-MANDATED TYPED BLOCKER (binds_backend_api[1] +
     /// RISK-061-5 / MC-061-5: "If it cannot edit an existing card, emit a typed blocker"). The inline
     /// text-card editor is a real, proven LIVE surface (double-click -> `TextEdit::multiline` -> type ->
@@ -400,9 +424,15 @@ pub enum CanvasEvent {
     /// Remove a placement reference (`DELETE .../canvas-placements/:id`). Source block is KEPT.
     RemovePlacement { placement_id: String },
     /// Create a real semantic Loom edge (`POST /loom/edges {edge_type:"mention"}`) between two BLOCKS.
-    SemanticEdge { source_block_id: String, target_block_id: String },
+    SemanticEdge {
+        source_block_id: String,
+        target_block_id: String,
+    },
     /// Create a board-local visual edge (`POST .../visual-edges`) between two PLACEMENTS.
-    VisualEdgeAdded { from_placement_id: String, to_placement_id: String },
+    VisualEdgeAdded {
+        from_placement_id: String,
+        to_placement_id: String,
+    },
     /// WP-KERNEL-012 MT-042: remove an edge by id — a swarm `canvas.remove-edge` dispatch. The host
     /// routes it through the E6 loom client (semantic edge) or removes the board-local visual edge.
     RemoveEdge { edge_id: String },
@@ -539,7 +569,8 @@ impl LoomCanvasBoard {
     /// layout offset). Returns `None` before the first render. Mirrors [`Self::canvas_to_screen`] with the
     /// recorded origin.
     pub fn canvas_point_to_screen(&self, canvas: Pos2) -> Option<Pos2> {
-        self.last_canvas_rect.map(|rect| self.canvas_to_screen(canvas, rect.min.to_vec2()))
+        self.last_canvas_rect
+            .map(|rect| self.canvas_to_screen(canvas, rect.min.to_vec2()))
     }
 
     /// WP-KERNEL-012 MT-061: the derived section layer for the CURRENT placements + section labels (the
@@ -553,7 +584,14 @@ impl LoomCanvasBoard {
     /// backend never stored. The host calls this with the placement id + the pre-edit `(x, y, w, h)` it
     /// snapshotted when it dispatched the PATCH; on failure the optimistic geometry is reverted and the
     /// transient resize/move state is cleared. Returns `true` if a matching placement was rolled back.
-    pub fn rollback_placement_geometry(&mut self, placement_id: &str, x: f32, y: f32, w: f32, h: f32) -> bool {
+    pub fn rollback_placement_geometry(
+        &mut self,
+        placement_id: &str,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    ) -> bool {
         // Clear any transient in-flight state for this placement so the optimistic value can't re-apply.
         if self.resizing.as_ref().map(|(id, _, _)| id.as_str()) == Some(placement_id) {
             self.resizing = None;
@@ -562,7 +600,11 @@ impl LoomCanvasBoard {
             self.moving = None;
             self.moving_pos = None;
         }
-        if let Some(card) = self.placements.iter_mut().find(|p| p.placement_id == placement_id) {
+        if let Some(card) = self
+            .placements
+            .iter_mut()
+            .find(|p| p.placement_id == placement_id)
+        {
             card.x = x;
             card.y = y;
             card.w = w;
@@ -606,7 +648,11 @@ impl LoomCanvasBoard {
         self.pan = pan;
         self.zoom = zoom.clamp(MIN_ZOOM, MAX_ZOOM);
         // Drop selection / edge-from ids that no longer exist after the reload.
-        let present: HashSet<&str> = self.placements.iter().map(|p| p.placement_id.as_str()).collect();
+        let present: HashSet<&str> = self
+            .placements
+            .iter()
+            .map(|p| p.placement_id.as_str())
+            .collect();
         self.selected.retain(|id| present.contains(id.as_str()));
         if let Some(from) = &self.edge_from {
             if !present.contains(from.as_str()) {
@@ -761,7 +807,11 @@ impl LoomCanvasBoard {
             if add_card.clicked() {
                 // React: title = `Card ${new Date().toISOString()}`; default position (40, 40).
                 let title = format!("Card {}", now_iso8601());
-                event = Some(CanvasEvent::AddCard { title, x: 40.0, y: 40.0 });
+                event = Some(CanvasEvent::AddCard {
+                    title,
+                    x: 40.0,
+                    y: 40.0,
+                });
             }
 
             let can_group = self.selected.len() >= 2;
@@ -780,7 +830,10 @@ impl LoomCanvasBoard {
                     }
                 }
                 self.status = format!("Grouped {} placements as {group_id}", placement_ids.len());
-                event = Some(CanvasEvent::Group { placement_ids, group_id });
+                event = Some(CanvasEvent::Group {
+                    placement_ids,
+                    group_id,
+                });
             }
 
             ui.separator();
@@ -791,8 +844,14 @@ impl LoomCanvasBoard {
                 self.edge_mode = self.edge_mode.toggled();
             }
             let can_start = self.selected.len() == 1 && self.edge_from.is_none();
-            let start_edge = ui.add_enabled(can_start, egui::Button::new("Draw edge from selected"));
-            emit_button_node(ui, start_edge.id, START_EDGE_AUTHOR_ID, "Draw edge from selected");
+            let start_edge =
+                ui.add_enabled(can_start, egui::Button::new("Draw edge from selected"));
+            emit_button_node(
+                ui,
+                start_edge.id,
+                START_EDGE_AUTHOR_ID,
+                "Draw edge from selected",
+            );
             if start_edge.clicked() && can_start {
                 if let Some(first) = self.selected.iter().next().cloned() {
                     self.edge_from = Some(first);
@@ -809,7 +868,12 @@ impl LoomCanvasBoard {
                     .desired_width(120.0)
                     .hint_text("block id"),
             );
-            emit_text_field_node(ui, field.id, PLACE_BLOCK_INPUT_AUTHOR_ID, &self.place_block_input);
+            emit_text_field_node(
+                ui,
+                field.id,
+                PLACE_BLOCK_INPUT_AUTHOR_ID,
+                &self.place_block_input,
+            );
             let block_id = self.place_block_input.trim().to_owned();
             let can_place = !block_id.is_empty();
             // MT-042: the MC-2 fallback button stays `add_enabled(can_place, ..)` for the MOUSE path
@@ -858,8 +922,10 @@ impl LoomCanvasBoard {
         // WP-KERNEL-012 MT-061: derive the section/group frame layer ONCE per frame from the current
         // placements' group_id + the board section labels. Reused by BOTH the drag-stop drop hit-test
         // (which_section) and the behind-cards frame draw pass — one derivation, one source of truth.
-        let section_layer =
-            crate::graph::canvas_sections::SectionLayer::derive(&self.placements, &self.section_labels);
+        let section_layer = crate::graph::canvas_sections::SectionLayer::derive(
+            &self.placements,
+            &self.section_labels,
+        );
 
         // Background fill + dotted grid (canvas is never blank/white — PROOF6).
         painter.rect_filled(rect, 0.0, palette.bg);
@@ -900,7 +966,8 @@ impl LoomCanvasBoard {
             // `placed_block_id` (MT-026: the placement body takes a block id, never an `atelier_item_id`).
             // An UNRESOLVED atelier item (no `loom_block_id`) is a typed no-op with a visible status — NOT
             // a fake POST (RISK-3 / MC-3). Reuses the SAME `screen_to_canvas` inverse + `PlaceBlock` event.
-            if let Some(payload) = canvas_resp.dnd_release_payload::<crate::interop::DragPayload>() {
+            if let Some(payload) = canvas_resp.dnd_release_payload::<crate::interop::DragPayload>()
+            {
                 match payload.canvas_drag_payload() {
                     Some(cdp) => {
                         let canvas_pos = drop_canvas_pos();
@@ -957,7 +1024,11 @@ impl LoomCanvasBoard {
             if let Some(moving_id) = self.moving.clone() {
                 // Move the card optimistically by the canvas-space delta (screen delta / zoom).
                 let delta = canvas_resp.drag_delta() / self.zoom;
-                if let Some(card) = self.placements.iter_mut().find(|p| p.placement_id == moving_id) {
+                if let Some(card) = self
+                    .placements
+                    .iter_mut()
+                    .find(|p| p.placement_id == moving_id)
+                {
                     card.x += delta.x;
                     card.y += delta.y;
                     self.moving_pos = Some(Pos2::new(card.x, card.y));
@@ -995,7 +1066,11 @@ impl LoomCanvasBoard {
                 let target = drop_layer.which_section(drop_pos).map(ToOwned::to_owned);
                 // Reflect the assignment locally so the AccessKit data-group-id updates THIS frame; the
                 // host persists via updateCanvasPlacement and the next getCanvasBoard refresh confirms it.
-                if let Some(card) = self.placements.iter_mut().find(|p| p.placement_id == moving_id) {
+                if let Some(card) = self
+                    .placements
+                    .iter_mut()
+                    .find(|p| p.placement_id == moving_id)
+                {
                     card.group_id = target.clone();
                 }
                 self.status = match &target {
@@ -1003,7 +1078,10 @@ impl LoomCanvasBoard {
                     None => format!("Cleared {moving_id} section"),
                 };
                 self.moving_pos = None;
-                event = Some(CanvasEvent::AssignSection { placement_id: moving_id, group_id: target });
+                event = Some(CanvasEvent::AssignSection {
+                    placement_id: moving_id,
+                    group_id: target,
+                });
             } else if self.resizing.is_none() {
                 // Pan release: persist the viewport (RISK-3 / MC-3 — host debounces).
                 event = Some(self.viewport_event());
@@ -1025,8 +1103,10 @@ impl LoomCanvasBoard {
                         self.status = format!("Editing {} (text card)", card.placement_id);
                     } else {
                         // A block reference navigates to its block — it is NEVER turned into an editor.
-                        self.status =
-                            format!("Open block {} (reference — not inline-editable)", card.placed_block_id);
+                        self.status = format!(
+                            "Open block {} (reference — not inline-editable)",
+                            card.placed_block_id
+                        );
                     }
                 }
             }
@@ -1094,7 +1174,13 @@ impl LoomCanvasBoard {
         // when a runtime-backed request is dispatched). A headless render is neutral (no perpetual
         // spinner — MT-015 lesson). Empty board (AC10): no overlay, no "(stale reference)" text.
         if self.loading {
-            draw_overlay_label(&painter, rect, "Loading canvas…", palette.text_subtle, palette);
+            draw_overlay_label(
+                &painter,
+                rect,
+                "Loading canvas…",
+                palette.text_subtle,
+                palette,
+            );
             ui.ctx().request_repaint();
         }
 
@@ -1147,7 +1233,10 @@ impl LoomCanvasBoard {
     // ── WP-KERNEL-012 MT-042 (E7): knowledge AccessKit action surface ─────────────────────────────
 
     /// Install the shared knowledge AccessKit action registry (the MT-041 `install_*` pattern).
-    pub fn install_knowledge_action_registry(&mut self, registry: Arc<Mutex<KnowledgeActionRegistry>>) {
+    pub fn install_knowledge_action_registry(
+        &mut self,
+        registry: Arc<Mutex<KnowledgeActionRegistry>>,
+    ) {
         self.knowledge_registry = Some(registry);
     }
 
@@ -1173,7 +1262,9 @@ impl LoomCanvasBoard {
     /// re-derived each frame so a removed placement DISAPPEARS (deletion-by-absence — IN-042-10).
     /// placement_ids are real UUIDs minted by the backend (RISK-042-02 / CTRL-042-02), surfaced verbatim.
     pub fn sync_knowledge_registry(&self) {
-        let Some(registry) = &self.knowledge_registry else { return };
+        let Some(registry) = &self.knowledge_registry else {
+            return;
+        };
         let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
         reg.clear_nodes();
         for entry in CANVAS_CONTROL_CATALOG {
@@ -1209,7 +1300,10 @@ impl LoomCanvasBoard {
     /// after [`Self::sync_knowledge_registry`]). No-op if no registry is installed.
     pub fn emit_knowledge_accesskit(&self, ui: &egui::Ui) {
         if let Some(registry) = &self.knowledge_registry {
-            registry.lock().unwrap_or_else(|e| e.into_inner()).emit_into_tree(ui);
+            registry
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .emit_into_tree(ui);
         }
     }
 
@@ -1226,7 +1320,10 @@ impl LoomCanvasBoard {
         }
         // Registry-owned node dispatches (non-toolbar controls + per-card identities).
         let registry = self.knowledge_registry.as_ref().unwrap();
-        let dispatched = registry.lock().unwrap_or_else(|e| e.into_inner()).take_dispatched(ui);
+        let dispatched = registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take_dispatched(ui);
         // Toolbar-owned dispatches: read the raw AccessKit Click at each recorded button id, but ONLY
         // forward the PARAMETERIZED (payload-carrying) ones to `apply_knowledge_action`.
         //
@@ -1272,13 +1369,32 @@ impl LoomCanvasBoard {
     /// any in-pane state change (pan/zoom/select). Returns `Some` for an action that produces a
     /// host-applied event, `None` for a purely in-pane action (pan/zoom/select) or a dropped malformed
     /// payload (RISK-042-03 / CTRL-042-03 — never a panic).
-    fn apply_knowledge_action(&mut self, author_id: &str, payload: Option<&str>) -> Option<CanvasEvent> {
+    fn apply_knowledge_action(
+        &mut self,
+        author_id: &str,
+        payload: Option<&str>,
+    ) -> Option<CanvasEvent> {
         match author_id {
-            "canvas.pan-left" => { self.pan.x -= PAN_STEP; None }
-            "canvas.pan-right" => { self.pan.x += PAN_STEP; None }
-            "canvas.zoom-in" => { self.step_zoom(ZOOM_STEP); None }
-            "canvas.zoom-out" => { self.step_zoom(-ZOOM_STEP); None }
-            "canvas.zoom-reset" => { self.zoom = 1.0; None }
+            "canvas.pan-left" => {
+                self.pan.x -= PAN_STEP;
+                None
+            }
+            "canvas.pan-right" => {
+                self.pan.x += PAN_STEP;
+                None
+            }
+            "canvas.zoom-in" => {
+                self.step_zoom(ZOOM_STEP);
+                None
+            }
+            "canvas.zoom-out" => {
+                self.step_zoom(-ZOOM_STEP);
+                None
+            }
+            "canvas.zoom-reset" => {
+                self.zoom = 1.0;
+                None
+            }
             "canvas.deselect-all" => {
                 self.selected.clear();
                 self.edge_from = None;
@@ -1287,19 +1403,32 @@ impl LoomCanvasBoard {
             "canvas.add-card" => {
                 // The payload may carry a title; fall back to the timestamp title (React parity).
                 let title = knowledge_action_registry::parse_payload::<serde_json::Value>(payload)
-                    .and_then(|v| v.get("title").and_then(|t| t.as_str().map(ToOwned::to_owned)))
+                    .and_then(|v| {
+                        v.get("title")
+                            .and_then(|t| t.as_str().map(ToOwned::to_owned))
+                    })
                     .unwrap_or_else(|| format!("Card {}", now_iso8601()));
                 let pos = self.default_place_pos();
-                Some(CanvasEvent::AddCard { title, x: pos.x, y: pos.y })
+                Some(CanvasEvent::AddCard {
+                    title,
+                    x: pos.x,
+                    y: pos.y,
+                })
             }
             "canvas.place-block" => {
                 let p = knowledge_action_registry::parse_payload::<PlaceBlockPayload>(payload)?;
                 self.status = format!("Placed {} (reference)", p.block_id);
-                Some(CanvasEvent::PlaceBlock { placed_block_id: p.block_id, x: p.x, y: p.y })
+                Some(CanvasEvent::PlaceBlock {
+                    placed_block_id: p.block_id,
+                    x: p.x,
+                    y: p.y,
+                })
             }
             "canvas.remove-placement" => {
                 let p = knowledge_action_registry::parse_payload::<PlacementIdPayload>(payload)?;
-                Some(CanvasEvent::RemovePlacement { placement_id: p.placement_id })
+                Some(CanvasEvent::RemovePlacement {
+                    placement_id: p.placement_id,
+                })
             }
             "canvas.add-edge" => {
                 let p = knowledge_action_registry::parse_payload::<AddEdgePayload>(payload)?;
@@ -1323,15 +1452,20 @@ impl LoomCanvasBoard {
             }
             "canvas.select-card" => {
                 let p = knowledge_action_registry::parse_payload::<PlacementIdPayload>(payload)?;
-                if self.placements.iter().any(|c| c.placement_id == p.placement_id) {
+                if self
+                    .placements
+                    .iter()
+                    .any(|c| c.placement_id == p.placement_id)
+                {
                     self.selected.clear();
                     self.selected.insert(p.placement_id);
                 }
                 None
             }
             // AC-042-03: a `delete` custom-action dispatch on a card -> RemovePlacement for that card.
-            other if other.starts_with(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
-                && other.ends_with("#delete") =>
+            other
+                if other.starts_with(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
+                    && other.ends_with("#delete") =>
             {
                 let sanitized = other
                     .trim_start_matches(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
@@ -1339,11 +1473,15 @@ impl LoomCanvasBoard {
                 self.placements
                     .iter()
                     .find(|c| crate::project_tree::stable_part(&c.placement_id) == sanitized)
-                    .map(|c| CanvasEvent::RemovePlacement { placement_id: c.placement_id.clone() })
+                    .map(|c| CanvasEvent::RemovePlacement {
+                        placement_id: c.placement_id.clone(),
+                    })
             }
             other => {
                 // A per-identity `canvas.card.<sanitized_placement_id>` click -> select that card.
-                if let Some(stripped) = other.strip_prefix(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX) {
+                if let Some(stripped) =
+                    other.strip_prefix(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
+                {
                     if let Some(card) = self
                         .placements
                         .iter()
@@ -1390,8 +1528,14 @@ impl LoomCanvasBoard {
     fn draw_visual_edges(&self, painter: &egui::Painter, origin: Vec2, palette: &HsPalette) {
         let stroke = Stroke::new(2.0, palette.text_subtle.gamma_multiply(0.7));
         for edge in &self.visual_edges {
-            let from = self.placements.iter().find(|p| p.placement_id == edge.from_placement_id);
-            let to = self.placements.iter().find(|p| p.placement_id == edge.to_placement_id);
+            let from = self
+                .placements
+                .iter()
+                .find(|p| p.placement_id == edge.from_placement_id);
+            let to = self
+                .placements
+                .iter()
+                .find(|p| p.placement_id == edge.to_placement_id);
             if let (Some(from), Some(to)) = (from, to) {
                 let a = self.canvas_to_screen(from.canvas_center(), origin);
                 let b = self.canvas_to_screen(to.canvas_center(), origin);
@@ -1456,19 +1600,23 @@ impl LoomCanvasBoard {
         // for any placement that maps to a real Loom block (RISK-3: skipped — no panic, no fabricated
         // URI — when `placed_block_id` is empty). The chip shows the full loom:// address; a resolved
         // content_hash adds a short ` #<8hex>` suffix (READ from the backend block, never written).
-        let chip_text = self.placements[idx].loom_addr(&self.workspace_id).map(|addr| {
-            let mut s = addr.to_uri();
-            if let Some(hash) =
-                self.placements[idx].loom_content_hash.as_deref().filter(|h| !h.trim().is_empty())
-            {
-                // CHAR-BOUNDARY SAFE: route the short prefix through ContentHash::short() rather than a
-                // raw byte slice `&hash[..8]` — the backend hash is untrusted (from_backend does not
-                // validate hex), so a multi-byte first char would otherwise panic the egui render thread.
-                let short = crate::loom_address::ContentHash(hash.to_owned());
-                s.push_str(&format!(" #{}", short.short()));
-            }
-            s
-        });
+        let chip_text = self.placements[idx]
+            .loom_addr(&self.workspace_id)
+            .map(|addr| {
+                let mut s = addr.to_uri();
+                if let Some(hash) = self.placements[idx]
+                    .loom_content_hash
+                    .as_deref()
+                    .filter(|h| !h.trim().is_empty())
+                {
+                    // CHAR-BOUNDARY SAFE: route the short prefix through ContentHash::short() rather than a
+                    // raw byte slice `&hash[..8]` — the backend hash is untrusted (from_backend does not
+                    // validate hex), so a multi-byte first char would otherwise panic the egui render thread.
+                    let short = crate::loom_address::ContentHash(hash.to_owned());
+                    s.push_str(&format!(" #{}", short.short()));
+                }
+                s
+            });
         if let Some(chip) = &chip_text {
             painter.text(
                 Pos2::new(screen_rect.left() + 8.0, screen_rect.bottom() - 16.0),
@@ -1491,7 +1639,8 @@ impl LoomCanvasBoard {
         // never `editing_card_id`, so it never reaches here — reference-not-copy).
         let mut card_event: Option<CanvasEvent> = None;
         if self.editing_card_id.as_deref() == Some(placement_id.as_str()) {
-            card_event = self.draw_inline_editor(ui, screen_rect, &placement_id, &placed_block_id, &title);
+            card_event =
+                self.draw_inline_editor(ui, screen_rect, &placement_id, &placed_block_id, &title);
         }
 
         // ── WP-KERNEL-012 MT-061: bottom-right RESIZE handle (AC-061-1). A ~12px grab handle scaled by
@@ -1507,7 +1656,10 @@ impl LoomCanvasBoard {
         // Remove button ('x') at the card's top-right.
         let remove_size = Vec2::splat(18.0);
         let remove_rect = Rect::from_min_size(
-            Pos2::new(screen_rect.right() - remove_size.x - 4.0, screen_rect.top() + 4.0),
+            Pos2::new(
+                screen_rect.right() - remove_size.x - 4.0,
+                screen_rect.top() + 4.0,
+            ),
             remove_size,
         );
         let remove_id = egui::Id::new(placement_remove_author_id(&placement_id));
@@ -1552,7 +1704,10 @@ impl LoomCanvasBoard {
         // The handle is a small square at the card's bottom-right, scaled by zoom so it tracks the card.
         let handle_px = RESIZE_HANDLE_PX * self.zoom;
         let handle_rect = Rect::from_min_max(
-            Pos2::new(screen_rect.right() - handle_px, screen_rect.bottom() - handle_px),
+            Pos2::new(
+                screen_rect.right() - handle_px,
+                screen_rect.bottom() - handle_px,
+            ),
             Pos2::new(screen_rect.right(), screen_rect.bottom()),
         );
         let handle_id = egui::Id::new(("canvas.placement.resize", &placement_id));
@@ -1635,10 +1790,13 @@ impl LoomCanvasBoard {
 
         // Ctrl/Cmd+Enter COMMITS. Consume it BEFORE the multiline TextEdit (which would otherwise insert a
         // newline), so the keyboard commit is deterministic.
-        let ctrl_enter = ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Enter));
+        let ctrl_enter =
+            ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Enter));
 
         let mut child = ui.new_child(
-            egui::UiBuilder::new().max_rect(editor_rect).layout(*ui.layout()),
+            egui::UiBuilder::new()
+                .max_rect(editor_rect)
+                .layout(*ui.layout()),
         );
         let output = egui::TextEdit::multiline(&mut self.editing_buffer)
             .id(editor_id)
@@ -1732,7 +1890,13 @@ fn draw_dashed_line(painter: &egui::Painter, a: Pos2, b: Pos2, stroke: Stroke) {
 }
 
 /// Draw a centred overlay label (loading) over the canvas.
-fn draw_overlay_label(painter: &egui::Painter, rect: Rect, text: &str, color: Color32, palette: &HsPalette) {
+fn draw_overlay_label(
+    painter: &egui::Painter,
+    rect: Rect,
+    text: &str,
+    color: Color32,
+    palette: &HsPalette,
+) {
     let galley = painter.layout_no_wrap(text.to_owned(), egui::FontId::proportional(15.0), color);
     let pos = Pos2::new(
         rect.center().x - galley.size().x * 0.5,
@@ -1786,7 +1950,12 @@ fn emit_text_field_node(ui: &egui::Ui, id: egui::Id, author_id: &str, value: &st
 /// placement maps to a real Loom block (MT-032), its `loom://` chip text is exposed as the node's
 /// DESCRIPTION so an out-of-process agent reads the placement's loom address (HBR-SWARM); a
 /// non-addressable placement passes `None` and gets no description.
-fn emit_placement_node(ui: &egui::Ui, card: &CanvasPlacementCard, label: &str, loom_chip: Option<&str>) {
+fn emit_placement_node(
+    ui: &egui::Ui,
+    card: &CanvasPlacementCard,
+    label: &str,
+    loom_chip: Option<&str>,
+) {
     let author = placement_author_id(&card.placement_id);
     let id = egui::Id::new(&author);
     let label = label.to_owned();
@@ -1890,7 +2059,9 @@ mod tests {
     #[test]
     fn placed_card_has_loom_addr_chip() {
         let card = CanvasPlacementCard::new("p-1", "blk-7", 0.0, 0.0, 200.0, 120.0);
-        let addr = card.loom_addr("ws-9").expect("a placed block is addressable");
+        let addr = card
+            .loom_addr("ws-9")
+            .expect("a placed block is addressable");
         assert_eq!(addr.to_uri(), "loom://ws-9/blk-7");
     }
 
@@ -1899,7 +2070,11 @@ mod tests {
     #[test]
     fn empty_placed_block_id_has_no_loom_chip() {
         let card = CanvasPlacementCard::new("p-1", "", 0.0, 0.0, 200.0, 120.0);
-        assert_eq!(card.loom_addr("ws-9"), None, "no chip for an empty placed_block_id (RISK-3)");
+        assert_eq!(
+            card.loom_addr("ws-9"),
+            None,
+            "no chip for an empty placed_block_id (RISK-3)"
+        );
         // An empty workspace also yields no chip (the board has no workspace yet).
         let card2 = CanvasPlacementCard::new("p-2", "blk-7", 0.0, 0.0, 200.0, 120.0);
         assert_eq!(card2.loom_addr(""), None, "no chip without a workspace");
@@ -1933,7 +2108,12 @@ mod tests {
         let mut b = board_with(0);
         b.pan = Vec2::new(37.0, -19.0);
         b.zoom = 1.75;
-        for &(cx, cy) in &[(0.0, 0.0), (100.0, 100.0), (-250.5, 640.0), (1920.0, 1080.0)] {
+        for &(cx, cy) in &[
+            (0.0, 0.0),
+            (100.0, 100.0),
+            (-250.5, 640.0),
+            (1920.0, 1080.0),
+        ] {
             let canvas = Pos2::new(cx, cy);
             let screen = b.canvas_to_screen(canvas, ORIGIN);
             let back = b.screen_to_canvas(screen, ORIGIN);
@@ -1953,8 +2133,16 @@ mod tests {
         b.zoom = 2.0;
         // A drop at screen (240, 240) with origin (12,80) maps to canvas ((240-12-40)/2, (240-80-40)/2).
         let canvas = b.screen_to_canvas(Pos2::new(240.0, 240.0), ORIGIN);
-        assert!((canvas.x - 94.0).abs() < 0.01, "canvas x {} != 94", canvas.x);
-        assert!((canvas.y - 60.0).abs() < 0.01, "canvas y {} != 60", canvas.y);
+        assert!(
+            (canvas.x - 94.0).abs() < 0.01,
+            "canvas x {} != 94",
+            canvas.x
+        );
+        assert!(
+            (canvas.y - 60.0).abs() < 0.01,
+            "canvas y {} != 60",
+            canvas.y
+        );
     }
 
     /// Card hit-test picks the topmost (highest z_index) overlapping card.
@@ -1967,7 +2155,10 @@ mod tests {
         top.z_index = 5;
         b.set_board(vec![a, top], vec![], Vec2::ZERO, 1.0);
         let hit = b.placement_at_canvas(Pos2::new(50.0, 50.0)).unwrap();
-        assert_eq!(b.placements[hit].placement_id, "p-high", "topmost z_index card wins the hit");
+        assert_eq!(
+            b.placements[hit].placement_id, "p-high",
+            "topmost z_index card wins the hit"
+        );
     }
 
     /// AC3: zoom buttons step ±0.25, clamp to [0.25, 4.0], and round to 2dp (matching the React label).
@@ -1980,12 +2171,20 @@ mod tests {
         for _ in 0..20 {
             b.step_zoom(-ZOOM_STEP);
         }
-        assert!((b.zoom - MIN_ZOOM).abs() < 1e-6, "clamped to MIN_ZOOM (got {})", b.zoom);
+        assert!(
+            (b.zoom - MIN_ZOOM).abs() < 1e-6,
+            "clamped to MIN_ZOOM (got {})",
+            b.zoom
+        );
         // Clamp high.
         for _ in 0..40 {
             b.step_zoom(ZOOM_STEP);
         }
-        assert!((b.zoom - MAX_ZOOM).abs() < 1e-6, "clamped to MAX_ZOOM (got {})", b.zoom);
+        assert!(
+            (b.zoom - MAX_ZOOM).abs() < 1e-6,
+            "clamped to MAX_ZOOM (got {})",
+            b.zoom
+        );
     }
 
     /// Zoom-to-pointer keeps the canvas point under the cursor fixed.
@@ -2005,7 +2204,11 @@ mod tests {
         for _ in 0..50 {
             b.apply_zoom(1.0, pointer, ORIGIN);
         }
-        assert!(b.zoom <= MAX_ZOOM + 1e-3, "clamped to MAX_ZOOM (got {})", b.zoom);
+        assert!(
+            b.zoom <= MAX_ZOOM + 1e-3,
+            "clamped to MAX_ZOOM (got {})",
+            b.zoom
+        );
     }
 
     /// Reference-not-copy: a placement with no resolved live block shows "(stale reference)", never a
@@ -2068,10 +2271,15 @@ mod tests {
         assert!(id.starts_with(PLACEMENT_AUTHOR_ID_PREFIX));
         let suffix = &id[PLACEMENT_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
-        assert_eq!(placement_remove_author_id("p-001"), "canvas.placement.p-001.remove");
+        assert_eq!(
+            placement_remove_author_id("p-001"),
+            "canvas.placement.p-001.remove"
+        );
     }
 
     /// AC10: an empty board is a no-op to render-prep — no placements, no panic on hit-test, no stale
@@ -2120,13 +2328,31 @@ mod tests {
     #[test]
     fn card_kind_default_is_block_ref_and_gates_inline_edit() {
         let block_card = CanvasPlacementCard::new("p-1", "blk-7", 0.0, 0.0, 200.0, 120.0);
-        assert_eq!(block_card.card_kind, CanvasCardKind::BlockRef, "default is a block reference");
-        assert!(!block_card.card_kind.is_text_card(), "a block ref is NOT inline-editable");
-        let text_card =
-            CanvasPlacementCard::new("p-2", "blk-8", 0.0, 0.0, 200.0, 120.0).as_text_card("hello body");
-        assert_eq!(text_card.card_kind, CanvasCardKind::TextCard, "as_text_card marks a TextCard");
-        assert!(text_card.card_kind.is_text_card(), "a text card IS inline-editable");
-        assert_eq!(text_card.live_body.as_deref(), Some("hello body"), "text card seeds its body");
+        assert_eq!(
+            block_card.card_kind,
+            CanvasCardKind::BlockRef,
+            "default is a block reference"
+        );
+        assert!(
+            !block_card.card_kind.is_text_card(),
+            "a block ref is NOT inline-editable"
+        );
+        let text_card = CanvasPlacementCard::new("p-2", "blk-8", 0.0, 0.0, 200.0, 120.0)
+            .as_text_card("hello body");
+        assert_eq!(
+            text_card.card_kind,
+            CanvasCardKind::TextCard,
+            "as_text_card marks a TextCard"
+        );
+        assert!(
+            text_card.card_kind.is_text_card(),
+            "a text card IS inline-editable"
+        );
+        assert_eq!(
+            text_card.live_body.as_deref(),
+            Some("hello body"),
+            "text card seeds its body"
+        );
     }
 
     /// AC-061-1 clamp: the resize handle clamps the card to the minimum size — w/h can never go below
@@ -2143,7 +2369,11 @@ mod tests {
         assert_eq!(w, MIN_CARD_W, "resize clamps width to MIN_CARD_W");
         assert_eq!(h, MIN_CARD_H, "resize clamps height to MIN_CARD_H");
         // The minimums match the contract's 80x48 canvas-unit floor.
-        assert_eq!((MIN_CARD_W, MIN_CARD_H), (80.0, 48.0), "minimums match the contract (80x48)");
+        assert_eq!(
+            (MIN_CARD_W, MIN_CARD_H),
+            (80.0, 48.0),
+            "minimums match the contract (80x48)"
+        );
     }
 
     /// AC-061-5 (the load-bearing invariant): a resize + section-assign cycle on a BLOCK-backed card never
@@ -2152,24 +2382,45 @@ mod tests {
     #[test]
     fn reference_not_copy_block_id_set_invariant_across_resize_and_section() {
         let mut b = board_with(2); // p-001/block-001, p-002/block-002 (both BlockRef by default)
-        let before: std::collections::BTreeSet<String> =
-            b.placements.iter().map(|p| p.placed_block_id.clone()).collect();
+        let before: std::collections::BTreeSet<String> = b
+            .placements
+            .iter()
+            .map(|p| p.placed_block_id.clone())
+            .collect();
         // RESIZE p-001 (mutate ONLY the placement record's w/h).
         {
-            let card = b.placements.iter_mut().find(|p| p.placement_id == "p-001").unwrap();
+            let card = b
+                .placements
+                .iter_mut()
+                .find(|p| p.placement_id == "p-001")
+                .unwrap();
             card.w = 320.0;
             card.h = 200.0;
         }
         // SECTION-ASSIGN p-001 (mutate ONLY the placement record's group_id).
         {
-            let card = b.placements.iter_mut().find(|p| p.placement_id == "p-001").unwrap();
+            let card = b
+                .placements
+                .iter_mut()
+                .find(|p| p.placement_id == "p-001")
+                .unwrap();
             card.group_id = Some("g-research".to_owned());
         }
-        let after: std::collections::BTreeSet<String> =
-            b.placements.iter().map(|p| p.placed_block_id.clone()).collect();
-        assert_eq!(before, after, "AC-061-5: the underlying block_id set is INVARIANT (no copy/fork)");
+        let after: std::collections::BTreeSet<String> = b
+            .placements
+            .iter()
+            .map(|p| p.placed_block_id.clone())
+            .collect();
+        assert_eq!(
+            before, after,
+            "AC-061-5: the underlying block_id set is INVARIANT (no copy/fork)"
+        );
         // The count of placements is unchanged too (no duplicate placement created).
-        assert_eq!(b.placements.len(), 2, "no placement duplicated by resize/section");
+        assert_eq!(
+            b.placements.len(),
+            2,
+            "no placement duplicated by resize/section"
+        );
     }
 
     /// MC-061-2 rollback: after a resize PATCH FAILS, the host calls `rollback_placement_geometry` with
@@ -2177,9 +2428,13 @@ mod tests {
     #[test]
     fn rollback_restores_server_geometry_on_patch_failure() {
         let mut b = board_with(1); // p-001/block-001 at (20,40) 200x120
-        // Optimistically resize p-001 (as a drag would) and mark it in-flight.
+                                   // Optimistically resize p-001 (as a drag would) and mark it in-flight.
         {
-            let card = b.placements.iter_mut().find(|p| p.placement_id == "p-001").unwrap();
+            let card = b
+                .placements
+                .iter_mut()
+                .find(|p| p.placement_id == "p-001")
+                .unwrap();
             card.w = 400.0;
             card.h = 300.0;
         }
@@ -2187,9 +2442,20 @@ mod tests {
         // The PATCH fails -> roll back to the last server-confirmed geometry (200x120 at 20,40).
         let rolled = b.rollback_placement_geometry("p-001", 20.0, 40.0, 200.0, 120.0);
         assert!(rolled, "rollback found and reverted the placement");
-        let card = b.placements.iter().find(|p| p.placement_id == "p-001").unwrap();
-        assert_eq!((card.x, card.y, card.w, card.h), (20.0, 40.0, 200.0, 120.0), "geometry reverted");
-        assert!(b.resizing.is_none(), "in-flight resize state cleared on rollback");
+        let card = b
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-001")
+            .unwrap();
+        assert_eq!(
+            (card.x, card.y, card.w, card.h),
+            (20.0, 40.0, 200.0, 120.0),
+            "geometry reverted"
+        );
+        assert!(
+            b.resizing.is_none(),
+            "in-flight resize state cleared on rollback"
+        );
     }
 
     /// AssignSection event shape: clearing (drop outside all frames) carries `group_id: None`; assigning
@@ -2200,9 +2466,14 @@ mod tests {
             placement_id: "p-1".to_owned(),
             group_id: Some("g-a".to_owned()),
         };
-        let clear = CanvasEvent::AssignSection { placement_id: "p-1".to_owned(), group_id: None };
+        let clear = CanvasEvent::AssignSection {
+            placement_id: "p-1".to_owned(),
+            group_id: None,
+        };
         match assign {
-            CanvasEvent::AssignSection { group_id: Some(g), .. } => assert_eq!(g, "g-a"),
+            CanvasEvent::AssignSection {
+                group_id: Some(g), ..
+            } => assert_eq!(g, "g-a"),
             _ => panic!("assign must carry Some(group_id)"),
         }
         match clear {
@@ -2217,8 +2488,15 @@ mod tests {
         let card_id = placement_author_id("p-001");
         let resize_id = placement_resize_author_id("p-001");
         assert_eq!(resize_id, "canvas.placement.p-001.resize");
-        assert!(resize_id.starts_with(&card_id), "resize id extends the card id (no collision)");
+        assert!(
+            resize_id.starts_with(&card_id),
+            "resize id extends the card id (no collision)"
+        );
         assert_ne!(resize_id, card_id, "resize id is distinct from the card id");
-        assert_ne!(resize_id, placement_remove_author_id("p-001"), "resize id != remove id");
+        assert_ne!(
+            resize_id,
+            placement_remove_author_id("p-001"),
+            "resize id != remove id"
+        );
     }
 }

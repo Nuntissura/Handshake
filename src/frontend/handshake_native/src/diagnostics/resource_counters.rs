@@ -247,7 +247,11 @@ mod tests {
     fn samples_current_process_plausible_integers() {
         let mut sampler = ResourceSampler::new();
         let s = sampler.sample();
-        assert!(s.rss_kb > 0, "a live process always has a non-zero resident set (got {})", s.rss_kb);
+        assert!(
+            s.rss_kb > 0,
+            "a live process always has a non-zero resident set (got {})",
+            s.rss_kb
+        );
         // cpu_milli is a u64 (non-negative by type); assert it is a real read, not absurd. The first
         // sample is typically 0 (no prior delta); a second sample after work may be > 0.
         let _ = s.cpu_milli; // typed non-negative integer by construction
@@ -274,7 +278,10 @@ mod tests {
         let mut emitted = 0u32;
 
         // First call (no prior sample) is due -> emits.
-        assert!(sampler.maybe_sample(t0, |_| emitted += 1).is_some(), "first sample is due");
+        assert!(
+            sampler.maybe_sample(t0, |_| emitted += 1).is_some(),
+            "first sample is due"
+        );
         // 50 more calls within the SAME window (all at t0) -> NONE emit.
         for _ in 0..50 {
             assert!(
@@ -282,12 +289,21 @@ mod tests {
                 "a call inside the cadence window must NOT sample"
             );
         }
-        assert_eq!(emitted, 1, "50 calls within one cadence window emit exactly ONE sample (AC-006-4)");
+        assert_eq!(
+            emitted, 1,
+            "50 calls within one cadence window emit exactly ONE sample (AC-006-4)"
+        );
 
         // A call past the window emits again.
         let t1 = t0 + SAMPLE_INTERVAL + Duration::from_millis(50);
-        assert!(sampler.maybe_sample(t1, |_| emitted += 1).is_some(), "past the window, sample again");
-        assert_eq!(emitted, 2, "a call past the cadence window emits a second sample");
+        assert!(
+            sampler.maybe_sample(t1, |_| emitted += 1).is_some(),
+            "past the window, sample again"
+        );
+        assert_eq!(
+            emitted, 2,
+            "a call past the cadence window emits a second sample"
+        );
         assert_eq!(sampler.sample_count(), 2, "two samples taken + emitted");
     }
 
@@ -303,13 +319,28 @@ mod tests {
 
         assert_eq!(events.len(), 1, "exactly one ResourceSample event emitted");
         let e = events[0];
-        assert_eq!(e.event_code, DiagEventCode::ResourceSample.as_u16(), "event code is ResourceSample");
-        assert_eq!(e.phase_marker, DiagPhase::Tick.as_u8(), "phase is Tick (a periodic sample)");
-        assert_eq!(e.severity, DiagSeverity::Info.as_u8(), "severity is Info (a normal counter)");
+        assert_eq!(
+            e.event_code,
+            DiagEventCode::ResourceSample.as_u16(),
+            "event code is ResourceSample"
+        );
+        assert_eq!(
+            e.phase_marker,
+            DiagPhase::Tick.as_u8(),
+            "phase is Tick (a periodic sample)"
+        );
+        assert_eq!(
+            e.severity,
+            DiagSeverity::Info.as_u8(),
+            "severity is Info (a normal counter)"
+        );
         // The typed integer payload matches the sample (cpu_milli -> counter_a, rss_kb -> counter_b).
         assert_eq!(e.counter_a, s.cpu_milli, "counter_a carries cpu_milli");
         assert_eq!(e.counter_b, s.rss_kb, "counter_b carries rss_kb");
-        assert!(e.counter_b > 0, "rss_kb is a real read (> 0 for a live process)");
+        assert!(
+            e.counter_b > 0,
+            "rss_kb is a real read (> 0 for a live process)"
+        );
         // _reserved is the zeroed padding (no content channel).
         assert_eq!(e._reserved, [0u8; 4], "no content smuggled through padding");
     }

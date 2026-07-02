@@ -53,13 +53,24 @@ fn cursor_insert_at_all_adjusts_offsets() {
     // AC-006: 'X' at position 0 (before "0") and 'X' at position 6 ("01234" + first X shifted the
     // second insert point from 5 to 6).
     let text = buf.to_string();
-    assert_eq!(text, "X01234X56789", "both X inserted, second offset shifted by +1: {text:?}");
+    assert_eq!(
+        text, "X01234X56789",
+        "both X inserted, second offset shifted by +1: {text:?}"
+    );
     assert_eq!(text.as_bytes()[0], b'X', "X at position 0");
-    assert_eq!(text.as_bytes()[6], b'X', "X at position 6 (offset-adjusted)");
+    assert_eq!(
+        text.as_bytes()[6],
+        b'X',
+        "X at position 6 (offset-adjusted)"
+    );
 
     // Each caret lands immediately AFTER its own inserted text.
     let heads: Vec<usize> = set.cursors().iter().map(|c| c.head).collect();
-    assert_eq!(heads, vec![1, 7], "carets sit after their inserted X: {heads:?}");
+    assert_eq!(
+        heads,
+        vec![1, 7],
+        "carets sit after their inserted X: {heads:?}"
+    );
 }
 
 /// AC-006 exact contract wording: cursors at 0 and 5 inserting 'X' -> buffer has 'X' at 0 and 'X' at 6.
@@ -70,8 +81,16 @@ fn cursor_insert_two_cursors_x_lands_at_0_and_6() {
     set.set_cursors(vec![Cursor::caret(0), Cursor::caret(5)], &buf);
     set.insert_at_all("X", &mut buf);
     let text = buf.to_string();
-    assert_eq!(text.as_bytes()[0], b'X', "first X at position 0; text={text:?}");
-    assert_eq!(text.as_bytes()[6], b'X', "second X at position 6 (offset adjusted by 1); text={text:?}");
+    assert_eq!(
+        text.as_bytes()[0],
+        b'X',
+        "first X at position 0; text={text:?}"
+    );
+    assert_eq!(
+        text.as_bytes()[6],
+        b'X',
+        "second X at position 6 (offset adjusted by 1); text={text:?}"
+    );
     assert_eq!(text, "XaaaaaXbbbbb");
 }
 
@@ -81,11 +100,17 @@ fn cursor_insert_two_cursors_x_lands_at_0_and_6() {
 fn cursor_insert_multichar_shifts_by_byte_length() {
     let mut buf = TextBuffer::new("..|..|.."); // carets at 0, 3, 6
     let mut set = CursorSet::default();
-    set.set_cursors(vec![Cursor::caret(0), Cursor::caret(3), Cursor::caret(6)], &buf);
+    set.set_cursors(
+        vec![Cursor::caret(0), Cursor::caret(3), Cursor::caret(6)],
+        &buf,
+    );
     set.insert_at_all("AB", &mut buf); // 2-byte insert at each
     let text = buf.to_string();
     // Original "..|..|.." with AB at 0,3,6 -> "AB..AB|..AB|.." ... verify the three ABs at shifted spots.
-    assert_eq!(text, "AB..|AB..|AB..", "three 2-byte inserts, each shifted by 2*priorInserts: {text:?}");
+    assert_eq!(
+        text, "AB..|AB..|AB..",
+        "three 2-byte inserts, each shifted by 2*priorInserts: {text:?}"
+    );
 }
 
 /// Delete at all cursors: a selection is removed; a bare caret backspaces one char. Reverse-order so
@@ -98,7 +123,11 @@ fn cursor_delete_at_all_handles_selections_and_backspace() {
     set.set_cursors(vec![Cursor::selection(3, 6), Cursor::caret(9)], &buf);
     let applied = set.delete_at_all(&mut buf);
     assert_eq!(applied, 2, "selection removed + one backspace");
-    assert_eq!(buf.to_string(), "abcde", "XYZ removed and trailing f backspaced");
+    assert_eq!(
+        buf.to_string(),
+        "abcde",
+        "XYZ removed and trailing f backspaced"
+    );
 }
 
 /// move_all collapses selections to carets and is char-boundary safe (the MoveDir surface).
@@ -113,7 +142,11 @@ fn cursor_move_all_collapses_and_moves() {
         assert!(!c.is_selection(), "move collapses selection to a caret");
     }
     let heads: Vec<usize> = set.cursors().iter().map(|c| c.head).collect();
-    assert_eq!(heads, vec![4, 7], "each caret moved right one char: {heads:?}");
+    assert_eq!(
+        heads,
+        vec![4, 7],
+        "each caret moved right one char: {heads:?}"
+    );
 }
 
 /// The set always has at least one caret, and every offset stays within the buffer (invariants).
@@ -122,8 +155,14 @@ fn cursor_invariants_clamp_and_nonempty() {
     let buf = TextBuffer::new("hi"); // 2 bytes
     let mut set = CursorSet::default();
     // Wild offsets: clamp to 0..=2.
-    set.set_cursors(vec![Cursor::caret(1000), Cursor::caret(2), Cursor::caret(0)], &buf);
-    assert!(set.cursors().iter().all(|c| c.head <= 2), "all offsets clamped to len_bytes");
+    set.set_cursors(
+        vec![Cursor::caret(1000), Cursor::caret(2), Cursor::caret(0)],
+        &buf,
+    );
+    assert!(
+        set.cursors().iter().all(|c| c.head <= 2),
+        "all offsets clamped to len_bytes"
+    );
     assert!(!set.is_empty(), "set is never empty");
     // Even an explicitly empty set normalizes to one caret at 0.
     let mut empty = CursorSet::default();

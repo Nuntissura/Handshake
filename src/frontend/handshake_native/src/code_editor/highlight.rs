@@ -247,7 +247,9 @@ impl LanguageRegistry {
     /// An empty registry. Use [`with_bundled_languages`](Self::with_bundled_languages) for the
     /// default Rust + JavaScript set.
     pub fn new() -> Self {
-        Self { by_ext: HashMap::new() }
+        Self {
+            by_ext: HashMap::new(),
+        }
     }
 
     /// The default registry bundling `tree-sitter-rust` and `tree-sitter-javascript`, mapped to the
@@ -397,10 +399,7 @@ impl Highlighter {
         let mut matches = cursor.matches(&self.query, tree.root_node(), source);
         while let Some(m) = matches.next() {
             for cap in m.captures {
-                let name = capture_names
-                    .get(cap.index as usize)
-                    .copied()
-                    .unwrap_or("");
+                let name = capture_names.get(cap.index as usize).copied().unwrap_or("");
                 let scope = HighlightScope::from_capture_name(name);
                 let node = cap.node;
                 spans.push(HighlightSpan {
@@ -438,15 +437,42 @@ mod tests {
 
     #[test]
     fn capture_name_maps_to_scope_including_sub_captures() {
-        assert_eq!(HighlightScope::from_capture_name("keyword"), HighlightScope::Keyword);
-        assert_eq!(HighlightScope::from_capture_name("string.special"), HighlightScope::String);
-        assert_eq!(HighlightScope::from_capture_name("function.method"), HighlightScope::Function);
-        assert_eq!(HighlightScope::from_capture_name("constructor"), HighlightScope::Function);
-        assert_eq!(HighlightScope::from_capture_name("type.builtin"), HighlightScope::Type);
-        assert_eq!(HighlightScope::from_capture_name("comment.line"), HighlightScope::Comment);
-        assert_eq!(HighlightScope::from_capture_name("number"), HighlightScope::Number);
-        assert_eq!(HighlightScope::from_capture_name("operator"), HighlightScope::Operator);
-        assert_eq!(HighlightScope::from_capture_name("totally-unknown"), HighlightScope::Other);
+        assert_eq!(
+            HighlightScope::from_capture_name("keyword"),
+            HighlightScope::Keyword
+        );
+        assert_eq!(
+            HighlightScope::from_capture_name("string.special"),
+            HighlightScope::String
+        );
+        assert_eq!(
+            HighlightScope::from_capture_name("function.method"),
+            HighlightScope::Function
+        );
+        assert_eq!(
+            HighlightScope::from_capture_name("constructor"),
+            HighlightScope::Function
+        );
+        assert_eq!(
+            HighlightScope::from_capture_name("type.builtin"),
+            HighlightScope::Type
+        );
+        assert_eq!(
+            HighlightScope::from_capture_name("comment.line"),
+            HighlightScope::Comment
+        );
+        assert_eq!(
+            HighlightScope::from_capture_name("number"),
+            HighlightScope::Number
+        );
+        assert_eq!(
+            HighlightScope::from_capture_name("operator"),
+            HighlightScope::Operator
+        );
+        assert_eq!(
+            HighlightScope::from_capture_name("totally-unknown"),
+            HighlightScope::Other
+        );
     }
 
     #[test]
@@ -461,15 +487,27 @@ fn add(a: i32, b: i32) -> i32 { a + b }
 "#;
         let mut hl = rust_highlighter();
         let spans = hl.highlight(src.as_bytes());
-        assert!(!spans.is_empty(), "expected highlight spans for a 10-line rust snippet");
+        assert!(
+            !spans.is_empty(),
+            "expected highlight spans for a 10-line rust snippet"
+        );
 
         let has_keyword = spans.iter().any(|s| s.scope == HighlightScope::Keyword);
         let has_function = spans.iter().any(|s| s.scope == HighlightScope::Function);
-        assert!(has_keyword, "AC-002: at least one Keyword span; got {spans:?}");
-        assert!(has_function, "AC-002: at least one Function span; got {spans:?}");
+        assert!(
+            has_keyword,
+            "AC-002: at least one Keyword span; got {spans:?}"
+        );
+        assert!(
+            has_function,
+            "AC-002: at least one Function span; got {spans:?}"
+        );
 
         // Spot-check: the very first `fn` keyword span maps onto literal "fn" text.
-        let kw = spans.iter().find(|s| s.scope == HighlightScope::Keyword).unwrap();
+        let kw = spans
+            .iter()
+            .find(|s| s.scope == HighlightScope::Keyword)
+            .unwrap();
         let text = &src.as_bytes()[kw.byte_range.clone()];
         assert!(
             matches!(std::str::from_utf8(text), Ok("fn" | "let" | "return")),
@@ -489,7 +527,10 @@ function greet(name) {
         let mut hl = js_highlighter();
         let spans = hl.highlight(src.as_bytes());
         let has_string = spans.iter().any(|s| s.scope == HighlightScope::String);
-        assert!(has_string, "AC-003: at least one String span in JS; got {spans:?}");
+        assert!(
+            has_string,
+            "AC-003: at least one String span in JS; got {spans:?}"
+        );
     }
 
     #[test]
@@ -542,7 +583,10 @@ function greet(name) {
             SyntaxPaletteMode::Standard,
             SyntaxPaletteMode::Custom,
         ] {
-            let palette = SyntaxPalette { mode, custom: std::collections::HashMap::new() };
+            let palette = SyntaxPalette {
+                mode,
+                custom: std::collections::HashMap::new(),
+            };
             for scope in HighlightScope::ALL.iter().copied() {
                 // Each lookup returns a concrete Color32 (the call itself cannot panic — the mapping is
                 // total). The assertion is that ALL eight scopes resolve under all three modes.
@@ -595,19 +639,32 @@ function greet(name) {
     /// Muted and Standard are distinct palettes (the mode selector visibly changes colors).
     #[test]
     fn muted_and_standard_modes_differ() {
-        let muted = SyntaxPalette { mode: SyntaxPaletteMode::Muted, custom: Default::default() };
-        let standard = SyntaxPalette { mode: SyntaxPaletteMode::Standard, custom: Default::default() };
-        let any_differ = HighlightScope::ALL.iter().copied().any(|s| {
-            resolve_scope_color(s, &muted) != resolve_scope_color(s, &standard)
-        });
-        assert!(any_differ, "Muted and Standard must produce different colors for at least one scope");
+        let muted = SyntaxPalette {
+            mode: SyntaxPaletteMode::Muted,
+            custom: Default::default(),
+        };
+        let standard = SyntaxPalette {
+            mode: SyntaxPaletteMode::Standard,
+            custom: Default::default(),
+        };
+        let any_differ = HighlightScope::ALL
+            .iter()
+            .copied()
+            .any(|s| resolve_scope_color(s, &muted) != resolve_scope_color(s, &standard));
+        assert!(
+            any_differ,
+            "Muted and Standard must produce different colors for at least one scope"
+        );
     }
 
     /// `scope_key` round-trips with `from_scope_key`, and matches the persisted SYNTAX_SCOPE_KEYS list.
     #[test]
     fn scope_key_round_trips_and_matches_persisted_keys() {
         for scope in HighlightScope::ALL.iter().copied() {
-            assert_eq!(HighlightScope::from_scope_key(scope.scope_key()), Some(scope));
+            assert_eq!(
+                HighlightScope::from_scope_key(scope.scope_key()),
+                Some(scope)
+            );
             assert!(
                 crate::workspace_settings::SYNTAX_SCOPE_KEYS.contains(&scope.scope_key()),
                 "scope key '{}' is in the persisted vocabulary",
@@ -616,7 +673,10 @@ function greet(name) {
         }
         // And every persisted key maps back to a scope (the two lists agree exactly).
         for key in crate::workspace_settings::SYNTAX_SCOPE_KEYS {
-            assert!(HighlightScope::from_scope_key(key).is_some(), "persisted key '{key}' maps to a scope");
+            assert!(
+                HighlightScope::from_scope_key(key).is_some(),
+                "persisted key '{key}' maps to a scope"
+            );
         }
     }
 }

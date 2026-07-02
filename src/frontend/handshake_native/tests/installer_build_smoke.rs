@@ -9,7 +9,8 @@
 //      asserts both launch and `--self-check` exits 0 with all bundled assets present;
 //   4. parses the staged exe's PE import table (object crate) and asserts WebView2Loader.dll is NOT a
 //      system import (single-installer = no system WebView2 dependency);
-//   5. writes tests/native_gui/artifacts/installer_smoke_report.json (machine-readable evidence).
+//   5. writes handshake-test/native_gui/installer_smoke_report.json under the external artifact root
+//      (machine-readable evidence).
 //
 // HOST CONSTRAINT (verified 2026-06-21): the WiX toolchain is absent on this host, so the script emits a
 // zip artifact (a real single self-contained artifact), NOT a faked .msi. The real WiX .wxs + the exact
@@ -19,8 +20,8 @@
 //   * PATH: the contract names this file tests/native_gui/installer_build_smoke.rs. cargo derives an
 //     integration-test target name from a file DIRECTLY in the crate `tests/` dir; a tests/native_gui/
 //     subdir would not register the `installer_build_smoke` target. This file therefore lives at
-//     tests/installer_build_smoke.rs (same decision MT-004/MT-029 documented). The JSON report still
-//     lands in tests/native_gui/artifacts/ exactly as the contract requires.
+//     tests/installer_build_smoke.rs (same decision MT-004/MT-029 documented). The JSON report lands in
+//     the external Handshake_Artifacts root; repo-local proof artifacts are forbidden.
 //   * SIZE BOUND: AC-031-01 asks for a >= 10 MB COMPRESSED artifact. That presumes the REAL managed-
 //     postgres binaries (tens of MB) are bundled. On this host no postgres toolchain is installed, so the
 //     script stages a documented pg_ctl placeholder (postgres-deferred) and Compress-Archive compresses
@@ -48,9 +49,21 @@ fn build_script() -> PathBuf {
     crate_root().join("scripts").join("build_installer.ps1")
 }
 
-/// Where the contract requires the report (crate-internal tests/native_gui/artifacts/).
+/// Where the report is written: the external artifact root only (CX-212E).
 fn artifacts_dir() -> PathBuf {
-    crate_root().join("tests").join("native_gui").join("artifacts")
+    if let Ok(root) = std::env::var("HANDSHAKE_ARTIFACTS_ROOT") {
+        if !root.trim().is_empty() {
+            return PathBuf::from(root)
+                .join("handshake-test")
+                .join("native_gui");
+        }
+    }
+    if let Ok(dir) = std::env::var("HANDSHAKE_PROOF_ARTIFACT_DIR") {
+        if !dir.trim().is_empty() {
+            return PathBuf::from(dir);
+        }
+    }
+    crate_root().join("../../../../Handshake_Artifacts/handshake-test/native_gui")
 }
 
 /// The short build target dir the script uses. Mirrors the script's selection so this test can locate
@@ -166,9 +179,7 @@ fn installer_builds_single_artifact_and_self_check_passes() {
     let artifact_size = std::fs::metadata(&artifact_path).unwrap().len();
 
     // staging tree (uncompressed) — the meaningful "is this a real build, not a stub" bound.
-    let staging = short_target_dir()
-        .join("release-native")
-        .join("staging");
+    let staging = short_target_dir().join("release-native").join("staging");
     assert!(
         staging.is_dir(),
         "staging dir not found at {}",
@@ -221,7 +232,9 @@ fn installer_builds_single_artifact_and_self_check_passes() {
         "staged exe --version exited non-zero ({:?})",
         version_out.status.code()
     );
-    let version_str = String::from_utf8_lossy(&version_out.stdout).trim().to_string();
+    let version_str = String::from_utf8_lossy(&version_out.stdout)
+        .trim()
+        .to_string();
     assert!(
         version_str.contains("handshake-native"),
         "--version output unexpected: {version_str:?}"
@@ -235,7 +248,9 @@ fn installer_builds_single_artifact_and_self_check_passes() {
         .output()
         .expect("run staged exe --self-check");
     let self_check_code = self_check.status.code().unwrap_or(-1);
-    let self_check_json = String::from_utf8_lossy(&self_check.stdout).trim().to_string();
+    let self_check_json = String::from_utf8_lossy(&self_check.stdout)
+        .trim()
+        .to_string();
     println!("--self-check exit={self_check_code} json={self_check_json}");
 
     // Parse the self-check JSON to extract missing assets (if any) for the report.
@@ -299,11 +314,8 @@ fn installer_builds_single_artifact_and_self_check_passes() {
     let dir = artifacts_dir();
     std::fs::create_dir_all(&dir).expect("create artifacts dir");
     let report_path = dir.join("installer_smoke_report.json");
-    std::fs::write(
-        &report_path,
-        serde_json::to_string_pretty(&report).unwrap(),
-    )
-    .expect("write installer_smoke_report.json");
+    std::fs::write(&report_path, serde_json::to_string_pretty(&report).unwrap())
+        .expect("write installer_smoke_report.json");
     println!("WROTE {}", report_path.display());
     println!(
         "PASS: single installer artifact {} ({} bytes), staging {} bytes, self-check exit 0, no system WebView2",

@@ -12,6 +12,7 @@ use super::{
     StorageBackendKind, StorageCapabilityStore, StorageError, StorageGuard, StorageResult,
     StructuredCollaborationStore, WriteContext,
 };
+use crate::managed_postgres::{ManagedPostgres, ManagedPostgresConfig};
 use chrono::Duration;
 use chrono::Utc;
 use serde_json::json;
@@ -21,15 +22,53 @@ use sqlx::Row;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Instant;
+use tokio::sync::{Mutex, OnceCell};
 use uuid::Uuid;
 
 #[cfg(test)]
 const NIL_EDIT_EVENT_ID: &str = "00000000-0000-0000-0000-000000000000";
+const POSTGRES_TEST_URL_ENV: &str = "POSTGRES_TEST_URL";
+const POSTGRES_TEST_MAX_CONNECTIONS: u32 = 10;
 const LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS: usize = 10_000;
 
-#[cfg(test)]
-fn postgres_test_url() -> Option<String> {
-    std::env::var("POSTGRES_TEST_URL").ok()
+static MANAGED_POSTGRES_TEST_CLUSTER: OnceCell<ManagedPostgres> = OnceCell::const_new();
+static POSTGRES_SCHEMA_SETUP_LOCK: Mutex<()> = Mutex::const_new(());
+
+pub async fn postgres_test_base_url() -> StorageResult<String> {
+    resolve_postgres_test_base_url(
+        std::env::var(POSTGRES_TEST_URL_ENV).ok(),
+        std::env::var(super::DATABASE_URL_ENV).ok(),
+    )
+    .await
+}
+
+async fn resolve_postgres_test_base_url(
+    postgres_test_url: Option<String>,
+    database_url: Option<String>,
+) -> StorageResult<String> {
+    for value in [postgres_test_url, database_url].into_iter().flatten() {
+        let value = value.trim();
+        if value.is_empty() {
+            continue;
+        }
+        if !super::is_postgres_url(value) {
+            return Err(StorageError::Validation(
+                "postgres test database URL must be PostgreSQL",
+            ));
+        }
+        return Ok(value.to_string());
+    }
+
+    let managed = MANAGED_POSTGRES_TEST_CLUSTER
+        .get_or_try_init(|| async {
+            ManagedPostgres::ensure_running(ManagedPostgresConfig::from_env())
+                .await
+                .map_err(|err| {
+                    StorageError::Database(format!("managed postgres startup failed: {err}"))
+                })
+        })
+        .await?;
+    Ok(managed.database_url())
 }
 
 #[cfg(test)]
@@ -131,11 +170,16 @@ pub struct PostgresTestBackend {
     pub postgres_pool: sqlx::postgres::PgPool,
 }
 
-/// Build a PostgreSQL backend from POSTGRES_TEST_URL for test validation.
+/// Build a PostgreSQL backend for test validation.
+///
+/// Resolution order is `POSTGRES_TEST_URL` > `DATABASE_URL` > the same
+/// Handshake-managed PostgreSQL lifecycle the app uses at startup. Tests must
+/// prove behavior against real PostgreSQL; missing `POSTGRES_TEST_URL` is not
+/// a skip condition.
 #[allow(dead_code)]
 pub async fn postgres_backend_with_pool_from_env() -> StorageResult<PostgresTestBackend> {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .map_err(|_| StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests"))?;
+    let url = postgres_test_base_url().await?;
+    let _setup_guard = POSTGRES_SCHEMA_SETUP_LOCK.lock().await;
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("storage_test_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
@@ -173,7 +217,7 @@ pub async fn postgres_backend_with_pool_from_env() -> StorageResult<PostgresTest
     let sep = if url.contains('?') { "&" } else { "?" };
     let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
 
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
+    let db = PostgresDatabase::connect(&schema_url, POSTGRES_TEST_MAX_CONNECTIONS).await?;
     db.run_migrations().await?;
     let postgres_pool = db.pool().clone();
     Ok(PostgresTestBackend {
@@ -182,32 +226,28 @@ pub async fn postgres_backend_with_pool_from_env() -> StorageResult<PostgresTest
     })
 }
 
-/// Build a PostgreSQL backend from POSTGRES_TEST_URL for test validation.
+/// Build a PostgreSQL backend for test validation.
 #[allow(dead_code)]
 pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Database>> {
     Ok(postgres_backend_with_pool_from_env().await?.database)
 }
 
-/// Build a PostgreSQL backend and pool for tests that may run without local Postgres.
+/// Build a PostgreSQL backend and pool for legacy optional call sites.
+///
+/// The helper is no longer optional for a missing env var: it auto-starts the
+/// managed PostgreSQL default and returns `Err` only when real PostgreSQL cannot
+/// be reached or initialized.
 #[allow(dead_code)]
 pub async fn optional_postgres_backend_with_pool_from_env(
 ) -> StorageResult<Option<PostgresTestBackend>> {
-    match postgres_backend_with_pool_from_env().await {
-        Ok(backend) => Ok(Some(backend)),
-        Err(StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests")) => Ok(None),
-        Err(err) => Err(err),
-    }
+    postgres_backend_with_pool_from_env().await.map(Some)
 }
 
-/// Build a PostgreSQL backend for tests that may run without local Postgres.
+/// Build a PostgreSQL backend for legacy optional call sites.
 #[allow(dead_code)]
 pub async fn optional_postgres_backend_from_env() -> StorageResult<Option<Arc<dyn super::Database>>>
 {
-    match postgres_backend_from_env().await {
-        Ok(db) => Ok(Some(db)),
-        Err(StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests")) => Ok(None),
-        Err(err) => Err(err),
-    }
+    postgres_backend_from_env().await.map(Some)
 }
 
 /// Runs the shared storage conformance suite against the provided backend.
@@ -2566,6 +2606,26 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
 }
 
 #[tokio::test]
+async fn postgres_test_base_url_bootstraps_default_postgres_when_url_candidates_missing(
+) -> StorageResult<()> {
+    let url = resolve_postgres_test_base_url(None, None).await?;
+    assert!(
+        super::is_postgres_url(&url),
+        "managed test fallback must still be a PostgreSQL URL"
+    );
+
+    let mut conn = sqlx::PgConnection::connect(&url).await?;
+    let one: i64 = sqlx::query_scalar("SELECT 1::bigint")
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(
+        one, 1,
+        "managed PostgreSQL fallback must accept real SQL connections"
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn guard_blocks_ai_without_context() {
     let guard = DefaultStorageGuard;
     let ctx = WriteContext::ai(Some("ai-writer".into()), None, None);
@@ -2576,9 +2636,7 @@ async fn guard_blocks_ai_without_context() {
 #[tokio::test]
 async fn postgres_rejects_ai_writes_without_context_with_hsk_403_silent_edit() -> StorageResult<()>
 {
-    let Some(url) = postgres_test_url() else {
-        return Ok(());
-    };
+    let url = postgres_test_base_url().await?;
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("wp1_trace_{}", Uuid::now_v7().simple());
@@ -2618,9 +2676,7 @@ async fn postgres_rejects_ai_writes_without_context_with_hsk_403_silent_edit() -
 
 #[tokio::test]
 async fn postgres_persists_mutation_traceability_metadata_on_writes() -> StorageResult<()> {
-    let Some(url) = postgres_test_url() else {
-        return Ok(());
-    };
+    let url = postgres_test_base_url().await?;
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("wp1_trace_{}", Uuid::now_v7().simple());
@@ -2969,9 +3025,7 @@ async fn stalled_workflows_are_detected_by_heartbeat() -> StorageResult<()> {
 
 #[tokio::test]
 async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
-    let Some(url) = postgres_test_url() else {
-        return Ok(());
-    };
+    let url = postgres_test_base_url().await?;
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("wp1_mig_{}", Uuid::now_v7().simple());
@@ -3009,9 +3063,7 @@ async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
 
 #[cfg(test)]
 async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResult<()> {
-    let Some(url) = postgres_test_url() else {
-        return Ok(());
-    };
+    let url = postgres_test_base_url().await?;
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("wp1_structured_collab_{}", Uuid::now_v7().simple());
@@ -3104,9 +3156,7 @@ async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
 
 #[tokio::test]
 async fn loom_migration_schema_is_portable_postgres() -> StorageResult<()> {
-    let Some(url) = postgres_test_url() else {
-        return Ok(());
-    };
+    let url = postgres_test_base_url().await?;
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("wp1_loom_mig_{}", Uuid::now_v7().simple());
@@ -3142,9 +3192,7 @@ async fn loom_migration_schema_is_portable_postgres() -> StorageResult<()> {
 
 #[tokio::test]
 async fn migrations_can_undo_to_baseline_postgres() -> StorageResult<()> {
-    let Some(url) = postgres_test_url() else {
-        return Ok(());
-    };
+    let url = postgres_test_base_url().await?;
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("wp1_mig_{}", Uuid::now_v7().simple());
@@ -3310,10 +3358,6 @@ async fn database_trait_purity_capability_snapshot_reports_postgres() -> Storage
         ControlPlaneStorageMode::PostgresPrimary.freshness_label(),
         "current_source_of_truth"
     );
-
-    if postgres_test_url().is_none() {
-        return Ok(());
-    }
 
     let db = postgres_backend_from_env().await?;
     let caps = db.storage_capabilities();

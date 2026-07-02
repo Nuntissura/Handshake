@@ -188,8 +188,8 @@ impl FrameTimer {
         // `now` Instant (immune to wall-clock changes, like the MT-084 heartbeat). This is the time the
         // slow frame was OBSERVED, not the frame's duration. The MT-081 `slow_frame` constructor takes
         // (thread_id, sequence_id, frame_index, frame_micros, timestamp_nanos).
-        let timestamp_nanos = u64::try_from(now.duration_since(self.created_at).as_nanos())
-            .unwrap_or(u64::MAX);
+        let timestamp_nanos =
+            u64::try_from(now.duration_since(self.created_at).as_nanos()).unwrap_or(u64::MAX);
         let event = DiagEvent::slow_frame(
             /* thread_id  */ 0,
             /* sequence_id*/ self.slow_emit_count,
@@ -274,7 +274,10 @@ mod tests {
             let flagged = timer.record_frame(Duration::from_millis(ms), now, |_| emitted += 1);
             assert!(!flagged, "{ms}ms is a normal frame and must NOT flag");
         }
-        assert_eq!(emitted, 0, "no SlowFrame events for normal 8/16/33ms frames (RISK-005-3)");
+        assert_eq!(
+            emitted, 0,
+            "no SlowFrame events for normal 8/16/33ms frames (RISK-005-3)"
+        );
         let s = timer.stats();
         assert_eq!(s.frame_count, 5);
         assert_eq!(s.last_micros, 8_000);
@@ -295,11 +298,18 @@ mod tests {
         assert!(!timer.record_frame(Duration::from_millis(16), now, |e| events.push(e)));
         assert!(!timer.record_frame(Duration::from_millis(20), now, |e| events.push(e)));
         let flagged = timer.record_frame(Duration::from_millis(250), now, |e| events.push(e));
-        assert!(flagged, "the 250ms frame is slow and must emit (first slow -> past debounce)");
+        assert!(
+            flagged,
+            "the 250ms frame is slow and must emit (first slow -> past debounce)"
+        );
         assert!(!timer.record_frame(Duration::from_millis(16), now, |e| events.push(e)));
 
         // Exactly ONE SlowFrame event, typed micros, no content (AC-005-1).
-        assert_eq!(events.len(), 1, "exactly one SlowFrame event for the one slow frame");
+        assert_eq!(
+            events.len(),
+            1,
+            "exactly one SlowFrame event for the one slow frame"
+        );
         let e = events[0];
         assert_eq!(e.event_code, DiagEventCode::SlowFrame.as_u16());
         assert_eq!(e.phase_marker, DiagPhase::Tick.as_u8());
@@ -346,7 +356,10 @@ mod tests {
         let mut emitted = 0u32;
         assert!(timer.record_frame(Duration::from_millis(200), t0, |_| emitted += 1));
         assert!(timer.record_frame(Duration::from_millis(200), t1, |_| emitted += 1));
-        assert_eq!(emitted, 2, "a slow frame past the debounce window emits again");
+        assert_eq!(
+            emitted, 2,
+            "a slow frame past the debounce window emits again"
+        );
         assert_eq!(timer.stats().slow_emit_count, 2);
     }
 
@@ -354,8 +367,14 @@ mod tests {
     fn threshold_boundary_is_exclusive_and_tuned_above_30fps() {
         // A frame exactly AT the threshold does NOT flag (`<=` is fast); just over it flags. Confirms
         // the threshold sits above 30fps (33ms) and 60fps (16ms) so normal frames never flag.
-        assert!(SLOW_FRAME_THRESHOLD > Duration::from_millis(33), "above a 30fps (33ms) frame");
-        assert!(SLOW_FRAME_THRESHOLD > Duration::from_millis(16), "above a 60fps (16ms) frame");
+        assert!(
+            SLOW_FRAME_THRESHOLD > Duration::from_millis(33),
+            "above a 30fps (33ms) frame"
+        );
+        assert!(
+            SLOW_FRAME_THRESHOLD > Duration::from_millis(16),
+            "above a 60fps (16ms) frame"
+        );
         let mut timer = FrameTimer::new();
         let now = Instant::now();
         let mut emitted = 0u32;
@@ -364,7 +383,9 @@ mod tests {
             "a frame exactly at the threshold is NOT slow (boundary is exclusive)"
         );
         assert!(
-            timer.record_frame(SLOW_FRAME_THRESHOLD + Duration::from_millis(1), now, |_| emitted += 1),
+            timer.record_frame(SLOW_FRAME_THRESHOLD + Duration::from_millis(1), now, |_| {
+                emitted += 1
+            }),
             "a frame just over the threshold IS slow"
         );
         assert_eq!(emitted, 1);
@@ -374,6 +395,10 @@ mod tests {
     fn empty_stats_are_all_zero() {
         let timer = FrameTimer::new();
         let s = timer.stats();
-        assert_eq!(s, FrameStats::default(), "no frames recorded -> all-zero typed stats");
+        assert_eq!(
+            s,
+            FrameStats::default(),
+            "no frames recorded -> all-zero typed stats"
+        );
     }
 }

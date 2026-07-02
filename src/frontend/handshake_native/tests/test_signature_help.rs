@@ -47,7 +47,7 @@ use std::sync::Arc;
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
-use handshake_native::code_editor::code_nav::{CodeSymbolNavProjection, CodeNavClient};
+use handshake_native::code_editor::code_nav::{CodeNavClient, CodeSymbolNavProjection};
 use handshake_native::code_editor::lsp_client::LspClient;
 use handshake_native::code_editor::signature_help::{
     active_parameter_from_commas, SignatureHelpState, SignatureInfo, SignatureSource,
@@ -198,7 +198,10 @@ fn signature_help_request_skipped_without_server_capability() {
     rt.block_on(async {
         let client = LspClient::disabled(); // no capability set.
         assert!(!client.supports_signature_help(), "no capability declared");
-        let pos = lsp_types::Position { line: 0, character: 0 };
+        let pos = lsp_types::Position {
+            line: 0,
+            character: 0,
+        };
         // No transport installed + no capability -> immediate None, no panic (AC-006 / AC-008).
         assert!(
             client.signature_help("file:///x.rs", pos).await.is_none(),
@@ -236,7 +239,10 @@ fn signature_help_graceful_fallback_and_no_panic() {
         .expect("AC-003: a real code-nav symbol still yields a (bare-name) fallback signature");
     assert_eq!(state.source, SignatureSource::CodeNavFallback);
     let sig = state.active().unwrap();
-    assert_eq!(sig.label, "add", "AC-003: the real fallback label is the bare call-target name");
+    assert_eq!(
+        sig.label, "add",
+        "AC-003: the real fallback label is the bare call-target name"
+    );
     assert!(
         sig.parameters.is_empty(),
         "AC-003: the REAL backend symbol carries no parameter signature (bare display_name) — the \
@@ -257,7 +263,10 @@ fn signature_help_graceful_fallback_and_no_panic() {
     // Backend unreachable: a panel with NO runtime + NO workspace renders nothing and never panics. The
     // trigger is a graceful no-op (no runtime to spawn on), and rendering a closed popup is a no-op.
     let panel = CodeEditorPanel::new("fn caller() { add(1, ) }", "rs");
-    assert!(!panel.is_signature_help_open(), "AC-003: nothing shown before any trigger");
+    assert!(
+        !panel.is_signature_help_open(),
+        "AC-003: nothing shown before any trigger"
+    );
     // A graceful no-op trigger path: no runtime -> the pump clears the request, no spawn, no panic.
     // (Driving a frame exercises the pump; without a runtime it cannot reach the backend.)
     // Build a headless harness to run a frame.
@@ -283,7 +292,10 @@ fn signature_help_graceful_fallback_and_no_panic() {
     rt.block_on(async {
         let client = CodeNavClient::new("http://127.0.0.1:1"); // nothing listening.
         let result = client.lookup_symbols("ws", "add", 5).await;
-        assert!(result.is_err(), "AC-003: an unreachable backend errors (caller treats as no symbol)");
+        assert!(
+            result.is_err(),
+            "AC-003: an unreachable backend errors (caller treats as no symbol)"
+        );
     });
     println!("PT-002 signature_help_graceful: fallback signature parsed; unreachable backend -> no panic, nothing rendered");
 }
@@ -301,9 +313,17 @@ fn active_parameter_from_commas_ignores_nested_and_literals() {
     );
     // String + char literals: commas inside them are skipped.
     let strs = "(a, \"x, y\", ";
-    assert_eq!(active_parameter_from_commas(strs, 0, strs.len()), 2, "AC-007: string comma ignored");
+    assert_eq!(
+        active_parameter_from_commas(strs, 0, strs.len()),
+        2,
+        "AC-007: string comma ignored"
+    );
     let chr = "(a, ',', ";
-    assert_eq!(active_parameter_from_commas(chr, 0, chr.len()), 2, "AC-007: char comma ignored");
+    assert_eq!(
+        active_parameter_from_commas(chr, 0, chr.len()),
+        2,
+        "AC-007: char comma ignored"
+    );
     // Generic angle brackets: the comma inside `<K, V>` is skipped.
     let generic = "(a, HashMap<K, V>, ";
     assert_eq!(
@@ -329,14 +349,20 @@ fn signature_help_accesskit_tooltip_node_present() {
             panel_ui.show(ui);
         });
     harness.run();
-    assert!(!panel.is_signature_help_open(), "signature help starts closed");
+    assert!(
+        !panel.is_signature_help_open(),
+        "signature help starts closed"
+    );
 
     // Open the popup with the synthetic state (the deterministic path; a live trigger delivers the same
     // state off-thread into the same slot).
     panel.open_signature_help(synthetic_state_active_param_1());
     harness.run();
     harness.run(); // settle so the AccessKit node is emitted.
-    assert!(panel.is_signature_help_open(), "AC-005: signature help popup is open");
+    assert!(
+        panel.is_signature_help_open(),
+        "AC-005: signature help popup is open"
+    );
 
     let root = harness.root();
     let mut node_role: Option<String> = None;
@@ -373,7 +399,10 @@ fn signature_help_accesskit_tooltip_node_present() {
         .root()
         .children_recursive()
         .any(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_SIGNATURE_HELP_AUTHOR_ID));
-    assert!(!still, "AC-005: the signature-help node is removed after closing");
+    assert!(
+        !still,
+        "AC-005: the signature-help node is removed after closing"
+    );
 }
 
 // ── PT-003 / AC-004: screenshot proves the active parameter renders emphasized ─────────────────────
@@ -393,7 +422,10 @@ fn signature_help_popup_emphasizes_active_parameter_screenshot() {
     panel.open_signature_help(synthetic_state_active_param_1());
     harness.run();
     harness.run(); // settle so the popup paints.
-    assert!(panel.is_signature_help_open(), "AC-004: the popup is open for the screenshot");
+    assert!(
+        panel.is_signature_help_open(),
+        "AC-004: the popup is open for the screenshot"
+    );
 
     // The renderer emphasizes the active run with the selection stroke color (distinct from the default
     // monospace text). Proof: render the frame, save the PNG to the EXTERNAL artifact root, and confirm
@@ -408,7 +440,12 @@ fn signature_help_popup_emphasizes_active_parameter_screenshot() {
             let mut emphasis = 0usize;
             let mut i = 0usize;
             while i + 4 <= raw.len() {
-                let (r, g, b, a) = (raw[i] as i32, raw[i + 1] as i32, raw[i + 2] as i32, raw[i + 3]);
+                let (r, g, b, a) = (
+                    raw[i] as i32,
+                    raw[i + 1] as i32,
+                    raw[i + 2] as i32,
+                    raw[i + 3],
+                );
                 if a != 0 && b > 130 && b > r + 30 && b > g + 10 {
                     emphasis += 1;
                 }

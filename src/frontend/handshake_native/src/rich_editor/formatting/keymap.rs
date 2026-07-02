@@ -161,9 +161,18 @@ mod tests {
 
     #[test]
     fn ctrl_i_u_e_marks() {
-        assert_eq!(resolve_shortcut(&ctrl(), Key::I), Some(FormattingCommand::ToggleItalic));
-        assert_eq!(resolve_shortcut(&ctrl(), Key::U), Some(FormattingCommand::ToggleUnderline));
-        assert_eq!(resolve_shortcut(&ctrl(), Key::E), Some(FormattingCommand::ToggleCode));
+        assert_eq!(
+            resolve_shortcut(&ctrl(), Key::I),
+            Some(FormattingCommand::ToggleItalic)
+        );
+        assert_eq!(
+            resolve_shortcut(&ctrl(), Key::U),
+            Some(FormattingCommand::ToggleUnderline)
+        );
+        assert_eq!(
+            resolve_shortcut(&ctrl(), Key::E),
+            Some(FormattingCommand::ToggleCode)
+        );
     }
 
     #[test]
@@ -182,8 +191,14 @@ mod tests {
 
     #[test]
     fn undo_redo_chords() {
-        assert_eq!(resolve_shortcut(&ctrl(), Key::Z), Some(FormattingCommand::Undo));
-        assert_eq!(resolve_shortcut(&ctrl_shift(), Key::Z), Some(FormattingCommand::Redo));
+        assert_eq!(
+            resolve_shortcut(&ctrl(), Key::Z),
+            Some(FormattingCommand::Undo)
+        );
+        assert_eq!(
+            resolve_shortcut(&ctrl_shift(), Key::Z),
+            Some(FormattingCommand::Redo)
+        );
     }
 
     #[test]
@@ -201,10 +216,22 @@ mod tests {
 
     #[test]
     fn heading_and_paragraph_chords() {
-        assert_eq!(resolve_shortcut(&ctrl_alt(), Key::Num0), Some(FormattingCommand::SetParagraph));
-        assert_eq!(resolve_shortcut(&ctrl_alt(), Key::Num1), Some(FormattingCommand::SetHeading(1)));
-        assert_eq!(resolve_shortcut(&ctrl_alt(), Key::Num2), Some(FormattingCommand::SetHeading(2)));
-        assert_eq!(resolve_shortcut(&ctrl_alt(), Key::Num3), Some(FormattingCommand::SetHeading(3)));
+        assert_eq!(
+            resolve_shortcut(&ctrl_alt(), Key::Num0),
+            Some(FormattingCommand::SetParagraph)
+        );
+        assert_eq!(
+            resolve_shortcut(&ctrl_alt(), Key::Num1),
+            Some(FormattingCommand::SetHeading(1))
+        );
+        assert_eq!(
+            resolve_shortcut(&ctrl_alt(), Key::Num2),
+            Some(FormattingCommand::SetHeading(2))
+        );
+        assert_eq!(
+            resolve_shortcut(&ctrl_alt(), Key::Num3),
+            Some(FormattingCommand::SetHeading(3))
+        );
     }
 
     #[test]

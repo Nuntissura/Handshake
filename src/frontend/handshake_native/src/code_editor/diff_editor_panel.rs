@@ -225,8 +225,14 @@ impl DiffEditorPanel {
         let right_text = right.to_string();
         let diff = DiffEngine::diff(&left, &right);
         let line_map = build_line_map(&diff);
-        let left_panel = Arc::new(CodeEditorPanel::with_instance(&left_text, extension, "left"));
-        let right_panel = Arc::new(CodeEditorPanel::with_instance(&right_text, extension, "right"));
+        let left_panel = Arc::new(CodeEditorPanel::with_instance(
+            &left_text, extension, "left",
+        ));
+        let right_panel = Arc::new(CodeEditorPanel::with_instance(
+            &right_text,
+            extension,
+            "right",
+        ));
         // In a diff view the per-pane outline + minimap chrome are noise (and the minimap's colored
         // overview would visually compete with the diff-block tints); hide both so each pane is a
         // clean text column the diff-background overlay paints over.
@@ -261,8 +267,16 @@ impl DiffEditorPanel {
         let line_map = build_line_map(&diff);
         let blocks = MergeEngine::three_way(&base, &local, &remote);
         let merged = MergeEngine::apply(&base, &local, &remote, &blocks);
-        let left_panel = Arc::new(CodeEditorPanel::with_instance(&local_text, extension, "left"));
-        let right_panel = Arc::new(CodeEditorPanel::with_instance(&remote_text, extension, "right"));
+        let left_panel = Arc::new(CodeEditorPanel::with_instance(
+            &local_text,
+            extension,
+            "left",
+        ));
+        let right_panel = Arc::new(CodeEditorPanel::with_instance(
+            &remote_text,
+            extension,
+            "right",
+        ));
         for p in [&left_panel, &right_panel] {
             p.set_show_outline(false);
             p.set_show_minimap(false);
@@ -274,8 +288,17 @@ impl DiffEditorPanel {
             right_buffer: remote.clone(),
             diff,
             mode: AtomicU8::new(DiffMode::Merge.to_u8()),
-            sync_scroll: Mutex::new(SyncScrollState { line_map, ..Default::default() }),
-            merge: Mutex::new(Some(MergeState { base, local, remote, blocks, merged })),
+            sync_scroll: Mutex::new(SyncScrollState {
+                line_map,
+                ..Default::default()
+            }),
+            merge: Mutex::new(Some(MergeState {
+                base,
+                local,
+                remote,
+                blocks,
+                merged,
+            })),
         }
     }
 
@@ -307,7 +330,11 @@ impl DiffEditorPanel {
 
     /// A snapshot of the synchronized-scroll line map (for tests / agents).
     pub fn line_map(&self) -> Vec<SyncRow> {
-        self.sync_scroll.lock().unwrap_or_else(|e| e.into_inner()).line_map.clone()
+        self.sync_scroll
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .line_map
+            .clone()
     }
 
     /// A snapshot of the merge blocks (for tests / agents), or empty when not in merge mode.
@@ -350,7 +377,12 @@ impl DiffEditorPanel {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
-            .map(|m| m.blocks.iter().filter(|b| b.status == MergeStatus::Conflict).count())
+            .map(|m| {
+                m.blocks
+                    .iter()
+                    .filter(|b| b.status == MergeStatus::Conflict)
+                    .count()
+            })
             .unwrap_or(0)
     }
 
@@ -468,7 +500,8 @@ impl DiffEditorPanel {
 
         // The panel container node (Role::Group). Emitted on a fixed id for the standalone panel; in
         // the shell the pane container id comes from the registry and this node nests under it.
-        let container_id = unsafe { egui::Id::from_high_entropy_bits(DIFF_PANEL_CONTAINER_NODE_ID) };
+        let container_id =
+            unsafe { egui::Id::from_high_entropy_bits(DIFF_PANEL_CONTAINER_NODE_ID) };
         ui.ctx().accesskit_node_builder(container_id, |node| {
             node.set_role(accesskit::Role::Group);
             node.set_author_id(DIFF_EDITOR_PANEL_AUTHOR_ID.to_owned());
@@ -538,8 +571,18 @@ impl DiffEditorPanel {
         let context_color = syntax.punctuation;
         let mono = egui::FontId::monospace(13.0);
 
-        let left_lines: Vec<String> = self.left_buffer.to_string().lines().map(|l| l.to_owned()).collect();
-        let right_lines: Vec<String> = self.right_buffer.to_string().lines().map(|l| l.to_owned()).collect();
+        let left_lines: Vec<String> = self
+            .left_buffer
+            .to_string()
+            .lines()
+            .map(|l| l.to_owned())
+            .collect();
+        let right_lines: Vec<String> = self
+            .right_buffer
+            .to_string()
+            .lines()
+            .map(|l| l.to_owned())
+            .collect();
 
         egui::ScrollArea::vertical()
             .id_salt("diff_editor_inline_scroll")
@@ -605,14 +648,35 @@ impl DiffEditorPanel {
                     None => " [unresolved]",
                 };
                 ui.label(
-                    egui::RichText::new(format!("Conflict @ line {}{resolved}", block.local_lines.start))
-                        .color(syntax.comment)
-                        .font(egui::FontId::monospace(12.0)),
+                    egui::RichText::new(format!(
+                        "Conflict @ line {}{resolved}",
+                        block.local_lines.start
+                    ))
+                    .color(syntax.comment)
+                    .font(egui::FontId::monospace(12.0)),
                 );
 
-                self.accept_button(ui, n, "Accept Local", MergeChoice::Local, &Self::accept_local_author_id(n));
-                self.accept_button(ui, n, "Accept Remote", MergeChoice::Remote, &Self::accept_remote_author_id(n));
-                self.accept_button(ui, n, "Accept Both", MergeChoice::Both, &Self::accept_both_author_id(n));
+                self.accept_button(
+                    ui,
+                    n,
+                    "Accept Local",
+                    MergeChoice::Local,
+                    &Self::accept_local_author_id(n),
+                );
+                self.accept_button(
+                    ui,
+                    n,
+                    "Accept Remote",
+                    MergeChoice::Remote,
+                    &Self::accept_remote_author_id(n),
+                );
+                self.accept_button(
+                    ui,
+                    n,
+                    "Accept Both",
+                    MergeChoice::Both,
+                    &Self::accept_both_author_id(n),
+                );
             });
         }
     }
@@ -741,7 +805,9 @@ impl DiffEditorPaneFactory {
     /// Build a factory wrapping `panel`. `Arc` so the same panel renders across frames without the
     /// factory owning a `&mut` (the registry borrows `&dyn PaneFactory` at render time).
     pub fn new(panel: DiffEditorPanel) -> Self {
-        Self { panel: Arc::new(panel) }
+        Self {
+            panel: Arc::new(panel),
+        }
     }
 
     /// A shared handle to the wrapped panel, so the shell/tests can drive it (accept a merge choice,
@@ -824,8 +890,14 @@ mod tests {
         panel.accept_merge_choice(idx, MergeChoice::Local);
 
         let merged = panel.merged_text().expect("merge mode");
-        assert!(merged.contains("LOCAL_EDIT"), "Accept Local -> merged has local: {merged:?}");
-        assert!(!merged.contains("REMOTE_EDIT"), "Accept Local -> merged lacks remote: {merged:?}");
+        assert!(
+            merged.contains("LOCAL_EDIT"),
+            "Accept Local -> merged has local: {merged:?}"
+        );
+        assert!(
+            !merged.contains("REMOTE_EDIT"),
+            "Accept Local -> merged lacks remote: {merged:?}"
+        );
     }
 
     #[test]
@@ -840,8 +912,17 @@ mod tests {
 
     #[test]
     fn accept_button_author_ids_match_contract_shape() {
-        assert_eq!(DiffEditorPanel::accept_local_author_id(0), "diff_block_0_accept_local");
-        assert_eq!(DiffEditorPanel::accept_remote_author_id(3), "diff_block_3_accept_remote");
-        assert_eq!(DiffEditorPanel::accept_both_author_id(2), "diff_block_2_accept_both");
+        assert_eq!(
+            DiffEditorPanel::accept_local_author_id(0),
+            "diff_block_0_accept_local"
+        );
+        assert_eq!(
+            DiffEditorPanel::accept_remote_author_id(3),
+            "diff_block_3_accept_remote"
+        );
+        assert_eq!(
+            DiffEditorPanel::accept_both_author_id(2),
+            "diff_block_2_accept_both"
+        );
     }
 }

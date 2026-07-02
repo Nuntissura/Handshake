@@ -113,7 +113,10 @@ fn family_fallback_order() {
         // egui's empty-of-CJK default could shadow them. Assert each Noto face appears and that none
         // of egui's default faces sit between Inter and the Noto block.
         for face in FALLBACK_FACE_ORDER {
-            assert!(vec.contains(&face.to_owned()), "AC1: {family:?} missing fallback face '{face}'");
+            assert!(
+                vec.contains(&face.to_owned()),
+                "AC1: {family:?} missing fallback face '{face}'"
+            );
         }
     }
 
@@ -124,7 +127,10 @@ fn family_fallback_order() {
         .expect("Inter-Bold named family must exist");
     assert_eq!(bold.first().map(String::as_str), Some(INTER_BOLD_FAMILY));
     for face in FALLBACK_FACE_ORDER {
-        assert!(bold.contains(&face.to_owned()), "Inter-Bold missing fallback face '{face}'");
+        assert!(
+            bold.contains(&face.to_owned()),
+            "Inter-Bold missing fallback face '{face}'"
+        );
     }
 
     // The five faces must all be registered in font_data (the family vecs reference them by key).
@@ -180,7 +186,9 @@ fn glyph_presence_per_script() {
     for (label, text) in cases {
         let has_prop = ctx.fonts_mut(|f| f.has_glyphs(&prop, text));
         if !has_prop {
-            failures.push(format!("{label:?} ('{text}') has no glyph in the Proportional chain"));
+            failures.push(format!(
+                "{label:?} ('{text}') has no glyph in the Proportional chain"
+            ));
         }
     }
     assert!(
@@ -192,10 +200,22 @@ fn glyph_presence_per_script() {
     // Spot-check a couple of the scripts that ONLY a Noto fallback can supply, proving the fallbacks
     // are actually consulted (not just Inter). Han + Hangul are absent from Inter, so a `true` here
     // can only come from the appended Noto faces.
-    assert!(ctx.fonts_mut(|f| f.has_glyph(&prop, '中')), "Han must resolve via the Noto SC fallback");
-    assert!(ctx.fonts_mut(|f| f.has_glyph(&prop, '한')), "Hangul must resolve via the Noto KR fallback");
-    assert!(ctx.fonts_mut(|f| f.has_glyph(&mono, '中')), "AC3: Han must resolve in the Monospace chain too");
-    assert!(ctx.fonts_mut(|f| f.has_glyph(&mono, '│')), "AC5: box-drawing must resolve in Monospace");
+    assert!(
+        ctx.fonts_mut(|f| f.has_glyph(&prop, '中')),
+        "Han must resolve via the Noto SC fallback"
+    );
+    assert!(
+        ctx.fonts_mut(|f| f.has_glyph(&prop, '한')),
+        "Hangul must resolve via the Noto KR fallback"
+    );
+    assert!(
+        ctx.fonts_mut(|f| f.has_glyph(&mono, '中')),
+        "AC3: Han must resolve in the Monospace chain too"
+    );
+    assert!(
+        ctx.fonts_mut(|f| f.has_glyph(&mono, '│')),
+        "AC5: box-drawing must resolve in Monospace"
+    );
 
     println!(
         "PROOF1 glyph presence: all {} target scripts resolve to real glyphs in the Proportional \
@@ -255,7 +275,10 @@ fn unmapped_codepoint_degrades_without_panic() {
         let g = f.layout_no_wrap(mixed.clone(), prop.clone(), egui::Color32::WHITE);
         (g.rows.len(), g.rect.width())
     });
-    assert!(galley_w > 0.0, "AC6: mixed string with a notdef char still produces a non-empty galley");
+    assert!(
+        galley_w > 0.0,
+        "AC6: mixed string with a notdef char still produces a non-empty galley"
+    );
     assert_eq!(
         galley_rows, 1,
         "AC6: the unmapped codepoint must not split/break the single line of surrounding text \
@@ -279,7 +302,13 @@ fn bundled_not_os_loaded() {
     // faces — calling it here (no ctx, no fs) proves there is no OS-load dependency.
     let fonts = HandshakeApp::build_font_definitions();
     // All five faces present purely from include_bytes! (bundled), independent of any OS font dir.
-    for key in [FONT_KEY_INTER, FONT_KEY_NOTO_SC, FONT_KEY_NOTO_KR, FONT_KEY_NOTO_SYMBOLS2, FONT_KEY_NOTO_MATH] {
+    for key in [
+        FONT_KEY_INTER,
+        FONT_KEY_NOTO_SC,
+        FONT_KEY_NOTO_KR,
+        FONT_KEY_NOTO_SYMBOLS2,
+        FONT_KEY_NOTO_MATH,
+    ] {
         assert!(
             fonts.font_data.contains_key(key),
             "AC7: face '{key}' must be BUNDLED (from_static), proving no OS-load/fs-read dependency"
@@ -301,9 +330,7 @@ fn unicode_coverage_screenshot() {
         .build_ui(|ui| {
             // Install the real fallback chain on THIS context (the kittest harness context is fresh).
             HandshakeApp::install_fonts(ui.ctx());
-            ui.label(
-                egui::RichText::new(MULTISCRIPT).font(FontId::proportional(40.0)),
-            );
+            ui.label(egui::RichText::new(MULTISCRIPT).font(FontId::proportional(40.0)));
         });
     // Two frames: first installs/measures, second settles galleys with the installed fonts.
     harness.run();
@@ -313,7 +340,10 @@ fn unicode_coverage_screenshot() {
     // resolves to a real glyph in the installed chain. This is the structural guarantee behind the
     // pixel assertion below.
     let prop40 = FontId::proportional(40.0);
-    let non_emoji: String = MULTISCRIPT.chars().filter(|c| (*c as u32) < 0x1F000).collect();
+    let non_emoji: String = MULTISCRIPT
+        .chars()
+        .filter(|c| (*c as u32) < 0x1F000)
+        .collect();
     let logical_ok = harness.ctx.fonts_mut(|f| f.has_glyphs(&prop40, &non_emoji));
     assert!(
         logical_ok,

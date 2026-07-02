@@ -339,14 +339,10 @@ impl EditorSettingsSection {
         ui.horizontal(|ui| {
             ui.label("Tab size");
             let mut tab = prefs.tab_size as u32;
-            let dv = ui.add(
-                egui::DragValue::new(&mut tab)
-                    .speed(1.0)
-                    .range(
-                        (*crate::workspace_settings::TAB_SIZE_RANGE.start() as u32)
-                            ..=(*crate::workspace_settings::TAB_SIZE_RANGE.end() as u32),
-                    ),
-            );
+            let dv = ui.add(egui::DragValue::new(&mut tab).speed(1.0).range(
+                (*crate::workspace_settings::TAB_SIZE_RANGE.start() as u32)
+                    ..=(*crate::workspace_settings::TAB_SIZE_RANGE.end() as u32),
+            ));
             set_author_id_and_label(ui, dv.id, EDITOR_TAB_SIZE_AUTHOR_ID, "Tab size");
             if dv.changed() {
                 prefs.tab_size = tab as u8;
@@ -356,7 +352,11 @@ impl EditorSettingsSection {
 
         ui.horizontal(|ui| {
             let mut insert = prefs.insert_spaces;
-            let label = if insert { "Insert spaces" } else { "Keep hard tabs" };
+            let label = if insert {
+                "Insert spaces"
+            } else {
+                "Keep hard tabs"
+            };
             let cb = ui.checkbox(&mut insert, label);
             set_author_id_and_label(
                 ui,
@@ -380,7 +380,12 @@ impl EditorSettingsSection {
                     ui.selectable_value(&mut selected, WrapKind::On, "On (viewport)");
                     ui.selectable_value(&mut selected, WrapKind::Bounded, "Bounded column");
                 });
-            set_author_id_and_label(ui, combo.response.id, EDITOR_WORD_WRAP_AUTHOR_ID, "Word wrap mode");
+            set_author_id_and_label(
+                ui,
+                combo.response.id,
+                EDITOR_WORD_WRAP_AUTHOR_ID,
+                "Word wrap mode",
+            );
             let new_wrap = match selected {
                 WrapKind::Off => WordWrapMode::Off,
                 WrapKind::On => WordWrapMode::On,
@@ -401,7 +406,11 @@ impl EditorSettingsSection {
             ui.horizontal(|ui| {
                 ui.label("Wrap column");
                 let mut c = col as u32;
-                let dv = ui.add(egui::DragValue::new(&mut c).speed(1.0).range(20u32..=400u32));
+                let dv = ui.add(
+                    egui::DragValue::new(&mut c)
+                        .speed(1.0)
+                        .range(20u32..=400u32),
+                );
                 set_author_id_and_label(ui, dv.id, EDITOR_WRAP_COLUMN_AUTHOR_ID, "Wrap column");
                 if dv.changed() {
                     prefs.word_wrap = WordWrapMode::BoundedColumn(c.min(u16::MAX as u32) as u16);
@@ -437,9 +446,12 @@ impl EditorSettingsSection {
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Auto-save interval").weak());
             ui.label(
-                egui::RichText::new(format!("{} (configured elsewhere)", view.auto_save_interval_label))
-                    .small()
-                    .weak(),
+                egui::RichText::new(format!(
+                    "{} (configured elsewhere)",
+                    view.auto_save_interval_label
+                ))
+                .small()
+                .weak(),
             );
         });
 
@@ -492,7 +504,8 @@ impl EditorSettingsSection {
                 ui.label(scope_label(scope));
                 let resolved = resolve_scope_color(scope, &palette);
                 // A small non-interactive preview of the currently-resolved color.
-                let (rect, _) = ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::hover());
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::hover());
                 ui.painter().rect_filled(rect, 3.0, resolved);
 
                 if palette.mode == SyntaxPaletteMode::Custom {
@@ -580,7 +593,8 @@ impl EditorSettingsSection {
                             &format!("{EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX}{}", action.id),
                         );
                         if reset.clicked() && outcome == EditorSectionOutcome::None {
-                            self.state.set_draft(&action.id, action.default_chord.clone());
+                            self.state
+                                .set_draft(&action.id, action.default_chord.clone());
                             outcome = EditorSectionOutcome::EditorKeybindingReset {
                                 action_id: action.id.clone(),
                             };
@@ -757,7 +771,11 @@ mod tests {
                 "action id '{}' is namespaced",
                 action.id
             );
-            assert!(ids.insert(action.id.clone()), "duplicate action id '{}'", action.id);
+            assert!(
+                ids.insert(action.id.clone()),
+                "duplicate action id '{}'",
+                action.id
+            );
         }
         // The `undo` collision is resolved by the prefix.
         assert!(ids.contains("code.undo"));
@@ -768,11 +786,23 @@ mod tests {
     fn author_ids_are_stable_kebab_case() {
         assert_eq!(EDITOR_FONT_SIZE_AUTHOR_ID, "settings-editor-font-size");
         assert_eq!(EDITOR_TAB_SIZE_AUTHOR_ID, "settings-editor-tab-size");
-        assert_eq!(EDITOR_INSERT_SPACES_AUTHOR_ID, "settings-editor-insert-spaces");
+        assert_eq!(
+            EDITOR_INSERT_SPACES_AUTHOR_ID,
+            "settings-editor-insert-spaces"
+        );
         assert_eq!(EDITOR_WORD_WRAP_AUTHOR_ID, "settings-editor-word-wrap");
-        assert_eq!(EDITOR_RENDER_WHITESPACE_AUTHOR_ID, "settings-editor-render-whitespace");
-        assert_eq!(SYNTAX_PALETTE_MODE_AUTHOR_ID, "settings-syntax-palette-mode");
-        assert_eq!(syntax_swatch_author_id(HighlightScope::Keyword), "settings-syntax-swatch-keyword");
+        assert_eq!(
+            EDITOR_RENDER_WHITESPACE_AUTHOR_ID,
+            "settings-editor-render-whitespace"
+        );
+        assert_eq!(
+            SYNTAX_PALETTE_MODE_AUTHOR_ID,
+            "settings-syntax-palette-mode"
+        );
+        assert_eq!(
+            syntax_swatch_author_id(HighlightScope::Keyword),
+            "settings-syntax-swatch-keyword"
+        );
         assert_eq!(
             editor_keybind_row_author_id("code.open_find"),
             "settings-keybind-row-code.open_find"
@@ -797,6 +827,9 @@ mod tests {
             .unwrap()
             .default_chord
             .clone();
-        assert_eq!(state.draft_for("code.open_find"), Some(default_find.as_str()));
+        assert_eq!(
+            state.draft_for("code.open_find"),
+            Some(default_find.as_str())
+        );
     }
 }

@@ -41,9 +41,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use handshake_diag_ring::{
-    DiagEvent, DiagEventCode, DiagPhase, DiagRingWriter, DiagSeverity,
-};
+use handshake_diag_ring::{DiagEvent, DiagEventCode, DiagPhase, DiagRingWriter, DiagSeverity};
 
 /// Capacity of the in-process last-N ring the Diagnostics Panel (MT-087) reads. Bounded so a
 /// long-running session can never grow it unbounded; the oldest event is dropped on overflow. Mirrors
@@ -308,7 +306,11 @@ mod tests {
         rec.record(marker(1));
         rec.record(marker(2));
         let snap = rec.snapshot_last_n(10);
-        assert_eq!(snap.len(), 2, "both events buffered in-process without a writer");
+        assert_eq!(
+            snap.len(),
+            2,
+            "both events buffered in-process without a writer"
+        );
         assert_eq!(snap[0].sequence_id, 1);
         assert_eq!(snap[1].sequence_id, 2);
         assert_eq!(rec.dropped_count(), 0, "nothing dropped below cap");

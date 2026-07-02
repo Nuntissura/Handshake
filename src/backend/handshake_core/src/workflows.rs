@@ -1098,6 +1098,71 @@ fn string_vec_opt(map: Option<&serde_json::Map<String, Value>>, key: &str) -> Op
     Some(out)
 }
 
+fn native_workspace_model_launch_contract_touched(
+    inputs: Option<&serde_json::Map<String, Value>>,
+) -> bool {
+    inputs.is_some_and(|inputs| {
+        inputs.contains_key("launch_surface") || inputs.contains_key("launch_mode")
+    })
+}
+
+fn required_native_workspace_model_launch_input(
+    inputs: Option<&serde_json::Map<String, Value>>,
+    key: &str,
+) -> Result<String, WorkflowError> {
+    string_opt(inputs, key).ok_or_else(|| {
+        WorkflowError::Terminal(format!(
+            "native workspace model_session model_run requires explicit {key}"
+        ))
+    })
+}
+
+fn validate_native_workspace_model_launch_contract(
+    inputs: Option<&serde_json::Map<String, Value>>,
+) -> Result<(), WorkflowError> {
+    if !native_workspace_model_launch_contract_touched(inputs) {
+        return Ok(());
+    }
+
+    let launch_surface = required_native_workspace_model_launch_input(inputs, "launch_surface")?;
+    if launch_surface != "handshake_native" {
+        return Err(WorkflowError::Terminal(
+            "native workspace model_session model_run requires launch_surface=handshake_native"
+                .to_string(),
+        ));
+    }
+    let launch_mode = required_native_workspace_model_launch_input(inputs, "launch_mode")?;
+    if launch_mode != "workspace_model_session" {
+        return Err(WorkflowError::Terminal(
+            "native workspace model_session model_run requires launch_mode=workspace_model_session"
+                .to_string(),
+        ));
+    }
+
+    required_native_workspace_model_launch_input(inputs, "session_id")?;
+    let workspace_folder =
+        required_native_workspace_model_launch_input(inputs, "workspace_folder")?;
+    let working_dir = required_native_workspace_model_launch_input(inputs, "working_dir")?;
+    if workspace_folder != working_dir {
+        return Err(WorkflowError::Terminal(
+            "native workspace model_session model_run requires working_dir to match workspace_folder"
+                .to_string(),
+        ));
+    }
+    required_native_workspace_model_launch_input(inputs, "wrapper")?;
+    let model_provider = required_native_workspace_model_launch_input(inputs, "model_provider")?;
+    required_native_workspace_model_launch_input(inputs, "model_id")?;
+    let backend = required_native_workspace_model_launch_input(inputs, "backend")?;
+    if !model_provider.eq_ignore_ascii_case(&backend) {
+        return Err(WorkflowError::Terminal(
+            "native workspace model_session model_run requires model_provider to match backend"
+                .to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
 fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>, WorkflowError> {
     let Some(inputs) = model_run_inputs(job) else {
         return Ok(Vec::new());
@@ -1304,6 +1369,7 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
 
 fn parse_model_run_metadata(job: &AiJob) -> Result<ModelRunMetadata, WorkflowError> {
     let inputs = model_run_inputs(job);
+    validate_native_workspace_model_launch_contract(inputs)?;
     let lane_raw = string_opt(inputs, "lane").unwrap_or_else(|| "PRIMARY".to_string());
     let lane = SessionSchedulerLane::try_from(lane_raw.as_str())?;
     let retry_backoff = string_opt(inputs, "retry_backoff")
@@ -1319,9 +1385,13 @@ fn parse_model_run_metadata(job: &AiJob) -> Result<ModelRunMetadata, WorkflowErr
         string_opt(inputs, "model_id").unwrap_or_else(|| "default-model".to_string());
     let backend_default =
         string_opt(inputs, "backend").unwrap_or_else(|| "default-backend".to_string());
+    let session_id = match string_opt(inputs, "session_id") {
+        Some(session_id) => session_id,
+        None => Uuid::now_v7().to_string(),
+    };
 
     Ok(ModelRunMetadata {
-        session_id: string_opt(inputs, "session_id").unwrap_or_else(|| Uuid::now_v7().to_string()),
+        session_id,
         parent_session_id: string_opt(inputs, "parent_session_id"),
         spawn_depth: int_opt(inputs, "spawn_depth").unwrap_or(0) as i32,
         lane,
@@ -8045,31 +8115,11 @@ async fn ensure_model_session_artifact_refs(
             // MT-142: durable session identity -- the model that runs the
             // session, acting in its declared role.
             agent: Some(format!("{}:{}", metadata.role, metadata.model_id)),
-            purpose: metadata
-                .mt_id
-                .clone()
-                .or_else(|| metadata.wp_id.clone()),
+            purpose: metadata.mt_id.clone().or_else(|| metadata.wp_id.clone()),
         })
         .await?;
     state.session_registry.upsert_session(session).await;
     emit_session_created_event(state, derive_trace_id(job, None), job, metadata).await?;
-
-    if state
-        .session_registry
-        .get_session_worktree_path(&metadata.session_id)
-        .await
-        .is_none()
-    {
-        let repo_root =
-            repo_root_from_manifest_dir().map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-        let allocation =
-            ensure_session_worktree_allocation(&repo_root, metadata.session_id.as_str())
-                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-        state
-            .session_registry
-            .register_session_worktree_allocation(allocation)
-            .await;
-    }
 
     for entry in &metadata.session_messages {
         let mut role = entry.role.clone();
@@ -8141,6 +8191,30 @@ async fn ensure_model_session_artifact_refs(
             &stored_message,
         )
         .await?;
+    }
+
+    Ok(())
+}
+
+async fn ensure_model_session_worktree_allocation(
+    state: &AppState,
+    metadata: &ModelRunMetadata,
+) -> Result<(), WorkflowError> {
+    if state
+        .session_registry
+        .get_session_worktree_path(&metadata.session_id)
+        .await
+        .is_none()
+    {
+        let repo_root =
+            repo_root_from_manifest_dir().map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let allocation =
+            ensure_session_worktree_allocation(&repo_root, metadata.session_id.as_str())
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        state
+            .session_registry
+            .register_session_worktree_allocation(allocation)
+            .await;
     }
 
     Ok(())
@@ -8266,6 +8340,23 @@ fn kick_model_run_dispatcher(state: AppState) {
     });
 }
 
+pub async fn repair_model_run_workflow_bindings(state: &AppState) -> Result<u64, WorkflowError> {
+    let queued = list_queued_model_run_jobs(state).await?;
+    let mut repaired = 0;
+
+    for job in queued {
+        if job.workflow_run_id.is_some() {
+            continue;
+        }
+
+        let trace_id = derive_trace_id(&job, None);
+        ensure_model_run_workflow_run(state, &job, trace_id).await?;
+        repaired += 1;
+    }
+
+    Ok(repaired)
+}
+
 #[derive(Debug, Clone)]
 struct ModelRunDispatchDenied {
     provider: String,
@@ -8280,6 +8371,12 @@ enum ModelRunDispatchGate {
         reservation: Option<RateLimitReservation>,
     },
     Denied(ModelRunDispatchDenied),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ModelRunDispatchStep {
+    Continue,
+    Stop,
 }
 
 async fn model_run_dispatch_gate(
@@ -8480,83 +8577,120 @@ async fn run_model_run_dispatch_loop(state: AppState) -> Result<(), WorkflowErro
         let Some(next_job) = queued.into_iter().next() else {
             break;
         };
+        if matches!(
+            dispatch_queued_model_run_job(&state, next_job, &config).await?,
+            ModelRunDispatchStep::Stop
+        ) {
+            break;
+        }
+    }
 
-        let metadata = match parse_model_run_metadata(&next_job) {
-            Ok(metadata) => metadata,
-            Err(err) => {
+    Ok(())
+}
+
+async fn dispatch_queued_model_run_job(
+    state: &AppState,
+    next_job: AiJob,
+    config: &SessionSchedulerConfig,
+) -> Result<ModelRunDispatchStep, WorkflowError> {
+    let trace_id = derive_trace_id(&next_job, None);
+    let workflow_run = ensure_model_run_workflow_run(state, &next_job, trace_id).await?;
+    let next_job = state
+        .storage
+        .get_ai_job(&next_job.job_id.to_string())
+        .await?;
+
+    let metadata = match parse_model_run_metadata(&next_job) {
+        Ok(metadata) => metadata,
+        Err(err) => {
+            state
+                .storage
+                .update_workflow_run_status(
+                    workflow_run.id,
+                    JobState::Failed,
+                    Some(err.to_string()),
+                )
+                .await?;
+            state
+                .storage
+                .update_ai_job_status(JobStatusUpdate {
+                    job_id: next_job.job_id,
+                    state: JobState::Failed,
+                    error_message: Some(err.to_string()),
+                    status_reason: err.to_string(),
+                    metrics: None,
+                    workflow_run_id: Some(workflow_run.id),
+                    trace_id: Some(trace_id),
+                    job_outputs: None,
+                })
+                .await?;
+            return Ok(ModelRunDispatchStep::Continue);
+        }
+    };
+
+    match model_run_dispatch_gate(state, &next_job, &metadata, config).await? {
+        ModelRunDispatchGate::Allowed { reservation, .. } => {
+            if let Err(err) = dispatch_model_run_job(state, next_job).await {
+                if let Some(reservation) = reservation {
+                    state.session_registry.refund_rate_limit(reservation).await;
+                }
+                return Err(err);
+            }
+        }
+        ModelRunDispatchGate::Denied(denied) => {
+            if denied.reason == "session_not_dispatchable" {
+                state
+                    .storage
+                    .update_workflow_run_status(
+                        workflow_run.id,
+                        JobState::Failed,
+                        Some(denied.reason.clone()),
+                    )
+                    .await?;
                 state
                     .storage
                     .update_ai_job_status(JobStatusUpdate {
                         job_id: next_job.job_id,
                         state: JobState::Failed,
-                        error_message: Some(err.to_string()),
-                        status_reason: err.to_string(),
+                        error_message: Some(denied.reason.clone()),
+                        status_reason: denied.reason,
                         metrics: None,
-                        workflow_run_id: next_job.workflow_run_id,
-                        trace_id: None,
+                        workflow_run_id: Some(workflow_run.id),
+                        trace_id: Some(trace_id),
                         job_outputs: None,
                     })
                     .await?;
-                continue;
+                return Ok(ModelRunDispatchStep::Continue);
             }
-        };
 
-        match model_run_dispatch_gate(&state, &next_job, &metadata, &config).await? {
-            ModelRunDispatchGate::Allowed { reservation, .. } => {
-                if let Err(err) = dispatch_model_run_job(&state, next_job).await {
-                    if let Some(reservation) = reservation {
-                        state.session_registry.refund_rate_limit(reservation).await;
-                    }
-                    return Err(err);
-                }
-            }
-            ModelRunDispatchGate::Denied(denied) => {
-                if denied.reason == "session_not_dispatchable" {
-                    state
-                        .storage
-                        .update_ai_job_status(JobStatusUpdate {
-                            job_id: next_job.job_id,
-                            state: JobState::Failed,
-                            error_message: Some(denied.reason.clone()),
-                            status_reason: denied.reason,
-                            metrics: None,
-                            workflow_run_id: next_job.workflow_run_id,
-                            trace_id: None,
-                            job_outputs: None,
-                        })
-                        .await?;
-                    continue;
-                }
+            let wait_ms = Utc::now()
+                .signed_duration_since(next_job.created_at)
+                .num_milliseconds()
+                .max(0) as u64;
+            emit_session_scheduler_rate_limited_event(
+                state,
+                derive_trace_id(&next_job, None),
+                &next_job,
+                &metadata,
+                denied.provider.as_str(),
+                wait_ms,
+                denied.backoff_ms,
+                denied.reason.as_str(),
+            )
+            .await?;
 
-                let wait_ms = Utc::now()
-                    .signed_duration_since(next_job.created_at)
-                    .num_milliseconds()
-                    .max(0) as u64;
-                emit_session_scheduler_rate_limited_event(
-                    &state,
-                    derive_trace_id(&next_job, None),
-                    &next_job,
-                    &metadata,
-                    denied.provider.as_str(),
-                    wait_ms,
-                    denied.backoff_ms,
-                    denied.reason.as_str(),
-                )
-                .await?;
+            let retry_ms = denied.backoff_ms.max(100);
+            let state_clone = state.clone();
+            tokio::spawn(async move {
+                sleep(Duration::from_millis(retry_ms)).await;
+                kick_model_run_dispatcher(state_clone);
+            });
 
-                let retry_ms = denied.backoff_ms.max(100);
-                let state_clone = state.clone();
-                tokio::spawn(async move {
-                    sleep(Duration::from_millis(retry_ms)).await;
-                    kick_model_run_dispatcher(state_clone);
-                });
-
-                break;
-            }
+            return Ok(ModelRunDispatchStep::Stop);
         }
     }
 
-    Ok(())
+    Ok(ModelRunDispatchStep::Continue)
 }
 
 async fn is_model_run_cancel_requested(
@@ -8607,7 +8741,72 @@ async fn run_model_run_job(
     trace_id: Uuid,
 ) -> Result<RunJobOutcome, WorkflowError> {
     let metadata = parse_model_run_metadata(job)?;
+    let timeout_duration = model_run_timeout_duration(metadata.timeout_ms);
+    match tokio::time::timeout(
+        timeout_duration,
+        run_model_run_job_inner(state, job, trace_id, metadata.clone()),
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(_) => model_run_timeout_outcome(state, job, trace_id, &metadata).await,
+    }
+}
 
+fn model_run_timeout_duration(timeout_ms: i64) -> Duration {
+    Duration::from_millis(timeout_ms.max(1) as u64)
+}
+
+async fn model_run_timeout_outcome(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+    metadata: &ModelRunMetadata,
+) -> Result<RunJobOutcome, WorkflowError> {
+    let timeout_ms = metadata.timeout_ms.max(1);
+    let reason = format!("model_run_timeout after {timeout_ms}ms");
+    let output = json!({
+        "session_id": metadata.session_id.as_str(),
+        "timeout_ms": timeout_ms,
+        "error": "model_run_timeout",
+    });
+    persist_model_run_session_state(state, job, metadata, ModelSessionState::Failed).await?;
+    emit_session_state_change_event(
+        state,
+        trace_id,
+        job,
+        &metadata.session_id,
+        "ACTIVE",
+        "FAILED",
+    )
+    .await?;
+    emit_session_completed_observability_events(state, trace_id, job, metadata, Some(&output))
+        .await?;
+    if metadata.parent_session_id.is_some() {
+        emit_session_spawn_announce_back_event(
+            state,
+            trace_id,
+            job,
+            metadata,
+            &JobState::Failed,
+            None,
+        )
+        .await?;
+    }
+    Ok(RunJobOutcome {
+        state: JobState::Failed,
+        status_reason: "timeout".to_string(),
+        output: Some(output),
+        error_message: Some(reason),
+    })
+}
+
+async fn run_model_run_job_inner(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+    metadata: ModelRunMetadata,
+) -> Result<RunJobOutcome, WorkflowError> {
     if is_model_run_cancel_requested(state, job.job_id).await? {
         let reason = model_run_cancel_reason(state, job.job_id).await?;
         return Ok(RunJobOutcome {
@@ -8871,6 +9070,8 @@ async fn run_model_run_job(
 
         request.cloud_escalation = Some(bundle);
     }
+
+    ensure_model_session_worktree_allocation(state, &metadata).await?;
 
     if is_model_run_cancel_requested(state, job.job_id).await? {
         let reason = model_run_cancel_reason(state, job.job_id).await?;
@@ -9504,8 +9705,27 @@ pub async fn start_workflow_for_job(
 
     if let Err(err) = enforce_capabilities(state, &job, trace_id).await {
         let err_text = err.to_string();
+        let failed_workflow_run_id = if let Some(run_id) = job.workflow_run_id {
+            state
+                .storage
+                .update_workflow_run_status(run_id, JobState::Failed, Some(err_text.clone()))
+                .await?;
+            Some(run_id)
+        } else if matches!(job.job_kind, JobKind::ModelRun) {
+            let run = state
+                .storage
+                .create_workflow_run(job.job_id, JobState::Failed, Some(Utc::now()))
+                .await?;
+            Some(run.id)
+        } else {
+            None
+        };
         let denied_output = if is_calendar_sync_job(&job) {
-            Some(calendar_sync_denied_output(&job, None, &err_text))
+            Some(calendar_sync_denied_output(
+                &job,
+                failed_workflow_run_id,
+                &err_text,
+            ))
         } else {
             None
         };
@@ -9517,7 +9737,7 @@ pub async fn start_workflow_for_job(
                 error_message: Some(err_text.clone()),
                 status_reason: err_text,
                 metrics: None,
-                workflow_run_id: None,
+                workflow_run_id: failed_workflow_run_id,
                 trace_id: Some(trace_id),
                 job_outputs: denied_output,
             })
@@ -28299,24 +28519,82 @@ async fn md_process_item(
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
-    use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use crate::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
+    use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError};
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
         tests::{
             optional_postgres_backend_with_pool_from_env, postgres_backend_with_pool_from_env,
         },
-        AccessMode, Database, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState, SafetyMode,
+        AccessMode, Database, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState,
+        SafetyMode,
     };
     use serde_json::json;
     use std::sync::{Arc, Mutex};
+
+    #[derive(Default)]
+    struct NoopTestRecorder;
+
+    #[async_trait::async_trait]
+    impl FlightRecorder for NoopTestRecorder {
+        async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+            Ok(())
+        }
+
+        async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+            Ok(0)
+        }
+
+        async fn list_events(
+            &self,
+            _filter: EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl DiagnosticsStore for NoopTestRecorder {
+        async fn record_diagnostic(
+            &self,
+            _diag: Diagnostic,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        async fn list_problems(
+            &self,
+            _filter: DiagFilter,
+        ) -> Result<Vec<ProblemGroup>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+
+        async fn get_diagnostic(
+            &self,
+            _id: Uuid,
+        ) -> Result<Diagnostic, crate::storage::StorageError> {
+            Err(crate::storage::StorageError::NotFound("diagnostic"))
+        }
+
+        async fn list_diagnostics(
+            &self,
+            _filter: DiagFilter,
+        ) -> Result<Vec<Diagnostic>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+    }
+
+    fn test_recorder() -> Arc<NoopTestRecorder> {
+        Arc::new(NoopTestRecorder)
+    }
 
     async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
         let Some(storage) = optional_postgres_backend_with_pool_from_env().await? else {
             return Ok(None);
         };
 
-        let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+        let flight_recorder = test_recorder();
 
         Ok(Some(AppState {
             storage: storage.database,
@@ -28332,12 +28610,8 @@ mod tests {
     static RUNTIME_ENV_LOCK: Mutex<()> = Mutex::new(());
 
     async fn setup_postgres_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        if std::env::var("POSTGRES_TEST_URL").is_err() {
-            return Ok(None);
-        }
-
         let storage = postgres_backend_with_pool_from_env().await?;
-        let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+        let flight_recorder = test_recorder();
 
         Ok(Some(AppState {
             storage: storage.database,
@@ -28348,6 +28622,250 @@ mod tests {
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         }))
+    }
+
+    #[tokio::test]
+    async fn model_run_timeout_ms_fails_before_simulated_runtime_finishes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_postgres_state().await? else {
+            return Ok(());
+        };
+        let session_id = format!("sess-{}", Uuid::now_v7());
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::now_v7(),
+                job_kind: JobKind::ModelRun,
+                protocol_id: "protocol-default".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "Analyst".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "timeout_probe".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({
+                    "launch_surface": "handshake_native",
+                    "launch_mode": "workspace_model_session",
+                    "session_id": session_id,
+                    "workspace_id": "default-project",
+                    "workspace_folder": "D:/Projects/Handshake/repo",
+                    "working_dir": "D:/Projects/Handshake/repo",
+                    "wrapper": "repo-folder-wrapper-v1",
+                    "model_provider": "local",
+                    "model_id": "model-session-test",
+                    "backend": "local",
+                    "lane": "PRIMARY",
+                    "priority": 10,
+                    "prompt": "timeout-me",
+                    "timeout_ms": 50,
+                    "simulate_duration_ms": 2_000
+                })),
+            })
+            .await?;
+        state
+            .storage
+            .upsert_model_session(NewModelSession {
+                session_id: session_id.clone(),
+                parent_session_id: None,
+                spawn_depth: 0,
+                state: ModelSessionState::Created,
+                model_id: "model-session-test".to_string(),
+                backend: "local".to_string(),
+                parameter_class: "default".to_string(),
+                role: "assistant".to_string(),
+                wp_id: None,
+                mt_id: None,
+                work_profile_id: None,
+                execution_mode: "STANDARD".to_string(),
+                memory_policy: "EPHEMERAL".to_string(),
+                consent_receipt_id: None,
+                capability_grants: Vec::new(),
+                capability_token_ids: None,
+                job_id: Some(job.job_id),
+                checkpoint_artifact_id: None,
+                last_checkpoint_at: None,
+                checkpoint_count: 0,
+                agent: None,
+                purpose: None,
+            })
+            .await?;
+
+        let started = Instant::now();
+        let outcome = run_model_run_job(&state, &job, Uuid::now_v7()).await?;
+
+        assert_eq!(outcome.state, JobState::Failed);
+        assert_eq!(outcome.status_reason, "timeout");
+        assert!(
+            started.elapsed() < Duration::from_millis(1_000),
+            "timeout_ms must fail before the simulated 2s runtime finishes"
+        );
+        let session = state.storage.get_model_session(&session_id).await?;
+        assert_eq!(session.state, ModelSessionState::Failed);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn model_run_dispatch_repairs_legacy_null_workflow_run_before_parse_failure(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_postgres_state().await? else {
+            return Ok(());
+        };
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::now_v7(),
+                job_kind: JobKind::ModelRun,
+                protocol_id: "protocol-default".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "Analyst".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "legacy_orphan".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({
+                    "launch_surface": "handshake_native"
+                })),
+            })
+            .await?;
+
+        sqlx::query("DELETE FROM workflow_runs WHERE job_id = $1")
+            .bind(job.job_id.to_string())
+            .execute(&state.postgres_pool)
+            .await?;
+        sqlx::query("UPDATE ai_jobs SET workflow_run_id = NULL WHERE id = $1")
+            .bind(job.job_id.to_string())
+            .execute(&state.postgres_pool)
+            .await?;
+
+        let queued = list_queued_model_run_jobs(&state).await?;
+        let queued_job = queued
+            .into_iter()
+            .find(|queued| queued.job_id == job.job_id)
+            .ok_or("legacy orphan model_run job must be queued before dispatch")?;
+        let config = state.session_registry.scheduler_config().await;
+        let step = dispatch_queued_model_run_job(&state, queued_job, &config).await?;
+        assert_eq!(step, ModelRunDispatchStep::Continue);
+
+        let repaired = state.storage.get_ai_job(&job.job_id.to_string()).await?;
+        assert!(matches!(repaired.state, JobState::Failed));
+        let workflow_run_id = repaired
+            .workflow_run_id
+            .ok_or("dispatcher must repair legacy model_run workflow_run_id before failing")?;
+        let workflow_status: String =
+            sqlx::query_scalar("SELECT status FROM workflow_runs WHERE id = $1")
+                .bind(workflow_run_id.to_string())
+                .fetch_one(&state.postgres_pool)
+                .await?;
+        assert_eq!(workflow_status, JobState::Failed.as_str());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn model_run_startup_repair_backfills_legacy_null_workflow_run(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_postgres_state().await? else {
+            return Ok(());
+        };
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::now_v7(),
+                job_kind: JobKind::ModelRun,
+                protocol_id: "protocol-default".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "Analyst".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "legacy_orphan".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({
+                    "launch_surface": "handshake_native"
+                })),
+            })
+            .await?;
+
+        sqlx::query("DELETE FROM workflow_runs WHERE job_id = $1")
+            .bind(job.job_id.to_string())
+            .execute(&state.postgres_pool)
+            .await?;
+        sqlx::query("UPDATE ai_jobs SET workflow_run_id = NULL WHERE id = $1")
+            .bind(job.job_id.to_string())
+            .execute(&state.postgres_pool)
+            .await?;
+
+        let repaired_count = repair_model_run_workflow_bindings(&state).await?;
+        assert_eq!(repaired_count, 1);
+
+        let repaired = state.storage.get_ai_job(&job.job_id.to_string()).await?;
+        assert!(matches!(repaired.state, JobState::Queued));
+        let workflow_run_id = repaired
+            .workflow_run_id
+            .ok_or("startup repair must backfill legacy model_run workflow_run_id")?;
+        let workflow_status: String =
+            sqlx::query_scalar("SELECT status FROM workflow_runs WHERE id = $1")
+                .bind(workflow_run_id.to_string())
+                .fetch_one(&state.postgres_pool)
+                .await?;
+        assert_eq!(workflow_status, JobState::Queued.as_str());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn model_run_capability_denial_marks_precreated_workflow_failed(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_postgres_state().await? else {
+            return Ok(());
+        };
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::now_v7(),
+                job_kind: JobKind::ModelRun,
+                protocol_id: "protocol-default".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "missing_profile".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({
+                    "launch_surface": "handshake_native"
+                })),
+            })
+            .await?;
+        let job_id = job.job_id;
+        let workflow_run_id = job
+            .workflow_run_id
+            .ok_or("model_run job must be precreated with workflow_run_id")?;
+
+        let result = start_workflow_for_job(&state, job).await;
+        assert!(result.is_err(), "expected capability error");
+
+        let workflow_status: String =
+            sqlx::query_scalar("SELECT status FROM workflow_runs WHERE id = $1")
+                .bind(workflow_run_id.to_string())
+                .fetch_one(&state.postgres_pool)
+                .await?;
+        assert_eq!(workflow_status, JobState::Failed.as_str());
+        let updated_job = state
+            .storage
+            .get_ai_job(job_id.to_string().as_str())
+            .await?;
+        assert!(matches!(updated_job.state, JobState::Failed));
+        assert_eq!(updated_job.workflow_run_id, Some(workflow_run_id));
+
+        Ok(())
     }
 
     struct EnvVarGuard {
@@ -28371,6 +28889,209 @@ mod tests {
                 std::env::remove_var(self.key);
             }
         }
+    }
+
+    fn model_run_job_with_inputs(inputs: serde_json::Value) -> AiJob {
+        let now = Utc::now();
+        AiJob {
+            job_id: Uuid::now_v7(),
+            trace_id: Uuid::now_v7(),
+            workflow_run_id: None,
+            job_kind: JobKind::ModelRun,
+            state: JobState::Queued,
+            error_message: None,
+            protocol_id: "protocol-default".to_string(),
+            profile_id: "profile-default".to_string(),
+            capability_profile_id: "capability-default".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            metrics: JobMetrics::zero(),
+            status_reason: String::new(),
+            job_inputs: Some(inputs),
+            job_outputs: None,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    fn native_workspace_model_run_inputs() -> serde_json::Value {
+        json!({
+            "launch_surface": "handshake_native",
+            "launch_mode": "workspace_model_session",
+            "session_id": "native-mt101-test-session",
+            "workspace_folder": "D:/Projects/Handshake/repo",
+            "working_dir": "D:/Projects/Handshake/repo",
+            "model_provider": "local",
+            "model_id": "qwen2.5-coder:7b",
+            "backend": "local",
+            "wrapper": "repo-folder-wrapper-v1"
+        })
+    }
+
+    #[test]
+    fn native_workspace_model_run_requires_explicit_session_id() {
+        let mut inputs = native_workspace_model_run_inputs();
+        inputs
+            .as_object_mut()
+            .expect("native inputs object")
+            .insert("session_id".to_string(), json!("   "));
+        let job = model_run_job_with_inputs(inputs);
+
+        let err = parse_model_run_metadata(&job)
+            .expect_err("native workspace launch must not mint an untracked session_id");
+        let message = err.to_string();
+        assert!(
+            message.contains("requires explicit session_id"),
+            "unexpected error: {message}"
+        );
+    }
+
+    #[test]
+    fn native_workspace_model_run_requires_complete_binding_contract() {
+        for field in [
+            "workspace_folder",
+            "working_dir",
+            "wrapper",
+            "model_provider",
+            "model_id",
+            "backend",
+        ] {
+            let mut missing_inputs = native_workspace_model_run_inputs();
+            missing_inputs
+                .as_object_mut()
+                .expect("native inputs object")
+                .remove(field);
+            let missing_job = model_run_job_with_inputs(missing_inputs);
+            let missing_err = parse_model_run_metadata(&missing_job)
+                .expect_err("native workspace launch must reject missing binding fields");
+            let missing_message = missing_err.to_string();
+            assert!(
+                missing_message.contains(field),
+                "missing {field} should be named in error: {missing_message}"
+            );
+
+            let mut blank_inputs = native_workspace_model_run_inputs();
+            blank_inputs
+                .as_object_mut()
+                .expect("native inputs object")
+                .insert(field.to_string(), json!("   "));
+            let blank_job = model_run_job_with_inputs(blank_inputs);
+            let blank_err = parse_model_run_metadata(&blank_job)
+                .expect_err("native workspace launch must reject blank binding fields");
+            let blank_message = blank_err.to_string();
+            assert!(
+                blank_message.contains(field),
+                "blank {field} should be named in error: {blank_message}"
+            );
+        }
+    }
+
+    #[test]
+    fn native_workspace_model_run_rejects_partial_launch_markers() {
+        let mut missing_surface = native_workspace_model_run_inputs();
+        missing_surface
+            .as_object_mut()
+            .expect("native inputs object")
+            .remove("launch_surface");
+        let surface_job = model_run_job_with_inputs(missing_surface);
+        let surface_err = parse_model_run_metadata(&surface_job)
+            .expect_err("native workspace launch must reject missing launch_surface");
+        assert!(
+            surface_err.to_string().contains("launch_surface"),
+            "unexpected error: {surface_err}"
+        );
+
+        let mut missing_mode = native_workspace_model_run_inputs();
+        missing_mode
+            .as_object_mut()
+            .expect("native inputs object")
+            .remove("launch_mode");
+        let mode_job = model_run_job_with_inputs(missing_mode);
+        let mode_err = parse_model_run_metadata(&mode_job)
+            .expect_err("native workspace launch must reject missing launch_mode");
+        assert!(
+            mode_err.to_string().contains("launch_mode"),
+            "unexpected error: {mode_err}"
+        );
+    }
+
+    #[test]
+    fn native_workspace_model_run_rejects_malformed_launch_markers() {
+        let mut inputs = native_workspace_model_run_inputs();
+        let object = inputs.as_object_mut().expect("native inputs object");
+        object.insert("launch_surface".to_string(), json!("not-handshake"));
+        object.insert(
+            "launch_mode".to_string(),
+            json!("not-workspace-model-session"),
+        );
+        let job = model_run_job_with_inputs(inputs);
+
+        let err = parse_model_run_metadata(&job)
+            .expect_err("native launch marker keys with malformed values must fail closed");
+        assert!(
+            err.to_string().contains("launch_surface=handshake_native"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn native_workspace_model_run_rejects_contradictory_binding_fields() {
+        let mut inputs = native_workspace_model_run_inputs();
+        inputs
+            .as_object_mut()
+            .expect("native inputs object")
+            .insert("model_provider".to_string(), json!("cloud"));
+        let job = model_run_job_with_inputs(inputs);
+        let err = parse_model_run_metadata(&job)
+            .expect_err("native workspace launch must reject provider/backend mismatch");
+        assert!(
+            err.to_string().contains("model_provider to match backend"),
+            "unexpected error: {err}"
+        );
+
+        let mut dir_inputs = native_workspace_model_run_inputs();
+        dir_inputs
+            .as_object_mut()
+            .expect("native inputs object")
+            .insert(
+                "working_dir".to_string(),
+                json!("D:/Projects/Handshake/other"),
+            );
+        let dir_job = model_run_job_with_inputs(dir_inputs);
+        let dir_err = parse_model_run_metadata(&dir_job)
+            .expect_err("native workspace launch must reject workspace/working-dir mismatch");
+        assert!(
+            dir_err
+                .to_string()
+                .contains("working_dir to match workspace_folder"),
+            "unexpected error: {dir_err}"
+        );
+    }
+
+    #[test]
+    fn native_workspace_model_run_accepts_complete_binding_contract() {
+        let job = model_run_job_with_inputs(native_workspace_model_run_inputs());
+        let metadata =
+            parse_model_run_metadata(&job).expect("complete native workspace launch parses");
+        assert_eq!(metadata.session_id, "native-mt101-test-session");
+        assert_eq!(metadata.model_id, "qwen2.5-coder:7b");
+        assert_eq!(metadata.backend, "local");
+    }
+
+    #[test]
+    fn non_native_model_run_can_still_generate_session_id() {
+        let job = model_run_job_with_inputs(json!({
+            "model_id": "qwen2.5-coder:7b",
+            "backend": "local"
+        }));
+
+        let metadata = parse_model_run_metadata(&job).expect("legacy model_run metadata parses");
+        assert!(
+            Uuid::parse_str(&metadata.session_id).is_ok(),
+            "legacy model_run fallback remains a generated UUID"
+        );
     }
 
     fn write_committable_validator_gate_record(

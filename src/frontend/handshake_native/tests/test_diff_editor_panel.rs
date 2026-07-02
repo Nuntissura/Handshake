@@ -49,7 +49,8 @@ fn assert_no_local_test_output() {
 /// line (modified) so both the added-green and removed/modified tints appear.
 fn added_pair() -> (TextBuffer, TextBuffer) {
     let left = TextBuffer::new("fn main() {\n    let x = 1;\n    println!(\"{x}\");\n}");
-    let right = TextBuffer::new("fn main() {\n    let x = 1;\n    let y = 2;\n    println!(\"{x}\");\n}");
+    let right =
+        TextBuffer::new("fn main() {\n    let x = 1;\n    let y = 2;\n    println!(\"{x}\");\n}");
     (left, right)
 }
 
@@ -97,7 +98,12 @@ fn side_by_side_added_line_has_green_in_right_pane() {
                     if i + 4 > raw.len() {
                         continue;
                     }
-                    let (r, g, b, a) = (raw[i] as i32, raw[i + 1] as i32, raw[i + 2] as i32, raw[i + 3]);
+                    let (r, g, b, a) = (
+                        raw[i] as i32,
+                        raw[i + 1] as i32,
+                        raw[i + 2] as i32,
+                        raw[i + 3],
+                    );
                     if a != 0 && g > r + 20 && g > b + 20 && g > 40 {
                         green_pixels_right += 1;
                     }
@@ -201,7 +207,12 @@ fn inline_mode_shows_green_added_and_red_removed_prefixes() {
             let mut red = 0usize;
             let mut i = 0usize;
             while i + 4 <= raw.len() {
-                let (r, g, b, a) = (raw[i] as i32, raw[i + 1] as i32, raw[i + 2] as i32, raw[i + 3]);
+                let (r, g, b, a) = (
+                    raw[i] as i32,
+                    raw[i + 1] as i32,
+                    raw[i + 2] as i32,
+                    raw[i + 3],
+                );
                 if a != 0 {
                     if g > r + 25 && g > b + 15 && g > 60 {
                         green += 1;
@@ -221,8 +232,14 @@ fn inline_mode_shows_green_added_and_red_removed_prefixes() {
                 "PT-004 inline screenshot: {w}x{h}, green={green}, red={red}, saved={saved} ({})",
                 png_path.display()
             );
-            assert!(green >= 10, "AC-004: a green `+ ` added prefix must render; got {green} green pixels");
-            assert!(red >= 10, "AC-004: a red `- ` removed prefix must render; got {red} red pixels");
+            assert!(
+                green >= 10,
+                "AC-004: a green `+ ` added prefix must render; got {green} green pixels"
+            );
+            assert!(
+                red >= 10,
+                "AC-004: a red `- ` removed prefix must render; got {red} red pixels"
+            );
         }
         Err(e) => {
             println!(
@@ -277,7 +294,10 @@ fn merge_mode_accept_local_merges_local_version() {
             }
         }
     }
-    assert!(clicked, "AC-005: the Accept Local button node must be clickable; id={accept_local_id}");
+    assert!(
+        clicked,
+        "AC-005: the Accept Local button node must be clickable; id={accept_local_id}"
+    );
     harness.run();
     harness.run();
 
@@ -292,7 +312,11 @@ fn merge_mode_accept_local_merges_local_version() {
     );
     // The block is now resolved to Local.
     let block = &panel.merge_blocks()[conflict_idx];
-    assert_eq!(block.chosen, Some(MergeChoice::Local), "AC-005: the conflict resolved to Local");
+    assert_eq!(
+        block.chosen,
+        Some(MergeChoice::Local),
+        "AC-005: the conflict resolved to Local"
+    );
     println!("AC-005: Accept Local click merged the local version (merged={merged:?})");
 }
 
@@ -412,7 +436,10 @@ fn synchronized_scroll_right_follows_left_within_two_lines() {
 
     let left_range = panel.left_visible_range();
     let right_range = panel.right_visible_range();
-    assert!(!left_range.is_empty() && !right_range.is_empty(), "both panes painted a window");
+    assert!(
+        !left_range.is_empty() && !right_range.is_empty(),
+        "both panes painted a window"
+    );
 
     // The expected right line for left line 20 (left line 20 = "line19" because "REMOVED" shifts by
     // one; that maps to right line 19).

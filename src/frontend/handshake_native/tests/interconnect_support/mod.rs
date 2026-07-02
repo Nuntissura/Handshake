@@ -33,7 +33,9 @@ use handshake_native::backend_client::shared_http_client;
 
 /// The deterministic manifest path under the crate root, independent of the test's working directory.
 pub fn manifest_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("test_interconnect_manifest.json")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("test_interconnect_manifest.json")
 }
 
 /// Rewrite the manifest entry whose `scenario_id` matches to `status`, under a cross-process advisory
@@ -58,19 +60,25 @@ pub fn mark_status(scenario_id: &str, status: &str) {
     let src = match std::fs::read_to_string(&path) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("WARN(interconnect-manifest): read {path:?} failed: {e}; skipping {scenario_id}");
+            eprintln!(
+                "WARN(interconnect-manifest): read {path:?} failed: {e}; skipping {scenario_id}"
+            );
             return;
         }
     };
     let mut value: serde_json::Value = match serde_json::from_str(&src) {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("WARN(interconnect-manifest): parse {path:?} failed: {e}; skipping {scenario_id}");
+            eprintln!(
+                "WARN(interconnect-manifest): parse {path:?} failed: {e}; skipping {scenario_id}"
+            );
             return;
         }
     };
     let Some(arr) = value.as_array_mut() else {
-        eprintln!("WARN(interconnect-manifest): manifest is not a JSON array; skipping {scenario_id}");
+        eprintln!(
+            "WARN(interconnect-manifest): manifest is not a JSON array; skipping {scenario_id}"
+        );
         return;
     };
     let mut updated = false;
@@ -105,8 +113,16 @@ impl FileLock {
     fn acquire(path: &Path, budget: Duration) -> Option<Self> {
         let start = Instant::now();
         loop {
-            match std::fs::OpenOptions::new().write(true).create_new(true).open(path) {
-                Ok(_) => return Some(FileLock { path: path.to_path_buf() }),
+            match std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+            {
+                Ok(_) => {
+                    return Some(FileLock {
+                        path: path.to_path_buf(),
+                    })
+                }
                 Err(_) if start.elapsed() < budget => {
                     std::thread::sleep(Duration::from_millis(5));
                 }
@@ -229,7 +245,12 @@ pub fn require_live_backend() -> LiveBackend {
          PostgreSQL, then run with --ignored. This proof never fakes PG."
     );
 
-    LiveBackend { base, workspace_id, client, rt }
+    LiveBackend {
+        base,
+        workspace_id,
+        client,
+        rt,
+    }
 }
 
 impl LiveBackend {

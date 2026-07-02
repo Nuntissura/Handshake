@@ -18,16 +18,18 @@ use std::sync::Arc;
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
 
-use handshake_native::code_editor::{
-    layout_visual_rows, CodeEditorPanel, TextBuffer, WrapConfig,
-};
+use handshake_native::code_editor::{layout_visual_rows, CodeEditorPanel, TextBuffer, WrapConfig};
 
 fn off() -> WrapConfig {
     WrapConfig::default()
 }
 
 fn on_cols(cols: usize) -> WrapConfig {
-    WrapConfig { enabled: true, wrap_column: Some(cols), viewport_width_px: 0.0 }
+    WrapConfig {
+        enabled: true,
+        wrap_column: Some(cols),
+        viewport_width_px: 0.0,
+    }
 }
 
 // ── AC-003 / PT-003: layout math ──────────────────────────────────────────────────────────────────
@@ -36,10 +38,17 @@ fn on_cols(cols: usize) -> WrapConfig {
 fn wrap_layout_disabled_is_one_to_one() {
     let buf = TextBuffer::new("alpha\nbeta\ngamma");
     let rows = layout_visual_rows(&buf, 0..buf.len_lines(), &off(), 8.0);
-    assert_eq!(rows.len(), 3, "AC-003: 3 logical lines -> 3 visual rows when wrap is off");
+    assert_eq!(
+        rows.len(),
+        3,
+        "AC-003: 3 logical lines -> 3 visual rows when wrap is off"
+    );
     for (i, r) in rows.iter().enumerate() {
         assert_eq!(r.logical_line, i, "row {i} maps to logical line {i}");
-        assert_eq!(r.wrap_index, 0, "AC-003: every row is wrap_index 0 under 1:1");
+        assert_eq!(
+            r.wrap_index, 0,
+            "AC-003: every row is wrap_index 0 under 1:1"
+        );
     }
 }
 
@@ -50,7 +59,12 @@ fn wrap_layout_enabled_splits_long_line_contiguously() {
     let line = "a".repeat(200);
     let buf = TextBuffer::new(&line);
     let rows = layout_visual_rows(&buf, 0..1, &on_cols(80), 8.0);
-    assert_eq!(rows.len(), 3, "AC-003: 200 chars at width 80 -> 3 rows; got {}", rows.len());
+    assert_eq!(
+        rows.len(),
+        3,
+        "AC-003: 200 chars at width 80 -> 3 rows; got {}",
+        rows.len()
+    );
 
     // Contiguous + non-overlapping.
     assert_eq!(rows[0].byte_start, 0, "first row starts at the line start");
@@ -80,8 +94,15 @@ fn wrap_layout_soft_breaks_at_whitespace() {
     let rows = layout_visual_rows(&buf, 0..1, &on_cols(6), 8.0);
     assert!(rows.len() >= 2, "a 14-char line at width 6 wraps");
     let first = buf.byte_slice_to_string(rows[0].byte_range());
-    assert_eq!(first, "aaaa ", "soft break keeps the trailing space; got {first:?}");
-    assert_eq!(rows.last().unwrap().byte_end, buf.len_bytes(), "full coverage");
+    assert_eq!(
+        first, "aaaa ",
+        "soft break keeps the trailing space; got {first:?}"
+    );
+    assert_eq!(
+        rows.last().unwrap().byte_end,
+        buf.len_bytes(),
+        "full coverage"
+    );
 }
 
 // ── AC-004: scroll math counts visual rows ─────────────────────────────────────────────────────────
@@ -93,8 +114,16 @@ fn wrap_scroll_math_counts_visual_rows() {
     let buf = TextBuffer::new(&format!("{}\nshort\nx", "a".repeat(200)));
     let off_rows = layout_visual_rows(&buf, 0..buf.len_lines(), &off(), 8.0);
     let on_rows = layout_visual_rows(&buf, 0..buf.len_lines(), &on_cols(80), 8.0);
-    assert_eq!(off_rows.len(), 3, "wrap off -> 3 logical rows (scroll math counts lines)");
-    assert_eq!(on_rows.len(), 5, "AC-004: wrap on -> 5 visual rows (scroll math counts visual rows)");
+    assert_eq!(
+        off_rows.len(),
+        3,
+        "wrap off -> 3 logical rows (scroll math counts lines)"
+    );
+    assert_eq!(
+        on_rows.len(),
+        5,
+        "AC-004: wrap on -> 5 visual rows (scroll math counts visual rows)"
+    );
     assert!(
         on_rows.len() > off_rows.len(),
         "AC-004: the scrollbar extent grows under wrap so scrolling a wrapped doc lands correctly"
@@ -106,10 +135,19 @@ fn wrap_scroll_math_counts_visual_rows() {
 #[test]
 fn wrap_off_is_baseline_one_to_one() {
     // Even an absurdly narrow viewport never wraps when disabled (the strict MT-002 baseline fast path).
-    let buf = TextBuffer::new("a long single logical line that would wrap if word wrap were enabled");
-    let cfg = WrapConfig { enabled: false, wrap_column: None, viewport_width_px: 1.0 };
+    let buf =
+        TextBuffer::new("a long single logical line that would wrap if word wrap were enabled");
+    let cfg = WrapConfig {
+        enabled: false,
+        wrap_column: None,
+        viewport_width_px: 1.0,
+    };
     let rows = layout_visual_rows(&buf, 0..1, &cfg, 8.0);
-    assert_eq!(rows.len(), 1, "AC-005: wrap off -> exactly one row regardless of width (baseline)");
+    assert_eq!(
+        rows.len(),
+        1,
+        "AC-005: wrap off -> exactly one row regardless of width (baseline)"
+    );
     assert_eq!(rows[0].byte_range(), 0..buf.len_bytes());
     assert_eq!(rows[0].wrap_index, 0);
 }
@@ -119,9 +157,15 @@ fn alt_z_toggles_wrap_without_inserting_z() {
     // Drive the REAL panel through egui_kittest. Alt+Z must flip WrapConfig.enabled (persisted on the
     // panel) and must NOT insert a literal 'z' into the buffer (RISK-005 / MC-005 — consume_shortcut
     // before the typing loop).
-    let panel = Arc::new(CodeEditorPanel::new("fn main() {\n    let x = 1;\n}\n", "rs"));
+    let panel = Arc::new(CodeEditorPanel::new(
+        "fn main() {\n    let x = 1;\n}\n",
+        "rs",
+    ));
     let original = panel.buffer().to_string();
-    assert!(!panel.is_wrap_enabled(), "wrap starts OFF (the MT-002 baseline default)");
+    assert!(
+        !panel.is_wrap_enabled(),
+        "wrap starts OFF (the MT-002 baseline default)"
+    );
 
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
@@ -141,7 +185,10 @@ fn alt_z_toggles_wrap_without_inserting_z() {
     });
     harness.run();
 
-    assert!(panel.is_wrap_enabled(), "AC-005: Alt+Z flipped WrapConfig.enabled ON (persisted)");
+    assert!(
+        panel.is_wrap_enabled(),
+        "AC-005: Alt+Z flipped WrapConfig.enabled ON (persisted)"
+    );
     assert_eq!(
         panel.buffer().to_string(),
         original,
@@ -157,8 +204,15 @@ fn alt_z_toggles_wrap_without_inserting_z() {
         modifiers: Modifiers::ALT,
     });
     harness.run();
-    assert!(!panel.is_wrap_enabled(), "AC-005: a second Alt+Z toggled wrap back OFF");
-    assert_eq!(panel.buffer().to_string(), original, "still no stray 'z' after the second toggle");
+    assert!(
+        !panel.is_wrap_enabled(),
+        "AC-005: a second Alt+Z toggled wrap back OFF"
+    );
+    assert_eq!(
+        panel.buffer().to_string(),
+        original,
+        "still no stray 'z' after the second toggle"
+    );
 }
 
 #[test]
@@ -169,10 +223,16 @@ fn wrap_toggle_persists_and_is_addressable_by_author_id() {
     assert!(!panel.is_wrap_enabled());
     let now_on = panel.toggle_wrap_by_author_id("editor-wrap-toggle");
     assert_eq!(now_on, Some(true), "dispatch-by-id flips wrap ON");
-    assert!(panel.is_wrap_enabled(), "the flip persists on the panel state");
+    assert!(
+        panel.is_wrap_enabled(),
+        "the flip persists on the panel state"
+    );
     // An unknown id is a benign no-op (None), not a panic.
     assert_eq!(panel.toggle_wrap_by_author_id("editor-wrap-nope"), None);
-    assert!(panel.is_wrap_enabled(), "an unmatched id did not change the state");
+    assert!(
+        panel.is_wrap_enabled(),
+        "an unmatched id did not change the state"
+    );
 }
 
 #[test]
@@ -185,9 +245,15 @@ fn wrap_paint_is_bounded_to_window_on_large_document() {
     // (scroll/hover/idle-equivalent) frames, proving the cached prefix-sum index + lazy window
     // materialization, not a full-document re-wrap.
     let line = "let value = ".to_owned() + &"abcdefghij ".repeat(12); // ~140 chars -> several wrap rows
-    let src = (0..4000).map(|_| line.as_str()).collect::<Vec<_>>().join("\n");
+    let src = (0..4000)
+        .map(|_| line.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
     let total_lines = src.matches('\n').count() + 1;
-    assert!(total_lines >= 4000, "large document built; got {total_lines} lines");
+    assert!(
+        total_lines >= 4000,
+        "large document built; got {total_lines} lines"
+    );
 
     let panel = Arc::new(CodeEditorPanel::new(&src, "rs"));
     panel.set_wrap_enabled(true);
@@ -207,8 +273,14 @@ fn wrap_paint_is_bounded_to_window_on_large_document() {
     }
 
     let stats = panel.perf_stats();
-    assert_eq!(stats.buffer_len_lines, total_lines, "whole document line count reported");
-    assert!(stats.frame_lines_rendered > 0, "the wrap path painted a non-empty window");
+    assert_eq!(
+        stats.buffer_len_lines, total_lines,
+        "whole document line count reported"
+    );
+    assert!(
+        stats.frame_lines_rendered > 0,
+        "the wrap path painted a non-empty window"
+    );
     // The load-bearing assertion: the wrap paint touched only a window's worth of logical lines, NOT the
     // whole document. A 400px viewport at ~13px rows shows well under 100 visual rows; each logical line
     // wraps into several of them, so the painted logical lines are far fewer still. A generous cap of 200
@@ -236,7 +308,10 @@ fn wrap_paint_is_bounded_to_window_on_large_document() {
 fn wrap_off_reports_zero_lines_wrapped() {
     // The non-wrap baseline path never enters the wrap materializer, so `frame_lines_wrapped` is 0 — the
     // MT-002 baseline render is untouched by the perf-cap plumbing (RISK-006 / MC-006).
-    let panel = Arc::new(CodeEditorPanel::new("fn main() {\n    let x = 1;\n}\n", "rs"));
+    let panel = Arc::new(CodeEditorPanel::new(
+        "fn main() {\n    let x = 1;\n}\n",
+        "rs",
+    ));
     assert!(!panel.is_wrap_enabled());
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()

@@ -693,7 +693,7 @@ fn mt_189_message_family_bodies_encode_bounded() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL and a live Postgres schema"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
 async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
     let pool = mt_189_postgres_pool().await;
     ensure_mt_189_postgres_schema(&pool).await;
@@ -844,8 +844,9 @@ async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
 }
 
 async fn mt_189_postgres_pool() -> sqlx::PgPool {
-    let url =
-        std::env::var("POSTGRES_TEST_URL").expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL test URL");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }
 

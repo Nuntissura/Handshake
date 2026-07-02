@@ -131,7 +131,10 @@ impl MemoryNavTarget {
     pub fn describe(&self) -> String {
         match self {
             MemoryNavTarget::Uri { uri } => uri.clone(),
-            MemoryNavTarget::Document { document_id, byte_range } => match byte_range {
+            MemoryNavTarget::Document {
+                document_id,
+                byte_range,
+            } => match byte_range {
                 Some((s, e)) => format!("{document_id} [{s}..{e}]"),
                 None => document_id.clone(),
             },
@@ -262,11 +265,20 @@ impl RelevantMemoryPanel {
     /// (via [`FnNavigationBus`]). Renders the CACHED state ONLY — NO network/disk IO here. Always emits
     /// the outer `relevant-memory-panel` (`GenericContainer`) AccessKit node so a swarm agent can find
     /// the panel by stable id even in the empty-state / blocker / in-flight states (AC-007).
-    pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette, nav_bus: &mut dyn NavigationBus) {
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        nav_bus: &mut dyn NavigationBus,
+    ) {
         let panel_id = egui::Id::new(RELEVANT_MEMORY_PANEL_AUTHOR_ID);
         let resp = ui
             .scope_builder(egui::UiBuilder::new().id_salt(panel_id), |ui| {
-                ui.label(egui::RichText::new("Relevant Memory").strong().color(palette.text));
+                ui.label(
+                    egui::RichText::new("Relevant Memory")
+                        .strong()
+                        .color(palette.text),
+                );
                 ui.separator();
                 self.show_body(ui, palette, nav_bus);
             })
@@ -281,7 +293,12 @@ impl RelevantMemoryPanel {
     }
 
     /// Render the panel body (the state machine: blocker banner / spinner / empty / list).
-    fn show_body(&mut self, ui: &mut egui::Ui, palette: &HsPalette, nav_bus: &mut dyn NavigationBus) {
+    fn show_body(
+        &mut self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        nav_bus: &mut dyn NavigationBus,
+    ) {
         // 1) Typed blocker: the EndpointMissing empty-state banner (RISK-005/MC-002, AC-005). Other
         //    blocker variants render their typed message (still no panic, still no silent no-op).
         if let Some(err) = &self.blocker {
@@ -305,7 +322,10 @@ impl RelevantMemoryPanel {
         // 3) A pack is present.
         let Some(pack) = &self.current else {
             // No fetch has resolved yet and nothing is in flight: a neutral idle hint (not an error).
-            ui.colored_label(palette.text_subtle, "Place the caret in a document to surface memory.");
+            ui.colored_label(
+                palette.text_subtle,
+                "Place the caret in a document to surface memory.",
+            );
             return;
         };
 
@@ -322,7 +342,11 @@ impl RelevantMemoryPanel {
             } else {
                 format!("~{estimate} tokens")
             };
-            let color = if pack.over_token_budget() { palette.error_text } else { palette.text_subtle };
+            let color = if pack.over_token_budget() {
+                palette.error_text
+            } else {
+                palette.text_subtle
+            };
             ui.colored_label(color, txt);
         }
         if pack.truncated {
@@ -401,13 +425,11 @@ fn render_item_row(
             // The provenance "Go to source" affordance — ALWAYS present.
             let nav_target = MemoryNavTarget::from_source(&item.source);
             let navigable = nav_target.is_some();
-            let btn = egui::Button::new(
-                egui::RichText::new("Go to source").color(if navigable {
-                    palette.accent
-                } else {
-                    palette.text_subtle
-                }),
-            )
+            let btn = egui::Button::new(egui::RichText::new("Go to source").color(if navigable {
+                palette.accent
+            } else {
+                palette.text_subtle
+            }))
             .small();
             // A non-navigable item gets a DISABLED button (no dead link, no panic — RISK-003/MC-003).
             let src_resp = ui.add_enabled(navigable, btn);
@@ -442,13 +464,23 @@ mod tests {
     use crate::fems::memory_client::MemorySource;
 
     fn src_uri() -> MemorySource {
-        MemorySource { uri: Some("loom://block/x".into()), ..Default::default() }
+        MemorySource {
+            uri: Some("loom://block/x".into()),
+            ..Default::default()
+        }
     }
     fn src_doc() -> MemorySource {
-        MemorySource { document_id: Some("D9".into()), byte_range: Some((10, 40)), ..Default::default() }
+        MemorySource {
+            document_id: Some("D9".into()),
+            byte_range: Some((10, 40)),
+            ..Default::default()
+        }
     }
     fn src_evt() -> MemorySource {
-        MemorySource { event_id: Some("EV-7".into()), ..Default::default() }
+        MemorySource {
+            event_id: Some("EV-7".into()),
+            ..Default::default()
+        }
     }
 
     /// Navigation precedence: uri > document_id+range > event_id; an all-absent source is None.
@@ -461,14 +493,24 @@ mod tests {
             event_id: Some("E".into()),
             ..Default::default()
         };
-        assert_eq!(MemoryNavTarget::from_source(&both), Some(MemoryNavTarget::Uri { uri: "loom://u".into() }));
+        assert_eq!(
+            MemoryNavTarget::from_source(&both),
+            Some(MemoryNavTarget::Uri {
+                uri: "loom://u".into()
+            })
+        );
         assert_eq!(
             MemoryNavTarget::from_source(&src_doc()),
-            Some(MemoryNavTarget::Document { document_id: "D9".into(), byte_range: Some((10, 40)) })
+            Some(MemoryNavTarget::Document {
+                document_id: "D9".into(),
+                byte_range: Some((10, 40))
+            })
         );
         assert_eq!(
             MemoryNavTarget::from_source(&src_evt()),
-            Some(MemoryNavTarget::Event { event_id: "EV-7".into() })
+            Some(MemoryNavTarget::Event {
+                event_id: "EV-7".into()
+            })
         );
         // Non-navigable -> None (RISK-003/MC-003): no dead link, no panic.
         assert_eq!(MemoryNavTarget::from_source(&MemorySource::default()), None);
@@ -479,11 +521,20 @@ mod tests {
     fn refresh_debounces_on_unchanged_context() {
         let mut panel = RelevantMemoryPanel::new();
         let ctx = MemoryContext::from_focus("W", Some("D".into()), None, Some(1));
-        assert!(panel.refresh_for_context(ctx.clone()), "first context must fire");
+        assert!(
+            panel.refresh_for_context(ctx.clone()),
+            "first context must fire"
+        );
         assert!(panel.in_flight());
-        assert!(!panel.refresh_for_context(ctx.clone()), "same context must be skipped (debounce)");
+        assert!(
+            !panel.refresh_for_context(ctx.clone()),
+            "same context must be skipped (debounce)"
+        );
         let ctx2 = MemoryContext::from_focus("W", Some("D".into()), None, Some(2));
-        assert!(panel.refresh_for_context(ctx2), "a changed context must fire again");
+        assert!(
+            panel.refresh_for_context(ctx2),
+            "a changed context must fire again"
+        );
     }
 
     /// set_pack / set_blocker drive the state machine (mutually exclusive).
@@ -492,7 +543,9 @@ mod tests {
         let mut panel = RelevantMemoryPanel::new();
         panel.refresh_for_context(MemoryContext::for_workspace("W"));
         assert!(panel.in_flight());
-        panel.set_blocker(MemoryClientError::EndpointMissing { probed_path: "/p".into() });
+        panel.set_blocker(MemoryClientError::EndpointMissing {
+            probed_path: "/p".into(),
+        });
         assert!(!panel.in_flight(), "blocker clears in_flight");
         assert!(panel.current().is_none(), "blocker clears the pack");
         assert!(panel.has_endpoint_missing_blocker());
@@ -506,7 +559,9 @@ mod tests {
     #[test]
     fn take_blocker_surfaces_once() {
         let mut panel = RelevantMemoryPanel::new();
-        panel.set_blocker(MemoryClientError::EndpointMissing { probed_path: "/p".into() });
+        panel.set_blocker(MemoryClientError::EndpointMissing {
+            probed_path: "/p".into(),
+        });
         let taken = panel.take_blocker();
         assert!(taken.is_some_and(|e| e.is_endpoint_missing()));
         assert!(panel.take_blocker().is_none(), "second take is None");
@@ -534,6 +589,11 @@ mod tests {
             bus.navigate_to(MemoryNavTarget::from_source(&src_doc()).unwrap());
         }
         assert_eq!(captured.len(), 2);
-        assert_eq!(captured[0], MemoryNavTarget::Uri { uri: "loom://block/x".into() });
+        assert_eq!(
+            captured[0],
+            MemoryNavTarget::Uri {
+                uri: "loom://block/x".into()
+            }
+        );
     }
 }

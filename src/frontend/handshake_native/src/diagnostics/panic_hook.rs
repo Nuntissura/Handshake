@@ -224,7 +224,8 @@ fn write_crash_record(crash_dir: &Path, session_id: &str, info: &PanicHookInfo<'
         let msg_tmp = crash_dir.join(format!("{stem}.message.txt.tmp"));
         // Prefix marks the file as local-only so a human or a forwarder cannot mistake it for the
         // content-free record.
-        let body = format!("LOCAL-ONLY (not forwarded; typed-allowlist filtered by MT-093)\n{message}");
+        let body =
+            format!("LOCAL-ONLY (not forwarded; typed-allowlist filtered by MT-093)\n{message}");
         atomic_write(&msg_tmp, &msg_final, body.as_bytes());
     }
 }
@@ -393,7 +394,10 @@ mod tests {
         atomic_write(&tmp, &fin, b"{\"ok\":true}");
         let body = fs::read_to_string(&fin).expect("final record exists");
         assert_eq!(body, "{\"ok\":true}", "complete content, not truncated");
-        assert!(!tmp.exists(), "temp file was renamed away (no leftover tmp)");
+        assert!(
+            !tmp.exists(),
+            "temp file was renamed away (no leftover tmp)"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -408,7 +412,10 @@ mod tests {
             &bogus.with_extension("json"),
             b"x",
         );
-        assert!(!bogus.with_extension("json").exists(), "no record on a bad path");
+        assert!(
+            !bogus.with_extension("json").exists(),
+            "no record on a bad path"
+        );
     }
 
     #[test]
@@ -427,7 +434,10 @@ mod tests {
         // on one id). This uses the process-global OnceLock, so it is order-independent within the run.
         let first = set_process_session_id("unit-session-aaa").to_string();
         let second = set_process_session_id("unit-session-bbb").to_string();
-        assert_eq!(first, second, "the first session id wins (hook + ring agree)");
+        assert_eq!(
+            first, second,
+            "the first session id wins (hook + ring agree)"
+        );
         assert_eq!(process_session_id(), Some(first.as_str()));
     }
 }

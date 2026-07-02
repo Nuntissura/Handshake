@@ -30,19 +30,14 @@ use handshake_core::storage::loom_ai::{
 };
 use handshake_core::storage::tests::{postgres_backend_with_pool_from_env, PostgresTestBackend};
 use handshake_core::storage::{
-    LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomEdgeType, NewLoomBlock, StorageError,
-    WriteContext,
+    LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomEdgeType, NewLoomBlock, WriteContext,
 };
 use sqlx::Row;
 use uuid::Uuid;
 
-async fn backend_or_skip() -> Option<PostgresTestBackend> {
+async fn backend_for_test() -> PostgresTestBackend {
     match postgres_backend_with_pool_from_env().await {
-        Ok(backend) => Some(backend),
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            eprintln!("SKIP MT-260 loom AI proof: PostgreSQL unavailable ({msg})");
-            None
-        }
+        Ok(backend) => backend,
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
@@ -130,9 +125,7 @@ async fn count_events(backend: &PostgresTestBackend, event_type: &str, aggregate
 // ---------------------------------------------------------------------------
 #[tokio::test]
 async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
-    let Some(backend) = backend_or_skip().await else {
-        return;
-    };
+    let backend = backend_for_test().await;
     let ws = workspace(&backend).await;
     let n1 = note(&backend, &ws, "Quarterly Roadmap").await;
 
@@ -163,7 +156,12 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
     assert!(suggestion.model_attribution.get("trace_id").is_some());
     // Recorded event exists.
     assert_eq!(
-        count_events(&backend, "AI_EDIT_PROPOSAL_RECORDED", &suggestion.suggestion_id).await,
+        count_events(
+            &backend,
+            "AI_EDIT_PROPOSAL_RECORDED",
+            &suggestion.suggestion_id
+        )
+        .await,
         1,
         "AI_EDIT_PROPOSAL_RECORDED event written"
     );
@@ -198,7 +196,10 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
         .expect("get")
         .expect("row");
     assert_eq!(promoted.review_state, "promoted");
-    assert_eq!(promoted.promoted_artifact_ref.as_deref(), Some(artifact_ref.as_str()));
+    assert_eq!(
+        promoted.promoted_artifact_ref.as_deref(),
+        Some(artifact_ref.as_str())
+    );
     // Atomic promotion pair on the promotion aggregate.
     assert_eq!(
         count_events(&backend, "PROMOTION_REQUESTED", &suggestion.suggestion_id).await,
@@ -236,9 +237,7 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
 // ---------------------------------------------------------------------------
 #[tokio::test]
 async fn reject_leaves_authority_untouched() {
-    let Some(backend) = backend_or_skip().await else {
-        return;
-    };
+    let backend = backend_for_test().await;
     let ws = workspace(&backend).await;
     let n1 = note(&backend, &ws, "Draft Note").await;
 
@@ -300,9 +299,7 @@ async fn reject_leaves_authority_untouched() {
 // ---------------------------------------------------------------------------
 #[tokio::test]
 async fn non_operator_confirm_denied_with_receipt() {
-    let Some(backend) = backend_or_skip().await else {
-        return;
-    };
+    let backend = backend_for_test().await;
     let ws = workspace(&backend).await;
     let n1 = note(&backend, &ws, "Note").await;
 
@@ -377,9 +374,7 @@ async fn non_operator_confirm_denied_with_receipt() {
 // ---------------------------------------------------------------------------
 #[tokio::test]
 async fn no_model_declines_with_zero_rows() {
-    let Some(backend) = backend_or_skip().await else {
-        return;
-    };
+    let backend = backend_for_test().await;
     let ws = workspace(&backend).await;
     let n1 = note(&backend, &ws, "Note").await;
 
@@ -403,7 +398,10 @@ async fn no_model_declines_with_zero_rows() {
     )
     .await
     .expect_err("must decline");
-    assert!(matches!(err, LoomAiJobError::NoModel { .. }), "typed no-model decline");
+    assert!(
+        matches!(err, LoomAiJobError::NoModel { .. }),
+        "typed no-model decline"
+    );
 
     // ZERO suggestion rows written for this workspace.
     let rows = list_loom_ai_suggestions(&backend.postgres_pool, &ws, None, None)
@@ -417,9 +415,7 @@ async fn no_model_declines_with_zero_rows() {
 // ---------------------------------------------------------------------------
 #[tokio::test]
 async fn auto_caption_accept_writes_derived_field_with_provenance() {
-    let Some(backend) = backend_or_skip().await else {
-        return;
-    };
+    let backend = backend_for_test().await;
     let ws = workspace(&backend).await;
     let n1 = note(&backend, &ws, "Sunset Photo").await;
 
@@ -443,7 +439,11 @@ async fn auto_caption_accept_writes_derived_field_with_provenance() {
     let suggestion = result.suggestions[0].clone();
 
     // Negative: no caption yet on the block.
-    let before = backend.database.get_loom_block(&ws, &n1.block_id).await.expect("block");
+    let before = backend
+        .database
+        .get_loom_block(&ws, &n1.block_id)
+        .await
+        .expect("block");
     assert!(before.derived.auto_caption.is_none());
 
     accept_loom_ai_suggestion(
@@ -458,12 +458,19 @@ async fn auto_caption_accept_writes_derived_field_with_provenance() {
     .await
     .expect("accept caption");
 
-    let after = backend.database.get_loom_block(&ws, &n1.block_id).await.expect("block");
+    let after = backend
+        .database
+        .get_loom_block(&ws, &n1.block_id)
+        .await
+        .expect("block");
     assert_eq!(
         after.derived.auto_caption.as_deref(),
         Some("A vivid sunset over the harbor.")
     );
-    assert!(after.derived.generated_by.is_some(), "generated_by provenance stamped");
+    assert!(
+        after.derived.generated_by.is_some(),
+        "generated_by provenance stamped"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -471,9 +478,7 @@ async fn auto_caption_accept_writes_derived_field_with_provenance() {
 // ---------------------------------------------------------------------------
 #[tokio::test]
 async fn link_suggest_accept_promotes_ai_suggested_edge() {
-    let Some(backend) = backend_or_skip().await else {
-        return;
-    };
+    let backend = backend_for_test().await;
     let ws = workspace(&backend).await;
     let n1 = note(&backend, &ws, "Alpha").await;
     let n2 = note(&backend, &ws, "Beta").await;
@@ -504,7 +509,10 @@ async fn link_suggest_accept_promotes_ai_suggested_edge() {
         .find(|s| s.block_id == n1.block_id)
         .expect("n1 link suggestion")
         .clone();
-    assert_eq!(n1_suggestion.target_block_id.as_deref(), Some(n2.block_id.as_str()));
+    assert_eq!(
+        n1_suggestion.target_block_id.as_deref(),
+        Some(n2.block_id.as_str())
+    );
 
     accept_loom_ai_suggestion(
         backend.database.as_ref(),
@@ -538,9 +546,7 @@ async fn link_suggest_accept_promotes_ai_suggested_edge() {
 // ---------------------------------------------------------------------------
 #[tokio::test]
 async fn rerun_is_idempotent_per_value() {
-    let Some(backend) = backend_or_skip().await else {
-        return;
-    };
+    let backend = backend_for_test().await;
     let ws = workspace(&backend).await;
     let n1 = note(&backend, &ws, "Stable Note").await;
 
@@ -591,9 +597,7 @@ async fn rerun_is_idempotent_per_value() {
 // ---------------------------------------------------------------------------
 #[tokio::test]
 async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_kind() {
-    let Some(backend) = backend_or_skip().await else {
-        return;
-    };
+    let backend = backend_for_test().await;
     let ws = workspace(&backend).await;
     let n1 = note(&backend, &ws, "Roadmap A").await;
     let n2 = note(&backend, &ws, "Roadmap B").await;
@@ -617,7 +621,11 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
     .await
     .expect("run auto_tag job");
     let job_id = result.job_id.clone();
-    assert_eq!(result.suggestions.len(), 2, "two pending suggestions in one job");
+    assert_eq!(
+        result.suggestions.len(),
+        2,
+        "two pending suggestions in one job"
+    );
 
     // (1) NON-OPERATOR accept-all promotes NOTHING.
     let denied_outcome = accept_all_loom_ai_suggestions(
@@ -652,10 +660,15 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
         .await
         .expect("edges n2")
         .is_empty());
-    let still_pending = list_loom_ai_suggestions(&backend.postgres_pool, &ws, Some(&job_id), Some("pending"))
-        .await
-        .expect("list pending");
-    assert_eq!(still_pending.len(), 2, "both rows remain pending after denial");
+    let still_pending =
+        list_loom_ai_suggestions(&backend.postgres_pool, &ws, Some(&job_id), Some("pending"))
+            .await
+            .expect("list pending");
+    assert_eq!(
+        still_pending.len(),
+        2,
+        "both rows remain pending after denial"
+    );
 
     // (2) OPERATOR accept-all promotes ALL of the kind.
     let promoted_outcome = accept_all_loom_ai_suggestions(
@@ -671,7 +684,11 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
     )
     .await
     .expect("accept-all by operator");
-    assert_eq!(promoted_outcome.promoted.len(), 2, "operator promotes all of kind");
+    assert_eq!(
+        promoted_outcome.promoted.len(),
+        2,
+        "operator promotes all of kind"
+    );
     assert!(promoted_outcome.denied.is_empty());
 
     // Real TAG edges now exist on BOTH source blocks, created_by=ai.
@@ -690,8 +707,9 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
     }
 
     // No rows left pending; all promoted.
-    let promoted_rows = list_loom_ai_suggestions(&backend.postgres_pool, &ws, Some(&job_id), Some("promoted"))
-        .await
-        .expect("list promoted");
+    let promoted_rows =
+        list_loom_ai_suggestions(&backend.postgres_pool, &ws, Some(&job_id), Some("promoted"))
+            .await
+            .expect("list promoted");
     assert_eq!(promoted_rows.len(), 2, "both suggestions promoted");
 }

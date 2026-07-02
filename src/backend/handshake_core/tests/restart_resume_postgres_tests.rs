@@ -13,8 +13,9 @@ fn expected_postgres_target_key(table: &str) -> String {
 }
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .expect("POSTGRES_TEST_URL required for restart_resume_postgres_tests");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL for restart_resume_postgres_tests");
     let mut conn = sqlx::PgConnection::connect(&url)
         .await
         .expect("connect postgres");
@@ -225,7 +226,7 @@ async fn seed_orphan_process(pool: &sqlx::PgPool, session_run_id: &str) -> Uuid 
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt193_postgres_startup_runner_resumes_persists_report_and_is_idempotent() {
     let pool = postgres_pool().await;
     let session_id = Uuid::now_v7();
@@ -358,7 +359,7 @@ async fn mt193_postgres_startup_runner_resumes_persists_report_and_is_idempotent
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt193_postgres_startup_runner_replays_session_events_when_global_event_sequence_interleaves_other_sessions(
 ) {
     let pool = postgres_pool().await;
@@ -407,7 +408,7 @@ async fn mt193_postgres_startup_runner_replays_session_events_when_global_event_
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt193_postgres_startup_runner_marks_recovery_failed_and_posts_operator_decision() {
     let pool = postgres_pool().await;
     let session_id = Uuid::now_v7();

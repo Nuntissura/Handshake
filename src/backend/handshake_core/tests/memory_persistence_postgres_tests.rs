@@ -23,10 +23,10 @@ use chrono::{DateTime, Utc};
 use handshake_core::{
     memory::{
         CapsuleAuditEntry, CapsuleAuditLog, CapsuleRecord, CapsuleRecorder, DegradationTier,
-        MEMORY_CAPSULE_AGGREGATE_TYPE, MEMORY_CAPSULE_RECORD_ACTION_ID,
-        MEMORY_CAPSULE_SOURCE_COMPONENT, PostgresKernelActionSubmitter, RetrievalPolicy, TaskType,
+        PostgresKernelActionSubmitter, RetrievalPolicy, TaskType, MEMORY_CAPSULE_AGGREGATE_TYPE,
+        MEMORY_CAPSULE_RECORD_ACTION_ID, MEMORY_CAPSULE_SOURCE_COMPONENT,
     },
-    storage::{StorageError, tests::postgres_backend_from_env},
+    storage::{tests::postgres_backend_from_env, StorageError},
 };
 use uuid::Uuid;
 
@@ -34,17 +34,12 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
 {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: MT-145 memory capsule persistence tests require POSTGRES_TEST_URL; {msg}"
-            );
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn capsule_recorder_persists_via_kernel_action_catalog_against_postgres() {
     let db = postgres_or_environment_blocked().await;
 
@@ -106,7 +101,7 @@ async fn capsule_recorder_persists_via_kernel_action_catalog_against_postgres() 
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn capsule_recorder_postgres_dedup_collapses_duplicate_submissions() {
     let db = postgres_or_environment_blocked().await;
     let submitter = PostgresKernelActionSubmitter::with_db(std::sync::Arc::clone(&db));

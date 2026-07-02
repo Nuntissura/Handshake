@@ -276,17 +276,12 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
 {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: MT-160 hygiene manager tests require POSTGRES_TEST_URL; {msg}"
-            );
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test hygiene_manager_tests -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test hygiene_manager_tests -- --ignored`"]
 async fn postgres_submitter_persists_hygiene_prune_candidate() {
     let db = postgres_or_environment_blocked().await;
     let submitter = PostgresKernelActionSubmitter::with_db(std::sync::Arc::clone(&db));

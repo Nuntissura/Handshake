@@ -286,7 +286,8 @@ mod tests {
             self.outcome_for(block_id, "Loom Block")
         }
         fn open_code_symbol(&mut self, symbol_entity_id: &str) -> NavDispatchOutcome {
-            self.calls.push(("open_code_symbol", symbol_entity_id.to_owned()));
+            self.calls
+                .push(("open_code_symbol", symbol_entity_id.to_owned()));
             self.outcome_for(symbol_entity_id, "Code")
         }
         fn open_work_packet(&mut self, wp_id: &str) -> NavDispatchOutcome {
@@ -302,7 +303,8 @@ mod tests {
             self.outcome_for(slug, "User Manual")
         }
         fn open_wiki_page(&mut self, projection_id: &str) -> NavDispatchOutcome {
-            self.calls.push(("open_wiki_page", projection_id.to_owned()));
+            self.calls
+                .push(("open_wiki_page", projection_id.to_owned()));
             self.outcome_for(projection_id, "Loom Wiki Page")
         }
     }
@@ -335,7 +337,12 @@ mod tests {
             Ok(()),
         );
         assert_eq!(
-            dispatch(&mut nav, &NavigationTarget::OpenNote { note_id: "KRD-9".to_owned() }),
+            dispatch(
+                &mut nav,
+                &NavigationTarget::OpenNote {
+                    note_id: "KRD-9".to_owned()
+                }
+            ),
             Ok(()),
         );
         assert_eq!(
@@ -349,7 +356,12 @@ mod tests {
             Ok(()),
         );
         assert_eq!(
-            dispatch(&mut nav, &NavigationTarget::FocusPane { pane_id: pane("pane-a") }),
+            dispatch(
+                &mut nav,
+                &NavigationTarget::FocusPane {
+                    pane_id: pane("pane-a")
+                }
+            ),
             Ok(()),
         );
 
@@ -389,10 +401,17 @@ mod tests {
         );
 
         // A FocusPane for a closed pane -> PaneNotFound carrying the pane id.
-        let focus_err = dispatch(&mut nav, &NavigationTarget::FocusPane { pane_id: pane("pane-closed") });
+        let focus_err = dispatch(
+            &mut nav,
+            &NavigationTarget::FocusPane {
+                pane_id: pane("pane-closed"),
+            },
+        );
         assert_eq!(
             focus_err,
-            Err(NavError::PaneNotFound { pane_id: "pane-closed".to_owned() }),
+            Err(NavError::PaneNotFound {
+                pane_id: "pane-closed".to_owned()
+            }),
             "closed pane focus -> PaneNotFound with the stale pane id",
         );
     }
@@ -414,7 +433,9 @@ mod tests {
         );
         assert_eq!(
             err,
-            Err(NavError::EditorPaneNotMounted { editor: "Code".to_owned() }),
+            Err(NavError::EditorPaneNotMounted {
+                editor: "Code".to_owned()
+            }),
         );
     }
 
@@ -424,17 +445,27 @@ mod tests {
     #[test]
     fn pane_id_accessor_matches_variant() {
         assert_eq!(
-            NavigationTarget::FocusPane { pane_id: pane("p1") }.pane_id().map(|p| p.as_ref()),
+            NavigationTarget::FocusPane {
+                pane_id: pane("p1")
+            }
+            .pane_id()
+            .map(|p| p.as_ref()),
             Some("p1"),
         );
         assert_eq!(
-            NavigationTarget::EditorAtSymbol { pane_id: pane("p2"), symbol: "s".to_owned() }
-                .pane_id()
-                .map(|p| p.as_ref()),
+            NavigationTarget::EditorAtSymbol {
+                pane_id: pane("p2"),
+                symbol: "s".to_owned()
+            }
+            .pane_id()
+            .map(|p| p.as_ref()),
             Some("p2"),
         );
         assert_eq!(
-            NavigationTarget::OpenNote { note_id: "KRD-1".to_owned() }.pane_id(),
+            NavigationTarget::OpenNote {
+                note_id: "KRD-1".to_owned()
+            }
+            .pane_id(),
             None,
         );
     }

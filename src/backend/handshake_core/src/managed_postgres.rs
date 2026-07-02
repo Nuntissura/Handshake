@@ -212,8 +212,9 @@ fn resolve_bin_dir(
 /// Mirrors `init_flight_recorder`'s root resolution: the crate manifest lives
 /// at `<repo>/src/backend/handshake_core`, so walking three parents yields the
 /// repo root. The managed cluster data then lives under a sibling
-/// `Handshake_Artifacts/managed_pgdata` path. If the root cannot be resolved
-/// (unexpected layout), fall back to a relative path under the manifest.
+/// `Handshake_Artifacts/handshake-product/managed_pgdata` path. If the root
+/// cannot be resolved (unexpected layout), fall back to a relative path under
+/// the manifest.
 fn default_data_dir() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root_dir = manifest_dir
@@ -230,10 +231,12 @@ fn default_data_dir() -> PathBuf {
             let base = root.parent().map(Path::to_path_buf);
             base.unwrap_or(root)
                 .join("Handshake_Artifacts")
+                .join("handshake-product")
                 .join("managed_pgdata")
         }
         None => manifest_dir
             .join("Handshake_Artifacts")
+            .join("handshake-product")
             .join("managed_pgdata"),
     }
 }
@@ -295,10 +298,35 @@ impl ManagedPostgres {
 
         // 3. Already accepting connections -> adopt, never double-start.
         if is_ready(&pg_isready, config.port).await {
+            ensure_database(&psql, &config).await?;
             tracing::info!(
                 target: "handshake_core::managed_postgres",
                 port = config.port,
+                database = %config.database,
                 "PostgreSQL already accepting connections; adopting existing cluster"
+            );
+            return Ok(Self {
+                config,
+                os_pid: None,
+                started_here: false,
+            });
+        }
+
+        // A previous Handshake/test process may have already launched this
+        // cluster but not reached pg_isready yet. Do not call `pg_ctl start`
+        // against an initialized data dir with a live postmaster marker; wait
+        // for readiness and adopt it instead. This prevents no-env tests from
+        // racing each other into a false "pg_ctl start failed" path.
+        if cluster_initialized(&config.data_dir) && config.data_dir.join("postmaster.pid").exists()
+        {
+            wait_until_ready(&pg_isready, config.port, config.startup_timeout).await?;
+            ensure_database(&psql, &config).await?;
+            tracing::info!(
+                target: "handshake_core::managed_postgres",
+                port = config.port,
+                database = %config.database,
+                data_dir = %config.data_dir.display(),
+                "PostgreSQL postmaster already present; adopting after readiness wait"
             );
             return Ok(Self {
                 config,
@@ -795,6 +823,9 @@ mod tests {
         // and end with the managed_pgdata leaf, never a hardcoded drive root.
         let data_dir = default_data_dir();
         assert!(data_dir.ends_with("managed_pgdata"));
+        assert!(data_dir
+            .components()
+            .any(|component| component.as_os_str() == "handshake-product"));
     }
 
     #[test]

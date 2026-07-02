@@ -72,7 +72,12 @@ pub fn render_backlinks_panel(
         .show(ui, |ui| {
             // Header row: a refresh button (explicit re-fetch only — no polling).
             let refresh = ui.button("⟳ Refresh");
-            emit_node_author(ui.ctx(), refresh.id, accesskit::Role::Button, REFRESH_AUTHOR_ID);
+            emit_node_author(
+                ui.ctx(),
+                refresh.id,
+                accesskit::Role::Button,
+                REFRESH_AUTHOR_ID,
+            );
             if refresh.clicked() {
                 runtime.refresh_backlinks();
             }
@@ -96,8 +101,10 @@ pub fn render_backlinks_panel(
                     } else {
                         for link in &links {
                             let label = ui.add(
-                                egui::Label::new(egui::RichText::new(entry_label(link)).color(palette.accent))
-                                    .sense(egui::Sense::click()),
+                                egui::Label::new(
+                                    egui::RichText::new(entry_label(link)).color(palette.accent),
+                                )
+                                .sense(egui::Sense::click()),
                             );
                             emit_node_author(
                                 ui.ctx(),
@@ -125,7 +132,12 @@ pub fn render_backlinks_panel(
     expanded = resp.fully_open() || resp.openness > 0.5;
     runtime.backlinks_expanded = expanded;
 
-    emit_node_author(ui.ctx(), resp.header_response.id, accesskit::Role::Group, PANEL_AUTHOR_ID);
+    emit_node_author(
+        ui.ctx(),
+        resp.header_response.id,
+        accesskit::Role::Group,
+        PANEL_AUTHOR_ID,
+    );
 
     event
 }

@@ -165,7 +165,10 @@ pub fn locus_ref_chip_author_id(ref_value: &str) -> String {
     match crate::interop::locus_interop::parse_locus_ref(ref_value) {
         Some(r) => format!("locus-ref-chip-{}-{}", r.kind.as_str(), r.id),
         // A non-parsing locus ref (defensive) is still addressable via the deterministic hash.
-        None => format!("locus-ref-chip-unknown-{}", fnv1a_hash(ref_value.as_bytes())),
+        None => format!(
+            "locus-ref-chip-unknown-{}",
+            fnv1a_hash(ref_value.as_bytes())
+        ),
     }
 }
 
@@ -183,7 +186,10 @@ pub fn locus_ref_short_name(ref_value: &str) -> String {
 /// ("Show the symbol_key short form: last '::' segment"). Falls back to the whole string when there is
 /// no separator.
 pub fn code_ref_short_name(symbol_key_or_label: &str) -> String {
-    let after_hash = symbol_key_or_label.rsplit('#').next().unwrap_or(symbol_key_or_label);
+    let after_hash = symbol_key_or_label
+        .rsplit('#')
+        .next()
+        .unwrap_or(symbol_key_or_label);
     let last_seg = after_hash.rsplit("::").next().unwrap_or(after_hash);
     let trimmed = last_seg.trim();
     if trimmed.is_empty() {
@@ -254,11 +260,7 @@ pub fn chip_colors(link: &HsLinkNode, palette: &HsPalette) -> (Color32, Color32)
 /// scroll-adjusted paint origin the renderer threads in — RISK-1 / MC-001: scroll adjustment lives in
 /// the single paint origin, so this is a pure offset). A small vertical padding makes the chip read
 /// as a pill around the glyphs.
-pub fn chip_rect_for_span(
-    local_start: Rect,
-    local_end: Rect,
-    origin: egui::Pos2,
-) -> Rect {
+pub fn chip_rect_for_span(local_start: Rect, local_end: Rect, origin: egui::Pos2) -> Rect {
     // The chip spans from the start glyph's left to the end glyph's right, the row's full height.
     let x0 = origin.x + local_start.min.x;
     let x1 = origin.x + local_end.max.x;
@@ -286,16 +288,37 @@ mod tests {
         let a = chip_author_id("WP-KERNEL-012");
         let b = chip_author_id("WP-KERNEL-012");
         assert_eq!(a, b, "the chip id is deterministic for the same ref value");
-        assert!(a.starts_with("wikilink-chip-"), "the contract author_id prefix");
-        assert_ne!(chip_author_id("a"), chip_author_id("b"), "distinct refs -> distinct ids");
+        assert!(
+            a.starts_with("wikilink-chip-"),
+            "the contract author_id prefix"
+        );
+        assert_ne!(
+            chip_author_id("a"),
+            chip_author_id("b"),
+            "distinct refs -> distinct ids"
+        );
     }
 
     #[test]
     fn label_uses_explicit_then_falls_back() {
-        let with_label = HsLinkNode { ref_kind: "wp".into(), ref_value: "WP-7".into(), label: "Seven".into(), resolved: true };
+        let with_label = HsLinkNode {
+            ref_kind: "wp".into(),
+            ref_value: "WP-7".into(),
+            label: "Seven".into(),
+            resolved: true,
+        };
         assert_eq!(chip_label(&with_label), "Seven");
-        let no_label = HsLinkNode { ref_kind: "wp".into(), ref_value: "WP-7".into(), label: String::new(), resolved: true };
-        assert_eq!(chip_label(&no_label), "wp:WP-7", "falls back to ref_kind:ref_value");
+        let no_label = HsLinkNode {
+            ref_kind: "wp".into(),
+            ref_value: "WP-7".into(),
+            label: String::new(),
+            resolved: true,
+        };
+        assert_eq!(
+            chip_label(&no_label),
+            "wp:WP-7",
+            "falls back to ref_kind:ref_value"
+        );
     }
 
     #[test]
@@ -303,9 +326,19 @@ mod tests {
         // MT-034: the code-ref chip id is `code-ref-chip-{symbol_entity_id}` (the symbol the chip
         // references), used verbatim — NOT the hashed wikilink-chip id.
         assert_eq!(code_ref_chip_author_id("ent-42"), "code-ref-chip-ent-42");
-        let link = HsLinkNode { ref_kind: "code".into(), ref_value: "ent-42".into(), label: String::new(), resolved: true };
+        let link = HsLinkNode {
+            ref_kind: "code".into(),
+            ref_value: "ent-42".into(),
+            label: String::new(),
+            resolved: true,
+        };
         assert!(is_code_ref(&link));
-        let wp = HsLinkNode { ref_kind: "wp".into(), ref_value: "WP-1".into(), label: String::new(), resolved: true };
+        let wp = HsLinkNode {
+            ref_kind: "wp".into(),
+            ref_value: "WP-1".into(),
+            label: String::new(),
+            resolved: true,
+        };
         assert!(!is_code_ref(&wp));
     }
 
@@ -322,33 +355,74 @@ mod tests {
     fn code_ref_label_resolved_vs_unresolved() {
         // A resolved code ref shows the short name with a code glyph; an UNRESOLVED one (deleted symbol,
         // 404 -> resolved=false) shows `(unresolved)` greyed, never crashing (AC-4 / RISK pt(e)).
-        let resolved = HsLinkNode { ref_kind: "code".into(), ref_value: "ent-1".into(), label: "src/main.rs#MyStruct".into(), resolved: true };
+        let resolved = HsLinkNode {
+            ref_kind: "code".into(),
+            ref_value: "ent-1".into(),
+            label: "src/main.rs#MyStruct".into(),
+            resolved: true,
+        };
         let lbl = chip_label(&resolved);
-        assert!(lbl.contains("MyStruct"), "resolved code chip shows the short symbol name");
+        assert!(
+            lbl.contains("MyStruct"),
+            "resolved code chip shows the short symbol name"
+        );
         assert!(!lbl.contains("unresolved"));
-        let unresolved = HsLinkNode { ref_kind: "code".into(), ref_value: "ent-9".into(), label: "src/gone.rs#Gone".into(), resolved: false };
+        let unresolved = HsLinkNode {
+            ref_kind: "code".into(),
+            ref_value: "ent-9".into(),
+            label: "src/gone.rs#Gone".into(),
+            resolved: false,
+        };
         let ul = chip_label(&unresolved);
-        assert!(ul.contains("unresolved"), "an unresolved code chip reads as broken");
-        assert!(ul.starts_with("? "), "unresolved keeps the broken-link `?` prefix");
+        assert!(
+            ul.contains("unresolved"),
+            "an unresolved code chip reads as broken"
+        );
+        assert!(
+            ul.starts_with("? "),
+            "unresolved keeps the broken-link `?` prefix"
+        );
         assert!(ul.contains("Gone"));
     }
 
     #[test]
     fn unresolved_label_carries_question_prefix() {
-        let unknown = HsLinkNode { ref_kind: "unknown".into(), ref_value: "xyz".into(), label: String::new(), resolved: false };
-        assert_eq!(chip_label(&unknown), "? unknown:xyz", "an unresolved chip reads as broken");
+        let unknown = HsLinkNode {
+            ref_kind: "unknown".into(),
+            ref_value: "xyz".into(),
+            label: String::new(),
+            resolved: false,
+        };
+        assert_eq!(
+            chip_label(&unknown),
+            "? unknown:xyz",
+            "an unresolved chip reads as broken"
+        );
     }
 
     #[test]
     fn colors_come_from_theme_resolved_vs_unresolved() {
         let pal = dark();
-        let resolved = HsLinkNode { ref_kind: "wp".into(), ref_value: "x".into(), label: String::new(), resolved: true };
+        let resolved = HsLinkNode {
+            ref_kind: "wp".into(),
+            ref_value: "x".into(),
+            label: String::new(),
+            resolved: true,
+        };
         let (bg, fg) = chip_colors(&resolved, &pal);
         assert_eq!(bg, pal.accent_soft);
         assert_eq!(fg, pal.accent);
-        let unresolved = HsLinkNode { ref_kind: "unknown".into(), ref_value: "x".into(), label: String::new(), resolved: false };
+        let unresolved = HsLinkNode {
+            ref_kind: "unknown".into(),
+            ref_value: "x".into(),
+            label: String::new(),
+            resolved: false,
+        };
         let (bg2, fg2) = chip_colors(&unresolved, &pal);
-        assert_eq!(bg2, pal.error_bg, "unresolved uses the error background (visible broken link)");
+        assert_eq!(
+            bg2, pal.error_bg,
+            "unresolved uses the error background (visible broken link)"
+        );
         assert_eq!(fg2, pal.error_text);
     }
 
@@ -365,24 +439,42 @@ mod tests {
         // x spans from origin.x+10-1 to origin.x+62+1; y starts at origin.y+0.
         assert_eq!(rect.min.x, 40.0 + 10.0 - 1.0);
         assert_eq!(rect.max.x, 40.0 + 62.0 + 1.0);
-        assert_eq!(rect.min.y, 200.0, "chip Y follows the scroll-adjusted origin exactly");
-        assert!((rect.height() - 18.0).abs() < 0.01, "chip height is the glyph row height");
+        assert_eq!(
+            rect.min.y, 200.0,
+            "chip Y follows the scroll-adjusted origin exactly"
+        );
+        assert!(
+            (rect.height() - 18.0).abs() < 0.01,
+            "chip height is the glyph row height"
+        );
     }
 
     #[test]
     fn editor_event_shapes_round_trip_for_shell_routing() {
         // The events are small value types the shell drains; assert their fields carry the routing
         // payload the WP-011 host needs.
-        let wl = EditorEvent::WikilinkActivated { ref_kind: "wp".into(), ref_value: "WP-1".into(), resolved: true };
+        let wl = EditorEvent::WikilinkActivated {
+            ref_kind: "wp".into(),
+            ref_value: "WP-1".into(),
+            resolved: true,
+        };
         match wl {
-            EditorEvent::WikilinkActivated { ref_kind, ref_value, resolved } => {
+            EditorEvent::WikilinkActivated {
+                ref_kind,
+                ref_value,
+                resolved,
+            } => {
                 assert_eq!(ref_kind, "wp");
                 assert_eq!(ref_value, "WP-1");
                 assert!(resolved);
             }
             _ => panic!("variant"),
         }
-        let bl = EditorEvent::BacklinkActivated { source_document_id: "DOC-2".into() };
-        assert!(matches!(bl, EditorEvent::BacklinkActivated { source_document_id } if source_document_id == "DOC-2"));
+        let bl = EditorEvent::BacklinkActivated {
+            source_document_id: "DOC-2".into(),
+        };
+        assert!(
+            matches!(bl, EditorEvent::BacklinkActivated { source_document_id } if source_document_id == "DOC-2")
+        );
     }
 }

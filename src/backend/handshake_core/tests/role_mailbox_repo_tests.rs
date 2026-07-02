@@ -68,7 +68,10 @@ fn mt_177_mailbox_error_display_variants_are_distinct() {
     });
     assert_eq!(format!("{e_not_found}"), "thread not found");
     assert_eq!(format!("{e_conflict}"), "conflict");
-    assert_eq!(format!("{e_terminal}"), "thread in terminal lifecycle state");
+    assert_eq!(
+        format!("{e_terminal}"),
+        "thread in terminal lifecycle state"
+    );
     assert!(
         format!("{e_invalid}").contains("archived"),
         "InvalidTransition Display must surface the from/to pair"
@@ -179,7 +182,7 @@ fn mt_177_append_only_surface_no_destructive_methods() {
 // ----- Postgres-gated integration tests -----
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_thread_round_trip_create_get_list_messages_chronological() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -224,7 +227,7 @@ async fn mt_177_thread_round_trip_create_get_list_messages_chronological() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_concurrent_illegal_transition_one_winner() {
     let pool = postgres_pool().await;
     let repo = Arc::new(RoleMailboxRepository::new(pool));
@@ -282,7 +285,7 @@ async fn mt_177_concurrent_illegal_transition_one_winner() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_append_message_against_archived_thread_rejects() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -316,7 +319,7 @@ async fn mt_177_append_message_against_archived_thread_rejects() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_append_message_against_missing_thread_rejects() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -340,7 +343,7 @@ async fn mt_177_append_message_against_missing_thread_rejects() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_update_thread_lifecycle_on_missing_thread_rejects() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -357,7 +360,7 @@ async fn mt_177_update_thread_lifecycle_on_missing_thread_rejects() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_cascade_delete_on_thread_removes_messages() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -398,7 +401,7 @@ async fn mt_177_cascade_delete_on_thread_removes_messages() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_concurrent_appends_preserve_chronological_order() {
     let pool = postgres_pool().await;
     let repo = Arc::new(RoleMailboxRepository::new(pool));
@@ -444,7 +447,7 @@ async fn mt_177_concurrent_appends_preserve_chronological_order() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_transactional_rollback_leaves_no_visible_state() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool.clone());
@@ -477,7 +480,7 @@ async fn mt_177_transactional_rollback_leaves_no_visible_state() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_list_threads_by_state_filters_correctly() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -516,7 +519,7 @@ async fn mt_177_list_threads_by_state_filters_correctly() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_dead_letter_message_audits_reason_and_keeps_row() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool.clone());
@@ -545,18 +548,19 @@ async fn mt_177_dead_letter_message_audits_reason_and_keeps_row() {
 
     // The row must remain (append-only). delivery_state should now be
     // dead_lettered and audit_reason populated.
-    let row: (String, Option<String>) =
-        sqlx::query_as("SELECT delivery_state, audit_reason FROM role_mailbox_message WHERE message_id = $1")
-            .bind(msg.message_id.as_uuid())
-            .fetch_one(&pool)
-            .await
-            .expect("row must remain after dead-letter (append-only)");
+    let row: (String, Option<String>) = sqlx::query_as(
+        "SELECT delivery_state, audit_reason FROM role_mailbox_message WHERE message_id = $1",
+    )
+    .bind(msg.message_id.as_uuid())
+    .fetch_one(&pool)
+    .await
+    .expect("row must remain after dead-letter (append-only)");
     assert_eq!(row.0, "dead_lettered");
     assert_eq!(row.1.as_deref(), Some("policy violation"));
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_177_count_pending_messages_for_role_isolated() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -604,7 +608,10 @@ async fn mt_177_count_pending_messages_for_role_isolated() {
 
 fn sample_open_thread() -> RoleMailboxThread {
     RoleMailboxThread::open(
-        format!("mt-177-test-{}", Utc::now().timestamp_nanos_opt().unwrap_or(0)),
+        format!(
+            "mt-177-test-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        ),
         LinkedRecordKind::Wp,
         Some("WP-KERNEL-004".to_string()),
         vec![ExecutorKind::LocalSmallModel],
@@ -615,7 +622,8 @@ fn sample_open_thread() -> RoleMailboxThread {
 }
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL for role_mailbox_repo_tests");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }

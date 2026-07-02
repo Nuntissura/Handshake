@@ -49,7 +49,11 @@ fn panel_replace_current_then_research_keeps_match_list_valid() {
     panel.set_replace_text("X");
 
     let before = panel.find_state().expect("bar open");
-    assert_eq!(before.matches.len(), 3, "three foo matches before any replace");
+    assert_eq!(
+        before.matches.len(),
+        3,
+        "three foo matches before any replace"
+    );
 
     // Replace the current (first) match.
     assert!(panel.replace_current(), "a replacement was applied");
@@ -57,7 +61,11 @@ fn panel_replace_current_then_research_keeps_match_list_valid() {
     // RISK-003: the match list must be RE-SEARCHED so it reflects the edited buffer (now 2 matches),
     // never a stale 3-entry list with invalid offsets.
     let after = panel.find_state().expect("bar still open");
-    assert_eq!(after.matches.len(), 2, "match list re-searched after replace (RISK-003)");
+    assert_eq!(
+        after.matches.len(),
+        2,
+        "match list re-searched after replace (RISK-003)"
+    );
     assert_eq!(panel.buffer().to_string(), "X bar foo baz foo");
 }
 
@@ -74,7 +82,10 @@ fn panel_replace_all_clears_matches() {
 
     // After replacing every "foo" the re-search finds none.
     let after = panel.find_state().expect("bar open");
-    assert!(after.matches.is_empty(), "no matches remain after replace-all of the only term");
+    assert!(
+        after.matches.is_empty(),
+        "no matches remain after replace-all of the only term"
+    );
 }
 
 #[test]
@@ -91,9 +102,17 @@ fn panel_next_prev_wrap_around() {
     panel.next_match();
     assert_eq!(panel.find_state().unwrap().current_match, 2);
     panel.next_match(); // wrap to 0
-    assert_eq!(panel.find_state().unwrap().current_match, 0, "next wraps at the end");
+    assert_eq!(
+        panel.find_state().unwrap().current_match,
+        0,
+        "next wraps at the end"
+    );
     panel.prev_match(); // wrap back to last
-    assert_eq!(panel.find_state().unwrap().current_match, 2, "prev wraps at the start");
+    assert_eq!(
+        panel.find_state().unwrap().current_match,
+        2,
+        "prev wraps at the start"
+    );
 }
 
 #[test]
@@ -101,9 +120,17 @@ fn panel_open_find_prepopulates_from_selection() {
     // Implementation note 4: opening find with a selection pre-populates the query.
     let panel = CodeEditorPanel::new("hello target world", "txt");
     // Select "target" (bytes 6..12) via the cursor API.
-    panel.set_cursors(vec![handshake_native::code_editor::Cursor::selection(6, 12)]);
+    panel.set_cursors(vec![handshake_native::code_editor::Cursor::selection(
+        6, 12,
+    )]);
     panel.open_find(false);
     let s = panel.find_state().expect("bar open");
-    assert_eq!(s.query.pattern, "target", "selection pre-populates the find query");
-    assert!(!s.matches.is_empty(), "the pre-populated query found its own selection");
+    assert_eq!(
+        s.query.pattern, "target",
+        "selection pre-populates the find query"
+    );
+    assert!(
+        !s.matches.is_empty(),
+        "the pre-populated query found its own selection"
+    );
 }

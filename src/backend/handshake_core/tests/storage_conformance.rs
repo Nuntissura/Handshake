@@ -8,10 +8,6 @@ use handshake_core::storage::StorageError;
 async fn postgres_storage_conformance() {
     let db = match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            eprintln!("Skipping postgres storage conformance: {msg}");
-            return;
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     };
 
@@ -24,10 +20,6 @@ async fn postgres_storage_conformance() {
 async fn postgres_loom_storage_conformance() {
     let db = match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            eprintln!("Skipping postgres loom storage conformance: {msg}");
-            return;
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     };
 
@@ -40,10 +32,6 @@ async fn postgres_loom_storage_conformance() {
 async fn postgres_loom_traversal_performance_target() {
     let db = match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            eprintln!("Skipping postgres loom traversal performance: {msg}");
-            return;
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     };
 

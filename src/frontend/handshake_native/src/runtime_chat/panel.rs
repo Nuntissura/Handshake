@@ -205,9 +205,8 @@ impl RuntimeChatPanel {
                                 .background_color(palette.error_bg),
                         );
                     });
-                    let status = ui.label(
-                        egui::RichText::new(&endpoint_status).color(palette.text_subtle),
-                    );
+                    let status =
+                        ui.label(egui::RichText::new(&endpoint_status).color(palette.text_subtle));
                     ui.ctx().accesskit_node_builder(status.id, |node| {
                         node.set_role(accesskit::Role::Status);
                         node.set_author_id(RUNTIME_CHAT_STATUS_AUTHOR_ID.to_owned());

@@ -36,7 +36,7 @@ use handshake_native::code_editor::formatting::{
 use handshake_native::code_editor::lsp_client::{
     FormattingOptions, LspClient, LspPosition, LspRange, LspTextEdit,
 };
-use handshake_native::code_editor::{CodeEditorPanel, CodeEditorAction, Keymap, TextBuffer};
+use handshake_native::code_editor::{CodeEditorAction, CodeEditorPanel, Keymap, TextBuffer};
 
 // ── External-artifact-root helpers (CX-212E / CX-212E HARD): NEVER repo-local ─────────────────────────
 
@@ -64,8 +64,14 @@ fn assert_no_local_artifact_dir() {
 fn edit(sl: u32, sc: u32, el: u32, ec: u32, new_text: &str) -> LspTextEdit {
     LspTextEdit {
         range: LspRange {
-            start: LspPosition { line: sl, character: sc },
-            end: LspPosition { line: el, character: ec },
+            start: LspPosition {
+                line: sl,
+                character: sc,
+            },
+            end: LspPosition {
+                line: el,
+                character: ec,
+            },
         },
         new_text: new_text.to_owned(),
     }
@@ -100,7 +106,10 @@ fn format_document_single_undo() {
 
     // Apply the format to the buffer (the data path).
     let after = apply_text_edits_to_string(messy, &edits).expect("format applies");
-    assert_eq!(after, formatted, "AC-001: the buffer matches the formatted text");
+    assert_eq!(
+        after, formatted,
+        "AC-001: the buffer matches the formatted text"
+    );
 
     // Record the SINGLE undo entry through the REAL unified-undo bus (the same path the panel uses).
     let panel = Arc::new(CodeEditorPanel::new(messy, "rs"));
@@ -131,8 +140,14 @@ fn format_document_single_undo() {
         messy,
         "AC-001: a single Ctrl+Z reverts the WHOLE format"
     );
-    assert_eq!(bus.local_undo_count(&pane_id), 0, "AC-001: the single entry was consumed");
-    println!("PT-001 format_document_single_undo: 1 undo entry, single undo reverts the whole format");
+    assert_eq!(
+        bus.local_undo_count(&pane_id),
+        0,
+        "AC-001: the single entry was consumed"
+    );
+    println!(
+        "PT-001 format_document_single_undo: 1 undo entry, single undo reverts the whole format"
+    );
 }
 
 // ── AC-005 / RISK-001 / MC-004: descending-offset apply (ascending would corrupt) ─────────────────────
@@ -148,7 +163,11 @@ fn format_descending_offset_apply() {
     let mut buffer = TextBuffer::new(text);
     let applied = apply_text_edits(&mut buffer, &edits).expect("applies cleanly");
     assert_eq!(applied, 2, "both edits applied");
-    assert_eq!(buffer.to_string(), "AAAA BBBB\n", "AC-005: descending apply yields the correct text");
+    assert_eq!(
+        buffer.to_string(),
+        "AAAA BBBB\n",
+        "AC-005: descending apply yields the correct text"
+    );
 
     // Regression: a naive ascending apply against the ORIGINAL offsets mangles the text.
     let mut naive = text.to_owned();
@@ -182,17 +201,34 @@ fn format_utf16_column_conversion() {
     // Confirm the UTF-16 conversion maps col 2 -> byte 4 (after the 4-byte emoji), proving bytes != columns.
     let buffer = TextBuffer::new(text);
     let br = lsp_range_to_byte_range(&buffer, edits[0].range).expect("range resolves");
-    assert_eq!(br, 4..5, "AC-007: UTF-16 col 2..3 maps to byte 4..5 (after the 4-byte emoji)");
+    assert_eq!(
+        br,
+        4..5,
+        "AC-007: UTF-16 col 2..3 maps to byte 4..5 (after the 4-byte emoji)"
+    );
 
     // A CJK line (each kanji = 1 UTF-16 unit, 3 bytes): edit at UTF-16 col 1..2 lands after the first kanji.
     let cjk = "名前x\n"; // 名(3 bytes,1 u16) 前(3 bytes,1 u16) x
     let cjk_buffer = TextBuffer::new(cjk);
     let cjk_range = lsp_range_to_byte_range(
         &cjk_buffer,
-        LspRange { start: LspPosition { line: 0, character: 2 }, end: LspPosition { line: 0, character: 3 } },
+        LspRange {
+            start: LspPosition {
+                line: 0,
+                character: 2,
+            },
+            end: LspPosition {
+                line: 0,
+                character: 3,
+            },
+        },
     )
     .expect("cjk range resolves");
-    assert_eq!(cjk_range, 6..7, "AC-007: UTF-16 col 2..3 over two 3-byte kanji maps to byte 6..7 ('x')");
+    assert_eq!(
+        cjk_range,
+        6..7,
+        "AC-007: UTF-16 col 2..3 over two 3-byte kanji maps to byte 6..7 ('x')"
+    );
     println!("AC-007 format_utf16_column_conversion: emoji + CJK byte/UTF-16 divergence handled correctly");
 }
 
@@ -231,9 +267,15 @@ fn empty_selection_formats_current_line_not_document() {
     let buffer = TextBuffer::new(text);
     let caret = buffer.line_to_byte(1).unwrap() + 3; // a collapsed caret inside line 1
     let range = selection_range_for(&buffer, caret, caret).expect("range");
-    assert_eq!(range.start.line, 1, "empty selection -> current line (not line 0)");
+    assert_eq!(
+        range.start.line, 1,
+        "empty selection -> current line (not line 0)"
+    );
     assert_eq!(range.start.character, 0, "current line start");
-    assert_eq!(range.end.line, 1, "stays on the current line (NOT whole document)");
+    assert_eq!(
+        range.end.line, 1,
+        "stays on the current line (NOT whole document)"
+    );
     assert_eq!(range.end.character, 7, "current line end = content length");
     println!("empty_selection_formats_current_line: collapsed caret -> current line range, not whole doc");
 }
@@ -244,15 +286,27 @@ fn empty_selection_formats_current_line_not_document() {
 fn format_no_lsp_is_disabled_noop() {
     let lsp = LspClient::disabled();
     // formatter_available is false with no LSP attached.
-    assert!(!formatter_available(&lsp, "rust"), "AC-003: no LSP -> no formatter");
-    assert!(!range_formatter_available(&lsp, "rust"), "AC-003: no LSP -> no range formatter");
+    assert!(
+        !formatter_available(&lsp, "rust"),
+        "AC-003: no LSP -> no formatter"
+    );
+    assert!(
+        !range_formatter_available(&lsp, "rust"),
+        "AC-003: no LSP -> no range formatter"
+    );
 
     // Even a configured-but-not-running client without the capability is disabled.
     let descs = menu_descriptors(&lsp, "rust");
     assert_eq!(descs.len(), 3, "EDIT-menu + 2 context-menu descriptors");
     for d in &descs {
-        assert!(!d.enabled, "AC-003: every format menu entry disabled with no formatter");
-        assert_eq!(d.disabled_tooltip, NO_FORMATTER_TOOLTIP, "AC-003: the contract tooltip text");
+        assert!(
+            !d.enabled,
+            "AC-003: every format menu entry disabled with no formatter"
+        );
+        assert_eq!(
+            d.disabled_tooltip, NO_FORMATTER_TOOLTIP,
+            "AC-003: the contract tooltip text"
+        );
     }
 
     // Firing the panel's Alt+Shift+F path with no formatter is a NO-OP that does not panic and records the
@@ -260,8 +314,15 @@ fn format_no_lsp_is_disabled_noop() {
     let panel = CodeEditorPanel::new("fn main(){}", "rs");
     let before = panel.buffer().to_string();
     panel.request_format_document(); // must NOT panic, must NOT arm a request (no formatter)
-    assert!(!panel.format_request_armed_for_test(), "AC-003: no formatter -> request not armed (no-op)");
-    assert_eq!(panel.buffer().to_string(), before, "AC-003: the buffer is unchanged (no-op)");
+    assert!(
+        !panel.format_request_armed_for_test(),
+        "AC-003: no formatter -> request not armed (no-op)"
+    );
+    assert_eq!(
+        panel.buffer().to_string(),
+        before,
+        "AC-003: the buffer is unchanged (no-op)"
+    );
     assert_eq!(
         panel.last_format_toast().as_deref(),
         Some(NO_FORMATTER_TOOLTIP),
@@ -291,10 +352,19 @@ fn alt_shift_f_binds_format_document() {
     let bound_to_selection = CodeEditorAction::all()
         .iter()
         .any(|_| km.resolve(alt_shift_f) == Some(CodeEditorAction::FormatSelection));
-    assert!(!bound_to_selection, "AC-004: FormatSelection has no default binding");
+    assert!(
+        !bound_to_selection,
+        "AC-004: FormatSelection has no default binding"
+    );
     // The action name round-trips (settings-override surface).
-    assert_eq!(CodeEditorAction::from_name("format_document"), Some(CodeEditorAction::FormatDocument));
-    assert_eq!(CodeEditorAction::from_name("format_selection"), Some(CodeEditorAction::FormatSelection));
+    assert_eq!(
+        CodeEditorAction::from_name("format_document"),
+        Some(CodeEditorAction::FormatDocument)
+    );
+    assert_eq!(
+        CodeEditorAction::from_name("format_selection"),
+        Some(CodeEditorAction::FormatSelection)
+    );
     println!("AC-004 alt_shift_f_binds_format_document: Alt+Shift+F -> FormatDocument; FormatSelection unbound");
 }
 
@@ -321,10 +391,14 @@ fn format_lsp_error_surfaces_toast() {
                 .await
         });
 
-        let req = client_arc.read_test_request().await.expect("framed request");
+        let req = client_arc
+            .read_test_request()
+            .await
+            .expect("framed request");
         let id = req.get("id").cloned().expect("id");
         // A garbled result body (an object where a TextEdit[] is expected) -> Err(Parse), not a panic.
-        let response = serde_json::json!({ "jsonrpc": "2.0", "id": id, "result": { "not": "an array" } });
+        let response =
+            serde_json::json!({ "jsonrpc": "2.0", "id": id, "result": { "not": "an array" } });
         let frame = LspClient::frame_message_for_test(&response);
         use tokio::io::AsyncWriteExt;
         server.write_all(&frame).await.expect("write");
@@ -334,16 +408,27 @@ fn format_lsp_error_surfaces_toast() {
             .await
             .expect("resolved")
             .expect("join");
-        assert!(result.is_err(), "AC-006: a garbled format body returns Err(LspError), never a panic");
+        assert!(
+            result.is_err(),
+            "AC-006: a garbled format body returns Err(LspError), never a panic"
+        );
 
         // The FormatOutcome for an error is LspError(reason) — a typed value, surfaced as a toast.
         let outcome = match result {
             Err(e) => FormatOutcome::LspError(format!("Formatting failed: {e}")),
             Ok(_) => unreachable!(),
         };
-        assert!(matches!(outcome, FormatOutcome::LspError(_)), "AC-006: typed LspError outcome");
-        assert!(!outcome.changed(), "AC-006: an error never reports a change");
-        println!("AC-006 format_lsp_error_surfaces_toast: garbled body -> typed LspError, no panic");
+        assert!(
+            matches!(outcome, FormatOutcome::LspError(_)),
+            "AC-006: typed LspError outcome"
+        );
+        assert!(
+            !outcome.changed(),
+            "AC-006: an error never reports a change"
+        );
+        println!(
+            "AC-006 format_lsp_error_surfaces_toast: garbled body -> typed LspError, no panic"
+        );
     });
 }
 
@@ -381,14 +466,26 @@ fn format_request_reuses_mt008_transport() {
 fn capability_gate_enables_when_server_supports_formatting() {
     let client = LspClient::disabled();
     // No capability installed -> disabled.
-    assert!(!client.supports_document_formatting(), "no caps -> not supported");
+    assert!(
+        !client.supports_document_formatting(),
+        "no caps -> not supported"
+    );
     // Install the formatting capability (document only, not range).
     client.set_formatting_capability_for_test(true, false);
-    assert!(client.supports_document_formatting(), "documentFormattingProvider -> supported");
-    assert!(!client.supports_document_range_formatting(), "no range provider -> range not supported");
+    assert!(
+        client.supports_document_formatting(),
+        "documentFormattingProvider -> supported"
+    );
+    assert!(
+        !client.supports_document_range_formatting(),
+        "no range provider -> range not supported"
+    );
     // formatter_available also needs the client RUNNING (a transport attached). With caps but no transport,
     // is_running() is false, so formatter_available is false (the menu stays disabled until a server attaches).
-    assert!(!formatter_available(&client, "rust"), "caps without a running transport -> still disabled");
+    assert!(
+        !formatter_available(&client, "rust"),
+        "caps without a running transport -> still disabled"
+    );
     println!("capability_gate: documentFormattingProvider toggles supports_document_formatting");
 }
 
@@ -505,11 +602,20 @@ fn alt_shift_f_kittest_reflow() {
 fn menu_descriptor_author_ids_are_stable() {
     let lsp = LspClient::disabled();
     let descs = menu_descriptors(&lsp, "rust");
-    assert_eq!(descs[0].author_id, formatting::FORMAT_DOCUMENT_MENU_AUTHOR_ID);
+    assert_eq!(
+        descs[0].author_id,
+        formatting::FORMAT_DOCUMENT_MENU_AUTHOR_ID
+    );
     assert_eq!(descs[0].author_id, "menu.edit.format-document");
-    assert_eq!(descs[1].author_id, formatting::FORMAT_DOCUMENT_CTX_AUTHOR_ID);
+    assert_eq!(
+        descs[1].author_id,
+        formatting::FORMAT_DOCUMENT_CTX_AUTHOR_ID
+    );
     assert_eq!(descs[1].author_id, "code_editor_ctx_format_document");
-    assert_eq!(descs[2].author_id, formatting::FORMAT_SELECTION_CTX_AUTHOR_ID);
+    assert_eq!(
+        descs[2].author_id,
+        formatting::FORMAT_SELECTION_CTX_AUTHOR_ID
+    );
     assert_eq!(descs[2].author_id, "code_editor_ctx_format_selection");
 }
 
@@ -523,8 +629,19 @@ fn utf16_position_round_trips() {
     // (3 bytes), 前 at byte 6, ')' at byte 9.
     for byte in [0usize, 3, 6, 9, 13, 15] {
         if let Some(pos) = byte_to_lsp_position(&buffer, byte) {
-            let back = lsp_range_to_byte_range(&buffer, LspRange { start: pos, end: pos }).map(|r| r.start);
-            assert_eq!(back, Some(byte.min(buffer.len_bytes())), "byte {byte} round-trips via UTF-16");
+            let back = lsp_range_to_byte_range(
+                &buffer,
+                LspRange {
+                    start: pos,
+                    end: pos,
+                },
+            )
+            .map(|r| r.start);
+            assert_eq!(
+                back,
+                Some(byte.min(buffer.len_bytes())),
+                "byte {byte} round-trips via UTF-16"
+            );
         }
     }
 }
@@ -534,7 +651,9 @@ fn utf16_position_round_trips() {
 /// Fire `LspClient::format_document` over the REAL in-memory MT-008 transport (`install_test_transport`),
 /// assert the request method is `textDocument/formatting` (AC-007 — no second transport), write
 /// `response_result` as the `result` of the framed response, and return the parsed `Vec<LspTextEdit>`.
-async fn run_format_document_over_mock_transport(response_result: serde_json::Value) -> Vec<LspTextEdit> {
+async fn run_format_document_over_mock_transport(
+    response_result: serde_json::Value,
+) -> Vec<LspTextEdit> {
     let client = LspClient::disabled();
     let mut server = client.install_test_transport();
     let client_arc = Arc::new(client);
@@ -546,15 +665,24 @@ async fn run_format_document_over_mock_transport(response_result: serde_json::Va
             .await
     });
 
-    let req = client_arc.read_test_request().await.expect("framed formatting request");
+    let req = client_arc
+        .read_test_request()
+        .await
+        .expect("framed formatting request");
     assert_eq!(
         req.get("method").and_then(|m| m.as_str()),
         Some("textDocument/formatting"),
         "AC-007: the request method is textDocument/formatting over the EXISTING MT-008 transport"
     );
     let params = req.get("params").expect("params");
-    assert!(params.get("textDocument").is_some(), "AC-007: carries textDocument");
-    assert!(params.get("options").is_some(), "AC-007: carries the FormattingOptions");
+    assert!(
+        params.get("textDocument").is_some(),
+        "AC-007: carries textDocument"
+    );
+    assert!(
+        params.get("options").is_some(),
+        "AC-007: carries the FormattingOptions"
+    );
     let id = req.get("id").cloned().expect("id");
 
     let response = serde_json::json!({ "jsonrpc": "2.0", "id": id, "result": response_result });
@@ -571,14 +699,22 @@ async fn run_format_document_over_mock_transport(response_result: serde_json::Va
 }
 
 /// Same as [`run_format_document_over_mock_transport`] for `textDocument/rangeFormatting`.
-async fn run_format_range_over_mock_transport(response_result: serde_json::Value) -> Vec<LspTextEdit> {
+async fn run_format_range_over_mock_transport(
+    response_result: serde_json::Value,
+) -> Vec<LspTextEdit> {
     let client = LspClient::disabled();
     let mut server = client.install_test_transport();
     let client_arc = Arc::new(client);
 
     let range = LspRange {
-        start: LspPosition { line: 1, character: 0 },
-        end: LspPosition { line: 1, character: 11 },
+        start: LspPosition {
+            line: 1,
+            character: 0,
+        },
+        end: LspPosition {
+            line: 1,
+            character: 11,
+        },
     };
     let req_client = Arc::clone(&client_arc);
     let request = tokio::spawn(async move {
@@ -587,14 +723,20 @@ async fn run_format_range_over_mock_transport(response_result: serde_json::Value
             .await
     });
 
-    let req = client_arc.read_test_request().await.expect("framed rangeFormatting request");
+    let req = client_arc
+        .read_test_request()
+        .await
+        .expect("framed rangeFormatting request");
     assert_eq!(
         req.get("method").and_then(|m| m.as_str()),
         Some("textDocument/rangeFormatting"),
         "AC-007: the request method is textDocument/rangeFormatting over the EXISTING MT-008 transport"
     );
     let params = req.get("params").expect("params");
-    assert!(params.get("range").is_some(), "AC-007: rangeFormatting carries the range");
+    assert!(
+        params.get("range").is_some(),
+        "AC-007: rangeFormatting carries the range"
+    );
     let id = req.get("id").cloned().expect("id");
 
     let response = serde_json::json!({ "jsonrpc": "2.0", "id": id, "result": response_result });

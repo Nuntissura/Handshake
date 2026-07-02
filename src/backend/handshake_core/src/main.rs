@@ -1,15 +1,15 @@
-use axum::{Json, Router, extract::State, routing::get};
+use axum::{extract::State, routing::get, Json, Router};
 use handshake_core::{
-    AppState, api,
+    api,
     capabilities::CapabilityRegistry,
     diagnostics::DiagnosticsStore,
-    flight_recorder::{FlightRecorder, duckdb::DuckDbFlightRecorder},
+    flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
     llm::{
-        DisabledLlmClient, LlmClient, ModelTier,
         guard::CloudEscalationGuard,
         ollama::OllamaAdapter,
         openai_compat::{ApiKey, OpenAiCompatAdapter},
         registry::{ProviderKind, ProviderRegistry, RuntimeRole},
+        DisabledLlmClient, LlmClient, ModelTier,
     },
     logging,
     models::HealthResponse,
@@ -18,7 +18,7 @@ use handshake_core::{
         self,
         retention::{Janitor, JanitorConfig},
     },
-    workflows,
+    workflows, AppState,
 };
 use std::{
     net::SocketAddr,
@@ -104,6 +104,22 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         session_registry,
         postgres_pool: control_plane.postgres_pool.clone(),
     };
+
+    match workflows::repair_model_run_workflow_bindings(&state).await {
+        Ok(repaired) => tracing::info!(
+            target: "handshake_core::model_run_scheduler",
+            repaired,
+            "model_run workflow bindings repaired at startup"
+        ),
+        Err(err) => {
+            tracing::error!(
+                target: "handshake_core::model_run_scheduler",
+                error = %err,
+                "model_run workflow binding startup repair failed"
+            );
+            return Err(Box::new(err));
+        }
+    }
 
     // Bootstrap the WP-KERNEL-005 atelier schema (idempotent, advisory-locked)
     // on the shared pool so the atelier HTTP surface is queryable from startup.

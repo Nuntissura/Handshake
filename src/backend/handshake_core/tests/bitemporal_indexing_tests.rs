@@ -11,17 +11,17 @@ use chrono::{DateTime, Utc};
 use handshake_core::{
     memory::bitemporal::{
         AsOfQuery, BitemporalError, BitemporalItem, BitemporalStamps,
-        MEMORY_BITEMPORAL_EVENT_SCHEMA_ID, MEMORY_BITEMPORAL_ITEM_AGGREGATE_TYPE,
-        MEMORY_BITEMPORAL_SOURCE_COMPONENT, PostgresBitemporalMemoryIndex,
+        PostgresBitemporalMemoryIndex, MEMORY_BITEMPORAL_EVENT_SCHEMA_ID,
+        MEMORY_BITEMPORAL_ITEM_AGGREGATE_TYPE, MEMORY_BITEMPORAL_SOURCE_COMPONENT,
     },
-    storage::{Database, StorageError, StorageResult, postgres::PostgresDatabase},
+    storage::{postgres::PostgresDatabase, Database, StorageError, StorageResult},
 };
 use serde_json::json;
 use sqlx::{Connection, PgPool, Row};
 use uuid::Uuid;
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
 async fn bitemporal_items_persist_to_kernel_event_ledger_jsonb_without_memory_item_table() {
     let (db, pool) = isolated_postgres().await.expect("isolated postgres");
     let index = PostgresBitemporalMemoryIndex::with_db(Arc::clone(&db));
@@ -53,12 +53,10 @@ async fn bitemporal_items_persist_to_kernel_event_ledger_jsonb_without_memory_it
         .record_item(invalidated.clone())
         .await
         .expect("record invalidated");
-    assert!(
-        index
-            .invalidate_item(invalidated.item_id, at(200))
-            .await
-            .expect("invalidate item")
-    );
+    assert!(index
+        .invalidate_item(invalidated.item_id, at(200))
+        .await
+        .expect("invalidate item"));
 
     let before_invalidation = index
         .items_visible_at(&AsOfQuery {
@@ -152,7 +150,7 @@ async fn bitemporal_items_persist_to_kernel_event_ledger_jsonb_without_memory_it
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
 async fn duplicate_records_are_idempotent_and_manifest_replay_deduplicates_visible_items() {
     let (db, pool) = isolated_postgres().await.expect("isolated postgres");
     let index = PostgresBitemporalMemoryIndex::with_db(Arc::clone(&db));
@@ -205,7 +203,7 @@ async fn duplicate_records_are_idempotent_and_manifest_replay_deduplicates_visib
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
 async fn invalid_temporal_windows_are_rejected_before_ledger_append() {
     let (db, pool) = isolated_postgres().await.expect("isolated postgres");
     let index = PostgresBitemporalMemoryIndex::with_db(Arc::clone(&db));
@@ -279,7 +277,7 @@ async fn invalid_temporal_windows_are_rejected_before_ledger_append() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
 async fn as_of_replay_uses_recorded_time_not_latest_event_sequence() {
     let (db, _pool) = isolated_postgres().await.expect("isolated postgres");
     let index = PostgresBitemporalMemoryIndex::with_db(Arc::clone(&db));
@@ -334,7 +332,7 @@ async fn as_of_replay_uses_recorded_time_not_latest_event_sequence() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test bitemporal_indexing_tests -- --ignored`"]
 async fn repeated_invalidation_replay_uses_earliest_effective_invalidation_for_as_of_query() {
     let (db, _pool) = isolated_postgres().await.expect("isolated postgres");
     let index = PostgresBitemporalMemoryIndex::with_db(Arc::clone(&db));
@@ -354,18 +352,14 @@ async fn repeated_invalidation_replay_uses_earliest_effective_invalidation_for_a
         .await
         .expect("record item");
 
-    assert!(
-        index
-            .invalidate_item(item_id, at(200))
-            .await
-            .expect("first invalidation")
-    );
-    assert!(
-        index
-            .invalidate_item(item_id, at(350))
-            .await
-            .expect("second invalidation")
-    );
+    assert!(index
+        .invalidate_item(item_id, at(200))
+        .await
+        .expect("first invalidation"));
+    assert!(index
+        .invalidate_item(item_id, at(350))
+        .await
+        .expect("second invalidation"));
 
     let after_first_before_second_invalidation = index
         .items_visible_at(&AsOfQuery {
@@ -381,8 +375,7 @@ async fn repeated_invalidation_replay_uses_earliest_effective_invalidation_for_a
 }
 
 async fn isolated_postgres() -> StorageResult<(Arc<dyn Database>, PgPool)> {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .map_err(|_| StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests"))?;
+    let url = handshake_core::storage::tests::postgres_test_base_url().await?;
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("mt157_bitemporal_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))

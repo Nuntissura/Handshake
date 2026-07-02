@@ -55,7 +55,10 @@ fn outline_provider_two_functions_correct_names_and_lines() {
     let buffer = TextBuffer::new(RUST_TWO_FNS);
 
     let items = OutlineProvider::compute(&tree, &buffer, "rust");
-    let fns: Vec<_> = items.iter().filter(|i| i.kind == OutlineKind::Function).collect();
+    let fns: Vec<_> = items
+        .iter()
+        .filter(|i| i.kind == OutlineKind::Function)
+        .collect();
 
     assert_eq!(
         fns.len(),
@@ -63,13 +66,18 @@ fn outline_provider_two_functions_correct_names_and_lines() {
         "AC-001: a two-function file yields exactly 2 Function outline items; got {items:?}"
     );
     assert_eq!(fns[0].name, "first", "AC-001: first function name");
-    assert_eq!(fns[0].line, 1, "AC-001: first function on line 1 (line 0 is the comment)");
+    assert_eq!(
+        fns[0].line, 1,
+        "AC-001: first function on line 1 (line 0 is the comment)"
+    );
     assert_eq!(fns[1].name, "second", "AC-001: second function name");
     assert_eq!(fns[1].line, 9, "AC-001: second function on line 9");
     println!(
         "PT-001 outline: {} items, fns={:?}",
         items.len(),
-        fns.iter().map(|f| (f.name.as_str(), f.line)).collect::<Vec<_>>()
+        fns.iter()
+            .map(|f| (f.name.as_str(), f.line))
+            .collect::<Vec<_>>()
     );
 }
 
@@ -84,7 +92,11 @@ fn outline_provider_via_panel_surface() {
         .filter(|i| i.kind == OutlineKind::Function)
         .map(|i| i.name.as_str())
         .collect();
-    assert_eq!(fn_names, vec!["first", "second"], "panel outline matches; got {items:?}");
+    assert_eq!(
+        fn_names,
+        vec!["first", "second"],
+        "panel outline matches; got {items:?}"
+    );
 }
 
 // ── AC-004 / PT-004: outline_navigate — click item 1 scrolls the editor to its line ───────────────
@@ -106,7 +118,10 @@ fn outline_navigate_click_scrolls_editor_and_emits_tree_node() {
     let panel = Arc::new(CodeEditorPanel::new(&src, "rs"));
     // The outline must contain at least 2 items (AC-004).
     let items = panel.outline_items();
-    let fns: Vec<_> = items.iter().filter(|i| i.kind == OutlineKind::Function).collect();
+    let fns: Vec<_> = items
+        .iter()
+        .filter(|i| i.kind == OutlineKind::Function)
+        .collect();
     assert!(
         fns.len() >= 2,
         "AC-004: the outline renders at least 2 items for the snippet; got {items:?}"

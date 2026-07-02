@@ -39,7 +39,13 @@ use handshake_native::code_editor::{
 
 /// A Ctrl+<key> chord on the dev/CI host (Windows/Linux -> Mod == Ctrl).
 fn ctrl(key: Key) -> KeyChord {
-    KeyChord { key, ctrl: true, alt: false, shift: false, mac_cmd: false }
+    KeyChord {
+        key,
+        ctrl: true,
+        alt: false,
+        shift: false,
+        mac_cmd: false,
+    }
 }
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
@@ -61,13 +67,21 @@ fn assert_no_local_test_output() {
 #[test]
 fn keymap_resolve() {
     let km = Keymap::default_vscode();
-    assert_eq!(km.resolve(ctrl(Key::F)), Some(CodeEditorAction::OpenFind), "Ctrl+F -> OpenFind");
+    assert_eq!(
+        km.resolve(ctrl(Key::F)),
+        Some(CodeEditorAction::OpenFind),
+        "Ctrl+F -> OpenFind"
+    );
     assert_eq!(
         km.resolve(ctrl(Key::H)),
         Some(CodeEditorAction::OpenReplace),
         "Ctrl+H -> OpenReplace"
     );
-    assert_eq!(km.resolve(ctrl(Key::G)), Some(CodeEditorAction::GoToLine), "Ctrl+G -> GoToLine");
+    assert_eq!(
+        km.resolve(ctrl(Key::G)),
+        Some(CodeEditorAction::GoToLine),
+        "Ctrl+G -> GoToLine"
+    );
     assert_eq!(
         km.resolve(ctrl(Key::D)),
         Some(CodeEditorAction::SelectNextOccurrence),
@@ -78,22 +92,26 @@ fn keymap_resolve() {
         Some(CodeEditorAction::GoToDefinition),
         "F12 -> GoToDefinition"
     );
-    assert_eq!(km.resolve(ctrl(Key::S)), Some(CodeEditorAction::Save), "Ctrl+S -> Save");
+    assert_eq!(
+        km.resolve(ctrl(Key::S)),
+        Some(CodeEditorAction::Save),
+        "Ctrl+S -> Save"
+    );
 
     // Context-sensitive Escape: CloseFind when the find bar is open; no-op (None) with no state. Driven
     // through the LIVE panel's contextual resolver, not a faked table.
     let panel = CodeEditorPanel::new("fn main() {}", "rs");
     // No state -> Escape is a no-op (None): the contextual resolver returns None and the keymap's
     // CancelMultiCursor would otherwise reset a single cursor pointlessly.
-    assert!(
-        !panel.is_find_open(),
-        "precondition: find bar closed"
-    );
+    assert!(!panel.is_find_open(), "precondition: find bar closed");
     // Open the find bar; now Escape must close it (the contextual path resolves CloseFind).
     panel.open_find(false);
     assert!(panel.is_find_open(), "find bar opened");
     panel.dispatch_action(CodeEditorAction::CloseFind);
-    assert!(!panel.is_find_open(), "Escape (find open) -> CloseFind closed the bar");
+    assert!(
+        !panel.is_find_open(),
+        "Escape (find open) -> CloseFind closed the bar"
+    );
     println!("PT-001 keymap_resolve: core chords + context Escape OK");
 }
 
@@ -107,7 +125,11 @@ fn keymap_two_chord() {
     let ctrl_j = ctrl(Key::J);
 
     // Ctrl+K is a prefix, not a standalone action.
-    assert_eq!(km.resolve(ctrl_k), None, "Ctrl+K alone resolves to no single action");
+    assert_eq!(
+        km.resolve(ctrl_k),
+        None,
+        "Ctrl+K alone resolves to no single action"
+    );
     assert!(km.resolve_prefix(ctrl_k), "Ctrl+K is a two-chord prefix");
 
     // Ctrl+K then Ctrl+0 -> FoldAll; Ctrl+K then Ctrl+J -> UnfoldAll.
@@ -138,8 +160,7 @@ fn keymap_two_chord() {
     let foldable = panel.fold_set().regions.len();
     assert!(foldable > 0, "the function body is a foldable region");
     panel.dispatch_action(CodeEditorAction::FoldAll);
-    let all_folded =
-        panel.fold_set().regions.iter().all(|r| r.folded);
+    let all_folded = panel.fold_set().regions.iter().all(|r| r.folded);
     assert!(all_folded, "FoldAll folded every region");
     panel.dispatch_action(CodeEditorAction::UnfoldAll);
     let none_folded = panel.fold_set().regions.iter().all(|r| !r.folded);
@@ -154,7 +175,10 @@ fn keymap_chord_parse() {
     // "Ctrl+Shift+P" -> ctrl+shift, key P.
     let c = KeymapSettings::chord_from_str("Ctrl+Shift+P").expect("Ctrl+Shift+P parses");
     assert_eq!(c.key, Key::P);
-    assert!(c.ctrl && c.shift && !c.alt && !c.mac_cmd, "ctrl+shift+P modifiers");
+    assert!(
+        c.ctrl && c.shift && !c.alt && !c.mac_cmd,
+        "ctrl+shift+P modifiers"
+    );
 
     // "Alt+Up" -> alt, key ArrowUp.
     let c = KeymapSettings::chord_from_str("Alt+Up").expect("Alt+Up parses");
@@ -162,8 +186,14 @@ fn keymap_chord_parse() {
     assert!(c.alt && !c.ctrl && !c.shift, "alt+Up modifiers");
 
     // Invalid strings return Err (MC-002 / RISK-003): unknown key, only-modifiers, empty.
-    assert!(KeymapSettings::chord_from_str("Ctrl+Nope").is_err(), "unknown key -> Err");
-    assert!(KeymapSettings::chord_from_str("Ctrl+Shift").is_err(), "no key -> Err");
+    assert!(
+        KeymapSettings::chord_from_str("Ctrl+Nope").is_err(),
+        "unknown key -> Err"
+    );
+    assert!(
+        KeymapSettings::chord_from_str("Ctrl+Shift").is_err(),
+        "no key -> Err"
+    );
     assert!(KeymapSettings::chord_from_str("").is_err(), "empty -> Err");
     println!("PT-003 keymap_chord_parse: parse + Err cases OK");
 }
@@ -195,13 +225,23 @@ fn keymap_override() {
     // An override with a BAD chord or BAD action id is SKIPPED (not a panic, not a wrong binding).
     let bad = KeymapSettings {
         overrides: vec![
-            KeymapOverride { action: "no_such_action".to_owned(), chord: "Ctrl+P".to_owned() },
-            KeymapOverride { action: "save".to_owned(), chord: "Ctrl+Nope".to_owned() },
+            KeymapOverride {
+                action: "no_such_action".to_owned(),
+                chord: "Ctrl+P".to_owned(),
+            },
+            KeymapOverride {
+                action: "save".to_owned(),
+                chord: "Ctrl+Nope".to_owned(),
+            },
         ],
     };
     let km_bad = Keymap::from_settings(&bad);
     // Save still has its default binding (Ctrl+S); the bad override did not change it.
-    assert_eq!(km_bad.resolve(ctrl(Key::S)), Some(CodeEditorAction::Save), "bad overrides skipped");
+    assert_eq!(
+        km_bad.resolve(ctrl(Key::S)),
+        Some(CodeEditorAction::Save),
+        "bad overrides skipped"
+    );
 
     // The override file is plain serde JSON (round-trips), proving the same authority can be read by
     // MT-072's PG settings surface later (one logical authority, two transports).
@@ -215,7 +255,10 @@ fn keymap_override() {
 
 #[test]
 fn keymap_accesskit_commands() {
-    let panel = Arc::new(CodeEditorPanel::new("fn main() {\n    let x = 1;\n}\n", "rs"));
+    let panel = Arc::new(CodeEditorPanel::new(
+        "fn main() {\n    let x = 1;\n}\n",
+        "rs",
+    ));
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(800.0, 480.0))
@@ -278,10 +321,20 @@ fn keymap_accesskit_commands() {
     // (OpenFind opens the find bar).
     assert!(!panel.is_find_open(), "find bar starts closed");
     let dispatched = panel.dispatch_command_by_author_id("code_editor_cmd_open_find");
-    assert_eq!(dispatched, Some(CodeEditorAction::OpenFind), "dispatch-by-id resolved OpenFind");
-    assert!(panel.is_find_open(), "dispatching code_editor_cmd_open_find opened the find bar");
+    assert_eq!(
+        dispatched,
+        Some(CodeEditorAction::OpenFind),
+        "dispatch-by-id resolved OpenFind"
+    );
+    assert!(
+        panel.is_find_open(),
+        "dispatching code_editor_cmd_open_find opened the find bar"
+    );
     // An unknown author id is a no-op (None), not a panic.
-    assert_eq!(panel.dispatch_command_by_author_id("code_editor_cmd_nope"), None);
+    assert_eq!(
+        panel.dispatch_command_by_author_id("code_editor_cmd_nope"),
+        None
+    );
 
     // HBR-VIS: screenshot the editor with the command surface present. On a GPU host this saves a PNG;
     // absent a wgpu adapter, record an honest non-fatal note (the AccessKit proof above stands).
@@ -299,7 +352,10 @@ fn keymap_accesskit_commands() {
                 command_nodes.len(),
                 abs.display()
             );
-            assert!(saved, "PT-005: the keymap-commands screenshot PNG saved to the external root");
+            assert!(
+                saved,
+                "PT-005: the keymap-commands screenshot PNG saved to the external root"
+            );
         }
         Err(e) => {
             println!(
@@ -370,7 +426,10 @@ fn keymap_single_dispatch_consolidated() {
     panel.set_single_cursor(1);
     panel.dispatch_action(CodeEditorAction::SelectNextOccurrence);
     let primary = panel.cursors().primary();
-    assert!(primary.is_selection(), "SelectNextOccurrence selected the word under the caret");
+    assert!(
+        primary.is_selection(),
+        "SelectNextOccurrence selected the word under the caret"
+    );
     println!("PT-006 single dispatch: 1 Event::Key site, no scattered arms, live dispatch OK");
 }
 
@@ -428,7 +487,10 @@ fn press(harness: &mut Harness<'static>, key: Key, modifiers: egui::Modifiers) {
 }
 
 fn ctrl_mods() -> egui::Modifiers {
-    egui::Modifiers { ctrl: true, ..Default::default() }
+    egui::Modifiers {
+        ctrl: true,
+        ..Default::default()
+    }
 }
 
 /// (a) Find bar open + a REAL Escape event -> the bar closes via process_keymap -> resolve_contextual
@@ -463,11 +525,17 @@ fn process_keymap_enter_event_submits_goto_line_without_newline() {
     let before = panel.buffer().to_string();
     panel.open_goto_line();
     panel.set_goto_line_input("10");
-    assert!(panel.is_goto_line_open(), "precondition: goto-line palette open");
+    assert!(
+        panel.is_goto_line_open(),
+        "precondition: goto-line palette open"
+    );
 
     press(&mut harness, Key::Enter, egui::Modifiers::default());
 
-    assert!(!panel.is_goto_line_open(), "Enter submitted + closed the goto-line palette");
+    assert!(
+        !panel.is_goto_line_open(),
+        "Enter submitted + closed the goto-line palette"
+    );
     let after = panel.buffer().to_string();
     assert_eq!(
         after, before,
@@ -478,7 +546,10 @@ fn process_keymap_enter_event_submits_goto_line_without_newline() {
         let buf = panel.buffer();
         handshake_native::code_editor::byte_to_line_col(panel.cursors().primary().head, &buf)
     };
-    assert_eq!(caret_line, 9, "Enter submitted the goto-line (caret on 0-based line 9)");
+    assert_eq!(
+        caret_line, 9,
+        "Enter submitted the goto-line (caret on 0-based line 9)"
+    );
     println!("event Enter submitted goto-line WITHOUT inserting a newline (Consumed precedence)");
 }
 
@@ -489,14 +560,23 @@ fn process_keymap_two_chord_within_window_folds_all() {
     let panel = Arc::new(CodeEditorPanel::new(FOLDABLE_RUST, "rs"));
     let mut harness = harness_for(&panel);
     harness.run();
-    assert!(panel.fold_set().regions.iter().any(|r| !r.folded), "precondition: an unfolded region");
+    assert!(
+        panel.fold_set().regions.iter().any(|r| !r.folded),
+        "precondition: an unfolded region"
+    );
 
     // First chord arms the prefix.
     press(&mut harness, Key::K, ctrl_mods());
-    assert!(panel.is_chord_pending(), "Ctrl+K armed the two-chord prefix");
+    assert!(
+        panel.is_chord_pending(),
+        "Ctrl+K armed the two-chord prefix"
+    );
     // Second chord within the window resolves FoldAll.
     press(&mut harness, Key::Num0, ctrl_mods());
-    assert!(!panel.is_chord_pending(), "the second chord cleared the pending prefix");
+    assert!(
+        !panel.is_chord_pending(),
+        "the second chord cleared the pending prefix"
+    );
     assert!(
         panel.fold_set().regions.iter().all(|r| r.folded),
         "Ctrl+K Ctrl+0 through the live dispatcher folded every region (FoldAll)"
@@ -528,8 +608,13 @@ fn process_keymap_two_chord_timeout_clears_pending_no_fold() {
         panel.fold_set().regions.iter().all(|r| !r.folded),
         "the timed-out prefix was cleared by the real timeout branch -> Ctrl+0 did NOT FoldAll"
     );
-    assert!(!panel.is_chord_pending(), "no prefix remains pending after the timeout clear");
-    println!("event Ctrl+K (timed out) then Ctrl+0 -> NO FoldAll (real timeout branch cleared pending)");
+    assert!(
+        !panel.is_chord_pending(),
+        "no prefix remains pending after the timeout clear"
+    );
+    println!(
+        "event Ctrl+K (timed out) then Ctrl+0 -> NO FoldAll (real timeout branch cleared pending)"
+    );
 }
 
 /// must-fix #1: forward-delete (DeleteRight / the Delete key) at end-of-buffer is a NO-OP and must NOT
@@ -550,7 +635,11 @@ fn delete_right_at_eof_is_a_noop() {
     // Mid-buffer DeleteRight still deletes the char AFTER the caret (forward).
     panel.set_single_cursor(1);
     panel.dispatch_action(CodeEditorAction::DeleteRight);
-    assert_eq!(panel.buffer().to_string(), "ac", "DeleteRight mid-buffer removes the forward char");
+    assert_eq!(
+        panel.buffer().to_string(),
+        "ac",
+        "DeleteRight mid-buffer removes the forward char"
+    );
     println!("DeleteRight EOF no-op + mid-buffer forward delete OK");
 }
 

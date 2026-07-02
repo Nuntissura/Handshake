@@ -42,7 +42,10 @@ fn assert_no_local_test_output() {
 
 /// Build an Alt+Click (Primary press + release) at `pos` with alt set ON the events.
 fn alt_click_events(pos: egui::Pos2) -> [egui::Event; 2] {
-    let alt = egui::Modifiers { alt: true, ..Default::default() };
+    let alt = egui::Modifiers {
+        alt: true,
+        ..Default::default()
+    };
     [
         egui::Event::PointerButton {
             pos,
@@ -155,7 +158,10 @@ fn multi_cursor_accesskit_two_alt_clicks_make_two_cursor_nodes() {
     // cursors). `query_all_by_label` (not the singular `query_by_label`, which panics on >1 match)
     // confirms exactly the two we expect are present and addressable.
     let labeled = harness.query_all_by_label("Code editor cursor").count();
-    assert_eq!(labeled, 2, "exactly two cursor nodes are labeled/addressable; got {labeled}");
+    assert_eq!(
+        labeled, 2,
+        "exactly two cursor nodes are labeled/addressable; got {labeled}"
+    );
 }
 
 // ── PT-005 / AC-005: two-caret screenshot (pixel-verified two caret columns) ──────────────────────
@@ -176,8 +182,12 @@ fn multi_cursor_accesskit_two_caret_screenshot() {
 
     // Two carets at clearly different COLUMNS on the SAME line so the screenshot shows two distinct
     // vertical caret bars (two cursor-color pixel columns). Line 0, columns 2 and 12.
-    let p_a = panel.screen_pos_for_line_col(0, 2, gw).expect("col 2 on screen");
-    let p_b = panel.screen_pos_for_line_col(0, 12, gw).expect("col 12 on screen");
+    let p_a = panel
+        .screen_pos_for_line_col(0, 2, gw)
+        .expect("col 2 on screen");
+    let p_b = panel
+        .screen_pos_for_line_col(0, 12, gw)
+        .expect("col 12 on screen");
 
     // Plain click at col 2, then Alt+Click at col 12 -> two carets on line 0.
     for ev in [
@@ -220,14 +230,19 @@ fn multi_cursor_accesskit_two_caret_screenshot() {
             let raw = image.as_raw();
             let stride = w as usize * 4;
             // Determine the background color (the modal pixel).
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut i = 0;
             while i + 4 <= raw.len() {
                 let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
                 *counts.entry(px).or_insert(0) += 1;
                 i += 4;
             }
-            let bg = counts.iter().max_by_key(|(_, c)| **c).map(|(p, _)| *p).unwrap_or([0; 4]);
+            let bg = counts
+                .iter()
+                .max_by_key(|(_, c)| **c)
+                .map(|(p, _)| *p)
+                .unwrap_or([0; 4]);
 
             // For each column, count vertically-contiguous non-bg pixels; a caret bar shows up as a
             // column with a tall run. Count columns whose max run >= 4 px (a caret is ~line_height).

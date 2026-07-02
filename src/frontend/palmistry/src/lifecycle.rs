@@ -138,7 +138,10 @@ impl LifecycleState {
             ParentExit::Exited { code } => Some(code),
             ParentExit::Vanished => None,
         };
-        *self.parent_exit_code.lock().expect("parent_exit_code mutex") = code;
+        *self
+            .parent_exit_code
+            .lock()
+            .expect("parent_exit_code mutex") = code;
         // Classify against the shutdown flag AT THE MOMENT OF DEATH (AC-009-6: a Shutdown that preceded
         // the parent exit means clean, even though the parent then exits).
         let abnormal = !self.shutdown_requested.load(Ordering::SeqCst);
@@ -158,7 +161,10 @@ impl LifecycleState {
 
     /// The parent OS exit code if one was resolved.
     pub fn parent_exit_code(&self) -> Option<u32> {
-        *self.parent_exit_code.lock().expect("parent_exit_code mutex")
+        *self
+            .parent_exit_code
+            .lock()
+            .expect("parent_exit_code mutex")
     }
 }
 
@@ -328,7 +334,9 @@ impl WindowsParentWatch {
     /// Open a SYNCHRONIZE + QUERY handle to `pid`. Returns `None` if the process cannot be opened
     /// (already gone / access denied) — the caller treats that as a vanished parent.
     pub fn open(pid: u32) -> Option<Self> {
-        use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+        use windows_sys::Win32::System::Threading::{
+            OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+        };
         // SAFETY: OpenProcess is a documented Win32 call; we pass a valid access mask + pid and check
         // the returned handle against null before using it. bInheritHandle = FALSE (0).
         let handle = unsafe {
@@ -445,7 +453,10 @@ mod tests {
 
         let reason = run_lifecycle(&state, &run, fast_config());
         assert_eq!(reason, ExitReason::CleanShutdown);
-        assert!(!state.parent_exit_abnormal(), "clean shutdown must record no crash");
+        assert!(
+            !state.parent_exit_abnormal(),
+            "clean shutdown must record no crash"
+        );
         let rec = build_survivor_record("sess", 123, &state, reason);
         assert!(!rec.abnormal_parent_exit);
         assert!(rec.shutdown_received);
@@ -478,7 +489,10 @@ mod tests {
         let elapsed = start.elapsed();
 
         // It RECORDED the abnormal exit...
-        assert!(state.parent_exit_abnormal(), "abnormal parent death must be recorded");
+        assert!(
+            state.parent_exit_abnormal(),
+            "abnormal parent death must be recorded"
+        );
         assert_eq!(state.parent_exit_code(), Some(0xDEAD));
         // ...survived past the instant of death (it did not exit immediately — finalize window held)...
         assert!(

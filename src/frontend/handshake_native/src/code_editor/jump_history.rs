@@ -56,7 +56,10 @@ pub struct JumpEntry {
 impl JumpEntry {
     /// A jump entry at `position` within `file_path`.
     pub fn new(file_path: impl Into<PathBuf>, position: BufferPosition) -> Self {
-        Self { file_path: file_path.into(), position }
+        Self {
+            file_path: file_path.into(),
+            position,
+        }
     }
 
     /// True when `other` points at the same file within [`COALESCE_LINE_TOLERANCE`] lines — the coalesce
@@ -85,7 +88,10 @@ pub struct JumpHistory {
 impl JumpHistory {
     /// A fresh, empty jump history.
     pub fn new() -> Self {
-        Self { entries: Vec::new(), cursor: 0 }
+        Self {
+            entries: Vec::new(),
+            cursor: 0,
+        }
     }
 
     /// Record a navigation jump. Called by the panel at the PRE-jump location of the four navigation
@@ -204,7 +210,10 @@ mod tests {
         let mut h = JumpHistory::new();
         // record() is called with the PRE-jump location (where the user jumped FROM).
         h.record(entry("a.rs", 10));
-        assert!(h.can_back(), "after recording a jump origin, Back is available");
+        assert!(
+            h.can_back(),
+            "after recording a jump origin, Back is available"
+        );
         let restored = h.back(entry("a.rs", 80));
         assert_eq!(restored, Some(entry("a.rs", 10)));
     }
@@ -217,7 +226,11 @@ mod tests {
         assert_eq!(back, Some(entry("a.rs", 10)));
         assert!(h.can_forward(), "after a Back, Forward is available");
         let fwd = h.forward();
-        assert_eq!(fwd, Some(entry("a.rs", 80)), "Forward returns to where Back left from");
+        assert_eq!(
+            fwd,
+            Some(entry("a.rs", 80)),
+            "Forward returns to where Back left from"
+        );
         assert!(!h.can_forward(), "Forward is exhausted at the tail");
     }
 
@@ -235,7 +248,10 @@ mod tests {
         assert!(h.can_forward(), "a forward tail exists after two Backs");
         // A NEW jump truncates the forward tail.
         h.record(entry("b.rs", 5));
-        assert!(!h.can_forward(), "the stale forward tail was truncated by the new jump");
+        assert!(
+            !h.can_forward(),
+            "the stale forward tail was truncated by the new jump"
+        );
         // Forward now yields nothing (no stale 30/99).
         assert_eq!(h.forward(), None);
     }
@@ -248,7 +264,11 @@ mod tests {
         h.record(entry("a.rs", 42)); // jumped FROM a.rs:42 (into b.rs).
         let restored = h.back(entry("b.rs", 7)); // currently in b.rs.
         let restored = restored.expect("Back returns the source entry");
-        assert_eq!(restored.file_path, PathBuf::from("a.rs"), "Back restores file A, not the focused B");
+        assert_eq!(
+            restored.file_path,
+            PathBuf::from("a.rs"),
+            "Back restores file A, not the focused B"
+        );
         assert_eq!(restored.position, pos(42));
     }
 
@@ -268,7 +288,11 @@ mod tests {
         let mut h = JumpHistory::new();
         h.record(entry("a.rs", 10));
         h.record(entry("a.rs", 10 + COALESCE_LINE_TOLERANCE));
-        assert_eq!(h.len(), 1, "adjacent-line same-file jumps within tolerance coalesce");
+        assert_eq!(
+            h.len(),
+            1,
+            "adjacent-line same-file jumps within tolerance coalesce"
+        );
     }
 
     #[test]
@@ -276,7 +300,11 @@ mod tests {
         let mut h = JumpHistory::new();
         h.record(entry("a.rs", 10));
         h.record(entry("a.rs", 10 + COALESCE_LINE_TOLERANCE + 5));
-        assert_eq!(h.len(), 2, "same-file jumps beyond tolerance are distinct entries");
+        assert_eq!(
+            h.len(),
+            2,
+            "same-file jumps beyond tolerance are distinct entries"
+        );
     }
 
     #[test]
@@ -284,7 +312,11 @@ mod tests {
         let mut h = JumpHistory::new();
         h.record(entry("a.rs", 10));
         h.record(entry("b.rs", 10));
-        assert_eq!(h.len(), 2, "different files are distinct entries even at the same line");
+        assert_eq!(
+            h.len(),
+            2,
+            "different files are distinct entries even at the same line"
+        );
     }
 
     #[test]
@@ -305,7 +337,11 @@ mod tests {
             assert!(guard < MAX_ENTRIES + 10, "back loop terminates");
         }
         let oldest = last.expect("at least one back");
-        assert_eq!(oldest.file_path, PathBuf::from("f5.rs"), "oldest 5 entries dropped by the cap");
+        assert_eq!(
+            oldest.file_path,
+            PathBuf::from("f5.rs"),
+            "oldest 5 entries dropped by the cap"
+        );
     }
 
     #[test]

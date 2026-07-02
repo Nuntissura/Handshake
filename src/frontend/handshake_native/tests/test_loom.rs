@@ -40,7 +40,8 @@ use std::net::TcpListener;
 
 use handshake_native::backend::loom::{
     CreateLoomBlockRequest, CreateLoomEdgeRequest, ImportMarkdownRequest, LoomBlockContentType,
-    LoomBlockPatchRequest, LoomClient, LoomEdgeCreatedBy, LoomEdgeType, LoomError, LoomSearchV2Request,
+    LoomBlockPatchRequest, LoomClient, LoomEdgeCreatedBy, LoomEdgeType, LoomError,
+    LoomSearchV2Request,
 };
 use serde_json::{json, Value};
 
@@ -282,13 +283,17 @@ fn ac_get_loom_block_deserializes_real_backend_shape() {
     let resp = rt().block_on(async { client.get_loom_block("WS-1", "BLK-1").await });
     let exchange = server.join().unwrap();
 
-    let block = resp.expect("get_loom_block against a real-shape 200 body must deserialize, not err");
+    let block =
+        resp.expect("get_loom_block against a real-shape 200 body must deserialize, not err");
     assert_eq!(block.block_id, "BLK-1");
     assert_eq!(block.content_type, LoomBlockContentType::Note);
     assert_eq!(block.title.as_deref(), Some("Design Notes"));
     assert_eq!(block.document_id.as_deref(), Some("KRD-1"));
     // derived stays a Value (coupling-avoid) but is populated.
-    assert_eq!(block.derived.get("backlink_count").and_then(Value::as_i64), Some(2));
+    assert_eq!(
+        block.derived.get("backlink_count").and_then(Value::as_i64),
+        Some(2)
+    );
 
     assert!(
         exchange
@@ -322,7 +327,9 @@ fn ac_create_block_roundtrips_typed_loom_block() {
     let block = resp.expect("create_block must return a typed LoomBlock");
     assert_eq!(block.block_id, "BLK-1");
     assert!(
-        exchange.captured_request_line.starts_with("POST /workspaces/WS-1/loom/blocks"),
+        exchange
+            .captured_request_line
+            .starts_with("POST /workspaces/WS-1/loom/blocks"),
         "create hits POST /workspaces/:ws/loom/blocks : {}",
         exchange.captured_request_line
     );
@@ -330,7 +337,10 @@ fn ac_create_block_roundtrips_typed_loom_block() {
     let sent: Value = serde_json::from_str(&exchange.captured_body).unwrap();
     assert_eq!(sent["content_type"], json!("note"));
     assert_eq!(sent["document_id"], json!("KRD-1"));
-    assert!(sent.get("block_id").is_none(), "absent block_id omitted: {sent}");
+    assert!(
+        sent.get("block_id").is_none(),
+        "absent block_id omitted: {sent}"
+    );
 }
 
 #[test]
@@ -377,13 +387,19 @@ fn ac_create_edge_roundtrips_typed_loom_edge() {
     assert_eq!(edge.edge_type, LoomEdgeType::Mention);
     assert_eq!(edge.created_by, LoomEdgeCreatedBy::User);
     assert!(
-        exchange.captured_request_line.starts_with("POST /workspaces/WS-1/loom/edges"),
+        exchange
+            .captured_request_line
+            .starts_with("POST /workspaces/WS-1/loom/edges"),
         "create edge hits POST /workspaces/:ws/loom/edges : {}",
         exchange.captured_request_line
     );
     // created_by is REQUIRED on the wire (verified backend contract).
     let sent: Value = serde_json::from_str(&exchange.captured_body).unwrap();
-    assert_eq!(sent["created_by"], json!("user"), "created_by required on the wire");
+    assert_eq!(
+        sent["created_by"],
+        json!("user"),
+        "created_by required on the wire"
+    );
     assert_eq!(sent["edge_type"], json!("mention"));
 }
 
@@ -448,14 +464,21 @@ fn ac_transclusion_unresolved_is_first_class_ok() {
     let resp = rt().block_on(async { client.get_loom_block_transclusion("WS-1", "BLK-1").await });
     let exchange = server.join().unwrap();
 
-    let tx = resp.expect("an unresolved transclusion MUST be Ok (the unresolved state), NEVER an Err");
-    assert!(!tx.resolved, "resolved=false preserved as a typed unresolved state");
+    let tx =
+        resp.expect("an unresolved transclusion MUST be Ok (the unresolved state), NEVER an Err");
+    assert!(
+        !tx.resolved,
+        "resolved=false preserved as a typed unresolved state"
+    );
     assert_eq!(
         tx.unresolved_reason.as_deref(),
         Some("loom_block_has_no_source_document"),
         "the typed unresolved reason drives a visible indicator, not a silent blank"
     );
-    assert!(tx.content_json.is_none(), "no source content when unresolved");
+    assert!(
+        tx.content_json.is_none(),
+        "no source content when unresolved"
+    );
     assert!(
         exchange
             .captured_request_line
@@ -578,9 +601,18 @@ fn ac_import_markdown_returns_typed_authority_block() {
     let exchange = server.join().unwrap();
 
     let imported = resp.expect("import_markdown_to_loom must return the typed LoomMarkdownImport");
-    assert_eq!(imported.block.block_id, "BLK-1", "the new authority LoomBlock is typed");
-    assert_eq!(imported.rich_document_id, "KRD-1", "the backing rich-doc id is surfaced");
-    assert_eq!(imported.warnings, vec!["unsupported: footnotes".to_string()]);
+    assert_eq!(
+        imported.block.block_id, "BLK-1",
+        "the new authority LoomBlock is typed"
+    );
+    assert_eq!(
+        imported.rich_document_id, "KRD-1",
+        "the backing rich-doc id is surfaced"
+    );
+    assert_eq!(
+        imported.warnings,
+        vec!["unsupported: footnotes".to_string()]
+    );
     assert!(
         exchange
             .captured_request_line
@@ -617,16 +649,24 @@ fn ac_unified_namespace_reexports_existing_clients() {
     // proof (no construction, no runtime handle needed). If MT-038 had re-implemented (forked) any of
     // these, the types would differ and these functions would fail to compile.
     use handshake_native::backend::loom as unified;
-    fn _same_search(c: handshake_native::backend_client::LoomSearchV2Client) -> unified::LoomSearchV2Client {
+    fn _same_search(
+        c: handshake_native::backend_client::LoomSearchV2Client,
+    ) -> unified::LoomSearchV2Client {
         c
     }
-    fn _same_block_view(c: handshake_native::backend_client::BlockViewClient) -> unified::BlockViewClient {
+    fn _same_block_view(
+        c: handshake_native::backend_client::BlockViewClient,
+    ) -> unified::BlockViewClient {
         c
     }
-    fn _same_folder(c: handshake_native::backend_client::LoomFolderClient) -> unified::LoomFolderClient {
+    fn _same_folder(
+        c: handshake_native::backend_client::LoomFolderClient,
+    ) -> unified::LoomFolderClient {
         c
     }
-    fn _same_block(c: handshake_native::backend_client::LoomBlockClient) -> unified::LoomBlockClient {
+    fn _same_block(
+        c: handshake_native::backend_client::LoomBlockClient,
+    ) -> unified::LoomBlockClient {
         c
     }
     fn _same_view_def(
@@ -635,5 +675,11 @@ fn ac_unified_namespace_reexports_existing_clients() {
         d
     }
     // Reference each fn so they are not dead-code-eliminated before type-checking matters.
-    let _ = (_same_search, _same_block_view, _same_folder, _same_block, _same_view_def);
+    let _ = (
+        _same_search,
+        _same_block_view,
+        _same_folder,
+        _same_block,
+        _same_view_def,
+    );
 }

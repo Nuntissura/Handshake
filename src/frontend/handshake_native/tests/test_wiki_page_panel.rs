@@ -134,8 +134,9 @@ fn seeded_projection() -> WikiProjection {
         workspace_id: "ws-test".to_owned(),
         title: "Ownership model".to_owned(),
         source_block_ids: vec!["blk-1".to_owned(), "blk-2".to_owned(), "blk-3".to_owned()],
-        rendered_content: "# Ownership model\nThe borrow checker enforces aliasing rules at compile time."
-            .to_owned(),
+        rendered_content:
+            "# Ownership model\nThe borrow checker enforces aliasing rules at compile time."
+                .to_owned(),
         staleness_hash: "h1".to_owned(),
         rebuild_status: "fresh".to_owned(),
         page_type: Some("concept".to_owned()),
@@ -206,7 +207,10 @@ fn proof2_title_and_content_nodes_present() {
     );
 
     // The Edit button is present in the read-only view (AC2 entry point).
-    assert!(ids.contains(&edit_author_id("proj-001")), "AC7: the Edit button is present");
+    assert!(
+        ids.contains(&edit_author_id("proj-001")),
+        "AC7: the Edit button is present"
+    );
     // In read-only mode the edit area is ABSENT.
     assert!(
         !ids.contains(&edit_area_author_id("proj-001")),
@@ -227,7 +231,9 @@ fn proof3_edit_save_fires_event_and_returns_to_read_only() {
     // Click Edit (AC2).
     let edit_target = edit_author_id("proj-001");
     harness
-        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(edit_target.as_str()))
+        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(edit_target.as_str())
+        })
         .click();
     harness.run();
 
@@ -242,8 +248,14 @@ fn proof3_edit_save_fires_event_and_returns_to_read_only() {
         Some("MultilineTextInput"),
         "AC7: the edit area must be Role::MultilineTextInput"
     );
-    assert!(ids.contains(&save_author_id("proj-001")), "AC7: the Save button is present in edit mode");
-    assert!(ids.contains(&cancel_author_id("proj-001")), "AC7: the Cancel button is present in edit mode");
+    assert!(
+        ids.contains(&save_author_id("proj-001")),
+        "AC7: the Save button is present in edit mode"
+    );
+    assert!(
+        ids.contains(&cancel_author_id("proj-001")),
+        "AC7: the Cancel button is present in edit mode"
+    );
 
     // Set the overlay annotation via the public surface (the typing pathway is exercised by the lib
     // unit tests; here we drive the same state the TextEdit mutates, then click the real Save button).
@@ -252,14 +264,18 @@ fn proof3_edit_save_fires_event_and_returns_to_read_only() {
 
     let save_target = save_author_id("proj-001");
     harness
-        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(save_target.as_str()))
+        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(save_target.as_str())
+        })
         .click();
     harness.run();
 
     // PROOF3/AC3: the Save event fired carrying the buffer.
     let ev = events.lock().unwrap().clone();
     assert!(
-        ev.iter().any(|e| matches!(e, WikiPageEvent::Save { annotation } if annotation == "NEW CONTENT")),
+        ev.iter().any(
+            |e| matches!(e, WikiPageEvent::Save { annotation } if annotation == "NEW CONTENT")
+        ),
         "PROOF3/AC3: Save click must fire Save{{annotation:'NEW CONTENT'}} (got {ev:?})"
     );
 
@@ -272,7 +288,10 @@ fn proof3_edit_save_fires_event_and_returns_to_read_only() {
         !ids.contains(&edit_area_author_id("proj-001")),
         "AC3: after a successful save the panel returns to read-only (edit area gone, ids={ids:?})"
     );
-    assert!(ids.contains(&content_author_id("proj-001")), "AC3: the read-only content area is shown again");
+    assert!(
+        ids.contains(&content_author_id("proj-001")),
+        "AC3: the read-only content area is shown again"
+    );
     println!("PROOF3: edit -> set buffer -> Save fired Save{{NEW CONTENT}} + success returns to read-only (events={ev:?})");
 }
 
@@ -295,10 +314,15 @@ fn proof3_save_request_shape_is_verified_overlay_post() {
         "PROOF3: the overlay body is the verified AddWikiOverlayRequest {{ annotation }}"
     );
     assert!(
-        matches!(spec.method, handshake_native::backend_client::HttpMethod::Post),
+        matches!(
+            spec.method,
+            handshake_native::backend_client::HttpMethod::Post
+        ),
         "PROOF3: the overlay write is a POST"
     );
-    println!("PROOF3: Save request shape verified (POST /loom/wiki/proj-001/overlays {{annotation}})");
+    println!(
+        "PROOF3: Save request shape verified (POST /loom/wiki/proj-001/overlays {{annotation}})"
+    );
 }
 
 // ── PROOF4 + AC4: cancel discards the edit and makes NO Save event (no overlay POST) ──────────────────
@@ -313,7 +337,9 @@ fn proof4_cancel_no_mutation_returns_to_read_only() {
     // Edit -> type a throwaway -> Cancel.
     let edit_target = edit_author_id("proj-001");
     harness
-        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(edit_target.as_str()))
+        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(edit_target.as_str())
+        })
         .click();
     harness.run();
     panel.lock().unwrap().set_edit_buffer("THROWAWAY");
@@ -321,7 +347,9 @@ fn proof4_cancel_no_mutation_returns_to_read_only() {
 
     let cancel_target = cancel_author_id("proj-001");
     harness
-        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(cancel_target.as_str()))
+        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(cancel_target.as_str())
+        })
         .click();
     harness.run();
 
@@ -348,8 +376,14 @@ fn proof4_cancel_no_mutation_returns_to_read_only() {
         "AC4: the original rendered_content is shown unchanged after Cancel (got {value:?})"
     );
     // The edit buffer was discarded.
-    assert_eq!(panel.lock().unwrap().edit_buffer, "", "AC4: the buffer was discarded on Cancel");
-    println!("PROOF4: Cancel fired (no Save), edit area gone, original content intact (events={ev:?})");
+    assert_eq!(
+        panel.lock().unwrap().edit_buffer,
+        "",
+        "AC4: the buffer was discarded on Cancel"
+    );
+    println!(
+        "PROOF4: Cancel fired (no Save), edit area gone, original content intact (events={ev:?})"
+    );
 }
 
 // ── PROOF5 + AC5: a save error keeps the edit area present (edit mode not exited) + preserves the buffer
@@ -427,9 +461,14 @@ fn ac8_error_state_shows_retry() {
 
     let retry_target = handshake_native::graph::wiki_page_panel::retry_author_id("proj-001");
     let ids = author_ids(&harness);
-    assert!(ids.contains(&retry_target), "AC8: the error state shows a Retry button (ids={ids:?})");
+    assert!(
+        ids.contains(&retry_target),
+        "AC8: the error state shows a Retry button (ids={ids:?})"
+    );
     harness
-        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(retry_target.as_str()))
+        .get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(retry_target.as_str())
+        })
         .click();
     harness.run();
     let ev = events.lock().unwrap().clone();
@@ -453,7 +492,10 @@ fn ac6_stale_footer_only_when_stale() {
     if let Some(page) = stale.page.as_mut() {
         page.staleness_verdict = serde_json::json!({ "state": "stale" });
     }
-    assert!(stale.is_stale(), "AC6: a stale-verdict page is stale (the footer renders)");
+    assert!(
+        stale.is_stale(),
+        "AC6: a stale-verdict page is stale (the footer renders)"
+    );
 
     // Render the stale panel to confirm it does not panic with the footer shown.
     let panel = shared(stale);
@@ -492,7 +534,10 @@ fn wiki_page_panel_screenshot() {
             let _ = std::fs::create_dir_all(&ext_dir);
             let png = ext_dir.join("MT-025-wiki-page-panel.png");
             let saved = image.save(&png).is_ok();
-            println!("HBR-VIS: {w}x{h} wiki-page-panel screenshot, saved={saved} ({})", png.display());
+            println!(
+                "HBR-VIS: {w}x{h} wiki-page-panel screenshot, saved={saved} ({})",
+                png.display()
+            );
         }
         Err(e) => {
             println!(
@@ -528,9 +573,17 @@ fn load_wiki_projection_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let page = data.expect("live PG fetch delivered within 5s").expect("live PG fetch ok");
-    assert_eq!(page.projection_id, "proj-001", "AC1 live: the seeded projection id loads");
-    assert!(!page.title.is_empty(), "AC1 live: the projection has a title");
+    let page = data
+        .expect("live PG fetch delivered within 5s")
+        .expect("live PG fetch ok");
+    assert_eq!(
+        page.projection_id, "proj-001",
+        "AC1 live: the seeded projection id loads"
+    );
+    assert!(
+        !page.title.is_empty(),
+        "AC1 live: the projection has a title"
+    );
     println!(
         "AC1 live PG: loaded wiki projection '{}' ({} sources, rebuild_status={})",
         page.title,
@@ -550,7 +603,13 @@ fn add_overlay_live_pg() {
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     let client = LoomWikiClient::production(rt.handle().clone());
     let cell: ScmReceiptCell = Arc::new(Mutex::new(None));
-    client.add_overlay("ws-live", "proj-001", "live overlay note", None, Arc::clone(&cell));
+    client.add_overlay(
+        "ws-live",
+        "proj-001",
+        "live overlay note",
+        None,
+        Arc::clone(&cell),
+    );
     let mut data = None;
     for _ in 0..50 {
         if let Some(r) = cell.lock().unwrap().take() {
@@ -560,6 +619,8 @@ fn add_overlay_live_pg() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
     data.expect("live PG overlay POST delivered within 5s")
-        .expect("AC3 live: the verified POST /loom/wiki/proj-001/overlays persisted the annotation");
+        .expect(
+            "AC3 live: the verified POST /loom/wiki/proj-001/overlays persisted the annotation",
+        );
     println!("AC3 live PG: overlay annotation persisted via POST /loom/wiki/proj-001/overlays");
 }

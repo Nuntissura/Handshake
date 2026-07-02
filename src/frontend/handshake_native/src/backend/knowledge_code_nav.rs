@@ -570,7 +570,8 @@ impl LookupRequest {
     /// True when at least one of name/prefix/path is non-empty (after trimming). A lookup with none is
     /// the backend 400 this client refuses to send (RISK-2/MC-2).
     fn has_filter(&self) -> bool {
-        let non_empty = |o: &Option<String>| o.as_deref().map(str::trim).is_some_and(|s| !s.is_empty());
+        let non_empty =
+            |o: &Option<String>| o.as_deref().map(str::trim).is_some_and(|s| !s.is_empty());
         non_empty(&self.name) || non_empty(&self.prefix) || non_empty(&self.path)
     }
 
@@ -887,7 +888,9 @@ mod tests {
         // Any one non-empty filter passes.
         assert!(LookupRequest::by_name("ws-1", "Foo").validate().is_ok());
         assert!(LookupRequest::by_prefix("ws-1", "Fo").validate().is_ok());
-        assert!(LookupRequest::by_path("ws-1", "src/lib.rs").validate().is_ok());
+        assert!(LookupRequest::by_path("ws-1", "src/lib.rs")
+            .validate()
+            .is_ok());
     }
 
     #[test]
@@ -898,7 +901,10 @@ mod tests {
             ..LookupRequest::by_name("ws-1", "Foo")
         };
         let pairs = over.query_pairs();
-        let limit = pairs.iter().find(|(k, _)| k == "limit").map(|(_, v)| v.as_str());
+        let limit = pairs
+            .iter()
+            .find(|(k, _)| k == "limit")
+            .map(|(_, v)| v.as_str());
         assert_eq!(limit, Some("500"), "over-cap limit clamps to LIST_CAP=500");
         // Below-1 clamps UP to 1.
         let under = LookupRequest {
@@ -906,20 +912,35 @@ mod tests {
             ..LookupRequest::by_name("ws-1", "Foo")
         };
         let pairs = under.query_pairs();
-        let limit = pairs.iter().find(|(k, _)| k == "limit").map(|(_, v)| v.as_str());
+        let limit = pairs
+            .iter()
+            .find(|(k, _)| k == "limit")
+            .map(|(_, v)| v.as_str());
         assert_eq!(limit, Some("1"), "below-1 limit clamps up to 1");
     }
 
     #[test]
     fn unsafe_paths_are_rejected() {
-        assert!(!is_safe_relative_path("/abs/path.rs"), "absolute path rejected");
-        assert!(!is_safe_relative_path("../escape.rs"), "..-traversal rejected");
+        assert!(
+            !is_safe_relative_path("/abs/path.rs"),
+            "absolute path rejected"
+        );
+        assert!(
+            !is_safe_relative_path("../escape.rs"),
+            "..-traversal rejected"
+        );
         assert!(!is_safe_relative_path("a/../b.rs"), "embedded .. rejected");
         assert!(!is_safe_relative_path("a/./b.rs"), "embedded . rejected");
         assert!(!is_safe_relative_path("win\\path.rs"), "backslash rejected");
         assert!(!is_safe_relative_path(""), "empty rejected");
-        assert!(is_safe_relative_path("src/lib.rs"), "repo-relative POSIX path accepted");
-        assert!(is_safe_relative_path("a/b/c/d.ts"), "deep repo-relative path accepted");
+        assert!(
+            is_safe_relative_path("src/lib.rs"),
+            "repo-relative POSIX path accepted"
+        );
+        assert!(
+            is_safe_relative_path("a/b/c/d.ts"),
+            "deep repo-relative path accepted"
+        );
     }
 
     #[test]
@@ -957,33 +978,57 @@ mod tests {
             "state": "custom_future_state", "fresh": false
         }))
         .expect("an unknown future staleness state must deserialize WITHOUT error");
-        assert!(!future.is_fresh(), "an unknown state is treated as STALE (fail-closed)");
+        assert!(
+            !future.is_fresh(),
+            "an unknown state is treated as STALE (fail-closed)"
+        );
         assert_eq!(future.state, "custom_future_state");
 
         // The file_lens StalenessVerdict shape: NO explicit `fresh` bool -> is_fresh derives from state.
         let verdict_fresh: StalenessState =
             serde_json::from_value(json!({"state": "fresh"})).expect("verdict fresh deserializes");
-        assert!(verdict_fresh.is_fresh(), "a tagged 'fresh' verdict with no bool is fresh");
+        assert!(
+            verdict_fresh.is_fresh(),
+            "a tagged 'fresh' verdict with no bool is fresh"
+        );
         let verdict_changed: StalenessState = serde_json::from_value(json!({
             "state": "source_changed", "indexed_hash": "a", "current_hash": "b"
         }))
         .expect("verdict source_changed deserializes");
-        assert!(!verdict_changed.is_fresh(), "a non-'fresh' verdict is stale");
+        assert!(
+            !verdict_changed.is_fresh(),
+            "a non-'fresh' verdict is stale"
+        );
         // The extra variant fields are captured, not dropped.
-        assert_eq!(verdict_changed.extra.get("indexed_hash").and_then(Value::as_str), Some("a"));
+        assert_eq!(
+            verdict_changed
+                .extra
+                .get("indexed_hash")
+                .and_then(Value::as_str),
+            Some("a")
+        );
     }
 
     #[test]
     fn status_mapping_is_distinct_per_code() {
         assert_eq!(
-            map_error_status(400, r#"{"error":"bad_request","detail":"x-hsk-actor-id header is required"}"#),
+            map_error_status(
+                400,
+                r#"{"error":"bad_request","detail":"x-hsk-actor-id header is required"}"#
+            ),
             CodeNavError::BadRequest("x-hsk-actor-id header is required".into())
         );
         assert_eq!(
-            map_error_status(404, r#"{"error":"not_found","detail":"symbol 'KE-x' not found"}"#),
+            map_error_status(
+                404,
+                r#"{"error":"not_found","detail":"symbol 'KE-x' not found"}"#
+            ),
             CodeNavError::NotFound("symbol 'KE-x' not found".into())
         );
-        assert!(matches!(map_error_status(500, "{}"), CodeNavError::Server(_)));
+        assert!(matches!(
+            map_error_status(500, "{}"),
+            CodeNavError::Server(_)
+        ));
         assert!(matches!(
             map_error_status(418, "teapot"),
             CodeNavError::UnexpectedStatus { status: 418, .. }
@@ -994,8 +1039,18 @@ mod tests {
     fn nav_headers_default_to_system_kind_from_session_context() {
         let ctx = EditorSessionContext::for_native_editor("session-9");
         let headers = code_nav_headers(&ctx);
-        assert_eq!(headers.actor_kind.as_deref(), Some("system"), "nav uses the system actor-kind");
-        assert_eq!(headers.actor_id, CODE_NAV_ACTOR_ID, "actor id is the native-editor surface");
-        assert_eq!(headers.session_run_id, "session-9", "session id comes from the supplied context, not fabricated");
+        assert_eq!(
+            headers.actor_kind.as_deref(),
+            Some("system"),
+            "nav uses the system actor-kind"
+        );
+        assert_eq!(
+            headers.actor_id, CODE_NAV_ACTOR_ID,
+            "actor id is the native-editor surface"
+        );
+        assert_eq!(
+            headers.session_run_id, "session-9",
+            "session id comes from the supplied context, not fabricated"
+        );
     }
 }

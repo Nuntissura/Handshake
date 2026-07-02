@@ -107,7 +107,10 @@ pub fn parse_highlight_segments(highlight: &str) -> Vec<HighlightSegment> {
         match next {
             Some((pos, token_len, is_open)) => {
                 if pos > 0 {
-                    segments.push(HighlightSegment { text: rest[..pos].to_owned(), marked });
+                    segments.push(HighlightSegment {
+                        text: rest[..pos].to_owned(),
+                        marked,
+                    });
                 }
                 // An `<mark>` turns marking on; a `</mark>` turns it off. A malformed/duplicated marker
                 // just re-sets the same state (never panics — CONTROL-3 graceful degradation).
@@ -115,7 +118,10 @@ pub fn parse_highlight_segments(highlight: &str) -> Vec<HighlightSegment> {
                 rest = &rest[pos + token_len..];
             }
             None => {
-                segments.push(HighlightSegment { text: rest.to_owned(), marked });
+                segments.push(HighlightSegment {
+                    text: rest.to_owned(),
+                    marked,
+                });
                 break;
             }
         }
@@ -126,7 +132,11 @@ pub fn parse_highlight_segments(highlight: &str) -> Vec<HighlightSegment> {
 /// Build a [`egui::text::LayoutJob`] from a highlight string: marked runs get the palette's
 /// `search_highlight_bg` background (the theme token — NO `Color32` literal here, CONTROL-4), normal
 /// runs the default text color. Used both by the row renderer and (re-exported for) the test surface.
-pub fn highlight_layout_job(highlight: &str, palette: &HsPalette, text_color: egui::Color32) -> egui::text::LayoutJob {
+pub fn highlight_layout_job(
+    highlight: &str,
+    palette: &HsPalette,
+    text_color: egui::Color32,
+) -> egui::text::LayoutJob {
     let mut job = egui::text::LayoutJob::default();
     for seg in parse_highlight_segments(highlight) {
         let format = if seg.marked {
@@ -422,7 +432,8 @@ pub fn show(
             ui.add_space(2.0);
             ui.horizontal_wrapped(|ui| {
                 for (content_type, count) in &facets {
-                    let active = state.active_content_type.as_deref() == Some(content_type.as_str());
+                    let active =
+                        state.active_content_type.as_deref() == Some(content_type.as_str());
                     let label = format!("{content_type} ({count})");
                     let btn = ui.add(egui::Button::new(label).selected(active));
                     accessibility::emit_interactive_node(
@@ -524,7 +535,11 @@ pub struct LoomSearchV2PaneShared {
 impl LoomSearchV2PaneShared {
     /// Seed with no workspace and the given palette (the shell overwrites both each frame).
     pub fn new(palette: HsPalette) -> Self {
-        Self { workspace_id: None, palette, open_requests: Vec::new() }
+        Self {
+            workspace_id: None,
+            palette,
+            open_requests: Vec::new(),
+        }
     }
 }
 
@@ -588,7 +603,9 @@ impl PaneFactory for LoomSearchV2PaneFactory {
                 guard.open_requests.push(block_id.to_owned());
             }
         };
-        let mut callbacks = LoomSearchV2Callbacks { on_open_block: &mut on_open };
+        let mut callbacks = LoomSearchV2Callbacks {
+            on_open_block: &mut on_open,
+        };
         show(
             ui,
             &mut state,
@@ -625,9 +642,18 @@ mod tests {
         assert_eq!(
             segs,
             vec![
-                HighlightSegment { text: "foo".to_owned(), marked: true },
-                HighlightSegment { text: " bar ".to_owned(), marked: false },
-                HighlightSegment { text: "baz".to_owned(), marked: true },
+                HighlightSegment {
+                    text: "foo".to_owned(),
+                    marked: true
+                },
+                HighlightSegment {
+                    text: " bar ".to_owned(),
+                    marked: false
+                },
+                HighlightSegment {
+                    text: "baz".to_owned(),
+                    marked: true
+                },
             ]
         );
     }
@@ -635,7 +661,13 @@ mod tests {
     #[test]
     fn highlight_no_markers_is_one_normal_segment() {
         let segs = parse_highlight_segments("plain text");
-        assert_eq!(segs, vec![HighlightSegment { text: "plain text".to_owned(), marked: false }]);
+        assert_eq!(
+            segs,
+            vec![HighlightSegment {
+                text: "plain text".to_owned(),
+                marked: false
+            }]
+        );
     }
 
     #[test]
@@ -649,8 +681,14 @@ mod tests {
         assert_eq!(
             segs,
             vec![
-                HighlightSegment { text: "hit".to_owned(), marked: true },
-                HighlightSegment { text: " rest".to_owned(), marked: false },
+                HighlightSegment {
+                    text: "hit".to_owned(),
+                    marked: true
+                },
+                HighlightSegment {
+                    text: " rest".to_owned(),
+                    marked: false
+                },
             ]
         );
     }
@@ -661,7 +699,11 @@ mod tests {
         let sorted = sorted_facets(&resp);
         assert_eq!(
             sorted,
-            vec![("code".to_owned(), 5), ("image".to_owned(), 2), ("note".to_owned(), 2)]
+            vec![
+                ("code".to_owned(), 5),
+                ("image".to_owned(), 2),
+                ("note".to_owned(), 2)
+            ]
         );
     }
 
@@ -696,7 +738,10 @@ mod tests {
         state.active_content_type = Some("note".to_owned());
         state.query = "cats and dogs".to_owned(); // changed
         state.on_query_edited();
-        assert_eq!(state.active_content_type, None, "a query edit must clear the stale facet");
+        assert_eq!(
+            state.active_content_type, None,
+            "a query edit must clear the stale facet"
+        );
     }
 
     #[test]

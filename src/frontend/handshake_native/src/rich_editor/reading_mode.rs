@@ -162,7 +162,10 @@ impl ReadingModeStore {
 /// data lock across the editor render.
 pub fn reading_mode_store(ctx: &egui::Context) -> ReadingModeStore {
     let id = egui::Id::new(READING_MODE_STORE_ID);
-    ctx.data_mut(|d| d.get_persisted_mut_or_default::<ReadingModeStore>(id).clone())
+    ctx.data_mut(|d| {
+        d.get_persisted_mut_or_default::<ReadingModeStore>(id)
+            .clone()
+    })
 }
 
 /// Write `store` back into this egui context's persisted data (keyed by [`READING_MODE_STORE_ID`]),
@@ -209,7 +212,13 @@ pub fn view_mode_toggle(
         if segment_button(ui, ViewMode::Edit, current, TOGGLE_EDIT_AUTHOR_ID, &palette) {
             clicked = Some(ViewMode::Edit);
         }
-        if segment_button(ui, ViewMode::Reading, current, TOGGLE_READING_AUTHOR_ID, &palette) {
+        if segment_button(
+            ui,
+            ViewMode::Reading,
+            current,
+            TOGGLE_READING_AUTHOR_ID,
+            &palette,
+        ) {
             clicked = Some(ViewMode::Reading);
         }
     });

@@ -42,17 +42,18 @@ mod registry;
 mod snapshot;
 
 pub use editor_action_registry::{
-    AxRole, EditorActionNode, EditorActionRegistry, EditorActionState, PaneType, RegistrationHandle,
-    HEALTH_CANARY_AUTHOR_ID,
+    AxRole, EditorActionNode, EditorActionRegistry, EditorActionState, PaneType,
+    RegistrationHandle, HEALTH_CANARY_AUTHOR_ID,
 };
 // MT-042 (E7) knowledge-surface action registry. Re-exported under disambiguated names where they would
 // otherwise shadow the MT-041 `editor_action_registry` re-exports (`AxRole`,
 // `HEALTH_CANARY_AUTHOR_ID`); those two stay module-qualified
 // (`knowledge_action_registry::{AxRole, HEALTH_CANARY_AUTHOR_ID}`) to avoid a name clash.
 pub use knowledge_action_registry::{
-    canvas_card_author_id, collection_lane_author_id, collection_row_author_id, graph_node_author_id,
-    KnowledgeActionNode, KnowledgeActionRegistry, KnowledgeNodeState, KnowledgeSurface,
-    CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG, VIEWPORT_LOOKAHEAD,
+    canvas_card_author_id, collection_lane_author_id, collection_row_author_id,
+    graph_node_author_id, KnowledgeActionNode, KnowledgeActionRegistry, KnowledgeNodeState,
+    KnowledgeSurface, CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG,
+    VIEWPORT_LOOKAHEAD,
 };
 pub use live::{
     emit_chrome_node, emit_interactive_node, emit_pane_node, ChromeWidget, STATUS_BAR_NODE_ID,

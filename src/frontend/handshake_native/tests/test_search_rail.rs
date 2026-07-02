@@ -46,16 +46,16 @@ fn ok_app() -> HandshakeApp {
 /// Build a kittest harness over the headless shell. The rail makes no backend call, so no runtime/
 /// transport injection is needed — the emitted intent is written straight into the shared slot.
 fn shell_harness() -> Harness<'static, HandshakeApp> {
-    Harness::builder().build_state(
-        move |ctx, a: &mut HandshakeApp| a.ui(ctx),
-        ok_app(),
-    )
+    Harness::builder().build_state(move |ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app())
 }
 
 /// Step single frames in a loop until `pred` holds or a timeout elapses. The rail does no async I/O,
 /// but Enter/click effects settle over a couple of frames, so a short bounded loop keeps the assertion
 /// stable without depending on exact frame counts.
-fn step_until(harness: &mut Harness<'_, HandshakeApp>, pred: impl Fn(&HandshakeApp) -> bool) -> bool {
+fn step_until(
+    harness: &mut Harness<'_, HandshakeApp>,
+    pred: impl Fn(&HandshakeApp) -> bool,
+) -> bool {
     let deadline = Instant::now() + Duration::from_secs(2);
     while Instant::now() < deadline {
         harness.step();
@@ -122,10 +122,15 @@ fn rail_renders_pills_input_and_buttons_live() {
     // The rail renders NO result rows (AC-022-9: execution + display are deferred to a downstream
     // consumer) and no intent has been emitted before a fire.
     assert!(
-        !nodes.iter().any(|(a, _, _)| a.starts_with("bottom-rail.result.")),
+        !nodes
+            .iter()
+            .any(|(a, _, _)| a.starts_with("bottom-rail.result.")),
         "the rail renders no result rows (results deferred to the downstream consumer): {nodes:?}"
     );
-    assert!(harness.state().search_rail_query().is_none(), "no emitted intent before a fire");
+    assert!(
+        harness.state().search_rail_query().is_none(),
+        "no emitted intent before a fire"
+    );
 }
 
 // ── Clicking the file: pill changes the active scope but does NOT emit an intent (AC-022-3) ──────────
@@ -135,7 +140,9 @@ fn clicking_file_pill_sets_scope_without_emitting() {
     let mut harness = shell_harness();
     harness.run();
 
-    harness.get_by_label(format!("Scope {}", SearchScope::File).as_str()).click();
+    harness
+        .get_by_label(format!("Scope {}", SearchScope::File).as_str())
+        .click();
     harness.run();
     harness.run();
 
@@ -146,14 +153,25 @@ fn clicking_file_pill_sets_scope_without_emitting() {
     );
 
     // Now type + Enter -> the intent is emitted with the File scope (the pill selection took effect).
-    harness.get_by_role(egui::accesskit::Role::TextInput).focus();
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .focus();
     harness.run();
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("readme");
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .type_text("readme");
     harness.key_press(egui::Key::Enter);
     let emitted = step_until(&mut harness, |app| app.search_rail_query().is_some());
     assert!(emitted, "Enter emitted the scoped intent");
-    let q = harness.state().search_rail_query().expect("intent recorded");
-    assert_eq!(q.scope, SearchScope::File, "the File pill scoped the emitted intent");
+    let q = harness
+        .state()
+        .search_rail_query()
+        .expect("intent recorded");
+    assert_eq!(
+        q.scope,
+        SearchScope::File,
+        "the File pill scoped the emitted intent"
+    );
     assert_eq!(q.free_text, "readme");
 }
 
@@ -165,9 +183,13 @@ fn typed_scope_prefix_overrides_in_emitted_intent() {
     harness.run();
 
     // Type a query with a typed scope-prefix into the focused input, then Enter.
-    harness.get_by_role(egui::accesskit::Role::TextInput).focus();
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .focus();
     harness.run();
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("project:hello world");
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .type_text("project:hello world");
     harness.key_press(egui::Key::Enter);
 
     let emitted = step_until(&mut harness, |app| app.search_rail_query().is_some());
@@ -175,13 +197,24 @@ fn typed_scope_prefix_overrides_in_emitted_intent() {
 
     // The emitted intent: scope=Project (typed prefix won), free_text="hello world" (prefix stripped).
     let q = harness.state().search_rail_query().expect("emitted intent");
-    assert_eq!(q.scope, SearchScope::Project, "typed project: overrode the pill scope");
-    assert_eq!(q.free_text, "hello world", "the prefix was stripped from the free-text");
+    assert_eq!(
+        q.scope,
+        SearchScope::Project,
+        "typed project: overrode the pill scope"
+    );
+    assert_eq!(
+        q.free_text, "hello world",
+        "the prefix was stripped from the free-text"
+    );
 
     // The slot is observable off the SAME lock by a concurrent reader (HBR-SWARM): a downstream
     // consumer holds an Arc clone and clones-and-reads the latest emitted intent.
     let slot = harness.state().search_rail_query_slot();
-    let read_back: RailQuery = slot.lock().unwrap().clone().expect("reader sees the emitted intent");
+    let read_back: RailQuery = slot
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("reader sees the emitted intent");
     assert_eq!(read_back.scope, SearchScope::Project);
     assert_eq!(read_back.free_text, "hello world");
 }
@@ -194,18 +227,31 @@ fn loom_shortcut_forces_project_scope_and_emits() {
     harness.run();
 
     // Select a NON-project pill first, type, then click Loom: the Loom shortcut must override to Project.
-    harness.get_by_label(format!("Scope {}", SearchScope::File).as_str()).click();
+    harness
+        .get_by_label(format!("Scope {}", SearchScope::File).as_str())
+        .click();
     harness.run();
-    harness.get_by_role(egui::accesskit::Role::TextInput).focus();
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .focus();
     harness.run();
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("anything");
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .type_text("anything");
     harness.run();
     harness.get_by_label(LOOM_LABEL).click();
 
     let emitted = step_until(&mut harness, |app| app.search_rail_query().is_some());
     assert!(emitted, "the Loom shortcut emitted an intent");
-    let q = harness.state().search_rail_query().expect("intent recorded");
-    assert_eq!(q.scope, SearchScope::Project, "Loom forced the project: scope despite the File pill");
+    let q = harness
+        .state()
+        .search_rail_query()
+        .expect("intent recorded");
+    assert_eq!(
+        q.scope,
+        SearchScope::Project,
+        "Loom forced the project: scope despite the File pill"
+    );
     assert_eq!(q.free_text, "anything");
 }
 
@@ -217,11 +263,17 @@ fn clear_button_resets_input_scope_and_slot() {
     harness.run();
 
     // Emit a File-scoped intent so there is state to clear.
-    harness.get_by_label(format!("Scope {}", SearchScope::File).as_str()).click();
+    harness
+        .get_by_label(format!("Scope {}", SearchScope::File).as_str())
+        .click();
     harness.run();
-    harness.get_by_role(egui::accesskit::Role::TextInput).focus();
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .focus();
     harness.run();
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("query");
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .type_text("query");
     harness.key_press(egui::Key::Enter);
     let emitted = step_until(&mut harness, |app| app.search_rail_query().is_some());
     assert!(emitted, "an intent is present before clear");
@@ -240,15 +292,23 @@ fn clear_button_resets_input_scope_and_slot() {
     // The input is empty + the scope reset to Project: a fresh emit (after clear) carries no leftover.
     // Type a bare query (no scope prefix) and Enter; the emitted scope must be the default Project,
     // proving the clear reset the active pill from File back to Project (AC-022-6).
-    harness.get_by_role(egui::accesskit::Role::TextInput).focus();
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .focus();
     harness.run();
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("fresh");
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .type_text("fresh");
     harness.key_press(egui::Key::Enter);
     let fired = step_until(&mut harness, |app| {
         app.search_rail_query().map(|q| q.free_text) == Some("fresh".to_owned())
     });
     assert!(fired, "a fresh intent was emitted after clear");
     let emitted = harness.state().search_rail_query().expect("emitted");
-    assert_eq!(emitted.scope, SearchScope::Project, "clear reset the scope to Project");
+    assert_eq!(
+        emitted.scope,
+        SearchScope::Project,
+        "clear reset the scope to Project"
+    );
     assert_eq!(emitted.free_text, "fresh");
 }

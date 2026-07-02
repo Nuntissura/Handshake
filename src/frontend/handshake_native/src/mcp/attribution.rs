@@ -143,7 +143,11 @@ impl ActionLog {
 
     /// Number of entries currently retained (after eviction). Useful for assertions and diagnostics.
     pub fn len(&self) -> usize {
-        self.inner.lock().unwrap_or_else(|p| p.into_inner()).entries.len()
+        self.inner
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .entries
+            .len()
     }
 
     /// True when no entries are retained.
@@ -223,6 +227,9 @@ mod tests {
         let entries = log.drain_log();
         // Oldest retained seq is 6 (1..=5 were evicted); newest is capacity+5.
         assert_eq!(entries.first().unwrap().seq, 6);
-        assert_eq!(entries.last().unwrap().seq, (ACTION_LOG_CAPACITY + 5) as u64);
+        assert_eq!(
+            entries.last().unwrap().seq,
+            (ACTION_LOG_CAPACITY + 5) as u64
+        );
     }
 }

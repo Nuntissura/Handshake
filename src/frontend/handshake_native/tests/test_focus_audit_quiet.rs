@@ -43,12 +43,22 @@ fn src_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
 }
 
-/// Where the proof report is written (no spaces in the path — CX-109A).
+/// Where the proof report is written: the external artifact root only (CX-212E).
 fn artifacts_dir() -> PathBuf {
+    if let Ok(root) = std::env::var("HANDSHAKE_ARTIFACTS_ROOT") {
+        if !root.trim().is_empty() {
+            return PathBuf::from(root)
+                .join("handshake-test")
+                .join("native_gui");
+        }
+    }
+    if let Ok(dir) = std::env::var("HANDSHAKE_PROOF_ARTIFACT_DIR") {
+        if !dir.trim().is_empty() {
+            return PathBuf::from(dir);
+        }
+    }
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("native_gui")
-        .join("artifacts")
+        .join("../../../../Handshake_Artifacts/handshake-test/native_gui")
 }
 
 /// Win32 APIs that steal OS focus, foreground a window, or inject input. A real call to any of these
@@ -207,8 +217,8 @@ fn strip_comments_and_literals(src: &str) -> String {
 
 /// Recursively collect every `.rs` file under `dir`.
 fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = std::fs::read_dir(dir)
-        .unwrap_or_else(|e| panic!("read_dir {} failed: {e}", dir.display()));
+    let entries =
+        std::fs::read_dir(dir).unwrap_or_else(|e| panic!("read_dir {} failed: {e}", dir.display()));
     for entry in entries {
         let entry = entry.expect("dir entry");
         let path = entry.path();
@@ -385,7 +395,9 @@ fn popout_viewports_do_not_steal_focus() {
             );
         }
     }
-    println!("PASS: pop-out viewports use with_active(false); no with_active(true)/with_focused(true)");
+    println!(
+        "PASS: pop-out viewports use with_active(false); no with_active(true)/with_focused(true)"
+    );
 }
 
 /// ALLOW-LIST PROOF (AC-030-04 intent): the ONE Win32 surface in the shell (the screenshot capture)

@@ -50,7 +50,10 @@ fn parity_full_text_search() {
         &serde_json::json!({ "query": query }),
     );
     let hits = serde_json::to_string(&resp).unwrap();
-    assert!(hits.contains(&block_id), "E4-37: the indexed block {block_id} must appear in FTS hits");
+    assert!(
+        hits.contains(&block_id),
+        "E4-37: the indexed block {block_id} must appear in FTS hits"
+    );
     println!("E4-37 PASS: full-text search surfaced block {block_id} for query '{query}'");
     mark_pass("E4-37");
 }
@@ -104,7 +107,11 @@ fn parity_semantic_search() {
         "E4-39: the pgvector path must actually contribute (semantic_available=true). false => no \
          embedding model configured; configure the model + load the mt250 fixture/pgvector extension."
     );
-    let hits = resp.get("hits").and_then(|h| h.as_array()).cloned().unwrap_or_default();
+    let hits = resp
+        .get("hits")
+        .and_then(|h| h.as_array())
+        .cloned()
+        .unwrap_or_default();
     assert!(
         !hits.is_empty(),
         "E4-39: semantic search (pgvector) must return a non-empty hits list (got 0). Load the mt250 \
@@ -132,15 +139,34 @@ fn parity_faceted_filter() {
         &format!("/workspaces/{}/loom/search-v2", be.workspace_id),
         &serde_json::json!({ "query": "", "content_type": content_type }),
     );
-    let hits = resp.get("hits").and_then(|h| h.as_array()).cloned().unwrap_or_default();
-    assert!(!hits.is_empty(), "E4-40: the faceted search must return >= 1 hit");
+    let hits = resp
+        .get("hits")
+        .and_then(|h| h.as_array())
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        !hits.is_empty(),
+        "E4-40: the faceted search must return >= 1 hit"
+    );
     for hit in &hits {
-        let ct = hit.get("content_type").and_then(|c| c.as_str())
-            .or_else(|| hit.get("block").and_then(|b| b.get("content_type")).and_then(|c| c.as_str()))
+        let ct = hit
+            .get("content_type")
+            .and_then(|c| c.as_str())
+            .or_else(|| {
+                hit.get("block")
+                    .and_then(|b| b.get("content_type"))
+                    .and_then(|c| c.as_str())
+            })
             .unwrap_or("");
-        assert_eq!(ct, content_type, "E4-40: every faceted hit must match content_type '{content_type}'");
+        assert_eq!(
+            ct, content_type,
+            "E4-40: every faceted hit must match content_type '{content_type}'"
+        );
     }
-    println!("E4-40 PASS: {} faceted hits all match content_type '{content_type}'", hits.len());
+    println!(
+        "E4-40 PASS: {} faceted hits all match content_type '{content_type}'",
+        hits.len()
+    );
     mark_pass("E4-40");
 }
 
@@ -161,8 +187,14 @@ fn parity_save_results_as_view() {
             "definition": { "kind": "table", "query": { "content_type": saved_facet } } }),
     );
     let s = serde_json::to_string(&view).unwrap();
-    assert!(s.contains("view_def"), "E4-41: the saved view block must be content_type='view_def' (got {s})");
-    assert!(s.contains(saved_facet), "E4-41: the saved view must embed the query (facet '{saved_facet}')");
+    assert!(
+        s.contains("view_def"),
+        "E4-41: the saved view block must be content_type='view_def' (got {s})"
+    );
+    assert!(
+        s.contains(saved_facet),
+        "E4-41: the saved view must embed the query (facet '{saved_facet}')"
+    );
     println!("E4-41 PASS: search saved as a view_def block with the query embedded");
     mark_pass("E4-41");
 }
@@ -175,20 +207,30 @@ fn parity_find_in_files() {
     let be = require_live_backend();
     // The contract seeds a known string across 3 code files. find-in-files (via loom/search-v2 over code
     // content, or a dedicated find-in-files route) must surface all 3 file paths.
-    let needle = std::env::var("HSK_TEST_FIND_STRING").unwrap_or_else(|_| "PARITY_FIND_MARKER".to_owned());
+    let needle =
+        std::env::var("HSK_TEST_FIND_STRING").unwrap_or_else(|_| "PARITY_FIND_MARKER".to_owned());
     // No `mode`/`scope` on LoomSearchV2Body (loom.rs:2660); file-class blocks are filtered by the real
     // `content_type` facet. `file` surfaces imported code/asset blocks (storage/loom.rs:41).
     let resp = be.post_json(
         &format!("/workspaces/{}/loom/search-v2", be.workspace_id),
         &serde_json::json!({ "query": needle, "content_type": "file" }),
     );
-    let hits = resp.get("hits").and_then(|h| h.as_array()).cloned().unwrap_or_default();
+    let hits = resp
+        .get("hits")
+        .and_then(|h| h.as_array())
+        .cloned()
+        .unwrap_or_default();
     let distinct_paths: std::collections::HashSet<String> = hits
         .iter()
         .filter_map(|h| {
-            h.get("path").and_then(|p| p.as_str())
+            h.get("path")
+                .and_then(|p| p.as_str())
                 .or_else(|| h.get("file_path").and_then(|p| p.as_str()))
-                .or_else(|| h.get("block").and_then(|b| b.get("path")).and_then(|p| p.as_str()))
+                .or_else(|| {
+                    h.get("block")
+                        .and_then(|b| b.get("path"))
+                        .and_then(|p| p.as_str())
+                })
                 .map(|s| s.to_owned())
         })
         .collect();
@@ -197,7 +239,10 @@ fn parity_find_in_files() {
         "E4-42: find-in-files for '{needle}' must surface >= 3 distinct file paths (got {})",
         distinct_paths.len()
     );
-    println!("E4-42 PASS: find-in-files surfaced {} distinct file paths for '{needle}'", distinct_paths.len());
+    println!(
+        "E4-42 PASS: find-in-files surfaced {} distinct file paths for '{needle}'",
+        distinct_paths.len()
+    );
     mark_pass("E4-42");
 }
 
@@ -213,9 +258,14 @@ fn parity_quick_switcher() {
     // selection for a real block, then GET the recents and confirm that block surfaces.
     let block_id = std::env::var("HSK_TEST_QS_BLOCK_ID")
         .or_else(|_| std::env::var("HSK_TEST_BLOCK_ID"))
-        .expect("E4-43 requires_pg: set HSK_TEST_QS_BLOCK_ID (or HSK_TEST_BLOCK_ID) to a real block id");
+        .expect(
+            "E4-43 requires_pg: set HSK_TEST_QS_BLOCK_ID (or HSK_TEST_BLOCK_ID) to a real block id",
+        );
     be.post_json(
-        &format!("/workspaces/{}/loom/quick-switcher/recents", be.workspace_id),
+        &format!(
+            "/workspaces/{}/loom/quick-switcher/recents",
+            be.workspace_id
+        ),
         &serde_json::json!({
             "result_kind": "loom_block",
             "source_kind": "loom_block",
@@ -223,7 +273,10 @@ fn parity_quick_switcher() {
             "title": "parity-e4-43"
         }),
     );
-    let resp = be.get_json(&format!("/workspaces/{}/loom/quick-switcher/recents", be.workspace_id));
+    let resp = be.get_json(&format!(
+        "/workspaces/{}/loom/quick-switcher/recents",
+        be.workspace_id
+    ));
     let recents = resp.as_array().cloned().unwrap_or_default();
     assert!(
         serde_json::to_string(&resp).unwrap().contains(&block_id),

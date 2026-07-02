@@ -29,7 +29,9 @@ pub fn decode_rgba(bytes: &[u8]) -> Result<ColorImage, EmbedError> {
     let rgba = dynamic.to_rgba8();
     let (w, h) = (rgba.width() as usize, rgba.height() as usize);
     if w == 0 || h == 0 {
-        return Err(EmbedError::MediaLoadFailed("decoded image has zero dimensions".to_owned()));
+        return Err(EmbedError::MediaLoadFailed(
+            "decoded image has zero dimensions".to_owned(),
+        ));
     }
     Ok(ColorImage::from_rgba_unmultiplied([w, h], rgba.as_raw()))
 }
@@ -138,7 +140,10 @@ mod tests {
         let err = decode_rgba(b"not a real image").unwrap_err();
         assert_eq!(err.kind_str(), "media_load_failed");
         // Empty bytes -> also a typed error, no panic.
-        assert_eq!(decode_rgba(&[]).unwrap_err().kind_str(), "media_load_failed");
+        assert_eq!(
+            decode_rgba(&[]).unwrap_err().kind_str(),
+            "media_load_failed"
+        );
     }
 
     #[test]
@@ -179,7 +184,11 @@ mod tests {
             assert_eq!(cache.len(), 1);
             // A second upload for the SAME id returns the cached handle (no second entry).
             let _h2 = cache.upload(ctx, "a1", img);
-            assert_eq!(cache.len(), 1, "re-upload of the same asset id does not add a new texture");
+            assert_eq!(
+                cache.len(),
+                1,
+                "re-upload of the same asset id does not add a new texture"
+            );
         });
     }
 }

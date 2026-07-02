@@ -287,33 +287,10 @@ struct PostgresFixture {
 
 impl PostgresFixture {
     async fn start() -> Result<Self, Box<dyn Error>> {
-        if let Ok(url) = std::env::var("POSTGRES_TEST_URL") {
-            if !url.trim().is_empty() {
-                return Ok(Self {
-                    url,
-                    managed_data_dir: None,
-                });
-            }
-        }
-
-        let data_dir =
-            std::env::temp_dir().join(format!("hsk-managed-pg-mt147-{}", Uuid::now_v7().simple()));
-        let port = free_local_port()?;
-        let managed = ManagedPostgres::ensure_running(ManagedPostgresConfig {
-            enabled: true,
-            data_dir: data_dir.clone(),
-            port,
-            bin_dir: PathBuf::new(),
-            database: "handshake_test".to_string(),
-            superuser: "postgres".to_string(),
-            startup_timeout: POSTGRES_READY_TIMEOUT,
-        })
-        .await?;
-        let url = managed.database_url();
-
+        let url = handshake_core::storage::tests::postgres_test_base_url().await?;
         Ok(Self {
             url,
-            managed_data_dir: Some(data_dir),
+            managed_data_dir: None,
         })
     }
 

@@ -137,7 +137,10 @@ pub fn detect_indent(text: &str) -> IndentStyle {
     // Histogram of leading-space counts on space-indented lines.
     let mut space_indents: Vec<usize> = Vec::new();
     for line in text.lines() {
-        let leading: String = line.chars().take_while(|c| *c == ' ' || *c == '\t').collect();
+        let leading: String = line
+            .chars()
+            .take_while(|c| *c == ' ' || *c == '\t')
+            .collect();
         if leading.is_empty() {
             continue;
         }
@@ -150,7 +153,10 @@ pub fn detect_indent(text: &str) -> IndentStyle {
         space_indents.push(leading.len());
     }
     if saw_leading_tab {
-        return IndentStyle { kind: IndentKind::Tabs, size: 4 };
+        return IndentStyle {
+            kind: IndentKind::Tabs,
+            size: 4,
+        };
     }
     if space_indents.is_empty() {
         return IndentStyle::DEFAULT;
@@ -183,7 +189,10 @@ pub fn detect_indent(text: &str) -> IndentStyle {
         2 | 4 | 8 => inferred,
         _ => IndentStyle::DEFAULT.size,
     };
-    IndentStyle { kind: IndentKind::Spaces, size }
+    IndentStyle {
+        kind: IndentKind::Spaces,
+        size,
+    }
 }
 
 /// A text encoding the editor can read on load + display in the status bar. The default is UTF-8.
@@ -356,11 +365,27 @@ mod tests {
         // indent unit. One 8-space line must NOT make detect_indent infer size=8 (which previously
         // regressed DedentLine to remove 8 spaces). With no consecutive-level delta to measure, the unit
         // stays the safe default (Spaces 4) so Tab/Dedent keeps the conventional 4-space step.
-        assert_eq!(detect_indent("        deep"), IndentStyle::DEFAULT, "lone 8-space line -> default 4");
-        assert_eq!(detect_indent("    one\n    two\n    three"), IndentStyle::DEFAULT, "one repeated 4-space level (no delta) -> default 4");
-        assert_eq!(detect_indent("      six"), IndentStyle::DEFAULT, "lone 6-space line -> default 4");
+        assert_eq!(
+            detect_indent("        deep"),
+            IndentStyle::DEFAULT,
+            "lone 8-space line -> default 4"
+        );
+        assert_eq!(
+            detect_indent("    one\n    two\n    three"),
+            IndentStyle::DEFAULT,
+            "one repeated 4-space level (no delta) -> default 4"
+        );
+        assert_eq!(
+            detect_indent("      six"),
+            IndentStyle::DEFAULT,
+            "lone 6-space line -> default 4"
+        );
         // An odd inferred delta (3) is out of the sane set {2,4,8} and collapses to the default.
-        assert_eq!(detect_indent("x\n   a\n      b").size, 4, "out-of-set delta (3) clamps to default 4");
+        assert_eq!(
+            detect_indent("x\n   a\n      b").size,
+            4,
+            "out-of-set delta (3) clamps to default 4"
+        );
         // 8-space unit is honored only with real delta evidence (two distinct levels 8 apart).
         let eight_unit = detect_indent("a\n        b\n                c");
         assert_eq!(eight_unit.kind, IndentKind::Spaces);
@@ -370,9 +395,18 @@ mod tests {
     #[test]
     fn encoding_bom_detection() {
         assert_eq!(Encoding::detect_bom(b"plain"), Encoding::Utf8);
-        assert_eq!(Encoding::detect_bom(&[0xEF, 0xBB, 0xBF, b'h', b'i']), Encoding::Utf8Bom);
-        assert_eq!(Encoding::detect_bom(&[0xFF, 0xFE, b'h', 0]), Encoding::Utf16Le);
-        assert_eq!(Encoding::detect_bom(&[0xFE, 0xFF, 0, b'h']), Encoding::Utf16Be);
+        assert_eq!(
+            Encoding::detect_bom(&[0xEF, 0xBB, 0xBF, b'h', b'i']),
+            Encoding::Utf8Bom
+        );
+        assert_eq!(
+            Encoding::detect_bom(&[0xFF, 0xFE, b'h', 0]),
+            Encoding::Utf16Le
+        );
+        assert_eq!(
+            Encoding::detect_bom(&[0xFE, 0xFF, 0, b'h']),
+            Encoding::Utf16Be
+        );
     }
 
     #[test]
@@ -395,8 +429,22 @@ mod tests {
     fn labels_match_vscode_convention() {
         assert_eq!(Eol::Lf.label(), "LF");
         assert_eq!(Eol::Crlf.label(), "CRLF");
-        assert_eq!(IndentStyle { kind: IndentKind::Spaces, size: 2 }.label(), "Spaces: 2");
-        assert_eq!(IndentStyle { kind: IndentKind::Tabs, size: 4 }.label(), "Tab Size: 4");
+        assert_eq!(
+            IndentStyle {
+                kind: IndentKind::Spaces,
+                size: 2
+            }
+            .label(),
+            "Spaces: 2"
+        );
+        assert_eq!(
+            IndentStyle {
+                kind: IndentKind::Tabs,
+                size: 4
+            }
+            .label(),
+            "Tab Size: 4"
+        );
         assert_eq!(Encoding::Utf8.label(), "UTF-8");
         assert_eq!(RenderWhitespace(true).label(), "Whitespace: On");
     }

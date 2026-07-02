@@ -35,7 +35,11 @@ pub enum BufferError {
     /// A byte offset landed in the middle of a multi-byte UTF-8 char (not a char boundary).
     NotACharBoundary { offset: usize },
     /// A range was inverted (`start > end`) or its end exceeded `len_bytes()`.
-    InvalidRange { start: usize, end: usize, len_bytes: usize },
+    InvalidRange {
+        start: usize,
+        end: usize,
+        len_bytes: usize,
+    },
 }
 
 impl std::fmt::Display for BufferError {
@@ -47,8 +51,15 @@ impl std::fmt::Display for BufferError {
             BufferError::NotACharBoundary { offset } => {
                 write!(f, "byte offset {offset} is not a UTF-8 char boundary")
             }
-            BufferError::InvalidRange { start, end, len_bytes } => {
-                write!(f, "invalid byte range {start}..{end} (len_bytes={len_bytes})")
+            BufferError::InvalidRange {
+                start,
+                end,
+                len_bytes,
+            } => {
+                write!(
+                    f,
+                    "invalid byte range {start}..{end} (len_bytes={len_bytes})"
+                )
             }
         }
     }
@@ -224,11 +235,16 @@ impl TextBuffer {
     fn checked_byte_to_char(&self, byte_offset: usize) -> Result<usize, BufferError> {
         let len_bytes = self.rope.len_bytes();
         if byte_offset > len_bytes {
-            return Err(BufferError::OffsetOutOfRange { offset: byte_offset, len_bytes });
+            return Err(BufferError::OffsetOutOfRange {
+                offset: byte_offset,
+                len_bytes,
+            });
         }
         // In range, so `byte_to_char` returning None means the offset is mid-char, not OOB.
         self.byte_to_char(byte_offset)
-            .ok_or(BufferError::NotACharBoundary { offset: byte_offset })
+            .ok_or(BufferError::NotACharBoundary {
+                offset: byte_offset,
+            })
     }
 }
 
@@ -281,7 +297,7 @@ mod tests {
         let mut b = TextBuffer::new("a\nb");
         assert_eq!(b.len_lines(), 2);
         b.insert(1, "X\nY\nZ").unwrap(); // insert after "a"
-        // "aX\nY\nZ\nb" -> 4 lines
+                                         // "aX\nY\nZ\nb" -> 4 lines
         assert_eq!(b.to_string(), "aX\nY\nZ\nb");
         assert_eq!(b.len_lines(), 4);
     }
@@ -320,7 +336,10 @@ mod tests {
         // Insert past the end.
         assert_eq!(
             b.insert(99, "x"),
-            Err(BufferError::OffsetOutOfRange { offset: 99, len_bytes: 2 })
+            Err(BufferError::OffsetOutOfRange {
+                offset: 99,
+                len_bytes: 2
+            })
         );
         // Delete an inverted range. The `5..2` inversion is INTENTIONAL negative-path coverage —
         // `delete` must reject start>end with `InvalidRange`. clippy's `reversed_empty_ranges` lint
@@ -330,7 +349,10 @@ mod tests {
         let inverted_delete = matches!(b.delete(5..2), Err(BufferError::InvalidRange { .. }));
         assert!(inverted_delete);
         // Delete past the end.
-        assert!(matches!(b.delete(0..99), Err(BufferError::InvalidRange { .. })));
+        assert!(matches!(
+            b.delete(0..99),
+            Err(BufferError::InvalidRange { .. })
+        ));
         // line_to_byte / byte_to_line out of range -> None, not panic.
         assert_eq!(b.byte_to_line(99), None);
         assert_eq!(b.line_to_byte(99), None);
@@ -357,7 +379,10 @@ mod tests {
     fn insert_at_non_char_boundary_errors() {
         let mut b = TextBuffer::new("héllo");
         // Byte 2 is inside the 'é' char.
-        assert_eq!(b.insert(2, "X"), Err(BufferError::NotACharBoundary { offset: 2 }));
+        assert_eq!(
+            b.insert(2, "X"),
+            Err(BufferError::NotACharBoundary { offset: 2 })
+        );
         assert_eq!(b.to_string(), "héllo");
     }
 

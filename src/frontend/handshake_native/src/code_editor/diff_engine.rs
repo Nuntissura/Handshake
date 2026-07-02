@@ -112,13 +112,18 @@ impl DiffEngine {
                     let r = right_cursor..right_cursor + count;
                     left_cursor += count;
                     right_cursor += count;
-                    blocks.push(DiffBlock { left_lines: l, right_lines: r, status: DiffStatus::Equal });
+                    blocks.push(DiffBlock {
+                        left_lines: l,
+                        right_lines: r,
+                        status: DiffStatus::Equal,
+                    });
                     i += 1;
                 }
                 similar::ChangeTag::Delete => {
                     // A Delete run immediately followed by an Insert run is a MODIFIED block (lines
                     // replaced in place), not a separate Removed + Added (MT step 1).
-                    if let Some((similar::ChangeTag::Insert, ins_count)) = runs.get(i + 1).copied() {
+                    if let Some((similar::ChangeTag::Insert, ins_count)) = runs.get(i + 1).copied()
+                    {
                         let l = left_cursor..left_cursor + count;
                         let r = right_cursor..right_cursor + ins_count;
                         left_cursor += count;
@@ -219,12 +224,19 @@ impl MergeEngine {
     ///   - only remote changed -> [`MergeStatus::RemoteOnly`] (chosen pre-set to `Remote`).
     ///   - both changed to the same value -> [`MergeStatus::BothSame`] (chosen pre-set to `Local`).
     ///   - both changed differently -> [`MergeStatus::Conflict`] (chosen `None` — needs a choice).
-    pub fn three_way(base: &TextBuffer, local: &TextBuffer, remote: &TextBuffer) -> Vec<MergeBlock> {
+    pub fn three_way(
+        base: &TextBuffer,
+        local: &TextBuffer,
+        remote: &TextBuffer,
+    ) -> Vec<MergeBlock> {
         let base_lines = buffer_lines(base);
         let local_lines = buffer_lines(local);
         let remote_lines = buffer_lines(remote);
 
-        let count = base_lines.len().max(local_lines.len()).max(remote_lines.len());
+        let count = base_lines
+            .len()
+            .max(local_lines.len())
+            .max(remote_lines.len());
         let mut blocks = Vec::new();
 
         for index in 0..count {
@@ -253,7 +265,13 @@ impl MergeEngine {
 
             // A line present on a side occupies [index, index+1); an absent line occupies the empty
             // [index, index) so the range math stays consistent for shorter buffers.
-            let span = |present: bool| if present { index..index + 1 } else { index..index };
+            let span = |present: bool| {
+                if present {
+                    index..index + 1
+                } else {
+                    index..index
+                }
+            };
 
             blocks.push(MergeBlock {
                 base_lines: span(base_line.is_some()),
@@ -283,7 +301,10 @@ impl MergeEngine {
         let local_lines = buffer_lines(local);
         let remote_lines = buffer_lines(remote);
 
-        let count = base_lines.len().max(local_lines.len()).max(remote_lines.len());
+        let count = base_lines
+            .len()
+            .max(local_lines.len())
+            .max(remote_lines.len());
 
         // Index the blocks by the line position they cover (each block covers exactly one line index
         // in this line-aligned model).
@@ -376,9 +397,21 @@ pub fn diff_json_blocks(left: &[serde_json::Value], right: &[serde_json::Value])
             (Some(_), Some(_)) => DiffStatus::Modified,
             (None, None) => continue,
         };
-        let l_range = if l.is_some() { index..index + 1 } else { index..index };
-        let r_range = if r.is_some() { index..index + 1 } else { index..index };
-        blocks.push(DiffBlock { left_lines: l_range, right_lines: r_range, status });
+        let l_range = if l.is_some() {
+            index..index + 1
+        } else {
+            index..index
+        };
+        let r_range = if r.is_some() {
+            index..index + 1
+        } else {
+            index..index
+        };
+        blocks.push(DiffBlock {
+            left_lines: l_range,
+            right_lines: r_range,
+            status,
+        });
     }
     blocks
 }
@@ -412,10 +445,21 @@ mod tests {
         let left = TextBuffer::new("a\nb\nc");
         let right = TextBuffer::new("a\nb\nNEW\nc");
         let blocks = DiffEngine::diff(&left, &right);
-        let added: Vec<_> = blocks.iter().filter(|b| b.status == DiffStatus::Added).collect();
+        let added: Vec<_> = blocks
+            .iter()
+            .filter(|b| b.status == DiffStatus::Added)
+            .collect();
         assert_eq!(added.len(), 1, "exactly one Added block; got {blocks:?}");
-        assert_eq!(added[0].left_lines.len(), 0, "Added block is empty on the left");
-        assert_eq!(added[0].right_lines.len(), 1, "Added block covers one right line");
+        assert_eq!(
+            added[0].left_lines.len(),
+            0,
+            "Added block is empty on the left"
+        );
+        assert_eq!(
+            added[0].right_lines.len(),
+            1,
+            "Added block covers one right line"
+        );
     }
 
     #[test]
@@ -423,10 +467,25 @@ mod tests {
         let left = TextBuffer::new("a\nb\nc\nd");
         let right = TextBuffer::new("a\nb\nd");
         let blocks = DiffEngine::diff(&left, &right);
-        let removed: Vec<_> = blocks.iter().filter(|b| b.status == DiffStatus::Removed).collect();
-        assert_eq!(removed.len(), 1, "exactly one Removed block; got {blocks:?}");
-        assert_eq!(removed[0].right_lines.len(), 0, "Removed block is empty on the right");
-        assert_eq!(removed[0].left_lines.len(), 1, "Removed block covers one left line");
+        let removed: Vec<_> = blocks
+            .iter()
+            .filter(|b| b.status == DiffStatus::Removed)
+            .collect();
+        assert_eq!(
+            removed.len(),
+            1,
+            "exactly one Removed block; got {blocks:?}"
+        );
+        assert_eq!(
+            removed[0].right_lines.len(),
+            0,
+            "Removed block is empty on the right"
+        );
+        assert_eq!(
+            removed[0].left_lines.len(),
+            1,
+            "Removed block covers one left line"
+        );
     }
 
     #[test]
@@ -434,14 +493,25 @@ mod tests {
         let left = TextBuffer::new("a\nMID\nc");
         let right = TextBuffer::new("a\nCHANGED\nc");
         let blocks = DiffEngine::diff(&left, &right);
-        let modified: Vec<_> = blocks.iter().filter(|b| b.status == DiffStatus::Modified).collect();
+        let modified: Vec<_> = blocks
+            .iter()
+            .filter(|b| b.status == DiffStatus::Modified)
+            .collect();
         assert_eq!(
             modified.len(),
             1,
             "a delete+insert at the same position is ONE Modified block; got {blocks:?}"
         );
-        assert_eq!(modified[0].left_lines.len(), 1, "Modified covers one left line");
-        assert_eq!(modified[0].right_lines.len(), 1, "Modified covers one right line");
+        assert_eq!(
+            modified[0].left_lines.len(),
+            1,
+            "Modified covers one left line"
+        );
+        assert_eq!(
+            modified[0].right_lines.len(),
+            1,
+            "Modified covers one right line"
+        );
     }
 
     #[test]
@@ -455,13 +525,27 @@ mod tests {
         let mut next_left = 0usize;
         let mut next_right = 0usize;
         for b in &blocks {
-            assert_eq!(b.left_lines.start, next_left, "left ranges are contiguous: {blocks:?}");
-            assert_eq!(b.right_lines.start, next_right, "right ranges are contiguous: {blocks:?}");
+            assert_eq!(
+                b.left_lines.start, next_left,
+                "left ranges are contiguous: {blocks:?}"
+            );
+            assert_eq!(
+                b.right_lines.start, next_right,
+                "right ranges are contiguous: {blocks:?}"
+            );
             next_left = b.left_lines.end;
             next_right = b.right_lines.end;
         }
-        assert_eq!(next_left, left.to_string().lines().count(), "left fully tiled");
-        assert_eq!(next_right, right.to_string().lines().count(), "right fully tiled");
+        assert_eq!(
+            next_left,
+            left.to_string().lines().count(),
+            "left fully tiled"
+        );
+        assert_eq!(
+            next_right,
+            right.to_string().lines().count(),
+            "right fully tiled"
+        );
     }
 
     // ── MergeEngine three-way (AC-002: ported from document_diff_merge.test.ts) ───────────────────
@@ -474,12 +558,24 @@ mod tests {
         let remote = TextBuffer::new("l0\nl1\nl2\nl3\nl4\nREMOTE");
         let blocks = MergeEngine::three_way(&base, &local, &remote);
 
-        let local_only = blocks.iter().filter(|b| b.status == MergeStatus::LocalOnly).count();
-        let remote_only = blocks.iter().filter(|b| b.status == MergeStatus::RemoteOnly).count();
-        let conflicts = blocks.iter().filter(|b| b.status == MergeStatus::Conflict).count();
+        let local_only = blocks
+            .iter()
+            .filter(|b| b.status == MergeStatus::LocalOnly)
+            .count();
+        let remote_only = blocks
+            .iter()
+            .filter(|b| b.status == MergeStatus::RemoteOnly)
+            .count();
+        let conflicts = blocks
+            .iter()
+            .filter(|b| b.status == MergeStatus::Conflict)
+            .count();
         assert_eq!(local_only, 1, "one LocalOnly block; got {blocks:?}");
         assert_eq!(remote_only, 1, "one RemoteOnly block; got {blocks:?}");
-        assert_eq!(conflicts, 0, "no conflicts for non-overlapping edits; got {blocks:?}");
+        assert_eq!(
+            conflicts, 0,
+            "no conflicts for non-overlapping edits; got {blocks:?}"
+        );
     }
 
     #[test]
@@ -488,10 +584,15 @@ mod tests {
         let local = TextBuffer::new("l0\nLOCAL_EDIT\nl2");
         let remote = TextBuffer::new("l0\nREMOTE_EDIT\nl2");
         let blocks = MergeEngine::three_way(&base, &local, &remote);
-        let conflicts: Vec<_> =
-            blocks.iter().filter(|b| b.status == MergeStatus::Conflict).collect();
+        let conflicts: Vec<_> = blocks
+            .iter()
+            .filter(|b| b.status == MergeStatus::Conflict)
+            .collect();
         assert_eq!(conflicts.len(), 1, "one Conflict block; got {blocks:?}");
-        assert_eq!(conflicts[0].chosen, None, "an unresolved conflict has no chosen side");
+        assert_eq!(
+            conflicts[0].chosen, None,
+            "an unresolved conflict has no chosen side"
+        );
     }
 
     #[test]
@@ -500,8 +601,16 @@ mod tests {
         let local = TextBuffer::new("l0\nSAME\nl2");
         let remote = TextBuffer::new("l0\nSAME\nl2");
         let blocks = MergeEngine::three_way(&base, &local, &remote);
-        assert_eq!(blocks.len(), 1, "one block for the single changed line; got {blocks:?}");
-        assert_eq!(blocks[0].status, MergeStatus::BothSame, "identical edits -> BothSame");
+        assert_eq!(
+            blocks.len(),
+            1,
+            "one block for the single changed line; got {blocks:?}"
+        );
+        assert_eq!(
+            blocks[0].status,
+            MergeStatus::BothSame,
+            "identical edits -> BothSame"
+        );
     }
 
     #[test]
@@ -543,8 +652,14 @@ mod tests {
         }
         let merged = MergeEngine::apply(&base, &local, &remote, &blocks);
         let merged_text = merged.to_string();
-        assert!(merged_text.contains("REMOTE_EDIT"), "Accept Remote -> remote version; {merged_text:?}");
-        assert!(!merged_text.contains("LOCAL_EDIT"), "Accept Remote -> not local; {merged_text:?}");
+        assert!(
+            merged_text.contains("REMOTE_EDIT"),
+            "Accept Remote -> remote version; {merged_text:?}"
+        );
+        assert!(
+            !merged_text.contains("LOCAL_EDIT"),
+            "Accept Remote -> not local; {merged_text:?}"
+        );
     }
 
     #[test]
@@ -562,7 +677,10 @@ mod tests {
         let merged_text = merged.to_string();
         let local_pos = merged_text.find("LOCAL_EDIT").expect("local present");
         let remote_pos = merged_text.find("REMOTE_EDIT").expect("remote present");
-        assert!(local_pos < remote_pos, "Accept Both -> local line before remote line; {merged_text:?}");
+        assert!(
+            local_pos < remote_pos,
+            "Accept Both -> local line before remote line; {merged_text:?}"
+        );
     }
 
     #[test]
@@ -572,19 +690,36 @@ mod tests {
         let remote = TextBuffer::new("keep0\nl1\nkeep2");
         let blocks = MergeEngine::three_way(&base, &local, &remote);
         let merged = MergeEngine::apply(&base, &local, &remote, &blocks).to_string();
-        assert!(merged.contains("keep0") && merged.contains("keep2"), "unchanged lines survive: {merged:?}");
-        assert!(merged.contains("LOCAL"), "the local-only edit is applied: {merged:?}");
+        assert!(
+            merged.contains("keep0") && merged.contains("keep2"),
+            "unchanged lines survive: {merged:?}"
+        );
+        assert!(
+            merged.contains("LOCAL"),
+            "the local-only edit is applied: {merged:?}"
+        );
     }
 
     // ── Deferred prose/JSON block seam ────────────────────────────────────────────────────────────
 
     #[test]
     fn json_block_diff_classifies_by_index() {
-        let left = vec![serde_json::json!({"type":"p","text":"a"}), serde_json::json!({"type":"p","text":"b"})];
-        let right = vec![serde_json::json!({"type":"p","text":"a"}), serde_json::json!({"type":"p","text":"CHANGED"}), serde_json::json!({"type":"p","text":"NEW"})];
+        let left = vec![
+            serde_json::json!({"type":"p","text":"a"}),
+            serde_json::json!({"type":"p","text":"b"}),
+        ];
+        let right = vec![
+            serde_json::json!({"type":"p","text":"a"}),
+            serde_json::json!({"type":"p","text":"CHANGED"}),
+            serde_json::json!({"type":"p","text":"NEW"}),
+        ];
         let blocks = diff_json_blocks(&left, &right);
         assert_eq!(blocks[0].status, DiffStatus::Equal, "block 0 identical");
         assert_eq!(blocks[1].status, DiffStatus::Modified, "block 1 changed");
-        assert_eq!(blocks[2].status, DiffStatus::Added, "block 2 only on the right");
+        assert_eq!(
+            blocks[2].status,
+            DiffStatus::Added,
+            "block 2 only on the right"
+        );
     }
 }

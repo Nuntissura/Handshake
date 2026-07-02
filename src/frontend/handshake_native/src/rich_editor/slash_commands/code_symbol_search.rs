@@ -171,7 +171,10 @@ mod tests {
         *st.cell.lock().unwrap() = Some(Err(AppError::Http("down".into())));
         assert!(st.drain());
         assert!(st.results.is_empty());
-        assert!(st.error.is_some(), "a failure surfaces as a typed error, not a panic");
+        assert!(
+            st.error.is_some(),
+            "a failure surfaces as a typed error, not a panic"
+        );
         assert!(!st.loading);
     }
 
@@ -190,6 +193,9 @@ mod tests {
         let mut st = CodeSymbolSearchState::open("ws-1", None);
         st.query = "MyStruct".to_owned();
         st.spawn_lookup(); // no runtime installed
-        assert!(st.error.is_some(), "no-runtime is a typed error state, never a panic");
+        assert!(
+            st.error.is_some(),
+            "no-runtime is a typed error state, never a panic"
+        );
     }
 }

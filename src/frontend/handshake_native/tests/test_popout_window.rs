@@ -67,10 +67,7 @@ fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String
 }
 
 fn registry_len(app: &HandshakeApp) -> usize {
-    app.pane_registry()
-        .lock()
-        .expect("registry mutex")
-        .len()
+    app.pane_registry().lock().expect("registry mutex").len()
 }
 
 #[test]
@@ -192,7 +189,9 @@ fn popped_out_pane_window_title_and_window_node_are_present() {
         author_ids.contains(&"pane-a"),
         "popped-out pane-a remains accessible by its author_id; found {author_ids:?}"
     );
-    println!("PASS: detached window title '{expected_title}' + Window node + pane-a still accessible");
+    println!(
+        "PASS: detached window title '{expected_title}' + Window node + pane-a still accessible"
+    );
 }
 
 #[test]
@@ -213,7 +212,10 @@ fn os_close_button_path_merges_pane_back() {
     harness.state_mut().request_pop_out(pid("pane-b"));
     harness.run();
     harness.run();
-    assert!(harness.state().is_popped_out(&pid("pane-b")), "pane-b popped out");
+    assert!(
+        harness.state().is_popped_out(&pid("pane-b")),
+        "pane-b popped out"
+    );
 
     // Simulate the OS close button on the APP's real pop-out (same call the immediate viewport
     // callback makes on close_requested()). Returns true because a pop-out existed for pane-b.
@@ -246,10 +248,7 @@ fn os_close_button_path_merges_pane_back() {
 /// Read the consumer-side AccessKit bounding box (width, height) for the node with the given
 /// `author_id` from the LIVE tree — the same geometry an out-of-process AT/UIA client sees. Returns
 /// `None` if the node is absent or carries no bounds this frame.
-fn author_node_bounds(
-    harness: &Harness<'_, HandshakeApp>,
-    author_id: &str,
-) -> Option<(f64, f64)> {
+fn author_node_bounds(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> Option<(f64, f64)> {
     use egui_kittest::kittest::NodeT;
     let root = harness.root();
     for node in root.children_recursive() {
@@ -307,9 +306,8 @@ fn popped_out_pane_body_owns_full_viewport_width() {
         "pane-a is popped out"
     );
 
-    let popped = author_node_bounds(&harness, tabbar_author).unwrap_or_else(|| {
-        panic!("popped-out pane-a body did not lay out a tab bar with bounds")
-    });
+    let popped = author_node_bounds(&harness, tabbar_author)
+        .unwrap_or_else(|| panic!("popped-out pane-a body did not lay out a tab bar with bounds"));
 
     // The body spans real layout width (not a sliver), and is WIDER than a single docked grid cell —
     // the detached viewport is the full window, so the body's tab bar must span > one 2x2 cell.
@@ -352,5 +350,8 @@ fn pop_out_does_not_change_default_seed_live_tree() {
         !author_ids.iter().any(|a| a.starts_with("popout-window-")),
         "no popout-window nodes in the default seed; found {author_ids:?}"
     );
-    println!("PASS: default-seed live tree carries no pop-out nodes ({} author_id nodes)", nodes.len());
+    println!(
+        "PASS: default-seed live tree carries no pop-out nodes ({} author_id nodes)",
+        nodes.len()
+    );
 }

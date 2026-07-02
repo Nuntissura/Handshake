@@ -95,7 +95,11 @@ fn toolbar_groups() -> Vec<Vec<ButtonSpec>> {
             ButtonSpec::new(FormattingCommand::SetParagraph, "¶", "Paragraph"),
             ButtonSpec::new(FormattingCommand::SetBlockquote, "\"", "Block quote"),
             ButtonSpec::new(FormattingCommand::SetCodeBlock(None), "</>", "Code block"),
-            ButtonSpec::new(FormattingCommand::InsertHorizontalRule, "—", "Horizontal rule"),
+            ButtonSpec::new(
+                FormattingCommand::InsertHorizontalRule,
+                "—",
+                "Horizontal rule",
+            ),
         ],
         // list
         vec![
@@ -107,12 +111,20 @@ fn toolbar_groups() -> Vec<Vec<ButtonSpec>> {
         ],
         // table
         vec![
-            ButtonSpec::new(FormattingCommand::InsertTable { rows: 3, cols: 3 }, "Table", "Insert table"),
+            ButtonSpec::new(
+                FormattingCommand::InsertTable { rows: 3, cols: 3 },
+                "Table",
+                "Insert table",
+            ),
             ButtonSpec::new(FormattingCommand::AddRowAfter, "+R", "Add row"),
             ButtonSpec::new(FormattingCommand::DeleteRow, "-R", "Delete row"),
             ButtonSpec::new(FormattingCommand::AddColAfter, "+C", "Add column"),
             ButtonSpec::new(FormattingCommand::DeleteCol, "-C", "Delete column"),
-            ButtonSpec::new(FormattingCommand::ToggleHeaderRow, "TH", "Toggle header row"),
+            ButtonSpec::new(
+                FormattingCommand::ToggleHeaderRow,
+                "TH",
+                "Toggle header row",
+            ),
             ButtonSpec::new(FormattingCommand::DeleteTable, "✕T", "Delete table"),
         ],
     ]
@@ -159,7 +171,9 @@ impl<'a> EditorToolbar<'a> {
     pub fn show(mut self, ui: &mut egui::Ui) -> bool {
         let mut dispatched = false;
         let groups = toolbar_groups();
-        let max_width = self.forced_max_width.unwrap_or_else(|| ui.available_width());
+        let max_width = self
+            .forced_max_width
+            .unwrap_or_else(|| ui.available_width());
 
         // Estimate the row width: a rough per-button width budget. egui sizes buttons by
         // their galley; we use a conservative fixed estimate so the overflow decision is
@@ -290,15 +304,29 @@ pub fn is_command_active(doc: &BlockNode, selection: &Selection, cmd: &Formattin
         }
         FormattingCommand::ToggleStrike => commands::is_mark_active(doc, selection, &Mark::Strike),
         FormattingCommand::ToggleCode => commands::is_mark_active(doc, selection, &Mark::Code),
-        FormattingCommand::SetParagraph => caret_block_kind_is(doc, selection, |k| matches!(k, NodeKind::Paragraph)),
-        FormattingCommand::SetHeading(level) => caret_block_kind_is(doc, selection, |k| {
-            matches!(k, NodeKind::Heading(l) if l.get() == *level)
-        }),
-        FormattingCommand::SetBlockquote => caret_is_inside_kind(doc, selection, NodeKind::Blockquote),
-        FormattingCommand::SetCodeBlock(_) => caret_block_kind_is(doc, selection, |k| matches!(k, NodeKind::CodeBlock)),
-        FormattingCommand::ToggleBulletList => caret_is_inside_kind(doc, selection, NodeKind::BulletList),
-        FormattingCommand::ToggleOrderedList => caret_is_inside_kind(doc, selection, NodeKind::OrderedList),
-        FormattingCommand::ToggleTaskList => caret_is_inside_kind(doc, selection, NodeKind::TaskItem),
+        FormattingCommand::SetParagraph => {
+            caret_block_kind_is(doc, selection, |k| matches!(k, NodeKind::Paragraph))
+        }
+        FormattingCommand::SetHeading(level) => caret_block_kind_is(
+            doc,
+            selection,
+            |k| matches!(k, NodeKind::Heading(l) if l.get() == *level),
+        ),
+        FormattingCommand::SetBlockquote => {
+            caret_is_inside_kind(doc, selection, NodeKind::Blockquote)
+        }
+        FormattingCommand::SetCodeBlock(_) => {
+            caret_block_kind_is(doc, selection, |k| matches!(k, NodeKind::CodeBlock))
+        }
+        FormattingCommand::ToggleBulletList => {
+            caret_is_inside_kind(doc, selection, NodeKind::BulletList)
+        }
+        FormattingCommand::ToggleOrderedList => {
+            caret_is_inside_kind(doc, selection, NodeKind::OrderedList)
+        }
+        FormattingCommand::ToggleTaskList => {
+            caret_is_inside_kind(doc, selection, NodeKind::TaskItem)
+        }
         _ => false,
     }
 }
@@ -312,7 +340,9 @@ fn caret_block_kind_is(
     let Some(block_path) = caret_block_path(selection) else {
         return false;
     };
-    block_at(doc, &block_path).map(|b| pred(b.kind)).unwrap_or(false)
+    block_at(doc, &block_path)
+        .map(|b| pred(b.kind))
+        .unwrap_or(false)
 }
 
 /// True when any ancestor of the caret block is of `kind`.

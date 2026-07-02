@@ -78,9 +78,7 @@ use egui_kittest::Harness;
 
 // REUSE (AC-065-07): the MT-063 FEMS read client + Relevant Memory panel, the MT-064 propose dialog +
 // proposal model, and the MT-041 AccessKit-id conventions — all imported, never re-created here.
-use handshake_native::fems::memory_client::{
-    MemoryClientError, MemoryPack, MEMORY_PACK_MAX_ITEMS,
-};
+use handshake_native::fems::memory_client::{MemoryClientError, MemoryPack, MEMORY_PACK_MAX_ITEMS};
 // `MemoryContext` is consumed ONLY by the gated live FEMS-01 proof (the live fetch builds a context);
 // importing it unconditionally would be a dead import under `-D warnings` in the default build.
 #[cfg(feature = "integration")]
@@ -91,8 +89,8 @@ use handshake_native::fems::memory_proposal::{
     FEMS_PROPOSE_DIALOG_AUTHOR_ID,
 };
 use handshake_native::fems::relevant_memory_panel::{
-    mem_item_author_id, mem_source_author_id, FnNavigationBus, MemoryNavTarget, RelevantMemoryPanel,
-    RELEVANT_MEMORY_LIST_AUTHOR_ID, RELEVANT_MEMORY_PANEL_AUTHOR_ID,
+    mem_item_author_id, mem_source_author_id, FnNavigationBus, MemoryNavTarget,
+    RelevantMemoryPanel, RELEVANT_MEMORY_LIST_AUTHOR_ID, RELEVANT_MEMORY_PANEL_AUTHOR_ID,
 };
 use handshake_native::interop::{EditorSurfaceKind, SharedSelection};
 use handshake_native::theme::{HsPalette, HsTheme};
@@ -438,13 +436,41 @@ fn proof_fems_03_swarm_id_stability() {
     //   3. discover a class radio + the propose-confirm button (the propose step),
     // then dispatch an AccessKit activate on the confirm (the swarm proposal action).
     let flow = [
-        SwarmStep { author_id: RELEVANT_MEMORY_PANEL_AUTHOR_ID.to_owned(), expect_role: "GenericContainer", activate: false },
-        SwarmStep { author_id: RELEVANT_MEMORY_LIST_AUTHOR_ID.to_owned(), expect_role: "List", activate: false },
-        SwarmStep { author_id: mem_item_author_id("sem-1"), expect_role: "ListItem", activate: false },
-        SwarmStep { author_id: mem_source_author_id("sem-1"), expect_role: "Button", activate: false },
-        SwarmStep { author_id: FEMS_PROPOSE_DIALOG_AUTHOR_ID.to_owned(), expect_role: "Dialog", activate: false },
-        SwarmStep { author_id: fems_class_author_id(MemoryClass::Procedural), expect_role: "RadioButton", activate: false },
-        SwarmStep { author_id: FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned(), expect_role: "Button", activate: true },
+        SwarmStep {
+            author_id: RELEVANT_MEMORY_PANEL_AUTHOR_ID.to_owned(),
+            expect_role: "GenericContainer",
+            activate: false,
+        },
+        SwarmStep {
+            author_id: RELEVANT_MEMORY_LIST_AUTHOR_ID.to_owned(),
+            expect_role: "List",
+            activate: false,
+        },
+        SwarmStep {
+            author_id: mem_item_author_id("sem-1"),
+            expect_role: "ListItem",
+            activate: false,
+        },
+        SwarmStep {
+            author_id: mem_source_author_id("sem-1"),
+            expect_role: "Button",
+            activate: false,
+        },
+        SwarmStep {
+            author_id: FEMS_PROPOSE_DIALOG_AUTHOR_ID.to_owned(),
+            expect_role: "Dialog",
+            activate: false,
+        },
+        SwarmStep {
+            author_id: fems_class_author_id(MemoryClass::Procedural),
+            expect_role: "RadioButton",
+            activate: false,
+        },
+        SwarmStep {
+            author_id: FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned(),
+            expect_role: "Button",
+            activate: true,
+        },
     ];
 
     // First pass: resolve each id, assert role + determinism, and capture each NodeId for the stability
@@ -491,14 +517,20 @@ fn proof_fems_03_swarm_id_stability() {
              must not drift)"
         );
     }
-    println!("  all {} FEMS ids stable across two frame re-queries (no drift)", first_ids.len());
+    println!(
+        "  all {} FEMS ids stable across two frame re-queries (no drift)",
+        first_ids.len()
+    );
 
     // Dispatch the swarm proposal ACTIVATE on the confirm button purely via its AccessKit NodeId (the
     // out-of-process agent path — an AccessKit Click action, never a synthetic key event). The dialog's
     // confirm button responds to this Click; the dispatch reaches the real widget within one frame.
     let confirm = find_node(&harness.root(), FEMS_PROPOSE_CONFIRM_AUTHOR_ID)
         .expect("the propose-confirm node is present");
-    assert!(!confirm.disabled, "AC-065-04: the propose-confirm button is enabled (dispatchable)");
+    assert!(
+        !confirm.disabled,
+        "AC-065-04: the propose-confirm button is enabled (dispatchable)"
+    );
     harness.event(click_event(confirm.node_id));
     harness.run();
     harness.run();
@@ -586,7 +618,10 @@ fn proof_fems_no_sqlite_anywhere() {
     // the tokens in this assertion + the live-DSN refusal text — and is covered instead by the
     // lowercase-`sqlite` production-module gate below + the explicit DSN-refusal assertion.
     let lowered_sqlite = concat!("sql", "ite"); // split so this literal does not self-match a suite scan
-    for (name, src) in [("memory_client", client_src), ("memory_proposal", proposal_src)] {
+    for (name, src) in [
+        ("memory_client", client_src),
+        ("memory_proposal", proposal_src),
+    ] {
         assert!(
             !src.to_ascii_lowercase().contains(lowered_sqlite),
             "RISK-065-01/CTRL-065-01: the FEMS production module {name} must contain no SQLite token"
@@ -616,29 +651,60 @@ fn proof_fems_no_sqlite_anywhere() {
 
 #[test]
 fn proof_fems_typed_blocker_manifest() {
-    println!("--- MT-065 typed BLOCKER manifest (the 4 live proofs are GATED on these, never faked) ---");
+    println!(
+        "--- MT-065 typed BLOCKER manifest (the 4 live proofs are GATED on these, never faked) ---"
+    );
     for blocker in &FEMS_TYPED_BLOCKERS {
         let line = blocker.line();
         println!("{line}");
         // The structured form IN-065-06 mandates: kind/detail/source_mt all present.
-        assert!(line.starts_with("BLOCKER[kind="), "IN-065-06: structured blocker form");
-        assert!(line.contains("detail='") && line.contains("source_mt="), "IN-065-06: detail + source_mt");
+        assert!(
+            line.starts_with("BLOCKER[kind="),
+            "IN-065-06: structured blocker form"
+        );
+        assert!(
+            line.contains("detail='") && line.contains("source_mt="),
+            "IN-065-06: detail + source_mt"
+        );
     }
     // The three specific absent routes the live proofs depend on, attributed to the owning MTs.
     let lines: Vec<String> = FEMS_TYPED_BLOCKERS.iter().map(|b| b.line()).collect();
     let all = lines.join("\n");
-    assert!(all.contains("memory/pack") && all.contains("MT-063"), "FEMS-01 route gap attributed to MT-063");
-    assert!(all.contains("memory/proposals") && all.contains("MT-064"), "FEMS-02 write gap attributed to MT-064");
-    assert!(all.contains("memory_write_proposed") && all.contains("MT-064"), "FEMS-02 FR-ingestion gap attributed to MT-064");
-    assert_eq!(FEMS_TYPED_BLOCKERS.len(), 3, "exactly three documented live-route blockers");
+    assert!(
+        all.contains("memory/pack") && all.contains("MT-063"),
+        "FEMS-01 route gap attributed to MT-063"
+    );
+    assert!(
+        all.contains("memory/proposals") && all.contains("MT-064"),
+        "FEMS-02 write gap attributed to MT-064"
+    );
+    assert!(
+        all.contains("memory_write_proposed") && all.contains("MT-064"),
+        "FEMS-02 FR-ingestion gap attributed to MT-064"
+    );
+    assert_eq!(
+        FEMS_TYPED_BLOCKERS.len(),
+        3,
+        "exactly three documented live-route blockers"
+    );
 
     // Also assert the FEMS typed-blocker ENUM variants the proofs key off exist and are the documented
     // typed blockers (so a future backend that *changes* the error shape is caught here): the FEMS read
     // client's EndpointMissing and the proposal client's MissingEndpoint.
-    let read_blocker = MemoryClientError::EndpointMissing { probed_path: "/workspaces/WS/memory/pack".into() };
-    assert!(read_blocker.is_endpoint_missing(), "MT-063 EndpointMissing is the read typed blocker");
-    let write_blocker = MemoryProposalError::MissingEndpoint { probed_path: "/workspaces/WS/memory/proposals".into() };
-    assert!(write_blocker.is_missing_endpoint(), "MT-064 MissingEndpoint is the write typed blocker");
+    let read_blocker = MemoryClientError::EndpointMissing {
+        probed_path: "/workspaces/WS/memory/pack".into(),
+    };
+    assert!(
+        read_blocker.is_endpoint_missing(),
+        "MT-063 EndpointMissing is the read typed blocker"
+    );
+    let write_blocker = MemoryProposalError::MissingEndpoint {
+        probed_path: "/workspaces/WS/memory/proposals".into(),
+    };
+    assert!(
+        write_blocker.is_missing_endpoint(),
+        "MT-064 MissingEndpoint is the write typed blocker"
+    );
 
     println!("blocker-manifest OK (IN-065-06/AC-065-06): 3 typed missing_api blockers emitted; the 4 live FEMS proofs go green unchanged when the routes + a managed PG land");
 }
@@ -669,10 +735,19 @@ fn proof_fems_04_review_gate_invariant_fixture_half() {
     }
     // Procedural explicitly (the spec's hard requirement).
     let proc = build_proposal(&sel, MemoryClass::Procedural, "WS-MT065", "swarm-agent-1").unwrap();
-    assert!(proc.review_gated, "FEMS-04: Procedural-class proposals are ALWAYS review-gated");
+    assert!(
+        proc.review_gated,
+        "FEMS-04: Procedural-class proposals are ALWAYS review-gated"
+    );
     // No selection -> no fabricated proposal (the command is a no-op, not a silent empty write).
     assert_eq!(
-        build_proposal(&SharedSelection::None, MemoryClass::Episodic, "WS-MT065", "a").unwrap_err(),
+        build_proposal(
+            &SharedSelection::None,
+            MemoryClass::Episodic,
+            "WS-MT065",
+            "a"
+        )
+        .unwrap_err(),
         MemoryProposalError::NoSelection
     );
     println!("FEMS-04 fixture half OK: every procedurally-built proposal is review-gated; the live no-auto-commit half is GATED");
@@ -699,14 +774,28 @@ fn proof_fems_01_memorypack_render() {
 
     // HARD: assert the live store is PostgreSQL (refuse SQLite/in-memory/mock); panic if absent.
     let dsn = resolve_live_pg_dsn();
-    println!("FEMS-01 live store DSN scheme verified PostgreSQL (dsn host hidden); base={}", live_backend_base());
-    assert!(dsn.to_ascii_lowercase().starts_with("postgres"), "live store must be PostgreSQL");
+    println!(
+        "FEMS-01 live store DSN scheme verified PostgreSQL (dsn host hidden); base={}",
+        live_backend_base()
+    );
+    assert!(
+        dsn.to_ascii_lowercase().starts_with("postgres"),
+        "live store must be PostgreSQL"
+    );
 
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     let client = MemoryClient::with_base_url(live_backend_base());
     // A throwaway workspace + a seed document context whose content matches a seeded memory item.
     let workspace_id = format!("ws-mt065-{}", std::process::id());
-    let ctx = MemoryContext::from_focus(workspace_id.clone(), Some("DOC-1".into()), Some("Aria the protagonist".into()), Some(12));
+    let ctx = MemoryContext::from_focus(
+        workspace_id.clone(),
+        Some("DOC-1".into()),
+        Some("Aria the protagonist".into()),
+        Some(12),
+    );
 
     let pack = match rt.block_on(async { client.fetch_pack(&workspace_id, &ctx).await }) {
         Ok(pack) => pack,
@@ -718,10 +807,16 @@ fn proof_fems_01_memorypack_render() {
     };
 
     // (a) the call hit the real backend: the pack carries items keyed on real ids (not the fixture seed).
-    assert!(!pack.items.is_empty(), "FEMS-01: the live MemoryPack must return >= 1 item");
+    assert!(
+        !pack.items.is_empty(),
+        "FEMS-01: the live MemoryPack must return >= 1 item"
+    );
     // (c) provenance linkage: at least one item carries a non-empty source reference.
     let has_provenance = pack.items.iter().any(|it| it.is_navigable());
-    assert!(has_provenance, "FEMS-01: at least one item must carry a non-empty provenance/source reference");
+    assert!(
+        has_provenance,
+        "FEMS-01: at least one item must carry a non-empty provenance/source reference"
+    );
 
     // (b) the native panel renders >= 1 memory-item node in its AccessKit subtree.
     let pack_for_ui = pack.clone();
@@ -745,7 +840,10 @@ fn proof_fems_01_memorypack_render() {
                 .unwrap_or(false)
         })
         .count();
-    assert!(rendered_items >= 1, "FEMS-01: the panel must render >= 1 memory-item node");
+    assert!(
+        rendered_items >= 1,
+        "FEMS-01: the panel must render >= 1 memory-item node"
+    );
     println!(
         "FEMS-01 PROVEN (live): MemoryPack returned {} items (>= 1 provenance-linked), panel rendered {} item nodes",
         pack.items.len(),
@@ -763,14 +861,25 @@ fn proof_fems_02_propose_creates_proposal_and_event() {
     use handshake_native::fems::memory_proposal::{submit_proposal, HandshakeCoreClient};
 
     let dsn = resolve_live_pg_dsn();
-    assert!(dsn.to_ascii_lowercase().starts_with("postgres"), "live store must be PostgreSQL");
+    assert!(
+        dsn.to_ascii_lowercase().starts_with("postgres"),
+        "live store must be PostgreSQL"
+    );
 
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     let client = HandshakeCoreClient::with_base_url(live_backend_base());
     let workspace_id = format!("ws-mt065-prop-{}", std::process::id());
     let sel = text_range("pane-rich", 5, 17, "Aria the lead");
-    let proposal = build_proposal(&sel, MemoryClass::Procedural, &workspace_id, "swarm-agent-1")
-        .expect("build_proposal");
+    let proposal = build_proposal(
+        &sel,
+        MemoryClass::Procedural,
+        &workspace_id,
+        "swarm-agent-1",
+    )
+    .expect("build_proposal");
 
     let ack = match rt.block_on(async { submit_proposal(&proposal, &client).await }) {
         Ok(ack) => ack,
@@ -790,10 +899,12 @@ fn proof_fems_02_propose_creates_proposal_and_event() {
     let proposals_body: serde_json::Value = rt
         .block_on(async { reqwest::get(&proposals_url).await?.json().await })
         .expect("FEMS-02: read proposals back from the live backend");
-    let proposal_present = proposals_body
-        .to_string()
-        .contains(&ack.proposal_id);
-    assert!(proposal_present, "FEMS-02: the created proposal id {} must be present in the live proposals read", ack.proposal_id);
+    let proposal_present = proposals_body.to_string().contains(&ack.proposal_id);
+    assert!(
+        proposal_present,
+        "FEMS-02: the created proposal id {} must be present in the live proposals read",
+        ack.proposal_id
+    );
 
     let fr_url = format!("{base}/api/flight_recorder");
     let fr_body: serde_json::Value = rt
@@ -809,7 +920,10 @@ fn proof_fems_02_propose_creates_proposal_and_event() {
         "CTRL-065-03: the FR event must reference the SAME proposal identity {} as the proposal row (correlation, not coincidence)",
         ack.proposal_id
     );
-    println!("FEMS-02 PROVEN (live): proposal {} in PG + correlated FR-EVT-MEM-001 in the ledger", ack.proposal_id);
+    println!(
+        "FEMS-02 PROVEN (live): proposal {} in PG + correlated FR-EVT-MEM-001 in the ledger",
+        ack.proposal_id
+    );
 }
 
 /// FEMS-03 (live half) / AC-065-04: the full FEMS flow (open panel -> refresh MemoryPack -> propose ->
@@ -821,21 +935,32 @@ fn proof_fems_02_propose_creates_proposal_and_event() {
 #[test]
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: the live FEMS routes are absent (MT-063/064) + no managed PostgreSQL"]
 fn proof_fems_03_swarm_drives_fems_via_accesskit() {
-    use handshake_native::fems::memory_proposal::{submit_proposal_and_emit, HandshakeCoreClient};
     use handshake_native::event_emitter::{NativeEditorEventEmitter, RuntimeChatLedgerTransport};
+    use handshake_native::fems::memory_proposal::{submit_proposal_and_emit, HandshakeCoreClient};
 
     let dsn = resolve_live_pg_dsn();
-    assert!(dsn.to_ascii_lowercase().starts_with("postgres"), "live store must be PostgreSQL");
+    assert!(
+        dsn.to_ascii_lowercase().starts_with("postgres"),
+        "live store must be PostgreSQL"
+    );
 
     // The out-of-process agent addresses every FEMS step by stable author_id (proven stable NOW). Here the
     // confirm activation drives the LIVE submit + the LIVE FR emit end-to-end.
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     let base = live_backend_base();
     let client = HandshakeCoreClient::with_base_url(base.clone());
     let workspace_id = format!("ws-mt065-swarm-{}", std::process::id());
     let sel = text_range("pane-rich", 5, 17, "Aria the lead");
-    let proposal = build_proposal(&sel, MemoryClass::Procedural, &workspace_id, "swarm-agent-1")
-        .expect("build_proposal");
+    let proposal = build_proposal(
+        &sel,
+        MemoryClass::Procedural,
+        &workspace_id,
+        "swarm-agent-1",
+    )
+    .expect("build_proposal");
     let emitter = NativeEditorEventEmitter::new(
         &workspace_id,
         std::sync::Arc::new(RuntimeChatLedgerTransport::new(base.clone())),
@@ -849,7 +974,10 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
         ),
         Err(e) => panic!("FEMS-03 live swarm submit failed: {e}"),
     };
-    assert_eq!(ack.status, "pending_review", "FEMS-03: the swarm-driven proposal reaches the review gate");
+    assert_eq!(
+        ack.status, "pending_review",
+        "FEMS-03: the swarm-driven proposal reaches the review gate"
+    );
     println!(
         "FEMS-03 PROVEN (live): swarm AccessKit dispatch drove the full flow to a review-gated live proposal {}",
         ack.proposal_id
@@ -868,18 +996,32 @@ fn proof_fems_04_procedural_proposal_stays_review_gated() {
     use handshake_native::fems::memory_proposal::{submit_proposal, HandshakeCoreClient};
 
     let dsn = resolve_live_pg_dsn();
-    assert!(dsn.to_ascii_lowercase().starts_with("postgres"), "live store must be PostgreSQL");
+    assert!(
+        dsn.to_ascii_lowercase().starts_with("postgres"),
+        "live store must be PostgreSQL"
+    );
 
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     let base = live_backend_base();
     let client = HandshakeCoreClient::with_base_url(base.clone());
     let workspace_id = format!("ws-mt065-gate-{}", std::process::id());
     let unique_content = format!("MT-065 review-gate probe {}", std::process::id());
     let sel = text_range("pane-rich", 0, unique_content.len(), &unique_content);
-    let proposal = build_proposal(&sel, MemoryClass::Procedural, &workspace_id, "swarm-agent-1")
-        .expect("build_proposal");
+    let proposal = build_proposal(
+        &sel,
+        MemoryClass::Procedural,
+        &workspace_id,
+        "swarm-agent-1",
+    )
+    .expect("build_proposal");
     // The editor-built proposal is review-gated by construction (proven NOW by the fixture half).
-    assert!(proposal.review_gated, "FEMS-04: the editor proposal is review-gated by construction");
+    assert!(
+        proposal.review_gated,
+        "FEMS-04: the editor proposal is review-gated by construction"
+    );
 
     let ack = match rt.block_on(async { submit_proposal(&proposal, &client).await }) {
         Ok(ack) => ack,
@@ -937,8 +1079,14 @@ fn proof_fems_04_procedural_proposal_stays_review_gated() {
 fn proof_fems_surface_constants_present() {
     // The proposal cap the read panel enforces + the propose command id + the dialog outcome enum + a
     // deterministic-id set are all part of the FEMS swarm surface this suite asserts on.
-    assert_eq!(MEMORY_PACK_MAX_ITEMS, 24, "the Pillar 12 <=24 item cap the panel enforces");
-    assert_eq!(FEMS_PROPOSE_COMMAND_ID, "fems.propose_to_memory", "the propose command swarm id");
+    assert_eq!(
+        MEMORY_PACK_MAX_ITEMS, 24,
+        "the Pillar 12 <=24 item cap the panel enforces"
+    );
+    assert_eq!(
+        FEMS_PROPOSE_COMMAND_ID, "fems.propose_to_memory",
+        "the propose command swarm id"
+    );
     // ProposeDialogOutcome::Cancelled is a valid outcome a swarm agent can reach (cancel path).
     assert_ne!(
         ProposeDialogOutcome::Cancelled,
@@ -957,7 +1105,10 @@ fn proof_fems_surface_constants_present() {
     .collect();
     assert_eq!(ids.len(), 5, "the FEMS swarm author_ids are distinct");
     for id in &ids {
-        assert!(has_no_random_segment(id), "FEMS swarm id '{id}' must be deterministic");
+        assert!(
+            has_no_random_segment(id),
+            "FEMS swarm id '{id}' must be deterministic"
+        );
     }
     println!("FEMS surface constants OK: <=24 cap, propose command id, dialog outcome enum, 5 distinct deterministic swarm ids");
 }

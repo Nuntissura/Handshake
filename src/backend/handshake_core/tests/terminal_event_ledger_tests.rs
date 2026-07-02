@@ -14,11 +14,6 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
 {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: terminal EventLedger tests require POSTGRES_TEST_URL; {msg}"
-            );
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
@@ -44,7 +39,7 @@ impl FlightRecorder for NoopFlightRecorder {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test terminal_event_ledger_tests -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test terminal_event_ledger_tests -- --ignored`"]
 async fn terminal_capture_session_receipts_land_in_postgres_event_ledger() {
     let db = postgres_or_environment_blocked().await;
     let recorder: Arc<dyn FlightRecorder> = Arc::new(EventLedgerFlightRecorderMirror::new(

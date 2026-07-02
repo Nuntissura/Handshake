@@ -19,8 +19,14 @@ use handshake_native::code_editor::CodeEditorPanel;
 fn two_file_workspace_edit(open_uri: &str, disk_uri: &str) -> lsp_types::WorkspaceEdit {
     let mk = |line: u32, sc: u32, ec: u32| lsp_types::TextEdit {
         range: lsp_types::Range {
-            start: lsp_types::Position { line, character: sc },
-            end: lsp_types::Position { line, character: ec },
+            start: lsp_types::Position {
+                line,
+                character: sc,
+            },
+            end: lsp_types::Position {
+                line,
+                character: ec,
+            },
         },
         new_text: "total".into(),
     };
@@ -29,8 +35,15 @@ fn two_file_workspace_edit(open_uri: &str, disk_uri: &str) -> lsp_types::Workspa
         lsp_types::Url::parse(open_uri).unwrap(),
         vec![mk(0, 8, 13), mk(1, 4, 9)],
     );
-    changes.insert(lsp_types::Url::parse(disk_uri).unwrap(), vec![mk(0, 11, 16)]);
-    lsp_types::WorkspaceEdit { changes: Some(changes), document_changes: None, change_annotations: None }
+    changes.insert(
+        lsp_types::Url::parse(disk_uri).unwrap(),
+        vec![mk(0, 11, 16)],
+    );
+    lsp_types::WorkspaceEdit {
+        changes: Some(changes),
+        document_changes: None,
+        change_annotations: None,
+    }
 }
 
 // ── PT-003 / AC-004: the preview lists every changed file with hunks BEFORE apply; nothing mutates ─────
@@ -46,7 +59,9 @@ fn rename_preview_lists_files_with_hunks_before_apply() {
     std::fs::create_dir_all(&dir).unwrap();
     let disk_path = dir.join("disk.rs");
     std::fs::write(&disk_path, "fn f() { value(); }\n").unwrap();
-    let disk_uri = lsp_types::Url::from_file_path(&disk_path).unwrap().to_string();
+    let disk_uri = lsp_types::Url::from_file_path(&disk_path)
+        .unwrap()
+        .to_string();
 
     let edit = two_file_workspace_edit(open_uri, &disk_uri);
 
@@ -60,23 +75,45 @@ fn rename_preview_lists_files_with_hunks_before_apply() {
     });
 
     // AC-004: every changed file is listed, open vs to-disk noted.
-    assert_eq!(preview.files.len(), 2, "AC-004: both changed files are in the preview");
+    assert_eq!(
+        preview.files.len(),
+        2,
+        "AC-004: both changed files are in the preview"
+    );
     let open_file = preview.files.iter().find(|f| f.uri == open_uri).unwrap();
     let disk_file = preview.files.iter().find(|f| f.uri == disk_uri).unwrap();
-    assert!(open_file.is_open_buffer, "AC-004: the open file is marked is_open_buffer");
-    assert!(!disk_file.is_open_buffer, "AC-004: the to-disk file is marked NOT is_open_buffer");
+    assert!(
+        open_file.is_open_buffer,
+        "AC-004: the open file is marked is_open_buffer"
+    );
+    assert!(
+        !disk_file.is_open_buffer,
+        "AC-004: the to-disk file is marked NOT is_open_buffer"
+    );
 
     // AC-004: each file has before/after hunks computed BEFORE any mutation.
-    assert!(!open_file.hunks.is_empty(), "AC-004: the open file has before/after hunks");
-    assert!(!disk_file.hunks.is_empty(), "AC-004: the to-disk file has before/after hunks");
+    assert!(
+        !open_file.hunks.is_empty(),
+        "AC-004: the open file has before/after hunks"
+    );
+    assert!(
+        !disk_file.hunks.is_empty(),
+        "AC-004: the to-disk file has before/after hunks"
+    );
     // The hunks show value -> total in the after, and value in the before.
     assert!(
-        open_file.hunks.iter().any(|h| h.before.contains("value") && h.after.contains("total")),
+        open_file
+            .hunks
+            .iter()
+            .any(|h| h.before.contains("value") && h.after.contains("total")),
         "AC-004: the open file's hunk shows value (before) -> total (after); got {:?}",
         open_file.hunks
     );
     assert!(
-        disk_file.hunks.iter().any(|h| h.before.contains("value") && h.after.contains("total")),
+        disk_file
+            .hunks
+            .iter()
+            .any(|h| h.before.contains("value") && h.after.contains("total")),
         "AC-004: the to-disk file's hunk shows value (before) -> total (after); got {:?}",
         disk_file.hunks
     );
@@ -88,7 +125,10 @@ fn rename_preview_lists_files_with_hunks_before_apply() {
         "fn f() { value(); }\n",
         "AC-004: building the preview did NOT touch the to-disk file"
     );
-    assert_eq!(open_text, "let value = 1;\n    value + 1", "AC-004: building the preview did not mutate the open text");
+    assert_eq!(
+        open_text, "let value = 1;\n    value + 1",
+        "AC-004: building the preview did not mutate the open text"
+    );
 
     println!(
         "PT-003 rename_preview: 2 files listed (open + to-disk) with {} total hunks; nothing mutated before apply",
@@ -111,8 +151,14 @@ fn rename_panel_does_not_mutate_buffer_until_apply() {
 
     // Begin + drive the preview through the synthetic single-file fallback (no runtime -> sync path).
     panel.begin_rename_at_cursor();
-    if let RenameState::Editing { original, anchor_byte, ident_range, entity_id, focus_requested, .. } =
-        panel.rename_state()
+    if let RenameState::Editing {
+        original,
+        anchor_byte,
+        ident_range,
+        entity_id,
+        focus_requested,
+        ..
+    } = panel.rename_state()
     {
         panel.set_rename_state(RenameState::Editing {
             original,
@@ -137,16 +183,34 @@ fn rename_panel_does_not_mutate_buffer_until_apply() {
     harness.run();
 
     // The preview is open, but the buffer still has the ORIGINAL `value` text (AC-004 — nothing mutated).
-    assert!(panel.is_rename_preview_open(), "AC-004: the preview is open after confirm");
+    assert!(
+        panel.is_rename_preview_open(),
+        "AC-004: the preview is open after confirm"
+    );
     let before_apply = panel.buffer().to_string();
-    assert_eq!(before_apply, src, "AC-004: the buffer is UNCHANGED until Apply is clicked");
-    assert!(before_apply.contains("value"), "AC-004: the original `value` text is intact before apply");
+    assert_eq!(
+        before_apply, src,
+        "AC-004: the buffer is UNCHANGED until Apply is clicked"
+    );
+    assert!(
+        before_apply.contains("value"),
+        "AC-004: the original `value` text is intact before apply"
+    );
 
     // Now apply: the buffer mutates.
     let report = panel.apply_rename_preview().expect("apply ok");
     assert!(report.edits_applied >= 1);
     let after_apply = panel.buffer().to_string();
-    assert_ne!(after_apply, src, "AC-004: the buffer IS mutated after Apply");
-    assert!(after_apply.contains("renamed_value"), "AC-004: the new name is applied after Apply");
-    println!("AC-004 rename_panel: buffer unchanged until Apply, then renamed ({} edits)", report.edits_applied);
+    assert_ne!(
+        after_apply, src,
+        "AC-004: the buffer IS mutated after Apply"
+    );
+    assert!(
+        after_apply.contains("renamed_value"),
+        "AC-004: the new name is applied after Apply"
+    );
+    println!(
+        "AC-004 rename_panel: buffer unchanged until Apply, then renamed ({} edits)",
+        report.edits_applied
+    );
 }

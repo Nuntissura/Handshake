@@ -32,17 +32,12 @@ use uuid::Uuid;
 async fn postgres_or_environment_blocked() -> Arc<dyn handshake_core::storage::Database> {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: MT-146 memory capsule IPC tests require POSTGRES_TEST_URL; {msg}"
-            );
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn memory_ipc_list_and_get_round_trips_via_postgres_store() {
     let db = postgres_or_environment_blocked().await;
     let store = PostgresMemoryCapsuleStore::with_db(Arc::clone(&db));
@@ -78,7 +73,7 @@ async fn memory_ipc_list_and_get_round_trips_via_postgres_store() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn memory_ipc_suppression_persists_through_postgres_store_durably() {
     let db = postgres_or_environment_blocked().await;
     let store = PostgresMemoryCapsuleStore::with_db(Arc::clone(&db));

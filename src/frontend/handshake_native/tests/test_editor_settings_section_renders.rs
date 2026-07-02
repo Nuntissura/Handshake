@@ -79,7 +79,10 @@ fn has_author_id(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> bool {
 /// (collapsed-by-default) MT-072 section is within the 440px scroll viewport — AND auto-expands the
 /// matching section (the dialog opens an MT-072 section when `!query.is_empty()`). This is the
 /// deterministic path a no-context model uses to surface a specific section.
-fn open_settings_searched(query: &str, palette_mode: SyntaxPaletteMode) -> Harness<'static, HandshakeApp> {
+fn open_settings_searched(
+    query: &str,
+    palette_mode: SyntaxPaletteMode,
+) -> Harness<'static, HandshakeApp> {
     let mut app = ok_app();
     app.set_workspace_syntax_palette_for_test(SyntaxPalette {
         mode: palette_mode,
@@ -103,7 +106,9 @@ fn open_settings_searched(query: &str, palette_mode: SyntaxPaletteMode) -> Harne
 /// Find any live node whose author_id starts with `prefix`.
 fn has_author_id_prefix(harness: &Harness<'_, HandshakeApp>, prefix: &str) -> bool {
     harness.root().children_recursive().any(|n| {
-        n.accesskit_node().author_id().is_some_and(|a| a.starts_with(prefix))
+        n.accesskit_node()
+            .author_id()
+            .is_some_and(|a| a.starts_with(prefix))
     })
 }
 
@@ -181,8 +186,14 @@ fn editor_settings_section_renders_and_screenshots() {
 
     // With no query, the new Editor + Syntax section HEADERS render (collapsed) against the live settings
     // surface — present in the tree, no panic, no overlap.
-    assert!(harness.query_by_label("Editor").is_some(), "AC-008: Editor section header renders");
-    assert!(harness.query_by_label("Syntax").is_some(), "AC-008: Syntax section header renders");
+    assert!(
+        harness.query_by_label("Editor").is_some(),
+        "AC-008: Editor section header renders"
+    );
+    assert!(
+        harness.query_by_label("Syntax").is_some(),
+        "AC-008: Syntax section header renders"
+    );
     assert!(
         harness.query_by_label("Keybindings").is_some(),
         "AC-008: the (extended) Keybindings section renders"
@@ -210,7 +221,8 @@ fn editor_settings_section_renders_and_screenshots() {
         .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(new_prefs));
     harness.run();
     assert_eq!(
-        harness.state().workspace_settings().editor_prefs.tab_size, 8,
+        harness.state().workspace_settings().editor_prefs.tab_size,
+        8,
         "AC-008: the section reflects the stored tab_size after a change"
     );
 
@@ -226,8 +238,14 @@ fn editor_settings_section_renders_and_screenshots() {
             let out_path = out_dir.join("editor_settings_sections.png");
             let saved = image.save(&out_path).is_ok();
             let abs = std::fs::canonicalize(&out_path).unwrap_or(out_path.clone());
-            println!("PT-004 editor-settings screenshot: {w}x{h}, saved={saved} ({})", abs.display());
-            assert!(saved, "AC-008: the editor settings screenshot PNG saved to the external root");
+            println!(
+                "PT-004 editor-settings screenshot: {w}x{h}, saved={saved} ({})",
+                abs.display()
+            );
+            assert!(
+                saved,
+                "AC-008: the editor settings screenshot PNG saved to the external root"
+            );
         }
         Err(e) => {
             println!(

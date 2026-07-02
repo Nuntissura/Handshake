@@ -102,7 +102,7 @@ fn run_until(
     pred: impl Fn(&HandshakeApp) -> bool,
 ) -> bool {
     for _ in 0..max {
-        harness.run();
+        harness.run_steps(3);
         if pred(harness.state()) {
             return true;
         }
@@ -127,7 +127,7 @@ fn opening_settings_shows_theme_row_and_changing_theme_applies_to_app() {
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     // Open the dialog (HELP > Open Settings… mirror).
     harness.state_mut().open_settings();
-    harness.run();
+    harness.run_steps(3);
 
     assert!(harness.state().settings_open(), "dialog open");
     // The Theme row + its ComboBox are in the live tree (findable by label).
@@ -139,7 +139,7 @@ fn opening_settings_shows_theme_row_and_changing_theme_applies_to_app() {
         handshake_native::settings_dialog::SettingsOutcome::ThemeChanged(WorkspaceTheme::Dark),
     );
     // Next frame applies the pending theme at the top of ui().
-    harness.run();
+    harness.run_steps(3);
 
     assert_eq!(
         harness.state().current_theme(),
@@ -177,7 +177,7 @@ fn search_filter_narrows_to_keybindings_section() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
-    harness.run();
+    harness.run_steps(3);
 
     // With no query, the Appearance + Keybindings + About headers are all present.
     assert!(
@@ -192,12 +192,12 @@ fn search_filter_narrows_to_keybindings_section() {
     // Type 'keybinding' into the search box.
     let search = harness.get_by_label("Search settings");
     search.focus();
-    harness.run();
+    harness.run_steps(3);
     harness
         .get_by_label("Search settings")
         .type_text("keybinding");
-    harness.run();
-    harness.run();
+    harness.run_steps(3);
+    harness.run_steps(3);
 
     assert!(
         harness.query_by_label("Keybindings").is_some(),
@@ -229,8 +229,8 @@ fn duplicate_keybinding_chord_shows_conflict_banner_and_is_not_saved() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
-    harness.run();
-    harness.run();
+    harness.run_steps(3);
+    harness.run_steps(3);
 
     // AC6: the conflict banner appears naming both actions + the shared chord.
     assert!(
@@ -257,7 +257,7 @@ fn duplicate_keybinding_chord_shows_conflict_banner_and_is_not_saved() {
             action_id: "app.command_palette.open".to_owned(),
         },
     );
-    harness.run();
+    harness.run_steps(3);
     assert_eq!(
         harness
             .state()
@@ -283,7 +283,7 @@ fn reset_panes_and_drawers_button_arms_layout_reset() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
-    harness.run();
+    harness.run_steps(3);
 
     assert!(
         !harness.state().reset_layout_pending(),
@@ -292,7 +292,7 @@ fn reset_panes_and_drawers_button_arms_layout_reset() {
 
     // Click the Reset panes & drawers button (findable by its visible label).
     harness.get_by_label("Reset panes & drawers").click();
-    harness.run();
+    harness.run_steps(3);
 
     assert!(
         harness.state().reset_layout_pending(),
@@ -312,7 +312,7 @@ fn changing_view_mode_updates_app_flag_and_persists() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
-    harness.run();
+    harness.run_steps(3);
     assert_eq!(harness.state().view_mode(), ViewMode::Nsfw, "default NSFW");
 
     harness.state_mut().apply_settings_outcome_for_test(
@@ -320,7 +320,7 @@ fn changing_view_mode_updates_app_flag_and_persists() {
             handshake_native::workspace_settings::SettingsViewMode::Sfw,
         ),
     );
-    harness.run();
+    harness.run_steps(3);
     assert_eq!(
         harness.state().view_mode(),
         ViewMode::Sfw,
@@ -352,10 +352,9 @@ fn changing_view_mode_updates_app_flag_and_persists() {
 fn not_yet_wired_rows_are_present_show_fixed_value_and_reject_typed_input() {
     use egui_kittest::kittest::NodeT;
     use handshake_native::workspace_settings::{
-        MODEL_SESSION_DEFAULT_PROVIDER_SETTING, MODEL_SESSION_DEFAULT_WRAPPER_SETTING,
-        MODEL_SESSION_LOCAL_MODEL_ROOT_SETTING, SWARM_RECONCILE_INTERVAL_SETTING,
-        SWARM_RESOURCE_POLL_INTERVAL_SETTING, TERMINAL_DEFAULT_SHELL_SETTING,
-        TERMINAL_MAX_SCROLLBACK_SETTING, TERMINAL_OUTPUT_LOGGING_SETTING,
+        SWARM_RECONCILE_INTERVAL_SETTING, SWARM_RESOURCE_POLL_INTERVAL_SETTING,
+        TERMINAL_DEFAULT_SHELL_SETTING, TERMINAL_MAX_SCROLLBACK_SETTING,
+        TERMINAL_OUTPUT_LOGGING_SETTING,
     };
 
     let handle = leak_runtime_handle();
@@ -366,12 +365,12 @@ fn not_yet_wired_rows_are_present_show_fixed_value_and_reject_typed_input() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
-    harness.run();
-    harness.run();
+    harness.run_steps(3);
+    harness.run_steps(3);
 
     // Every NotYetWired row this dialog renders, by stable author_id (the FIX author_ids
     // `settings.not-wired.*`) + the fixed value it must display.
-    let expected: [(&str, &str); 8] = [
+    let expected: [(&str, &str); 5] = [
         (
             SWARM_RECONCILE_INTERVAL_SETTING.id,
             SWARM_RECONCILE_INTERVAL_SETTING.fixed_value,
@@ -391,18 +390,6 @@ fn not_yet_wired_rows_are_present_show_fixed_value_and_reject_typed_input() {
         (
             TERMINAL_OUTPUT_LOGGING_SETTING.id,
             TERMINAL_OUTPUT_LOGGING_SETTING.fixed_value,
-        ),
-        (
-            MODEL_SESSION_DEFAULT_PROVIDER_SETTING.id,
-            MODEL_SESSION_DEFAULT_PROVIDER_SETTING.fixed_value,
-        ),
-        (
-            MODEL_SESSION_DEFAULT_WRAPPER_SETTING.id,
-            MODEL_SESSION_DEFAULT_WRAPPER_SETTING.fixed_value,
-        ),
-        (
-            MODEL_SESSION_LOCAL_MODEL_ROOT_SETTING.id,
-            MODEL_SESSION_LOCAL_MODEL_ROOT_SETTING.fixed_value,
         ),
     ];
 
@@ -450,7 +437,7 @@ fn not_yet_wired_rows_are_present_show_fixed_value_and_reject_typed_input() {
         // the text event, and (4) assert the disabled control's AccessKit value is UNCHANGED. This proves
         // the typed input does not reach the disabled row, while keeping the row visible (no search leak).
         harness.ctx.memory_mut(|m| m.stop_text_input());
-        harness.run();
+        harness.run_steps(3);
         let node = harness
             .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
                 n.author_id() == Some(author_id.as_str())
@@ -458,7 +445,7 @@ fn not_yet_wired_rows_are_present_show_fixed_value_and_reject_typed_input() {
             .next()
             .expect("not-wired node addressable for the type-attempt");
         node.focus(); // disabled => Focus action is rejected; the control never gains keyboard focus.
-        harness.run();
+        harness.run_steps(3);
         let node = harness
             .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
                 n.author_id() == Some(author_id.as_str())
@@ -466,8 +453,8 @@ fn not_yet_wired_rows_are_present_show_fixed_value_and_reject_typed_input() {
             .next()
             .expect("not-wired node still addressable");
         node.type_text("XYZ-should-not-stick");
-        harness.run();
-        harness.run();
+        harness.run_steps(3);
+        harness.run_steps(3);
 
         let (disabled_after, value_after) = probe_not_wired(&harness, &author_id)
             .expect("not-wired row still present after the type attempt");
@@ -481,6 +468,44 @@ fn not_yet_wired_rows_are_present_show_fixed_value_and_reject_typed_input() {
             "MC5: typing into disabled not-wired row '{author_id}' does NOT change its value"
         );
     }
+}
+
+#[test]
+fn model_session_settings_action_opens_real_launch_dialog() {
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(StubSettingsTransport::with_loaded(None));
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run_steps(3);
+    harness.run_steps(3);
+
+    harness.get_by_label("Search settings").type_text("model");
+    harness.run_steps(3);
+    harness.run_steps(3);
+
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id()
+                == Some(handshake_native::settings_dialog::MODEL_SESSION_OPEN_LAUNCH_AUTHOR_ID)
+        })
+        .next()
+        .expect("Settings -> Model Session exposes the real launch action")
+        .click();
+    harness.run_steps(3);
+    harness.run_steps(3);
+
+    assert!(
+        !harness.state().settings_open(),
+        "settings closes before the one-shot model-session dialog opens"
+    );
+    assert!(
+        harness.state().model_session_launch_dialog_open_for_test(),
+        "settings action routes to the same real MT-101 launch dialog as Run/palette"
+    );
 }
 
 // ── FIX-C (Escape vs ComboBox): Escape while a ComboBox popup is open closes only the POPUP and keeps
@@ -500,7 +525,7 @@ fn escape_closes_open_combo_popup_first_then_dialog() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
-    harness.run();
+    harness.run_steps(3);
     assert!(harness.state().settings_open(), "dialog open");
 
     // Open the Theme / appearance ComboBox popup by clicking the combo control itself (addressed by its
@@ -512,8 +537,8 @@ fn escape_closes_open_combo_popup_first_then_dialog() {
         .next()
         .expect("theme combo addressable by author_id")
         .click();
-    harness.run();
-    harness.run();
+    harness.run_steps(3);
+    harness.run_steps(3);
     assert!(
         egui::Popup::is_any_open(&harness.ctx),
         "precondition: the Theme ComboBox popup is open before Escape"
@@ -521,7 +546,7 @@ fn escape_closes_open_combo_popup_first_then_dialog() {
 
     // Escape #1: closes ONLY the popup; the dialog stays open (FIX-C).
     harness.key_press(egui::Key::Escape);
-    harness.run();
+    harness.run_steps(3);
     assert!(
         harness.state().settings_open(),
         "FIX-C: Escape with an open combo popup closes the popup, NOT the dialog"
@@ -533,7 +558,7 @@ fn escape_closes_open_combo_popup_first_then_dialog() {
 
     // Escape #2: nothing else open now, so Escape closes the dialog (AC12 unchanged).
     harness.key_press(egui::Key::Escape);
-    harness.run();
+    harness.run_steps(3);
     assert!(
         !harness.state().settings_open(),
         "AC12: Escape with no popup open closes the dialog"
@@ -545,7 +570,7 @@ fn escape_closes_open_combo_popup_first_then_dialog() {
 fn dialog_closed_by_default_and_escape_closes() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
-    harness.run();
+    harness.run_steps(3);
     assert!(!harness.state().settings_open(), "dialog closed by default");
     // No settings nodes in the default tree.
     assert!(
@@ -554,12 +579,12 @@ fn dialog_closed_by_default_and_escape_closes() {
     );
 
     harness.state_mut().open_settings();
-    harness.run();
+    harness.run_steps(3);
     assert!(harness.state().settings_open(), "dialog opened");
 
     // Press Escape -> the dialog requests close.
     harness.key_press(egui::Key::Escape);
-    harness.run();
+    harness.run_steps(3);
     assert!(
         !harness.state().settings_open(),
         "AC12: Escape closes the dialog"

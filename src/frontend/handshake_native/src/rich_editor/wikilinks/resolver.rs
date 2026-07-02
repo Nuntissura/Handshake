@@ -143,18 +143,25 @@ impl ResolverIndex {
     /// path). Inserts into `by_title` under the normalized title and records the display metadata. A
     /// blank/whitespace-only title is recorded for rendering but NOT inserted into `by_title` (an
     /// empty normalized key must never resolve every empty `[[]]`).
-    pub fn add_document(&mut self, document_id: impl Into<String>, display_title: impl Into<String>) {
+    pub fn add_document(
+        &mut self,
+        document_id: impl Into<String>,
+        display_title: impl Into<String>,
+    ) {
         let document_id = document_id.into();
         let display_title = display_title.into();
         let norm = normalize_target(&display_title);
         if !norm.is_empty() {
             self.by_title.insert(norm, document_id.clone());
         }
-        let entry = self.documents.entry(document_id.clone()).or_insert_with(|| ResolverDocument {
-            document_id: document_id.clone(),
-            display_title: display_title.clone(),
-            aliases: Vec::new(),
-        });
+        let entry = self
+            .documents
+            .entry(document_id.clone())
+            .or_insert_with(|| ResolverDocument {
+                document_id: document_id.clone(),
+                display_title: display_title.clone(),
+                aliases: Vec::new(),
+            });
         entry.display_title = display_title;
     }
 
@@ -203,7 +210,9 @@ impl ResolverIndex {
 
     /// The display title for a resolved document id, if known (for the mark-rewrite label).
     pub fn display_title(&self, document_id: &str) -> Option<&str> {
-        self.documents.get(document_id).map(|d| d.display_title.as_str())
+        self.documents
+            .get(document_id)
+            .map(|d| d.display_title.as_str())
     }
 }
 
@@ -242,7 +251,9 @@ pub fn resolve_wikilink(index: &ResolverIndex, target: &str) -> WikilinkResoluti
 
     let norm = normalize_target(target);
     if norm.is_empty() {
-        return WikilinkResolution::Unresolved { title: trimmed.to_owned() };
+        return WikilinkResolution::Unresolved {
+            title: trimmed.to_owned(),
+        };
     }
 
     // 2) Exact title (normalized) — checked BEFORE alias so a title/alias collision favors the title.
@@ -259,7 +270,12 @@ pub fn resolve_wikilink(index: &ResolverIndex, target: &str) -> WikilinkResoluti
         let alias = index
             .documents
             .get(document_id)
-            .and_then(|d| d.aliases.iter().find(|a| normalize_target(a) == norm).cloned())
+            .and_then(|d| {
+                d.aliases
+                    .iter()
+                    .find(|a| normalize_target(a) == norm)
+                    .cloned()
+            })
             .unwrap_or_else(|| trimmed.to_owned());
         return WikilinkResolution::Resolved {
             document_id: document_id.clone(),
@@ -268,7 +284,9 @@ pub fn resolve_wikilink(index: &ResolverIndex, target: &str) -> WikilinkResoluti
     }
 
     // No match -> unresolved (the create affordance uses the trimmed original-case title).
-    WikilinkResolution::Unresolved { title: trimmed.to_owned() }
+    WikilinkResolution::Unresolved {
+        title: trimmed.to_owned(),
+    }
 }
 
 /// Build the [`EditorEvent::CreateNote`] command-bus intent for an UNRESOLVED `[[title]]` link. The
@@ -339,7 +357,9 @@ mod tests {
             r,
             WikilinkResolution::Resolved {
                 document_id: "DOC-1".into(),
-                matched_by: MatchKind::Alias { alias: "Atlas".into() }
+                matched_by: MatchKind::Alias {
+                    alias: "Atlas".into()
+                }
             },
             "AC-003: an alias-only target resolves by alias and reports MatchKind::Alias"
         );
@@ -369,7 +389,9 @@ mod tests {
         let r = resolve_wikilink(&idx, "  Brand New Note  ");
         assert_eq!(
             r,
-            WikilinkResolution::Unresolved { title: "Brand New Note".into() },
+            WikilinkResolution::Unresolved {
+                title: "Brand New Note".into()
+            },
             "an unmatched target is Unresolved carrying the trimmed original-case title"
         );
         assert!(!r.is_resolved());
@@ -381,9 +403,16 @@ mod tests {
         let mut idx = ResolverIndex::new();
         // A document with a blank title must NOT make every empty `[[]]` resolve.
         idx.add_document("DOC-BLANK", "   ");
-        assert_eq!(idx.title_count(), 0, "a blank title is not indexed in by_title");
+        assert_eq!(
+            idx.title_count(),
+            0,
+            "a blank title is not indexed in by_title"
+        );
         let r = resolve_wikilink(&idx, "   ");
-        assert!(matches!(r, WikilinkResolution::Unresolved { .. }), "empty target is unresolved");
+        assert!(
+            matches!(r, WikilinkResolution::Unresolved { .. }),
+            "empty target is unresolved"
+        );
     }
 
     #[test]
@@ -391,15 +420,27 @@ mod tests {
         // AC-006: a fresh index built from the real backend payload has NO alias support and an empty
         // alias map until the local stub adds one.
         let idx = index();
-        assert!(!idx.aliases_supported, "the backend payload has no aliases field (AC-006)");
-        assert_eq!(idx.alias_count(), 0, "no aliases until the local stub populates them");
+        assert!(
+            !idx.aliases_supported,
+            "the backend payload has no aliases field (AC-006)"
+        );
+        assert_eq!(
+            idx.alias_count(),
+            0,
+            "no aliases until the local stub populates them"
+        );
     }
 
     #[test]
     fn create_note_intent_carries_trimmed_title() {
         // AC-001: the create intent carries the link title (trimmed).
         let intent = create_note_intent("  My New Note  ");
-        assert_eq!(intent, EditorEvent::CreateNote { title: "My New Note".into() });
+        assert_eq!(
+            intent,
+            EditorEvent::CreateNote {
+                title: "My New Note".into()
+            }
+        );
     }
 
     #[test]
@@ -417,7 +458,15 @@ mod tests {
         idx.add_alias("DOC-1", "Atlas");
         idx.add_alias("DOC-1", "ATLAS"); // case-duplicate -> not double-recorded
         let doc = idx.documents().find(|d| d.document_id == "DOC-1").unwrap();
-        assert_eq!(doc.aliases, vec!["Atlas".to_string()], "alias original case kept, deduped case-insensitively");
-        assert_eq!(idx.alias_count(), 1, "the normalized alias key collapses the case-duplicate");
+        assert_eq!(
+            doc.aliases,
+            vec!["Atlas".to_string()],
+            "alias original case kept, deduped case-insensitively"
+        );
+        assert_eq!(
+            idx.alias_count(),
+            1,
+            "the normalized alias key collapses the case-duplicate"
+        );
     }
 }

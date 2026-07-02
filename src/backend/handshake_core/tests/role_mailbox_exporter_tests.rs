@@ -60,14 +60,9 @@ fn mt_178_default_under_repo_root_resolves_below_workspace_root() {
     // — never an absolute drive-letter literal.
     let fake_repo_root = PathBuf::from("relative/fake-root");
     let cfg = MailboxExporterConfig::default_under_repo_root(&fake_repo_root);
-    let suffix: PathBuf = [
-        ".GOV",
-        "roles_shared",
-        "exports",
-        "role_mailbox",
-    ]
-    .iter()
-    .collect();
+    let suffix: PathBuf = [".GOV", "roles_shared", "exports", "role_mailbox"]
+        .iter()
+        .collect();
     assert!(
         cfg.target_dir.ends_with(&suffix),
         "default target_dir must end with .GOV/roles_shared/exports/role_mailbox/, got {:?}",
@@ -92,11 +87,16 @@ fn mt_178_empty_repo_always_writes_index_with_empty_array() {
     // produce a thread_index.json — there is no opt-out.
     let (_d, cfg) = tmp_cfg();
     let ex = MailboxExporter::new(cfg.clone());
-    let report = ex.export(&[], &BTreeMap::new()).expect("empty export must succeed");
+    let report = ex
+        .export(&[], &BTreeMap::new())
+        .expect("empty export must succeed");
     assert_eq!(report.threads_written, 0);
     assert_eq!(report.lines_appended, 0);
     let idx_path = cfg.target_dir.join("thread_index.json");
-    assert!(idx_path.exists(), "thread_index.json must exist after empty export");
+    assert!(
+        idx_path.exists(),
+        "thread_index.json must exist after empty export"
+    );
     let body = fs::read_to_string(&idx_path).expect("read index");
     // Parse and assert empty array — defends against substring tricks like "[]" inside a comment.
     let parsed: serde_json::Value = serde_json::from_str(body.trim()).expect("parse index json");
@@ -121,13 +121,22 @@ fn mt_178_deterministic_two_runs_byte_identical_for_same_state() {
     // Compare thread_index.json bytes.
     let idx1 = fs::read(cfg1.target_dir.join("thread_index.json")).unwrap();
     let idx2 = fs::read(cfg2.target_dir.join("thread_index.json")).unwrap();
-    assert_eq!(idx1, idx2, "thread_index.json must be byte-identical across runs");
+    assert_eq!(
+        idx1, idx2,
+        "thread_index.json must be byte-identical across runs"
+    );
 
     // Compare per-thread JSONL bytes for every thread.
     for t in &threads {
         let id = t.thread_id.as_uuid();
-        let p1 = cfg1.target_dir.join("threads").join(format!("{}.jsonl", id));
-        let p2 = cfg2.target_dir.join("threads").join(format!("{}.jsonl", id));
+        let p1 = cfg1
+            .target_dir
+            .join("threads")
+            .join(format!("{}.jsonl", id));
+        let p2 = cfg2
+            .target_dir
+            .join("threads")
+            .join(format!("{}.jsonl", id));
         let b1 = fs::read(&p1).unwrap_or_default();
         let b2 = fs::read(&p2).unwrap_or_default();
         assert_eq!(
@@ -289,10 +298,7 @@ fn mt_178_append_only_existing_lines_never_rewritten() {
     // Snapshot the first-run bytes before adding new messages.
     let jsonl_path = cfg.target_dir.join("threads").join(format!("{}.jsonl", id));
     let snapshot = fs::read(&jsonl_path).expect("first-run jsonl");
-    let snapshot_lines = snapshot
-        .iter()
-        .filter(|b| **b == b'\n')
-        .count();
+    let snapshot_lines = snapshot.iter().filter(|b| **b == b'\n').count();
     assert_eq!(snapshot_lines, 1, "first run must emit exactly one line");
 
     // Second run: add two new messages with strictly later created_at_utc.
@@ -406,10 +412,8 @@ fn mt_178_no_message_count_drift_index_matches_thread_file() {
     let arr: Vec<serde_json::Value> = serde_json::from_str(body.trim()).unwrap();
     assert_eq!(arr[0]["message_count"].as_u64().unwrap(), 5);
 
-    let jsonl = fs::read_to_string(
-        cfg.target_dir.join("threads").join(format!("{}.jsonl", id)),
-    )
-    .unwrap();
+    let jsonl =
+        fs::read_to_string(cfg.target_dir.join("threads").join(format!("{}.jsonl", id))).unwrap();
     let line_count = jsonl.lines().count();
     assert_eq!(
         line_count, 5,
@@ -509,14 +513,9 @@ fn mt_178_default_target_matches_contract_path_under_repo_root() {
     // anchored to the `.GOV/` path here.
     let tmp = tempfile::tempdir().expect("tempdir");
     let cfg = MailboxExporterConfig::default_under_repo_root(tmp.path());
-    let expected_suffix: PathBuf = [
-        ".GOV",
-        "roles_shared",
-        "exports",
-        "role_mailbox",
-    ]
-    .iter()
-    .collect();
+    let expected_suffix: PathBuf = [".GOV", "roles_shared", "exports", "role_mailbox"]
+        .iter()
+        .collect();
     let expected = tmp.path().join(&expected_suffix);
     assert_eq!(
         cfg.target_dir, expected,
@@ -537,7 +536,7 @@ fn mt_178_always_on_constructor_takes_config_only() {
 // ===== Postgres-gated integration tests =====
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_178_postgres_round_trip_byte_identical_two_runs() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -599,7 +598,7 @@ async fn mt_178_postgres_round_trip_byte_identical_two_runs() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_178_postgres_no_silent_drops_index_count_matches_repo_count() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -638,7 +637,10 @@ async fn mt_178_postgres_no_silent_drops_index_count_matches_repo_count() {
             .trim(),
     )
     .unwrap();
-    let row = idx.iter().find(|v| v["thread_id"].as_str().unwrap() == id.to_string()).unwrap();
+    let row = idx
+        .iter()
+        .find(|v| v["thread_id"].as_str().unwrap() == id.to_string())
+        .unwrap();
     assert_eq!(row["message_count"].as_u64().unwrap() as usize, n_messages);
 
     // Cross-check: JSONL line count equals repo list length.
@@ -658,7 +660,7 @@ async fn mt_178_postgres_no_silent_drops_index_count_matches_repo_count() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_178_postgres_deterministic_ordering_thread_created_at_message() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -729,7 +731,7 @@ async fn mt_178_postgres_deterministic_ordering_thread_created_at_message() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_178_postgres_incremental_append_only_new_messages() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -815,8 +817,7 @@ async fn mt_178_postgres_incremental_append_only_new_messages() {
     // the snapshot we took before run 2.
     let other_mtime_after = fs::metadata(&other_path).unwrap().modified().unwrap();
     assert!(
-        other_mtime_after <= other_mtime_before
-            || other_mtime_after == other_mtime_before,
+        other_mtime_after <= other_mtime_before || other_mtime_after == other_mtime_before,
         "unaffected file mtime must not advance: before={:?} after={:?}",
         other_mtime_before,
         other_mtime_after
@@ -828,11 +829,14 @@ async fn mt_178_postgres_incremental_append_only_new_messages() {
         .join("threads")
         .join(format!("{}.jsonl", id_target.as_uuid()));
     let target_lines = fs::read_to_string(&target_path).unwrap().lines().count();
-    assert_eq!(target_lines, 5, "target thread file must have 5 total lines");
+    assert_eq!(
+        target_lines, 5,
+        "target thread file must have 5 total lines"
+    );
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_178_postgres_archived_thread_excluded_from_index_but_messages_preserved() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -984,8 +988,9 @@ async fn snapshot_from_repo(
 }
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url =
-        std::env::var("POSTGRES_TEST_URL").expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL for role_mailbox_exporter_tests");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }
 

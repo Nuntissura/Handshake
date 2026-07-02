@@ -27,11 +27,6 @@ use uuid::Uuid;
 async fn postgres_or_environment_blocked() -> Arc<dyn handshake_core::storage::Database> {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: Kernel V1 Postgres proof requires POSTGRES_TEST_URL; {msg}"
-            );
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
@@ -39,19 +34,13 @@ async fn postgres_or_environment_blocked() -> Arc<dyn handshake_core::storage::D
 async fn postgres_reopenable_or_environment_blocked() -> (String, Arc<dyn Database>) {
     match postgres_reopenable_backend_from_env().await {
         Ok(pair) => pair,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: Kernel V1 Postgres restart proof requires POSTGRES_TEST_URL; {msg}"
-            );
-        }
         Err(err) => panic!("failed to init reopenable postgres backend: {err:?}"),
     }
 }
 
 async fn postgres_reopenable_backend_from_env() -> Result<(String, Arc<dyn Database>), StorageError>
 {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .map_err(|_| StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests"))?;
+    let url = handshake_core::storage::tests::postgres_test_base_url().await?;
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("kernel_restart_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
@@ -217,7 +206,7 @@ fn write_trace_evidence(label: &str, result: &handshake_core::kernel::KernelProo
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn end_to_end_kernel_proof() {
     let db = postgres_or_environment_blocked().await;
 
@@ -277,7 +266,7 @@ async fn end_to_end_kernel_proof() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn broker_dispatch_to_adapter_session_messages_ledger_link_toolgate_ledger_bridge_artifact_store_ledger_link(
 ) {
     let db = postgres_or_environment_blocked().await;
@@ -338,7 +327,7 @@ async fn broker_dispatch_to_adapter_session_messages_ledger_link_toolgate_ledger
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn restart_reconstruction_proof() {
     let (schema_url, db) = postgres_reopenable_or_environment_blocked().await;
 
@@ -376,7 +365,7 @@ async fn restart_reconstruction_proof() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_trace_inspector() {
     let db = postgres_or_environment_blocked().await;
 
@@ -404,7 +393,7 @@ async fn kernel_trace_inspector() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_trace_inspector_api_route_returns_trace_projection() {
     let (schema_url, db) = postgres_reopenable_or_environment_blocked().await;
 
@@ -451,7 +440,7 @@ async fn kernel_trace_inspector_api_route_returns_trace_projection() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_dcc_projection_api_route_returns_backend_validated_surface() {
     let (schema_url, db) = postgres_reopenable_or_environment_blocked().await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -490,7 +479,7 @@ async fn kernel_dcc_projection_api_route_returns_backend_validated_surface() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_proof_records_flight_recorder_diagnostic_mirrors() {
     let db = postgres_or_environment_blocked().await;
     let recorder = Arc::new(CapturingFlightRecorder::default());
@@ -520,7 +509,7 @@ async fn kernel_proof_records_flight_recorder_diagnostic_mirrors() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn adapter_replaceability_proof() {
     let db = postgres_or_environment_blocked().await;
 

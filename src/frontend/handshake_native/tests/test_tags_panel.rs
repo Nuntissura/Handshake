@@ -157,17 +157,26 @@ fn proof2_three_tag_rows_present() {
     let ids = author_ids(&harness);
 
     // PROOF2: >= 3 tags.row.* entries (4 seeded; the contract asks for "3 tag_hub blocks").
-    let row_count = ids.iter().filter(|a| a.starts_with(TAG_ROW_AUTHOR_ID_PREFIX)).count();
+    let row_count = ids
+        .iter()
+        .filter(|a| a.starts_with(TAG_ROW_AUTHOR_ID_PREFIX))
+        .count();
     assert!(
         row_count >= 3,
         "PROOF2: expected >= 3 tags.row.* AccessKit nodes, got {row_count} (ids={ids:?})"
     );
 
     // AC7: the search box id + the specific tag row ids are present.
-    assert!(ids.contains(SEARCH_AUTHOR_ID), "AC7: 'tags.search' must be in the tree (ids={ids:?})");
+    assert!(
+        ids.contains(SEARCH_AUTHOR_ID),
+        "AC7: 'tags.search' must be in the tree (ids={ids:?})"
+    );
     for id in ["tag-hub-001", "tag-hub-002", "tag-hub-003"] {
         let row = tag_row_author_id(id);
-        assert!(ids.contains(&row), "AC7: '{row}' must be present (ids={ids:?})");
+        assert!(
+            ids.contains(&row),
+            "AC7: '{row}' must be present (ids={ids:?})"
+        );
     }
 
     // Role check: tag-hub-001's row is a ListItem.
@@ -183,7 +192,10 @@ fn proof2_three_tag_rows_present() {
             listitem_found = true;
         }
     }
-    assert!(listitem_found, "AC7: tags.row.tag-hub-001 not found for role check");
+    assert!(
+        listitem_found,
+        "AC7: tags.row.tag-hub-001 not found for role check"
+    );
     println!("PROOF2: {row_count} tags.row.* ListItem nodes + tags.search present");
 }
 
@@ -220,8 +232,14 @@ fn proof3_search_filter_narrows_rows() {
         !ids.contains(&tag_row_author_id("tag-hub-004")),
         "PROOF3: 'design' row is filtered out by the 'rust' prefix"
     );
-    let remaining = ids.iter().filter(|a| a.starts_with(TAG_ROW_AUTHOR_ID_PREFIX)).count();
-    assert_eq!(remaining, 2, "PROOF3: exactly the 2 rust-prefixed rows remain (ids={ids:?})");
+    let remaining = ids
+        .iter()
+        .filter(|a| a.starts_with(TAG_ROW_AUTHOR_ID_PREFIX))
+        .count();
+    assert_eq!(
+        remaining, 2,
+        "PROOF3: exactly the 2 rust-prefixed rows remain (ids={ids:?})"
+    );
     println!("PROOF3: 'rust' filter narrowed 4 rows -> 2 (rust, rustaceans)");
 }
 
@@ -264,7 +282,9 @@ fn ac8_empty_no_tags() {
     );
     let ids = author_ids(&harness);
     assert_eq!(
-        ids.iter().filter(|a| a.starts_with(TAG_ROW_AUTHOR_ID_PREFIX)).count(),
+        ids.iter()
+            .filter(|a| a.starts_with(TAG_ROW_AUTHOR_ID_PREFIX))
+            .count(),
         0,
         "AC8: no tags.row.* nodes for an empty workspace"
     );
@@ -290,14 +310,23 @@ fn proof4_hub_page_title_and_members() {
     );
 
     // PROOF4: >= 1 tag-hub.member.* node.
-    let member_count = ids.iter().filter(|a| a.starts_with(HUB_MEMBER_AUTHOR_ID_PREFIX)).count();
+    let member_count = ids
+        .iter()
+        .filter(|a| a.starts_with(HUB_MEMBER_AUTHOR_ID_PREFIX))
+        .count();
     assert!(
         member_count >= 1,
         "PROOF4/AC4: >= 1 tag-hub.member.* node expected, got {member_count} (ids={ids:?})"
     );
     // The specific seeded members.
-    assert!(ids.contains(&hub_member_author_id("blk-001")), "AC4: member blk-001 present");
-    assert!(ids.contains(&hub_member_author_id("blk-002")), "AC4: member blk-002 present");
+    assert!(
+        ids.contains(&hub_member_author_id("blk-001")),
+        "AC4: member blk-001 present"
+    );
+    assert!(
+        ids.contains(&hub_member_author_id("blk-002")),
+        "AC4: member blk-002 present"
+    );
     println!("PROOF4: hub title + {member_count} member nodes present");
 }
 
@@ -385,7 +414,9 @@ fn proof5_tag_edge_request_shape() {
         })),
         "PROOF5: edge body is the verified tag-edge shape (source=block, target=hub, edge_type=tag)"
     );
-    println!("PROOF5: tag-edge POST request shape verified (URL + edge_type='tag', hub is the target)");
+    println!(
+        "PROOF5: tag-edge POST request shape verified (URL + edge_type='tag', hub is the target)"
+    );
 }
 
 // ── Verified request-shape builders (the production spawn paths route through these) ─────────────────
@@ -401,7 +432,10 @@ fn tag_read_requests_hit_verified_routes() {
     assert!(list.query.is_empty());
 
     let detail = client.tag_detail_request("ws7", "tag-hub-001");
-    assert_eq!(detail.url, "http://test.local:1234/workspaces/ws7/loom/tags/tag-hub-001");
+    assert_eq!(
+        detail.url,
+        "http://test.local:1234/workspaces/ws7/loom/tags/tag-hub-001"
+    );
 
     let members = client.list_members_request("ws7", "tag-hub-001");
     assert_eq!(
@@ -411,12 +445,20 @@ fn tag_read_requests_hit_verified_routes() {
     assert_eq!(members.query, vec![("limit".to_owned(), "100".to_owned())]);
 
     let search = client.search_blocks_request("ws7", "borrow");
-    assert_eq!(search.url, "http://test.local:1234/workspaces/ws7/loom/search");
+    assert_eq!(
+        search.url,
+        "http://test.local:1234/workspaces/ws7/loom/search"
+    );
     assert_eq!(
         search.query,
-        vec![("q".to_owned(), "borrow".to_owned()), ("limit".to_owned(), "20".to_owned())]
+        vec![
+            ("q".to_owned(), "borrow".to_owned()),
+            ("limit".to_owned(), "20".to_owned())
+        ]
     );
-    println!("verified: list/detail/members/search GET routes match the real MT-182 tag-hub backend");
+    println!(
+        "verified: list/detail/members/search GET routes match the real MT-182 tag-hub backend"
+    );
 }
 
 // ── HBR-VIS screenshot: the tags panel renders chips + member counts ─────────────────────────────────
@@ -480,7 +522,10 @@ fn tag_hub_screenshot() {
             let _ = std::fs::create_dir_all(&ext_dir);
             let png = ext_dir.join("MT-023-tag-hub.png");
             let saved = image.save(&png).is_ok();
-            println!("HBR-VIS: {w}x{h} tag-hub screenshot, saved={saved} ({})", png.display());
+            println!(
+                "HBR-VIS: {w}x{h} tag-hub screenshot, saved={saved} ({})",
+                png.display()
+            );
         }
         Err(e) => {
             println!(
@@ -515,7 +560,9 @@ fn tags_list_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let tags = data.expect("live PG fetch delivered within 5s").expect("live PG fetch ok");
+    let tags = data
+        .expect("live PG fetch delivered within 5s")
+        .expect("live PG fetch ok");
     assert!(
         tags.len() >= 3,
         "AC1 live: >= 3 seeded tag_hub blocks expected from GET /loom/tags, got {}",
@@ -544,8 +591,13 @@ fn tag_hub_detail_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let (title, members) = data.expect("live PG fetch delivered within 5s").expect("live PG fetch ok");
-    assert!(!title.trim().is_empty(), "AC4 live: hub title must be non-empty");
+    let (title, members) = data
+        .expect("live PG fetch delivered within 5s")
+        .expect("live PG fetch ok");
+    assert!(
+        !title.trim().is_empty(),
+        "AC4 live: hub title must be non-empty"
+    );
     assert!(
         !members.is_empty(),
         "AC4 live: the seeded hub must have >= 1 member, got {}",
@@ -566,7 +618,12 @@ fn tag_edge_create_live_pg() {
     let client = LoomTagClient::production(rt.handle().clone());
     // The operator seeds tag_hub "tag-hub-001" + a taggable note "block-taggable" in `ws-live`.
     let post_cell: ScmReceiptCell = Arc::new(Mutex::new(None));
-    client.tag_block("ws-live", "block-taggable", "tag-hub-001", Arc::clone(&post_cell));
+    client.tag_block(
+        "ws-live",
+        "block-taggable",
+        "tag-hub-001",
+        Arc::clone(&post_cell),
+    );
     // Await the POST RESPONSE (AC6 / RISK-2: re-query only AFTER the create resolves — no fixed sleep).
     let mut post_done = None;
     for _ in 0..50 {
@@ -576,7 +633,9 @@ fn tag_edge_create_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    post_done.expect("tag POST delivered within 5s").expect("tag POST ok");
+    post_done
+        .expect("tag POST delivered within 5s")
+        .expect("tag POST ok");
 
     // Now re-query the members — the just-tagged block must be present.
     let members_cell: TagHubDetailCell = Arc::new(Mutex::new(None));
@@ -589,7 +648,9 @@ fn tag_edge_create_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let (_t, members) = data.expect("members re-query delivered").expect("members re-query ok");
+    let (_t, members) = data
+        .expect("members re-query delivered")
+        .expect("members re-query ok");
     assert!(
         members.iter().any(|m| m.block_id == "block-taggable"),
         "AC6 live: the just-tagged block must appear in the re-queried members (got {members:?})"

@@ -137,8 +137,8 @@ impl VirtualLineLayout {
 
         // ceil((scroll + vp) / lh) is the last strictly-visible line (one past the bottom edge);
         // add the overscan, clamp to the final line index, then +1 for the half-open upper bound.
-        let last_visible =
-            ((self.scroll_offset_px + self.viewport_height_px) / self.line_height_px).ceil() as usize;
+        let last_visible = ((self.scroll_offset_px + self.viewport_height_px) / self.line_height_px)
+            .ceil() as usize;
         let last_inclusive = last_visible.saturating_add(OVERSCAN_LINES).min(last_line);
 
         // `first` can exceed `last_inclusive` only if `first` was clamped above the document (scroll
@@ -258,8 +258,15 @@ mod tests {
             "the scrolled-to line {mid_line} must be inside {range:?}"
         );
         // Line 0 is far above the window and must NOT be painted.
-        assert!(!range.contains(&0), "line 0 is not painted when scrolled to the middle");
-        assert!(range.len() < 100, "still a small window (got {})", range.len());
+        assert!(
+            !range.contains(&0),
+            "line 0 is not painted when scrolled to the middle"
+        );
+        assert!(
+            range.len() < 100,
+            "still a small window (got {})",
+            range.len()
+        );
     }
 
     #[test]
@@ -277,7 +284,11 @@ mod tests {
             count - 1
         );
         // The window stays small even at the very bottom.
-        assert!(range.len() < 100, "end window is bounded (got {})", range.len());
+        assert!(
+            range.len() < 100,
+            "end window is bounded (got {})",
+            range.len()
+        );
     }
 
     #[test]
@@ -322,9 +333,15 @@ mod tests {
         // Tiny doc, huge scroll offset: must clamp to the last line, never produce an inverted range.
         let layout = VirtualLineLayout::new(3, LH, VP, 1_000_000.0);
         let range = layout.visible_range();
-        assert!(range.start <= range.end, "range never inverts (got {range:?})");
+        assert!(
+            range.start <= range.end,
+            "range never inverts (got {range:?})"
+        );
         assert_eq!(range.end, 3, "clamped to the 3-line document");
-        assert!(range.contains(&2), "last line still painted when scrolled past the end");
+        assert!(
+            range.contains(&2),
+            "last line still painted when scrolled past the end"
+        );
     }
 
     #[test]
@@ -332,9 +349,16 @@ mod tests {
         // line_height 0 would divide-by-zero; the constructor clamps it to 1.0 so the math is sane.
         let layout = VirtualLineLayout::new(100, 0.0, VP, 50.0);
         let range = layout.visible_range();
-        assert!(range.start <= range.end, "no inverted range on a 0 line height");
+        assert!(
+            range.start <= range.end,
+            "no inverted range on a 0 line height"
+        );
         assert!(range.end <= 100, "range stays within the document");
-        assert_eq!(layout.line_height_px(), 1.0, "0 line height clamped to 1px floor");
+        assert_eq!(
+            layout.line_height_px(),
+            1.0,
+            "0 line height clamped to 1px floor"
+        );
         // NaN/inf line height is likewise clamped.
         let nan = VirtualLineLayout::new(100, f32::NAN, VP, 50.0);
         assert_eq!(nan.line_height_px(), 1.0);
@@ -353,9 +377,18 @@ mod tests {
     fn ltr_code_line_bidi_is_identity() {
         // AC6 / MC-3: an ordinary LTR source line is identity (no reorder, LTR base, no limitation) so the
         // existing code render is byte-for-byte unchanged.
-        for line in ["let x = 1;", "fn main() {}", "    // a comment", "", "中文 comment"] {
+        for line in [
+            "let x = 1;",
+            "fn main() {}",
+            "    // a comment",
+            "",
+            "中文 comment",
+        ] {
             let b = code_line_bidi(line);
-            assert!(b.is_identity(line), "LTR code line must be bidi-identity: {line:?} -> {b:?}");
+            assert!(
+                b.is_identity(line),
+                "LTR code line must be bidi-identity: {line:?} -> {b:?}"
+            );
             assert_eq!(b.visual_text, line);
         }
     }
@@ -365,9 +398,16 @@ mod tests {
         // AC3: a code line containing a Hebrew literal is RTL base (first strong is Hebrew) and reorders.
         let line = "שלום";
         let b = code_line_bidi(line);
-        assert_eq!(b.base, crate::text_intl::Direction::Rtl, "Hebrew code line base is RTL");
+        assert_eq!(
+            b.base,
+            crate::text_intl::Direction::Rtl,
+            "Hebrew code line base is RTL"
+        );
         assert!(!b.is_identity(line), "an RTL line is not identity");
-        assert!(b.shaping_limitation.is_none(), "Hebrew is non-joining — no limitation");
+        assert!(
+            b.shaping_limitation.is_none(),
+            "Hebrew is non-joining — no limitation"
+        );
     }
 
     #[test]
@@ -375,9 +415,16 @@ mod tests {
         // AC5: an Arabic code literal raises the typed shaping limitation (never silently broken).
         let line = "let s = \"العربية\";";
         let b = code_line_bidi(line);
-        assert!(b.shaping_limitation.is_some(), "Arabic code line must raise the typed limitation");
+        assert!(
+            b.shaping_limitation.is_some(),
+            "Arabic code line must raise the typed limitation"
+        );
         // Base is LTR here (first strong char is the Latin 'l' of `let`), but the limitation still fires
         // because the line CONTAINS Arabic content egui cannot shape.
-        assert_eq!(b.base, crate::text_intl::Direction::Ltr, "first strong is Latin -> LTR base");
+        assert_eq!(
+            b.base,
+            crate::text_intl::Direction::Ltr,
+            "first strong is Latin -> LTR base"
+        );
     }
 }

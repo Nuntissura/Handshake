@@ -227,7 +227,10 @@ fn perf_lc03_find_replace() {
         }
     }
     let mut buffer = TextBuffer::new(&src);
-    assert!(buffer.len_lines() >= FLAT_FN_LINES, "LC-03: 10k-line buffer loaded");
+    assert!(
+        buffer.len_lines() >= FLAT_FN_LINES,
+        "LC-03: 10k-line buffer loaded"
+    );
     let query = FindQuery::literal("NEEDLE");
 
     // MEASURED (search): collect all 200 match spans over the whole 10k buffer.
@@ -251,9 +254,15 @@ fn perf_lc03_find_replace() {
     let t_replace = Instant::now();
     let replaced = FindEngine::replace_all(&mut buffer, &matches, "REPLACED");
     let replace_ms = t_replace.elapsed().as_millis();
-    assert_eq!(replaced, 200, "LC-03: replace-all must rewrite exactly 200 matches (got {replaced})");
+    assert_eq!(
+        replaced, 200,
+        "LC-03: replace-all must rewrite exactly 200 matches (got {replaced})"
+    );
     let final_text = buffer.to_string();
-    assert!(!final_text.contains("NEEDLE"), "LC-03: no 'NEEDLE' remains after replace-all");
+    assert!(
+        !final_text.contains("NEEDLE"),
+        "LC-03: no 'NEEDLE' remains after replace-all"
+    );
     assert_eq!(
         final_text.matches("REPLACED").count(),
         200,
@@ -288,10 +297,17 @@ fn perf_lc04_multi_cursor() {
     // FIXTURE (NOT timed): a 1000-line buffer; place one caret at the start of each line (1000 cursors).
     let mut buffer = TextBuffer::new(&"original\n".repeat(1000));
     let line_starts: Vec<usize> = (0..1000)
-        .map(|n| buffer.line_to_byte(n).expect("LC-04: line start byte offset"))
+        .map(|n| {
+            buffer
+                .line_to_byte(n)
+                .expect("LC-04: line start byte offset")
+        })
         .collect();
     let mut cursors = CursorSet::new();
-    cursors.set_cursors(line_starts.iter().map(|b| Cursor::caret(*b)).collect(), &buffer);
+    cursors.set_cursors(
+        line_starts.iter().map(|b| Cursor::caret(*b)).collect(),
+        &buffer,
+    );
     assert_eq!(cursors.len(), 1000, "LC-04: 1000 simultaneous cursors set");
 
     // MEASURED: insert "X-" at all 1000 cursor positions at once via the REAL CursorSet::insert_at_all
@@ -300,7 +316,10 @@ fn perf_lc04_multi_cursor() {
     let applied = cursors.insert_at_all("X-", &mut buffer);
     let elapsed_ms = t0.elapsed().as_millis();
 
-    assert_eq!(applied, 1000, "LC-04: insert applied at all 1000 cursor positions (got {applied})");
+    assert_eq!(
+        applied, 1000,
+        "LC-04: insert applied at all 1000 cursor positions (got {applied})"
+    );
     let final_text = buffer.to_string();
     assert_eq!(
         final_text.matches("X-original").count(),
@@ -388,7 +407,8 @@ fn perf_lc06_codebase_index() {
         for i in 0..200usize {
             body.push_str(&format!("fn file{f}_sym{i}() -> u32 {{ {i} }}\n"));
         }
-        std::fs::write(dir.join(format!("file_{f}.rs")), body).expect("LC-06: write synthetic file");
+        std::fs::write(dir.join(format!("file_{f}.rs")), body)
+            .expect("LC-06: write synthetic file");
     }
 
     // MEASURED: drive the backend code-nav index route for this workspace and read the symbol count.
@@ -403,7 +423,11 @@ fn perf_lc06_codebase_index() {
     let symbol_count = resp
         .get("symbol_count")
         .and_then(|v| v.as_u64())
-        .or_else(|| resp.get("symbols").and_then(|v| v.as_array()).map(|a| a.len() as u64))
+        .or_else(|| {
+            resp.get("symbols")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len() as u64)
+        })
         .unwrap_or(0);
     assert!(
         symbol_count >= 500,
@@ -445,9 +469,14 @@ fn perf_lc07_minimap() {
     // (Minimap::compute_row_colors builds one color per minimap row, O(spans) over the whole file).
     let src = "let x = 1; // line\n".repeat(FLAT_FN_LINES);
     let buffer = TextBuffer::new(&src);
-    assert!(buffer.len_lines() >= FLAT_FN_LINES, "LC-07: 10k-line buffer loaded");
+    assert!(
+        buffer.len_lines() >= FLAT_FN_LINES,
+        "LC-07: 10k-line buffer loaded"
+    );
     let registry = LanguageRegistry::with_bundled_languages();
-    let mut hl = registry.highlighter_for_extension("rs").expect("LC-07: rust highlighter");
+    let mut hl = registry
+        .highlighter_for_extension("rs")
+        .expect("LC-07: rust highlighter");
     let spans = hl.highlight(src.as_bytes());
 
     // The minimap scales the whole file into a panel-height column. ratio = lines per minimap row.

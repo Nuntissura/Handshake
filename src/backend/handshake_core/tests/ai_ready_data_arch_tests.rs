@@ -13,7 +13,7 @@ use handshake_core::flight_recorder::{
     RecorderError,
 };
 use handshake_core::storage::tests::postgres_backend_from_env;
-use handshake_core::storage::{Database, NewWorkspace, StorageError, WriteContext};
+use handshake_core::storage::{Database, NewWorkspace, WriteContext};
 
 #[derive(Clone, Default)]
 struct InMemoryFlightRecorder {
@@ -54,13 +54,9 @@ fn json_contains_string(value: &serde_json::Value, needle: &str) -> bool {
     }
 }
 
-async fn postgres_backend_or_skip(test_name: &str) -> Option<Arc<dyn Database>> {
+async fn postgres_backend_for_test(test_name: &str) -> Arc<dyn Database> {
     match postgres_backend_from_env().await {
-        Ok(db) => Some(db),
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            eprintln!("Skipping {test_name}: {msg}");
-            None
-        }
+        Ok(db) => db,
         Err(err) => panic!("failed to init postgres backend for {test_name}: {err:?}"),
     }
 }
@@ -189,10 +185,7 @@ async fn pipeline_emits_validation_failed_on_treesitter_parse_error_and_skips_si
     let temp = tempdir().expect("tempdir");
     let handshake_root = temp.path().to_path_buf();
 
-    let Some(db) = postgres_backend_or_skip("ai-ready parse-error pipeline storage test").await
-    else {
-        return;
-    };
+    let db = postgres_backend_for_test("ai-ready parse-error pipeline storage test").await;
     let ctx = WriteContext::human(None);
     let workspace = db
         .create_workspace(
@@ -255,9 +248,7 @@ async fn pipeline_hashes_query_in_retrieval_events() {
     let temp = tempdir().expect("tempdir");
     let handshake_root = temp.path().to_path_buf();
 
-    let Some(db) = postgres_backend_or_skip("ai-ready retrieval event storage test").await else {
-        return;
-    };
+    let db = postgres_backend_for_test("ai-ready retrieval event storage test").await;
     let ctx = WriteContext::human(None);
     let workspace = db
         .create_workspace(

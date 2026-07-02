@@ -271,11 +271,19 @@ impl WorkspaceEditPreview {
                     Some(text) => hunks_for_edits(text, &edits),
                     None => Vec::new(),
                 };
-                FileEditPreview { uri, is_open_buffer, edits, hunks }
+                FileEditPreview {
+                    uri,
+                    is_open_buffer,
+                    edits,
+                    hunks,
+                }
             })
             .collect();
 
-        Self { files, is_single_file_fallback: false }
+        Self {
+            files,
+            is_single_file_fallback: false,
+        }
     }
 
     /// Build the SINGLE-FILE no-LSP fallback preview (RISK-004 / MC-004 — AC-003): rename every in-file
@@ -295,7 +303,10 @@ impl WorkspaceEditPreview {
         let mut edits: Vec<TextEdit> = Vec::with_capacity(occurrence_byte_ranges.len());
         for range in occurrence_byte_ranges {
             if let Some(lsp_range) = byte_range_to_lsp_range(&buffer, range.clone()) {
-                edits.push(TextEdit { range: lsp_range, new_text: new_name.to_owned() });
+                edits.push(TextEdit {
+                    range: lsp_range,
+                    new_text: new_name.to_owned(),
+                });
             }
         }
         let hunks = hunks_for_edits(text, &edits);
@@ -305,7 +316,10 @@ impl WorkspaceEditPreview {
             edits,
             hunks,
         };
-        Self { files: vec![file], is_single_file_fallback: true }
+        Self {
+            files: vec![file],
+            is_single_file_fallback: true,
+        }
     }
 }
 
@@ -336,9 +350,16 @@ pub struct RenameApplyReport {
 #[derive(Debug, Clone)]
 pub enum RenameError {
     /// A file's disk read/write failed; `partial` lists the files already applied before the failure.
-    Io { uri: String, message: String, partial: RenameApplyReport },
+    Io {
+        uri: String,
+        message: String,
+        partial: RenameApplyReport,
+    },
     /// An edit's range could not be mapped to a buffer offset (a stale range from a prior edit).
-    BadRange { uri: String, partial: RenameApplyReport },
+    BadRange {
+        uri: String,
+        partial: RenameApplyReport,
+    },
 }
 
 impl std::fmt::Display for RenameError {
@@ -348,7 +369,10 @@ impl std::fmt::Display for RenameError {
                 write!(f, "rename apply failed writing {uri}: {message}")
             }
             RenameError::BadRange { uri, .. } => {
-                write!(f, "rename apply failed: an edit range was out of range in {uri}")
+                write!(
+                    f,
+                    "rename apply failed: an edit range was out of range in {uri}"
+                )
             }
         }
     }
@@ -386,9 +410,7 @@ pub enum RenameState {
         workspace_edit: WorkspaceEditPreview,
     },
     /// An error occurred (e.g. the LSP server returned an error); the message is shown, no panic.
-    Error {
-        message: String,
-    },
+    Error { message: String },
 }
 
 /// What the preview render wants the panel to do after a frame.
@@ -543,7 +565,10 @@ pub fn apply_preview(
         if file.is_open_buffer {
             let current = read_open_buffer(&file.uri).unwrap_or_default();
             let new_text = apply_text_edits_to_string(&current, &file.edits).map_err(|_| {
-                RenameError::BadRange { uri: file.uri.clone(), partial: report.clone() }
+                RenameError::BadRange {
+                    uri: file.uri.clone(),
+                    partial: report.clone(),
+                }
             })?;
             write_open_buffer(&file.uri, &new_text);
         } else {
@@ -554,7 +579,10 @@ pub fn apply_preview(
                 partial: report.clone(),
             })?;
             let new_text = apply_text_edits_to_string(&current, &file.edits).map_err(|_| {
-                RenameError::BadRange { uri: file.uri.clone(), partial: report.clone() }
+                RenameError::BadRange {
+                    uri: file.uri.clone(),
+                    partial: report.clone(),
+                }
             })?;
             write_file_atomic(&path, &new_text).map_err(|e| RenameError::Io {
                 uri: file.uri.clone(),
@@ -620,7 +648,9 @@ pub fn apply_text_edits_to_buffer(
         // descending, `range.start` is still valid (no earlier edit has shifted it). A failed delete/insert
         // is a stale range -> Err (never a silent partial corruption).
         buffer.delete(range.clone()).map_err(|_| EditApplyError)?;
-        buffer.insert(range.start, &new_text).map_err(|_| EditApplyError)?;
+        buffer
+            .insert(range.start, &new_text)
+            .map_err(|_| EditApplyError)?;
     }
     Ok(())
 }
@@ -697,7 +727,11 @@ fn hunks_for_edits(text: &str, edits: &[TextEdit]) -> Vec<PreviewHunk> {
             // shorter after-buffer by clamping.
             let after_line = line.min(after_buffer.len_lines().saturating_sub(1));
             let after = whole_line(&after_buffer, after_line);
-            PreviewHunk { line, before, after }
+            PreviewHunk {
+                line,
+                before,
+                after,
+            }
         })
         .collect()
 }
@@ -746,7 +780,10 @@ pub fn write_file_atomic(path: &Path, content: &str) -> std::io::Result<()> {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let temp_path = dir.join(format!(".{file_name}.{}.{stamp}.hsk-rename-tmp", std::process::id()));
+    let temp_path = dir.join(format!(
+        ".{file_name}.{}.{stamp}.hsk-rename-tmp",
+        std::process::id()
+    ));
 
     // Write + flush + fsync the temp file fully before the rename, so the rename swaps in complete content.
     {
@@ -889,7 +926,11 @@ pub fn render_inline_input(
 
     // Emit the TextInput AccessKit node carrying the draft value, so a swarm agent reads/sets the rename
     // by id (AC-006). The node value is the current draft.
-    let node_id = rename_node_id(RENAME_INPUT_NODE_ID, CODE_EDITOR_RENAME_INPUT_AUTHOR_ID, instance);
+    let node_id = rename_node_id(
+        RENAME_INPUT_NODE_ID,
+        CODE_EDITOR_RENAME_INPUT_AUTHOR_ID,
+        instance,
+    );
     ctx.accesskit_node_builder(node_id, move |node| {
         node.set_role(accesskit::Role::TextInput);
         node.set_author_id(author.clone());
@@ -941,7 +982,11 @@ pub fn render_preview(
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     for file in &preview.files {
-                        let kind = if file.is_open_buffer { "open buffer" } else { "to disk" };
+                        let kind = if file.is_open_buffer {
+                            "open buffer"
+                        } else {
+                            "to disk"
+                        };
                         ui.label(
                             egui::RichText::new(format!("{}  ({kind})", file.uri))
                                 .strong()
@@ -978,8 +1023,11 @@ pub fn render_preview(
                     action = PreviewAction::Apply;
                 }
                 let apply_author = suffixed(CODE_EDITOR_RENAME_APPLY_AUTHOR_ID, instance);
-                let apply_node_id =
-                    rename_node_id(RENAME_APPLY_NODE_ID, CODE_EDITOR_RENAME_APPLY_AUTHOR_ID, instance);
+                let apply_node_id = rename_node_id(
+                    RENAME_APPLY_NODE_ID,
+                    CODE_EDITOR_RENAME_APPLY_AUTHOR_ID,
+                    instance,
+                );
                 ui.ctx().accesskit_node_builder(apply_node_id, move |node| {
                     node.set_role(accesskit::Role::Button);
                     node.set_author_id(apply_author.clone());
@@ -997,26 +1045,31 @@ pub fn render_preview(
                     CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID,
                     instance,
                 );
-                ui.ctx().accesskit_node_builder(cancel_node_id, move |node| {
-                    node.set_role(accesskit::Role::Button);
-                    node.set_author_id(cancel_author.clone());
-                    node.set_label("Cancel rename".to_owned());
-                    node.add_action(accesskit::Action::Click);
-                });
+                ui.ctx()
+                    .accesskit_node_builder(cancel_node_id, move |node| {
+                        node.set_role(accesskit::Role::Button);
+                        node.set_author_id(cancel_author.clone());
+                        node.set_label("Cancel rename".to_owned());
+                        node.add_action(accesskit::Action::Click);
+                    });
             });
 
             // Emit the preview container node so a swarm agent can read the change summary by id.
             let preview_author = suffixed("code_editor_rename_preview", instance);
             let total = preview.total_edits();
             let file_count = preview.files.len();
-            let preview_node_id =
-                rename_node_id(RENAME_PREVIEW_NODE_ID, "code_editor_rename_preview", instance);
-            ui.ctx().accesskit_node_builder(preview_node_id, move |node| {
-                node.set_role(accesskit::Role::GenericContainer);
-                node.set_author_id(preview_author.clone());
-                node.set_label("Rename preview".to_owned());
-                node.set_value(format!("{total} changes across {file_count} files"));
-            });
+            let preview_node_id = rename_node_id(
+                RENAME_PREVIEW_NODE_ID,
+                "code_editor_rename_preview",
+                instance,
+            );
+            ui.ctx()
+                .accesskit_node_builder(preview_node_id, move |node| {
+                    node.set_role(accesskit::Role::GenericContainer);
+                    node.set_author_id(preview_author.clone());
+                    node.set_label("Rename preview".to_owned());
+                    node.set_value(format!("{total} changes across {file_count} files"));
+                });
         });
 
     action
@@ -1079,32 +1132,58 @@ mod tests {
         // value occurrences: bytes 4..9 and 12..17.
         let edits = vec![
             TextEdit {
-                range: LspRange { start_line: 0, start_char: 4, end_line: 0, end_char: 9 },
+                range: LspRange {
+                    start_line: 0,
+                    start_char: 4,
+                    end_line: 0,
+                    end_char: 9,
+                },
                 new_text: "total".into(),
             },
             TextEdit {
-                range: LspRange { start_line: 0, start_char: 12, end_line: 0, end_char: 17 },
+                range: LspRange {
+                    start_line: 0,
+                    start_char: 12,
+                    end_line: 0,
+                    end_char: 17,
+                },
                 new_text: "total".into(),
             },
         ];
         let out = apply_text_edits_to_string(text, &edits).expect("apply ok");
-        assert_eq!(out, "let total = total + 1;", "descending apply renames both occurrences exactly");
+        assert_eq!(
+            out, "let total = total + 1;",
+            "descending apply renames both occurrences exactly"
+        );
 
         // Prove ascending order would CORRUPT: apply the SAME edits naively low->high without re-resolving
         // offsets. The first edit ("total" is same length as "value" here is 5==5, so pick a length-changing
         // rename to expose the bug): rename to a SHORTER name `t` so ascending shifts the second range.
         let edits_short = vec![
             TextEdit {
-                range: LspRange { start_line: 0, start_char: 4, end_line: 0, end_char: 9 },
+                range: LspRange {
+                    start_line: 0,
+                    start_char: 4,
+                    end_line: 0,
+                    end_char: 9,
+                },
                 new_text: "t".into(),
             },
             TextEdit {
-                range: LspRange { start_line: 0, start_char: 12, end_line: 0, end_char: 17 },
+                range: LspRange {
+                    start_line: 0,
+                    start_char: 12,
+                    end_line: 0,
+                    end_char: 17,
+                },
                 new_text: "t".into(),
             },
         ];
         let correct = apply_text_edits_to_string(text, &edits_short).expect("apply ok");
-        assert_eq!(correct, "let t = t + 1;", "descending apply is correct for a length-changing rename");
+        assert_eq!(
+            correct, "let t = t + 1;",
+            "descending apply is correct for a length-changing rename"
+        );
 
         // Naive ASCENDING application (the bug): apply edit[0] first (shrinks the doc by 4 bytes), then
         // edit[1] at its ORIGINAL byte range 12..17 — which now points at the WRONG, shifted text.
@@ -1142,11 +1221,21 @@ mod tests {
                     is_open_buffer: true,
                     edits: vec![
                         TextEdit {
-                            range: LspRange { start_line: 0, start_char: 3, end_line: 0, end_char: 6 },
+                            range: LspRange {
+                                start_line: 0,
+                                start_char: 3,
+                                end_line: 0,
+                                end_char: 6,
+                            },
                             new_text: "frobnicate".into(),
                         },
                         TextEdit {
-                            range: LspRange { start_line: 1, start_char: 11, end_line: 1, end_char: 14 },
+                            range: LspRange {
+                                start_line: 1,
+                                start_char: 11,
+                                end_line: 1,
+                                end_char: 14,
+                            },
                             new_text: "frobnicate".into(),
                         },
                     ],
@@ -1157,11 +1246,21 @@ mod tests {
                     is_open_buffer: true,
                     edits: vec![
                         TextEdit {
-                            range: LspRange { start_line: 0, start_char: 11, end_line: 0, end_char: 14 },
+                            range: LspRange {
+                                start_line: 0,
+                                start_char: 11,
+                                end_line: 0,
+                                end_char: 14,
+                            },
                             new_text: "frobnicate".into(),
                         },
                         TextEdit {
-                            range: LspRange { start_line: 0, start_char: 18, end_line: 0, end_char: 21 },
+                            range: LspRange {
+                                start_line: 0,
+                                start_char: 18,
+                                end_line: 0,
+                                end_char: 21,
+                            },
                             new_text: "frobnicate".into(),
                         },
                     ],
@@ -1188,8 +1287,14 @@ mod tests {
 
         assert_eq!(report.files_changed, vec!["file:///a.rs", "file:///b.rs"]);
         assert_eq!(report.edits_applied, 4);
-        assert_eq!(buffers["file:///a.rs"], "fn frobnicate() {}\nfn bar() { frobnicate(); }");
-        assert_eq!(buffers["file:///b.rs"], "fn baz() { frobnicate(); frobnicate(); }");
+        assert_eq!(
+            buffers["file:///a.rs"],
+            "fn frobnicate() {}\nfn bar() { frobnicate(); }"
+        );
+        assert_eq!(
+            buffers["file:///b.rs"],
+            "fn baz() { frobnicate(); frobnicate(); }"
+        );
     }
 
     #[test]
@@ -1198,10 +1303,19 @@ mod tests {
         // deserialize to the SAME FileEditPreview set.
         let uri = lsp_types::Url::parse("file:///x.rs").unwrap();
         let range = lsp_types::Range {
-            start: lsp_types::Position { line: 0, character: 3 },
-            end: lsp_types::Position { line: 0, character: 6 },
+            start: lsp_types::Position {
+                line: 0,
+                character: 3,
+            },
+            end: lsp_types::Position {
+                line: 0,
+                character: 6,
+            },
         };
-        let te = lsp_types::TextEdit { range, new_text: "renamed".into() };
+        let te = lsp_types::TextEdit {
+            range,
+            new_text: "renamed".into(),
+        };
 
         // changes map form.
         let mut changes = std::collections::HashMap::new();
@@ -1236,7 +1350,12 @@ mod tests {
         assert_eq!(
             p_changes.files[0].edits[0],
             TextEdit {
-                range: LspRange { start_line: 0, start_char: 3, end_line: 0, end_char: 6 },
+                range: LspRange {
+                    start_line: 0,
+                    start_char: 3,
+                    end_line: 0,
+                    end_char: 6
+                },
                 new_text: "renamed".into(),
             }
         );
@@ -1266,7 +1385,13 @@ mod tests {
         let state = begin_rename(&tree, &buffer, on_ident, "ent-value")
             .expect("cursor on an identifier begins a rename");
         match state {
-            RenameState::Editing { original, draft, ident_range, entity_id, .. } => {
+            RenameState::Editing {
+                original,
+                draft,
+                ident_range,
+                entity_id,
+                ..
+            } => {
                 assert_eq!(original, "value");
                 assert_eq!(draft, "value", "draft pre-filled with the identifier");
                 assert_eq!(&src[ident_range], "value");
@@ -1298,7 +1423,11 @@ mod tests {
         let buffer = TextBuffer::new(src);
         let occ = identifier_occurrences(&tree, &buffer, "value");
         // Exactly the two real `value` identifier occurrences (positions 4 and 12), not `valuee`/the string.
-        assert_eq!(occ.len(), 2, "only the two whole-identifier occurrences, got {occ:?}");
+        assert_eq!(
+            occ.len(),
+            2,
+            "only the two whole-identifier occurrences, got {occ:?}"
+        );
         for r in &occ {
             assert_eq!(&src[r.clone()], "value");
         }
@@ -1314,7 +1443,10 @@ mod tests {
         let occ = identifier_occurrences(&tree, &buffer, "value");
         let preview =
             WorkspaceEditPreview::single_file_fallback("file:///cur.rs", src, "total", &occ, true);
-        assert!(preview.is_single_file_fallback, "the fallback marks the banner flag");
+        assert!(
+            preview.is_single_file_fallback,
+            "the fallback marks the banner flag"
+        );
         assert_eq!(preview.files.len(), 1);
         let out = apply_text_edits_to_string(src, &preview.files[0].edits).unwrap();
         assert_eq!(out, "let total = total + 1;");
@@ -1331,14 +1463,17 @@ mod tests {
 
         // A real atomic write replaces the whole file.
         write_file_atomic(&target, "fully replaced content\n").unwrap();
-        assert_eq!(std::fs::read_to_string(&target).unwrap(), "fully replaced content\n");
+        assert_eq!(
+            std::fs::read_to_string(&target).unwrap(),
+            "fully replaced content\n"
+        );
 
         // Simulate a write INTERRUPTION: write to the sibling temp but DO NOT rename. The target must be
         // the intact previous content (never half-written) — proving the rename, not an in-place write,
         // is the mutation point.
         let temp_sibling = dir.join(".victim.rs.interrupted.hsk-rename-tmp");
         std::fs::write(&temp_sibling, "HALF WRITTEN GARBAGE").unwrap(); // the "crash before rename" state.
-        // The target is untouched by the temp write.
+                                                                        // The target is untouched by the temp write.
         assert_eq!(
             std::fs::read_to_string(&target).unwrap(),
             "fully replaced content\n",
@@ -1359,7 +1494,12 @@ mod tests {
                     uri: "file:///ok.rs".into(),
                     is_open_buffer: true,
                     edits: vec![TextEdit {
-                        range: LspRange { start_line: 0, start_char: 0, end_line: 0, end_char: 3 },
+                        range: LspRange {
+                            start_line: 0,
+                            start_char: 0,
+                            end_line: 0,
+                            end_char: 3,
+                        },
                         new_text: "new".into(),
                     }],
                     hunks: vec![],
@@ -1369,7 +1509,12 @@ mod tests {
                     uri: "file:///does-not-exist-hsk.rs".into(),
                     is_open_buffer: false,
                     edits: vec![TextEdit {
-                        range: LspRange { start_line: 0, start_char: 0, end_line: 0, end_char: 3 },
+                        range: LspRange {
+                            start_line: 0,
+                            start_char: 0,
+                            end_line: 0,
+                            end_char: 3,
+                        },
                         new_text: "new".into(),
                     }],
                     hunks: vec![],
@@ -1395,7 +1540,11 @@ mod tests {
             }
             other => panic!("expected an Io error, got {other:?}"),
         }
-        assert_eq!(applied, vec!["file:///ok.rs"], "only the first file's buffer was written");
+        assert_eq!(
+            applied,
+            vec!["file:///ok.rs"],
+            "only the first file's buffer was written"
+        );
     }
 
     #[test]

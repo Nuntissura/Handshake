@@ -22,13 +22,22 @@ use handshake_native::code_editor::lsp_client::{
 #[test]
 fn lsp_client_graceful_unconfigured_is_not_running() {
     let client = LspClient::disabled();
-    assert!(!client.is_configured(), "AC-004: disabled client reports not configured");
-    assert!(!client.is_running(), "AC-004: disabled client has no spawned process");
+    assert!(
+        !client.is_configured(),
+        "AC-004: disabled client reports not configured"
+    );
+    assert!(
+        !client.is_running(),
+        "AC-004: disabled client has no spawned process"
+    );
 
     // A config with a non-empty command IS configured (but still not spawned until did_open).
     let configured = LspClient::new(LspServerConfig::command("rust-analyzer"));
     assert!(configured.is_configured());
-    assert!(!configured.is_running(), "configured but not spawned until did_open");
+    assert!(
+        !configured.is_running(),
+        "configured but not spawned until did_open"
+    );
 }
 
 /// AC-004 / PT-004: with no server, every method degrades gracefully (empty/None, no panic). Runs the
@@ -42,13 +51,24 @@ fn lsp_client_graceful_all_methods_return_empty_without_server() {
     rt.block_on(async {
         let client = LspClient::disabled();
         // initialize returns false (no server), no panic.
-        assert!(!client.initialize(None).await, "AC-004: initialize false without server");
+        assert!(
+            !client.initialize(None).await,
+            "AC-004: initialize false without server"
+        );
         // did_open / did_change are graceful no-ops (no panic, no spawn).
-        client.did_open("file:///x.rs", "rust", "fn main() {}").await;
+        client
+            .did_open("file:///x.rs", "rust", "fn main() {}")
+            .await;
         client.did_change("file:///x.rs", 2, "fn main() {}").await;
-        assert!(!client.is_running(), "AC-004: no process spawned for a disabled client");
+        assert!(
+            !client.is_running(),
+            "AC-004: no process spawned for a disabled client"
+        );
 
-        let pos = lsp_types::Position { line: 0, character: 0 };
+        let pos = lsp_types::Position {
+            line: 0,
+            character: 0,
+        };
         assert!(
             client.completion("file:///x.rs", pos).await.is_empty(),
             "AC-004: completion empty without server"
@@ -111,21 +131,26 @@ fn lsp_publish_diagnostics_notification_is_routed_to_channel() {
         mock_write.flush().await.expect("flush");
 
         // The reader routes it to the diagnostics channel (bounded wait so a failure does not hang).
-        let published = tokio::time::timeout(
-            std::time::Duration::from_secs(3),
-            diagnostics_rx.recv(),
-        )
-        .await
-        .expect("AC-008: publishDiagnostics routed within the timeout")
-        .expect("AC-008: diagnostics channel delivered a notification");
+        let published =
+            tokio::time::timeout(std::time::Duration::from_secs(3), diagnostics_rx.recv())
+                .await
+                .expect("AC-008: publishDiagnostics routed within the timeout")
+                .expect("AC-008: diagnostics channel delivered a notification");
 
         assert_eq!(published.uri, "file:///mock.rs");
-        assert_eq!(published.diagnostics.len(), 1, "AC-008: one diagnostic received");
+        assert_eq!(
+            published.diagnostics.len(),
+            1,
+            "AC-008: one diagnostic received"
+        );
         assert_eq!(
             published.diagnostics[0].line, 4,
             "AC-008: LSP range.start.line (0-based) maps to the gutter line"
         );
-        assert_eq!(published.diagnostics[0].severity, 1, "AC-008: error severity preserved");
+        assert_eq!(
+            published.diagnostics[0].severity, 1,
+            "AC-008: error severity preserved"
+        );
         assert!(published.diagnostics[0].message.contains("expected"));
         println!(
             "PT-007 lsp publishDiagnostics routed: uri={} line={} sev={} msg={:?}",
@@ -198,14 +223,22 @@ fn lsp_reader_skips_malformed_lines_then_routes_valid_frame() {
 /// the channel feeds, so a direct call mirrors what the gutter receives (AC-008 mapping).
 #[test]
 fn lsp_diagnostics_map_to_zero_based_lines() {
-    use lsp_types::{Diagnostic, DiagnosticSeverity, Position, PublishDiagnosticsParams, Range, Url};
+    use lsp_types::{
+        Diagnostic, DiagnosticSeverity, Position, PublishDiagnosticsParams, Range, Url,
+    };
     let params = PublishDiagnosticsParams {
         uri: Url::parse("file:///z.rs").unwrap(),
         version: None,
         diagnostics: vec![Diagnostic {
             range: Range {
-                start: Position { line: 7, character: 1 },
-                end: Position { line: 7, character: 4 },
+                start: Position {
+                    line: 7,
+                    character: 1,
+                },
+                end: Position {
+                    line: 7,
+                    character: 4,
+                },
             },
             severity: Some(DiagnosticSeverity::WARNING),
             message: "w".to_owned(),

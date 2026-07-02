@@ -123,14 +123,19 @@ impl DebugConsole {
                 );
                 let resp = ui.interact(rect, id, egui::Sense::click());
                 if ui.is_rect_visible(rect) {
-                    let bg = if resp.hovered() { colors.row_hover_bg } else { colors.row_bg };
+                    let bg = if resp.hovered() {
+                        colors.row_hover_bg
+                    } else {
+                        colors.row_bg
+                    };
                     ui.painter().rect_filled(rect, 2.0, bg);
                     let galley = ui.painter().layout_no_wrap(
                         label.clone(),
                         egui::FontId::monospace(12.0),
                         colors.row_text,
                     );
-                    let pos = egui::pos2(rect.left() + 4.0, rect.center().y - galley.size().y * 0.5);
+                    let pos =
+                        egui::pos2(rect.left() + 4.0, rect.center().y - galley.size().y * 0.5);
                     ui.painter().galley(pos, galley, colors.row_text);
                 }
                 resp.widget_info(|| {
@@ -204,7 +209,11 @@ mod tests {
         let mut c = console();
         assert_eq!(c.entries.len(), 3);
         c.clear();
-        assert_eq!(c.entries.len(), 0, "clear empties the in-memory display list");
+        assert_eq!(
+            c.entries.len(),
+            0,
+            "clear empties the in-memory display list"
+        );
     }
 
     #[test]
@@ -219,7 +228,11 @@ mod tests {
     fn apply_set_filter_sets_flag() {
         let ctx = egui::Context::default();
         let mut c = console();
-        c.apply(&ctx, ConsoleRowMenuAction::SetFilter(Some(ConsoleEntryKind::Error)), 0);
+        c.apply(
+            &ctx,
+            ConsoleRowMenuAction::SetFilter(Some(ConsoleEntryKind::Error)),
+            0,
+        );
         assert_eq!(c.filter, Some(ConsoleEntryKind::Error));
         c.apply(&ctx, ConsoleRowMenuAction::SetFilter(None), 0);
         assert_eq!(c.filter, None, "Show All clears the filter");

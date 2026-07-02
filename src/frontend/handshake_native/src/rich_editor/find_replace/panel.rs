@@ -31,9 +31,10 @@ use crate::theme::HsPalette;
 
 use super::{
     FindReplaceState, FIND_CLOSE_AUTHOR_ID, FIND_COUNT_AUTHOR_ID, FIND_ERROR_AUTHOR_ID,
-    FIND_ERROR_ROLE, FIND_INPUT_AUTHOR_ID, FIND_INPUT_ROLE, FIND_NEXT_AUTHOR_ID, FIND_PANEL_AUTHOR_ID,
-    FIND_PANEL_ROLE, FIND_PREV_AUTHOR_ID, FIND_TOGGLE_CASE_AUTHOR_ID, FIND_TOGGLE_REGEX_AUTHOR_ID,
-    FIND_TOGGLE_WORD_AUTHOR_ID, REPLACE_ALL_AUTHOR_ID, REPLACE_INPUT_AUTHOR_ID, REPLACE_ONE_AUTHOR_ID,
+    FIND_ERROR_ROLE, FIND_INPUT_AUTHOR_ID, FIND_INPUT_ROLE, FIND_NEXT_AUTHOR_ID,
+    FIND_PANEL_AUTHOR_ID, FIND_PANEL_ROLE, FIND_PREV_AUTHOR_ID, FIND_TOGGLE_CASE_AUTHOR_ID,
+    FIND_TOGGLE_REGEX_AUTHOR_ID, FIND_TOGGLE_WORD_AUTHOR_ID, REPLACE_ALL_AUTHOR_ID,
+    REPLACE_INPUT_AUTHOR_ID, REPLACE_ONE_AUTHOR_ID,
 };
 
 /// What the panel asks the host to do this frame. The host applies it against the document + undo
@@ -92,7 +93,13 @@ pub fn show_find_panel(
         // open panel. Emitted onto a dedicated child id WITHIN the window content so it nests under
         // the window's accessibility subtree (the same nesting pattern the editor uses for blocks).
         let container_id = ui.id().with("find-panel-container");
-        emit_node(ui, container_id, FIND_PANEL_AUTHOR_ID, Some(FIND_PANEL_ROLE), None);
+        emit_node(
+            ui,
+            container_id,
+            FIND_PANEL_AUTHOR_ID,
+            Some(FIND_PANEL_ROLE),
+            None,
+        );
 
         // The whole panel reads in the theme surface; the frame is the egui window frame.
         ui.vertical(|ui| {
@@ -106,7 +113,13 @@ pub fn show_find_panel(
                         .desired_width(180.0)
                         .hint_text("Find (prose + code)"),
                 );
-                emit_node(ui, find_resp.id, FIND_INPUT_AUTHOR_ID, Some(FIND_INPUT_ROLE), None);
+                emit_node(
+                    ui,
+                    find_resp.id,
+                    FIND_INPUT_AUTHOR_ID,
+                    Some(FIND_INPUT_ROLE),
+                    None,
+                );
                 if pattern != state.query.pattern {
                     state.query.pattern = pattern;
                     state.active = None; // a new query resets the active match (React parity).
@@ -130,9 +143,27 @@ pub fn show_find_panel(
 
                 // Option toggles (case / whole-word / regex). Each flips a bool + marks the query
                 // changed so the host re-scans.
-                query_changed |= toggle(ui, "Aa", &mut state.query.case_sensitive, FIND_TOGGLE_CASE_AUTHOR_ID, "Match case");
-                query_changed |= toggle(ui, "W", &mut state.query.whole_word, FIND_TOGGLE_WORD_AUTHOR_ID, "Match whole word");
-                query_changed |= toggle(ui, ".*", &mut state.query.is_regex, FIND_TOGGLE_REGEX_AUTHOR_ID, "Use regular expression");
+                query_changed |= toggle(
+                    ui,
+                    "Aa",
+                    &mut state.query.case_sensitive,
+                    FIND_TOGGLE_CASE_AUTHOR_ID,
+                    "Match case",
+                );
+                query_changed |= toggle(
+                    ui,
+                    "W",
+                    &mut state.query.whole_word,
+                    FIND_TOGGLE_WORD_AUTHOR_ID,
+                    "Match whole word",
+                );
+                query_changed |= toggle(
+                    ui,
+                    ".*",
+                    &mut state.query.is_regex,
+                    FIND_TOGGLE_REGEX_AUTHOR_ID,
+                    "Use regular expression",
+                );
 
                 // Match count (`3 of 17` / `17 matches` / `No matches`, `+` when truncated).
                 let count = state.count_label();
@@ -160,7 +191,13 @@ pub fn show_find_panel(
             // ── Inline regex error (role=alert), below the find input ──────────────────────────
             if let Some(err) = state.scan.error.clone() {
                 let err_resp = ui.colored_label(palette.error_text, &err);
-                emit_node(ui, err_resp.id, FIND_ERROR_AUTHOR_ID, Some(FIND_ERROR_ROLE), Some(err));
+                emit_node(
+                    ui,
+                    err_resp.id,
+                    FIND_ERROR_AUTHOR_ID,
+                    Some(FIND_ERROR_ROLE),
+                    Some(err),
+                );
             }
 
             // ── Row 2: replace input + Replace / Replace All (replace mode only) ───────────────
@@ -173,7 +210,13 @@ pub fn show_find_panel(
                             .desired_width(180.0)
                             .hint_text("Replace"),
                     );
-                    emit_node(ui, repl_resp.id, REPLACE_INPUT_AUTHOR_ID, Some(FIND_INPUT_ROLE), None);
+                    emit_node(
+                        ui,
+                        repl_resp.id,
+                        REPLACE_INPUT_AUTHOR_ID,
+                        Some(FIND_INPUT_ROLE),
+                        None,
+                    );
                     if replacement != state.replacement {
                         state.replacement = replacement;
                     }
@@ -286,7 +329,13 @@ mod tests {
             egui::CentralPanel::default().show(ctx, |ui| {
                 // Not clicked -> no change. (We cannot synthesize a click here, but the no-click
                 // path must report false.)
-                changed = toggle(ui, "Aa", &mut flag, FIND_TOGGLE_CASE_AUTHOR_ID, "Match case");
+                changed = toggle(
+                    ui,
+                    "Aa",
+                    &mut flag,
+                    FIND_TOGGLE_CASE_AUTHOR_ID,
+                    "Match case",
+                );
             });
         });
         assert!(!changed, "an un-clicked toggle reports no change");

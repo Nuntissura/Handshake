@@ -185,16 +185,30 @@ fn build_proposal_full_provenance() {
     let sel = text_range("pane-rich", 12, 31, "the protagonist Aria");
     let p = build_or_panic(&sel, MemoryClass::Semantic, "WS-1", "actor-3");
 
-    assert_eq!(p.class, MemoryClass::Semantic, "AC-001: class set from the argument");
+    assert_eq!(
+        p.class,
+        MemoryClass::Semantic,
+        "AC-001: class set from the argument"
+    );
     assert_eq!(p.content, "the protagonist Aria");
-    assert_eq!(p.source.document_id, "pane-rich", "AC-001: document_id from the owning pane");
+    assert_eq!(
+        p.source.document_id, "pane-rich",
+        "AC-001: document_id from the owning pane"
+    );
     assert_eq!(p.source.pane_id, "pane-rich", "AC-001: pane_id set");
     assert_eq!(p.source.workspace_id, "WS-1", "AC-001: workspace_id set");
     assert_eq!(p.source.selection_start, 12, "AC-001: selection_start set");
     assert_eq!(p.source.selection_end, 31, "AC-001: selection_end set");
-    assert_eq!(p.source.content_hash.len(), 64, "AC-001/AC-003: content_hash is a 64-char hex");
+    assert_eq!(
+        p.source.content_hash.len(),
+        64,
+        "AC-001/AC-003: content_hash is a 64-char hex"
+    );
     assert!(
-        p.source.content_hash.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        p.source
+            .content_hash
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
         "AC-003: content_hash is lowercase hex"
     );
     // AC-003: the hash equals the loom block hash for identical content (reuses the loom primitive).
@@ -206,7 +220,10 @@ fn build_proposal_full_provenance() {
         loom.as_str(),
         "AC-003: proposal content_hash == loom block hash for identical content (no second scheme)"
     );
-    assert_eq!(content_hash_of_selection("the protagonist Aria"), p.source.content_hash);
+    assert_eq!(
+        content_hash_of_selection("the protagonist Aria"),
+        p.source.content_hash
+    );
     println!(
         "PT-001 OK: build_proposal class={:?} doc={} range={}..{} hash={}…",
         p.class,
@@ -225,19 +242,29 @@ fn build_proposal_full_provenance() {
 fn procedural_review_gated() {
     let sel = text_range("pane-code", 0, 9, "step one\n");
     let proc = build_or_panic(&sel, MemoryClass::Procedural, "WS-1", "a");
-    assert!(proc.review_gated, "AC-002: a Procedural-class proposal is review-gated");
+    assert!(
+        proc.review_gated,
+        "AC-002: a Procedural-class proposal is review-gated"
+    );
     assert!(proc.is_review_gated());
 
     // review_gated is true for EVERY class — the editor never produces a non-review-gated proposal.
     for class in MemoryClass::ORDER {
         let p = build_or_panic(&sel, class, "WS-1", "a");
-        assert!(p.review_gated, "{:?} proposal must be review_gated (never editor-direct commit)", class);
+        assert!(
+            p.review_gated,
+            "{:?} proposal must be review_gated (never editor-direct commit)",
+            class
+        );
     }
 
     // No path flips it false: opening + switching class in the dialog keeps it true.
     let mut dlg = ProposeToMemoryDialog::open(&sel, "WS-1", "a").expect("opens over a selection");
     dlg.set_class(MemoryClass::Procedural);
-    assert!(dlg.proposal.review_gated, "AC-002: dialog class switch never sets review_gated false");
+    assert!(
+        dlg.proposal.review_gated,
+        "AC-002: dialog class switch never sets review_gated false"
+    );
     println!("PT-002 OK: review_gated==true for all classes incl. Procedural; no auto-commit path");
 }
 
@@ -285,8 +312,12 @@ impl EventLedgerTransport for CapturingTransport {
     fn post(
         &self,
         event: NativeEditorEvent,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), handshake_native::event_emitter::EmitError>> + Send>>
-    {
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<(), handshake_native::event_emitter::EmitError>>
+                + Send,
+        >,
+    > {
         let captured = Arc::clone(&self.captured);
         Box::pin(async move {
             captured.lock().unwrap().push(event);
@@ -308,10 +339,13 @@ fn propose_creates_proposal_via_endpoint() {
     let client = HandshakeCoreClient::with_base_url(base_url);
 
     // A capturing FR transport so the FR-EVT-MEM-001 emit SHAPE is asserted.
-    let captured: Arc<std::sync::Mutex<Vec<NativeEditorEvent>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let captured: Arc<std::sync::Mutex<Vec<NativeEditorEvent>>> =
+        Arc::new(std::sync::Mutex::new(Vec::new()));
     let emitter = NativeEditorEventEmitter::new(
         "WS-1",
-        Arc::new(CapturingTransport { captured: captured.clone() }),
+        Arc::new(CapturingTransport {
+            captured: captured.clone(),
+        }),
         Some(runtime.handle().clone()),
     );
 
@@ -330,7 +364,10 @@ fn propose_creates_proposal_via_endpoint() {
     );
     // The body is the typed, REVIEW-GATED proposal (never a direct commit).
     let body: Value = serde_json::from_str(&req_body).expect("proposal body is JSON");
-    assert_eq!(body["review_gated"], true, "AC-002/AC-004: the submitted proposal is review-gated");
+    assert_eq!(
+        body["review_gated"], true,
+        "AC-002/AC-004: the submitted proposal is review-gated"
+    );
     assert_eq!(body["class"], "procedural");
     assert_eq!(body["content"], "memory");
     assert_eq!(body["source"]["content_hash"], proposal.source.content_hash);
@@ -345,14 +382,25 @@ fn propose_creates_proposal_via_endpoint() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     let events = captured.lock().unwrap();
-    assert_eq!(events.len(), 1, "AC-008: exactly one FR-EVT-MEM-001 event emitted after the ack");
+    assert_eq!(
+        events.len(),
+        1,
+        "AC-008: exactly one FR-EVT-MEM-001 event emitted after the ack"
+    );
     let ev = &events[0];
-    assert_eq!(ev.action.as_str(), "memory_write_proposed", "AC-008: action marker");
+    assert_eq!(
+        ev.action.as_str(),
+        "memory_write_proposed",
+        "AC-008: action marker"
+    );
     let payload = ev.to_native_payload();
     assert_eq!(payload["payload"]["proposal_id"], "PROP-77");
     assert_eq!(payload["payload"]["class"], "procedural");
     assert_eq!(payload["payload"]["document_id"], "pane-rich");
-    assert_eq!(payload["payload"]["content_hash"], proposal.source.content_hash);
+    assert_eq!(
+        payload["payload"]["content_hash"],
+        proposal.source.content_hash
+    );
     assert_eq!(payload["payload"]["review_gated"], true);
     println!(
         "PT-003 OK (fixture endpoint): proposal POSTed (review_gated), ack={}, FR-EVT-MEM-001 emitted. \
@@ -368,7 +416,8 @@ fn propose_creates_proposal_via_endpoint() {
 #[test]
 fn propose_dialog_accesskit_nodes_present() {
     let sel = text_range("pane-rich", 0, 6, "memory");
-    let dialog = ProposeToMemoryDialog::open(&sel, "WS-1", "actor-1").expect("opens over a selection");
+    let dialog =
+        ProposeToMemoryDialog::open(&sel, "WS-1", "actor-1").expect("opens over a selection");
 
     let mut harness = Harness::builder()
         .with_size(egui::vec2(420.0, 320.0))
@@ -430,7 +479,9 @@ fn propose_dialog_accesskit_nodes_present() {
             ext_path.display()
         );
     } else {
-        println!("PT-005 screenshot: GPU readback unavailable on this host (structural proof stands)");
+        println!(
+            "PT-005 screenshot: GPU readback unavailable on this host (structural proof stands)"
+        );
     }
 
     assert_no_local_artifact_dir();
@@ -453,7 +504,13 @@ fn read_no_direct_commit_site() {
         src.contains("/workspaces/{workspace_id}/memory/proposals"),
         "the proposal POST route must be present (the only write path)"
     );
-    for forbidden in ["/memory/commit", "/memory/write", "memory/direct", "rusqlite", "sqlite"] {
+    for forbidden in [
+        "/memory/commit",
+        "/memory/write",
+        "memory/direct",
+        "rusqlite",
+        "sqlite",
+    ] {
         assert!(
             !src.to_lowercase().contains(forbidden),
             "MC-001/AC-009: no direct memory-commit/write or SQLite token may appear ('{forbidden}')"

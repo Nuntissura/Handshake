@@ -23,14 +23,16 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind};
+use handshake_native::rich_editor::embeds::asset_resolver::SequenceItem;
 use handshake_native::rich_editor::embeds::asset_resolver::{
     AssetMetadataFetcher, EmbedAssetMetadata, EmbedError, EmbedResolutionState, MetadataFuture,
     ResolvedAsset,
 };
 use handshake_native::rich_editor::embeds::embed_block_renderer::{EmbedRuntime, SequenceState};
 use handshake_native::rich_editor::embeds::image_view::decode_rgba;
-use handshake_native::rich_editor::embeds::asset_resolver::SequenceItem;
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. The crate
 /// sits at `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where
@@ -82,7 +84,10 @@ struct PngContentFetcher {
 }
 impl PngContentFetcher {
     fn new(png: Vec<u8>) -> Self {
-        Self { png, content_calls: std::sync::atomic::AtomicUsize::new(0) }
+        Self {
+            png,
+            content_calls: std::sync::atomic::AtomicUsize::new(0),
+        }
     }
     fn content_calls(&self) -> usize {
         self.content_calls.load(std::sync::atomic::Ordering::SeqCst)
@@ -110,7 +115,8 @@ impl AssetMetadataFetcher for PngContentFetcher {
         _ws: &'a str,
         _id: &'a str,
     ) -> handshake_native::rich_editor::embeds::asset_resolver::ContentFuture<'a> {
-        self.content_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.content_calls
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let png = self.png.clone();
         Box::pin(async move { Ok(png) })
     }
@@ -171,7 +177,11 @@ fn embed_editor(ref_kind: &str, ref_value: &str) -> RichEditorState {
 
 /// Build a RichEditorState over a standalone embed block with a CALLER-PROVIDED embed runtime
 /// (used by the runtime-wiring test to inject a real tokio handle + content mock).
-fn embed_editor_with_runtime(ref_kind: &str, ref_value: &str, runtime: EmbedRuntime) -> RichEditorState {
+fn embed_editor_with_runtime(
+    ref_kind: &str,
+    ref_value: &str,
+    runtime: EmbedRuntime,
+) -> RichEditorState {
     let doc = BlockNode::doc(vec![embed_block(ref_kind, ref_value)]);
     RichEditorState::new(doc).with_embed_runtime(runtime)
 }
@@ -191,7 +201,9 @@ fn mt014_image_embed_screenshot() {
 
     let state = {
         let mut s = embed_editor("images", "img1");
-        s.embeds.resolutions.insert("img1", EmbedResolutionState::Ok(resolved_image("img1")));
+        s.embeds
+            .resolutions
+            .insert("img1", EmbedResolutionState::Ok(resolved_image("img1")));
         Arc::new(std::sync::Mutex::new(s))
     };
 
@@ -205,7 +217,10 @@ fn mt014_image_embed_screenshot() {
             // production path uploads here too, after the off-thread decode). Idempotent.
             {
                 let mut st = state_for_ui.lock().unwrap();
-                let _texture = st.embeds.textures.upload(ui.ctx(), "img1", decoded_for_ui.clone());
+                let _texture = st
+                    .embeds
+                    .textures
+                    .upload(ui.ctx(), "img1", decoded_for_ui.clone());
             }
             RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
         });
@@ -226,7 +241,10 @@ fn mt014_image_embed_screenshot() {
             break;
         }
     }
-    assert!(image_node_found, "AC-1: the resolved image renders an 'embed-image-img1' node");
+    assert!(
+        image_node_found,
+        "AC-1: the resolved image renders an 'embed-image-img1' node"
+    );
     // The decoded texture is actually uploaded in the cache -> the texture branch (not the
     // placeholder) is what rendered. This is the honest texture-vs-placeholder discriminator.
     assert!(
@@ -281,7 +299,12 @@ fn mt014_runtime_decode_pipeline_uploads_texture() {
     let fetcher_dyn: Arc<dyn AssetMetadataFetcher> = Arc::clone(&fetcher) as _;
 
     let state = {
-        let runtime = EmbedRuntime::new("ws-live", "http://b", fetcher_dyn, Some(rt.handle().clone()));
+        let runtime = EmbedRuntime::new(
+            "ws-live",
+            "http://b",
+            fetcher_dyn,
+            Some(rt.handle().clone()),
+        );
         let s = embed_editor_with_runtime("images", "img1", runtime);
         Arc::new(std::sync::Mutex::new(s))
     };
@@ -336,7 +359,10 @@ fn mt014_runtime_decode_pipeline_uploads_texture() {
             break;
         }
     }
-    assert!(image_node_found, "AC-1: the decoded image renders an 'embed-image-img1' node");
+    assert!(
+        image_node_found,
+        "AC-1: the decoded image renders an 'embed-image-img1' node"
+    );
 }
 
 // ── PT-004 / AC-2: empty-ref embed renders the typed error chip (not blank) ────────────────────
@@ -366,7 +392,10 @@ fn mt014_embed_error_screenshot() {
             break;
         }
     }
-    assert!(chip_found, "AC-2: an empty ref renders a typed 'embed-error-empty' chip (not blank)");
+    assert!(
+        chip_found,
+        "AC-2: an empty ref renders a typed 'embed-error-empty' chip (not blank)"
+    );
     // The typed kind text is on screen.
     assert!(
         harness.query_by_label_contains("empty_ref").is_some(),
@@ -405,7 +434,10 @@ fn mt014_slideshow_prev_next_accesskit() {
         let mut s = embed_editor("slideshow", "s1,s2,s3");
         let items: Vec<SequenceItem> = ["s1", "s2", "s3"]
             .iter()
-            .map(|id| SequenceItem { ref_value: (*id).to_owned(), resolution: Ok(resolved_image(id)) })
+            .map(|id| SequenceItem {
+                ref_value: (*id).to_owned(),
+                resolution: Ok(resolved_image(id)),
+            })
             .collect();
         s.embeds
             .sequences
@@ -432,8 +464,14 @@ fn mt014_slideshow_prev_next_accesskit() {
             _ => {}
         }
     }
-    assert!(prev_found, "AC-8: 'slideshow-prev-s1' must be present in the AccessKit tree");
-    assert!(next_found, "AC-8: 'slideshow-next-s1' must be present in the AccessKit tree");
+    assert!(
+        prev_found,
+        "AC-8: 'slideshow-prev-s1' must be present in the AccessKit tree"
+    );
+    assert!(
+        next_found,
+        "AC-8: 'slideshow-next-s1' must be present in the AccessKit tree"
+    );
     println!("AC-8 slideshow nav nodes present: prev=slideshow-prev-s1 next=slideshow-next-s1");
 }
 
@@ -445,7 +483,10 @@ fn mt014_album_click_opens_modal() {
         let mut s = embed_editor("album", "a1,a2,a3");
         let items: Vec<SequenceItem> = ["a1", "a2", "a3"]
             .iter()
-            .map(|id| SequenceItem { ref_value: (*id).to_owned(), resolution: Ok(resolved_image(id)) })
+            .map(|id| SequenceItem {
+                ref_value: (*id).to_owned(),
+                resolution: Ok(resolved_image(id)),
+            })
             .collect();
         s.embeds
             .sequences
@@ -471,7 +512,10 @@ fn mt014_album_click_opens_modal() {
                 break;
             }
         }
-        assert!(cell_found, "AC-6: 'album-cell-a2' must be present in the album grid");
+        assert!(
+            cell_found,
+            "AC-6: 'album-cell-a2' must be present in the album grid"
+        );
     }
 
     // Drive a click on the middle cell programmatically, then re-run: the modal opens (AlbumViewState).
@@ -482,8 +526,18 @@ fn mt014_album_click_opens_modal() {
     harness.run();
     harness.run();
 
-    let opened = state.lock().unwrap().embeds.album_states.get("a1,a2,a3").and_then(|s| s.open_index);
-    assert_eq!(opened, Some(1), "AC-6: clicking album cell a2 (index 1) opens the full-size modal");
+    let opened = state
+        .lock()
+        .unwrap()
+        .embeds
+        .album_states
+        .get("a1,a2,a3")
+        .and_then(|s| s.open_index);
+    assert_eq!(
+        opened,
+        Some(1),
+        "AC-6: clicking album cell a2 (index 1) opens the full-size modal"
+    );
     println!("AC-6 album modal opened on cell index {opened:?}");
 }
 
@@ -496,7 +550,11 @@ fn mt014_traversal_and_scheme_refs_render_typed_chip() {
     // AccessKit author_id (so the chip-id shape is proven for the render path, not just the text).
     for (ref_value, expect_kind, expect_author) in [
         ("../secret", "traversal_rejected", "embed-error-../secret"),
-        ("http://evil/x", "scheme_rejected", "embed-error-http://evil/x"), // ':' -> scheme
+        (
+            "http://evil/x",
+            "scheme_rejected",
+            "embed-error-http://evil/x",
+        ), // ':' -> scheme
     ] {
         let state = Arc::new(std::sync::Mutex::new(embed_editor("images", ref_value)));
         let state_for_ui = Arc::clone(&state);
@@ -548,7 +606,9 @@ fn mt014_traversal_and_scheme_refs_render_typed_chip() {
 #[cfg(feature = "integration")]
 fn real_image_resolve_against_live_backend() {
     use handshake_native::backend_client::BACKEND_BASE_URL;
-    use handshake_native::rich_editor::embeds::asset_resolver::{resolve_one, MediaEmbedKind, ReqwestAssetFetcher};
+    use handshake_native::rich_editor::embeds::asset_resolver::{
+        resolve_one, MediaEmbedKind, ReqwestAssetFetcher,
+    };
 
     let workspace_id = std::env::var("HANDSHAKE_TEST_WORKSPACE_ID")
         .expect("set HANDSHAKE_TEST_WORKSPACE_ID to a real workspace with a seeded image asset");
@@ -558,17 +618,32 @@ fn real_image_resolve_against_live_backend() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let fetcher = ReqwestAssetFetcher::new(BACKEND_BASE_URL);
     let resolved = rt.block_on(async {
-        resolve_one(MediaEmbedKind::Images, &workspace_id, &asset_id, BACKEND_BASE_URL, &fetcher).await
+        resolve_one(
+            MediaEmbedKind::Images,
+            &workspace_id,
+            &asset_id,
+            BACKEND_BASE_URL,
+            &fetcher,
+        )
+        .await
     });
     match resolved {
         Ok(asset) => {
-            assert_eq!(asset.asset.asset_id, asset_id, "the real backend returned the requested asset");
-            assert!(asset.asset.mime.starts_with("image/"), "the seeded asset is an image");
+            assert_eq!(
+                asset.asset.asset_id, asset_id,
+                "the real backend returned the requested asset"
+            );
+            assert!(
+                asset.asset.mime.starts_with("image/"),
+                "the seeded asset is an image"
+            );
             println!(
                 "PT-002 REAL backend resolve OK: asset_id={} mime={} content_url={}",
                 asset.asset.asset_id, asset.asset.mime, asset.content_url
             );
         }
-        Err(e) => panic!("PT-002 real-backend resolve failed (is the backend up + asset seeded?): {e}"),
+        Err(e) => {
+            panic!("PT-002 real-backend resolve failed (is the backend up + asset seeded?): {e}")
+        }
     }
 }

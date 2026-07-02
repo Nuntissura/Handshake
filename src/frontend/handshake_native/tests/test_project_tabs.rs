@@ -24,7 +24,9 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::layout_persistence::{LayoutError, LayoutPersistenceManager, LayoutTransport};
+use handshake_native::layout_persistence::{
+    LayoutError, LayoutPersistenceManager, LayoutTransport,
+};
 use handshake_native::project_tabs::{FetchState, ProjectItem, ProjectTabBar, ProjectTabColors};
 use handshake_native::split_layout::SplitWeights;
 use serde_json::Value;
@@ -78,7 +80,10 @@ fn shell_with_transport(transport: MemoryTransport) -> HandshakeApp {
 #[test]
 fn clicking_beta_returns_some_b() {
     let mut bar = ProjectTabBar::new(
-        vec![ProjectItem::new("a", "Alpha"), ProjectItem::new("b", "Beta")],
+        vec![
+            ProjectItem::new("a", "Alpha"),
+            ProjectItem::new("b", "Beta"),
+        ],
         "a",
     );
     let switched: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
@@ -128,7 +133,10 @@ fn switching_project_saves_old_and_loads_new_layout() {
         // Use IN-RANGE split fractions (SPLIT_MIN=0.2, SPLIT_MAX=0.8). `apply_layout_snapshot` clamps
         // restored weights to `[SPLIT_MIN, SPLIT_MAX]` before the first frame, so an out-of-range stored
         // value (e.g. 0.9) would be clamped on load and the round-trip assert below could never match.
-        snap.split_weights = SplitWeights { vertical: 0.2, horizontal: 0.7 };
+        snap.split_weights = SplitWeights {
+            vertical: 0.2,
+            horizontal: 0.7,
+        };
         transport
             .store
             .lock()
@@ -143,23 +151,35 @@ fn switching_project_saves_old_and_loads_new_layout() {
     ]);
     // The fetch may have re-pointed the active id to the first project ("a"); align the shell's
     // active_project_id to "a" so the lifecycle's first load keys on "a".
-    let mut harness =
-        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
+    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
     harness.run();
     harness.state_mut().switch_project("a");
     harness.run();
 
     // Give project "a" a recognizable layout, then switch to "b".
-    let a_weights = SplitWeights { vertical: 0.41, horizontal: 0.59 };
+    let a_weights = SplitWeights {
+        vertical: 0.41,
+        horizontal: 0.59,
+    };
     *harness.state_mut().split_weights_mut() = a_weights;
 
-    assert!(harness.state_mut().switch_project("b"), "switch a->b happens");
+    assert!(
+        harness.state_mut().switch_project("b"),
+        "switch a->b happens"
+    );
     // Next frame: lifecycle loads "b"'s stored layout (loaded_project_id != active_project_id).
     harness.run();
-    assert_eq!(harness.state().active_project_id(), "b", "active project is now b");
+    assert_eq!(
+        harness.state().active_project_id(),
+        "b",
+        "active project is now b"
+    );
     assert_eq!(
         harness.state().split_weights(),
-        SplitWeights { vertical: 0.2, horizontal: 0.7 },
+        SplitWeights {
+            vertical: 0.2,
+            horizontal: 0.7
+        },
         "project b's previously-stored layout was loaded on switch"
     );
     // "a"'s layout must have been saved to the store on leaving it.
@@ -170,11 +190,20 @@ fn switching_project_saves_old_and_loads_new_layout() {
         .get("a")
         .cloned()
         .expect("project a's layout saved when leaving it");
-    assert_eq!(saved_a["split_weights"]["vertical"], serde_json::json!(0.41_f32));
-    assert_eq!(saved_a["split_weights"]["horizontal"], serde_json::json!(0.59_f32));
+    assert_eq!(
+        saved_a["split_weights"]["vertical"],
+        serde_json::json!(0.41_f32)
+    );
+    assert_eq!(
+        saved_a["split_weights"]["horizontal"],
+        serde_json::json!(0.59_f32)
+    );
 
     // Switch back to "a": its saved layout must be restored.
-    assert!(harness.state_mut().switch_project("a"), "switch b->a happens");
+    assert!(
+        harness.state_mut().switch_project("a"),
+        "switch b->a happens"
+    );
     harness.run();
     assert_eq!(harness.state().active_project_id(), "a");
     assert_eq!(
@@ -194,14 +223,16 @@ fn switching_to_unstored_project_uses_default_layout() {
         ProjectItem::new("a", "Alpha"),
         ProjectItem::new("fresh", "Fresh"),
     ]);
-    let mut harness =
-        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
+    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
     harness.run();
     harness.state_mut().switch_project("a");
     harness.run();
 
     // Change a's layout, then switch to the never-stored "fresh" project.
-    *harness.state_mut().split_weights_mut() = SplitWeights { vertical: 0.7, horizontal: 0.3 };
+    *harness.state_mut().split_weights_mut() = SplitWeights {
+        vertical: 0.7,
+        horizontal: 0.3,
+    };
     assert!(harness.state_mut().switch_project("fresh"));
     harness.run();
 
@@ -215,7 +246,9 @@ fn switching_to_unstored_project_uses_default_layout() {
 
 // ── proof_target #3 + #4 / acceptance #4-5: live AccessKit Tab/TabList nodes, active selected ──────
 
-fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String, Option<String>, bool)> {
+fn live_author_nodes(
+    harness: &Harness<'_, HandshakeApp>,
+) -> Vec<(String, String, Option<String>, bool)> {
     let mut found = Vec::new();
     let root = harness.root();
     for node in root.children_recursive() {
@@ -243,8 +276,7 @@ fn live_tree_has_three_project_tabs_with_stable_ids_and_active_selected() {
         ProjectItem::new("p2", "Beta"),
         ProjectItem::new("p3", "Gamma"),
     ]);
-    let mut harness =
-        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
+    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
     // After apply_fetched the active id became "p1" (first project); align the shell.
     harness.state_mut().switch_project("p1");
     harness.run();
@@ -259,15 +291,25 @@ fn live_tree_has_three_project_tabs_with_stable_ids_and_active_selected() {
     // Exactly three project Tab nodes, by stable author_id, role Tab.
     for (id, name) in [("p1", "Alpha"), ("p2", "Beta"), ("p3", "Gamma")] {
         let author = format!("project-tab-{id}");
-        let tab = by_id(&author).unwrap_or_else(|| panic!("{author} missing from live tree: {nodes:?}"));
+        let tab =
+            by_id(&author).unwrap_or_else(|| panic!("{author} missing from live tree: {nodes:?}"));
         assert_eq!(tab.1, "Tab", "{author} role is Tab");
         assert_eq!(tab.2.as_deref(), Some(name), "{author} label");
     }
 
     // The active tab (p1) is selected; the others are not.
-    assert!(by_id("project-tab-p1").unwrap().3, "active tab p1 selected=true");
-    assert!(!by_id("project-tab-p2").unwrap().3, "inactive tab p2 selected=false");
-    assert!(!by_id("project-tab-p3").unwrap().3, "inactive tab p3 selected=false");
+    assert!(
+        by_id("project-tab-p1").unwrap().3,
+        "active tab p1 selected=true"
+    );
+    assert!(
+        !by_id("project-tab-p2").unwrap().3,
+        "inactive tab p2 selected=false"
+    );
+    assert!(
+        !by_id("project-tab-p3").unwrap().3,
+        "inactive tab p3 selected=false"
+    );
 
     // Findable by label via kittest's Queryable (the UIA-style locate path an agent uses).
     let _ = harness.get_by_label("Beta");
@@ -276,7 +318,10 @@ fn live_tree_has_three_project_tabs_with_stable_ids_and_active_selected() {
         .iter()
         .filter(|(a, _, _, _)| a.starts_with("project-tab-"))
         .count();
-    assert_eq!(project_tab_count, 3, "exactly three project tabs painted as selectable nodes");
+    assert_eq!(
+        project_tab_count, 3,
+        "exactly three project tabs painted as selectable nodes"
+    );
 }
 
 // ── acceptance #6: empty workspace list -> single disabled placeholder, no crash ───────────────────
@@ -285,8 +330,7 @@ fn live_tree_has_three_project_tabs_with_stable_ids_and_active_selected() {
 fn empty_workspace_list_shows_disabled_placeholder_without_crashing() {
     let mut app = ok_app();
     app.project_tabs_mut().apply_fetched(Vec::new());
-    let mut harness =
-        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
+    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
     harness.run(); // must not panic
 
     let nodes = live_author_nodes(&harness);
@@ -295,11 +339,17 @@ fn empty_workspace_list_shows_disabled_placeholder_without_crashing() {
         .find(|(a, _, _, _)| a == "project-tab-none")
         .unwrap_or_else(|| panic!("placeholder tab missing: {nodes:?}"));
     assert_eq!(placeholder.1, "Tab", "placeholder is a Tab node");
-    assert_eq!(placeholder.2.as_deref(), Some("No projects"), "placeholder label");
+    assert_eq!(
+        placeholder.2.as_deref(),
+        Some("No projects"),
+        "placeholder label"
+    );
     // No real project tab nodes when the list is empty.
     assert!(
-        !nodes.iter().any(|(a, _, _, _)| a.starts_with("project-tab-p")
-            || (a.starts_with("project-tab-") && a != "project-tab-none")),
+        !nodes
+            .iter()
+            .any(|(a, _, _, _)| a.starts_with("project-tab-p")
+                || (a.starts_with("project-tab-") && a != "project-tab-none")),
         "no real project tabs when the list is empty"
     );
     println!("PASS: empty list -> single disabled 'No projects' placeholder, no crash");
@@ -315,13 +365,20 @@ fn fetch_error_retains_previous_project_list() {
         ProjectItem::new("b", "Beta"),
     ]);
     // A later refresh fails: the previous two-project list must be retained.
-    app.project_tabs_mut().apply_fetch_error("connection refused");
-    let mut harness =
-        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
+    app.project_tabs_mut()
+        .apply_fetch_error("connection refused");
+    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
     harness.run(); // must not panic; renders the retained tabs + inline error
 
-    assert_eq!(harness.state().project_tabs().projects().len(), 2, "previous list retained");
-    assert!(matches!(harness.state().project_tabs().fetch_state(), FetchState::Error(_)));
+    assert_eq!(
+        harness.state().project_tabs().projects().len(),
+        2,
+        "previous list retained"
+    );
+    assert!(matches!(
+        harness.state().project_tabs().fetch_state(),
+        FetchState::Error(_)
+    ));
 
     let nodes = live_author_nodes(&harness);
     // Both project tabs still present in the live tree despite the fetch error.

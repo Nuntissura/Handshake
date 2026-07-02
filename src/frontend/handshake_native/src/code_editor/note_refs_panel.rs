@@ -122,9 +122,12 @@ pub fn render_note_refs_panel(
             egui::UiBuilder::new().id_salt(egui::Id::new(PANEL_AUTHOR_ID)),
             |ui| {
                 ui.label(
-                    egui::RichText::new(format!("Notes referencing this symbol ({})", state.count()))
-                        .strong()
-                        .color(palette.text),
+                    egui::RichText::new(format!(
+                        "Notes referencing this symbol ({})",
+                        state.count()
+                    ))
+                    .strong()
+                    .color(palette.text),
                 );
                 ui.separator();
                 match state {
@@ -144,7 +147,10 @@ pub fn render_note_refs_panel(
                     }
                     NoteRefsState::Loaded(notes) => {
                         if notes.is_empty() {
-                            ui.colored_label(palette.text_subtle, "No notes reference this symbol.");
+                            ui.colored_label(
+                                palette.text_subtle,
+                                "No notes reference this symbol.",
+                            );
                         } else {
                             for note in notes {
                                 if let Some(doc_id) = render_note_row(ui, note, palette) {
@@ -191,7 +197,10 @@ fn render_note_row(ui: &mut egui::Ui, note: &NoteRef, palette: &HsPalette) -> Op
 
     // The excerpt centered on the symbol mention, a subtle non-interactive line beneath the title.
     if !note.excerpt.trim().is_empty() {
-        ui.colored_label(palette.text_subtle, truncate(&note.excerpt, EXCERPT_TRUNCATE));
+        ui.colored_label(
+            palette.text_subtle,
+            truncate(&note.excerpt, EXCERPT_TRUNCATE),
+        );
     }
 
     if label.clicked() {
@@ -255,10 +264,17 @@ mod tests {
     fn row_title_truncates_and_falls_back_to_doc_id() {
         let long = note("DOC-1", &"x".repeat(60), "");
         let t = row_title(&long);
-        assert!(t.ends_with('…'), "a long title is truncated with an ellipsis");
+        assert!(
+            t.ends_with('…'),
+            "a long title is truncated with an ellipsis"
+        );
         assert_eq!(t.chars().count(), TITLE_TRUNCATE + 1, "40 chars + ellipsis");
         let untitled = note("DOC-2", "", "");
-        assert_eq!(row_title(&untitled), "DOC-2", "an untitled note falls back to its id");
+        assert_eq!(
+            row_title(&untitled),
+            "DOC-2",
+            "an untitled note falls back to its id"
+        );
     }
 
     #[test]
@@ -272,7 +288,11 @@ mod tests {
     #[test]
     fn truncate_is_char_correct() {
         assert_eq!(truncate("héllo", 3), "hél…");
-        assert_eq!(truncate("hi", 5), "hi", "short string passes through unchanged");
+        assert_eq!(
+            truncate("hi", 5),
+            "hi",
+            "short string passes through unchanged"
+        );
         assert_eq!(truncate("", 5), "");
     }
 }

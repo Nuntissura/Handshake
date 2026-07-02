@@ -32,8 +32,10 @@ fn multi_paragraph_doc() -> BlockNode {
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children
         .push(Child::Text(TextLeaf::with_marks("Bold ", vec![Mark::Bold])));
-    para.children
-        .push(Child::Text(TextLeaf::with_marks("italic", vec![Mark::Italic])));
+    para.children.push(Child::Text(TextLeaf::with_marks(
+        "italic",
+        vec![Mark::Italic],
+    )));
     BlockNode::doc(vec![BlockNode::heading(1, "Title"), para])
 }
 
@@ -61,7 +63,10 @@ fn all_node_and_mark_kinds_compile_and_serialize() {
     for (kind, expected) in node_kinds {
         assert_eq!(kind.to_json_type(), expected, "node {kind:?}");
         // from_json_type round-trips (heading level defaults to 1).
-        assert!(NodeKind::from_json_type(expected, 1).is_some(), "parse {expected}");
+        assert!(
+            NodeKind::from_json_type(expected, 1).is_some(),
+            "parse {expected}"
+        );
     }
 
     let marks = [
@@ -70,7 +75,12 @@ fn all_node_and_mark_kinds_compile_and_serialize() {
         (Mark::Underline, "underline"),
         (Mark::Strike, "strike"),
         (Mark::Code, "code"),
-        (Mark::Link { href: "https://x".into() }, "link"),
+        (
+            Mark::Link {
+                href: "https://x".into(),
+            },
+            "link",
+        ),
     ];
     for (mark, expected) in marks {
         assert_eq!(mark.json_type(), expected, "mark {mark:?}");
@@ -97,13 +107,17 @@ fn insert_text_char_level() {
         text: " world".into(),
     }]);
     let receipt = apply_transaction(&mut doc, tx).unwrap();
-    let leaf = doc.children[0].as_block().unwrap().children[0].as_text().unwrap();
+    let leaf = doc.children[0].as_block().unwrap().children[0]
+        .as_text()
+        .unwrap();
     assert_eq!(leaf.text.to_string(), "hello world");
     assert_eq!(leaf.text.len_chars(), 11);
 
     // RISK-4: undo via the receipt's inverse reproduces the exact pre-insert rope.
     apply_transaction(&mut doc, Transaction::operator(receipt.inverse)).unwrap();
-    let leaf = doc.children[0].as_block().unwrap().children[0].as_text().unwrap();
+    let leaf = doc.children[0].as_block().unwrap().children[0]
+        .as_text()
+        .unwrap();
     assert_eq!(leaf.text.to_string(), "hello");
 }
 
@@ -116,7 +130,9 @@ fn delete_text_char_level() {
         end: 11,
     }]);
     apply_transaction(&mut doc, tx).unwrap();
-    let leaf = doc.children[0].as_block().unwrap().children[0].as_text().unwrap();
+    let leaf = doc.children[0].as_block().unwrap().children[0]
+        .as_text()
+        .unwrap();
     assert_eq!(leaf.text.to_string(), "hello");
 }
 
@@ -133,7 +149,11 @@ fn add_then_remove_mark_zero_marks() {
     )
     .unwrap();
     assert_eq!(
-        doc.children[0].as_block().unwrap().children[0].as_text().unwrap().marks.len(),
+        doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .marks
+            .len(),
         1
     );
     apply_transaction(
@@ -145,7 +165,11 @@ fn add_then_remove_mark_zero_marks() {
     )
     .unwrap();
     assert_eq!(
-        doc.children[0].as_block().unwrap().children[0].as_text().unwrap().marks.len(),
+        doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .marks
+            .len(),
         0
     );
 }
@@ -163,7 +187,10 @@ fn schema_violation_rolls_back() {
     }]);
     let err = apply_transaction(&mut doc, tx).unwrap_err();
     assert!(matches!(err, TransformError::Schema(_)), "got {err:?}");
-    assert_eq!(doc, before, "doc must be byte-for-byte unchanged after a rejected tx");
+    assert_eq!(
+        doc, before,
+        "doc must be byte-for-byte unchanged after a rejected tx"
+    );
 }
 
 #[test]
@@ -183,14 +210,21 @@ fn undo_three_restores_by_docjson_equality() {
         um.push(r);
     }
     assert_eq!(
-        doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+        doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string(),
         "abc"
     );
     assert!(um.undo(&mut doc).unwrap());
     assert!(um.undo(&mut doc).unwrap());
     assert!(um.undo(&mut doc).unwrap());
     let restored_json = to_json_string(&doc).unwrap();
-    assert_eq!(restored_json, original_json, "3 undos must restore by DocJson equality");
+    assert_eq!(
+        restored_json, original_json,
+        "3 undos must restore by DocJson equality"
+    );
     assert!(!um.can_undo());
 
     // Redo all three to confirm the forward path too.
@@ -198,7 +232,11 @@ fn undo_three_restores_by_docjson_equality() {
     assert!(um.redo(&mut doc).unwrap());
     assert!(um.redo(&mut doc).unwrap());
     assert_eq!(
-        doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+        doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string(),
         "abc"
     );
 }
@@ -217,7 +255,11 @@ fn undo_cap_at_201_drops_oldest() {
         let r = apply_transaction(&mut doc, tx).unwrap();
         um.push(r);
     }
-    assert_eq!(um.len(), 200, "history must be capped at 200 after 201 pushes");
+    assert_eq!(
+        um.len(),
+        200,
+        "history must be capped at 200 after 201 pushes"
+    );
 }
 
 #[test]
@@ -244,7 +286,11 @@ fn insert_and_delete_block_node() {
     .unwrap();
     assert_eq!(doc.children.len(), 1);
     assert_eq!(
-        doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+        doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string(),
         "second"
     );
 }
@@ -255,27 +301,45 @@ fn split_then_merge_paragraphs() {
     let mut doc = BlockNode::doc(vec![BlockNode::paragraph("helloworld")]);
     apply_transaction(
         &mut doc,
-        Transaction::operator(vec![Step::SplitNode { path: vec![0], char_offset: 5 }]),
+        Transaction::operator(vec![Step::SplitNode {
+            path: vec![0],
+            char_offset: 5,
+        }]),
     )
     .unwrap();
     assert_eq!(doc.children.len(), 2);
     assert_eq!(
-        doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+        doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string(),
         "hello"
     );
     assert_eq!(
-        doc.children[1].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+        doc.children[1].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string(),
         "world"
     );
     // Merge them back.
     apply_transaction(
         &mut doc,
-        Transaction::operator(vec![Step::MergeNodes { parent_path: vec![], index: 1 }]),
+        Transaction::operator(vec![Step::MergeNodes {
+            parent_path: vec![],
+            index: 1,
+        }]),
     )
     .unwrap();
     assert_eq!(doc.children.len(), 1);
     assert_eq!(
-        doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+        doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string(),
         "helloworld"
     );
 }
@@ -298,7 +362,10 @@ fn docjson_tiptap_shape() {
     let doc = multi_paragraph_doc();
     let v: JsonValue = to_content_json_value(&doc);
     assert_eq!(v["type"], "doc");
-    assert!(v.get("schema_version").is_none(), "content_json must NOT embed schema_version");
+    assert!(
+        v.get("schema_version").is_none(),
+        "content_json must NOT embed schema_version"
+    );
     assert!(v["content"].is_array());
     assert_eq!(v["content"][0]["type"], "heading");
     assert_eq!(v["content"][0]["attrs"]["level"], 1);
@@ -333,9 +400,15 @@ fn emoji_char_index_is_not_byte_index() {
         }]),
     )
     .unwrap();
-    let leaf = doc.children[0].as_block().unwrap().children[0].as_text().unwrap();
+    let leaf = doc.children[0].as_block().unwrap().children[0]
+        .as_text()
+        .unwrap();
     assert_eq!(leaf.text.to_string(), "a😀b");
-    assert_eq!(leaf.text.len_chars(), 3, "char count must be 3, not the 6-byte length");
+    assert_eq!(
+        leaf.text.len_chars(),
+        3,
+        "char count must be 3, not the 6-byte length"
+    );
     // The emoji is addressable as a single char at char index 1.
     assert_eq!(leaf.text.char_at(1), Some('😀'));
     // Deleting char range [1,2) removes exactly the emoji (one char, four bytes).
@@ -348,7 +421,9 @@ fn emoji_char_index_is_not_byte_index() {
         }]),
     )
     .unwrap();
-    let leaf = doc.children[0].as_block().unwrap().children[0].as_text().unwrap();
+    let leaf = doc.children[0].as_block().unwrap().children[0]
+        .as_text()
+        .unwrap();
     assert_eq!(leaf.text.to_string(), "ab");
 }
 
@@ -356,7 +431,10 @@ fn emoji_char_index_is_not_byte_index() {
 fn position_resolve_round_trips_across_emoji() {
     // Positions must use char offsets too: an emoji is one char-unit in the flat
     // absolute offset, so resolve/absolute_offset round-trip across it.
-    let doc = BlockNode::doc(vec![BlockNode::paragraph("a😀b"), BlockNode::paragraph("cd")]);
+    let doc = BlockNode::doc(vec![
+        BlockNode::paragraph("a😀b"),
+        BlockNode::paragraph("cd"),
+    ]);
     // total chars: 3 + 2 = 5.
     for abs in 0..=5 {
         let pos = resolve(&doc, abs).unwrap();
@@ -381,7 +459,9 @@ fn link_mark_and_hs_link_node_round_trip_via_docjson() {
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::with_marks(
         "site",
-        vec![Mark::Link { href: "https://handshake.dev".into() }],
+        vec![Mark::Link {
+            href: "https://handshake.dev".into(),
+        }],
     )));
     para.children.push(Child::HsLink(HsLinkNode::new(
         "wp",
@@ -466,7 +546,10 @@ fn real_backend_content_json_reserializes_byte_shape_compatibly() {
     let doc = from_json_string(REAL_BACKEND_CONTENT_JSON).unwrap();
     let reserialized = to_content_json_value(&doc);
     let captured: JsonValue = serde_json::from_str(REAL_BACKEND_CONTENT_JSON).unwrap();
-    assert_eq!(reserialized, captured, "re-serialized content_json must match the captured backend shape");
+    assert_eq!(
+        reserialized, captured,
+        "re-serialized content_json must match the captured backend shape"
+    );
 }
 
 #[test]
@@ -476,19 +559,26 @@ fn split_multi_run_paragraph_carries_all_runs() {
     // chars into the second run) keeps "Bold pla" in the head and "in" in the tail,
     // both halves of the second run keeping NO marks, the first run keeping bold.
     let mut para = BlockNode::new(NodeKind::Paragraph);
-    para.children.push(Child::Text(TextLeaf::with_marks("Bold ", vec![Mark::Bold])));
+    para.children
+        .push(Child::Text(TextLeaf::with_marks("Bold ", vec![Mark::Bold])));
     para.children.push(Child::Text(TextLeaf::new("plain")));
     let mut doc = BlockNode::doc(vec![para]);
     apply_transaction(
         &mut doc,
-        Transaction::operator(vec![Step::SplitNode { path: vec![0], char_offset: 8 }]),
+        Transaction::operator(vec![Step::SplitNode {
+            path: vec![0],
+            char_offset: 8,
+        }]),
     )
     .unwrap();
     assert_eq!(doc.children.len(), 2);
     let head = doc.children[0].as_block().unwrap();
     // head: Text("Bold ",bold) + Text("pla") — both runs preserved.
     assert_eq!(head.children.len(), 2);
-    assert_eq!(head.children[0].as_text().unwrap().text.to_string(), "Bold ");
+    assert_eq!(
+        head.children[0].as_text().unwrap().text.to_string(),
+        "Bold "
+    );
     assert_eq!(head.children[0].as_text().unwrap().marks, vec![Mark::Bold]);
     assert_eq!(head.children[1].as_text().unwrap().text.to_string(), "pla");
     let tail = doc.children[1].as_block().unwrap();
@@ -499,19 +589,29 @@ fn split_multi_run_paragraph_carries_all_runs() {
 fn split_then_merge_multi_run_round_trips() {
     // RISK FIX: the SplitNode -> MergeNodes inverse must restore a MULTI-RUN node.
     let mut para = BlockNode::new(NodeKind::Paragraph);
-    para.children.push(Child::Text(TextLeaf::with_marks("Bold ", vec![Mark::Bold])));
-    para.children.push(Child::Text(TextLeaf::with_marks("italic", vec![Mark::Italic])));
+    para.children
+        .push(Child::Text(TextLeaf::with_marks("Bold ", vec![Mark::Bold])));
+    para.children.push(Child::Text(TextLeaf::with_marks(
+        "italic",
+        vec![Mark::Italic],
+    )));
     let mut doc = BlockNode::doc(vec![para]);
     let before = doc.clone();
     // Split mid-second-run (offset 8), then merge the tail back via the receipt inverse.
     let receipt = apply_transaction(
         &mut doc,
-        Transaction::operator(vec![Step::SplitNode { path: vec![0], char_offset: 8 }]),
+        Transaction::operator(vec![Step::SplitNode {
+            path: vec![0],
+            char_offset: 8,
+        }]),
     )
     .unwrap();
     assert_eq!(doc.children.len(), 2);
     apply_transaction(&mut doc, Transaction::operator(receipt.inverse)).unwrap();
-    assert_eq!(doc, before, "split then inverse-merge must restore the multi-run paragraph");
+    assert_eq!(
+        doc, before,
+        "split then inverse-merge must restore the multi-run paragraph"
+    );
 }
 
 #[test]
@@ -521,21 +621,37 @@ fn merge_multi_run_paragraph_keeps_all_content() {
     let mut p0 = BlockNode::new(NodeKind::Paragraph);
     p0.children.push(Child::Text(TextLeaf::new("head")));
     let mut p1 = BlockNode::new(NodeKind::Paragraph);
-    p1.children.push(Child::Text(TextLeaf::with_marks("bold", vec![Mark::Bold])));
-    p1.children.push(Child::Text(TextLeaf::with_marks("ital", vec![Mark::Italic])));
+    p1.children
+        .push(Child::Text(TextLeaf::with_marks("bold", vec![Mark::Bold])));
+    p1.children.push(Child::Text(TextLeaf::with_marks(
+        "ital",
+        vec![Mark::Italic],
+    )));
     let mut doc = BlockNode::doc(vec![p0, p1]);
     apply_transaction(
         &mut doc,
-        Transaction::operator(vec![Step::MergeNodes { parent_path: vec![], index: 1 }]),
+        Transaction::operator(vec![Step::MergeNodes {
+            parent_path: vec![],
+            index: 1,
+        }]),
     )
     .unwrap();
     assert_eq!(doc.children.len(), 1);
     let merged = doc.children[0].as_block().unwrap();
     // "head" (no marks) + "bold" (bold) + "ital" (italic) all survive as distinct runs.
     assert_eq!(merged.children.len(), 3);
-    assert_eq!(merged.children[0].as_text().unwrap().text.to_string(), "head");
-    assert_eq!(merged.children[1].as_text().unwrap().marks, vec![Mark::Bold]);
-    assert_eq!(merged.children[2].as_text().unwrap().marks, vec![Mark::Italic]);
+    assert_eq!(
+        merged.children[0].as_text().unwrap().text.to_string(),
+        "head"
+    );
+    assert_eq!(
+        merged.children[1].as_text().unwrap().marks,
+        vec![Mark::Bold]
+    );
+    assert_eq!(
+        merged.children[2].as_text().unwrap().marks,
+        vec![Mark::Italic]
+    );
 }
 
 #[test]
@@ -548,11 +664,17 @@ fn add_mark_on_code_block_is_rejected_and_rolls_back() {
     let before = doc.clone();
     let err = apply_transaction(
         &mut doc,
-        Transaction::operator(vec![Step::AddMark { path: vec![0, 0], mark: Mark::Bold }]),
+        Transaction::operator(vec![Step::AddMark {
+            path: vec![0, 0],
+            mark: Mark::Bold,
+        }]),
     )
     .unwrap_err();
     assert!(matches!(err, TransformError::Schema(_)), "got {err:?}");
-    assert_eq!(doc, before, "code_block mark rejection must roll back the doc");
+    assert_eq!(
+        doc, before,
+        "code_block mark rejection must roll back the doc"
+    );
 }
 
 #[test]
@@ -561,10 +683,13 @@ fn task_item_checked_and_code_block_language_attrs_survive_round_trip() {
     // language) must survive the DocJson round-trip, not just compile.
     let mut task = BlockNode::new(NodeKind::TaskItem);
     task.attrs.insert("checked".into(), JsonValue::Bool(true));
-    task.children.push(Child::Block(BlockNode::paragraph("do it")));
+    task.children
+        .push(Child::Block(BlockNode::paragraph("do it")));
     let mut code = BlockNode::new(NodeKind::CodeBlock);
-    code.attrs.insert("language".into(), JsonValue::from("rust"));
-    code.children.push(Child::Text(TextLeaf::new("fn main() {}")));
+    code.attrs
+        .insert("language".into(), JsonValue::from("rust"));
+    code.children
+        .push(Child::Text(TextLeaf::new("fn main() {}")));
     let mut list = BlockNode::new(NodeKind::BulletList);
     list.children.push(Child::Block(task));
     let doc = BlockNode::doc(vec![list, code]);
@@ -583,7 +708,11 @@ fn agent_actor_attribution_threads_through_receipt() {
     // receipt so attribution survives for the event ledger (consumed in a later MT).
     let mut doc = BlockNode::doc(vec![BlockNode::paragraph("")]);
     let tx = Transaction::new(
-        vec![Step::InsertText { path: vec![0, 0], char_offset: 0, text: "x".into() }],
+        vec![Step::InsertText {
+            path: vec![0, 0],
+            char_offset: 0,
+            text: "x".into(),
+        }],
         ActorKind::Agent,
         "agent-author-id-7",
     );

@@ -411,7 +411,9 @@ impl CalendarInteropService {
             });
         }
         if !status.is_success() {
-            return Err(InteropError::Http { status: status.as_u16() });
+            return Err(InteropError::Http {
+                status: status.as_u16(),
+            });
         }
         resp.json::<T>()
             .await
@@ -431,7 +433,10 @@ impl CalendarInteropService {
     /// itself is the stable date->doc key, so the binding's `doc_id` falls back to the block id (still
     /// idempotent — the same date returns the same block id). A failed delegation surfaces as
     /// [`InteropError::DailyNoteServiceError`] (propagated, never swallowed).
-    pub async fn open_or_create_daily_note(&self, date: NaiveDate) -> InteropResult<DailyNoteBinding> {
+    pub async fn open_or_create_daily_note(
+        &self,
+        date: NaiveDate,
+    ) -> InteropResult<DailyNoteBinding> {
         let journal_date = date.format(DATE_STORAGE_FMT).to_string();
         let block = self
             .journal_backend
@@ -599,16 +604,29 @@ mod tests {
         let svc = CalendarInteropService::with_base_url("http://unused", "WS-1", backend.clone());
         let date = d(2026, 6, 21);
         let (a, b) = rt().block_on(async {
-            let a = svc.open_or_create_daily_note(date).await.expect("first open");
-            let b = svc.open_or_create_daily_note(date).await.expect("second open");
+            let a = svc
+                .open_or_create_daily_note(date)
+                .await
+                .expect("first open");
+            let b = svc
+                .open_or_create_daily_note(date)
+                .await
+                .expect("second open");
             (a, b)
         });
         // Same DocId both times (idempotent), and the doc id is the LINKED document (delegation result).
-        assert_eq!(a.doc_id, b.doc_id, "AC-1: same date -> same DocId (idempotent)");
+        assert_eq!(
+            a.doc_id, b.doc_id,
+            "AC-1: same date -> same DocId (idempotent)"
+        );
         assert_eq!(a.doc_id, DocId("DOC-2026-06-21".to_owned()));
         assert_eq!(a.date, date);
         // The MT-019 backend was the creation path (delegation, RISK-1): it was called, not bypassed.
-        assert_eq!(backend.opens.load(Ordering::SeqCst), 2, "delegated to MT-019 both times");
+        assert_eq!(
+            backend.opens.load(Ordering::SeqCst),
+            2,
+            "delegated to MT-019 both times"
+        );
     }
 
     /// A blank journal block (no linked document yet) still yields a stable, idempotent date->doc key (the
@@ -645,8 +663,11 @@ mod tests {
                 Box::pin(async move { Err(JournalError::CreateFailed("x".into())) })
             }
         }
-        let svc =
-            CalendarInteropService::with_base_url("http://unused", "WS-1", Arc::new(FailingBackend));
+        let svc = CalendarInteropService::with_base_url(
+            "http://unused",
+            "WS-1",
+            Arc::new(FailingBackend),
+        );
         let err = rt()
             .block_on(async { svc.open_or_create_daily_note(d(2026, 6, 21)).await })
             .unwrap_err();
@@ -718,9 +739,15 @@ mod tests {
             daily_note_doc_id: None,
         };
         let events = vec![timed.clone(), all_day.clone()];
-        assert_eq!(pick_event_for_date(&events, d(2026, 6, 21)).unwrap().id, "A");
+        assert_eq!(
+            pick_event_for_date(&events, d(2026, 6, 21)).unwrap().id,
+            "A"
+        );
         // Only the timed event present -> it is picked.
-        assert_eq!(pick_event_for_date(&[timed], d(2026, 6, 21)).unwrap().id, "T");
+        assert_eq!(
+            pick_event_for_date(&[timed], d(2026, 6, 21)).unwrap().id,
+            "T"
+        );
         // No match -> None.
         assert!(pick_event_for_date(&[all_day], d(2026, 6, 22)).is_none());
     }

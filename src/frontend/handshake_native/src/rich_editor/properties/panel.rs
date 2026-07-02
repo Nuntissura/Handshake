@@ -110,7 +110,11 @@ impl<'a> PropertiesPanel<'a> {
 
                 // CRDT id (read-only, displayed if present).
                 label(ui, "CRDT", palette);
-                fields::read_only_value(ui, state.doc_metadata.crdt_document_id.as_deref(), palette);
+                fields::read_only_value(
+                    ui,
+                    state.doc_metadata.crdt_document_id.as_deref(),
+                    palette,
+                );
                 ui.end_row();
 
                 // Created / updated (local human-readable dates).
@@ -130,10 +134,11 @@ impl<'a> PropertiesPanel<'a> {
 
         // The panel container carries the `properties-panel` author_id (a Group enclosing the grid).
         let author = PANEL_AUTHOR_ID.to_owned();
-        ui.ctx().accesskit_node_builder(grid_resp.response.id, move |node| {
-            node.set_role(accesskit::Role::Group);
-            node.set_author_id(author.clone());
-        });
+        ui.ctx()
+            .accesskit_node_builder(grid_resp.response.id, move |node| {
+                node.set_role(accesskit::Role::Group);
+                node.set_author_id(author.clone());
+            });
     }
 }
 
@@ -146,8 +151,16 @@ fn label(ui: &mut egui::Ui, text: &str, palette: &HsPalette) {
 
 /// The composed owner display (`kind:id`), or `None` when neither is present.
 fn owner_display(state: &PropertiesState) -> Option<String> {
-    let kind = state.doc_metadata.owner_actor_kind.as_deref().filter(|s| !s.trim().is_empty());
-    let id = state.doc_metadata.owner_actor_id.as_deref().filter(|s| !s.trim().is_empty());
+    let kind = state
+        .doc_metadata
+        .owner_actor_kind
+        .as_deref()
+        .filter(|s| !s.trim().is_empty());
+    let id = state
+        .doc_metadata
+        .owner_actor_id
+        .as_deref()
+        .filter(|s| !s.trim().is_empty());
     match (kind, id) {
         (Some(k), Some(i)) => Some(format!("{k}:{i}")),
         (Some(k), None) => Some(k.to_owned()),
@@ -173,7 +186,10 @@ fn backlinks_count_chip(ui: &mut egui::Ui, runtime: &PropertiesRuntime, palette:
             ui.colored_label(palette.text_subtle, "↑ — backlinks");
         }
         BacklinksCountState::Failed(e) => {
-            ui.colored_label(palette.error_text, format!("↑ ? backlinks ({})", e.kind_str()));
+            ui.colored_label(
+                palette.error_text,
+                format!("↑ ? backlinks ({})", e.kind_str()),
+            );
         }
     }
 }
@@ -208,6 +224,10 @@ mod tests {
         let mut none = PropertiesState::new(meta());
         none.doc_metadata.owner_actor_kind = None;
         none.doc_metadata.owner_actor_id = None;
-        assert_eq!(owner_display(&none), None, "no owner -> None -> the field shows an em-dash");
+        assert_eq!(
+            owner_display(&none),
+            None,
+            "no owner -> None -> the field shows an em-dash"
+        );
     }
 }

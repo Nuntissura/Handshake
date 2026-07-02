@@ -127,7 +127,10 @@ pub fn find_matching_bracket(buffer: &TextBuffer, cursor_byte: usize) -> Option<
     if let Some(ci) = to_win(cursor) {
         if let Some(kind) = BracketKind::opening(win_bytes[ci]) {
             if let Some(close_abs) = scan_forward_for_close(win_bytes, ci, kind, win_start) {
-                return Some(BracketMatch { open_byte: cursor, close_byte: close_abs });
+                return Some(BracketMatch {
+                    open_byte: cursor,
+                    close_byte: close_abs,
+                });
             }
         }
     }
@@ -138,7 +141,10 @@ pub fn find_matching_bracket(buffer: &TextBuffer, cursor_byte: usize) -> Option<
         if let Some(ci) = to_win(prev_abs) {
             if let Some(kind) = BracketKind::closing(win_bytes[ci]) {
                 if let Some(open_abs) = scan_backward_for_open(win_bytes, ci, kind, win_start) {
-                    return Some(BracketMatch { open_byte: open_abs, close_byte: prev_abs });
+                    return Some(BracketMatch {
+                        open_byte: open_abs,
+                        close_byte: prev_abs,
+                    });
                 }
             }
         }
@@ -296,7 +302,12 @@ pub fn indent_level_of(buffer: &TextBuffer, line: usize, tab_width: usize) -> us
 /// (where the text rows begin); each level is `tab_width * char_width_px` to the right of the previous.
 /// The guide for level N sits at the LEFT edge of the Nth indent cell, i.e.
 /// `gutter_right + (level - 1) * tab_width * char_width_px`.
-pub fn indent_guide_x(gutter_right: f32, level: usize, tab_width: usize, char_width_px: f32) -> f32 {
+pub fn indent_guide_x(
+    gutter_right: f32,
+    level: usize,
+    tab_width: usize,
+    char_width_px: f32,
+) -> f32 {
     let tab_width = tab_width.max(1) as f32;
     let cell = tab_width * char_width_px;
     gutter_right + (level.saturating_sub(1) as f32) * cell
@@ -347,20 +358,35 @@ mod tests {
         let buf = TextBuffer::new("([)]");
         let m = find_matching_bracket(&buf, 0).expect("paren matches its same-family close");
         assert_eq!(m.open_byte, 0);
-        assert_eq!(m.close_byte, 2, "the '(' pairs with the ')' (same family), not the ']'");
+        assert_eq!(
+            m.close_byte, 2,
+            "the '(' pairs with the ')' (same family), not the ']'"
+        );
     }
 
     #[test]
     fn unbalanced_input_returns_none() {
         // No closing partner.
         let buf = TextBuffer::new("foo(bar");
-        assert_eq!(find_matching_bracket(&buf, 3), None, "unmatched '(' -> None");
+        assert_eq!(
+            find_matching_bracket(&buf, 3),
+            None,
+            "unmatched '(' -> None"
+        );
         // Cursor not adjacent to any bracket.
         let plain = TextBuffer::new("hello world");
-        assert_eq!(find_matching_bracket(&plain, 3), None, "no adjacent bracket -> None");
+        assert_eq!(
+            find_matching_bracket(&plain, 3),
+            None,
+            "no adjacent bracket -> None"
+        );
         // Lone closing bracket, cursor after it.
         let lone = TextBuffer::new("abc)");
-        assert_eq!(find_matching_bracket(&lone, 4), None, "unmatched ')' -> None");
+        assert_eq!(
+            find_matching_bracket(&lone, 4),
+            None,
+            "unmatched ')' -> None"
+        );
     }
 
     #[test]
@@ -371,7 +397,10 @@ mod tests {
         // 2..3). Before-open wins -> the SECOND pair.
         let buf = TextBuffer::new("()()");
         let m = find_matching_bracket(&buf, 2).expect("adjacency at byte 2 matches");
-        assert_eq!(m.open_byte, 2, "before-open precedence picks the '(' at byte 2");
+        assert_eq!(
+            m.open_byte, 2,
+            "before-open precedence picks the '(' at byte 2"
+        );
         assert_eq!(m.close_byte, 3);
     }
 
@@ -384,7 +413,11 @@ mod tests {
         s.push(')');
         let buf = TextBuffer::new(&s);
         // Cursor before the '(' at byte 0: the ')' is > cap away -> None (bounded).
-        assert_eq!(find_matching_bracket(&buf, 0), None, "partner past the cap reads as unmatched");
+        assert_eq!(
+            find_matching_bracket(&buf, 0),
+            None,
+            "partner past the cap reads as unmatched"
+        );
     }
 
     #[test]
@@ -429,7 +462,10 @@ mod tests {
     #[test]
     fn empty_palette_is_safe() {
         let buf = TextBuffer::new("()");
-        assert!(bracket_pair_colors(&buf, 0..2, &[]).is_empty(), "empty palette -> no colors");
+        assert!(
+            bracket_pair_colors(&buf, 0..2, &[]).is_empty(),
+            "empty palette -> no colors"
+        );
         assert_eq!(depth_color_index(5, 0), 0, "modulo-by-zero guarded");
     }
 
@@ -437,8 +473,16 @@ mod tests {
     fn indent_level_counts_spaces_and_tabs() {
         // tab_width 4. "    x" = 4 spaces = level 1. "        y" = 8 spaces = level 2.
         let buf = TextBuffer::new("    x\n        y\nz");
-        assert_eq!(indent_level_of(&buf, 0, 4), 1, "4 leading spaces -> level 1");
-        assert_eq!(indent_level_of(&buf, 1, 4), 2, "8 leading spaces -> level 2");
+        assert_eq!(
+            indent_level_of(&buf, 0, 4),
+            1,
+            "4 leading spaces -> level 1"
+        );
+        assert_eq!(
+            indent_level_of(&buf, 1, 4),
+            2,
+            "8 leading spaces -> level 2"
+        );
         assert_eq!(indent_level_of(&buf, 2, 4), 0, "no indent -> level 0");
     }
 
@@ -450,14 +494,30 @@ mod tests {
         assert_eq!(indent_level_of(&buf, 1, 4), 2, "two tabs -> level 2");
         // Mixed: two spaces then a tab. cols: 2 spaces -> 2, tab fills to 4 -> level 1.
         let mixed = TextBuffer::new("  \tx");
-        assert_eq!(indent_level_of(&mixed, 0, 4), 1, "2 spaces + tab -> 4 cols -> level 1");
+        assert_eq!(
+            indent_level_of(&mixed, 0, 4),
+            1,
+            "2 spaces + tab -> 4 cols -> level 1"
+        );
     }
 
     #[test]
     fn indent_guide_x_steps_by_tab_width_times_glyph() {
         // gutter_right=50, tab_width=4, char_width=8 -> cell = 32px. Level 1 at 50, level 2 at 82.
-        assert_eq!(indent_guide_x(50.0, 1, 4, 8.0), 50.0, "level 1 at the gutter edge");
-        assert_eq!(indent_guide_x(50.0, 2, 4, 8.0), 82.0, "level 2 one cell (32px) right");
-        assert_eq!(indent_guide_x(50.0, 3, 4, 8.0), 114.0, "level 3 two cells right");
+        assert_eq!(
+            indent_guide_x(50.0, 1, 4, 8.0),
+            50.0,
+            "level 1 at the gutter edge"
+        );
+        assert_eq!(
+            indent_guide_x(50.0, 2, 4, 8.0),
+            82.0,
+            "level 2 one cell (32px) right"
+        );
+        assert_eq!(
+            indent_guide_x(50.0, 3, 4, 8.0),
+            114.0,
+            "level 3 two cells right"
+        );
     }
 }

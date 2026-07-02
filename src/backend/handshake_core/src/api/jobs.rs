@@ -377,11 +377,16 @@ mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use crate::jobs::create_job;
     use crate::llm::ollama::InMemoryLlmClient;
-    use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database, JobState};
+    use crate::storage::{
+        tests::optional_postgres_backend_with_pool_from_env, AiJob, JobKind, JobState,
+        ModelSessionState, SessionMessageRole,
+    };
     use axum::extract::State;
     use serde_json::json;
     use std::sync::Arc;
+    use tokio::time::{sleep, timeout, Duration};
 
     async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
         let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
@@ -403,6 +408,24 @@ mod tests {
         }))
     }
 
+    async fn require_mt101_runtime_state(
+        proof_name: &str,
+    ) -> Result<AppState, Box<dyn std::error::Error>> {
+        let setup = timeout(Duration::from_secs(300), setup_state())
+            .await
+            .map_err(|_| format!("ENVIRONMENT_BLOCKED: {proof_name} setup_state timed out"))?
+            .map_err(|err| {
+                format!("ENVIRONMENT_BLOCKED: {proof_name} setup_state failed: {err}")
+            })?;
+        eprintln!("MT-101 proof {proof_name}: setup_state ready");
+        setup.ok_or_else(|| {
+            format!(
+                "ENVIRONMENT_BLOCKED: {proof_name} requires real PostgreSQL; tests auto-resolve POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"
+            )
+            .into()
+        })
+    }
+
     fn terminal_command() -> (String, Vec<String>) {
         if cfg!(target_os = "windows") {
             (
@@ -414,9 +437,46 @@ mod tests {
         }
     }
 
+    async fn wait_for_job_terminal(
+        state: &AppState,
+        job_id: &str,
+    ) -> Result<AiJob, Box<dyn std::error::Error>> {
+        let mut last_job = None;
+        for _ in 0..1_200 {
+            let job = state.storage.get_ai_job(job_id).await?;
+            if matches!(
+                job.state,
+                JobState::Stalled
+                    | JobState::AwaitingValidation
+                    | JobState::AwaitingUser
+                    | JobState::Completed
+                    | JobState::CompletedWithIssues
+                    | JobState::Failed
+                    | JobState::Cancelled
+                    | JobState::Poisoned
+            ) {
+                return Ok(job);
+            }
+            last_job = Some(job);
+            sleep(Duration::from_millis(50)).await;
+        }
+        let detail = last_job
+            .map(|job| {
+                format!(
+                    "last observed state={:?}, status_reason={}, error={:?}",
+                    job.state, job.status_reason, job.error_message
+                )
+            })
+            .unwrap_or_else(|| "job was never observed".to_string());
+        Err(format!("timed out waiting for job {job_id} to leave queued/running; {detail}").into())
+    }
+
     #[tokio::test]
     async fn create_job_rejects_unknown_job_kind() -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
+            eprintln!(
+                "ENVIRONMENT_BLOCKED: real PostgreSQL unavailable; skipped unknown-job route proof"
+            );
             return Ok(());
         };
         let request = CreateJobRequest {
@@ -435,6 +495,9 @@ mod tests {
     async fn create_job_allows_terminal_when_authorized() -> Result<(), Box<dyn std::error::Error>>
     {
         let Some(state) = setup_state().await? else {
+            eprintln!(
+                "ENVIRONMENT_BLOCKED: real PostgreSQL unavailable; skipped terminal route proof"
+            );
             return Ok(());
         };
         let (program, args) = terminal_command();
@@ -466,6 +529,256 @@ mod tests {
             stdout.contains("hello"),
             "expected terminal output to contain 'hello', got '{}'",
             stdout
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_model_run_job_binds_workflow_before_workflow_start(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            eprintln!(
+                "ENVIRONMENT_BLOCKED: real PostgreSQL unavailable; skipped MT-101 model_run pre-start workflow binding proof"
+            );
+            return Ok(());
+        };
+        let session_id = format!("native-mt101-prestart-{}", uuid::Uuid::now_v7());
+        let workspace_folder = "D:/Projects/Handshake/repo";
+
+        let job = create_job(
+            &state,
+            JobKind::ModelRun,
+            "protocol-default",
+            "workflow_run",
+            Some(json!({
+                "launch_surface": "handshake_native",
+                "launch_mode": "workspace_model_session",
+                "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+                "mt_id": "MT-101",
+                "session_id": session_id.as_str(),
+                "workspace_id": "default-project",
+                "workspace_folder": workspace_folder,
+                "working_dir": workspace_folder,
+                "model_provider": "local",
+                "model_id": "qwen2.5-coder:7b",
+                "backend": "local",
+                "wrapper": "repo-folder-wrapper-v1",
+                "prompt": "MT-101 pre-start workflow binding proof",
+                "role": "assistant",
+                "lane": "PRIMARY",
+                "priority": 50,
+                "retry_backoff": "exponential",
+                "timeout_ms": 120000,
+                "max_tokens_budget": 4096,
+                "max_retries": 3,
+                "parameter_class": "default",
+                "execution_mode": "STANDARD",
+                "memory_policy": "EPHEMERAL",
+                "capability_grants": [],
+                "capability_token_ids": [],
+                "session_messages": [],
+                "simulate_duration_ms": 0
+            })),
+            Vec::new(),
+        )
+        .await?;
+        let workflow_run_id = job
+            .workflow_run_id
+            .ok_or("model_run job must be born with workflow_run_id")?;
+        assert!(
+            matches!(job.state, JobState::Queued),
+            "new model_run job should remain queued until dispatcher runs"
+        );
+
+        let persisted = state.storage.get_ai_job(&job.job_id.to_string()).await?;
+        assert_eq!(persisted.workflow_run_id, Some(workflow_run_id));
+        let run = state
+            .storage
+            .update_workflow_run_status(workflow_run_id, JobState::Queued, None)
+            .await?;
+        assert_eq!(run.job_id, job.job_id);
+        assert!(matches!(run.status, JobState::Queued));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
+    async fn create_model_run_job_launches_runtime_session_and_preserves_native_binding(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = require_mt101_runtime_state(
+            "create_model_run_job_launches_runtime_session_and_preserves_native_binding",
+        )
+        .await?;
+        let session_id = format!("native-mt101-{}", uuid::Uuid::now_v7());
+        let workspace_folder = "D:/Projects/Handshake/repo";
+        let wrapper = "repo-folder-wrapper-v1";
+
+        let request = CreateJobRequest {
+            job_kind: "model_run".to_string(),
+            protocol_id: "protocol-default".to_string(),
+            doc_id: None,
+            job_inputs: Some(json!({
+                "launch_surface": "handshake_native",
+                "launch_mode": "workspace_model_session",
+                "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+                "mt_id": "MT-101",
+                "session_id": session_id.as_str(),
+                "workspace_id": "default-project",
+                "workspace_folder": workspace_folder,
+                "working_dir": workspace_folder,
+                "model_provider": "local",
+                "model_id": "qwen2.5-coder:7b",
+                "backend": "local",
+                "wrapper": wrapper,
+                "prompt": "MT-101 runtime proof",
+                "role": "assistant",
+                "lane": "PRIMARY",
+                "priority": 50,
+                "retry_backoff": "exponential",
+                "timeout_ms": 120000,
+                "max_tokens_budget": 4096,
+                "max_retries": 3,
+                "parameter_class": "default",
+                "execution_mode": "STANDARD",
+                "memory_policy": "EPHEMERAL",
+                "capability_grants": [],
+                "capability_token_ids": [],
+                "session_messages": [],
+                "simulate_duration_ms": 0
+            })),
+        };
+
+        eprintln!("MT-101 local runtime proof: create_new_job begin");
+        let response = timeout(
+            Duration::from_secs(30),
+            create_new_job(State(state.clone()), Json(request)),
+        )
+        .await
+        .map_err(|_| "MT-101 local model_run proof timed out before create_new_job returned")??;
+        let workflow_run = response.0;
+        eprintln!(
+            "MT-101 local runtime proof: create_new_job returned job_id={}",
+            workflow_run.job_id
+        );
+        let job = wait_for_job_terminal(&state, &workflow_run.job_id.to_string()).await?;
+
+        assert!(
+            matches!(job.state, JobState::Completed),
+            "local model_run should complete through the runtime path, got {:?}: {:?}",
+            job.state,
+            job.error_message
+        );
+        assert_eq!(job.workflow_run_id, Some(workflow_run.id));
+        let inputs = job.job_inputs.as_ref().ok_or("missing job_inputs")?;
+        assert_eq!(inputs["session_id"], json!(session_id.as_str()));
+        assert_eq!(inputs["workspace_folder"], json!(workspace_folder));
+        assert_eq!(inputs["working_dir"], json!(workspace_folder));
+        assert_eq!(inputs["wrapper"], json!(wrapper));
+
+        let outputs = job.job_outputs.as_ref().ok_or("missing job_outputs")?;
+        assert_eq!(outputs["session_id"], json!(session_id.as_str()));
+
+        let session = state.storage.get_model_session(&session_id).await?;
+        assert!(matches!(session.state, ModelSessionState::Completed));
+        assert_eq!(session.job_id, Some(workflow_run.job_id));
+        assert_eq!(session.model_id, "qwen2.5-coder:7b");
+        assert_eq!(session.backend, "local");
+        assert_eq!(
+            session.wp_id.as_deref(),
+            Some("WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1")
+        );
+        assert_eq!(session.mt_id.as_deref(), Some("MT-101"));
+
+        let messages = state.storage.list_session_messages(&session_id).await?;
+        assert!(
+            messages.iter().any(|message| {
+                message.role == SessionMessageRole::Assistant
+                    && message.content_artifact_id.contains(session_id.as_str())
+                    && message.token_count.unwrap_or_default() > 0
+            }),
+            "local runtime path must append an assistant message for {session_id}"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
+    async fn create_cloud_model_run_without_consent_blocks_runtime_session(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = require_mt101_runtime_state(
+            "create_cloud_model_run_without_consent_blocks_runtime_session",
+        )
+        .await?;
+        let session_id = format!("native-mt101-cloud-{}", uuid::Uuid::now_v7());
+
+        let request = CreateJobRequest {
+            job_kind: "model_run".to_string(),
+            protocol_id: "protocol-default".to_string(),
+            doc_id: None,
+            job_inputs: Some(json!({
+                "launch_surface": "handshake_native",
+                "launch_mode": "workspace_model_session",
+                "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+                "mt_id": "MT-101",
+                "session_id": session_id.as_str(),
+                "workspace_id": "default-project",
+                "workspace_folder": "D:/Projects/Handshake/repo",
+                "working_dir": "D:/Projects/Handshake/repo",
+                "model_provider": "cloud",
+                "model_id": "gpt-5.4",
+                "backend": "cloud",
+                "wrapper": "repo-folder-wrapper-v1",
+                "prompt": "MT-101 cloud consent blocker proof",
+                "role": "assistant",
+                "lane": "PRIMARY",
+                "priority": 50,
+                "retry_backoff": "exponential",
+                "timeout_ms": 120000,
+                "max_tokens_budget": 4096,
+                "max_retries": 3,
+                "parameter_class": "default",
+                "execution_mode": "STANDARD",
+                "memory_policy": "EPHEMERAL",
+                "session_messages": []
+            })),
+        };
+
+        eprintln!("MT-101 cloud runtime proof: create_new_job begin");
+        let response = timeout(
+            Duration::from_secs(30),
+            create_new_job(State(state.clone()), Json(request)),
+        )
+        .await
+        .map_err(|_| "MT-101 cloud model_run proof timed out before create_new_job returned")??;
+        let workflow_run = response.0;
+        eprintln!(
+            "MT-101 cloud runtime proof: create_new_job returned job_id={}",
+            workflow_run.job_id
+        );
+        let job = wait_for_job_terminal(&state, &workflow_run.job_id.to_string()).await?;
+
+        assert!(
+            matches!(job.state, JobState::AwaitingUser),
+            "cloud launch without consent must block, not claim running/completed: {:?}",
+            job.state
+        );
+        assert_eq!(job.status_reason, "paused_cloud_consent");
+        assert_eq!(job.error_message.as_deref(), Some("cloud_consent_required"));
+
+        let session = state.storage.get_model_session(&session_id).await?;
+        assert!(matches!(session.state, ModelSessionState::Blocked));
+        assert_eq!(session.job_id, Some(workflow_run.job_id));
+        assert_eq!(session.backend, "cloud");
+        assert!(
+            state
+                .session_registry
+                .get_session_worktree_path(&session_id)
+                .await
+                .is_none(),
+            "cloud launch blocked before consent must not allocate a session worktree"
         );
 
         Ok(())

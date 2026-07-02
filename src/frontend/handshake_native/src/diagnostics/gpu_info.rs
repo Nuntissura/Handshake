@@ -136,7 +136,11 @@ mod tests {
         assert_eq!(gpu.vendor_id, 0x10DE, "vendor id carried as u32");
         assert_eq!(gpu.device_id, 0x2204, "device id carried as u32");
         assert_eq!(gpu.device_type_code, 2, "DiscreteGpu -> code 2");
-        assert_eq!(gpu.backend_code, wgpu::Backend::Dx12 as u8, "Dx12 -> its repr(u8) discriminant");
+        assert_eq!(
+            gpu.backend_code,
+            wgpu::Backend::Dx12 as u8,
+            "Dx12 -> its repr(u8) discriminant"
+        );
         assert_eq!(gpu.backend_code, 3, "Dx12 discriminant is 3");
 
         // Panel-only human strings (verbatim).
@@ -144,7 +148,10 @@ mod tests {
         assert_eq!(gpu.driver, "TestDriver");
         assert_eq!(gpu.driver_info, "v1.2.3");
 
-        assert!(gpu.is_captured(), "a real adapter info maps to a captured GpuInfo");
+        assert!(
+            gpu.is_captured(),
+            "a real adapter info maps to a captured GpuInfo"
+        );
     }
 
     /// Every `DeviceType` variant maps to a distinct, pinned code (a reorder of the enum would not shift
@@ -161,6 +168,9 @@ mod tests {
     /// A default `GpuInfo` (the "no wgpu render state" fallback) is NOT captured.
     #[test]
     fn default_is_not_captured() {
-        assert!(!GpuInfo::default().is_captured(), "the default fallback is not a real capture");
+        assert!(
+            !GpuInfo::default().is_captured(),
+            "the default fallback is not a real capture"
+        );
     }
 }

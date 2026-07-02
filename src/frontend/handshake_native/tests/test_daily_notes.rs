@@ -38,7 +38,7 @@ use handshake_native::rich_editor::daily_notes::date_nav::{
     DateNav, CALENDAR_TOGGLE_ID, DATE_DISPLAY_ID, NEXT_DAY_ID, PREV_DAY_ID, TODAY_ID,
 };
 use handshake_native::rich_editor::daily_notes::journal_panel::{
-    JournalPanelState, JournalPanelWidget, JournalPaneFactory, RETRY_ID, START_WRITING_ID,
+    JournalPaneFactory, JournalPanelState, JournalPanelWidget, RETRY_ID, START_WRITING_ID,
 };
 use handshake_native::rich_editor::daily_notes::journal_store::{
     JournalBackend, JournalBlock, JournalDocLoad, JournalError, JournalFuture, JournalReady,
@@ -137,7 +137,11 @@ impl MockBackend {
 }
 
 impl JournalBackend for MockBackend {
-    fn open_daily_journal<'a>(&'a self, _ws: &'a str, date: &'a str) -> JournalFuture<'a, JournalBlock> {
+    fn open_daily_journal<'a>(
+        &'a self,
+        _ws: &'a str,
+        date: &'a str,
+    ) -> JournalFuture<'a, JournalBlock> {
         *self.open_calls.lock().unwrap() += 1;
         let date = date.to_owned();
         let fail = self.fail_open;
@@ -172,7 +176,11 @@ impl JournalBackend for MockBackend {
             })
         })
     }
-    fn create_document<'a>(&'a self, _ws: &'a str, title: &'a str) -> JournalFuture<'a, JournalDocLoad> {
+    fn create_document<'a>(
+        &'a self,
+        _ws: &'a str,
+        title: &'a str,
+    ) -> JournalFuture<'a, JournalDocLoad> {
         let title = title.to_owned();
         Box::pin(async move {
             Ok(JournalDocLoad {
@@ -260,17 +268,34 @@ fn mt019_panel_shows_today_and_nav_accesskit_ids() {
 
     // AC-1: the header shows today's date in human-readable form.
     assert!(
-        harness.query_by_label_contains("Friday, June 19, 2026").is_some(),
+        harness
+            .query_by_label_contains("Friday, June 19, 2026")
+            .is_some(),
         "AC-1: the header shows today's date (Friday, June 19, 2026)"
     );
 
     // AC-11: the nav AccessKit author_ids are present in the live tree.
     let found = collect_author_ids(&harness);
-    for id in [PREV_DAY_ID, NEXT_DAY_ID, TODAY_ID, DATE_DISPLAY_ID, CALENDAR_TOGGLE_ID] {
-        assert!(found.contains(id), "AC-11: the AccessKit tree must contain '{id}' (found {found:?})");
+    for id in [
+        PREV_DAY_ID,
+        NEXT_DAY_ID,
+        TODAY_ID,
+        DATE_DISPLAY_ID,
+        CALENDAR_TOGGLE_ID,
+    ] {
+        assert!(
+            found.contains(id),
+            "AC-11: the AccessKit tree must contain '{id}' (found {found:?})"
+        );
     }
-    assert!(found.contains("journal-panel-root"), "the panel root is addressable");
-    assert!(found.contains("journal-block-badge"), "the block-id badge is addressable");
+    assert!(
+        found.contains("journal-panel-root"),
+        "the panel root is addressable"
+    );
+    assert!(
+        found.contains("journal-block-badge"),
+        "the block-id badge is addressable"
+    );
 }
 
 // ── AC-2 / AC-3 / AC-4 / AC-5: openDailyJournal on mount + date navigation re-opens ──────────────
@@ -293,30 +318,52 @@ fn mt019_date_navigation_reopens_journal_and_calls_open_per_date() {
     // AC-2: open on mount.
     p.open_current();
     drain_until(&mut p, "2026-06-19");
-    assert_eq!(p.store.state.ready().map(|r| r.date.clone()), Some("2026-06-19".into()));
-    assert_eq!(backend.open_count(), 1, "AC-2: openDailyJournal called once on mount");
+    assert_eq!(
+        p.store.state.ready().map(|r| r.date.clone()),
+        Some("2026-06-19".into())
+    );
+    assert_eq!(
+        backend.open_count(),
+        1,
+        "AC-2: openDailyJournal called once on mount"
+    );
 
     // AC-3: prev day → 2026-06-18, a new open.
     p.nav.prev_day();
     p.store.open(p.nav.current_storage());
     drain_until(&mut p, "2026-06-18");
     assert_eq!(p.nav.current, date(2026, 6, 18));
-    assert_eq!(p.store.state.ready().map(|r| r.date.clone()), Some("2026-06-18".into()));
-    assert_eq!(backend.open_count(), 2, "AC-3: prev triggers a new openDailyJournal");
+    assert_eq!(
+        p.store.state.ready().map(|r| r.date.clone()),
+        Some("2026-06-18".into())
+    );
+    assert_eq!(
+        backend.open_count(),
+        2,
+        "AC-3: prev triggers a new openDailyJournal"
+    );
 
     // AC-4: next day → back to 2026-06-19.
     p.nav.next_day();
     p.store.open(p.nav.current_storage());
     drain_until(&mut p, "2026-06-19");
     assert_eq!(p.nav.current, date(2026, 6, 19));
-    assert_eq!(backend.open_count(), 3, "AC-4: next triggers a new openDailyJournal");
+    assert_eq!(
+        backend.open_count(),
+        3,
+        "AC-4: next triggers a new openDailyJournal"
+    );
 
     // AC-5: today from a far date → 2026-06-19.
     p.nav.navigate_to(date(2025, 1, 1));
     p.nav.jump_today();
     p.store.open(p.nav.current_storage());
     drain_until(&mut p, "2026-06-19");
-    assert_eq!(p.nav.current, mock_today(), "AC-5: Today returns to the fixed mock today");
+    assert_eq!(
+        p.nav.current,
+        mock_today(),
+        "AC-5: Today returns to the fixed mock today"
+    );
 }
 
 /// Poll the store drain until the Ready date matches `expected` (bounded — the mock resolves fast).
@@ -355,7 +402,9 @@ fn mt019_loading_state_shows_spinner() {
     harness.step();
 
     assert!(
-        harness.query_by_label_contains("Loading daily journal").is_some(),
+        harness
+            .query_by_label_contains("Loading daily journal")
+            .is_some(),
         "AC-8: the Loading state shows the loading text + spinner"
     );
 
@@ -372,8 +421,12 @@ fn mt019_loading_state_shows_spinner() {
 #[test]
 fn mt019_error_state_shows_typed_chip_and_retry() {
     let mut p = headless_panel(mock_today(), true, true);
-    p.store.seed_error("2026-06-19", JournalError::OpenFailed("HTTP 500".into()));
-    assert!(p.store.state.error().is_some(), "the store entered the Error state");
+    p.store
+        .seed_error("2026-06-19", JournalError::OpenFailed("HTTP 500".into()));
+    assert!(
+        p.store.state.error().is_some(),
+        "the store entered the Error state"
+    );
 
     let state = Arc::new(Mutex::new(p));
     let state_for_ui = Arc::clone(&state);
@@ -393,7 +446,10 @@ fn mt019_error_state_shows_typed_chip_and_retry() {
     );
     // ... and a Retry button is addressable.
     let found = collect_author_ids(&harness);
-    assert!(found.contains(RETRY_ID), "AC-7: the error state shows a Retry button (journal-retry)");
+    assert!(
+        found.contains(RETRY_ID),
+        "AC-7: the error state shows a Retry button (journal-retry)"
+    );
 }
 
 // ── "Start writing" affordance for a blank journal block ─────────────────────────────────────────
@@ -401,7 +457,11 @@ fn mt019_error_state_shows_typed_chip_and_retry() {
 #[test]
 fn mt019_start_writing_button_for_blank_block() {
     let mut p = headless_panel(mock_today(), false, false);
-    p.store.seed_ready(JournalReady::new("2026-06-19", journal_block("2026-06-19", None), None));
+    p.store.seed_ready(JournalReady::new(
+        "2026-06-19",
+        journal_block("2026-06-19", None),
+        None,
+    ));
     assert!(p.store.state.ready().unwrap().needs_document());
 
     let state = Arc::new(Mutex::new(p));
@@ -506,8 +566,14 @@ fn mt019_calendar_popup_screenshot() {
     );
     // The day-1 and day-30 cells are addressable (proves the grid rendered the real day numbers).
     let found = collect_author_ids(&harness);
-    assert!(found.contains("journal-calendar-day-1"), "AC-6: day 1 cell is present");
-    assert!(found.contains("journal-calendar-day-30"), "AC-6: day 30 cell is present (June has 30 days)");
+    assert!(
+        found.contains("journal-calendar-day-1"),
+        "AC-6: day 1 cell is present"
+    );
+    assert!(
+        found.contains("journal-calendar-day-30"),
+        "AC-6: day 30 cell is present (June has 30 days)"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -537,7 +603,9 @@ fn mt019_auto_save_fires_from_edit_through_show_render_path() {
     // an edit detected frame-to-frame — NOT by calling tick_auto_save()/on_edit() directly.
     let rt = tokio::runtime::Runtime::new().unwrap();
     let saves = Arc::new(Mutex::new(0u32));
-    let seam = Arc::new(CountingSeam { saves: Arc::clone(&saves) });
+    let seam = Arc::new(CountingSeam {
+        saves: Arc::clone(&saves),
+    });
     let store = JournalStore::new(
         Arc::new(MockBackend::new(true, false)) as Arc<dyn JournalBackend>,
         seam,
@@ -606,7 +674,9 @@ fn mt019_ctrl_s_dispatches_manual_save_through_show_path() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let saves = Arc::new(Mutex::new(0u32));
-    let seam = Arc::new(CountingSeam { saves: Arc::clone(&saves) });
+    let seam = Arc::new(CountingSeam {
+        saves: Arc::clone(&saves),
+    });
     let store = JournalStore::new(
         Arc::new(MockBackend::new(true, false)) as Arc<dyn JournalBackend>,
         seam,
@@ -661,7 +731,11 @@ fn mt019_ctrl_s_dispatches_manual_save_through_show_path() {
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    assert!(fired, "Ctrl+S dispatched a manual save through show() (save count = {})", *saves.lock().unwrap());
+    assert!(
+        fired,
+        "Ctrl+S dispatched a manual save through show() (save count = {})",
+        *saves.lock().unwrap()
+    );
 }
 
 // ── factory wiring (the sibling pane mounts through the WP-011 host) ──────────────────────────────
@@ -671,7 +745,11 @@ fn mt019_factory_is_the_journal_sibling_pane() {
     use handshake_native::pane_registry::{PaneFactory, PaneType};
     let p = headless_panel(mock_today(), true, false);
     let f = JournalPaneFactory::new(Arc::new(Mutex::new(p)));
-    assert_eq!(f.pane_type(), PaneType::LoomDailyJournal, "the journal is the LoomDailyJournal sibling surface");
+    assert_eq!(
+        f.pane_type(),
+        PaneType::LoomDailyJournal,
+        "the journal is the LoomDailyJournal sibling surface"
+    );
 }
 
 // ── PT-4 / integration (real backend, gated): openDailyJournal returns today's block ──────────────
@@ -698,12 +776,22 @@ fn test_real_open_today() {
             .open_daily_journal(&workspace_id, &today)
             .await
             .expect("openDailyJournal returns a journal block for today");
-        assert_eq!(block.workspace_id, workspace_id, "the block belongs to the requested workspace");
+        assert_eq!(
+            block.workspace_id, workspace_id,
+            "the block belongs to the requested workspace"
+        );
         // The verified open_daily_journal get-or-creates a journal-content-type block for the date.
-        assert_eq!(block.content_type.as_deref(), Some("journal"), "PT-4: a journal block is returned");
+        assert_eq!(
+            block.content_type.as_deref(),
+            Some("journal"),
+            "PT-4: a journal block is returned"
+        );
         // If the block links a document, it must load.
         if let Some(doc_id) = block.document_id.as_deref() {
-            let load = backend.load_document(doc_id).await.expect("the linked document loads");
+            let load = backend
+                .load_document(doc_id)
+                .await
+                .expect("the linked document loads");
             assert_eq!(load.body.rich_document_id, doc_id);
         }
     });

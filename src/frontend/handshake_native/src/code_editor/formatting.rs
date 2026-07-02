@@ -109,9 +109,7 @@ impl FormatOutcome {
 pub fn formatter_available(lsp: &super::lsp_client::LspClient, language_id: &str) -> bool {
     // A non-empty language id is required (an unknown/empty language has no server); the panel always
     // passes the buffer's resolved language id. An attached server with the capability gates the action.
-    !language_id.trim().is_empty()
-        && lsp.is_running()
-        && lsp.supports_document_formatting()
+    !language_id.trim().is_empty() && lsp.is_running() && lsp.supports_document_formatting()
 }
 
 /// Whether RANGE formatting (Format Selection) is available: same as [`formatter_available`] but gated on
@@ -120,9 +118,7 @@ pub fn formatter_available(lsp: &super::lsp_client::LspClient, language_id: &str
 /// it does NOT here (the MT is explicit: empty selection sends the current line's range, and a server
 /// without range formatting disables the Format Selection entry).
 pub fn range_formatter_available(lsp: &super::lsp_client::LspClient, language_id: &str) -> bool {
-    !language_id.trim().is_empty()
-        && lsp.is_running()
-        && lsp.supports_document_range_formatting()
+    !language_id.trim().is_empty() && lsp.is_running() && lsp.supports_document_range_formatting()
 }
 
 /// The default [`FormattingOptions`] (`tab_size = 4`, `insert_spaces = true`) — the editor's indent
@@ -130,7 +126,10 @@ pub fn range_formatter_available(lsp: &super::lsp_client::LspClient, language_id
 /// call site so a future per-language override has one place to feed (the MT note: do NOT hardcode at the
 /// request site; read the editor's indent config).
 pub fn default_formatting_options() -> FormattingOptions {
-    FormattingOptions { tab_size: 4, insert_spaces: true }
+    FormattingOptions {
+        tab_size: 4,
+        insert_spaces: true,
+    }
 }
 
 /// Apply `edits` (an LSP `TextEdit` array) to `buffer` IN PLACE, in DESCENDING start-offset order
@@ -154,7 +153,10 @@ pub fn default_formatting_options() -> FormattingOptions {
 /// `interop_adapter::push_code_edit_undo` before/after-snapshot path (the same place every code edit
 /// records undo). Keeping the applier undo-free makes it a pure, independently-testable transform and
 /// avoids forking a second undo stack (the wrap-not-fork discipline).
-pub fn apply_text_edits(buffer: &mut TextBuffer, edits: &[LspTextEdit]) -> Result<usize, FormatApplyError> {
+pub fn apply_text_edits(
+    buffer: &mut TextBuffer,
+    edits: &[LspTextEdit],
+) -> Result<usize, FormatApplyError> {
     // (1) Resolve every edit to a byte range against the UN-edited buffer (UTF-16 column conversion).
     let mut resolved: Vec<(Range<usize>, String)> = Vec::with_capacity(edits.len());
     for edit in edits {
@@ -167,7 +169,9 @@ pub fn apply_text_edits(buffer: &mut TextBuffer, edits: &[LspTextEdit]) -> Resul
     let mut applied = 0usize;
     for (range, new_text) in resolved {
         buffer.delete(range.clone()).map_err(|_| FormatApplyError)?;
-        buffer.insert(range.start, &new_text).map_err(|_| FormatApplyError)?;
+        buffer
+            .insert(range.start, &new_text)
+            .map_err(|_| FormatApplyError)?;
         applied += 1;
     }
     Ok(applied)
@@ -176,7 +180,10 @@ pub fn apply_text_edits(buffer: &mut TextBuffer, edits: &[LspTextEdit]) -> Resul
 /// Apply `edits` to `text` and return the formatted string (a convenience over [`apply_text_edits`] for
 /// the panel's whole-buffer install path and for tests). Sorted-descending + UTF-16-correct, identical to
 /// the in-place applier.
-pub fn apply_text_edits_to_string(text: &str, edits: &[LspTextEdit]) -> Result<String, FormatApplyError> {
+pub fn apply_text_edits_to_string(
+    text: &str,
+    edits: &[LspTextEdit],
+) -> Result<String, FormatApplyError> {
     let mut buffer = TextBuffer::new(text);
     apply_text_edits(&mut buffer, edits)?;
     Ok(buffer.to_string())
@@ -190,7 +197,10 @@ pub struct FormatApplyError;
 
 impl std::fmt::Display for FormatApplyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "a format edit range did not resolve to a valid byte range")
+        write!(
+            f,
+            "a format edit range did not resolve to a valid byte range"
+        )
     }
 }
 
@@ -203,8 +213,16 @@ impl std::error::Error for FormatApplyError {}
 /// line with a non-ASCII character (e.g. an emoji = 2 UTF-16 code units, 4 bytes) the byte offset differs
 /// from the UTF-16 column and a byte-based conversion would mis-place the edit.
 pub fn lsp_range_to_byte_range(buffer: &TextBuffer, range: LspRange) -> Option<Range<usize>> {
-    let start = line_utf16_to_byte(buffer, range.start.line as usize, range.start.character as usize)?;
-    let end = line_utf16_to_byte(buffer, range.end.line as usize, range.end.character as usize)?;
+    let start = line_utf16_to_byte(
+        buffer,
+        range.start.line as usize,
+        range.start.character as usize,
+    )?;
+    let end = line_utf16_to_byte(
+        buffer,
+        range.end.line as usize,
+        range.end.character as usize,
+    )?;
     if start > end {
         return None;
     }
@@ -253,7 +271,10 @@ fn line_utf16_to_byte(buffer: &TextBuffer, line: usize, utf16_col: usize) -> Opt
 /// selection. `None` on an out-of-range byte offset. The UTF-16 column is computed by walking the line up
 /// to the byte offset and summing `ch.len_utf16()` — the SAME UTF-16 discipline as the forward direction
 /// so a round-trip is exact for the request the server receives (AC-007).
-pub fn byte_to_lsp_position(buffer: &TextBuffer, byte_offset: usize) -> Option<super::lsp_client::LspPosition> {
+pub fn byte_to_lsp_position(
+    buffer: &TextBuffer,
+    byte_offset: usize,
+) -> Option<super::lsp_client::LspPosition> {
     let clamped = byte_offset.min(buffer.len_bytes());
     let line = buffer.byte_to_line(clamped)?;
     let line_start_byte = buffer.line_to_byte(line)?;
@@ -269,7 +290,10 @@ pub fn byte_to_lsp_position(buffer: &TextBuffer, byte_offset: usize) -> Option<s
         byte_in_line += ch.len_utf8();
         utf16_col += ch.len_utf16();
     }
-    Some(super::lsp_client::LspPosition { line: line as u32, character: utf16_col as u32 })
+    Some(super::lsp_client::LspPosition {
+        line: line as u32,
+        character: utf16_col as u32,
+    })
 }
 
 /// Build the [`LspRange`] for Format Selection from a primary selection BYTE range `(start, end)` against
@@ -284,17 +308,25 @@ pub fn selection_range_for(buffer: &TextBuffer, start: usize, end: usize) -> Opt
         let line = buffer.byte_to_line(s.min(buffer.len_bytes()))?;
         let line_start = buffer.line_to_byte(line)?;
         // Line end = start of next line minus its newline, or buffer end on the last line.
-        let next_line_start = buffer.line_to_byte(line + 1).unwrap_or_else(|| buffer.len_bytes());
+        let next_line_start = buffer
+            .line_to_byte(line + 1)
+            .unwrap_or_else(|| buffer.len_bytes());
         let line_text = buffer.slice_to_string(line..line + 1);
         let content_len = line_text.trim_end_matches(['\n', '\r']).len();
         let line_end = (line_start + content_len).min(next_line_start);
         let start_pos = byte_to_lsp_position(buffer, line_start)?;
         let end_pos = byte_to_lsp_position(buffer, line_end)?;
-        return Some(LspRange { start: start_pos, end: end_pos });
+        return Some(LspRange {
+            start: start_pos,
+            end: end_pos,
+        });
     }
     let start_pos = byte_to_lsp_position(buffer, s)?;
     let end_pos = byte_to_lsp_position(buffer, e)?;
-    Some(LspRange { start: start_pos, end: end_pos })
+    Some(LspRange {
+        start: start_pos,
+        end: end_pos,
+    })
 }
 
 /// A descriptor for a menu / context-menu format entry the existing menu builders consume (RISK-007 —
@@ -368,14 +400,25 @@ pub fn lsp_error_reason(err: &LspError) -> String {
 ///
 /// This is the ONE applier on the live path: there is no parallel synchronous applier. The descending-offset
 /// + UTF-16-correct apply lives in [`apply_text_edits`] / [`apply_text_edits_to_string`], which this calls.
-pub fn resolve_format_outcome(before: &str, edits: &[LspTextEdit]) -> (Option<String>, FormatOutcome) {
+pub fn resolve_format_outcome(
+    before: &str,
+    edits: &[LspTextEdit],
+) -> (Option<String>, FormatOutcome) {
     if edits.is_empty() {
         return (None, FormatOutcome::NoChange);
     }
     match apply_text_edits_to_string(before, edits) {
         Ok(after) if after == before => (None, FormatOutcome::NoChange),
-        Ok(after) => (Some(after), FormatOutcome::Applied { edit_count: edits.len() }),
-        Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
+        Ok(after) => (
+            Some(after),
+            FormatOutcome::Applied {
+                edit_count: edits.len(),
+            },
+        ),
+        Err(e) => (
+            None,
+            FormatOutcome::LspError(format!("Formatting failed: {e}")),
+        ),
     }
 }
 
@@ -387,8 +430,14 @@ mod tests {
     fn edit(sl: u32, sc: u32, el: u32, ec: u32, new_text: &str) -> LspTextEdit {
         LspTextEdit {
             range: LspRange {
-                start: LspPosition { line: sl, character: sc },
-                end: LspPosition { line: el, character: ec },
+                start: LspPosition {
+                    line: sl,
+                    character: sc,
+                },
+                end: LspPosition {
+                    line: el,
+                    character: ec,
+                },
             },
             new_text: new_text.to_owned(),
         }
@@ -403,7 +452,10 @@ mod tests {
         let text = "a b\n";
         let edits = vec![edit(0, 0, 0, 1, "AAAA"), edit(0, 2, 0, 3, "BBBB")];
         let out = apply_text_edits_to_string(text, &edits).expect("applies cleanly");
-        assert_eq!(out, "AAAA BBBB\n", "AC-005: descending apply yields the correct text");
+        assert_eq!(
+            out, "AAAA BBBB\n",
+            "AC-005: descending apply yields the correct text"
+        );
 
         // Regression: a naive ascending apply against the ORIGINAL offsets mangles the text.
         let mut naive = text.to_owned();
@@ -411,7 +463,10 @@ mod tests {
         let len = naive.len();
         let (s, e) = (2.min(len), 3.min(len)); // col 2..3 against the now-longer string -> wrong span
         naive.replace_range(s..e, "BBBB");
-        assert_ne!(naive, out, "RISK-001: ascending-order apply must NOT equal the correct result");
+        assert_ne!(
+            naive, out,
+            "RISK-001: ascending-order apply must NOT equal the correct result"
+        );
     }
 
     // ── AC-007 / RISK-003 / MC-005: UTF-16 column conversion (byte offset != UTF-16 column) ────────
@@ -424,14 +479,21 @@ mod tests {
         // Replace "x" (UTF-16 col 2..3) with "y".
         let edits = vec![edit(0, 2, 0, 3, "y")];
         let out = apply_text_edits_to_string(text, &edits).expect("applies cleanly");
-        assert_eq!(out, "😀y = 1\n", "AC-007: the edit landed at the correct UTF-16 column, not the byte offset");
+        assert_eq!(
+            out, "😀y = 1\n",
+            "AC-007: the edit landed at the correct UTF-16 column, not the byte offset"
+        );
 
         // Prove the BYTE-based (wrong) interpretation would have landed elsewhere: col 2..3 as bytes is
         // INSIDE the emoji's 4-byte sequence, which is not even a char boundary — a byte-based applier
         // would corrupt or reject. Confirm our UTF-16 conversion maps col 2 -> byte 4.
         let buffer = TextBuffer::new(text);
         let br = lsp_range_to_byte_range(&buffer, edits[0].range).expect("range resolves");
-        assert_eq!(br, 4..5, "AC-007: UTF-16 col 2..3 maps to byte 4..5 (after the 4-byte emoji)");
+        assert_eq!(
+            br,
+            4..5,
+            "AC-007: UTF-16 col 2..3 maps to byte 4..5 (after the 4-byte emoji)"
+        );
     }
 
     // ── round-trip: byte_to_lsp_position is the inverse of line_utf16_to_byte ──────────────────────
@@ -445,10 +507,17 @@ mod tests {
             if let Some(pos) = byte_to_lsp_position(&buffer, byte) {
                 let back = lsp_range_to_byte_range(
                     &buffer,
-                    LspRange { start: pos, end: pos },
+                    LspRange {
+                        start: pos,
+                        end: pos,
+                    },
                 )
                 .map(|r| r.start);
-                assert_eq!(back, Some(byte.min(buffer.len_bytes())), "byte {byte} round-trips via UTF-16");
+                assert_eq!(
+                    back,
+                    Some(byte.min(buffer.len_bytes())),
+                    "byte {byte} round-trips via UTF-16"
+                );
             }
         }
     }
@@ -463,8 +532,15 @@ mod tests {
         let range = selection_range_for(&buffer, caret, caret).expect("range");
         assert_eq!(range.start.line, 1, "empty selection -> current line start");
         assert_eq!(range.start.character, 0, "line start column 0");
-        assert_eq!(range.end.line, 1, "empty selection -> current line end (same line)");
-        assert_eq!(range.end.character, "line1xyz".len() as u32, "line end = content length");
+        assert_eq!(
+            range.end.line, 1,
+            "empty selection -> current line end (same line)"
+        );
+        assert_eq!(
+            range.end.character,
+            "line1xyz".len() as u32,
+            "line end = content length"
+        );
     }
 
     // ── non-empty selection -> exact selected range ────────────────────────────────────────────────
@@ -473,8 +549,20 @@ mod tests {
         let text = "abcdef\n";
         let buffer = TextBuffer::new(text);
         let range = selection_range_for(&buffer, 1, 4).expect("range"); // select "bcd"
-        assert_eq!(range.start, LspPosition { line: 0, character: 1 });
-        assert_eq!(range.end, LspPosition { line: 0, character: 4 });
+        assert_eq!(
+            range.start,
+            LspPosition {
+                line: 0,
+                character: 1
+            }
+        );
+        assert_eq!(
+            range.end,
+            LspPosition {
+                line: 0,
+                character: 4
+            }
+        );
     }
 
     // ── AC-002: text outside the applied edits is byte-for-byte unchanged ──────────────────────────
@@ -484,7 +572,10 @@ mod tests {
         // One edit replacing only "EDIT_ME" on line 1.
         let edits = vec![edit(1, 0, 1, 7, "done")];
         let out = apply_text_edits_to_string(text, &edits).unwrap();
-        assert_eq!(out, "keep0\ndone\nkeep2\n", "AC-002: only the edited range changed");
+        assert_eq!(
+            out, "keep0\ndone\nkeep2\n",
+            "AC-002: only the edited range changed"
+        );
     }
 
     // ── FormatOutcome typing ───────────────────────────────────────────────────────────────────────
@@ -504,7 +595,10 @@ mod tests {
         let descs = menu_descriptors(&lsp, "rust");
         for d in &descs {
             assert!(!d.enabled, "no LSP -> every format menu entry disabled");
-            assert_eq!(d.disabled_tooltip, NO_FORMATTER_TOOLTIP, "AC-003: contract tooltip text");
+            assert_eq!(
+                d.disabled_tooltip, NO_FORMATTER_TOOLTIP,
+                "AC-003: contract tooltip text"
+            );
         }
         assert_eq!(descs[0].author_id, FORMAT_DOCUMENT_MENU_AUTHOR_ID);
         assert_eq!(descs[1].author_id, FORMAT_DOCUMENT_CTX_AUTHOR_ID);
@@ -515,10 +609,19 @@ mod tests {
     #[test]
     fn formatter_unavailable_with_no_lsp() {
         let lsp = crate::code_editor::lsp_client::LspClient::disabled();
-        assert!(!formatter_available(&lsp, "rust"), "AC-003: no LSP -> no formatter");
-        assert!(!range_formatter_available(&lsp, "rust"), "AC-003: no LSP -> no range formatter");
+        assert!(
+            !formatter_available(&lsp, "rust"),
+            "AC-003: no LSP -> no formatter"
+        );
+        assert!(
+            !range_formatter_available(&lsp, "rust"),
+            "AC-003: no LSP -> no range formatter"
+        );
         // An empty language id is never a formatter (defensive).
-        assert!(!formatter_available(&lsp, ""), "empty language id -> no formatter");
+        assert!(
+            !formatter_available(&lsp, ""),
+            "empty language id -> no formatter"
+        );
     }
 
     // ── resolve_format_outcome: the SINGLE live applier (the panel pump funnels through this) ───────
@@ -571,7 +674,10 @@ mod tests {
         let before = "one line\n";
         let edits = vec![edit(99, 0, 99, 3, "boom")];
         let (formatted, outcome) = resolve_format_outcome(before, &edits);
-        assert_eq!(formatted, None, "a bad range installs no text (no partial corruption)");
+        assert_eq!(
+            formatted, None,
+            "a bad range installs no text (no partial corruption)"
+        );
         assert!(
             matches!(outcome, FormatOutcome::LspError(_)),
             "AC-006: an unresolvable edit range is a typed LspError, not a panic"

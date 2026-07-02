@@ -75,7 +75,11 @@ fn fold_accesskit_folded_region_emits_treeitem_expand_node() {
         "a fold region starts on line 0 of the function (so toggle_fold(0) succeeds)"
     );
     assert!(
-        panel.fold_set().regions.iter().any(|r| r.start_line == 0 && r.folded),
+        panel
+            .fold_set()
+            .regions
+            .iter()
+            .any(|r| r.start_line == 0 && r.folded),
         "the line-0 region is folded after toggle_fold(0)"
     );
 
@@ -131,7 +135,10 @@ fn fold_accesskit_folded_region_emits_treeitem_expand_node() {
 
     // The fold node is addressable by its label too (container -> scroll -> text -> fold).
     let labeled = harness.query_all_by_label("Code editor fold").count();
-    assert!(labeled >= 1, "at least one fold node is labeled/addressable; got {labeled}");
+    assert!(
+        labeled >= 1,
+        "at least one fold node is labeled/addressable; got {labeled}"
+    );
 }
 
 #[test]
@@ -140,7 +147,11 @@ fn fold_accesskit_unfolded_region_offers_collapse_action() {
     // so a swarm agent can fold a region it sees open. This proves the action reflects fold state.
     let panel = Arc::new(CodeEditorPanel::new(RUST_FN, "rs"));
     assert!(
-        panel.fold_set().regions.iter().any(|r| r.start_line == 0 && !r.folded),
+        panel
+            .fold_set()
+            .regions
+            .iter()
+            .any(|r| r.start_line == 0 && !r.folded),
         "the line-0 region starts UNfolded"
     );
 
@@ -159,8 +170,7 @@ fn fold_accesskit_unfolded_region_offers_collapse_action() {
     for node in root.children_recursive() {
         let ak = node.accesskit_node();
         if ak.author_id() == Some("code_editor_fold_0") {
-            fold0_supports_collapse =
-                ak.data().supports_action(egui::accesskit::Action::Collapse);
+            fold0_supports_collapse = ak.data().supports_action(egui::accesskit::Action::Collapse);
             fold0_supports_expand = ak.data().supports_action(egui::accesskit::Action::Expand);
         }
     }
@@ -249,7 +259,10 @@ fn fold_accesskit_folded_render_shows_label_and_hides_lines() {
                 buffer_lines,
                 abs.display()
             );
-            assert!(saved, "PT-004: the folded screenshot PNG saved to the external artifact root");
+            assert!(
+                saved,
+                "PT-004: the folded screenshot PNG saved to the external artifact root"
+            );
         }
         Err(e) => {
             println!(

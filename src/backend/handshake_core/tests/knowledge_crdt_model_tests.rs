@@ -15,9 +15,6 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
 {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!("ENVIRONMENT_BLOCKED: WP-009 CRDT model tests require POSTGRES_TEST_URL; {msg}");
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }

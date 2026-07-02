@@ -69,8 +69,14 @@ impl HungWindowProbe for FakeProbe {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FreezeState {
     Healthy,
-    Suspected { stale_ms: u64 },
-    Frozen { stale_ms: u64, last_counter: u64, last_ts_nanos: u64 },
+    Suspected {
+        stale_ms: u64,
+    },
+    Frozen {
+        stale_ms: u64,
+        last_counter: u64,
+        last_ts_nanos: u64,
+    },
 }
 
 impl FreezeState {
@@ -93,10 +99,20 @@ struct Detector {
 
 impl Detector {
     fn with_threshold(threshold: Duration) -> Self {
-        Self { last_counter: None, last_ts_nanos: 0, last_advance: None, threshold }
+        Self {
+            last_counter: None,
+            last_ts_nanos: 0,
+            last_advance: None,
+            threshold,
+        }
     }
 
-    fn poll(&mut self, now: Instant, heartbeat: Option<Heartbeat>, probe: &dyn HungWindowProbe) -> FreezeState {
+    fn poll(
+        &mut self,
+        now: Instant,
+        heartbeat: Option<Heartbeat>,
+        probe: &dyn HungWindowProbe,
+    ) -> FreezeState {
         if let Some(hb) = heartbeat {
             let advanced = match self.last_counter {
                 None => true,
@@ -126,7 +142,9 @@ impl Detector {
                 last_counter: self.last_counter.unwrap_or(0),
                 last_ts_nanos: self.last_ts_nanos,
             },
-            ProbeResult::Responding | ProbeResult::WindowNotFound => FreezeState::Suspected { stale_ms },
+            ProbeResult::Responding | ProbeResult::WindowNotFound => {
+                FreezeState::Suspected { stale_ms }
+            }
         }
     }
 }
@@ -140,7 +158,10 @@ fn temp_ring(label: &str) -> std::path::PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    std::env::temp_dir().join(format!("hsk-mt091-{label}-{}-{nanos}.ring", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "hsk-mt091-{label}-{}-{nanos}.ring",
+        std::process::id()
+    ))
 }
 
 struct PathGuard(std::path::PathBuf);
@@ -163,7 +184,10 @@ fn healthy_advancing_heartbeat_never_freezes() {
     let base = Instant::now();
     for i in 0..100u64 {
         let now = base + Duration::from_millis(300 * i);
-        let hb = Heartbeat { counter: i + 1, timestamp_nanos: (i + 1) * 1000 };
+        let hb = Heartbeat {
+            counter: i + 1,
+            timestamp_nanos: (i + 1) * 1000,
+        };
         assert_eq!(
             det.poll(now, Some(hb), &not_responding),
             FreezeState::Healthy,
@@ -216,7 +240,10 @@ fn idle_cadence_heartbeat_over_real_ring_never_freezes() {
         );
         t += poll;
     }
-    assert!(counter >= 19, "the writer should have advanced the counter ~20x over 5s at 250ms cadence (was {counter})");
+    assert!(
+        counter >= 19,
+        "the writer should have advanced the counter ~20x over 5s at 250ms cadence (was {counter})"
+    );
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -241,19 +268,39 @@ fn stalled_writer_over_real_ring_confirms_freeze() {
     // The writer publishes one heartbeat (counter 77, ts 77_000), then FREEZES — it never writes again.
     writer.write_heartbeat(77, 77_000);
     // Baseline poll: the reader reads counter 77 -> Healthy (and anchors the clock).
-    assert_eq!(det.poll(base, reader.read_heartbeat(), &not_responding), FreezeState::Healthy);
+    assert_eq!(
+        det.poll(base, reader.read_heartbeat(), &not_responding),
+        FreezeState::Healthy
+    );
 
     // 6 virtual seconds later the writer is STILL frozen; the reader still reads the stuck counter 77
     // (proving the frozen-writer last-good-state read), staleness is ~6s (> 5s), the probe corroborates.
     let now = base + Duration::from_secs(6);
     let hb = reader.read_heartbeat();
-    assert_eq!(hb, Some(Heartbeat { counter: 77, timestamp_nanos: 77_000 }), "frozen writer's last heartbeat stays readable");
+    assert_eq!(
+        hb,
+        Some(Heartbeat {
+            counter: 77,
+            timestamp_nanos: 77_000
+        }),
+        "frozen writer's last heartbeat stays readable"
+    );
     let state = det.poll(now, hb, &not_responding);
     match state {
-        FreezeState::Frozen { stale_ms, last_counter, last_ts_nanos } => {
+        FreezeState::Frozen {
+            stale_ms,
+            last_counter,
+            last_ts_nanos,
+        } => {
             assert!(stale_ms >= 6000, "stale ~6s, got {stale_ms}ms");
-            assert_eq!(last_counter, 77, "the frozen counter read from the real ring");
-            assert_eq!(last_ts_nanos, 77_000, "the frozen heartbeat ts read from the real ring");
+            assert_eq!(
+                last_counter, 77,
+                "the frozen counter read from the real ring"
+            );
+            assert_eq!(
+                last_ts_nanos, 77_000,
+                "the frozen heartbeat ts read from the real ring"
+            );
         }
         other => panic!("expected a confirmed Frozen, got {other:?}"),
     }
@@ -277,21 +324,41 @@ fn stale_but_responding_window_is_suspected_only() {
     let base = Instant::now();
 
     writer.write_heartbeat(9, 9_000);
-    assert_eq!(det.poll(base, reader.read_heartbeat(), &responding), FreezeState::Healthy);
+    assert_eq!(
+        det.poll(base, reader.read_heartbeat(), &responding),
+        FreezeState::Healthy
+    );
 
     // Stale for 6s, but the window still pumps messages (a long frame, not a freeze). The reader reads the
     // same stuck heartbeat — staleness crosses the threshold — but the probe says responding, so the
     // detector SUSPECTS only and does NOT confirm a hard freeze (AC-011-3 double-signal gate).
-    let state = det.poll(base + Duration::from_secs(6), reader.read_heartbeat(), &responding);
-    assert!(state.is_suspected(), "stale + responding must be SUSPECTED, got {state:?}");
-    assert!(!state.is_frozen(), "a legitimate long frame must NOT confirm a hard freeze");
+    let state = det.poll(
+        base + Duration::from_secs(6),
+        reader.read_heartbeat(),
+        &responding,
+    );
+    assert!(
+        state.is_suspected(),
+        "stale + responding must be SUSPECTED, got {state:?}"
+    );
+    assert!(
+        !state.is_frozen(),
+        "a legitimate long frame must NOT confirm a hard freeze"
+    );
 
     // And a window that cannot be resolved likewise cannot corroborate (RISK-011-5): Suspected, not Frozen.
     let mut det2 = Detector::with_threshold(Duration::from_secs(5));
     let no_window = FakeProbe(ProbeResult::WindowNotFound);
     det2.poll(base, reader.read_heartbeat(), &no_window);
-    let s2 = det2.poll(base + Duration::from_secs(6), reader.read_heartbeat(), &no_window);
-    assert!(s2.is_suspected(), "a missing window cannot confirm a freeze, got {s2:?}");
+    let s2 = det2.poll(
+        base + Duration::from_secs(6),
+        reader.read_heartbeat(),
+        &no_window,
+    );
+    assert!(
+        s2.is_suspected(),
+        "a missing window cannot confirm a freeze, got {s2:?}"
+    );
     drop(writer);
 }
 
@@ -313,19 +380,42 @@ fn freeze_recovers_when_writer_resumes_over_real_ring() {
     // Freeze: write once (counter 100), then stop; at +6s the detector confirms Frozen.
     writer.write_heartbeat(100, 100_000);
     det.poll(base, reader.read_heartbeat(), &not_responding);
-    let frozen = det.poll(base + Duration::from_secs(6), reader.read_heartbeat(), &not_responding);
-    assert!(frozen.is_frozen(), "the freeze must be confirmed first, got {frozen:?}");
+    let frozen = det.poll(
+        base + Duration::from_secs(6),
+        reader.read_heartbeat(),
+        &not_responding,
+    );
+    assert!(
+        frozen.is_frozen(),
+        "the freeze must be confirmed first, got {frozen:?}"
+    );
 
     // The app UNFREEZES: the writer resumes bumping the heartbeat (counter 101). The reader reads the new
     // counter; the detector clears back to Healthy (recovery — it does not latch Frozen forever).
     writer.write_heartbeat(101, 101_000);
-    let recovered = det.poll(base + Duration::from_millis(6300), reader.read_heartbeat(), &not_responding);
-    assert_eq!(recovered, FreezeState::Healthy, "an advancing counter must clear the freeze (AC-011-4 recovery)");
+    let recovered = det.poll(
+        base + Duration::from_millis(6300),
+        reader.read_heartbeat(),
+        &not_responding,
+    );
+    assert_eq!(
+        recovered,
+        FreezeState::Healthy,
+        "an advancing counter must clear the freeze (AC-011-4 recovery)"
+    );
 
     // It stays healthy as the writer keeps advancing.
     writer.write_heartbeat(102, 102_000);
-    let still = det.poll(base + Duration::from_millis(6600), reader.read_heartbeat(), &not_responding);
-    assert_eq!(still, FreezeState::Healthy, "recovery is durable as long as the heartbeat keeps advancing");
+    let still = det.poll(
+        base + Duration::from_millis(6600),
+        reader.read_heartbeat(),
+        &not_responding,
+    );
+    assert_eq!(
+        still,
+        FreezeState::Healthy,
+        "recovery is durable as long as the heartbeat keeps advancing"
+    );
     drop(writer);
 }
 
@@ -344,14 +434,34 @@ fn staleness_uses_monotonic_reference_only() {
     let not_responding = FakeProbe(ProbeResult::NotResponding);
     let base = Instant::now();
     // Establish baseline.
-    det.poll(base, Some(Heartbeat { counter: 1, timestamp_nanos: 1 }), &not_responding);
+    det.poll(
+        base,
+        Some(Heartbeat {
+            counter: 1,
+            timestamp_nanos: 1,
+        }),
+        &not_responding,
+    );
     // The heartbeat's EMBEDDED timestamp is wildly inconsistent (as if the writer's clock jumped), but the
     // COUNTER does not advance — staleness must come purely from the monotonic `now`, not the embedded ts.
-    let weird_hb = Heartbeat { counter: 1, timestamp_nanos: u64::MAX };
-    let state = det.poll(base + Duration::from_secs(6), Some(weird_hb), &not_responding);
+    let weird_hb = Heartbeat {
+        counter: 1,
+        timestamp_nanos: u64::MAX,
+    };
+    let state = det.poll(
+        base + Duration::from_secs(6),
+        Some(weird_hb),
+        &not_responding,
+    );
     // Stale by the monotonic clock (6s) -> Frozen regardless of the embedded ts being garbage.
-    assert!(state.is_frozen(), "staleness must derive from the monotonic clock, not the embedded ts: {state:?}");
+    assert!(
+        state.is_frozen(),
+        "staleness must derive from the monotonic clock, not the embedded ts: {state:?}"
+    );
     if let FreezeState::Frozen { stale_ms, .. } = state {
-        assert!((6000..=6100).contains(&stale_ms), "stale_ms must be the monotonic delta ~6000, got {stale_ms}");
+        assert!(
+            (6000..=6100).contains(&stale_ms),
+            "stale_ms must be the monotonic delta ~6000, got {stale_ms}"
+        );
     }
 }

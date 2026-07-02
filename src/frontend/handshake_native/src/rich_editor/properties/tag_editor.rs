@@ -32,7 +32,10 @@ fn emit_node_author(ctx: &egui::Context, id: egui::Id, role: accesskit::Role, au
     let role_for_closure = role;
     let author = author_id.to_owned();
     ctx.accesskit_node_builder(id, move |node| {
-        if !matches!(role_for_closure, accesskit::Role::Button | accesskit::Role::TextInput) {
+        if !matches!(
+            role_for_closure,
+            accesskit::Role::Button | accesskit::Role::TextInput
+        ) {
             node.set_role(role_for_closure);
         }
         node.set_author_id(author);
@@ -64,7 +67,12 @@ pub fn tag_editor(ui: &mut egui::Ui, state: &mut PropertiesState, palette: &HsPa
                         // The `x` remove button — an interactive node, so it carries a stable author_id
                         // (`tag-remove-{tag}`) or the shell HBR-SWARM gate would reject it as unnamed.
                         let x = ui.add(egui::Button::new("x").frame(false).small());
-                        emit_node_author(ui.ctx(), x.id, accesskit::Role::Button, &format!("tag-remove-{tag}"));
+                        emit_node_author(
+                            ui.ctx(),
+                            x.id,
+                            accesskit::Role::Button,
+                            &format!("tag-remove-{tag}"),
+                        );
                         if x.clicked() {
                             to_remove = Some(tag.clone());
                         }
@@ -91,7 +99,12 @@ pub fn tag_editor(ui: &mut egui::Ui, state: &mut PropertiesState, palette: &HsPa
                         .desired_width(100.0)
                         .hint_text("new tag"),
                 );
-                emit_node_author(ui.ctx(), resp.id, accesskit::Role::TextInput, "tag-new-input");
+                emit_node_author(
+                    ui.ctx(),
+                    resp.id,
+                    accesskit::Role::TextInput,
+                    "tag-new-input",
+                );
                 resp.request_focus();
                 let commit = resp.lost_focus();
                 if commit {
@@ -106,7 +119,12 @@ pub fn tag_editor(ui: &mut egui::Ui, state: &mut PropertiesState, palette: &HsPa
             }
             None => {
                 let add = ui.add(egui::Button::new("+").small());
-                emit_node_author(ui.ctx(), add.id, accesskit::Role::Button, TAG_ADD_BUTTON_AUTHOR_ID);
+                emit_node_author(
+                    ui.ctx(),
+                    add.id,
+                    accesskit::Role::Button,
+                    TAG_ADD_BUTTON_AUTHOR_ID,
+                );
                 if add.clicked() {
                     state.new_tag_input = Some(String::new());
                 }
@@ -115,7 +133,12 @@ pub fn tag_editor(ui: &mut egui::Ui, state: &mut PropertiesState, palette: &HsPa
     });
 
     // The tags container carries the AC-9 `properties-tags` author_id (a Group enclosing the chips).
-    emit_node_author(ui.ctx(), group.response.id, accesskit::Role::Group, TAGS_CONTAINER_AUTHOR_ID);
+    emit_node_author(
+        ui.ctx(),
+        group.response.id,
+        accesskit::Role::Group,
+        TAGS_CONTAINER_AUTHOR_ID,
+    );
 }
 
 #[cfg(test)]
@@ -125,7 +148,13 @@ mod tests {
     #[test]
     fn backend_gap_banner_text_is_stable() {
         // MC-002: the no-fake-persistence banner text is the mechanically-checkable marker.
-        assert_eq!(BACKEND_GAP_BANNER, "Tags not persisted (backend gap: coming soon)");
-        assert!(BACKEND_GAP_BANNER.contains("backend gap"), "the banner names the gap explicitly");
+        assert_eq!(
+            BACKEND_GAP_BANNER,
+            "Tags not persisted (backend gap: coming soon)"
+        );
+        assert!(
+            BACKEND_GAP_BANNER.contains("backend gap"),
+            "the banner names the gap explicitly"
+        );
     }
 }

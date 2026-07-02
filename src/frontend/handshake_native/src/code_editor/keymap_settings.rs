@@ -71,7 +71,10 @@ impl std::fmt::Display for KeymapSettingsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             KeymapSettingsError::NoHomeDir => {
-                write!(f, "could not resolve the user home directory for ~/.handshake/keymap.json")
+                write!(
+                    f,
+                    "could not resolve the user home directory for ~/.handshake/keymap.json"
+                )
             }
             KeymapSettingsError::Io(e) => write!(f, "keymap.json I/O error: {e}"),
             KeymapSettingsError::Parse(e) => write!(f, "keymap.json parse error: {e}"),
@@ -175,7 +178,13 @@ impl KeymapSettings {
             }
         }
         let key = key.ok_or_else(bad)?; // a chord with only modifiers is malformed.
-        Ok(KeyChord { key, ctrl, alt, shift, mac_cmd })
+        Ok(KeyChord {
+            key,
+            ctrl,
+            alt,
+            shift,
+            mac_cmd,
+        })
     }
 
     /// Format a [`KeyChord`] back to the canonical `"Ctrl+Shift+P"` string form (for writing an

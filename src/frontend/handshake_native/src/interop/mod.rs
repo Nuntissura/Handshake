@@ -55,17 +55,18 @@ pub mod calendar_interop;
 pub mod locus_interop;
 
 pub use interaction_bus::{
-    command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardPayload, CommandBus,
-    CommandDescriptor, CommandHandler, EditorSurfaceKind, InteractionBus, SharedSelection, CMD_COPY,
-    CMD_CUT, CMD_EMBED_STAGE_CAPTURE, CMD_FIND, CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT,
-    CMD_OPEN_LOCUS_REF, CMD_PASTE, CMD_REDO, CMD_ROUTE_TO_STAGE,
-    CMD_SELECT_ALL, CMD_COMMAND_PALETTE, CMD_UNDO, CMD_UNDO_CROSS_PANE, COMMAND_LIST_ITEM_AUTHOR_PREFIX,
-    COMMAND_PALETTE_SEARCH_AUTHOR_ID, COMMAND_PALETTE_TRIGGER_AUTHOR_ID, INTERACTION_BUS_KEY,
+    command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardPayload,
+    CommandBus, CommandDescriptor, CommandHandler, EditorSurfaceKind, InteractionBus,
+    SharedSelection, CMD_COMMAND_PALETTE, CMD_COPY, CMD_CUT, CMD_EMBED_STAGE_CAPTURE, CMD_FIND,
+    CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT, CMD_OPEN_LOCUS_REF, CMD_PASTE, CMD_REDO,
+    CMD_ROUTE_TO_STAGE, CMD_SELECT_ALL, CMD_UNDO, CMD_UNDO_CROSS_PANE,
+    COMMAND_LIST_ITEM_AUTHOR_PREFIX, COMMAND_PALETTE_SEARCH_AUTHOR_ID,
+    COMMAND_PALETTE_TRIGGER_AUTHOR_ID, INTERACTION_BUS_KEY,
 };
 
 pub use adapters::{
-    register_standard_commands, surface_clipboard_payload, surface_command_ids, text_range_selection,
-    CommandPaletteSurface,
+    register_standard_commands, surface_clipboard_payload, surface_command_ids,
+    text_range_selection, CommandPaletteSurface,
 };
 
 pub use drag_payload::{
@@ -73,15 +74,15 @@ pub use drag_payload::{
 };
 
 pub use cross_ref::{
-    dispatch_code_ref_open, dispatch_locus_ref_open, find_notes_referencing_symbol, find_notes_with,
-    percent_encode_symbol, resolve_code_ref, resolve_code_ref_with, CodeRef, CrossRefError,
-    FindNotesHttp, FindNotesSearch, NoteRef, SymbolDwellTracker, CODE_REF_KIND, NOTE_REFS_DWELL_MS,
-    NOTE_REFS_SEARCH_LIMIT,
+    dispatch_code_ref_open, dispatch_locus_ref_open, find_notes_referencing_symbol,
+    find_notes_with, percent_encode_symbol, resolve_code_ref, resolve_code_ref_with, CodeRef,
+    CrossRefError, FindNotesHttp, FindNotesSearch, NoteRef, SymbolDwellTracker, CODE_REF_KIND,
+    NOTE_REFS_DWELL_MS, NOTE_REFS_SEARCH_LIMIT,
 };
 
 pub use locus_interop::{
-    normalize_locus_id, parse_locus_ref, DocumentRef, LocusInteropError, LocusInteropService, LocusRecord,
-    LocusRef, LocusRefKind, LocusResult, LOCUS_REF_KIND, LOCUS_URI_SCHEME,
+    normalize_locus_id, parse_locus_ref, DocumentRef, LocusInteropError, LocusInteropService,
+    LocusRecord, LocusRef, LocusRefKind, LocusResult, LOCUS_REF_KIND, LOCUS_URI_SCHEME,
 };
 
 pub use stage_interop::{
@@ -93,8 +94,8 @@ pub use stage_interop::{
 };
 
 pub use calendar_interop::{
-    pick_event_for_date, ActivitySpan, CalendarEvent, CalendarInteropService, DailyNoteBinding, DocId,
-    InteropError, InteropResult, CMD_FOCUS_CALENDAR_EVENT, CMD_OPEN_DAILY_NOTE_FOR_DATE,
+    pick_event_for_date, ActivitySpan, CalendarEvent, CalendarInteropService, DailyNoteBinding,
+    DocId, InteropError, InteropResult, CMD_FOCUS_CALENDAR_EVENT, CMD_OPEN_DAILY_NOTE_FOR_DATE,
     CMD_OPEN_DOCUMENT as CMD_OPEN_ACTIVITY_DOCUMENT,
 };
 
@@ -108,7 +109,10 @@ pub const UNDO_COUNT_AUTHOR_PREFIX: &str = "undo-count-";
 /// `pane_id` is sanitized to `[a-z0-9-]` (the same `project_tree::stable_part` slug the canvas placement
 /// + loom node ids use) so an arbitrary pane id yields a safe, collision-resistant address.
 pub fn undo_count_author_id(pane_id: &str) -> String {
-    format!("{UNDO_COUNT_AUTHOR_PREFIX}{}", crate::project_tree::stable_part(pane_id))
+    format!(
+        "{UNDO_COUNT_AUTHOR_PREFIX}{}",
+        crate::project_tree::stable_part(pane_id)
+    )
 }
 
 /// Render the "Undo ({n})" indicator into a pane title bar (AC-6). `count` is the focused pane's local

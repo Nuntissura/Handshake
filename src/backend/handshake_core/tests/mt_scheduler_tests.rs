@@ -139,7 +139,10 @@ fn mt_187_tier_tie_break_is_fifo_on_created_at() {
     second.created_at_utc = now - chrono::Duration::seconds(10);
     let cands = vec![first.clone(), second];
     let pick = s.pick_next(&cands, now, &HashMap::new()).unwrap();
-    assert_eq!(pick.mt_id, first.mt_id, "FIFO tie-break must pick earliest created_at_utc");
+    assert_eq!(
+        pick.mt_id, first.mt_id,
+        "FIFO tie-break must pick earliest created_at_utc"
+    );
 }
 
 #[test]
@@ -165,10 +168,18 @@ fn mt_187_age_boost_caps_at_200() {
     let s = FairScheduler::new(StarvationConfig::default());
     let job = make_job("W-day-old", EscalationTier::T7B, 60 * 24);
     let p = s.priority(&job, Utc::now(), &HashMap::new());
-    assert_eq!(p, 220, "age_boost must cap at +200 so very-old T7B never outranks HardGate");
+    assert_eq!(
+        p, 220,
+        "age_boost must cap at +200 so very-old T7B never outranks HardGate"
+    );
     let hg = make_job("W-hg", EscalationTier::HardGate, 0);
     let p_hg = s.priority(&hg, Utc::now(), &HashMap::new());
-    assert!(p_hg > p, "HardGate ({}) must always outrank capped old T7B ({})", p_hg, p);
+    assert!(
+        p_hg > p,
+        "HardGate ({}) must always outrank capped old T7B ({})",
+        p_hg,
+        p
+    );
 }
 
 #[test]
@@ -190,7 +201,10 @@ fn mt_187_fairness_penalty_does_not_cross_wp() {
     let mut recent = HashMap::new();
     recent.insert("BUSY".to_string(), 100);
     let p = s.priority(&other, Utc::now(), &recent);
-    assert_eq!(p, 20, "OTHER wp must not be penalised for BUSY wp's recent claims");
+    assert_eq!(
+        p, 20,
+        "OTHER wp must not be penalised for BUSY wp's recent claims"
+    );
 }
 
 #[test]
@@ -218,7 +232,10 @@ fn mt_187_starvation_guard_threshold_respected() {
     // 30s-old job is well below the 600s threshold — must not emit.
     let mut j = MicroTaskJob::queue("W", "M", PathBuf::from("a.json"), 6, vec![]);
     j.created_at_utc = Utc::now() - chrono::Duration::seconds(30);
-    assert!(g.check(&j, Utc::now()).is_none(), "below threshold must not emit");
+    assert!(
+        g.check(&j, Utc::now()).is_none(),
+        "below threshold must not emit"
+    );
 }
 
 #[test]
@@ -309,8 +326,9 @@ fn mt_187_starvation_config_default_is_field_stable() {
 // ============================================================================
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL test URL");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }
 
@@ -331,7 +349,7 @@ async fn ensure_full_schema(pool: &sqlx::PgPool) {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_187_pg_claim_next_priority_picks_old_t32b_over_fresh_fleet() {
     // Realistic queue mix: 100 fresh T7B from many wp_ids + 1 old T32B
     // from a different wp. The old T32B must be claimed before any fresh
@@ -365,13 +383,7 @@ async fn mt_187_pg_claim_next_priority_picks_old_t32b_over_fresh_fleet() {
 
     // Then insert the old T32B. 10 minutes old, T32B base 100 + age_boost
     // 10 = 110, vs fresh T7B base 20 + age_boost 0 = 20. T32B wins.
-    let mut old = MicroTaskJob::queue(
-        &wp_old,
-        "MT-OLD-T32B",
-        PathBuf::from("a.json"),
-        6,
-        vec![],
-    );
+    let mut old = MicroTaskJob::queue(&wp_old, "MT-OLD-T32B", PathBuf::from("a.json"), 6, vec![]);
     old.escalation_tier = EscalationTier::T32B;
     old.created_at_utc = now - chrono::Duration::minutes(10);
     old.updated_at_utc = old.created_at_utc;
@@ -418,7 +430,7 @@ async fn mt_187_pg_claim_next_priority_picks_old_t32b_over_fresh_fleet() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_187_pg_fair_scheduling_rotates_across_wps_under_imbalance() {
     // Pre-populate claimed_at_utc for 50 BUSY-wp claims inside the
     // fairness window, then enqueue 1 BUSY + 1 OTHER fresh T7B job.
@@ -453,26 +465,15 @@ async fn mt_187_pg_fair_scheduling_rotates_across_wps_under_imbalance() {
     }
 
     // Enqueue 1 BUSY + 1 OTHER fresh queued job.
-    let mut busy_q = MicroTaskJob::queue(
-        &wp_busy,
-        "MT-BUSY-Q",
-        PathBuf::from("a.json"),
-        6,
-        vec![],
-    );
+    let mut busy_q = MicroTaskJob::queue(&wp_busy, "MT-BUSY-Q", PathBuf::from("a.json"), 6, vec![]);
     busy_q.escalation_tier = EscalationTier::T7B;
     busy_q.created_at_utc = now;
     busy_q.updated_at_utc = now;
     let busy_id = busy_q.job_id;
     queue.enqueue(&busy_q).await.expect("busy enqueue");
 
-    let mut other_q = MicroTaskJob::queue(
-        &wp_other,
-        "MT-OTHER-Q",
-        PathBuf::from("a.json"),
-        6,
-        vec![],
-    );
+    let mut other_q =
+        MicroTaskJob::queue(&wp_other, "MT-OTHER-Q", PathBuf::from("a.json"), 6, vec![]);
     other_q.escalation_tier = EscalationTier::T7B;
     other_q.created_at_utc = now + chrono::Duration::milliseconds(50);
     other_q.updated_at_utc = other_q.created_at_utc;
@@ -485,7 +486,11 @@ async fn mt_187_pg_fair_scheduling_rotates_across_wps_under_imbalance() {
     // other wp_ids; we identify by job_id).
     let mut first_wp_claim: Option<MicroTaskJobId> = None;
     for _ in 0..20 {
-        match sched.claim_next_priority(&pool, session).await.expect("claim") {
+        match sched
+            .claim_next_priority(&pool, session)
+            .await
+            .expect("claim")
+        {
             Some(id) if id == other_id || id == busy_id => {
                 first_wp_claim = Some(id);
                 break;
@@ -525,7 +530,7 @@ async fn mt_187_pg_fair_scheduling_rotates_across_wps_under_imbalance() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_187_pg_starvation_watermark_is_monotonic_across_process_restart() {
     // Insert a stale job, run check_with_watermark on a fresh guard
     // (process-1), expect a signal. Drop the guard, build a new one
@@ -578,7 +583,10 @@ async fn mt_187_pg_starvation_watermark_is_monotonic_across_process_restart() {
     .fetch_one(&pool)
     .await
     .expect("select watermark");
-    assert!(row.0.is_some(), "watermark column must be populated after first emission");
+    assert!(
+        row.0.is_some(),
+        "watermark column must be populated after first emission"
+    );
 
     sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
         .bind(&wp)
@@ -588,7 +596,7 @@ async fn mt_187_pg_starvation_watermark_is_monotonic_across_process_restart() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_187_pg_claim_next_priority_returns_none_on_empty_queue() {
     let pool = postgres_pool().await;
     ensure_full_schema(&pool).await;
@@ -601,7 +609,11 @@ async fn mt_187_pg_claim_next_priority_returns_none_on_empty_queue() {
     let mut consecutive_nones = 0;
     let mut iters = 0;
     while consecutive_nones < 2 && iters < 200 {
-        match sched.claim_next_priority(&pool, session).await.expect("claim") {
+        match sched
+            .claim_next_priority(&pool, session)
+            .await
+            .expect("claim")
+        {
             Some(_) => consecutive_nones = 0,
             None => consecutive_nones += 1,
         }
@@ -615,7 +627,7 @@ async fn mt_187_pg_claim_next_priority_returns_none_on_empty_queue() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_187_pg_claim_next_priority_no_double_claim_under_8_parallel_workers() {
     // 8 rows + 8 parallel claimers using claim_next_priority. Every row
     // must be claimed at most once — the SKIP LOCKED contract still

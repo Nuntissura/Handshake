@@ -485,7 +485,8 @@ impl ScrollbarRail {
         // actions from the input queue HERE, before `ui.interact(self.id, ...)` removes them, or
         // ScrollUp/ScrollDown would be swallowed and never reach the rail. SetValue is not auto-
         // consumed by egui, but we read it here too so all three actions share one code path.
-        let mut new_offset = self.consume_accesskit_actions(ui, self.id, self.scroll_offset, max_offset);
+        let mut new_offset =
+            self.consume_accesskit_actions(ui, self.id, self.scroll_offset, max_offset);
 
         // ── Sense a drag on the thumb ─────────────────────────────────────────────────────────────
         let thumb_rect = self.thumb_rect(thumb);
@@ -651,9 +652,17 @@ mod tests {
 
         // RGB channels asserted within ±1 of spec to absorb the premultiplied-alpha round-trip (egui
         // stores premultiplied; unmultiplying re-introduces up to 1 LSB at non-opaque alpha).
-        assert_rgb_within_1(c.for_state(RailState::Idle), [0x2A, 0x2A, 0x2F], "dark idle");
+        assert_rgb_within_1(
+            c.for_state(RailState::Idle),
+            [0x2A, 0x2A, 0x2F],
+            "dark idle",
+        );
         let idle = c.for_state(RailState::Idle).to_srgba_unmultiplied();
-        assert!((idle[3] as i32 - 153).abs() <= 1, "dark idle alpha ~153 (0.6); got {}", idle[3]);
+        assert!(
+            (idle[3] as i32 - 153).abs() <= 1,
+            "dark idle alpha ~153 (0.6); got {}",
+            idle[3]
+        );
 
         // Grab is fully opaque, so it round-trips exactly.
         let grab = c.for_state(RailState::Grab).to_srgba_unmultiplied();
@@ -662,16 +671,30 @@ mod tests {
         assert_eq!(grab[2], 0xFF, "dark grab B");
         assert_eq!(grab[3], 255, "dark grab fully opaque");
 
-        assert_rgb_within_1(c.for_state(RailState::Hover), [0x4A, 0x4A, 0x55], "dark hover");
+        assert_rgb_within_1(
+            c.for_state(RailState::Hover),
+            [0x4A, 0x4A, 0x55],
+            "dark hover",
+        );
         let hover = c.for_state(RailState::Hover).to_srgba_unmultiplied();
-        assert!((hover[3] as i32 - 217).abs() <= 1, "dark hover alpha ~217 (0.85)");
+        assert!(
+            (hover[3] as i32 - 217).abs() <= 1,
+            "dark hover alpha ~217 (0.85)"
+        );
 
         // Disabled is a low-alpha (0.3 -> 77/255) token stored premultiplied; unmultiplying back at
         // low alpha loses up to 1 LSB per channel (the documented egui premultiplied round-trip, see
         // theme/palette.rs). Assert each channel within ±1 of the #1E1E22 spec.
-        assert_rgb_within_1(c.for_state(RailState::Disabled), [0x1E, 0x1E, 0x22], "dark disabled");
+        assert_rgb_within_1(
+            c.for_state(RailState::Disabled),
+            [0x1E, 0x1E, 0x22],
+            "dark disabled",
+        );
         let disabled = c.for_state(RailState::Disabled).to_srgba_unmultiplied();
-        assert!((disabled[3] as i32 - 77).abs() <= 1, "dark disabled alpha ~77 (0.3)");
+        assert!(
+            (disabled[3] as i32 - 77).abs() <= 1,
+            "dark disabled alpha ~77 (0.3)"
+        );
     }
 
     /// AC: light palette matches the light spec, and differs from dark (themes distinguishable).
@@ -692,9 +715,17 @@ mod tests {
     #[test]
     fn light_rail_colors_match_spec_and_differ_from_dark() {
         let c = RailColors::light_theme();
-        assert_rgb_within_1(c.for_state(RailState::Idle), [0xC8, 0xC8, 0xD0], "light idle");
+        assert_rgb_within_1(
+            c.for_state(RailState::Idle),
+            [0xC8, 0xC8, 0xD0],
+            "light idle",
+        );
         let grab = c.for_state(RailState::Grab).to_srgba_unmultiplied();
-        assert_eq!([grab[0], grab[1], grab[2]], [0x50, 0x50, 0xFF], "light grab rgb");
+        assert_eq!(
+            [grab[0], grab[1], grab[2]],
+            [0x50, 0x50, 0xFF],
+            "light grab rgb"
+        );
         assert_eq!(grab[3], 255, "light grab opaque");
 
         // Themes must be distinguishable on every state.
@@ -724,8 +755,16 @@ mod tests {
     fn thumb_length_and_pos_at_top() {
         let t = ScrollbarThumb::compute(1000.0, 200.0, 0.0, 200.0, RailDimensions::default());
         assert!(t.scrollable, "content overflows -> scrollable");
-        assert!((t.thumb_length - 40.0).abs() < EPS, "thumb_length 40px; got {}", t.thumb_length);
-        assert!((t.thumb_pos - 0.0).abs() < EPS, "thumb_pos 0 at offset 0; got {}", t.thumb_pos);
+        assert!(
+            (t.thumb_length - 40.0).abs() < EPS,
+            "thumb_length 40px; got {}",
+            t.thumb_length
+        );
+        assert!(
+            (t.thumb_pos - 0.0).abs() < EPS,
+            "thumb_pos 0 at offset 0; got {}",
+            t.thumb_pos
+        );
     }
 
     /// AC: content fits the viewport -> Disabled, no movement, thumb not scrollable.
@@ -759,7 +798,9 @@ mod tests {
         // Deterministic pseudo-random sweep (no rand dep): vary content/viewport/offset/track.
         let mut seed: u64 = 0x9E3779B97F4A7C15;
         let mut next = || {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             ((seed >> 33) as f32) / (u32::MAX as f32)
         };
         for _ in 0..5000 {
@@ -773,7 +814,12 @@ mod tests {
                 assert!(
                     t.thumb_pos + t.thumb_length <= track + 1e-2,
                     "thumb overflows track: pos={} len={} track={} (content={} viewport={} off={})",
-                    t.thumb_pos, t.thumb_length, track, content, viewport, offset
+                    t.thumb_pos,
+                    t.thumb_length,
+                    track,
+                    content,
+                    viewport,
+                    offset
                 );
                 assert!(t.thumb_pos >= -1e-3, "thumb_pos non-negative");
                 assert!(t.thumb_length >= 0.0);
@@ -792,7 +838,9 @@ mod tests {
         assert!(
             (t.thumb_pos + t.thumb_length - track).abs() < 1e-2,
             "thumb bottom edge at track end: pos={} len={} track={}",
-            t.thumb_pos, t.thumb_length, track
+            t.thumb_pos,
+            t.thumb_length,
+            track
         );
     }
 
@@ -802,7 +850,11 @@ mod tests {
         let dims = RailDimensions::default();
         // viewport/content = 1/100 -> raw thumb = 2px on a 200px track; floored to 20px.
         let t = ScrollbarThumb::compute(20000.0, 200.0, 0.0, 200.0, dims);
-        assert!((t.thumb_length - dims.min_thumb_length).abs() < EPS, "floored to 20px; got {}", t.thumb_length);
+        assert!(
+            (t.thumb_length - dims.min_thumb_length).abs() < EPS,
+            "floored to 20px; got {}",
+            t.thumb_length
+        );
     }
 
     // ── Visual vs hit rect (AC-8) ─────────────────────────────────────────────────────────────────
@@ -814,17 +866,39 @@ mod tests {
         // Vertical rail: 8px-wide hit rect, 100px tall.
         let hit = egui::Rect::from_min_max(egui::pos2(100.0, 0.0), egui::pos2(108.0, 100.0));
         let vis = RailWidget::visual_rect(RailOrientation::Vertical, hit, dims);
-        assert!((vis.width() - dims.visual_thickness).abs() < EPS, "visual is 4px wide; got {}", vis.width());
-        assert!((hit.width() - dims.hit_thickness).abs() < EPS, "hit is 8px wide");
-        assert!((vis.center().x - hit.center().x).abs() < EPS, "visual centered in hit (x)");
-        assert!((vis.height() - hit.height()).abs() < EPS, "visual spans full long axis");
+        assert!(
+            (vis.width() - dims.visual_thickness).abs() < EPS,
+            "visual is 4px wide; got {}",
+            vis.width()
+        );
+        assert!(
+            (hit.width() - dims.hit_thickness).abs() < EPS,
+            "hit is 8px wide"
+        );
+        assert!(
+            (vis.center().x - hit.center().x).abs() < EPS,
+            "visual centered in hit (x)"
+        );
+        assert!(
+            (vis.height() - hit.height()).abs() < EPS,
+            "visual spans full long axis"
+        );
 
         // Horizontal rail: 8px-tall hit rect, 100px wide.
         let hith = egui::Rect::from_min_max(egui::pos2(0.0, 50.0), egui::pos2(100.0, 58.0));
         let vish = RailWidget::visual_rect(RailOrientation::Horizontal, hith, dims);
-        assert!((vish.height() - dims.visual_thickness).abs() < EPS, "visual is 4px tall");
-        assert!((vish.center().y - hith.center().y).abs() < EPS, "visual centered in hit (y)");
-        assert!((vish.width() - hith.width()).abs() < EPS, "visual spans full long axis");
+        assert!(
+            (vish.height() - dims.visual_thickness).abs() < EPS,
+            "visual is 4px tall"
+        );
+        assert!(
+            (vish.center().y - hith.center().y).abs() < EPS,
+            "visual centered in hit (y)"
+        );
+        assert!(
+            (vish.width() - hith.width()).abs() < EPS,
+            "visual spans full long axis"
+        );
     }
 
     // ── Divider state selection (AC-5 maps to weight; state here) ──────────────────────────────────
@@ -834,7 +908,11 @@ mod tests {
         assert_eq!(divider_rail_state(false, false), RailState::Idle);
         assert_eq!(divider_rail_state(true, false), RailState::Hover);
         assert_eq!(divider_rail_state(false, true), RailState::Grab);
-        assert_eq!(divider_rail_state(true, true), RailState::Grab, "grab beats hover");
+        assert_eq!(
+            divider_rail_state(true, true),
+            RailState::Grab,
+            "grab beats hover"
+        );
     }
 
     /// Offset inverse: a thumb dragged by `delta` maps back to the expected offset delta.
@@ -843,9 +921,15 @@ mod tests {
         // content 1000, viewport 200, track 200, thumb 40 -> travel 160, max_off 800.
         // dragging the thumb the full travel (160px) must move the offset the full max (800).
         let d = ScrollbarThumb::offset_for_thumb_delta(160.0, 1000.0, 200.0, 200.0, 40.0);
-        assert!((d - 800.0).abs() < 1e-1, "full-travel drag -> full offset; got {d}");
+        assert!(
+            (d - 800.0).abs() < 1e-1,
+            "full-travel drag -> full offset; got {d}"
+        );
         // half travel -> half offset.
         let h = ScrollbarThumb::offset_for_thumb_delta(80.0, 1000.0, 200.0, 200.0, 40.0);
-        assert!((h - 400.0).abs() < 1e-1, "half-travel drag -> half offset; got {h}");
+        assert!(
+            (h - 400.0).abs() < 1e-1,
+            "half-travel drag -> half offset; got {h}"
+        );
     }
 }

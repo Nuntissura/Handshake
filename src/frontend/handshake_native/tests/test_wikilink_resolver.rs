@@ -31,8 +31,12 @@ use std::sync::Arc;
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
+};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::wikilinks::autocomplete::candidates_for_query;
 use handshake_native::rich_editor::wikilinks::client::{
     BacklinksResponse, LoomBlockTransclusion, RichDocBacklink, WikilinkBackend, WikilinkError,
@@ -80,16 +84,30 @@ fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
 /// A minimal wikilink backend (search/transclusion/backlinks) for the editor's existing MT-015 paths.
 struct InertBackend;
 impl WikilinkBackend for InertBackend {
-    fn search<'a>(&'a self, _ws: &'a str, _q: &'a str, _l: usize) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
+    fn search<'a>(
+        &'a self,
+        _ws: &'a str,
+        _q: &'a str,
+        _l: usize,
+    ) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
         Box::pin(async { Ok(vec![]) })
     }
-    fn resolve_transclusion<'a>(&'a self, _ws: &'a str, r: &'a str) -> WikilinkFuture<'a, LoomBlockTransclusion> {
+    fn resolve_transclusion<'a>(
+        &'a self,
+        _ws: &'a str,
+        r: &'a str,
+    ) -> WikilinkFuture<'a, LoomBlockTransclusion> {
         let r = r.to_owned();
         Box::pin(async move { Err(WikilinkError::NotFound(r)) })
     }
     fn list_backlinks<'a>(&'a self, d: &'a str) -> WikilinkFuture<'a, BacklinksResponse> {
         let d = d.to_owned();
-        Box::pin(async move { Ok(BacklinksResponse { source_document_id: d, backlinks: Vec::<RichDocBacklink>::new() }) })
+        Box::pin(async move {
+            Ok(BacklinksResponse {
+                source_document_id: d,
+                backlinks: Vec::<RichDocBacklink>::new(),
+            })
+        })
     }
 }
 
@@ -124,9 +142,13 @@ impl CreateNoteBackend for SpyCreateBackend {
         &'a self,
         workspace_id: &'a str,
         title: &'a str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>>
+    {
         self.calls.fetch_add(1, Ordering::SeqCst);
-        self.requests.lock().unwrap().push((workspace_id.to_owned(), title.to_owned()));
+        self.requests
+            .lock()
+            .unwrap()
+            .push((workspace_id.to_owned(), title.to_owned()));
         let id = self.new_doc_id.clone();
         Box::pin(async move { Ok(id) })
     }
@@ -139,7 +161,12 @@ struct SeedSearchBackend {
     hits: Vec<(String, String)>,
 }
 impl WikilinkBackend for SeedSearchBackend {
-    fn search<'a>(&'a self, _ws: &'a str, _q: &'a str, _l: usize) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
+    fn search<'a>(
+        &'a self,
+        _ws: &'a str,
+        _q: &'a str,
+        _l: usize,
+    ) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
         let rows: Vec<WikilinkResult> = self
             .hits
             .iter()
@@ -152,13 +179,22 @@ impl WikilinkBackend for SeedSearchBackend {
             .collect();
         Box::pin(async move { Ok(rows) })
     }
-    fn resolve_transclusion<'a>(&'a self, _ws: &'a str, r: &'a str) -> WikilinkFuture<'a, LoomBlockTransclusion> {
+    fn resolve_transclusion<'a>(
+        &'a self,
+        _ws: &'a str,
+        r: &'a str,
+    ) -> WikilinkFuture<'a, LoomBlockTransclusion> {
         let r = r.to_owned();
         Box::pin(async move { Err(WikilinkError::NotFound(r)) })
     }
     fn list_backlinks<'a>(&'a self, d: &'a str) -> WikilinkFuture<'a, BacklinksResponse> {
         let d = d.to_owned();
-        Box::pin(async move { Ok(BacklinksResponse { source_document_id: d, backlinks: Vec::<RichDocBacklink>::new() }) })
+        Box::pin(async move {
+            Ok(BacklinksResponse {
+                source_document_id: d,
+                backlinks: Vec::<RichDocBacklink>::new(),
+            })
+        })
     }
 }
 
@@ -192,7 +228,9 @@ fn pt003_resolve_by_alias_returns_match_kind_alias() {
         r,
         WikilinkResolution::Resolved {
             document_id: "DOC-1".into(),
-            matched_by: MatchKind::Alias { alias: "Atlas".into() }
+            matched_by: MatchKind::Alias {
+                alias: "Atlas".into()
+            }
         },
         "AC-003/PT-003: an alias-only target resolves by alias and reports MatchKind::Alias"
     );
@@ -208,9 +246,19 @@ fn ac005_alias_candidate_has_matched_alias_and_stable_author_id() {
     idx.add_document("DOC-9", "Quarterly Plan");
     idx.add_alias("DOC-9", "QP");
     let cands = candidates_for_query(&idx, "qp");
-    let c = cands.iter().find(|c| c.document_id == "DOC-9").expect("alias candidate present");
-    assert_eq!(c.matched_alias.as_deref(), Some("QP"), "AC-005: matched_alias is set for an alias match");
-    assert_eq!(c.display_title, "Quarterly Plan", "the primary label is the canonical title");
+    let c = cands
+        .iter()
+        .find(|c| c.document_id == "DOC-9")
+        .expect("alias candidate present");
+    assert_eq!(
+        c.matched_alias.as_deref(),
+        Some("QP"),
+        "AC-005: matched_alias is set for an alias match"
+    );
+    assert_eq!(
+        c.display_title, "Quarterly Plan",
+        "the primary label is the canonical title"
+    );
     // The candidate author_id is the stable contract form.
     assert_eq!(candidate_author_id("DOC-9"), "wikilink-candidate-DOC-9");
 }
@@ -253,8 +301,13 @@ fn ac001_pt002_unresolved_click_emits_create_note_intent() {
 
     // AC-001: a CreateNote intent carrying the title is enqueued.
     let events = state.lock().unwrap().pending_events.clone();
-    let found = events.iter().any(|e| matches!(e, EditorEvent::CreateNote { title } if title == "Brand New Note"));
-    assert!(found, "AC-001: clicking the unresolved link emits CreateNote{{title}} (got {events:?})");
+    let found = events
+        .iter()
+        .any(|e| matches!(e, EditorEvent::CreateNote { title } if title == "Brand New Note"));
+    assert!(
+        found,
+        "AC-001: clicking the unresolved link emits CreateNote{{title}} (got {events:?})"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -264,7 +317,11 @@ fn ac001_pt002_unresolved_click_emits_create_note_intent() {
 
 #[test]
 fn ac002_pt002_post_create_mark_becomes_resolved_live() {
-    let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
     let backend = Arc::new(SpyCreateBackend::new("DOC-CREATED"));
     let backend_dyn: Arc<dyn CreateNoteBackend> = backend.clone();
 
@@ -287,8 +344,13 @@ fn ac002_pt002_post_create_mark_becomes_resolved_live() {
     // BEFORE: the mark is unresolved.
     {
         let st = state.lock().unwrap();
-        let link = st.doc.children[0].as_block().unwrap().children[1].as_hs_link().unwrap();
-        assert!(!link.resolved, "precondition: the mark is unresolved before the create");
+        let link = st.doc.children[0].as_block().unwrap().children[1]
+            .as_hs_link()
+            .unwrap();
+        assert!(
+            !link.resolved,
+            "precondition: the mark is unresolved before the create"
+        );
     }
 
     // Click the create affordance -> the widget dispatches the create on the real runtime.
@@ -309,25 +371,41 @@ fn ac002_pt002_post_create_mark_becomes_resolved_live() {
     for _ in 0..200 {
         harness.run();
         let st = state.lock().unwrap();
-        let link = st.doc.children[0].as_block().unwrap().children[1].as_hs_link().unwrap();
+        let link = st.doc.children[0].as_block().unwrap().children[1]
+            .as_hs_link()
+            .unwrap();
         if link.resolved {
-            assert_eq!(link.ref_value, "DOC-CREATED", "AC-002: the mark now targets the new document id");
+            assert_eq!(
+                link.ref_value, "DOC-CREATED",
+                "AC-002: the mark now targets the new document id"
+            );
             became_resolved = true;
             break;
         }
         drop(st);
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    assert!(became_resolved, "AC-002: after the create resolves, the originating mark becomes Resolved (live)");
+    assert!(
+        became_resolved,
+        "AC-002: after the create resolves, the originating mark becomes Resolved (live)"
+    );
 
     // MC-001 / AC-007: the create routed through the MT-037 binding exactly once (one POST, no dup).
-    assert_eq!(backend.call_count(), 1, "AC-007/MC-001: exactly one create call through the binding");
+    assert_eq!(
+        backend.call_count(),
+        1,
+        "AC-007/MC-001: exactly one create call through the binding"
+    );
     // AC-007: the captured POST REQUEST SHAPE carries the workspace + the link title (an empty body is
     // the binding's concern, proven in the runtime unit tests). The spy proves the runtime handed the
     // binding the right `(workspace_id, title)` — not a new endpoint, not a malformed call.
     let reqs = backend.captured_requests();
     assert_eq!(reqs.len(), 1, "exactly one create request captured");
-    assert_eq!(reqs[0], ("ws-1".to_owned(), "Fresh Note".to_owned()), "AC-007: the create POST carries (workspace_id, title)");
+    assert_eq!(
+        reqs[0],
+        ("ws-1".to_owned(), "Fresh Note".to_owned()),
+        "AC-007: the create POST carries (workspace_id, title)"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -336,7 +414,11 @@ fn ac002_pt002_post_create_mark_becomes_resolved_live() {
 
 #[test]
 fn mc001_double_click_does_not_create_twice() {
-    let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
     // A backend that BLOCKS so the first create is still "in flight" when the second click lands.
     struct SlowBackend {
         calls: AtomicUsize,
@@ -346,7 +428,8 @@ fn mc001_double_click_does_not_create_twice() {
             &'a self,
             _ws: &'a str,
             _t: &'a str,
-        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>> {
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>>
+        {
             self.calls.fetch_add(1, Ordering::SeqCst);
             Box::pin(async move {
                 tokio::time::sleep(std::time::Duration::from_millis(300)).await;
@@ -354,7 +437,9 @@ fn mc001_double_click_does_not_create_twice() {
             })
         }
     }
-    let backend = Arc::new(SlowBackend { calls: AtomicUsize::new(0) });
+    let backend = Arc::new(SlowBackend {
+        calls: AtomicUsize::new(0),
+    });
     let backend_dyn: Arc<dyn CreateNoteBackend> = backend.clone();
 
     let doc = doc_with_unresolved_link("Racey Note");
@@ -402,9 +487,15 @@ fn mc001_double_click_does_not_create_twice() {
     // A direct second dispatch attempt for the same title is a no-op (in-flight guard).
     {
         let mut st = state.lock().unwrap();
-        assert!(st.wikilinks.is_creating("Racey Note"), "the title is in flight");
+        assert!(
+            st.wikilinks.is_creating("Racey Note"),
+            "the title is in flight"
+        );
         let dispatched_again = st.wikilinks.dispatch_create_note("Racey Note");
-        assert!(!dispatched_again, "MC-001: a second dispatch while in flight is a no-op (no duplicate POST)");
+        assert!(
+            !dispatched_again,
+            "MC-001: a second dispatch while in flight is a no-op (no duplicate POST)"
+        );
     }
 
     // Wait for the (single) slow create to resolve.
@@ -428,10 +519,18 @@ fn ac006_pt005_missing_aliases_banner_shown_and_create_half_still_works() {
     // Simulate the backend reality: the payload has no `aliases` field -> the local stub is the only
     // alias source. Using it flips the local-only banner flag (AC-006). The resolver index has no
     // alias support.
-    runtime.resolver_index.add_document("DOC-1", "Project Atlas");
+    runtime
+        .resolver_index
+        .add_document("DOC-1", "Project Atlas");
     runtime.add_local_alias("DOC-1", "Atlas"); // exercises the alias path -> flips the gap banner
-    assert!(runtime.alias_backend_gap, "AC-006: the typed-gap (local-only banner) flag is raised");
-    assert!(!runtime.resolver_index.aliases_supported, "AC-006: backend aliases are unavailable");
+    assert!(
+        runtime.alias_backend_gap,
+        "AC-006: the typed-gap (local-only banner) flag is raised"
+    );
+    assert!(
+        !runtime.resolver_index.aliases_supported,
+        "AC-006: backend aliases are unavailable"
+    );
 
     let state = Arc::new(std::sync::Mutex::new(
         RichEditorState::new(doc).with_wikilink_runtime(runtime),
@@ -455,7 +554,10 @@ fn ac006_pt005_missing_aliases_banner_shown_and_create_half_still_works() {
         let banner_present = root
             .children_recursive()
             .any(|n| n.accesskit_node().author_id() == Some("wikilink-alias-local-only-banner"));
-        assert!(banner_present, "AC-006: the banner node is addressable by a stable author_id");
+        assert!(
+            banner_present,
+            "AC-006: the banner node is addressable by a stable author_id"
+        );
     }
 
     // The CREATE-FROM-UNRESOLVED half is INDEPENDENT of aliases + still works: the create affordance is
@@ -507,16 +609,25 @@ fn ac004_pt004_create_affordance_screenshot_and_accesskit_dump() {
     for node in root.children_recursive() {
         let n = node.accesskit_node();
         if n.author_id() == Some(create_author.as_str()) {
-            assert_eq!(n.role(), egui::accesskit::Role::Button, "PT-004: the create affordance is a Button");
+            assert_eq!(
+                n.role(),
+                egui::accesskit::Role::Button,
+                "PT-004: the create affordance is a Button"
+            );
             assert!(
-                n.label().map(|l| l.contains("Create note")).unwrap_or(false),
+                n.label()
+                    .map(|l| l.contains("Create note"))
+                    .unwrap_or(false),
                 "PT-004: the create node carries a 'Create note' label"
             );
             found = true;
             break;
         }
     }
-    assert!(found, "PT-004: a 'wikilink-create-{{hash}}' Button node is present on the unresolved link");
+    assert!(
+        found,
+        "PT-004: a 'wikilink-create-{{hash}}' Button node is present on the unresolved link"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -554,7 +665,9 @@ fn ac005_alias_candidate_dropdown_row_live_widget() {
     )]);
     // Seed an alias into the LIVE runtime resolver index (the data source the dropdown consumes).
     let mut runtime = headless_runtime();
-    runtime.resolver_index.add_document("DOC-9", "Quarterly Plan");
+    runtime
+        .resolver_index
+        .add_document("DOC-9", "Quarterly Plan");
     runtime.add_local_alias("DOC-9", "QP");
     // Sanity: the candidate provider surfaces the alias match (the data the live popup will render).
     assert!(
@@ -596,8 +709,14 @@ fn ac005_alias_candidate_dropdown_row_live_widget() {
     // The popup is open and the live query is "qp".
     {
         let st = state.lock().unwrap();
-        let ac = st.wikilink_autocomplete.as_ref().expect("the `[[` trigger opened the popup");
-        assert_eq!(ac.query, "qp", "the live autocomplete query is the typed alias query");
+        let ac = st
+            .wikilink_autocomplete
+            .as_ref()
+            .expect("the `[[` trigger opened the popup");
+        assert_eq!(
+            ac.query, "qp",
+            "the live autocomplete query is the typed alias query"
+        );
     }
 
     // AC-005: the LIVE `render_autocomplete_popup` produced a `wikilink-candidate-DOC-9` row carrying
@@ -609,7 +728,10 @@ fn ac005_alias_candidate_dropdown_row_live_widget() {
             .find(|n| n.accesskit_node().author_id() == Some(candidate_author_id("DOC-9").as_str()))
             .expect("AC-005: the LIVE dropdown produced a 'wikilink-candidate-DOC-9' row");
         let label = row.accesskit_node().label().unwrap_or_default();
-        assert!(label.contains("Quarterly Plan"), "the live row shows the canonical title (got {label:?})");
+        assert!(
+            label.contains("Quarterly Plan"),
+            "the live row shows the canonical title (got {label:?})"
+        );
         assert!(
             label.contains("alias: \"QP\""),
             "AC-005: the live row shows the alias secondary label (got {label:?})"
@@ -630,7 +752,9 @@ fn ac005_alias_candidate_dropdown_row_screenshot() {
         vec![Child::Text(TextLeaf::new(""))],
     )]);
     let mut runtime = headless_runtime();
-    runtime.resolver_index.add_document("DOC-9", "Quarterly Plan");
+    runtime
+        .resolver_index
+        .add_document("DOC-9", "Quarterly Plan");
     runtime.add_local_alias("DOC-9", "QP");
     let state = Arc::new(std::sync::Mutex::new(
         RichEditorState::new(doc).with_wikilink_runtime(runtime),
@@ -663,7 +787,10 @@ fn ac005_alias_candidate_dropdown_row_screenshot() {
         let present = root
             .children_recursive()
             .any(|n| n.accesskit_node().author_id() == Some(candidate_author_id("DOC-9").as_str()));
-        assert!(present, "AC-005: the LIVE dropdown produced the alias candidate row before the screenshot");
+        assert!(
+            present,
+            "AC-005: the LIVE dropdown produced the alias candidate row before the screenshot"
+        );
     }
 
     match harness.render() {
@@ -690,7 +817,11 @@ fn ac005_alias_candidate_dropdown_row_screenshot() {
 
 #[test]
 fn set_wikilink_context_installs_create_backend_seeds_index_and_flips_banner() {
-    let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
     // Build the editor over a runtime whose `search()` returns a fixed Loom enumeration (the seed
     // source). set_wikilink_context keeps this backend and uses it to seed the resolver index.
     let seed_backend = Arc::new(SeedSearchBackend {
@@ -704,9 +835,19 @@ fn set_wikilink_context_installs_create_backend_seeds_index_and_flips_banner() {
     let mut state = RichEditorState::new(doc).with_wikilink_runtime(runtime);
 
     // BEFORE the hook: no create backend, an empty index, no banner.
-    assert!(state.wikilinks.create_backend.is_none(), "precondition: no create backend before the hook");
-    assert_eq!(state.wikilinks.resolver_index.title_count(), 0, "precondition: empty index");
-    assert!(!state.wikilinks.alias_backend_gap, "precondition: no banner before the hook");
+    assert!(
+        state.wikilinks.create_backend.is_none(),
+        "precondition: no create backend before the hook"
+    );
+    assert_eq!(
+        state.wikilinks.resolver_index.title_count(),
+        0,
+        "precondition: empty index"
+    );
+    assert!(
+        !state.wikilinks.alias_backend_gap,
+        "precondition: no banner before the hook"
+    );
 
     // THE PRODUCTION HOOK: install the live wikilink context.
     state.set_wikilink_context("ws-77", "DOC-CURRENT", rt.handle().clone());
@@ -740,14 +881,20 @@ fn set_wikilink_context_installs_create_backend_seeds_index_and_flips_banner() {
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    assert!(seeded, "WIRE 2b: the seed search result folded into the resolver index");
+    assert!(
+        seeded,
+        "WIRE 2b: the seed search result folded into the resolver index"
+    );
 
     // AC-003 (live): a `[[Project Atlas]]` now classifies Resolved against the SEEDED index (it was
     // Unresolved before the seed) — resolution is no longer inert.
     let r = resolve_wikilink(&state.wikilinks.resolver_index, "project atlas");
     assert_eq!(
         r,
-        WikilinkResolution::Resolved { document_id: "DOC-1".into(), matched_by: MatchKind::ExactTitle },
+        WikilinkResolution::Resolved {
+            document_id: "DOC-1".into(),
+            matched_by: MatchKind::ExactTitle
+        },
         "AC-003: the seeded title resolves at runtime (resolution is live, not inert)"
     );
 }
@@ -757,13 +904,21 @@ fn ac006_banner_flips_through_production_hook_not_just_local_alias() {
     // AC-006 (via the production hook): the banner is flipped by set_wikilink_context itself (the
     // backend payload has no aliases field), independent of any add_local_alias call — proving the
     // banner is not dead code at runtime. Then a real-widget render shows the visible banner.
-    let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
-    let runtime = WikilinkRuntime::new("", Arc::new(InertBackend) as Arc<dyn WikilinkBackend>, None);
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let runtime =
+        WikilinkRuntime::new("", Arc::new(InertBackend) as Arc<dyn WikilinkBackend>, None);
     let doc = doc_with_unresolved_link("Some Note");
     let state = Arc::new(std::sync::Mutex::new(
         RichEditorState::new(doc).with_wikilink_runtime(runtime),
     ));
-    state.lock().unwrap().set_wikilink_context("ws-9", "DOC-9", rt.handle().clone());
+    state
+        .lock()
+        .unwrap()
+        .set_wikilink_context("ws-9", "DOC-9", rt.handle().clone());
     assert!(
         state.lock().unwrap().wikilinks.alias_backend_gap,
         "AC-006: the production hook flips the banner flag (no add_local_alias needed)"
@@ -782,7 +937,10 @@ fn ac006_banner_flips_through_production_hook_not_just_local_alias() {
         let banner_present = root
             .children_recursive()
             .any(|n| n.accesskit_node().author_id() == Some("wikilink-alias-local-only-banner"));
-        assert!(banner_present, "AC-006: the local-only banner renders after the production hook flips the flag");
+        assert!(
+            banner_present,
+            "AC-006: the local-only banner renders after the production hook flips the flag"
+        );
     }
 }
 
@@ -793,7 +951,12 @@ fn ac006_banner_flips_through_production_hook_not_just_local_alias() {
 #[test]
 fn create_note_intent_is_the_command_bus_event() {
     let intent: EditorIntent = create_note_intent("  Spaced Title  ");
-    assert_eq!(intent, EditorEvent::CreateNote { title: "Spaced Title".into() });
+    assert_eq!(
+        intent,
+        EditorEvent::CreateNote {
+            title: "Spaced Title".into()
+        }
+    );
     // The Created outcome shape carries the fields the widget needs to rewrite the mark.
     let outcome = CreateNoteOutcome::Created {
         normalized_title: "spaced title".into(),
@@ -825,14 +988,22 @@ fn create_note_intent_is_the_command_bus_event() {
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL/EventLedger with a seeded workspace (real Loom search seeding + real POST /knowledge/documents); no managed backend on this host"]
 #[cfg(feature = "integration")]
 fn live_pg_set_wikilink_context_seeds_and_creates() {
-    let ws = std::env::var("HANDSHAKE_TEST_WS").expect("set HANDSHAKE_TEST_WS to a seeded workspace id");
-    let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
+    let ws =
+        std::env::var("HANDSHAKE_TEST_WS").expect("set HANDSHAKE_TEST_WS to a seeded workspace id");
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .unwrap();
 
     let doc = doc_with_unresolved_link("Brand New Live Note");
     let state = Arc::new(std::sync::Mutex::new(RichEditorState::new(doc)));
     // THE PRODUCTION HOOK: installs the real create backend + seeds the resolver index from real Loom
     // search + flips the banner. No manual set_create_backend / add_local_alias.
-    state.lock().unwrap().set_wikilink_context(ws.clone(), "DOC-LIVE", rt.handle().clone());
+    state
+        .lock()
+        .unwrap()
+        .set_wikilink_context(ws.clone(), "DOC-LIVE", rt.handle().clone());
 
     let state_for_ui = Arc::clone(&state);
     let mut harness = Harness::builder()
@@ -867,14 +1038,22 @@ fn live_pg_set_wikilink_context_seeds_and_creates() {
     for _ in 0..200 {
         harness.run();
         let st = state.lock().unwrap();
-        let link = st.doc.children[0].as_block().unwrap().children[1].as_hs_link().unwrap();
+        let link = st.doc.children[0].as_block().unwrap().children[1]
+            .as_hs_link()
+            .unwrap();
         if link.resolved {
             resolved = true;
-            println!("AC-002 LIVE-PG: create POST resolved the mark to {}", link.ref_value);
+            println!(
+                "AC-002 LIVE-PG: create POST resolved the mark to {}",
+                link.ref_value
+            );
             break;
         }
         drop(st);
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
-    assert!(resolved, "AC-002 LIVE: the create-from-unresolved POST resolved the originating mark");
+    assert!(
+        resolved,
+        "AC-002 LIVE: the create-from-unresolved POST resolved the originating mark"
+    );
 }

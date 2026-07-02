@@ -5,12 +5,12 @@ use std::sync::Mutex;
 use chrono::Utc;
 use handshake_core::kernel::action_catalog::kernel002_action_catalog;
 use handshake_core::memory::outcome_feedback::{
-    CapsuleOutcome, FailureClass, MemoryPackItemRef, OUTCOME_ATTACH_ACTION_ID,
-    OutcomeAttachSubmitter, OutcomeAttribution, OutcomeError, OutcomeFeedbackLoop, OutcomeReceipt,
-    OutcomeScoringTuner, TuningParams,
+    CapsuleOutcome, FailureClass, MemoryPackItemRef, OutcomeAttachSubmitter, OutcomeAttribution,
+    OutcomeError, OutcomeFeedbackLoop, OutcomeReceipt, OutcomeScoringTuner, TuningParams,
+    OUTCOME_ATTACH_ACTION_ID,
 };
 use handshake_core::memory::persistence_postgres::PostgresKernelActionSubmitter;
-use handshake_core::storage::{Database, StorageError, StorageResult, postgres::PostgresDatabase};
+use handshake_core::storage::{postgres::PostgresDatabase, Database, StorageError, StorageResult};
 use sqlx::{Connection, PgPool, Row};
 use uuid::Uuid;
 
@@ -244,7 +244,7 @@ fn record_outcome_does_not_tune_scores_when_attach_fails() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires POSTGRES_TEST_URL and an isolated live Postgres schema"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
 async fn postgres_outcome_attach_submitter_persists_catalog_event() {
     let (db, pool) = isolated_postgres().await.expect("isolated postgres");
     let submitter = PostgresKernelActionSubmitter::with_db(db);
@@ -307,8 +307,7 @@ async fn postgres_outcome_attach_submitter_persists_catalog_event() {
 }
 
 async fn isolated_postgres() -> StorageResult<(Arc<dyn Database>, PgPool)> {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .map_err(|_| StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests"))?;
+    let url = handshake_core::storage::tests::postgres_test_base_url().await?;
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("mt158_outcome_feedback_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))

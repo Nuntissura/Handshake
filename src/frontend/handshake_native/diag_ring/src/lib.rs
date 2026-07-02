@@ -42,10 +42,8 @@ pub use ring::{
     default_backing_path, DiagRingReader, DiagRingWriter, Heartbeat, DEFAULT_CAPACITY, HEADER_SIZE,
     RECORD_SLOT_SIZE, RING_MAGIC, RING_VERSION, SEQLOCK_READ_RETRY_BOUND,
 };
-pub use schema::{
-    DiagEvent, DiagEventCode, DiagPhase, DiagSeverity, DIAG_EVENT_SIZE,
-};
+pub use schema::{DiagEvent, DiagEventCode, DiagPhase, DiagSeverity, DIAG_EVENT_SIZE};
 pub use three_tier_evidence::{
-    format_rfc3339_utc, run_at_now, DiagTier, EmitError, ThreeTierDiagnosticWiringRecord, TierWiring,
-    ValidationError, WiringStatus, EVIDENCE_FILE_NAME,
+    format_rfc3339_utc, run_at_now, DiagTier, EmitError, ThreeTierDiagnosticWiringRecord,
+    TierWiring, ValidationError, WiringStatus, EVIDENCE_FILE_NAME,
 };

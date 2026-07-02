@@ -171,9 +171,9 @@ impl SaveBackend for ReqwestSaveBackend {
                 &document_id_owned,
                 &session_run_id,
             )
-                .send()
-                .await
-                .map_err(|e| SaveError::Network(e.to_string()))?;
+            .send()
+            .await
+            .map_err(|e| SaveError::Network(e.to_string()))?;
             let status = resp.status();
             if status.is_success() {
                 let result: RichDocSaveResult = resp
@@ -243,7 +243,10 @@ pub(crate) fn attach_doc_headers(
     builder
         .header(HSK_HEADER_ACTOR_ID, DOC_ACTOR_ID)
         .header(HSK_HEADER_ACTOR_KIND, DOC_ACTOR_KIND)
-        .header(HSK_HEADER_KERNEL_TASK_RUN_ID, format!("native-editor-doc-{document_id}"))
+        .header(
+            HSK_HEADER_KERNEL_TASK_RUN_ID,
+            format!("native-editor-doc-{document_id}"),
+        )
         .header(HSK_HEADER_SESSION_RUN_ID, session_run_id)
 }
 
@@ -331,7 +334,9 @@ impl SaveManager {
         document_id: impl Into<String>,
         doc_version: u64,
     ) -> Self {
-        let backend = Arc::new(ReqwestSaveBackend::new(crate::backend_client::BACKEND_BASE_URL));
+        let backend = Arc::new(ReqwestSaveBackend::new(
+            crate::backend_client::BACKEND_BASE_URL,
+        ));
         Self::new(backend, Some(runtime), document_id, doc_version)
     }
 
@@ -373,7 +378,9 @@ impl SaveManager {
             let cell = Arc::clone(&self.cell);
             let document_id = self.document_id.clone();
             rt.spawn(async move {
-                let result = backend.save_document(&document_id, content_json, expected_version).await;
+                let result = backend
+                    .save_document(&document_id, content_json, expected_version)
+                    .await;
                 if let Ok(mut slot) = cell.lock() {
                     *slot = Some(result);
                 }
@@ -428,7 +435,11 @@ impl SaveManager {
     /// MC-003 step 1: the operator clicked "Keep yours" in the conflict UI. Transition to the
     /// confirmation state (does NOT re-save yet — the destructive overwrite needs a confirm).
     pub fn request_keep_yours(&mut self) {
-        if let SaveState::Conflict { server, local_content } = &self.state {
+        if let SaveState::Conflict {
+            server,
+            local_content,
+        } = &self.state
+        {
             self.state = SaveState::ConfirmKeepYours {
                 server: server.clone(),
                 local_content: local_content.clone(),
@@ -440,7 +451,11 @@ impl SaveManager {
     /// the server's `doc_version` (so the optimistic-concurrency check passes this time),
     /// overwriting the concurrent edit. Only valid from [`SaveState::ConfirmKeepYours`].
     pub fn confirm_keep_yours(&mut self) {
-        let SaveState::ConfirmKeepYours { server, local_content } = &self.state else {
+        let SaveState::ConfirmKeepYours {
+            server,
+            local_content,
+        } = &self.state
+        else {
             return;
         };
         let local = local_content.clone();
@@ -453,7 +468,11 @@ impl SaveManager {
 
     /// The operator cancelled the keep-yours confirmation: return to the open conflict (no save).
     pub fn cancel_keep_yours(&mut self) {
-        if let SaveState::ConfirmKeepYours { server, local_content } = &self.state {
+        if let SaveState::ConfirmKeepYours {
+            server,
+            local_content,
+        } = &self.state
+        {
             self.state = SaveState::Conflict {
                 server: server.clone(),
                 local_content: local_content.clone(),
@@ -532,7 +551,9 @@ mod tests {
         fn save_document(&self, _id: &str, _c: JsonValue, _v: u64) -> SaveFuture {
             self.calls.fetch_add(1, Ordering::SeqCst);
             let staged = self.result.lock().unwrap().clone();
-            Box::pin(async move { staged.unwrap_or(Err(SaveError::Network("no staged result".into()))) })
+            Box::pin(
+                async move { staged.unwrap_or(Err(SaveError::Network("no staged result".into()))) },
+            )
         }
     }
 
@@ -553,7 +574,9 @@ mod tests {
             rich_document_id: "DOC-1".into(),
             doc_version,
             title: "T".into(),
-            content_json: Some(json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"server"}]}]})),
+            content_json: Some(
+                json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"server"}]}]}),
+            ),
             updated_at: Some("2026-06-22T01:00:00Z".into()),
         }
     }
@@ -568,7 +591,10 @@ mod tests {
         let mut m = mgr(Ok(ok_result(4)));
         m.mark_dirty();
         m.request_save(json!({"type":"doc","content":[]}));
-        assert!(m.is_saving(), "state is Saving while in flight (MC-002 guard true)");
+        assert!(
+            m.is_saving(),
+            "state is Saving while in flight (MC-002 guard true)"
+        );
         m.deliver_for_test(Ok(ok_result(4)));
         let outcome = m.drain().unwrap();
         assert_eq!(outcome, SaveOutcome::Saved { doc_version: 4 });
@@ -588,9 +614,15 @@ mod tests {
         let outcome = m.drain().unwrap();
         assert_eq!(outcome, SaveOutcome::Conflict);
         match &m.state {
-            SaveState::Conflict { server, local_content } => {
+            SaveState::Conflict {
+                server,
+                local_content,
+            } => {
                 assert_eq!(server.doc_version, 5);
-                assert_eq!(local_content, &local, "the operator's local content is carried");
+                assert_eq!(
+                    local_content, &local,
+                    "the operator's local content is carried"
+                );
             }
             other => panic!("expected Conflict, got {other:?}"),
         }
@@ -614,7 +646,10 @@ mod tests {
         assert!(!m.is_saving(), "no save fires until the operator confirms");
         // Confirm -> re-saves at the SERVER's version (5), overwriting.
         m.confirm_keep_yours();
-        assert_eq!(m.doc_version, 5, "the re-save adopts the server version so it passes");
+        assert_eq!(
+            m.doc_version, 5,
+            "the re-save adopts the server version so it passes"
+        );
         assert!(m.is_saving(), "the overwrite save is now in flight");
     }
 
@@ -639,7 +674,9 @@ mod tests {
             server: Box::new(server_doc(5)),
             local_content: json!({"type":"doc","content":[]}),
         };
-        let server_content = m.keep_server().expect("keep_server returns the server content");
+        let server_content = m
+            .keep_server()
+            .expect("keep_server returns the server content");
         assert_eq!(server_content["content"][0]["content"][0]["text"], "server");
         assert_eq!(m.doc_version, 5, "adopt the server version");
         assert!(!m.dirty, "local edits discarded");
@@ -653,9 +690,9 @@ mod tests {
         let mut m = SaveManager::new(backend.clone(), None, "DOC-1", 3);
         m.request_save(json!({}));
         m.request_save(json!({})); // ignored
-        // Only the state proves the guard here (no runtime spawn in headless); the production guard
-        // is the same `is_saving` check. The mock's call count would be 0 here because there is no
-        // runtime to spawn the future; the guard is proven by the state staying Saving once.
+                                   // Only the state proves the guard here (no runtime spawn in headless); the production guard
+                                   // is the same `is_saving` check. The mock's call count would be 0 here because there is no
+                                   // runtime to spawn the future; the guard is proven by the state staying Saving once.
         assert!(m.is_saving());
     }
 }

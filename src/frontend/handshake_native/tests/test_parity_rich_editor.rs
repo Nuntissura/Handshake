@@ -78,7 +78,10 @@ fn parity_block_document_model() {
     let doc_id = created_doc_id(&created);
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     let node_count = count_nodes(&loaded);
-    assert!(node_count >= 4, "E2-11: the reloaded doc must carry >= 4 nodes (got {node_count})");
+    assert!(
+        node_count >= 4,
+        "E2-11: the reloaded doc must carry >= 4 nodes (got {node_count})"
+    );
     println!("E2-11 PASS: block document model round-tripped {node_count} nodes through real PG");
     mark_pass("E2-11");
 }
@@ -105,7 +108,11 @@ fn parity_wysiwyg_heading_render() {
     // The native renderer maps heading level -> distinct egui TextStyle size (rich_editor::renderer).
     // Six distinct heading levels persisted means six distinct rendered sizes.
     let levels = heading_levels(&loaded);
-    assert_eq!(levels.len(), 6, "E2-12: H1-H6 (6 distinct heading levels) must persist (got {levels:?})");
+    assert_eq!(
+        levels.len(),
+        6,
+        "E2-12: H1-H6 (6 distinct heading levels) must persist (got {levels:?})"
+    );
     println!("E2-12 PASS: H1-H6 distinct heading levels {levels:?} render at distinct sizes");
     mark_pass("E2-12");
 }
@@ -125,7 +132,9 @@ fn parity_table_insert_cell() {
     let doc_id = created_doc_id(&created);
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     assert!(
-        serde_json::to_string(&loaded).unwrap().contains(cell_marker),
+        serde_json::to_string(&loaded)
+            .unwrap()
+            .contains(cell_marker),
         "E2-13: cell (1,1) text '{cell_marker}' must read back from the persisted 3x3 table"
     );
     println!("E2-13 PASS: 3x3 table cell (1,1) round-tripped through real PG");
@@ -143,9 +152,18 @@ fn parity_embed_image_resolve() {
     // The native embed (handshake_native::rich_editor::embeds, HsLinkNode HS_images) resolves by GETting
     // the asset BYTES via /assets/{id}/content (the bare /assets/{id} route is metadata JSON; loom.rs:
     // 221,225). A 200 with non-empty bytes proves the embed target resolves.
-    let bytes = be.get_bytes(&format!("/workspaces/{}/assets/{asset_id}/content", be.workspace_id));
-    assert!(!bytes.is_empty(), "E2-14: the embedded asset must resolve to non-empty bytes");
-    println!("E2-14 PASS: [[HS_images:{asset_id}]] embed resolved {} bytes from real PG", bytes.len());
+    let bytes = be.get_bytes(&format!(
+        "/workspaces/{}/assets/{asset_id}/content",
+        be.workspace_id
+    ));
+    assert!(
+        !bytes.is_empty(),
+        "E2-14: the embedded asset must resolve to non-empty bytes"
+    );
+    println!(
+        "E2-14 PASS: [[HS_images:{asset_id}]] embed resolved {} bytes from real PG",
+        bytes.len()
+    );
     mark_pass("E2-14");
 }
 
@@ -158,7 +176,10 @@ fn parity_wikilink_persisted() {
     let block_id = be.require_block_id();
     // The native wikilink (handshake_native::rich_editor::wikilinks, HsLinkNode note) targets a real
     // Loom block; GET /loom/blocks/{id} returning the block proves the typed link resolves.
-    let block = be.get_json(&format!("/workspaces/{}/loom/blocks/{block_id}", be.workspace_id));
+    let block = be.get_json(&format!(
+        "/workspaces/{}/loom/blocks/{block_id}",
+        be.workspace_id
+    ));
     assert!(
         block.get("block_id").and_then(|v| v.as_str()) == Some(block_id.as_str())
             || block.get("id").and_then(|v| v.as_str()) == Some(block_id.as_str()),
@@ -185,7 +206,10 @@ fn parity_transclusion_read_through() {
     // The REAL route returns LoomTransclusionResponse { source_document_id, source_doc_version,
     // content_json, resolved, unresolved_reason } (loom.rs:598-658). `resolved == true` with a
     // non-null `content_json` proves the read-through resolved the SOURCE rich document (not a copy).
-    let resolved_flag = resolved.get("resolved").and_then(|v| v.as_bool()).unwrap_or(false);
+    let resolved_flag = resolved
+        .get("resolved")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let has_content = resolved
         .get("content_json")
         .map(|c| !c.is_null())
@@ -249,7 +273,9 @@ fn parity_properties_panel() {
     let doc_id = created_doc_id(&created);
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     assert!(
-        serde_json::to_string(&loaded).unwrap().contains("parity_value"),
+        serde_json::to_string(&loaded)
+            .unwrap()
+            .contains("parity_value"),
         "E2-18: the doc property must read back after reload"
     );
     println!("E2-18 PASS: doc property key/value persisted + reloaded");
@@ -281,7 +307,10 @@ fn parity_rich_find_replace() {
     );
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     let s = serde_json::to_string(&loaded).unwrap();
-    assert!(s.contains("bar here") && !s.contains("foo here"), "E2-19: find/replace must persist");
+    assert!(
+        s.contains("bar here") && !s.contains("foo here"),
+        "E2-19: find/replace must persist"
+    );
     println!("E2-19 PASS: rich-doc find 'foo' -> replace 'bar' persisted");
     mark_pass("E2-19");
 }
@@ -298,7 +327,10 @@ fn parity_daily_note() {
         &serde_json::json!({}),
     );
     let s = serde_json::to_string(&journal).unwrap();
-    assert!(s.contains(date), "E2-20: the daily-journal block must carry the date '{date}' as title");
+    assert!(
+        s.contains(date),
+        "E2-20: the daily-journal block must carry the date '{date}' as title"
+    );
     println!("E2-20 PASS: daily note created for {date} with the date as title");
     mark_pass("E2-20");
 }
@@ -320,9 +352,17 @@ fn parity_save_to_html() {
     // The REAL projection route returns JSON { rich_document_id, projection: "<rendered string>" }
     // (knowledge_documents.rs:1213), not a raw text body. A non-empty `projection` proves the HTML
     // export rendered.
-    let resp = be.get_json(&format!("/knowledge/documents/{doc_id}/projection?format=html"));
-    let html = resp.get("projection").and_then(|p| p.as_str()).unwrap_or("");
-    assert!(!html.is_empty(), "E2-21: HTML projection must be non-empty (got {resp})");
+    let resp = be.get_json(&format!(
+        "/knowledge/documents/{doc_id}/projection?format=html"
+    ));
+    let html = resp
+        .get("projection")
+        .and_then(|p| p.as_str())
+        .unwrap_or("");
+    assert!(
+        !html.is_empty(),
+        "E2-21: HTML projection must be non-empty (got {resp})"
+    );
     println!("E2-21 PASS: HTML projection returned {} chars", html.len());
     mark_pass("E2-21");
 }
@@ -362,7 +402,9 @@ fn parity_draft_recovery() {
     // Simulate the crash: nothing in-process is retained; a fresh GET must restore the draft from PG.
     let restored = be.get_json(&format!("/knowledge/documents/{doc_id}/draft"));
     assert!(
-        serde_json::to_string(&restored).unwrap().contains(draft_marker),
+        serde_json::to_string(&restored)
+            .unwrap()
+            .contains(draft_marker),
         "E2-22: the draft content must be restored after a simulated crash (got {restored})"
     );
     println!("E2-22 PASS: draft recovered after a simulated crash (PG-backed draft store)");
@@ -437,7 +479,11 @@ fn heading_levels(loaded: &serde_json::Value) -> Vec<u64> {
     let mut levels = std::collections::BTreeSet::new();
     fn walk(v: &serde_json::Value, levels: &mut std::collections::BTreeSet<u64>) {
         if v.get("type").and_then(|t| t.as_str()) == Some("heading") {
-            if let Some(l) = v.get("attrs").and_then(|a| a.get("level")).and_then(|l| l.as_u64()) {
+            if let Some(l) = v
+                .get("attrs")
+                .and_then(|a| a.get("level"))
+                .and_then(|l| l.as_u64())
+            {
                 levels.insert(l);
             }
         }
@@ -452,10 +498,14 @@ fn heading_levels(loaded: &serde_json::Value) -> Vec<u64> {
 }
 
 fn table_3x3_doc(cell_marker: &str) -> serde_json::Value {
-    let cell = |text: &str| serde_json::json!({ "type": "tableCell",
-        "content": [ { "type": "paragraph", "content": [ { "type": "text", "text": text } ] } ] });
-    let row = |a: &str, b: &str, c: &str| serde_json::json!({ "type": "tableRow",
-        "content": [ cell(a), cell(b), cell(c) ] });
+    let cell = |text: &str| {
+        serde_json::json!({ "type": "tableCell",
+        "content": [ { "type": "paragraph", "content": [ { "type": "text", "text": text } ] } ] })
+    };
+    let row = |a: &str, b: &str, c: &str| {
+        serde_json::json!({ "type": "tableRow",
+        "content": [ cell(a), cell(b), cell(c) ] })
+    };
     serde_json::json!({ "type": "doc", "content": [ { "type": "table", "content": [
         row("00", "01", "02"),
         row("10", cell_marker, "12"),

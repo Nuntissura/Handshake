@@ -42,18 +42,22 @@ use std::sync::{Arc, Mutex};
 use egui_kittest::kittest::{By, NodeT, Queryable};
 use egui_kittest::Harness;
 
-use handshake_native::graph::canvas_board::{placement_author_id, CanvasPlacementCard, LoomCanvasBoard};
+use handshake_native::graph::canvas_board::{
+    placement_author_id, CanvasPlacementCard, LoomCanvasBoard,
+};
 use handshake_native::interop::interaction_bus::{InteractionBus, CMD_OPEN_DOCUMENT};
 use handshake_native::loom_address::{loom_uri, parse_loom_uri, ContentHash, LoomBlockAddr};
-use handshake_native::loom_graph::{loom_node_author_id, GraphNode, LoomGraphColors, LoomGraphSurface};
+use handshake_native::loom_graph::{
+    loom_node_author_id, GraphNode, LoomGraphColors, LoomGraphSurface,
+};
 use handshake_native::rich_editor::wikilinks::backlinks_panel::{
     dispatch_backlink_open, entry_author_id, render_backlinks_panel, PANEL_AUTHOR_ID,
 };
-use handshake_native::rich_editor::wikilinks::client::{
-    RichDocBacklink, ReqwestWikilinkBackend, WikilinkBackend,
-};
 #[cfg(feature = "integration")]
 use handshake_native::rich_editor::wikilinks::client::BacklinksResponse;
+use handshake_native::rich_editor::wikilinks::client::{
+    ReqwestWikilinkBackend, RichDocBacklink, WikilinkBackend,
+};
 use handshake_native::rich_editor::wikilinks::runtime::{BacklinksState, WikilinkRuntime};
 use handshake_native::theme::HsTheme;
 
@@ -132,9 +136,15 @@ fn content_hash_deterministic_at_boundary() {
     let b = serde_json::json!({ "a": 1, "nested": { "x": 2, "y": 1 }, "b": 2 });
     let ha = ContentHash::of_content_json(&a);
     let hb = ContentHash::of_content_json(&b);
-    assert_eq!(ha, hb, "structurally identical docs hash identically regardless of key order");
+    assert_eq!(
+        ha, hb,
+        "structurally identical docs hash identically regardless of key order"
+    );
     assert_eq!(ha.as_str().len(), 64);
-    assert!(ha.as_str().chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+    assert!(ha
+        .as_str()
+        .chars()
+        .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
     println!("PT-1/AC-6(pure): ContentHash is deterministic + canonical at the boundary");
 }
 
@@ -200,16 +210,26 @@ fn backlink_click_fires_open_document() {
     // The backlink entry node is present (AC-7 shape).
     let ids = author_ids(&harness);
     let entry = entry_author_id("DOC-A");
-    assert!(ids.contains(&entry), "AC-4: backlink entry '{entry}' present, got {ids:?}");
+    assert!(
+        ids.contains(&entry),
+        "AC-4: backlink entry '{entry}' present, got {ids:?}"
+    );
 
     // No navigation staged before the click.
-    assert!(bus.lock().unwrap().pending_navigation().is_none(), "nothing pending before click");
+    assert!(
+        bus.lock().unwrap().pending_navigation().is_none(),
+        "nothing pending before click"
+    );
 
     // Click the backlink entry by its Role::Link node carrying value "DOC-A (note)" — the MT-015 panel
     // renders the clickable entry as a Role::Link (its child TextRun shares the value, so disambiguate
     // by role).
     harness
-        .get(By::new().role(egui::accesskit::Role::Link).value("DOC-A (note)"))
+        .get(
+            By::new()
+                .role(egui::accesskit::Role::Link)
+                .value("DOC-A (note)"),
+        )
         .click();
     harness.run();
 
@@ -250,12 +270,24 @@ fn backlinks_panel_accesskit_tree() {
 
     let ids = author_ids(&harness);
     // AC-7: the panel container node (the MT-015 panel author_id the contract reuses).
-    assert!(ids.contains(PANEL_AUTHOR_ID), "AC-7: '{PANEL_AUTHOR_ID}' container present, got {ids:?}");
+    assert!(
+        ids.contains(PANEL_AUTHOR_ID),
+        "AC-7: '{PANEL_AUTHOR_ID}' container present, got {ids:?}"
+    );
     // AC-7: at least one backlink-{id} ListItem-equivalent node.
     let backlink_nodes = ids.iter().filter(|a| a.starts_with("backlink-")).count();
-    assert!(backlink_nodes >= 1, "AC-7: at least one backlink-* node (got {backlink_nodes})");
-    assert!(ids.contains(&entry_author_id("DOC-A")), "AC-7: backlink-DOC-A present");
-    assert!(ids.contains(&entry_author_id("DOC-C")), "AC-7: backlink-DOC-C present");
+    assert!(
+        backlink_nodes >= 1,
+        "AC-7: at least one backlink-* node (got {backlink_nodes})"
+    );
+    assert!(
+        ids.contains(&entry_author_id("DOC-A")),
+        "AC-7: backlink-DOC-A present"
+    );
+    assert!(
+        ids.contains(&entry_author_id("DOC-C")),
+        "AC-7: backlink-DOC-C present"
+    );
     println!("AC-7/PT-5: backlinks panel exposes '{PANEL_AUTHOR_ID}' + {backlink_nodes} backlink-* nodes");
 }
 
@@ -294,7 +326,10 @@ fn canvas_node_loom_chip_in_accesskit() {
 
     let ids = author_ids(&harness);
     let node = placement_author_id("p-001");
-    assert!(ids.contains(&node), "AC-5: placement node '{node}' present, got {ids:?}");
+    assert!(
+        ids.contains(&node),
+        "AC-5: placement node '{node}' present, got {ids:?}"
+    );
     // AC-5: the placement's loom:// chip is the AccessKit description (ws-32 = board workspace).
     let desc = description_for(&harness, &node);
     assert_eq!(
@@ -302,7 +337,9 @@ fn canvas_node_loom_chip_in_accesskit() {
         Some("loom://ws-32/blk-7"),
         "AC-5: canvas node exposes its loom:// chip in the AccessKit description"
     );
-    println!("AC-5/AC-9: canvas placement p-001 exposes loom://ws-32/blk-7 in its AccessKit description");
+    println!(
+        "AC-5/AC-9: canvas placement p-001 exposes loom://ws-32/blk-7 in its AccessKit description"
+    );
 }
 
 #[test]
@@ -310,7 +347,8 @@ fn canvas_node_loom_chip_includes_content_hash_suffix() {
     // When the host has resolved a backend content_hash, the chip carries a short ` #<8hex>` suffix
     // (READ-only — the canvas never writes a hash).
     let mut card = placed_card("p-009", "blk-9", 30.0);
-    card.loom_content_hash = Some("44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a".to_owned());
+    card.loom_content_hash =
+        Some("44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a".to_owned());
     let board = board_with_cards(vec![card]);
     let mut harness = canvas_harness(Arc::clone(&board));
     harness.run();
@@ -334,7 +372,10 @@ fn empty_placement_has_no_loom_chip() {
 
     let node = placement_author_id("p-empty");
     let desc = description_for(&harness, &node);
-    assert_eq!(desc, None, "RISK-3: an empty placed_block_id has no loom:// chip description");
+    assert_eq!(
+        desc, None,
+        "RISK-3: an empty placed_block_id has no loom:// chip description"
+    );
     println!("RISK-3: empty placed_block_id => no loom:// chip (no panic, no fabricated URI)");
 }
 
@@ -347,7 +388,12 @@ fn graph_node_loom_tooltip_in_accesskit() {
     use handshake_native::context_menu_surfaces::LoomNodeState;
 
     let node = GraphNode::new(
-        LoomNodeState { block_id: "blk-1".into(), pinned: false, favorite: false, has_edges: true },
+        LoomNodeState {
+            block_id: "blk-1".into(),
+            pinned: false,
+            favorite: false,
+            has_edges: true,
+        },
         "Graph Note",
     )
     .with_backlink_count(2);
@@ -368,7 +414,10 @@ fn graph_node_loom_tooltip_in_accesskit() {
 
     let author = loom_node_author_id("blk-1");
     let ids = author_ids(&harness);
-    assert!(ids.contains(&author), "graph node '{author}' present, got {ids:?}");
+    assert!(
+        ids.contains(&author),
+        "graph node '{author}' present, got {ids:?}"
+    );
     let desc = description_for(&harness, &author);
     assert_eq!(
         desc.as_deref(),
@@ -385,7 +434,10 @@ fn graph_node_loom_tooltip_in_accesskit() {
 #[test]
 fn canvas_loom_chip_screenshot() {
     let _g = wgpu_guard();
-    let board = board_with_cards(vec![placed_card("p-001", "blk-7", 40.0), placed_card("p-002", "blk-8", 320.0)]);
+    let board = board_with_cards(vec![
+        placed_card("p-001", "blk-7", 40.0),
+        placed_card("p-002", "blk-8", 320.0),
+    ]);
     let board_ui = Arc::clone(&board);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(900.0, 480.0))
@@ -405,7 +457,10 @@ fn canvas_loom_chip_screenshot() {
             let _ = std::fs::create_dir_all(&ext_dir);
             let png = ext_dir.join("MT-032-canvas-loom-chips.png");
             let saved = image.save(&png).is_ok();
-            println!("HBR-VIS: {w}x{h} canvas-loom-chip screenshot, saved={saved} ({})", png.display());
+            println!(
+                "HBR-VIS: {w}x{h} canvas-loom-chip screenshot, saved={saved} ({})",
+                png.display()
+            );
         }
         Err(e) => {
             println!(
@@ -449,7 +504,7 @@ fn with_rich_doc_headers(rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live handshake_core on 127.0.0.1:37501 (cargo test --features integration -- --ignored)"]
 #[cfg(feature = "integration")]
 fn live_pg_create_doc_block_id_is_addressable() {
-    use handshake_native::loom_address::{LoomBlockResolver, parse_loom_uri};
+    use handshake_native::loom_address::{parse_loom_uri, LoomBlockResolver};
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
@@ -570,7 +625,11 @@ fn live_pg_content_hash_read_matches_canonical() {
 /// unreachable / empty (the integration test is `#[ignore]` so this only runs against a seeded backend).
 #[cfg(feature = "integration")]
 async fn live_workspace_id(client: &reqwest::Client) -> Option<String> {
-    let resp = client.get(format!("{LIVE_BASE_URL}/workspaces")).send().await.ok()?;
+    let resp = client
+        .get(format!("{LIVE_BASE_URL}/workspaces"))
+        .send()
+        .await
+        .ok()?;
     if !resp.status().is_success() {
         return None;
     }

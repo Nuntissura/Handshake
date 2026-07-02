@@ -81,10 +81,18 @@ fn maybe_run_as_writer_child() -> bool {
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
 
-    let writer = DiagRingWriter::create(Path::new(&ring), DEFAULT_CAPACITY).expect("child creates ring");
+    let writer =
+        DiagRingWriter::create(Path::new(&ring), DEFAULT_CAPACITY).expect("child creates ring");
     writer.write_heartbeat(hb, hb.wrapping_mul(1000));
     for i in 0..n_events {
-        writer.write(DiagEvent::resource_sample(99, i + 1, 100 + i, 2048, 0, i + 1));
+        writer.write(DiagEvent::resource_sample(
+            99,
+            i + 1,
+            100 + i,
+            2048,
+            0,
+            i + 1,
+        ));
     }
     // Signal the parent the ring is populated, then STALL (frozen writer) while still mapped + alive.
     println!("READY");
@@ -109,7 +117,10 @@ fn temp_ring(label: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    std::env::temp_dir().join(format!("hsk-mt090-{label}-{}-{nanos}.ring", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "hsk-mt090-{label}-{}-{nanos}.ring",
+        std::process::id()
+    ))
 }
 
 struct PathGuard(PathBuf);
@@ -206,12 +217,21 @@ fn cross_process_writer_reader_reads_heartbeat_and_events() {
     // Reader in THIS process opens the SAME backing file the OTHER process created. (This is the exact
     // `DiagRingReader::open` + `read_heartbeat` + `read_last_n` that `PalmistryRingReader` delegates to.)
     let reader = DiagRingReader::open(&ring).expect("open the ring a separate process created");
-    let hb = reader.read_heartbeat().expect("cross-process heartbeat readable");
-    assert_eq!(hb.counter, 7, "reads the heartbeat counter the OTHER process wrote");
+    let hb = reader
+        .read_heartbeat()
+        .expect("cross-process heartbeat readable");
+    assert_eq!(
+        hb.counter, 7,
+        "reads the heartbeat counter the OTHER process wrote"
+    );
     assert_eq!(hb.timestamp_nanos, 7000);
 
     let events = reader.read_last_n(8);
-    assert_eq!(events.len(), 4, "reads the last-N events the OTHER process wrote");
+    assert_eq!(
+        events.len(),
+        4,
+        "reads the last-N events the OTHER process wrote"
+    );
     // Newest first; the writer wrote sequence_id 1..=4.
     assert_eq!(events[0].sequence_id, 4);
     assert_eq!(events[3].sequence_id, 1);
@@ -291,7 +311,10 @@ fn frozen_writer_reader_still_reads_last_good_state() {
         5,
         "all events written before the freeze stay readable from shared memory"
     );
-    assert_eq!(events[0].sequence_id, 5, "newest-first; last event before freeze");
+    assert_eq!(
+        events[0].sequence_id, 5,
+        "newest-first; last event before freeze"
+    );
 
     // Release the frozen writer thread and join.
     stalled.store(false, Ordering::SeqCst);
@@ -342,7 +365,11 @@ fn frozen_writer_process_still_readable() {
         "the frozen writer process's LAST heartbeat stays readable and never advances"
     );
     let events = reader.read_last_n(8);
-    assert_eq!(events.len(), 3, "the frozen process's last-N events stay readable");
+    assert_eq!(
+        events.len(),
+        3,
+        "the frozen process's last-N events stay readable"
+    );
 
     kill_child(&mut child);
 }

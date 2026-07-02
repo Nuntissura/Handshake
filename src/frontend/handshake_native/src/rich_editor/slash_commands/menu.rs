@@ -72,7 +72,10 @@ pub fn handle_menu_keys(ctx: &egui::Context, state: &mut SlashMenuState) -> Slas
     let mut escape = false;
     ctx.input(|i| {
         for ev in &i.events {
-            if let egui::Event::Key { key, pressed: true, .. } = ev {
+            if let egui::Event::Key {
+                key, pressed: true, ..
+            } = ev
+            {
                 match key {
                     egui::Key::ArrowDown => nav += 1,
                     egui::Key::ArrowUp => nav -= 1,
@@ -240,7 +243,11 @@ fn slash_item_row(
 /// The approximate per-row height used to cap the scroll area at [`SLASH_MENU_MAX_VISIBLE`]
 /// rows (a soft bound; the scroll area handles overflow).
 fn row_height(ui: &egui::Ui) -> f32 {
-    ui.spacing().interact_size.y.max(ui.text_style_height(&egui::TextStyle::Body)) + 4.0
+    ui.spacing()
+        .interact_size
+        .y
+        .max(ui.text_style_height(&egui::TextStyle::Body))
+        + 4.0
 }
 
 /// Render the embed/transclusion/manual-insert prompt modal (a centred `egui::Window` with one
@@ -257,7 +264,10 @@ pub fn render_slash_prompt(
     // Enter confirms / Escape cancels (read before the window so they act this frame).
     ctx.input(|i| {
         for ev in &i.events {
-            if let egui::Event::Key { key, pressed: true, .. } = ev {
+            if let egui::Event::Key {
+                key, pressed: true, ..
+            } = ev
+            {
                 match key {
                     egui::Key::Enter => outcome = SlashPromptOutcome::Confirm,
                     egui::Key::Escape => outcome = SlashPromptOutcome::Cancel,
@@ -298,7 +308,11 @@ pub fn render_slash_prompt(
             ui.add_space(8.0);
             ui.horizontal(|ui| {
                 let ok = ui.button("Insert");
-                crate::accessibility::emit_interactive_node(ui.ctx(), ok.id, SLASH_PROMPT_OK_AUTHOR_ID);
+                crate::accessibility::emit_interactive_node(
+                    ui.ctx(),
+                    ok.id,
+                    SLASH_PROMPT_OK_AUTHOR_ID,
+                );
                 if ok.clicked() {
                     outcome = SlashPromptOutcome::Confirm;
                 }

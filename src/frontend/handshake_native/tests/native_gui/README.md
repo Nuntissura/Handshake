@@ -1,7 +1,7 @@
 # native_gui proof artifacts + installer smoke prerequisites
 
-This directory holds machine-readable proof artifacts for WP-KERNEL-011 native-GUI tests.
-`artifacts/` is written by the integration tests; do not hand-edit it.
+This directory documents WP-KERNEL-011 native-GUI proof prerequisites. Machine-readable proof artifacts
+are written outside the repo under `Handshake_Artifacts/handshake-test/native_gui/`.
 
 ## MT-031 single-installer build smoke
 
@@ -10,9 +10,10 @@ The MT-031 tests build and inspect the single-installer bundle:
 - `installer_build_smoke.rs` (crate `tests/`) — runs `scripts/build_installer.ps1`, asserts a single
   installer artifact is produced, runs the staged binary with `--version` and `--self-check` under a
   clean-profile env, checks the PE import table for a system WebView2 dependency, and writes
-  `artifacts/installer_smoke_report.json`.
+  `installer_smoke_report.json` under the external artifact root.
 - `bundled_deps_audit.rs` (crate `tests/`) — walks the staged bundle, asserts every required runtime
-  asset is present and no system WebView2 DLL ships, and writes `artifacts/bundle_deps_audit_report.json`.
+  asset is present and no system WebView2 DLL ships, and writes `bundle_deps_audit_report.json` under
+  the external artifact root.
 
 ### Prerequisites
 

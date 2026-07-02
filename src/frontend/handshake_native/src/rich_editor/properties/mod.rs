@@ -248,9 +248,18 @@ mod tests {
         st.begin_title_edit();
         st.title_edit = Some("New Title".into());
         assert!(st.commit_title_edit(), "a changed title commits");
-        assert!(st.pending_save, "AC-3: a committed title change marks pending_save");
-        assert_eq!(st.doc_metadata.title, "New Title", "the field shows the new title optimistically");
-        assert!(st.title_edit.is_none(), "the edit buffer is cleared after commit");
+        assert!(
+            st.pending_save,
+            "AC-3: a committed title change marks pending_save"
+        );
+        assert_eq!(
+            st.doc_metadata.title, "New Title",
+            "the field shows the new title optimistically"
+        );
+        assert!(
+            st.title_edit.is_none(),
+            "the edit buffer is cleared after commit"
+        );
     }
 
     #[test]
@@ -285,8 +294,14 @@ mod tests {
         let mut st = PropertiesState::new(meta());
         st.add_tag("rust");
         st.add_tag("egui");
-        assert!(st.remove_tag("rust"), "removing an existing tag returns true");
-        assert!(!st.remove_tag("rust"), "removing an absent tag returns false");
+        assert!(
+            st.remove_tag("rust"),
+            "removing an existing tag returns true"
+        );
+        assert!(
+            !st.remove_tag("rust"),
+            "removing an absent tag returns false"
+        );
         assert_eq!(st.tags, vec!["egui".to_owned()]);
     }
 
@@ -300,8 +315,14 @@ mod tests {
         assert!(out.contains("Jun"), "month name present (got {out:?})");
         assert!(out.contains("19"), "day present (got {out:?})");
         assert!(out.contains("2026"), "year present (got {out:?})");
-        assert_ne!(out, "2026-06-19T14:32:00Z", "the raw ISO string was reformatted, not echoed");
-        assert!(!out.contains('T'), "no ISO 'T' separator in the human-readable output (got {out:?})");
+        assert_ne!(
+            out, "2026-06-19T14:32:00Z",
+            "the raw ISO string was reformatted, not echoed"
+        );
+        assert!(
+            !out.contains('T'),
+            "no ISO 'T' separator in the human-readable output (got {out:?})"
+        );
     }
 
     #[test]
@@ -309,8 +330,14 @@ mod tests {
         // The impl note: parse_from_rfc3339 handles BOTH 'Z' and '+00:00'.
         let z = format_iso_local("2026-01-02T03:04:00Z");
         let offset = format_iso_local("2026-01-02T03:04:00+00:00");
-        assert!(z.contains("Jan") && z.contains("2026"), "Z suffix parsed (got {z:?})");
-        assert!(offset.contains("Jan") && offset.contains("2026"), "+00:00 suffix parsed (got {offset:?})");
+        assert!(
+            z.contains("Jan") && z.contains("2026"),
+            "Z suffix parsed (got {z:?})"
+        );
+        assert!(
+            offset.contains("Jan") && offset.contains("2026"),
+            "+00:00 suffix parsed (got {offset:?})"
+        );
     }
 
     #[test]
@@ -333,7 +360,14 @@ mod tests {
         st.set_metadata(next);
         assert_eq!(st.doc_metadata.title, "Renamed");
         assert_eq!(st.doc_metadata.doc_version, 4);
-        assert!(!st.pending_save, "set_metadata clears the one-shot save flag");
-        assert_eq!(st.tags, vec!["keep-me".to_owned()], "local tags survive a metadata refresh");
+        assert!(
+            !st.pending_save,
+            "set_metadata clears the one-shot save flag"
+        );
+        assert_eq!(
+            st.tags,
+            vec!["keep-me".to_owned()],
+            "local tags survive a metadata refresh"
+        );
     }
 }

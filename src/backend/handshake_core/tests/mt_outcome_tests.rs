@@ -967,8 +967,9 @@ async fn mt_188_record_with_flight_recorder_couples_candidate_and_fr_event() {
 // ============================================================================
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url =
-        std::env::var("POSTGRES_TEST_URL").expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL test URL");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }
 
@@ -1023,7 +1024,7 @@ async fn enqueue_and_claim(
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_outcome_persists_in_kernel_mt_outcome_table() {
     let pool = postgres_pool().await;
     ensure_all_schemas(&pool).await;
@@ -1067,7 +1068,7 @@ async fn mt_188_pg_outcome_persists_in_kernel_mt_outcome_table() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_distillation_candidate_persists_with_phase1_status() {
     let pool = postgres_pool().await;
     ensure_all_schemas(&pool).await;
@@ -1114,7 +1115,7 @@ async fn mt_188_pg_distillation_candidate_persists_with_phase1_status() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_persist_with_flight_recorder_emits_fr_evt_mt_015() {
     let pool = postgres_pool().await;
     ensure_all_schemas(&pool).await;
@@ -1169,7 +1170,7 @@ async fn mt_188_pg_persist_with_flight_recorder_emits_fr_evt_mt_015() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_forged_outcome_rejected() {
     // Recorder must refuse to persist if the supplied session_id does not
     // match the job's claimed_by_session.
@@ -1212,7 +1213,7 @@ async fn mt_188_pg_forged_outcome_rejected() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_duplicate_outcome_refused_at_db_layer() {
     // Two persist calls for the same (job_id, iteration_n) — the second must
     // return DuplicateOutcome via the unique index added in 0027.
@@ -1260,7 +1261,7 @@ async fn mt_188_pg_duplicate_outcome_refused_at_db_layer() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_six_tier_ladder_enforced_at_db_layer() {
     // The queue's escalate() walks the tier ladder exactly; T7B->T13B (skip)
     // is rejected, T7B->T7BAlt then T7BAlt->T13B is accepted; HardGate is
@@ -1336,7 +1337,7 @@ async fn mt_188_pg_six_tier_ladder_enforced_at_db_layer() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_escalation_persists_selected_lora_id() {
     let pool = postgres_pool().await;
     ensure_all_schemas(&pool).await;
@@ -1371,7 +1372,7 @@ async fn mt_188_pg_escalation_persists_selected_lora_id() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_concurrent_outcome_records_preserve_ordering() {
     // Two parallel persists for the SAME job at the SAME iteration must
     // never both succeed; exactly one wins, the other returns
@@ -1439,7 +1440,7 @@ async fn mt_188_pg_concurrent_outcome_records_preserve_ordering() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_escalation_history_queryable_across_outcome_writes() {
     // After several legitimate escalations + outcome writes, the per-job
     // history must be queryable in order. This is the audit-trail contract
@@ -1500,7 +1501,7 @@ async fn mt_188_pg_escalation_history_queryable_across_outcome_writes() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_unknown_job_returns_jobnotfound() {
     let pool = postgres_pool().await;
     ensure_all_schemas(&pool).await;
@@ -1523,7 +1524,7 @@ async fn mt_188_pg_unknown_job_returns_jobnotfound() {
 // Type-aware tests: we keep an Arc<sqlx::PgPool> around to verify the API
 // is Send + Sync friendly under tokio::spawn.
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_188_pg_recorder_is_send_sync_friendly() {
     let pool: Arc<sqlx::PgPool> = Arc::new(postgres_pool().await);
     ensure_all_schemas(pool.as_ref()).await;

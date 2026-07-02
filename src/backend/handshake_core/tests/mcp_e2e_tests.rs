@@ -248,10 +248,6 @@ async fn mcp_e2e_tests_postgres_persists_progress_mapping_records_fr_events_and_
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            eprintln!("Skipping postgres MCP e2e: {msg}");
-            return Ok(());
-        }
         Err(err) => return Err(Box::new(err) as Box<dyn std::error::Error>),
     };
 

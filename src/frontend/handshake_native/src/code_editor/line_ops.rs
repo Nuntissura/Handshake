@@ -76,7 +76,11 @@ impl LineEditContext {
         // A zero tab_size would make a spaces-mode indent a no-op (and a dedent loop trivially); clamp to
         // at least 1 so the indent unit is always non-empty in spaces mode (defensive; VS Code's minimum
         // is 1). Tabs-mode ignores tab_size for the indent unit (a single `\t`).
-        Self { language_id, tab_size: tab_size.max(1), insert_spaces }
+        Self {
+            language_id,
+            tab_size: tab_size.max(1),
+            insert_spaces,
+        }
     }
 
     /// The literal string for ONE indent unit: `tab_size` spaces when [`insert_spaces`](Self::insert_spaces),
@@ -171,7 +175,12 @@ fn snapshot_cursor_line_cols(buf: &TextBuffer, cursors: &CursorSet) -> Vec<Curso
     cursors
         .cursors()
         .iter()
-        .map(|c| (byte_to_line_col(c.anchor, buf), byte_to_line_col(c.head, buf)))
+        .map(|c| {
+            (
+                byte_to_line_col(c.anchor, buf),
+                byte_to_line_col(c.head, buf),
+            )
+        })
         .collect()
 }
 
@@ -214,7 +223,11 @@ fn leading_ws(line_text: &str) -> (usize, usize) {
 /// at a consistent insert column (the minimum first-non-whitespace column across the affected non-blank
 /// block, so the comment markers line up). A language with no line-comment token is a safe no-op
 /// (AC-008). One coalesced change (the panel records the single undo). Returns true if the buffer changed.
-pub fn toggle_comment(buf: &mut TextBuffer, cursors: &mut CursorSet, ctx: &LineEditContext) -> bool {
+pub fn toggle_comment(
+    buf: &mut TextBuffer,
+    cursors: &mut CursorSet,
+    ctx: &LineEditContext,
+) -> bool {
     let Some(token) = line_comment_token(ctx.language_id) else {
         return false; // AC-008: no line comment for this language -> no-op.
     };
@@ -346,7 +359,11 @@ fn adjust_comment_cursors(
 /// inserted immediately after the line's end (a leading `\n` is prepended for the last line which has no
 /// trailing newline, so the copy lands on its own row). The cursor moves to the DUPLICATED (lower) line —
 /// VS Code parity. One coalesced change. Returns true if the buffer changed.
-pub fn duplicate_line(buf: &mut TextBuffer, cursors: &mut CursorSet, _ctx: &LineEditContext) -> bool {
+pub fn duplicate_line(
+    buf: &mut TextBuffer,
+    cursors: &mut CursorSet,
+    _ctx: &LineEditContext,
+) -> bool {
     let lines = affected_lines(buf, cursors);
     if lines.is_empty() {
         return false;
@@ -368,7 +385,9 @@ pub fn duplicate_line(buf: &mut TextBuffer, cursors: &mut CursorSet, _ctx: &Line
             }
         } else {
             // Insert "<copy>\n" at the start of the NEXT line so the duplicate sits directly below.
-            let at = buf.line_to_byte(line + 1).unwrap_or_else(|| buf.len_bytes());
+            let at = buf
+                .line_to_byte(line + 1)
+                .unwrap_or_else(|| buf.len_bytes());
             if buf.insert(at, &format!("{text}\n")).is_ok() {
                 changed = true;
             }
@@ -407,7 +426,11 @@ pub fn move_line_up(buf: &mut TextBuffer, cursors: &mut CursorSet, _ctx: &LineEd
 /// Move the affected line(s) down one row, swapping with the line below (Alt+Down). A no-op when the
 /// bottommost affected line is the last line (RISK-005 / MC-005). The cursors travel with their line.
 /// One coalesced change. Returns true if the buffer changed.
-pub fn move_line_down(buf: &mut TextBuffer, cursors: &mut CursorSet, _ctx: &LineEditContext) -> bool {
+pub fn move_line_down(
+    buf: &mut TextBuffer,
+    cursors: &mut CursorSet,
+    _ctx: &LineEditContext,
+) -> bool {
     move_block(buf, cursors, false)
 }
 
@@ -416,8 +439,12 @@ pub fn move_line_down(buf: &mut TextBuffer, cursors: &mut CursorSet, _ctx: &Line
 /// (`up`) or below. Boundary no-op at the document edge. The cursors move with the block.
 fn move_block(buf: &mut TextBuffer, cursors: &mut CursorSet, up: bool) -> bool {
     let lines = affected_lines(buf, cursors);
-    let Some(&first) = lines.first() else { return false };
-    let Some(&last) = lines.last() else { return false };
+    let Some(&first) = lines.first() else {
+        return false;
+    };
+    let Some(&last) = lines.last() else {
+        return false;
+    };
     let total = buf.len_lines();
     if up {
         if first == 0 {
@@ -456,7 +483,8 @@ fn move_block(buf: &mut TextBuffer, cursors: &mut CursorSet, up: bool) -> bool {
     let span_end = if last_block_is_final {
         buf.len_bytes()
     } else {
-        buf.line_to_byte(block_hi + 1).unwrap_or_else(|| buf.len_bytes())
+        buf.line_to_byte(block_hi + 1)
+            .unwrap_or_else(|| buf.len_bytes())
     };
     // Rebuild the block text, preserving the trailing-newline shape: if the block reached the buffer end
     // (no trailing newline), the rewritten block also has no trailing newline.
@@ -527,7 +555,9 @@ pub fn delete_line(buf: &mut TextBuffer, cursors: &mut CursorSet, _ctx: &LineEdi
     // to the new last row (or buffer end when everything was deleted).
     let new_total = buf.len_lines();
     let landing_line = target_line.min(new_total.saturating_sub(1));
-    let head = buf.line_to_byte(landing_line).unwrap_or_else(|| buf.len_bytes());
+    let head = buf
+        .line_to_byte(landing_line)
+        .unwrap_or_else(|| buf.len_bytes());
     cursors.set_cursors(vec![Cursor::caret(head)], buf);
     true
 }
@@ -573,7 +603,8 @@ pub fn dedent_line(buf: &mut TextBuffer, cursors: &mut CursorSet, ctx: &LineEdit
     }
     let snaps = snapshot_cursor_line_cols(buf, cursors);
     // Per-line removed-column count (so the cursor column shift is exact per line).
-    let mut removed_cols: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+    let mut removed_cols: std::collections::HashMap<usize, usize> =
+        std::collections::HashMap::new();
 
     let mut changed = false;
     for &line in lines.iter().rev() {
@@ -583,7 +614,10 @@ pub fn dedent_line(buf: &mut TextBuffer, cursors: &mut CursorSet, ctx: &LineEdit
         let remove = if text.starts_with('\t') {
             1
         } else {
-            text.chars().take(ctx.tab_size).take_while(|c| *c == ' ').count()
+            text.chars()
+                .take(ctx.tab_size)
+                .take_while(|c| *c == ' ')
+                .count()
         };
         if remove > 0 && buf.delete(line_start..line_start + remove).is_ok() {
             changed = true;
@@ -705,7 +739,18 @@ mod tests {
         // Families with NO bundled grammar are intentionally unreachable -> None (future work, see fn docs).
         // These are NOT dispatch ids today: `language_id_for_extension` resolves no extension to them, so
         // no panel can produce them. Asserting None pins the narrowing (not a dead Some(_) arm).
-        for unmapped in ["python", "shell", "sql", "lua", "typescript", "c", "cpp", "java", "go", "csharp"] {
+        for unmapped in [
+            "python",
+            "shell",
+            "sql",
+            "lua",
+            "typescript",
+            "c",
+            "cpp",
+            "java",
+            "go",
+            "csharp",
+        ] {
             assert_eq!(
                 line_comment_token(unmapped),
                 None,
@@ -740,7 +785,11 @@ mod tests {
         let l2 = buf.line_to_byte(2).unwrap();
         cur.set_cursors(vec![Cursor::caret(l0), Cursor::caret(l2)], &buf);
         assert!(toggle_comment(&mut buf, &mut cur, &rust_ctx()));
-        assert_eq!(buf.to_string(), "// a\nb\n// c\n", "only the two touched lines commented");
+        assert_eq!(
+            buf.to_string(),
+            "// a\nb\n// c\n",
+            "only the two touched lines commented"
+        );
     }
 
     #[test]
@@ -751,7 +800,11 @@ mod tests {
         let mut cur = CursorSet::default();
         cur.set_cursors(vec![Cursor::selection(0, end)], &buf);
         assert!(toggle_comment(&mut buf, &mut cur, &rust_ctx()));
-        assert_eq!(buf.to_string(), "a\nb\nc", "all-commented block uncomments all");
+        assert_eq!(
+            buf.to_string(),
+            "a\nb\nc",
+            "all-commented block uncomments all"
+        );
     }
 
     #[test]
@@ -800,7 +853,11 @@ mod tests {
         let mut buf = TextBuffer::new("héllo 🚀 世界");
         let mut cur = set_at(&buf, 0);
         assert!(toggle_comment(&mut buf, &mut cur, &rust_ctx()));
-        assert_eq!(buf.to_string(), "// héllo 🚀 世界", "token prepended at col 0, no corruption");
+        assert_eq!(
+            buf.to_string(),
+            "// héllo 🚀 世界",
+            "token prepended at col 0, no corruption"
+        );
         // And uncomment restores it exactly.
         assert!(toggle_comment(&mut buf, &mut cur, &rust_ctx()));
         assert_eq!(buf.to_string(), "héllo 🚀 世界");
@@ -827,7 +884,11 @@ mod tests {
         let head = buf.line_to_byte(1).unwrap();
         let mut cur = set_at(&buf, head);
         assert!(duplicate_line(&mut buf, &mut cur, &rust_ctx()));
-        assert_eq!(buf.to_string(), "only\nlast\nlast", "copy is a new final row");
+        assert_eq!(
+            buf.to_string(),
+            "only\nlast\nlast",
+            "copy is a new final row"
+        );
     }
 
     // ── MoveLineUp / MoveLineDown (AC-002, MC-005) ────────────────────────────────────────────────────
@@ -858,7 +919,10 @@ mod tests {
     fn move_line_up_at_top_is_noop() {
         let mut buf = TextBuffer::new("one\ntwo");
         let mut cur = set_at(&buf, 0); // line 0
-        assert!(!move_line_up(&mut buf, &mut cur, &rust_ctx()), "MoveLineUp@0 is a no-op");
+        assert!(
+            !move_line_up(&mut buf, &mut cur, &rust_ctx()),
+            "MoveLineUp@0 is a no-op"
+        );
         assert_eq!(buf.to_string(), "one\ntwo");
     }
 
@@ -867,7 +931,10 @@ mod tests {
         let mut buf = TextBuffer::new("one\ntwo");
         let head = buf.line_to_byte(1).unwrap();
         let mut cur = set_at(&buf, head); // last line
-        assert!(!move_line_down(&mut buf, &mut cur, &rust_ctx()), "MoveLineDown@last is a no-op");
+        assert!(
+            !move_line_down(&mut buf, &mut cur, &rust_ctx()),
+            "MoveLineDown@last is a no-op"
+        );
         assert_eq!(buf.to_string(), "one\ntwo");
     }
 
@@ -877,7 +944,11 @@ mod tests {
         let mut buf = TextBuffer::new("a\nb");
         let mut cur = set_at(&buf, 0);
         assert!(move_line_down(&mut buf, &mut cur, &rust_ctx()));
-        assert_eq!(buf.to_string(), "b\na", "no stray trailing newline introduced");
+        assert_eq!(
+            buf.to_string(),
+            "b\na",
+            "no stray trailing newline introduced"
+        );
     }
 
     // ── DeleteLine (AC-006, MC-005) ───────────────────────────────────────────────────────────────────
@@ -888,7 +959,11 @@ mod tests {
         let head = buf.line_to_byte(1).unwrap();
         let mut cur = set_at(&buf, head);
         assert!(delete_line(&mut buf, &mut cur, &rust_ctx()));
-        assert_eq!(buf.to_string(), "a\nc\n", "the whole row + its newline removed");
+        assert_eq!(
+            buf.to_string(),
+            "a\nc\n",
+            "the whole row + its newline removed"
+        );
         // Cursor at the start of the row that now occupies the deleted row's position.
         let (line, col) = byte_to_line_col(cur.primary().head, &buf);
         assert_eq!((line, col), (1, 0));
@@ -901,7 +976,11 @@ mod tests {
         let head = buf.line_to_byte(2).unwrap();
         let mut cur = set_at(&buf, head);
         assert!(delete_line(&mut buf, &mut cur, &rust_ctx()));
-        assert_eq!(buf.to_string(), "a\nb", "no empty trailing line; preceding newline removed");
+        assert_eq!(
+            buf.to_string(),
+            "a\nb",
+            "no empty trailing line; preceding newline removed"
+        );
         assert_eq!(buf.len_lines(), 2);
     }
 
@@ -923,7 +1002,11 @@ mod tests {
         let mut cur = CursorSet::default();
         cur.set_cursors(vec![Cursor::caret(l0), Cursor::caret(l2)], &buf);
         assert!(delete_line(&mut buf, &mut cur, &rust_ctx()));
-        assert_eq!(buf.to_string(), "b\nd\n", "lines 0 and 2 removed, 1 and 3 survive");
+        assert_eq!(
+            buf.to_string(),
+            "b\nd\n",
+            "lines 0 and 2 removed, 1 and 3 survive"
+        );
     }
 
     // ── Indent / Dedent (AC-004, MC-006) ──────────────────────────────────────────────────────────────
@@ -954,7 +1037,11 @@ mod tests {
         let mut cur = set_at(&buf, 0);
         let ctx = LineEditContext::new("rust", 4, true);
         assert!(dedent_line(&mut buf, &mut cur, &ctx));
-        assert_eq!(buf.to_string(), "  x", "removed up to 4 leading spaces (one unit)");
+        assert_eq!(
+            buf.to_string(),
+            "  x",
+            "removed up to 4 leading spaces (one unit)"
+        );
     }
 
     #[test]
@@ -971,7 +1058,10 @@ mod tests {
         let mut buf = TextBuffer::new("x");
         let mut cur = set_at(&buf, 0);
         let ctx = LineEditContext::new("rust", 4, true);
-        assert!(!dedent_line(&mut buf, &mut cur, &ctx), "dedent on a flush line is a no-op");
+        assert!(
+            !dedent_line(&mut buf, &mut cur, &ctx),
+            "dedent on a flush line is a no-op"
+        );
         assert_eq!(buf.to_string(), "x");
     }
 
@@ -981,7 +1071,11 @@ mod tests {
         let mut cur = set_at(&buf, 0);
         let ctx = LineEditContext::new("rust", 4, true);
         assert!(dedent_line(&mut buf, &mut cur, &ctx));
-        assert_eq!(buf.to_string(), "x", "removed both leading spaces (fewer than tab_size)");
+        assert_eq!(
+            buf.to_string(),
+            "x",
+            "removed both leading spaces (fewer than tab_size)"
+        );
     }
 
     // ── InsertTab (AC-005) ────────────────────────────────────────────────────────────────────────────
@@ -993,7 +1087,11 @@ mod tests {
         let ctx = LineEditContext::new("rust", 4, true);
         assert!(insert_tab(&mut buf, &mut cur, &ctx));
         assert_eq!(buf.to_string(), "a    b");
-        assert_eq!(cur.primary().head, 5, "head advanced past the 4 inserted spaces");
+        assert_eq!(
+            cur.primary().head,
+            5,
+            "head advanced past the 4 inserted spaces"
+        );
     }
 
     #[test]
@@ -1014,7 +1112,11 @@ mod tests {
         cur.set_cursors(vec![Cursor::selection(0, end)], &buf);
         let ctx = LineEditContext::new("rust", 4, true);
         assert!(insert_tab(&mut buf, &mut cur, &ctx));
-        assert_eq!(buf.to_string(), "    a\n    b\n    c", "block indented, selection NOT replaced");
+        assert_eq!(
+            buf.to_string(),
+            "    a\n    b\n    c",
+            "block indented, selection NOT replaced"
+        );
     }
 
     // ── AC-009: cursor set stays sorted + de-overlapped after a transform ─────────────────────────────

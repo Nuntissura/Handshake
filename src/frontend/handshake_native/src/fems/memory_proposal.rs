@@ -160,8 +160,11 @@ impl MemoryClass {
     }
 
     /// The three classes in their fixed dialog order (Episodic default, then Semantic, then Procedural).
-    pub const ORDER: [MemoryClass; 3] =
-        [MemoryClass::Episodic, MemoryClass::Semantic, MemoryClass::Procedural];
+    pub const ORDER: [MemoryClass; 3] = [
+        MemoryClass::Episodic,
+        MemoryClass::Semantic,
+        MemoryClass::Procedural,
+    ];
 
     /// The default class for a new editor→memory proposal: `Episodic` (the most common editor case; the
     /// operator can switch to Semantic/Procedural in the dialog before confirming).
@@ -339,24 +342,50 @@ pub fn build_proposal(
 ) -> Result<MemoryWriteProposal, MemoryProposalError> {
     let (document_id, pane_id, selection_start, selection_end, content) = match sel {
         SharedSelection::None => return Err(MemoryProposalError::NoSelection),
-        SharedSelection::TextRange { pane_id, start, end, text, .. } => {
+        SharedSelection::TextRange {
+            pane_id,
+            start,
+            end,
+            text,
+            ..
+        } => {
             // document_id derives from the owning pane (the pane→document map is a host concern resolved
             // live at E11/MT-069); the exact byte range + materialized text come straight from the
             // selection.
-            (pane_id.to_string(), pane_id.to_string(), *start, *end, text.clone())
+            (
+                pane_id.to_string(),
+                pane_id.to_string(),
+                *start,
+                *end,
+                text.clone(),
+            )
         }
         SharedSelection::BlockRef { pane_id, block_id } => {
             // A whole-block selection: the block id IS the document/block id (loom-addressable). The
             // content is the loom address of the block (the ref variant does not carry the block text);
             // the range is the whole content.
             let content = format!("loom://{block_id}");
-            (block_id.clone(), pane_id.to_string(), 0, content.len(), content)
+            (
+                block_id.clone(),
+                pane_id.to_string(),
+                0,
+                content.len(),
+                content,
+            )
         }
-        SharedSelection::NodeRef { pane_id, node_id, .. } => {
+        SharedSelection::NodeRef {
+            pane_id, node_id, ..
+        } => {
             // A whole-node selection (graph/canvas): the node id IS the document/block id. Same shape as
             // BlockRef.
             let content = format!("loom://{node_id}");
-            (node_id.clone(), pane_id.to_string(), 0, content.len(), content)
+            (
+                node_id.clone(),
+                pane_id.to_string(),
+                0,
+                content.len(),
+                content,
+            )
         }
     };
 
@@ -504,7 +533,9 @@ pub async fn submit_proposal(
     if !status.is_success() {
         let code = status.as_u16();
         let text = resp.text().await.unwrap_or_default();
-        return Err(MemoryProposalError::SubmitFailed(format!("status {code}: {text}")));
+        return Err(MemoryProposalError::SubmitFailed(format!(
+            "status {code}: {text}"
+        )));
     }
 
     resp.json::<ProposalAck>()
@@ -726,11 +757,13 @@ pub fn propose_to_memory_descriptor() -> crate::interop::CommandDescriptor {
             "review".to_owned(),
         ],
         keybind: None,
-        handler: Arc::new(|ctx: &egui::Context, _bus: &mut crate::interop::InteractionBus| {
-            // The shell's dispatch arm opens the dialog over the live selection (the visible result);
-            // this bus-side handler requests a repaint so that render runs. NO direct memory write here.
-            ctx.request_repaint();
-        }),
+        handler: Arc::new(
+            |ctx: &egui::Context, _bus: &mut crate::interop::InteractionBus| {
+                // The shell's dispatch arm opens the dialog over the live selection (the visible result);
+                // this bus-side handler requests a repaint so that render runs. NO direct memory write here.
+                ctx.request_repaint();
+            },
+        ),
     }
 }
 
@@ -774,7 +807,10 @@ mod tests {
         let p = build_proposal(&sel, MemoryClass::Semantic, "WS-1", "actor-7").expect("builds");
         assert_eq!(p.class, MemoryClass::Semantic);
         assert_eq!(p.content, "hello memory");
-        assert_eq!(p.source.document_id, "pane-rich", "document_id derives from the owning pane");
+        assert_eq!(
+            p.source.document_id, "pane-rich",
+            "document_id derives from the owning pane"
+        );
         assert_eq!(p.source.pane_id, "pane-rich");
         assert_eq!(p.source.workspace_id, "WS-1");
         assert_eq!(p.source.selection_start, 10);
@@ -782,7 +818,11 @@ mod tests {
         assert_eq!(p.actor_id, "actor-7");
         // content_hash is 64-char lowercase hex (the loom primitive).
         assert_eq!(p.source.content_hash.len(), 64);
-        assert!(p.source.content_hash.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(p
+            .source
+            .content_hash
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
         // It is a real, non-zero hash of the content.
         assert_ne!(p.source.content_hash, "0".repeat(64));
     }
@@ -798,9 +838,16 @@ mod tests {
         let loom = crate::loom_address::ContentHash::of_content_json(&JsonValue::String(
             content.to_owned(),
         ));
-        assert_eq!(got, loom.as_str(), "AC-003: proposal hash == loom block hash for identical content");
+        assert_eq!(
+            got,
+            loom.as_str(),
+            "AC-003: proposal hash == loom block hash for identical content"
+        );
         // And it equals the raw canonical primitive (no second scheme).
-        assert_eq!(got, canonical_content_sha256(&JsonValue::String(content.to_owned())));
+        assert_eq!(
+            got,
+            canonical_content_sha256(&JsonValue::String(content.to_owned()))
+        );
         // Deterministic.
         assert_eq!(got, content_hash_of_selection(content));
     }
@@ -817,11 +864,17 @@ mod tests {
         }
         // Procedural explicitly (the spec requirement).
         let proc = build_proposal(&sel, MemoryClass::Procedural, "WS-1", "a").unwrap();
-        assert!(proc.review_gated, "AC-002: Procedural-class proposal is review-gated");
+        assert!(
+            proc.review_gated,
+            "AC-002: Procedural-class proposal is review-gated"
+        );
         // There is no field/setter that flips it false: a class switch keeps it true.
         let mut dlg = ProposeToMemoryDialog::open(&sel, "WS-1", "a").unwrap();
         dlg.set_class(MemoryClass::Procedural);
-        assert!(dlg.proposal.review_gated, "class switch never sets review_gated false");
+        assert!(
+            dlg.proposal.review_gated,
+            "class switch never sets review_gated false"
+        );
     }
 
     /// AC-001 (other variants): BlockRef / NodeRef resolve document_id from the block/node id with a
@@ -852,7 +905,8 @@ mod tests {
     /// empty proposal).
     #[test]
     fn build_proposal_none_selection_is_no_selection() {
-        let err = build_proposal(&SharedSelection::None, MemoryClass::Episodic, "WS-1", "a").unwrap_err();
+        let err =
+            build_proposal(&SharedSelection::None, MemoryClass::Episodic, "WS-1", "a").unwrap_err();
         assert_eq!(err, MemoryProposalError::NoSelection);
         assert!(!err.is_missing_endpoint());
     }
@@ -905,7 +959,10 @@ mod tests {
             .iter()
             .find(|c| c.id == FEMS_PROPOSE_COMMAND_ID)
             .expect("AC-006: 'fems.propose_to_memory' is registered in the shared palette catalog");
-        assert!(!row.disabled, "AC-006: the Propose-to-Memory palette row is enabled (runnable)");
+        assert!(
+            !row.disabled,
+            "AC-006: the Propose-to-Memory palette row is enabled (runnable)"
+        );
         assert_eq!(row.label, FEMS_PROPOSE_COMMAND_LABEL);
         assert_eq!(row.kind, crate::command_registry::CommandKind::App);
     }
@@ -913,9 +970,18 @@ mod tests {
     /// The class radio author ids follow the fems-class-{class} convention.
     #[test]
     fn class_author_ids_follow_convention() {
-        assert_eq!(fems_class_author_id(MemoryClass::Episodic), "fems-class-episodic");
-        assert_eq!(fems_class_author_id(MemoryClass::Semantic), "fems-class-semantic");
-        assert_eq!(fems_class_author_id(MemoryClass::Procedural), "fems-class-procedural");
+        assert_eq!(
+            fems_class_author_id(MemoryClass::Episodic),
+            "fems-class-episodic"
+        );
+        assert_eq!(
+            fems_class_author_id(MemoryClass::Semantic),
+            "fems-class-semantic"
+        );
+        assert_eq!(
+            fems_class_author_id(MemoryClass::Procedural),
+            "fems-class-procedural"
+        );
     }
 
     /// The body serialized for the submit carries the typed proposal (class/content/source/review_gated/

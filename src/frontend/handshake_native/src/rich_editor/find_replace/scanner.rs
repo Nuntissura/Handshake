@@ -244,7 +244,15 @@ fn walk(
                     Some(block_index) => MatchKind::CodeBlock { block_index },
                     None => MatchKind::Prose,
                 };
-                scan_leaf(&leaf.text.to_string(), path, regex, whole_word, kind, out, truncated);
+                scan_leaf(
+                    &leaf.text.to_string(),
+                    path,
+                    regex,
+                    whole_word,
+                    kind,
+                    out,
+                    truncated,
+                );
             }
             Child::Block(block) => {
                 // A code_block's text matches are tagged with the code-block kind so the highlight
@@ -257,7 +265,15 @@ fn walk(
                 } else {
                     code_block_index
                 };
-                walk(block, path, regex, whole_word, next_code_index, out, truncated);
+                walk(
+                    block,
+                    path,
+                    regex,
+                    whole_word,
+                    next_code_index,
+                    out,
+                    truncated,
+                );
             }
             // Inline atoms (hsLink / loomTransclusion) carry no searchable rope text of their own
             // (their visible label is a render-time projection, not editable rope content), so they
@@ -364,11 +380,21 @@ mod tests {
         // block). "foo bar foo" -> 2, "a foo here" -> 1, "let foo = foo;" -> 2 == 5.
         let doc = multi_para_doc();
         let result = scan(&doc, &FindQuery::literal("foo"));
-        assert_eq!(result.len(), 5, "five 'foo' occurrences across prose + code");
+        assert_eq!(
+            result.len(),
+            5,
+            "five 'foo' occurrences across prose + code"
+        );
         // The first two are in the first paragraph's leaf [0,0] at char 0 and char 8.
         assert_eq!(result.matches[0].node_path, vec![0, 0]);
-        assert_eq!((result.matches[0].char_start, result.matches[0].char_end), (0, 3));
-        assert_eq!((result.matches[1].char_start, result.matches[1].char_end), (8, 11));
+        assert_eq!(
+            (result.matches[0].char_start, result.matches[0].char_end),
+            (0, 3)
+        );
+        assert_eq!(
+            (result.matches[1].char_start, result.matches[1].char_end),
+            (8, 11)
+        );
         // The code-block matches carry the CodeBlock kind with the block index 2.
         let code_matches: Vec<_> = result
             .matches
@@ -376,7 +402,10 @@ mod tests {
             .filter(|m| matches!(m.kind, MatchKind::CodeBlock { .. }))
             .collect();
         assert_eq!(code_matches.len(), 2, "two 'foo' inside the code block");
-        assert!(matches!(code_matches[0].kind, MatchKind::CodeBlock { block_index: 2 }));
+        assert!(matches!(
+            code_matches[0].kind,
+            MatchKind::CodeBlock { block_index: 2 }
+        ));
     }
 
     #[test]
@@ -384,7 +413,11 @@ mod tests {
         // AC-4: case-insensitive (default) matches 'Foo', 'FOO', 'foo'.
         let doc = BlockNode::doc(vec![BlockNode::paragraph("Foo FOO foo fOo")]);
         let result = scan(&doc, &FindQuery::literal("foo"));
-        assert_eq!(result.len(), 4, "all four case variants match when case-insensitive");
+        assert_eq!(
+            result.len(),
+            4,
+            "all four case variants match when case-insensitive"
+        );
         // Case-SENSITIVE only matches the exact "foo".
         let sensitive = FindQuery {
             pattern: "foo".into(),
@@ -392,7 +425,11 @@ mod tests {
             ..Default::default()
         };
         let result = scan(&doc, &sensitive);
-        assert_eq!(result.len(), 1, "case-sensitive matches only the exact 'foo'");
+        assert_eq!(
+            result.len(),
+            1,
+            "case-sensitive matches only the exact 'foo'"
+        );
     }
 
     #[test]
@@ -407,7 +444,10 @@ mod tests {
         let result = scan(&doc, &query);
         // "foo" (word) yes; "foobar" no; "unfoo" no; "foo!" yes (`!` is not a word char).
         assert_eq!(result.len(), 2, "only the two standalone 'foo' words match");
-        assert_eq!((result.matches[0].char_start, result.matches[0].char_end), (0, 3));
+        assert_eq!(
+            (result.matches[0].char_start, result.matches[0].char_end),
+            (0, 3)
+        );
         // The second standalone "foo" is the one before "!" at char 17.
         assert_eq!(result.matches[1].char_start, 17);
     }
@@ -430,7 +470,11 @@ mod tests {
         // Literal mode treats `.` as a literal dot, not "any char".
         let doc = BlockNode::doc(vec![BlockNode::paragraph("a.b axb a.b")]);
         let result = scan(&doc, &FindQuery::literal("a.b"));
-        assert_eq!(result.len(), 2, "literal 'a.b' matches only the two real 'a.b', not 'axb'");
+        assert_eq!(
+            result.len(),
+            2,
+            "literal 'a.b' matches only the two real 'a.b', not 'axb'"
+        );
     }
 
     #[test]
@@ -443,7 +487,10 @@ mod tests {
             ..Default::default()
         };
         let result = scan(&doc, &query);
-        assert!(result.error.is_some(), "an invalid regex sets the error message");
+        assert!(
+            result.error.is_some(),
+            "an invalid regex sets the error message"
+        );
         assert!(result.is_empty(), "an invalid regex clears all matches");
     }
 
@@ -508,15 +555,29 @@ mod tests {
         let n = replace_all(&mut doc, &mut undo, &mut sel, &result.matches, "X");
         assert_eq!(n, 5, "all five matches replaced in one pass");
         // Confirm the replacements landed (first paragraph + code block).
-        let para0 = doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string();
+        let para0 = doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string();
         assert_eq!(para0, "X bar X");
-        let code = doc.children[2].as_block().unwrap().children[0].as_text().unwrap().text.to_string();
+        let code = doc.children[2].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string();
         assert_eq!(code, "let X = X;");
 
         // A SINGLE undo restores the WHOLE document — replace-all is exactly one undo entry.
         assert!(undo.undo(&mut doc).unwrap(), "one undo applies");
-        assert_eq!(doc, doc0, "a single Ctrl+Z restores every replacement at once");
-        assert!(!undo.can_undo(), "replace-all consumed exactly one undo step");
+        assert_eq!(
+            doc, doc0,
+            "a single Ctrl+Z restores every replacement at once"
+        );
+        assert!(
+            !undo.can_undo(),
+            "replace-all consumed exactly one undo step"
+        );
     }
 
     #[test]

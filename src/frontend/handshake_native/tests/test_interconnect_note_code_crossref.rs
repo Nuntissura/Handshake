@@ -30,7 +30,9 @@ use handshake_native::interop::{
     dispatch_code_ref_open, CommandDescriptor, InteractionBus, CMD_FIND, CMD_OPEN_CODE_SYMBOL,
     CMD_OPEN_DOCUMENT,
 };
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
+};
 use handshake_native::rich_editor::find_replace::scanner::{scan, FindQuery};
 use handshake_native::rich_editor::properties::metadata_client::ClipboardSink;
 use handshake_native::rich_editor::renderer::rich_editor_widget::RichEditorState;
@@ -45,7 +47,9 @@ struct MockClipboard {
 }
 impl MockClipboard {
     fn new() -> Self {
-        Self { last: Mutex::new(None) }
+        Self {
+            last: Mutex::new(None),
+        }
     }
     fn taken(&self) -> Option<String> {
         self.last.lock().unwrap().clone()
@@ -79,7 +83,11 @@ fn interconnect_ic06_open_code_block_from_note() {
     };
     // The bridge stages the symbol on the SAME bus and dispatches `open-code-symbol` (note -> code).
     let dispatched = dispatch_code_ref_open(&ctx, &mut bus, &event);
-    assert_eq!(dispatched.as_deref(), Some(symbol_id), "IC-06: the note->code dispatch fired for the symbol");
+    assert_eq!(
+        dispatched.as_deref(),
+        Some(symbol_id),
+        "IC-06: the note->code dispatch fired for the symbol"
+    );
     assert_eq!(
         bus.take_pending_code_symbol().as_deref(),
         Some(symbol_id),
@@ -107,24 +115,46 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
     let note_ref = format!("[[code:{symbol_key}]]");
     let mock = MockClipboard::new();
     mock.copy(&note_ref); // the 'Copy as note reference' command's clipboard write (mockable seam).
-    assert_eq!(mock.taken().as_deref(), Some(note_ref.as_str()), "IC-07: the note reference is on the clipboard");
+    assert_eq!(
+        mock.taken().as_deref(),
+        Some(note_ref.as_str()),
+        "IC-07: the note reference is on the clipboard"
+    );
 
     // (2) Paste/insert into a note: the inserted node is an hsLink kind=code carrying the symbol key.
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::new("see ")));
-    para.children.push(Child::HsLink(HsLinkNode::new("code", symbol_key, "my_function")));
+    para.children.push(Child::HsLink(HsLinkNode::new(
+        "code",
+        symbol_key,
+        "my_function",
+    )));
     let doc = BlockNode::doc(vec![para]);
 
     // (3) Save + reload: the code-ref hsLink persists through the backend DocJson shape.
-    use handshake_native::rich_editor::document_model::doc_json::{from_json_string, to_content_json_value, to_json_string};
+    use handshake_native::rich_editor::document_model::doc_json::{
+        from_json_string, to_content_json_value, to_json_string,
+    };
     let json = to_json_string(&doc).expect("serialize");
     let reloaded = from_json_string(&json).expect("reload");
-    assert_eq!(doc, reloaded, "IC-07: the code-ref note round-trips DocJson unchanged");
+    assert_eq!(
+        doc, reloaded,
+        "IC-07: the code-ref note round-trips DocJson unchanged"
+    );
     let v = to_content_json_value(&doc);
     let json_str = serde_json::to_string(&v).unwrap();
-    assert!(json_str.contains("\"hsLink\""), "IC-07: the inserted ref is an hsLink node");
-    assert!(json_str.contains("\"refKind\":\"code\""), "IC-07: the node kind is code");
-    assert!(json_str.contains(symbol_key), "IC-07: the symbol key is the refValue");
+    assert!(
+        json_str.contains("\"hsLink\""),
+        "IC-07: the inserted ref is an hsLink node"
+    );
+    assert!(
+        json_str.contains("\"refKind\":\"code\""),
+        "IC-07: the node kind is code"
+    );
+    assert!(
+        json_str.contains(symbol_key),
+        "IC-07: the symbol key is the refValue"
+    );
 
     mark_status("IC-07", "PASS");
     assert_no_local_artifact_dir();
@@ -190,11 +220,22 @@ fn interconnect_ic08_shared_find_replace() {
 
     // Dispatch the SINGLE find command once. The handler fans it out to both surfaces over the one bus.
     let ctx = egui::Context::default();
-    assert!(bus.dispatch_command(&ctx, CMD_FIND), "IC-08: the shared find command dispatched");
+    assert!(
+        bus.dispatch_command(&ctx, CMD_FIND),
+        "IC-08: the shared find command dispatched"
+    );
 
     let r = results.lock().unwrap();
-    assert!(r.code_hits >= 1, "IC-08: the find found at least one CODE file hit ({})", r.code_hits);
-    assert!(r.note_hits >= 1, "IC-08: the find found at least one NOTE hit ({})", r.note_hits);
+    assert!(
+        r.code_hits >= 1,
+        "IC-08: the find found at least one CODE file hit ({})",
+        r.code_hits
+    );
+    assert!(
+        r.note_hits >= 1,
+        "IC-08: the find found at least one NOTE hit ({})",
+        r.note_hits
+    );
     assert_eq!(
         bus_dispatches.load(Ordering::SeqCst),
         1,
@@ -226,9 +267,9 @@ fn interconnect_ic09_diagnostic_note_reference() {
     let note_doc_id = "DOC-DIAG-9";
 
     // The note pane that the diagnostic chip navigates to (the real mounted rich-editor surface).
-    let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph(
-        "a note referenced by a code diagnostic",
-    )]))));
+    let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
+        BlockNode::paragraph("a note referenced by a code diagnostic"),
+    ]))));
     let state_ui = Arc::clone(&state);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(640.0, 360.0))

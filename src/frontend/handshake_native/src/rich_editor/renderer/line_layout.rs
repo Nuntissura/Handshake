@@ -99,18 +99,27 @@ pub struct BlockTextStyle {
 impl BlockTextStyle {
     /// Body paragraph style (base size, proportional).
     pub fn body() -> Self {
-        Self { size: BASE_FONT_SIZE, force_monospace: false }
+        Self {
+            size: BASE_FONT_SIZE,
+            force_monospace: false,
+        }
     }
 
     /// Heading style: base size scaled by the level factor.
     pub fn heading(level: u8) -> Self {
         let idx = (level.clamp(1, 3) - 1) as usize;
-        Self { size: BASE_FONT_SIZE * HEADING_SCALE[idx], force_monospace: false }
+        Self {
+            size: BASE_FONT_SIZE * HEADING_SCALE[idx],
+            force_monospace: false,
+        }
     }
 
     /// Code-block style: base size, monospace forced.
     pub fn code_block() -> Self {
-        Self { size: BASE_FONT_SIZE, force_monospace: true }
+        Self {
+            size: BASE_FONT_SIZE,
+            force_monospace: true,
+        }
     }
 }
 
@@ -247,7 +256,9 @@ pub fn layout_block(
                     link.label.clone()
                 };
                 let fmt = text_format_for_run(
-                    &[Mark::Link { href: String::new() }],
+                    &[Mark::Link {
+                        href: String::new(),
+                    }],
                     style,
                     palette,
                     bold_available,
@@ -264,7 +275,9 @@ pub fn layout_block(
                 // visible rather than dropping it.
                 let label = format!("⟢ {}", t.ref_value);
                 let fmt = text_format_for_run(
-                    &[Mark::Link { href: String::new() }],
+                    &[Mark::Link {
+                        href: String::new(),
+                    }],
                     style,
                     palette,
                     bold_available,
@@ -287,7 +300,10 @@ pub fn layout_block(
         job.append("", 0.0, fmt);
     }
 
-    BlockLayout { job, plain_text: plain }
+    BlockLayout {
+        job,
+        plain_text: plain,
+    }
 }
 
 /// True when the bold Inter family (`FontFamily::Name("Inter-Bold")`) is actually bound in
@@ -345,8 +361,9 @@ pub fn block_style(block: &BlockNode) -> BlockTextStyle {
 /// it can rely on egui's native wrap. Cheap O(n) scan; returns `false` for the common (non-Hangul) case
 /// so the supplemental path is only taken when genuinely needed.
 pub fn is_hangul_break_supplement_needed(text: &str) -> bool {
-    text.chars()
-        .any(|c| crate::text_intl::linebreak::break_class(c) == crate::text_intl::BreakClass::Hangul)
+    text.chars().any(|c| {
+        crate::text_intl::linebreak::break_class(c) == crate::text_intl::BreakClass::Hangul
+    })
 }
 
 /// Lay out a single CJK/Latin paragraph string into a [`epaint::Galley`] at `wrap_width`, returning the
@@ -432,7 +449,11 @@ pub fn layout_block_bidi(
     let mut job = LayoutJob::default();
     job.wrap.max_width = wrap_width;
     // RTL base ⇒ right-align the paragraph (AC1). LTR base keeps the default left alignment (unchanged).
-    job.halign = if reordered.base.is_rtl() { egui::Align::RIGHT } else { egui::Align::LEFT };
+    job.halign = if reordered.base.is_rtl() {
+        egui::Align::RIGHT
+    } else {
+        egui::Align::LEFT
+    };
     let fmt = text_format_for_run(&[], style, palette, bold_available);
     // Lay out the VISUAL-order text (already reordered). For a pure-LTR line this equals the logical text
     // (identity — AC6), so the LTR render is byte-for-byte unchanged.
@@ -442,7 +463,12 @@ pub fn layout_block_bidi(
         job.append("", 0.0, fmt2);
     }
 
-    BidiBlockLayout { job, logical_text: logical, base: reordered.base, shaping_limitation }
+    BidiBlockLayout {
+        job,
+        logical_text: logical,
+        base: reordered.base,
+        shaping_limitation,
+    }
 }
 
 #[cfg(test)]
@@ -463,7 +489,11 @@ mod tests {
         // the 2.0 scale live before reading it back through the helper.
         ctx.set_pixels_per_point(2.0);
         let _ = ctx.run(Default::default(), |_| {});
-        assert_eq!(ctx.pixels_per_point(), 2.0, "scale must be live after one frame");
+        assert_eq!(
+            ctx.pixels_per_point(),
+            2.0,
+            "scale must be live after one frame"
+        );
         assert_eq!(pts_to_px(10.0, &ctx), 20.0);
         assert_eq!(pts_to_px(0.0, &ctx), 0.0);
         assert_eq!(pts_to_px(7.5, &ctx), 15.0);
@@ -484,7 +514,10 @@ mod tests {
     fn bold_run_uses_bold_family_when_available() {
         // bold_available=true -> the bold Inter family is selected.
         let fmt = text_format_for_run(&[Mark::Bold], BlockTextStyle::body(), &dark(), true);
-        assert_eq!(fmt.font_id.family, FontFamily::Name(BOLD_FAMILY_NAME.into()));
+        assert_eq!(
+            fmt.font_id.family,
+            FontFamily::Name(BOLD_FAMILY_NAME.into())
+        );
         assert!(!fmt.italics);
     }
 
@@ -499,7 +532,10 @@ mod tests {
     fn italic_run_sets_italics_skew() {
         // The verified egui-0.33 behavior: italics is a real skew, no bundled font.
         let fmt = text_format_for_run(&[Mark::Italic], BlockTextStyle::body(), &dark(), true);
-        assert!(fmt.italics, "italic mark must set TextFormat.italics (epaint skews it)");
+        assert!(
+            fmt.italics,
+            "italic mark must set TextFormat.italics (epaint skews it)"
+        );
         assert_eq!(fmt.font_id.family, FontFamily::Proportional);
     }
 
@@ -512,7 +548,10 @@ mod tests {
             true,
         );
         assert_eq!(fmt.font_id.family, FontFamily::Monospace);
-        assert!(!fmt.italics, "code is upright even with an italic mark present");
+        assert!(
+            !fmt.italics,
+            "code is upright even with an italic mark present"
+        );
     }
 
     #[test]
@@ -557,10 +596,8 @@ mod tests {
     fn empty_block_yields_one_section_no_panic() {
         // A paragraph holding a single empty leaf must still produce a non-empty job
         // (one empty section) so the row has height and the caret can sit (RISK-5).
-        let block = BlockNode::with_children(
-            NodeKind::Paragraph,
-            vec![Child::Text(TextLeaf::new(""))],
-        );
+        let block =
+            BlockNode::with_children(NodeKind::Paragraph, vec![Child::Text(TextLeaf::new(""))]);
         let bl = layout_block(&block, &dark(), 400.0, true);
         assert_eq!(bl.plain_text, "");
         assert_eq!(bl.job.sections.len(), 1);
@@ -619,7 +656,11 @@ mod tests {
         );
         // It must also actually fit the wrap width (no catastrophic overflow): every row's width is
         // within a glyph of the wrap bound (egui may overrun by at most one un-breakable glyph).
-        let max_row_w = galley.rows.iter().map(|r| r.rect().width()).fold(0.0_f32, f32::max);
+        let max_row_w = galley
+            .rows
+            .iter()
+            .map(|r| r.rect().width())
+            .fold(0.0_f32, f32::max);
         assert!(
             max_row_w <= 120.0 + BASE_FONT_SIZE * 2.0,
             "AC1: wrapped rows stay near the wrap width (max row width {max_row_w} vs wrap 120)"
@@ -635,16 +676,29 @@ mod tests {
         let pal = dark();
         let ascii = "the quick brown fox jumps over the lazy dog and then keeps running far away";
         let galley = layout_paragraph_galley(&ctx, ascii, 120.0, &pal);
-        assert!(galley.rows.len() > 1, "ASCII still wraps at spaces; got {} row(s)", galley.rows.len());
+        assert!(
+            galley.rows.len() > 1,
+            "ASCII still wraps at spaces; got {} row(s)",
+            galley.rows.len()
+        );
     }
 
     #[test]
     fn hangul_supplement_detection() {
         // AC2-adjacent: the renderer can detect the egui Hangul gap so it knows when to consult the
         // text_intl UAX#14 supplement. Han/Latin do NOT need it; Hangul does.
-        assert!(!is_hangul_break_supplement_needed("这是中文"), "Han is handled by egui natively");
-        assert!(!is_hangul_break_supplement_needed("hello world"), "Latin needs no supplement");
-        assert!(is_hangul_break_supplement_needed("오늘"), "Hangul needs the supplemental break table");
+        assert!(
+            !is_hangul_break_supplement_needed("这是中文"),
+            "Han is handled by egui natively"
+        );
+        assert!(
+            !is_hangul_break_supplement_needed("hello world"),
+            "Latin needs no supplement"
+        );
+        assert!(
+            is_hangul_break_supplement_needed("오늘"),
+            "Hangul needs the supplemental break table"
+        );
     }
 
     // ── MT-078 AC1/AC3/AC5/AC6: bidi-aware block layout ───────────────────────────────────────────────
@@ -656,11 +710,18 @@ mod tests {
         let para = BlockNode::paragraph("hello world");
         let bl = layout_block_bidi(&para, &dark(), 400.0, true);
         assert_eq!(bl.base, crate::text_intl::Direction::Ltr);
-        assert_eq!(bl.job.halign, egui::Align::LEFT, "LTR paragraph stays left-aligned");
+        assert_eq!(
+            bl.job.halign,
+            egui::Align::LEFT,
+            "LTR paragraph stays left-aligned"
+        );
         assert_eq!(bl.logical_text, "hello world");
         // The single section's text is the unchanged (identity) visual order.
         assert_eq!(bl.job.sections.len(), 1);
-        assert!(bl.shaping_limitation.is_none(), "Latin raises no shaping limitation");
+        assert!(
+            bl.shaping_limitation.is_none(),
+            "Latin raises no shaping limitation"
+        );
     }
 
     #[test]
@@ -669,10 +730,24 @@ mod tests {
         // shaping limitation is raised (the honest RTL case).
         let para = BlockNode::paragraph("שלום עולם");
         let bl = layout_block_bidi(&para, &dark(), 400.0, true);
-        assert_eq!(bl.base, crate::text_intl::Direction::Rtl, "Hebrew base is RTL");
-        assert_eq!(bl.job.halign, egui::Align::RIGHT, "AC1: RTL paragraph is right-aligned");
-        assert_eq!(bl.logical_text, "שלום עולם", "logical text is preserved (model stays logical-order)");
-        assert!(bl.shaping_limitation.is_none(), "Hebrew is non-joining — no shaping limitation");
+        assert_eq!(
+            bl.base,
+            crate::text_intl::Direction::Rtl,
+            "Hebrew base is RTL"
+        );
+        assert_eq!(
+            bl.job.halign,
+            egui::Align::RIGHT,
+            "AC1: RTL paragraph is right-aligned"
+        );
+        assert_eq!(
+            bl.logical_text, "שלום עולם",
+            "logical text is preserved (model stays logical-order)"
+        );
+        assert!(
+            bl.shaping_limitation.is_none(),
+            "Hebrew is non-joining — no shaping limitation"
+        );
     }
 
     #[test]
@@ -683,7 +758,9 @@ mod tests {
         let bl = layout_block_bidi(&para, &dark(), 400.0, true);
         assert_eq!(bl.base, crate::text_intl::Direction::Rtl);
         assert_eq!(bl.job.halign, egui::Align::RIGHT);
-        let lim = bl.shaping_limitation.expect("AC5: Arabic must carry a typed shaping limitation");
+        let lim = bl
+            .shaping_limitation
+            .expect("AC5: Arabic must carry a typed shaping limitation");
         assert_eq!(lim.script, crate::text_intl::ComplexScript::Arabic);
     }
 }

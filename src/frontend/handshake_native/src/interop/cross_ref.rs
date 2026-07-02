@@ -60,7 +60,7 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 
 use crate::backend_client::{
-    BACKEND_BASE_URL, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response,
+    LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response, BACKEND_BASE_URL,
 };
 use crate::code_editor::code_nav::CodeNavClient;
 use crate::error::AppError;
@@ -100,8 +100,15 @@ pub const NOTE_REF_CONTENT_TYPES: &[&str] = &["note", "journal"];
 /// this set, so a code->notes search can NEVER send a value the backend would reject with HTTP 422 (the
 /// drift the `MockSearch` happy-path would otherwise mask). This list is a verification fixture, NOT a
 /// second source of authority — the backend enum stays canonical; if it changes, update both together.
-pub const BACKEND_LOOM_CONTENT_TYPE_TOKENS: &[&str] =
-    &["note", "file", "annotated_file", "tag_hub", "journal", "canvas", "view_def"];
+pub const BACKEND_LOOM_CONTENT_TYPE_TOKENS: &[&str] = &[
+    "note",
+    "file",
+    "annotated_file",
+    "tag_hub",
+    "journal",
+    "canvas",
+    "view_def",
+];
 
 /// Why a code<->note cross-reference resolution failed. Every variant renders as a VISIBLE state
 /// (empty / typed error chip), never a silent no-op or a panic. `kind_str` is a stable kebab-case
@@ -145,7 +152,9 @@ impl CrossRefError {
     pub fn is_unresolved(&self) -> bool {
         matches!(
             self,
-            CrossRefError::NotFound(_) | CrossRefError::NoDefinition(_) | CrossRefError::EmptySymbol
+            CrossRefError::NotFound(_)
+                | CrossRefError::NoDefinition(_)
+                | CrossRefError::EmptySymbol
         )
     }
 }
@@ -219,7 +228,11 @@ impl NoteRef {
 /// plain text (the NoteRefsPanel renders plain text, never raw HTML — the same rule the MT-028 search
 /// panel follows by parsing the markers into colored runs; here we only need the bare text).
 fn strip_mark_tags(highlight: &str) -> String {
-    highlight.replace("<mark>", "").replace("</mark>", "").trim().to_owned()
+    highlight
+        .replace("<mark>", "")
+        .replace("</mark>", "")
+        .trim()
+        .to_owned()
 }
 
 /// Percent-encode a symbol key (or any value) for embedding in a URL path/query segment (RISK-2 /
@@ -345,7 +358,8 @@ pub async fn find_notes_with(
     let mut last_err: Option<CrossRefError> = None;
     let mut any_ok = false;
     for content_type in NOTE_REF_CONTENT_TYPES {
-        let body = LoomSearchV2Body::baseline(symbol_key.to_owned(), Some((*content_type).to_owned()));
+        let body =
+            LoomSearchV2Body::baseline(symbol_key.to_owned(), Some((*content_type).to_owned()));
         match backend.search(workspace_id, &body).await {
             Ok(response) => {
                 any_ok = true;
@@ -362,7 +376,8 @@ pub async fn find_notes_with(
     // Every query failed (e.g. the backend is down) -> surface the typed error. At least one succeeded
     // -> return the merged hits (an empty vec is the honest "no notes" state, never an error).
     if !any_ok {
-        return Err(last_err.unwrap_or_else(|| CrossRefError::Backend("no content-type queries ran".to_owned())));
+        return Err(last_err
+            .unwrap_or_else(|| CrossRefError::Backend("no content-type queries ran".to_owned())));
     }
     Ok(out)
 }
@@ -388,7 +403,12 @@ pub fn dispatch_code_ref_open(
     event: &crate::rich_editor::wikilinks::inline_view::EditorEvent,
 ) -> Option<String> {
     use crate::rich_editor::wikilinks::inline_view::EditorEvent;
-    if let EditorEvent::WikilinkActivated { ref_kind, ref_value, .. } = event {
+    if let EditorEvent::WikilinkActivated {
+        ref_kind,
+        ref_value,
+        ..
+    } = event
+    {
         if ref_kind == CODE_REF_KIND {
             bus.open_code_symbol(ctx, ref_value.clone());
             return Some(ref_value.clone());
@@ -418,7 +438,12 @@ pub fn dispatch_locus_ref_open(
     event: &crate::rich_editor::wikilinks::inline_view::EditorEvent,
 ) -> Option<String> {
     use crate::rich_editor::wikilinks::inline_view::EditorEvent;
-    if let EditorEvent::WikilinkActivated { ref_kind, ref_value, .. } = event {
+    if let EditorEvent::WikilinkActivated {
+        ref_kind,
+        ref_value,
+        ..
+    } = event
+    {
         if ref_kind == crate::interop::locus_interop::LOCUS_REF_KIND {
             // Stage the NORMALIZED `locus://` ref so resolution + the shell agree on one key; a raw value
             // that does not parse still dispatches (the shell renders a typed cannot-resolve state).
@@ -443,7 +468,13 @@ pub trait FindNotesSearch: Send + Sync {
         &'a self,
         workspace_id: &'a str,
         body: &'a LoomSearchV2Body,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>> + Send + 'a>>;
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>>
+                + Send
+                + 'a,
+        >,
+    >;
 }
 
 /// The production [`FindNotesSearch`]: a thin reqwest wrapper over the VERIFIED
@@ -475,18 +506,24 @@ impl FindNotesSearch for FindNotesHttp {
         &'a self,
         workspace_id: &'a str,
         body: &'a LoomSearchV2Body,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>> + Send + 'a>>
-    {
-        let url = format!("{}/workspaces/{}/loom/search-v2", self.base_url, workspace_id);
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        let url = format!(
+            "{}/workspaces/{}/loom/search-v2",
+            self.base_url, workspace_id
+        );
         let client = self.client.clone();
         let body = body.clone();
         Box::pin(async move {
-            let response = client
-                .post(&url)
-                .json(&body)
-                .send()
-                .await
-                .map_err(|e| CrossRefError::Backend(format!("find-notes search failed: {e}")))?;
+            let response =
+                client.post(&url).json(&body).send().await.map_err(|e| {
+                    CrossRefError::Backend(format!("find-notes search failed: {e}"))
+                })?;
             let status = response.status();
             if status.as_u16() == 404 {
                 return Err(CrossRefError::NotFound("loom search-v2".to_owned()));
@@ -598,7 +635,12 @@ mod tests {
     use crate::backend_client::{LoomSearchBlock, LoomSearchV2Hit, LoomSearchV2Response};
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    fn hit(block_id: &str, title: Option<&str>, content_type: &str, highlight: &str) -> LoomSearchV2Hit {
+    fn hit(
+        block_id: &str,
+        title: Option<&str>,
+        content_type: &str,
+        highlight: &str,
+    ) -> LoomSearchV2Hit {
         LoomSearchV2Hit {
             block: LoomSearchBlock {
                 block_id: block_id.to_owned(),
@@ -633,8 +675,14 @@ mod tests {
         let n = NoteRef::from_hit(hit("BLK-1", None, "note", "see <mark>MyStruct</mark> here"));
         assert_eq!(n.block_id, "BLK-1");
         assert_eq!(n.document_id, "BLK-1");
-        assert_eq!(n.document_title, "BLK-1", "untitled block falls back to its id");
-        assert_eq!(n.excerpt, "see MyStruct here", "the <mark> markers are stripped");
+        assert_eq!(
+            n.document_title, "BLK-1",
+            "untitled block falls back to its id"
+        );
+        assert_eq!(
+            n.excerpt, "see MyStruct here",
+            "the <mark> markers are stripped"
+        );
         let titled = NoteRef::from_hit(hit("BLK-2", Some("My Note"), "document", ""));
         assert_eq!(titled.document_title, "My Note");
     }
@@ -643,20 +691,33 @@ mod tests {
     fn cross_ref_error_kind_strings_and_unresolved_flag() {
         assert_eq!(CrossRefError::NoWorkspace.kind_str(), "no_workspace");
         assert_eq!(CrossRefError::NotFound("x".into()).kind_str(), "not_found");
-        assert_eq!(CrossRefError::NoDefinition("x".into()).kind_str(), "no_definition");
+        assert_eq!(
+            CrossRefError::NoDefinition("x".into()).kind_str(),
+            "no_definition"
+        );
         assert!(CrossRefError::NotFound("x".into()).is_unresolved());
         assert!(CrossRefError::NoDefinition("x".into()).is_unresolved());
         assert!(CrossRefError::EmptySymbol.is_unresolved());
-        assert!(!CrossRefError::Backend("down".into()).is_unresolved(), "transient backend error is not unresolved");
+        assert!(
+            !CrossRefError::Backend("down".into()).is_unresolved(),
+            "transient backend error is not unresolved"
+        );
         assert!(!CrossRefError::NoWorkspace.is_unresolved());
     }
 
     #[test]
     fn app_error_404_maps_to_not_found() {
-        let nf: CrossRefError = AppError::Http("GET code-nav non-success status 404 Not Found".into()).into();
-        assert!(matches!(nf, CrossRefError::NotFound(_)), "a 404 status maps to unresolved/not-found");
+        let nf: CrossRefError =
+            AppError::Http("GET code-nav non-success status 404 Not Found".into()).into();
+        assert!(
+            matches!(nf, CrossRefError::NotFound(_)),
+            "a 404 status maps to unresolved/not-found"
+        );
         let be: CrossRefError = AppError::Http("503 Service Unavailable".into()).into();
-        assert!(matches!(be, CrossRefError::Backend(_)), "a non-404 status is a generic backend error");
+        assert!(
+            matches!(be, CrossRefError::Backend(_)),
+            "a non-404 status is a generic backend error"
+        );
     }
 
     // A counted in-memory search mock (the MT-014/MT-015 counted-mock pattern; NO backend).
@@ -673,7 +734,12 @@ mod tests {
     impl MockSearch {
         // Convenience ctor for the existing tests that do not exercise the failure paths.
         fn ok(by_content_type: std::collections::HashMap<String, Vec<LoomSearchV2Hit>>) -> Self {
-            Self { by_content_type, fail: false, fail_after_first: false, calls: AtomicUsize::new(0) }
+            Self {
+                by_content_type,
+                fail: false,
+                fail_after_first: false,
+                calls: AtomicUsize::new(0),
+            }
         }
     }
     impl FindNotesSearch for MockSearch {
@@ -681,15 +747,22 @@ mod tests {
             &'a self,
             _workspace_id: &'a str,
             body: &'a LoomSearchV2Body,
-        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>> + Send + 'a>>
-        {
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>>
+                    + Send
+                    + 'a,
+            >,
+        > {
             let call_index = self.calls.fetch_add(1, Ordering::SeqCst);
             let fail = self.fail || (self.fail_after_first && call_index >= 1);
             let ct = body.content_type.clone().unwrap_or_default();
             let hits = self.by_content_type.get(&ct).cloned().unwrap_or_default();
             Box::pin(async move {
                 if fail {
-                    return Err(CrossRefError::Backend("mock content-type query failed".to_owned()));
+                    return Err(CrossRefError::Backend(
+                        "mock content-type query failed".to_owned(),
+                    ));
                 }
                 Ok(LoomSearchV2Response {
                     hits,
@@ -714,14 +787,21 @@ mod tests {
         let mock = MockSearch::ok(Default::default());
         let r = block_on(find_notes_with(&mock, "fn:src/main.rs#MyStruct", ""));
         assert_eq!(r, Err(CrossRefError::NoWorkspace));
-        assert_eq!(mock.calls.load(Ordering::SeqCst), 0, "no backend call without a workspace");
+        assert_eq!(
+            mock.calls.load(Ordering::SeqCst),
+            0,
+            "no backend call without a workspace"
+        );
     }
 
     #[test]
     fn find_notes_empty_symbol_is_empty_not_error() {
         let mock = MockSearch::ok(Default::default());
         let r = block_on(find_notes_with(&mock, "  ", "ws-1")).unwrap();
-        assert!(r.is_empty(), "an empty symbol yields an empty list, not an error");
+        assert!(
+            r.is_empty(),
+            "an empty symbol yields an empty list, not an error"
+        );
         assert_eq!(mock.calls.load(Ordering::SeqCst), 0);
     }
 
@@ -731,13 +811,33 @@ mod tests {
         // distinct block in each is kept. The search restricts to rich-doc content types (one call per).
         // Seeds the REAL backend tokens (`note`/`journal`) — never the invalid `document` that 422'd.
         let mut by = std::collections::HashMap::new();
-        by.insert("note".to_owned(), vec![hit("BLK-A", Some("A"), "note", "<mark>S</mark>"), hit("BLK-B", Some("B"), "note", "x")]);
-        by.insert("journal".to_owned(), vec![hit("BLK-A", Some("A"), "journal", "y"), hit("BLK-C", Some("C"), "journal", "z")]);
+        by.insert(
+            "note".to_owned(),
+            vec![
+                hit("BLK-A", Some("A"), "note", "<mark>S</mark>"),
+                hit("BLK-B", Some("B"), "note", "x"),
+            ],
+        );
+        by.insert(
+            "journal".to_owned(),
+            vec![
+                hit("BLK-A", Some("A"), "journal", "y"),
+                hit("BLK-C", Some("C"), "journal", "z"),
+            ],
+        );
         let mock = MockSearch::ok(by);
         let r = block_on(find_notes_with(&mock, "fn:src/main.rs#S", "ws-1")).unwrap();
         let ids: Vec<&str> = r.iter().map(|n| n.block_id.as_str()).collect();
-        assert_eq!(ids, vec!["BLK-A", "BLK-B", "BLK-C"], "deduped, in content-type then hit order");
-        assert_eq!(mock.calls.load(Ordering::SeqCst), 2, "one search per rich-doc content type");
+        assert_eq!(
+            ids,
+            vec!["BLK-A", "BLK-B", "BLK-C"],
+            "deduped, in content-type then hit order"
+        );
+        assert_eq!(
+            mock.calls.load(Ordering::SeqCst),
+            2,
+            "one search per rich-doc content type"
+        );
     }
 
     /// BACKEND-SHAPE GUARD (must-fix): every `NOTE_REF_CONTENT_TYPES` value MUST be a real
@@ -765,21 +865,41 @@ mod tests {
     #[test]
     fn find_notes_returns_partial_hits_when_one_content_type_fails() {
         let mut by = std::collections::HashMap::new();
-        by.insert("note".to_owned(), vec![hit("BLK-A", Some("A"), "note", "S")]);
+        by.insert(
+            "note".to_owned(),
+            vec![hit("BLK-A", Some("A"), "note", "S")],
+        );
         // `journal` returns no seeded hits AND the mock is set to fail the SECOND call below.
-        let mock = MockSearch { by_content_type: by, fail_after_first: true, fail: false, calls: AtomicUsize::new(0) };
+        let mock = MockSearch {
+            by_content_type: by,
+            fail_after_first: true,
+            fail: false,
+            calls: AtomicUsize::new(0),
+        };
         let r = block_on(find_notes_with(&mock, "fn:src/main.rs#S", "ws-1")).unwrap();
         let ids: Vec<&str> = r.iter().map(|n| n.block_id.as_str()).collect();
-        assert_eq!(ids, vec!["BLK-A"], "the successful query's hit survives a sibling query failure");
+        assert_eq!(
+            ids,
+            vec!["BLK-A"],
+            "the successful query's hit survives a sibling query failure"
+        );
     }
 
     /// PARTIAL-FAILURE ROBUSTNESS (must-fix hardening): if EVERY content-type query fails, the typed
     /// error is surfaced (the panel shows a fail-closed error chip, not a silent empty state).
     #[test]
     fn find_notes_errors_only_when_all_content_types_fail() {
-        let mock = MockSearch { by_content_type: Default::default(), fail_after_first: false, fail: true, calls: AtomicUsize::new(0) };
+        let mock = MockSearch {
+            by_content_type: Default::default(),
+            fail_after_first: false,
+            fail: true,
+            calls: AtomicUsize::new(0),
+        };
         let r = block_on(find_notes_with(&mock, "fn:src/main.rs#S", "ws-1"));
-        assert!(matches!(r, Err(CrossRefError::Backend(_))), "all-fail surfaces the typed backend error");
+        assert!(
+            matches!(r, Err(CrossRefError::Backend(_))),
+            "all-fail surfaces the typed backend error"
+        );
     }
 
     /// RISK-3 / MC-3 (the live backend-spam guard, now that the tracker is WIRED): the cursor leaves all
@@ -793,16 +913,35 @@ mod tests {
         let t = Instant::now();
         // Settle on S1 and fire once.
         assert_eq!(tracker.observe_with_threshold(Some("S1"), t, z), None);
-        assert_eq!(tracker.observe_with_threshold(Some("S1"), t, z), Some("S1".to_owned()));
+        assert_eq!(
+            tracker.observe_with_threshold(Some("S1"), t, z),
+            Some("S1".to_owned())
+        );
         // Cursor leaves all symbols.
         assert_eq!(tracker.observe_with_threshold(None, t, z), None);
         // Re-enter the SAME symbol: this is a move frame (no fire), and crucially `fired_for` is KEPT.
-        assert_eq!(tracker.observe_with_threshold(Some("S1"), t, z), None, "re-entry move frame: no fire");
+        assert_eq!(
+            tracker.observe_with_threshold(Some("S1"), t, z),
+            None,
+            "re-entry move frame: no fire"
+        );
         // Settling again must NOT refire (no backend spam from a hover-jiggle).
-        assert_eq!(tracker.observe_with_threshold(Some("S1"), t, z), None, "same-symbol re-entry must not refire");
+        assert_eq!(
+            tracker.observe_with_threshold(Some("S1"), t, z),
+            None,
+            "same-symbol re-entry must not refire"
+        );
         // But a genuine move to a DIFFERENT symbol DOES fire once.
-        assert_eq!(tracker.observe_with_threshold(Some("S2"), t, z), None, "move to S2: no fire on move frame");
-        assert_eq!(tracker.observe_with_threshold(Some("S2"), t, z), Some("S2".to_owned()), "S2 fires once");
+        assert_eq!(
+            tracker.observe_with_threshold(Some("S2"), t, z),
+            None,
+            "move to S2: no fire on move frame"
+        );
+        assert_eq!(
+            tracker.observe_with_threshold(Some("S2"), t, z),
+            Some("S2".to_owned()),
+            "S2 fires once"
+        );
     }
 
     #[test]
@@ -816,13 +955,19 @@ mod tests {
         // Frame 1: cursor lands on S1 -> sets the dwell, does NOT fire (a move/first-observation frame).
         assert_eq!(tracker.observe_with_threshold(Some("S1"), t0, z), None);
         // Frame 2: still on S1, threshold crossed -> fires ONCE.
-        assert_eq!(tracker.observe_with_threshold(Some("S1"), t0, z), Some("S1".to_owned()));
+        assert_eq!(
+            tracker.observe_with_threshold(Some("S1"), t0, z),
+            Some("S1".to_owned())
+        );
         // Frame 3: still on S1 -> already fired, no refire (no backend spam).
         assert_eq!(tracker.observe_with_threshold(Some("S1"), t0, z), None);
         // Frame 4: cursor MOVES to S2 -> reset, no fire on the move frame.
         assert_eq!(tracker.observe_with_threshold(Some("S2"), t0, z), None);
         // Frame 5: settles on S2 -> fires once for S2.
-        assert_eq!(tracker.observe_with_threshold(Some("S2"), t0, z), Some("S2".to_owned()));
+        assert_eq!(
+            tracker.observe_with_threshold(Some("S2"), t0, z),
+            Some("S2".to_owned())
+        );
         assert_eq!(tracker.current_symbol(), Some("S2"));
     }
 
@@ -832,9 +977,17 @@ mod tests {
         // elapsed), proving the debounce gates the search.
         let mut tracker = SymbolDwellTracker::new();
         let now = Instant::now();
-        assert_eq!(tracker.observe(Some("S1"), now), None, "first observation never fires");
+        assert_eq!(
+            tracker.observe(Some("S1"), now),
+            None,
+            "first observation never fires"
+        );
         // Same instant, real 800ms threshold -> still under the window -> no fire.
-        assert_eq!(tracker.observe(Some("S1"), now), None, "under the 800ms window -> no fire");
+        assert_eq!(
+            tracker.observe(Some("S1"), now),
+            None,
+            "under the 800ms window -> no fire"
+        );
     }
 
     #[test]

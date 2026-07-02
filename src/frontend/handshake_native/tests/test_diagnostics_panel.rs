@@ -32,9 +32,9 @@ use egui_kittest::Harness;
 use handshake_diag_ring::{DiagEventCode, DiagPhase, DiagSeverity};
 use handshake_native::app::HandshakeApp;
 use handshake_native::diagnostics::{
-    self, DIAGNOSTICS_EVENTS_AUTHOR_ID, DIAGNOSTICS_FRAME_AUTHOR_ID,
+    self, BUFFER_CAP, DIAGNOSTICS_EVENTS_AUTHOR_ID, DIAGNOSTICS_FRAME_AUTHOR_ID,
     DIAGNOSTICS_HEARTBEAT_AUTHOR_ID, DIAGNOSTICS_PALMISTRY_AUTHOR_ID, DIAGNOSTICS_PANEL_AUTHOR_ID,
-    DIAGNOSTICS_RESOURCE_AUTHOR_ID, BUFFER_CAP,
+    DIAGNOSTICS_RESOURCE_AUTHOR_ID,
 };
 
 // ── wgpu serialization + artifact hygiene (CX-212E / the SCREENSHOT/TEST-ARTIFACT rule) ────────────
@@ -92,7 +92,9 @@ fn open_diagnostics_section(harness: &mut Harness<'_, HandshakeApp>) {
     let search = harness.get_by_label("Search settings");
     search.focus();
     harness.step();
-    harness.get_by_label("Search settings").type_text("diagnostics");
+    harness
+        .get_by_label("Search settings")
+        .type_text("diagnostics");
     harness.run_steps(3);
 }
 
@@ -139,7 +141,9 @@ fn diagnostics_section_renders_live_in_app_tree_and_screenshot() {
         ids.contains(DIAGNOSTICS_PANEL_AUTHOR_ID),
         "AC-007-1: the live app tree must carry the REAL diagnostics panel container \
          ('{DIAGNOSTICS_PANEL_AUTHOR_ID}'); got the diagnostics-ish subset {:?}",
-        ids.iter().filter(|i| i.contains("diagnostics")).collect::<Vec<_>>()
+        ids.iter()
+            .filter(|i| i.contains("diagnostics"))
+            .collect::<Vec<_>>()
     );
     assert_eq!(
         role_of(&harness, DIAGNOSTICS_PANEL_AUTHOR_ID).as_deref(),
@@ -149,11 +153,16 @@ fn diagnostics_section_renders_live_in_app_tree_and_screenshot() {
 
     // The MT names these child section nodes EXACTLY — the heartbeat + events sections must render under
     // the panel so a no-context model + swarm agents can address them.
-    for child in [DIAGNOSTICS_HEARTBEAT_AUTHOR_ID, DIAGNOSTICS_EVENTS_AUTHOR_ID] {
+    for child in [
+        DIAGNOSTICS_HEARTBEAT_AUTHOR_ID,
+        DIAGNOSTICS_EVENTS_AUTHOR_ID,
+    ] {
         assert!(
             ids.contains(child),
             "AC-007-1: the panel subtree must carry the '{child}' section node; got {:?}",
-            ids.iter().filter(|i| i.contains("diagnostics")).collect::<Vec<_>>()
+            ids.iter()
+                .filter(|i| i.contains("diagnostics"))
+                .collect::<Vec<_>>()
         );
         assert_eq!(
             role_of(&harness, child).as_deref(),
@@ -199,7 +208,10 @@ fn diagnostics_section_renders_live_in_app_tree_and_screenshot() {
                 "PT-007-A diagnostics-section screenshot: {w}x{h}, saved={saved} ({})",
                 abs.display()
             );
-            assert!(saved, "AC-007-3: the Diagnostics-section screenshot PNG saved to the external root");
+            assert!(
+                saved,
+                "AC-007-3: the Diagnostics-section screenshot PNG saved to the external root"
+            );
         }
         Err(e) => {
             println!(
@@ -263,7 +275,9 @@ fn panel_projects_live_heartbeat_frame_and_events() {
         events.len()
     );
     assert!(
-        events.iter().any(|e| e.sequence_id == 9_999 && e.counter_a == 7),
+        events
+            .iter()
+            .any(|e| e.sequence_id == 9_999 && e.counter_a == 7),
         "AC-007-2: the recorded typed marker is visible in the global buffer the panel projects"
     );
 
@@ -274,7 +288,9 @@ fn panel_projects_live_heartbeat_frame_and_events() {
     let search = harness.get_by_label("Search settings");
     search.focus();
     harness.step();
-    harness.get_by_label("Search settings").type_text("diagnostics");
+    harness
+        .get_by_label("Search settings")
+        .type_text("diagnostics");
     harness.run_steps(3);
 
     let ids = live_author_ids(&harness);
@@ -318,8 +334,12 @@ fn tier3_palmistry_empty_state_and_accesskit_ids_present() {
     // `ui.label` text run as the node's accessible VALUE (and sometimes label), so check BOTH fields.
     let has_empty_state = harness.root().children_recursive().any(|n| {
         let ak = n.accesskit_node();
-        let in_value = ak.value().is_some_and(|v| v.contains("No freeze/crash records"));
-        let in_label = ak.label().is_some_and(|l| l.contains("No freeze/crash records"));
+        let in_value = ak
+            .value()
+            .is_some_and(|v| v.contains("No freeze/crash records"));
+        let in_label = ak
+            .label()
+            .is_some_and(|l| l.contains("No freeze/crash records"));
         in_value || in_label
     });
     assert!(
@@ -336,14 +356,18 @@ fn tier3_palmistry_empty_state_and_accesskit_ids_present() {
         DIAGNOSTICS_EVENTS_AUTHOR_ID,
         DIAGNOSTICS_PALMISTRY_AUTHOR_ID,
     ] {
-        assert!(ids.contains(id), "AC-007-5: panel section id '{id}' present in the live tree");
+        assert!(
+            ids.contains(id),
+            "AC-007-5: panel section id '{id}' present in the live tree"
+        );
     }
 
     // AC-007-5: NO perpetual spinner. egui spinners surface as a `Role::ProgressIndicator` with no set
     // value (indeterminate). Assert the panel subtree contains no such node.
-    let has_spinner = harness.root().children_recursive().any(|n| {
-        format!("{:?}", n.accesskit_node().role()) == "ProgressIndicator"
-    });
+    let has_spinner = harness
+        .root()
+        .children_recursive()
+        .any(|n| format!("{:?}", n.accesskit_node().role()) == "ProgressIndicator");
     assert!(
         !has_spinner,
         "AC-007-5: the diagnostics surface must NOT show a perpetual spinner"

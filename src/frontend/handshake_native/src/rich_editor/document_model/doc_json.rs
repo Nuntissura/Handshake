@@ -222,7 +222,10 @@ fn child_to_json(child: &Child) -> JsonNode {
 /// host stores ONLY the `refValue` reference; the body is resolved at view time.
 fn transclusion_to_json(node: &TransclusionNode) -> JsonNode {
     let mut attrs = Map::new();
-    attrs.insert("refValue".to_string(), JsonValue::from(node.ref_value.clone()));
+    attrs.insert(
+        "refValue".to_string(),
+        JsonValue::from(node.ref_value.clone()),
+    );
     JsonNode {
         ty: "loomTransclusion".to_string(),
         attrs: Some(attrs),
@@ -238,8 +241,14 @@ fn transclusion_to_json(node: &TransclusionNode) -> JsonNode {
 /// `content`/`text`).
 fn hs_link_to_json(link: &HsLinkNode) -> JsonNode {
     let mut attrs = Map::new();
-    attrs.insert("refKind".to_string(), JsonValue::from(link.ref_kind.clone()));
-    attrs.insert("refValue".to_string(), JsonValue::from(link.ref_value.clone()));
+    attrs.insert(
+        "refKind".to_string(),
+        JsonValue::from(link.ref_kind.clone()),
+    );
+    attrs.insert(
+        "refValue".to_string(),
+        JsonValue::from(link.ref_value.clone()),
+    );
     attrs.insert("label".to_string(), JsonValue::from(link.label.clone()));
     attrs.insert("resolved".to_string(), JsonValue::from(link.resolved));
     JsonNode {
@@ -434,16 +443,18 @@ fn json_to_mark(mark: &JsonMark) -> Result<Mark, DocJsonError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::node::{BlockNode, Child, HsLinkNode, Mark, NodeKind, TextLeaf};
+    use super::*;
 
     fn rich_doc() -> BlockNode {
         // doc > [ heading(1,"Title"), paragraph("Bold italic", with bold+italic) ]
         let mut para = BlockNode::new(NodeKind::Paragraph);
         para.children
             .push(Child::Text(TextLeaf::with_marks("Bold ", vec![Mark::Bold])));
-        para.children
-            .push(Child::Text(TextLeaf::with_marks("italic", vec![Mark::Italic])));
+        para.children.push(Child::Text(TextLeaf::with_marks(
+            "italic",
+            vec![Mark::Italic],
+        )));
         BlockNode::doc(vec![BlockNode::heading(1, "Title"), para])
     }
 
@@ -468,7 +479,10 @@ mod tests {
         // schema_version key inside it (the version is a sibling record field).
         let v = to_content_json_value(&rich_doc());
         assert_eq!(v["type"], "doc");
-        assert!(v.get("schema_version").is_none(), "content_json must NOT embed schema_version");
+        assert!(
+            v.get("schema_version").is_none(),
+            "content_json must NOT embed schema_version"
+        );
         // The record envelope carries the version as a SIBLING of content_json.
         let env: JsonValue = serde_json::to_value(to_rich_document(&rich_doc())).unwrap();
         assert_eq!(env["schema_version"], "rich_document_v1");
@@ -545,7 +559,8 @@ mod tests {
         use super::super::node::TransclusionNode;
         let mut para = BlockNode::new(NodeKind::Paragraph);
         para.children.push(Child::Text(TextLeaf::new("embed: ")));
-        para.children.push(Child::Transclusion(TransclusionNode::new("BLK-42")));
+        para.children
+            .push(Child::Transclusion(TransclusionNode::new("BLK-42")));
         let doc = BlockNode::doc(vec![para]);
         let json = to_json_string(&doc).unwrap();
         let back = from_json_string(&json).unwrap();
@@ -578,7 +593,11 @@ mod tests {
         let json = to_json_string(&doc).unwrap();
         let back = from_json_string(&json).unwrap();
         assert_eq!(
-            back.children[0].as_block().unwrap().attrs.get("data-future"),
+            back.children[0]
+                .as_block()
+                .unwrap()
+                .attrs
+                .get("data-future"),
             Some(&JsonValue::from("keepme"))
         );
     }
@@ -628,17 +647,31 @@ mod tests {
         assert_eq!(table.kind, NodeKind::Table);
         let header_row = table.children[0].as_block().unwrap();
         let header_cell = header_row.children[0].as_block().unwrap();
-        assert_eq!(header_cell.kind, NodeKind::TableHeader, "first-row cells are tableHeader");
+        assert_eq!(
+            header_cell.kind,
+            NodeKind::TableHeader,
+            "first-row cells are tableHeader"
+        );
         let body_row = table.children[1].as_block().unwrap();
         let body_cell = body_row.children[0].as_block().unwrap();
-        assert_eq!(body_cell.kind, NodeKind::TableCell, "second-row cells are tableCell");
+        assert_eq!(
+            body_cell.kind,
+            NodeKind::TableCell,
+            "second-row cells are tableCell"
+        );
 
         // And it re-serializes back to the same node TYPES (deserialize -> reserialize byte-shape
         // compatibility against the captured value's structure — NOT a self-round-trip of our own
         // output; we re-parse our re-serialization and assert the kinds survive).
         let reser = to_content_json_value(&doc);
-        assert_eq!(reser["content"][0]["content"][0]["content"][0]["type"], "tableHeader");
-        assert_eq!(reser["content"][0]["content"][1]["content"][0]["type"], "tableCell");
+        assert_eq!(
+            reser["content"][0]["content"][0]["content"][0]["type"],
+            "tableHeader"
+        );
+        assert_eq!(
+            reser["content"][0]["content"][1]["content"][0]["type"],
+            "tableCell"
+        );
         // Full round-trip equality (model -> json -> model).
         let back = from_json_value(&reser).unwrap();
         assert_eq!(doc, back);

@@ -121,7 +121,10 @@ pub fn render_transclusion(
             }
             Some(TransclusionState::Resolved(t)) => {
                 // The source label + the truncated read-through preview.
-                let source = t.source_document_id.clone().unwrap_or_else(|| ref_value.clone());
+                let source = t
+                    .source_document_id
+                    .clone()
+                    .unwrap_or_else(|| ref_value.clone());
                 ui.colored_label(palette.text_subtle, format!("Source: {source}"));
                 let preview = t
                     .content_json
@@ -135,9 +138,16 @@ pub fn render_transclusion(
                 }
                 // "Open block" link button -> enqueue the open event for the shell to route.
                 let open = ui.button("Open block →");
-                emit_node_author(ui.ctx(), open.id, accesskit::Role::Button, &open_author_id(&ref_value));
+                emit_node_author(
+                    ui.ctx(),
+                    open.id,
+                    accesskit::Role::Button,
+                    &open_author_id(&ref_value),
+                );
                 if open.clicked() {
-                    event = Some(EditorEvent::TransclusionOpenRequested { ref_value: ref_value.clone() });
+                    event = Some(EditorEvent::TransclusionOpenRequested {
+                        ref_value: ref_value.clone(),
+                    });
                 }
             }
             Some(TransclusionState::Unresolved(reason)) => {
@@ -150,10 +160,18 @@ pub fn render_transclusion(
             Some(TransclusionState::Failed(err)) => {
                 // A typed error chip (never blank). On a 404 (deleted block) offer "Remove embed"
                 // (MC-003) — a network error does NOT offer remove (it should retry, not delete).
-                ui.colored_label(palette.error_text, format!("Transclusion failed ({}): {err}", err.kind_str()));
+                ui.colored_label(
+                    palette.error_text,
+                    format!("Transclusion failed ({}): {err}", err.kind_str()),
+                );
                 if err.is_not_found() {
                     let remove = ui.button("Remove embed");
-                    emit_node_author(ui.ctx(), remove.id, accesskit::Role::Button, &remove_author_id(&ref_value));
+                    emit_node_author(
+                        ui.ctx(),
+                        remove.id,
+                        accesskit::Role::Button,
+                        &remove_author_id(&ref_value),
+                    );
                     if remove.clicked() {
                         removed = true;
                     }
@@ -161,7 +179,12 @@ pub fn render_transclusion(
             }
         }
     });
-    emit_node_author(ui.ctx(), container.response.id, accesskit::Role::Group, &container_author_id(&ref_value));
+    emit_node_author(
+        ui.ctx(),
+        container.response.id,
+        accesskit::Role::Group,
+        &container_author_id(&ref_value),
+    );
 
     if removed {
         runtime.mark_removed(&ref_value);
@@ -211,7 +234,10 @@ mod tests {
         assert_eq!(lines.len(), 4);
         assert_eq!(lines[0], "line one");
         assert_eq!(lines[2], "line three");
-        assert_eq!(lines[3], "…", "an over-long preview is truncated with an ellipsis line");
+        assert_eq!(
+            lines[3], "…",
+            "an over-long preview is truncated with an ellipsis line"
+        );
     }
 
     #[test]
@@ -233,6 +259,10 @@ mod tests {
         let doc = serde_json::json!({"type":"doc","content":[]});
         assert_eq!(preview_text(&doc, 3), "");
         let blank = serde_json::json!({"type":"doc","content":[{"type":"paragraph"}]});
-        assert_eq!(preview_text(&blank, 3), "", "a blank paragraph contributes no preview line");
+        assert_eq!(
+            preview_text(&blank, 3),
+            "",
+            "a blank paragraph contributes no preview line"
+        );
     }
 }

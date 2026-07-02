@@ -33,7 +33,9 @@ use egui_kittest::Harness;
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, NodeKind, TextLeaf};
 use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::renderer::{block_author_id, RICH_EDITOR_ROOT_AUTHOR_ID};
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic — the crate
@@ -102,7 +104,9 @@ fn accesskit_root_textinput() {
 
     for node in root.children_recursive() {
         let ak = node.accesskit_node();
-        let Some(author) = ak.author_id() else { continue };
+        let Some(author) = ak.author_id() else {
+            continue;
+        };
         if author == RICH_EDITOR_ROOT_AUTHOR_ID {
             root_found = true;
             root_role = format!("{:?}", ak.role());
@@ -203,7 +207,8 @@ fn wysiwyg_screenshot() {
             // multiple distinct foreground colors over the background (AC-1 visible styling
             // + AC-7 heading present). Sample every 4th pixel for speed.
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut i = 0usize;
             while i + 4 <= raw.len() {
                 let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
@@ -228,7 +233,10 @@ fn wysiwyg_screenshot() {
                  (text glyphs over the bg); got {} (bg={bg:?})",
                 foreground.len()
             );
-            assert!(saved, "the mt012_wysiwyg.png screenshot must be saved to the external artifact root");
+            assert!(
+                saved,
+                "the mt012_wysiwyg.png screenshot must be saved to the external artifact root"
+            );
             assert_no_local_artifact_dir();
         }
         Err(e) => {
@@ -253,9 +261,14 @@ fn hello_world_bold_run_and_heading_present() {
     let para = state.doc.children[1].as_block().unwrap();
     let bold_run = para.children[1].as_text().unwrap();
     assert_eq!(bold_run.text.to_string(), "world");
-    assert!(bold_run.has_mark_type(&handshake_native::rich_editor::document_model::node::Mark::Bold));
+    assert!(
+        bold_run.has_mark_type(&handshake_native::rich_editor::document_model::node::Mark::Bold)
+    );
     // The first block is an h1 heading.
-    assert_eq!(state.doc.children[0].as_block().unwrap().heading_level(), Some(1));
+    assert_eq!(
+        state.doc.children[0].as_block().unwrap().heading_level(),
+        Some(1)
+    );
 }
 
 // ── HBR-SWARM: a model-driven edit on the state is reflected in the rendered tree ─────────
@@ -290,11 +303,17 @@ fn swarm_edit_reflects_in_render() {
         }
         None
     };
-    assert_eq!(label_of(&harness).as_deref(), Some("start"), "initial block label is the text");
+    assert_eq!(
+        label_of(&harness).as_deref(),
+        Some("start"),
+        "initial block label is the text"
+    );
 
     // Mutate the model out-of-band: append " edited" at the caret (end of "start").
     {
-        use handshake_native::rich_editor::document_model::transform::{apply_transaction, Step, Transaction};
+        use handshake_native::rich_editor::document_model::transform::{
+            apply_transaction, Step, Transaction,
+        };
         let mut st = state.lock().unwrap();
         st.selection = Selection::caret(DocPosition::new(vec![0, 0], 5));
         let tx = Transaction::operator(vec![Step::InsertText {
@@ -338,7 +357,10 @@ fn no_focus_steal_calls() {
             // Skip the doc-comment that NAMES the ban (it explains the rule, not a call).
             for line in src.lines() {
                 let trimmed = line.trim_start();
-                if trimmed.starts_with("//") || trimmed.starts_with("///") || trimmed.starts_with("*") {
+                if trimmed.starts_with("//")
+                    || trimmed.starts_with("///")
+                    || trimmed.starts_with("*")
+                {
                     continue;
                 }
                 if line.contains(needle) {

@@ -104,18 +104,27 @@ fn restore_app_data(var: &str, prev: Option<std::ffi::OsString>) {
 /// A no-op screenshot capture (this test exercises leasing/attribution on the steering path, not the
 /// GPU screenshot path).
 fn stub_capture() -> Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync> {
-    Arc::new(|| Ok(handshake_native::mcp::screenshot::screenshot_from_png(b"x", 1, 1)))
+    Arc::new(|| {
+        Ok(handshake_native::mcp::screenshot::screenshot_from_png(
+            b"x", 1, 1,
+        ))
+    })
 }
 
 /// Send one JSON-RPC request line and read one response line over a fresh TCP connection.
 async fn rpc_once(addr: &str, request: serde_json::Value) -> serde_json::Value {
-    let stream = TcpStream::connect(addr).await.expect("connect to mcp server");
+    let stream = TcpStream::connect(addr)
+        .await
+        .expect("connect to mcp server");
     let (read_half, mut write_half) = tokio::io::split(stream);
     let mut reader = BufReader::new(read_half);
 
     let mut line = serde_json::to_string(&request).unwrap();
     line.push('\n');
-    write_half.write_all(line.as_bytes()).await.expect("write request");
+    write_half
+        .write_all(line.as_bytes())
+        .await
+        .expect("write request");
     write_half.flush().await.expect("flush");
 
     let mut resp = String::new();
@@ -267,7 +276,11 @@ fn test_swarm_concurrency_n5() {
     );
     let mut seen: std::collections::BTreeSet<&str> =
         entries.iter().map(|e| e.agent_id.as_str()).collect();
-    assert_eq!(seen.len(), N, "exactly N distinct agent_ids in the log; got {seen:?}");
+    assert_eq!(
+        seen.len(),
+        N,
+        "exactly N distinct agent_ids in the log; got {seen:?}"
+    );
     for id in &expected_agent_ids {
         assert!(
             seen.remove(id.as_str()),
@@ -281,19 +294,32 @@ fn test_swarm_concurrency_n5() {
         *per_agent.entry(e.agent_id.as_str()).or_default() += 1;
     }
     for (id, count) in &per_agent {
-        assert_eq!(*count, M, "agent {id} recorded exactly M={M} actions (fairness); got {count}");
+        assert_eq!(
+            *count, M,
+            "agent {id} recorded exactly M={M} actions (fairness); got {count}"
+        );
     }
 
     // Seqs are strictly monotonic (ordering is well-defined even under concurrency -> no torn log).
     for w in entries.windows(2) {
-        assert!(w[1].seq > w[0].seq, "attribution seqs are strictly increasing");
+        assert!(
+            w[1].seq > w[0].seq,
+            "attribution seqs are strictly increasing"
+        );
     }
 
     // All leases released (no leaked exclusive holder after the run).
-    assert_eq!(shared_leases.active_resource_count(), 0, "all leases released after the run");
+    assert_eq!(
+        shared_leases.active_resource_count(),
+        0,
+        "all leases released after the run"
+    );
 
     // Bounded: well under the 10s contract budget.
-    assert!(elapsed < Duration::from_secs(10), "run completed in {elapsed:?} (< 10s budget)");
+    assert!(
+        elapsed < Duration::from_secs(10),
+        "run completed in {elapsed:?} (< 10s budget)"
+    );
 
     println!(
         "PASS test_swarm_concurrency_n5: agents={N} actions/agent={M} -> log_entries={} (== N*M={}), \
@@ -605,7 +631,10 @@ fn test_layout_guard_rollback() {
     // CONFLICT detected -> roll back: re-apply the checkpoint through the existing validated path.
     let extent = app.monitor_extent();
     let restored_snapshot = guard.into_rollback();
-    assert!(restored_snapshot.validate().is_ok(), "the rolled-back snapshot is valid");
+    assert!(
+        restored_snapshot.validate().is_ok(),
+        "the rolled-back snapshot is valid"
+    );
     app.apply_layout_snapshot(restored_snapshot, extent)
         .expect("apply_layout_snapshot restores the checkpoint without error");
 

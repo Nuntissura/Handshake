@@ -133,7 +133,11 @@ fn wait_for_exit(child: &mut Child, timeout: Duration) -> Option<i32> {
 /// Connect to Palmistry's control socket and send one newline-delimited JSON message, reading the reply
 /// line. Retries the connect for up to `connect_timeout` because the watcher binds the socket slightly
 /// after spawn. Returns the reply line (trimmed) on success.
-fn send_control(socket: &str, message_json: &str, connect_timeout: Duration) -> std::io::Result<String> {
+fn send_control(
+    socket: &str,
+    message_json: &str,
+    connect_timeout: Duration,
+) -> std::io::Result<String> {
     use interprocess::local_socket::traits::Stream as _;
     use interprocess::local_socket::{GenericNamespaced, Stream, ToNsName};
 
@@ -268,7 +272,10 @@ fn ping_does_not_exit_then_shutdown_exits() {
     // Now Shutdown: it must exit promptly + cleanly.
     let ack = send_control(&socket, r#"{"type":"Shutdown"}"#, Duration::from_secs(3))
         .expect("shutdown ack");
-    assert!(ack.contains("Ack"), "expected an Ack to Shutdown, got: {ack}");
+    assert!(
+        ack.contains("Ack"),
+        "expected an Ack to Shutdown, got: {ack}"
+    );
     let code = wait_for_exit(&mut watcher, Duration::from_secs(5));
     assert_eq!(
         code,
@@ -280,7 +287,8 @@ fn ping_does_not_exit_then_shutdown_exits() {
     let rec = read_survivor(&survivor.0, Duration::from_secs(3))
         .expect("survivor record written on clean shutdown");
     assert_eq!(
-        rec["abnormal_parent_exit"], serde_json::Value::Bool(false),
+        rec["abnormal_parent_exit"],
+        serde_json::Value::Bool(false),
         "a clean Shutdown must record NO abnormal/crash exit (AC-009-6): {rec}"
     );
     assert_eq!(rec["exit_reason"]["reason"], "CleanShutdown");
@@ -349,7 +357,8 @@ fn survives_hard_kill_of_parent_and_records_abnormal_exit() {
     let rec = read_survivor(&survivor.0, Duration::from_secs(3))
         .expect("survivor record written after parent death");
     assert_eq!(
-        rec["abnormal_parent_exit"], serde_json::Value::Bool(true),
+        rec["abnormal_parent_exit"],
+        serde_json::Value::Bool(true),
         "Palmistry must RECORD the abnormal parent exit (AC-009-4): {rec}"
     );
     assert_eq!(
@@ -362,7 +371,8 @@ fn survives_hard_kill_of_parent_and_records_abnormal_exit() {
         "exit reason must be ParentDiedAbnormally after a hard kill with no Shutdown: {rec}"
     );
     assert_eq!(
-        rec["shutdown_received"], serde_json::Value::Bool(false),
+        rec["shutdown_received"],
+        serde_json::Value::Bool(false),
         "no Shutdown was sent in this scenario"
     );
 
@@ -395,10 +405,13 @@ fn shutdown_after_parent_death_still_records_abnormal() {
     std::thread::sleep(Duration::from_millis(80));
     let _ = send_control(&socket, r#"{"type":"Shutdown"}"#, Duration::from_secs(3));
     let code = wait_for_exit(&mut watcher, Duration::from_secs(5));
-    assert_eq!(code, Some(0), "should exit cleanly on the post-death Shutdown");
+    assert_eq!(
+        code,
+        Some(0),
+        "should exit cleanly on the post-death Shutdown"
+    );
 
-    let rec = read_survivor(&survivor.0, Duration::from_secs(3))
-        .expect("survivor record written");
+    let rec = read_survivor(&survivor.0, Duration::from_secs(3)).expect("survivor record written");
     assert_eq!(
         rec["abnormal_parent_exit"], serde_json::Value::Bool(true),
         "the abnormal parent death is still recorded even though a Shutdown ended the watcher: {rec}"
@@ -476,6 +489,10 @@ fn refuses_malformed_pid_nonzero_exit() {
         .expect("spawn palmistry with bad pid");
 
     let code = wait_for_exit(&mut child, Duration::from_secs(5));
-    assert_eq!(code, Some(2), "a malformed PID must exit non-zero (2) (AC-009-2)");
+    assert_eq!(
+        code,
+        Some(2),
+        "a malformed PID must exit non-zero (2) (AC-009-2)"
+    );
     kill_child(&mut child);
 }

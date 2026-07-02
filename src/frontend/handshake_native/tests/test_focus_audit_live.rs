@@ -105,9 +105,8 @@ mod live {
     use std::sync::Mutex;
 
     use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
-    use windows_sys::Win32::UI::Accessibility::{
-        SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK,
-    };
+    use windows_sys::Win32::System::Threading::GetCurrentThreadId;
+    use windows_sys::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
         SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_SPACE,
     };
@@ -117,7 +116,6 @@ mod live {
         UnhookWindowsHookEx, EVENT_SYSTEM_FOREGROUND, KBDLLHOOKSTRUCT, LLKHF_INJECTED,
         LLKHF_LOWER_IL_INJECTED, MSG, WH_KEYBOARD_LL, WINEVENT_OUTOFCONTEXT, WM_QUIT,
     };
-    use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
     /// The TEST-HARNESS injection cookie. The audit's own single liveness keystroke (sent via
     /// `SendInput` from the test process, see `emit_test_liveness_keystroke`) stamps this exact value
@@ -427,7 +425,10 @@ mod live {
 
     /// Drain the foreground hook log and attribute events to `app_pid`.
     pub fn foreground_observations(app_pid: u32) -> ForegroundObservations {
-        let pids = FOREGROUND_PIDS.lock().map(|v| v.clone()).unwrap_or_default();
+        let pids = FOREGROUND_PIDS
+            .lock()
+            .map(|v| v.clone())
+            .unwrap_or_default();
         let app_attributable_events = pids.iter().filter(|&&p| p == app_pid).count();
         let mut distinct: Vec<u32> = pids.clone();
         distinct.sort_unstable();
@@ -473,7 +474,9 @@ mod live {
             injected_from_app: from_app,
             injected_from_app_foreground: from_app_foreground,
             // total = test + app (foreground-independent). Anything left over would be a counting gap.
-            injected_unattributed: total_injected.saturating_sub(from_test).saturating_sub(from_app),
+            injected_unattributed: total_injected
+                .saturating_sub(from_test)
+                .saturating_sub(from_app),
         }
     }
 }
@@ -490,12 +493,20 @@ struct DiscoveredBinding {
 /// `../Handshake_Artifacts/handshake-test/native_gui/` (CX-212E — NOT in-repo). Honors
 /// `HANDSHAKE_PROOF_ARTIFACT_DIR` for CI override, matching the MT-029 harness helper.
 fn artifact_dir() -> PathBuf {
+    if let Ok(root) = std::env::var("HANDSHAKE_ARTIFACTS_ROOT") {
+        if !root.trim().is_empty() {
+            return PathBuf::from(root)
+                .join("handshake-test")
+                .join("native_gui");
+        }
+    }
     if let Ok(dir) = std::env::var("HANDSHAKE_PROOF_ARTIFACT_DIR") {
         if !dir.trim().is_empty() {
             return PathBuf::from(dir);
         }
     }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../../Handshake_Artifacts/handshake-test/native_gui")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../Handshake_Artifacts/handshake-test/native_gui")
 }
 
 fn write_report(file_name: &str, report: &serde_json::Value) -> PathBuf {
@@ -503,8 +514,11 @@ fn write_report(file_name: &str, report: &serde_json::Value) -> PathBuf {
     std::fs::create_dir_all(&dir)
         .unwrap_or_else(|e| panic!("create artifact dir {} failed: {e}", dir.display()));
     let path = dir.join(file_name);
-    std::fs::write(&path, serde_json::to_string_pretty(report).expect("serialize report"))
-        .unwrap_or_else(|e| panic!("write {} failed: {e}", path.display()));
+    std::fs::write(
+        &path,
+        serde_json::to_string_pretty(report).expect("serialize report"),
+    )
+    .unwrap_or_else(|e| panic!("write {} failed: {e}", path.display()));
     eprintln!("live audit report written to {}", path.display());
     path
 }
@@ -530,7 +544,11 @@ fn rpc(addr: &str, request: &serde_json::Value) -> std::io::Result<serde_json::V
 
 /// Poll the binding file (under the redirected LOCALAPPDATA) until the spawned child writes it with its
 /// own PID, or time out. Returns the discovered binding, or `None` on timeout.
-fn discover_binding(binding_path: &std::path::Path, child_pid: u32, deadline: Instant) -> Option<DiscoveredBinding> {
+fn discover_binding(
+    binding_path: &std::path::Path,
+    child_pid: u32,
+    deadline: Instant,
+) -> Option<DiscoveredBinding> {
     while Instant::now() < deadline {
         if let Ok(body) = std::fs::read_to_string(binding_path) {
             if let Ok(b) = serde_json::from_str::<DiscoveredBinding>(&body) {
@@ -566,7 +584,10 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     // ── 1. Install the REAL hooks BEFORE spawning the app, so we observe its entire lifetime. ──
     let foreground_hook = live::ForegroundAuditHook::install();
     let mut keyboard_hook = live::KeyboardAuditHook::install();
-    let foreground_installed = foreground_hook.as_ref().map(|h| h.installed()).unwrap_or(false);
+    let foreground_installed = foreground_hook
+        .as_ref()
+        .map(|h| h.installed())
+        .unwrap_or(false);
     let keyboard_installed = keyboard_hook.installed();
 
     // ── 2. Spawn the REAL shell binary (opens a genuine wgpu window + binds the MT-027 swarm server). ──
@@ -663,9 +684,12 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
             match rpc(&b.tcp_addr, &req) {
                 Ok(resp) => {
                     driven_actions += 1;
-                    transcript.push(serde_json::json!({"req": action, "ok": resp.get("error").is_none()}));
+                    transcript.push(
+                        serde_json::json!({"req": action, "ok": resp.get("error").is_none()}),
+                    );
                 }
-                Err(e) => transcript.push(serde_json::json!({"req": action, "transport_error": e.to_string()})),
+                Err(e) => transcript
+                    .push(serde_json::json!({"req": action, "transport_error": e.to_string()})),
             }
             std::thread::sleep(Duration::from_millis(120));
         }
@@ -678,9 +702,12 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
             match rpc(&b.tcp_addr, &req) {
                 Ok(resp) => {
                     keyboard_actions += 1;
-                    transcript.push(serde_json::json!({"req": action, "ok": resp.get("error").is_none()}));
+                    transcript.push(
+                        serde_json::json!({"req": action, "ok": resp.get("error").is_none()}),
+                    );
                 }
-                Err(e) => transcript.push(serde_json::json!({"req": action, "transport_error": e.to_string()})),
+                Err(e) => transcript
+                    .push(serde_json::json!({"req": action, "transport_error": e.to_string()})),
             }
             std::thread::sleep(Duration::from_millis(120));
         }
@@ -711,7 +738,11 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
 
     // ── 5. Build the reports. `audited` ONLY when both hooks installed and we actually drove actions. ──
     let audited = foreground_installed && keyboard_installed && connect_ok && driven_actions > 0;
-    let audit_status = if audited { "audited" } else { "blocked_environment" };
+    let audit_status = if audited {
+        "audited"
+    } else {
+        "blocked_environment"
+    };
 
     let focus_report = serde_json::json!({
         "run_id": format!("focus-audit-live-{}", std::process::id()),

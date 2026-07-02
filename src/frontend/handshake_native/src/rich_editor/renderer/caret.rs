@@ -138,7 +138,10 @@ mod tests {
     fn unfocused_editor_does_not_schedule_repaint() {
         // RISK-3: the focus guard must prevent the idle repaint entirely.
         let ctx = egui::Context::default();
-        assert!(!request_blink_repaint(&ctx, false), "unfocused must NOT schedule");
+        assert!(
+            !request_blink_repaint(&ctx, false),
+            "unfocused must NOT schedule"
+        );
         assert!(request_blink_repaint(&ctx, true), "focused MUST schedule");
     }
 

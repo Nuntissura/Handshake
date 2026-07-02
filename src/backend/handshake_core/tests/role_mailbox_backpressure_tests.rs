@@ -55,9 +55,7 @@ use handshake_core::role_mailbox_v1::{
     message::MessageType,
     repo::RoleMailboxRepository,
     router::ExecutorKind,
-    thread::{
-        ClaimMode, LinkedRecordKind, ResponseAuthorityScope, RoleMailboxThread,
-    },
+    thread::{ClaimMode, LinkedRecordKind, ResponseAuthorityScope, RoleMailboxThread},
     TakeoverPolicy,
 };
 use std::sync::{Arc, Mutex};
@@ -203,9 +201,7 @@ async fn mt_182_8_concurrent_senders_exact_allow_deny_split() {
     let mut handles = Vec::with_capacity(8);
     for _ in 0..8 {
         let g = g.clone();
-        handles.push(tokio::spawn(async move {
-            g.check(&RoleId::Coder, 0, now)
-        }));
+        handles.push(tokio::spawn(async move { g.check(&RoleId::Coder, 0, now) }));
     }
     let mut allows = 0;
     let mut denies = 0;
@@ -533,7 +529,7 @@ fn mt_182_default_config_matches_spec_5_7_3_budgets() {
 // `POSTGRES_TEST_URL=postgres://user:pass@host/db`.
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_182_postgres_check_via_repo_observes_pending() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -592,7 +588,7 @@ async fn mt_182_postgres_check_via_repo_observes_pending() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_182_postgres_check_via_repo_allows_under_cap() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -626,7 +622,7 @@ async fn mt_182_postgres_check_via_repo_allows_under_cap() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_182_postgres_check_via_repo_rate_limit_path() {
     let pool = postgres_pool().await;
     let repo = RoleMailboxRepository::new(pool);
@@ -675,7 +671,8 @@ fn sample_open_thread() -> RoleMailboxThread {
 }
 
 async fn postgres_pool() -> sqlx::PgPool {
-    let url =
-        std::env::var("POSTGRES_TEST_URL").expect("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL for role_mailbox_backpressure_tests");
     sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }

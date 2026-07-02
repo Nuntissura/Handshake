@@ -44,9 +44,7 @@
 //! via [`egui::Ui::hyperlink_to`] so they are clickable and inherit egui's `Link` AccessKit role
 //! automatically (the contract's link rule).
 
-use pulldown_cmark::{
-    CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd,
-};
+use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 use crate::rich_editor::renderer::block_renderer::{md_span_text_format, MdSpanStyle};
 use crate::rich_editor::renderer::line_layout::{
@@ -72,7 +70,10 @@ pub struct MdSpan {
 impl MdSpan {
     /// A plain-text span (no marks).
     pub fn text(text: impl Into<String>) -> Self {
-        Self { text: text.into(), ..Default::default() }
+        Self {
+            text: text.into(),
+            ..Default::default()
+        }
     }
 
     /// The [`MdSpanStyle`] flag set for this span (drops the link href, keeps the link FLAG so the styling
@@ -100,13 +101,19 @@ pub enum MdBlock {
     /// A bullet list; each item is its own block sequence (so an item can hold nested lists/quotes).
     BulletList { items: Vec<Vec<MdBlock>> },
     /// An ordered list starting at `start`; each item is its own block sequence.
-    OrderedList { start: u64, items: Vec<Vec<MdBlock>> },
+    OrderedList {
+        start: u64,
+        items: Vec<Vec<MdBlock>>,
+    },
     /// A blockquote wrapping child blocks (paragraphs, nested lists, nested quotes).
     Quote { children: Vec<MdBlock> },
     /// A fenced/indented code block; `lang` is the fence info string when present.
     CodeBlock { lang: Option<String>, code: String },
     /// A GFM table: a header row of cells (each a span vector) + body rows (each a vector of cells).
-    Table { headers: Vec<Vec<MdSpan>>, rows: Vec<Vec<Vec<MdSpan>>> },
+    Table {
+        headers: Vec<Vec<MdSpan>>,
+        rows: Vec<Vec<Vec<MdSpan>>>,
+    },
     /// A horizontal rule.
     Rule,
 }
@@ -144,19 +151,45 @@ struct InlineStyle {
 /// [`MdBlock`] (or list item / table parts) when its matching `End` arrives.
 #[derive(Clone, Debug)]
 enum Frame {
-    Paragraph { spans: Vec<MdSpan> },
-    Heading { level: u8, spans: Vec<MdSpan> },
+    Paragraph {
+        spans: Vec<MdSpan>,
+    },
+    Heading {
+        level: u8,
+        spans: Vec<MdSpan>,
+    },
     /// A code block accumulates raw text (NOT spans — code is verbatim).
-    CodeBlock { lang: Option<String>, code: String },
-    Quote { children: Vec<MdBlock> },
-    List { ordered: bool, start: u64, items: Vec<Vec<MdBlock>> },
+    CodeBlock {
+        lang: Option<String>,
+        code: String,
+    },
+    Quote {
+        children: Vec<MdBlock>,
+    },
+    List {
+        ordered: bool,
+        start: u64,
+        items: Vec<Vec<MdBlock>>,
+    },
     /// A single list item collecting its own child blocks.
-    Item { children: Vec<MdBlock> },
-    Table { headers: Vec<Vec<MdSpan>>, rows: Vec<Vec<Vec<MdSpan>>>, in_head: bool, current_row: Vec<Vec<MdSpan>> },
+    Item {
+        children: Vec<MdBlock>,
+    },
+    Table {
+        headers: Vec<Vec<MdSpan>>,
+        rows: Vec<Vec<Vec<MdSpan>>>,
+        in_head: bool,
+        current_row: Vec<Vec<MdSpan>>,
+    },
     /// A single table cell collecting its inline spans.
-    TableCell { spans: Vec<MdSpan> },
+    TableCell {
+        spans: Vec<MdSpan>,
+    },
     /// A link wraps inline content; its spans inherit the href on flush.
-    Link { href: String, spans: Vec<MdSpan> },
+    Link {
+        href: String,
+        spans: Vec<MdSpan>,
+    },
 }
 
 /// The event-fold state machine that turns the flat pulldown stream into the [`MdBlock`] tree.
@@ -171,7 +204,11 @@ struct Folder {
 
 impl Folder {
     fn new() -> Self {
-        Self { out: Vec::new(), stack: Vec::new(), inline: InlineStyle::default() }
+        Self {
+            out: Vec::new(),
+            stack: Vec::new(),
+            inline: InlineStyle::default(),
+        }
     }
 
     /// Process one pulldown event.
@@ -200,26 +237,38 @@ impl Folder {
     fn on_start(&mut self, tag: Tag<'_>) {
         match tag {
             Tag::Paragraph => self.stack.push(Frame::Paragraph { spans: Vec::new() }),
-            Tag::Heading { level, .. } => {
-                self.stack.push(Frame::Heading { level: clamp_heading(level), spans: Vec::new() })
-            }
-            Tag::BlockQuote(_) => self.stack.push(Frame::Quote { children: Vec::new() }),
+            Tag::Heading { level, .. } => self.stack.push(Frame::Heading {
+                level: clamp_heading(level),
+                spans: Vec::new(),
+            }),
+            Tag::BlockQuote(_) => self.stack.push(Frame::Quote {
+                children: Vec::new(),
+            }),
             Tag::CodeBlock(kind) => {
                 let lang = match kind {
                     CodeBlockKind::Fenced(info) => {
                         let s = info.trim().to_string();
-                        if s.is_empty() { None } else { Some(s) }
+                        if s.is_empty() {
+                            None
+                        } else {
+                            Some(s)
+                        }
                     }
                     CodeBlockKind::Indented => None,
                 };
-                self.stack.push(Frame::CodeBlock { lang, code: String::new() })
+                self.stack.push(Frame::CodeBlock {
+                    lang,
+                    code: String::new(),
+                })
             }
             Tag::List(start) => self.stack.push(Frame::List {
                 ordered: start.is_some(),
                 start: start.unwrap_or(1),
                 items: Vec::new(),
             }),
-            Tag::Item => self.stack.push(Frame::Item { children: Vec::new() }),
+            Tag::Item => self.stack.push(Frame::Item {
+                children: Vec::new(),
+            }),
             Tag::Table(_) => self.stack.push(Frame::Table {
                 headers: Vec::new(),
                 rows: Vec::new(),
@@ -227,7 +276,12 @@ impl Folder {
                 current_row: Vec::new(),
             }),
             Tag::TableHead => {
-                if let Some(Frame::Table { in_head, current_row, .. }) = self.stack.last_mut() {
+                if let Some(Frame::Table {
+                    in_head,
+                    current_row,
+                    ..
+                }) = self.stack.last_mut()
+                {
                     *in_head = true;
                     current_row.clear();
                 }
@@ -241,9 +295,10 @@ impl Folder {
             Tag::Emphasis => self.inline.italic += 1,
             Tag::Strong => self.inline.bold += 1,
             Tag::Strikethrough => self.inline.strikethrough += 1,
-            Tag::Link { dest_url, .. } => {
-                self.stack.push(Frame::Link { href: dest_url.into_string(), spans: Vec::new() })
-            }
+            Tag::Link { dest_url, .. } => self.stack.push(Frame::Link {
+                href: dest_url.into_string(),
+                spans: Vec::new(),
+            }),
             // Images: render the alt text (collected as inline text) inline; the destination is dropped
             // (no image fetch in this read-only markdown path). The Start opens nothing; alt text flows as
             // normal Text events into the current frame, which is the best-effort behavior.
@@ -309,13 +364,19 @@ impl Folder {
 
     /// Close the innermost (non-link) container frame and attach the resulting block(s) to its parent.
     fn close_frame(&mut self) {
-        let Some(frame) = self.stack.pop() else { return };
+        let Some(frame) = self.stack.pop() else {
+            return;
+        };
         match frame {
             Frame::Paragraph { spans } => self.push_block(MdBlock::Paragraph { spans }),
             Frame::Heading { level, spans } => self.push_block(MdBlock::Heading { level, spans }),
             Frame::CodeBlock { lang, code } => self.push_block(MdBlock::CodeBlock { lang, code }),
             Frame::Quote { children } => self.push_block(MdBlock::Quote { children }),
-            Frame::List { ordered, start, items } => {
+            Frame::List {
+                ordered,
+                start,
+                items,
+            } => {
                 let block = if ordered {
                     MdBlock::OrderedList { start, items }
                 } else {
@@ -337,7 +398,13 @@ impl Folder {
             Frame::Table { headers, rows, .. } => self.push_block(MdBlock::Table { headers, rows }),
             Frame::TableCell { spans } => {
                 // Attach the finished cell to the enclosing table's head or current row.
-                if let Some(Frame::Table { headers, current_row, in_head, .. }) = self.stack.last_mut() {
+                if let Some(Frame::Table {
+                    headers,
+                    current_row,
+                    in_head,
+                    ..
+                }) = self.stack.last_mut()
+                {
                     if *in_head {
                         headers.push(spans);
                     } else {
@@ -419,7 +486,13 @@ impl Folder {
 /// Kept separate from [`Folder::close_frame`] because a `TableRow` opens no stack frame (cells do).
 impl Folder {
     fn on_end_table_row(&mut self) {
-        if let Some(Frame::Table { rows, current_row, in_head, .. }) = self.stack.last_mut() {
+        if let Some(Frame::Table {
+            rows,
+            current_row,
+            in_head,
+            ..
+        }) = self.stack.last_mut()
+        {
             if *in_head {
                 // The header row is captured cell-by-cell into `headers`; nothing to commit here.
                 *in_head = false;
@@ -499,7 +572,14 @@ fn render_block(ui: &mut egui::Ui, block: &MdBlock, palette: &HsPalette, bold_av
             let size = heading_size(*level);
             // A heading is bold by convention (matches the editor's heading weight); fold the bold flag
             // into every span so the heading reads heavier than body text.
-            render_span_line(ui, spans, size, palette, bold_available, /*force_bold=*/ true);
+            render_span_line(
+                ui,
+                spans,
+                size,
+                palette,
+                bold_available,
+                /*force_bold=*/ true,
+            );
         }
         MdBlock::Paragraph { spans } => {
             render_span_line(ui, spans, BASE_FONT_SIZE, palette, bold_available, false);
@@ -604,7 +684,11 @@ fn render_list(
                 Some(_) => format!("{number}."),
                 None => "\u{2022}".to_string(), // bullet •
             };
-            ui.label(egui::RichText::new(prefix).size(BASE_FONT_SIZE).color(palette.text_subtle));
+            ui.label(
+                egui::RichText::new(prefix)
+                    .size(BASE_FONT_SIZE)
+                    .color(palette.text_subtle),
+            );
             ui.add_space(4.0);
             // The item body is its own block sequence; render it in an indented vertical group so nested
             // lists/quotes inside the item fold correctly (RISK-2 nesting).
@@ -621,7 +705,12 @@ fn render_list(
 /// Render a blockquote: a [`BLOCKQUOTE_BAR_WIDTH_PTS`]-wide accent left bar + child blocks indented by
 /// [`BLOCKQUOTE_INDENT_PTS`] (the exact MT-012 quote chrome). Children render recursively so a nested
 /// quote / list inside the quote folds.
-fn render_quote(ui: &mut egui::Ui, children: &[MdBlock], palette: &HsPalette, bold_available: bool) {
+fn render_quote(
+    ui: &mut egui::Ui,
+    children: &[MdBlock],
+    palette: &HsPalette,
+    bold_available: bool,
+) {
     ui.horizontal_top(|ui| {
         // The 3px accent left bar (BLOCKQUOTE_BAR_WIDTH_PTS): draw a thin filled rect spanning the quote.
         let (rect, _resp) = ui.allocate_exact_size(
@@ -697,20 +786,48 @@ fn render_table(
 
     // Allocate the whole table area, then paint cell borders + clipped content with the painter (the
     // MT-012 painter table path) so a long cell cannot overflow its neighbor (RISK-3 / MC-006 parity).
-    let total_rows = if headers.is_empty() { rows.len() } else { rows.len() + 1 };
+    let total_rows = if headers.is_empty() {
+        rows.len()
+    } else {
+        rows.len() + 1
+    };
     let total_h = row_h * total_rows as f32;
-    let (rect, _resp) =
-        ui.allocate_exact_size(egui::vec2(avail_w, total_h.max(row_h)), egui::Sense::hover());
+    let (rect, _resp) = ui.allocate_exact_size(
+        egui::vec2(avail_w, total_h.max(row_h)),
+        egui::Sense::hover(),
+    );
     let painter = ui.painter();
 
     let mut y = rect.min.y;
     // Header row (bold).
     if !headers.is_empty() {
-        paint_table_row(painter, headers, rect.min.x, y, col_w, row_h, cols, palette, bold_available, true);
+        paint_table_row(
+            painter,
+            headers,
+            rect.min.x,
+            y,
+            col_w,
+            row_h,
+            cols,
+            palette,
+            bold_available,
+            true,
+        );
         y += row_h;
     }
     for row in rows {
-        paint_table_row(painter, row, rect.min.x, y, col_w, row_h, cols, palette, bold_available, false);
+        paint_table_row(
+            painter,
+            row,
+            rect.min.x,
+            y,
+            col_w,
+            row_h,
+            cols,
+            palette,
+            bold_available,
+            false,
+        );
         y += row_h;
     }
 }
@@ -756,7 +873,12 @@ fn paint_table_row(
         }
         if job.sections.is_empty() {
             // An empty cell still lays out one (empty) section so the row height is consistent.
-            let fmt = md_span_text_format(MdSpanStyle::default(), BASE_FONT_SIZE, palette, bold_available);
+            let fmt = md_span_text_format(
+                MdSpanStyle::default(),
+                BASE_FONT_SIZE,
+                palette,
+                bold_available,
+            );
             job.append("", 0.0, fmt);
         }
         let galley = cell_painter.layout_job(job);
@@ -818,7 +940,10 @@ mod tests {
         match &blocks[5] {
             MdBlock::CodeBlock { lang, code } => {
                 assert_eq!(lang.as_deref(), Some("rust"), "fence lang is rust");
-                assert!(code.contains("fn x()"), "code body preserved (got {code:?})");
+                assert!(
+                    code.contains("fn x()"),
+                    "code body preserved (got {code:?})"
+                );
             }
             other => panic!("block[5] must be a CodeBlock (got {other:?})"),
         }
@@ -834,7 +959,9 @@ mod tests {
         };
         // The quote holds a paragraph AND a nested bullet list.
         assert!(
-            children.iter().any(|b| matches!(b, MdBlock::BulletList { items } if items.len() == 2)),
+            children
+                .iter()
+                .any(|b| matches!(b, MdBlock::BulletList { items } if items.len() == 2)),
             "the quote must contain a nested 2-item bullet list (got {children:?})"
         );
     }
@@ -846,13 +973,23 @@ mod tests {
         let MdBlock::Paragraph { spans } = &blocks[0] else {
             panic!("expected a paragraph (got {:?})", blocks[0]);
         };
-        let find = |t: &str| spans.iter().find(|s| s.text == t).cloned().unwrap_or_default();
+        let find = |t: &str| {
+            spans
+                .iter()
+                .find(|s| s.text == t)
+                .cloned()
+                .unwrap_or_default()
+        };
         assert!(find("b").bold, "**b** is bold");
         assert!(find("i").italic, "_i_ is italic");
         assert!(find("c").code, "`c` is inline code");
         assert!(find("s").strikethrough, "~~s~~ is strikethrough");
         let link = find("t");
-        assert_eq!(link.link.as_deref(), Some("http://x"), "[t](http://x) carries the href");
+        assert_eq!(
+            link.link.as_deref(),
+            Some("http://x"),
+            "[t](http://x) carries the href"
+        );
     }
 
     /// AC3 / MC-3: malformed markdown (unterminated fence, ragged table, empty heading, deep nesting)
@@ -879,7 +1016,9 @@ mod tests {
         // Empty heading: `#` with no text -> a Heading with empty spans, level clamped.
         let empty_heading = parse_markdown("#\n");
         assert!(
-            empty_heading.iter().any(|b| matches!(b, MdBlock::Heading { level, .. } if (1..=6).contains(level))),
+            empty_heading
+                .iter()
+                .any(|b| matches!(b, MdBlock::Heading { level, .. } if (1..=6).contains(level))),
             "an empty heading parses with a clamped level (got {empty_heading:?})"
         );
 
@@ -890,7 +1029,11 @@ mod tests {
             deep.push_str("- item\n");
         }
         let dblocks = parse_markdown(&deep);
-        assert!(!dblocks.is_empty(), "deep nesting parses without panic (got {} blocks)", dblocks.len());
+        assert!(
+            !dblocks.is_empty(),
+            "deep nesting parses without panic (got {} blocks)",
+            dblocks.len()
+        );
 
         // Loose trailing inline text after a block with no closing structure is never dropped.
         let trailing = parse_markdown("# head\n\ntrailing words");
@@ -911,12 +1054,27 @@ mod tests {
     /// down for h4..h6; every level is > the body size for h1..h4 and >= body for h5/h6.
     #[test]
     fn heading_size_reuses_mt012_scale() {
-        assert_eq!(heading_size(1), BASE_FONT_SIZE * HEADING_SCALE[0], "h1 uses HEADING_SCALE[0]");
-        assert_eq!(heading_size(2), BASE_FONT_SIZE * HEADING_SCALE[1], "h2 uses HEADING_SCALE[1]");
-        assert_eq!(heading_size(3), BASE_FONT_SIZE * HEADING_SCALE[2], "h3 uses HEADING_SCALE[2]");
+        assert_eq!(
+            heading_size(1),
+            BASE_FONT_SIZE * HEADING_SCALE[0],
+            "h1 uses HEADING_SCALE[0]"
+        );
+        assert_eq!(
+            heading_size(2),
+            BASE_FONT_SIZE * HEADING_SCALE[1],
+            "h2 uses HEADING_SCALE[1]"
+        );
+        assert_eq!(
+            heading_size(3),
+            BASE_FONT_SIZE * HEADING_SCALE[2],
+            "h3 uses HEADING_SCALE[2]"
+        );
         assert!(heading_size(1) > BASE_FONT_SIZE, "h1 is larger than body");
         assert!(heading_size(4) > BASE_FONT_SIZE, "h4 is larger than body");
-        assert!(heading_size(6) >= BASE_FONT_SIZE, "h6 is at least body size");
+        assert!(
+            heading_size(6) >= BASE_FONT_SIZE,
+            "h6 is at least body size"
+        );
         // An out-of-range level (defensive — clamp_heading already bounds it) never panics.
         assert!(heading_size(99) >= BASE_FONT_SIZE);
     }

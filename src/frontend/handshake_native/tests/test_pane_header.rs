@@ -76,8 +76,15 @@ fn live_all_four_panes_emit_independent_lock_buttons_with_pane_prefix() {
                 )
             });
         assert_eq!(lock.1, "Button", "{lock_id} role is Button");
-        assert_eq!(lock.2.as_deref(), Some("Lock"), "{lock_id} default (unlocked) label");
-        assert!(lock.0.contains(pane), "{lock_id} carries the pane id prefix '{pane}'");
+        assert_eq!(
+            lock.2.as_deref(),
+            Some("Lock"),
+            "{lock_id} default (unlocked) label"
+        );
+        assert!(
+            lock.0.contains(pane),
+            "{lock_id} carries the pane id prefix '{pane}'"
+        );
     }
     println!("PASS: four panes each emit an independent lock button with the pane-id prefix");
 }
@@ -112,7 +119,11 @@ fn live_header_title_binds_to_active_tab_label() {
 
     let (role_a, label_a) = title_node(&harness, "pane-a").expect("pane-a title node live");
     assert_eq!(role_a, "Label", "pane-a title is a Role::Label");
-    assert_eq!(label_a.as_deref(), Some("Workspace"), "pane-a title bound to active tab Workspace");
+    assert_eq!(
+        label_a.as_deref(),
+        Some("Workspace"),
+        "pane-a title bound to active tab Workspace"
+    );
 
     let (_role_c, label_c) = title_node(&harness, "pane-c").expect("pane-c title node live");
     assert_eq!(
@@ -148,7 +159,10 @@ fn live_header_title_retitles_on_tab_click() {
     {
         let app = harness.state();
         let bar = app.tab_bar_states().get(&pane_a).unwrap();
-        assert_eq!(bar.active().map(|t| t.pane_type.clone()), Some(PaneType::Workspace));
+        assert_eq!(
+            bar.active().map(|t| t.pane_type.clone()),
+            Some(PaneType::Workspace)
+        );
     }
 
     // Click the Problems tab (tab-pane-a-1) by its stable author_id.
@@ -169,7 +183,7 @@ fn live_header_title_retitles_on_tab_click() {
         "clicking the Problems tab made it active (drives the title binding)"
     );
     let _ = app; // release the &-borrow of harness.state() before the next harness query
-    // The pane-a header title node re-titled to "Problems" (the new active tab), read by its stable id.
+                 // The pane-a header title node re-titled to "Problems" (the new active tab), read by its stable id.
     let (_role, label) = title_node(&harness, "pane-a").expect("pane-a title node live");
     assert_eq!(
         label.as_deref(),
@@ -240,9 +254,19 @@ fn live_lock_button_click_toggles_pane_lock_state() {
         );
     }
     let nodes = live_nodes(&harness);
-    let lock = nodes.iter().find(|(a, _, _, _, _)| a == "pane-pane-a-lock").unwrap();
-    assert_eq!(lock.2.as_deref(), Some("Unlock"), "locked pane's button reads 'Unlock'");
-    assert!(lock.3, "locked pane's button is marked selected in the live tree");
+    let lock = nodes
+        .iter()
+        .find(|(a, _, _, _, _)| a == "pane-pane-a-lock")
+        .unwrap();
+    assert_eq!(
+        lock.2.as_deref(),
+        Some("Unlock"),
+        "locked pane's button reads 'Unlock'"
+    );
+    assert!(
+        lock.3,
+        "locked pane's button is marked selected in the live tree"
+    );
 
     // Click again -> back to Unlocked.
     harness
@@ -285,7 +309,13 @@ fn live_locking_one_pane_does_not_affect_other_panes() {
     let app = harness.state();
     let reg = app.pane_registry();
     let guard = reg.lock().unwrap();
-    assert_eq!(guard.get(&(Arc::from("pane-a") as PaneId)).unwrap().lock_state, LockState::Locked);
+    assert_eq!(
+        guard
+            .get(&(Arc::from("pane-a") as PaneId))
+            .unwrap()
+            .lock_state,
+        LockState::Locked
+    );
     for other in ["pane-b", "pane-c", "pane-d"] {
         assert_eq!(
             guard.get(&(Arc::from(other) as PaneId)).unwrap().lock_state,
@@ -329,8 +359,15 @@ fn live_pane_a_user_manual_tab_carries_diagnostics_override_id() {
                 "override id '{USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID}' missing; found {author_ids:?}"
             )
         });
-    assert_eq!(override_tab.1, "Tab", "the User-Manual diagnostics tab is a Role::Tab");
-    assert_eq!(override_tab.2.as_deref(), Some("User Manual"), "override tab label");
+    assert_eq!(
+        override_tab.1, "Tab",
+        "the User-Manual diagnostics tab is a Role::Tab"
+    );
+    assert_eq!(
+        override_tab.2.as_deref(),
+        Some("User Manual"),
+        "override tab label"
+    );
 
     // The index-based id for the User-Manual tab (index 1) must NOT also be present (no double-id).
     assert!(
@@ -342,7 +379,9 @@ fn live_pane_a_user_manual_tab_carries_diagnostics_override_id() {
         author_ids.contains(&"tab-pane-a-0"),
         "the Workspace tab keeps its index-based id tab-pane-a-0"
     );
-    println!("PASS: pane-a User-Manual tab carries the diagnostics override id (and not the index id)");
+    println!(
+        "PASS: pane-a User-Manual tab carries the diagnostics override id (and not the index id)"
+    );
 }
 
 #[test]
@@ -373,7 +412,11 @@ fn live_module_switch_rebadges_active_pane_tabs() {
         .click();
     harness.run();
 
-    assert_eq!(harness.state().active_module(), ModuleId::Lab, "module switched to LAB");
+    assert_eq!(
+        harness.state().active_module(),
+        ModuleId::Lab,
+        "module switched to LAB"
+    );
     let pane_a: PaneId = Arc::from("pane-a");
     let app = harness.state();
     let bar = app.tab_bar_states().get(&pane_a).unwrap();
@@ -406,8 +449,17 @@ fn live_module_switch_rebadges_active_pane_tabs() {
 fn module_label_for_tab_unit_matches_contract() {
     // Unit re-statement of the contract proof_target at the integration boundary: covers the active-
     // module preference + home-module fallback for representative tabs.
-    assert_eq!(module_label_for_tab(&PaneType::InferenceLab, ModuleId::Lab), "LAB");
-    assert_eq!(module_label_for_tab(&PaneType::Workspace, ModuleId::Main), "MAIN");
-    assert_eq!(module_label_for_tab(&PaneType::AtelierEditor, ModuleId::Main), "CKC");
+    assert_eq!(
+        module_label_for_tab(&PaneType::InferenceLab, ModuleId::Lab),
+        "LAB"
+    );
+    assert_eq!(
+        module_label_for_tab(&PaneType::Workspace, ModuleId::Main),
+        "MAIN"
+    );
+    assert_eq!(
+        module_label_for_tab(&PaneType::AtelierEditor, ModuleId::Main),
+        "CKC"
+    );
     println!("PASS: module_label_for_tab integration boundary checks");
 }

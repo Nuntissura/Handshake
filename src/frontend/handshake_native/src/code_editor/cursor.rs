@@ -71,7 +71,10 @@ pub struct Cursor {
 impl Cursor {
     /// A bare caret at `offset` (anchor == head).
     pub fn caret(offset: usize) -> Self {
-        Self { anchor: offset, head: offset }
+        Self {
+            anchor: offset,
+            head: offset,
+        }
     }
 
     /// A selection from `anchor` to `head`. The constructor does not order them — `head` may be before
@@ -117,13 +120,17 @@ pub struct CursorSet {
 impl CursorSet {
     /// A fresh set with a single caret at byte offset 0 (the editor's initial state).
     pub fn new() -> Self {
-        Self { cursors: vec![Cursor::caret(0)] }
+        Self {
+            cursors: vec![Cursor::caret(0)],
+        }
     }
 
     /// A set seeded with a single caret at `offset` (clamped to the buffer on the next normalize by the
     /// caller; callers that need clamping use [`set_primary`](Self::set_primary)).
     pub fn single(offset: usize) -> Self {
-        Self { cursors: vec![Cursor::caret(offset)] }
+        Self {
+            cursors: vec![Cursor::caret(offset)],
+        }
     }
 
     /// All cursors, in sorted order. The render path and AccessKit emitter iterate this.
@@ -145,7 +152,10 @@ impl CursorSet {
     /// Monaco treats the primary cursor as the one Ctrl+D and word lookups operate from. Returns a
     /// caret at 0 for a (transiently) empty set rather than panicking.
     pub fn primary(&self) -> Cursor {
-        self.cursors.last().copied().unwrap_or_else(|| Cursor::caret(0))
+        self.cursors
+            .last()
+            .copied()
+            .unwrap_or_else(|| Cursor::caret(0))
     }
 
     /// Replace the whole set with a single caret at `offset`, clamped + char-snapped to `buffer`. This
@@ -238,7 +248,11 @@ impl CursorSet {
     /// (Ctrl+Backspace / Ctrl+Delete — MT-010 `DeleteWordLeft` / `DeleteWordRight`). A selection is left
     /// unchanged.
     pub fn select_word_for_bare_carets(&mut self, to_left: bool, buffer: &TextBuffer) {
-        let dir = if to_left { MoveDir::WordLeft } else { MoveDir::WordRight };
+        let dir = if to_left {
+            MoveDir::WordLeft
+        } else {
+            MoveDir::WordRight
+        };
         for cursor in &mut self.cursors {
             if !cursor.is_selection() {
                 // Keep the anchor where the caret is; move the head to the word boundary so the range
@@ -292,7 +306,8 @@ impl CursorSet {
         for (_, range) in edits.iter().rev() {
             if range.end > range.start {
                 // Replace a selection: delete then insert at the (now-empty) start.
-                if buffer.delete(range.clone()).is_ok() && buffer.insert(range.start, text).is_ok() {
+                if buffer.delete(range.clone()).is_ok() && buffer.insert(range.start, text).is_ok()
+                {
                     applied += 1;
                 }
             } else if buffer.insert(range.start, text).is_ok() {
@@ -315,7 +330,8 @@ impl CursorSet {
             return 0;
         }
         // Build the byte range each cursor deletes: its selection, or the char before a bare caret.
-        let mut edits: Vec<(usize, std::ops::Range<usize>)> = Vec::with_capacity(self.cursors.len());
+        let mut edits: Vec<(usize, std::ops::Range<usize>)> =
+            Vec::with_capacity(self.cursors.len());
         for (i, c) in self.cursors.iter().enumerate() {
             let range = if c.is_selection() {
                 c.range()
@@ -370,7 +386,8 @@ impl CursorSet {
             return 0;
         }
         // Build the byte range each cursor deletes: its selection, or the char AFTER a bare caret.
-        let mut edits: Vec<(usize, std::ops::Range<usize>)> = Vec::with_capacity(self.cursors.len());
+        let mut edits: Vec<(usize, std::ops::Range<usize>)> =
+            Vec::with_capacity(self.cursors.len());
         for (i, c) in self.cursors.iter().enumerate() {
             let range = if c.is_selection() {
                 c.range()
@@ -775,10 +792,7 @@ mod tests {
     fn overlapping_selections_merge() {
         let buf = TextBuffer::new("abcdefghij");
         let mut set = CursorSet::default();
-        set.set_cursors(
-            vec![Cursor::selection(0, 5), Cursor::selection(3, 8)],
-            &buf,
-        );
+        set.set_cursors(vec![Cursor::selection(0, 5), Cursor::selection(3, 8)], &buf);
         assert_eq!(set.len(), 1, "overlapping selections merge into one");
         assert_eq!(set.cursors()[0].range(), 0..8, "merged range is the union");
     }
@@ -791,7 +805,11 @@ mod tests {
         let mut set = CursorSet::single(3); // caret at len_bytes() (EOF)
         let applied = set.delete_forward_at_all(&mut buf);
         assert_eq!(applied, 0, "Delete at EOF applies no deletion");
-        assert_eq!(buf.to_string(), "abc", "Delete at EOF leaves the buffer unchanged");
+        assert_eq!(
+            buf.to_string(),
+            "abc",
+            "Delete at EOF leaves the buffer unchanged"
+        );
         assert_eq!(set.primary().head, 3, "the caret stays at EOF");
     }
 
@@ -802,8 +820,16 @@ mod tests {
         let mut set = CursorSet::single(1); // between 'a' and 'b'
         let applied = set.delete_forward_at_all(&mut buf);
         assert_eq!(applied, 1, "one char deleted");
-        assert_eq!(buf.to_string(), "ac", "the char AFTER the caret ('b') was removed");
-        assert_eq!(set.primary().head, 1, "the caret stays at the deletion point");
+        assert_eq!(
+            buf.to_string(),
+            "ac",
+            "the char AFTER the caret ('b') was removed"
+        );
+        assert_eq!(
+            set.primary().head,
+            1,
+            "the caret stays at the deletion point"
+        );
     }
 
     #[test]
@@ -813,7 +839,11 @@ mod tests {
         set.set_cursors(vec![Cursor::selection(1, 4)], &buf); // selects "bcd"
         let applied = set.delete_forward_at_all(&mut buf);
         assert_eq!(applied, 1);
-        assert_eq!(buf.to_string(), "aef", "Delete with a selection removes the selection");
+        assert_eq!(
+            buf.to_string(),
+            "aef",
+            "Delete with a selection removes the selection"
+        );
     }
 
     #[test]
@@ -824,8 +854,15 @@ mod tests {
         let mut set = CursorSet::default();
         set.set_cursors(vec![Cursor::caret(1), Cursor::caret(6)], &buf); // mid + EOF
         let applied = set.delete_forward_at_all(&mut buf);
-        assert_eq!(applied, 1, "only the mid-buffer caret deletes; the EOF caret no-ops");
-        assert_eq!(buf.to_string(), "acdef", "only the char after the mid caret ('b') was removed");
+        assert_eq!(
+            applied, 1,
+            "only the mid-buffer caret deletes; the EOF caret no-ops"
+        );
+        assert_eq!(
+            buf.to_string(),
+            "acdef",
+            "only the char after the mid caret ('b') was removed"
+        );
     }
 
     #[test]
@@ -848,8 +885,16 @@ mod tests {
         let buf = TextBuffer::new(family);
         let mut set = CursorSet::single(0);
         set.move_all(MoveDir::Right, &buf);
-        assert_eq!(set.primary().head, family.len(), "RIGHT crosses the whole family emoji ({} bytes)", family.len());
-        assert!(family.len() > 7, "sanity: the family emoji is multi-codepoint");
+        assert_eq!(
+            set.primary().head,
+            family.len(),
+            "RIGHT crosses the whole family emoji ({} bytes)",
+            family.len()
+        );
+        assert!(
+            family.len() > 7,
+            "sanity: the family emoji is multi-codepoint"
+        );
     }
 
     #[test]
@@ -859,7 +904,11 @@ mod tests {
         let buf = TextBuffer::new(s);
         let mut set = CursorSet::single(s.len());
         set.move_all(MoveDir::Left, &buf);
-        assert_eq!(set.primary().head, 0, "LEFT crosses the whole combining sequence");
+        assert_eq!(
+            set.primary().head,
+            0,
+            "LEFT crosses the whole combining sequence"
+        );
     }
 
     #[test]
@@ -872,8 +921,16 @@ mod tests {
         let mut set = CursorSet::single(caret);
         let applied = set.delete_at_all(&mut buf);
         assert_eq!(applied, 1);
-        assert_eq!(buf.to_string(), "ab", "the whole family emoji is deleted as one grapheme");
-        assert_eq!(set.primary().head, 1, "caret lands where the cluster started");
+        assert_eq!(
+            buf.to_string(),
+            "ab",
+            "the whole family emoji is deleted as one grapheme"
+        );
+        assert_eq!(
+            set.primary().head,
+            1,
+            "caret lands where the cluster started"
+        );
     }
 
     #[test]
@@ -884,7 +941,11 @@ mod tests {
         let mut set = CursorSet::single(0);
         let applied = set.delete_forward_at_all(&mut buf);
         assert_eq!(applied, 1);
-        assert_eq!(buf.to_string(), "x", "the whole flag is deleted as one grapheme");
+        assert_eq!(
+            buf.to_string(),
+            "x",
+            "the whole flag is deleted as one grapheme"
+        );
     }
 
     #[test]
@@ -900,7 +961,11 @@ mod tests {
         let mut set = CursorSet::single(caret);
         let applied = set.delete_at_all(&mut buf);
         assert_eq!(applied, 1, "exactly one CJK grapheme removed");
-        assert_eq!(buf.to_string(), "中".repeat(199), "Backspace removed exactly the last 中, not a torn byte");
+        assert_eq!(
+            buf.to_string(),
+            "中".repeat(199),
+            "Backspace removed exactly the last 中, not a torn byte"
+        );
         assert_eq!(set.primary().head, buf.len_bytes(), "caret at the new EOF");
     }
 
@@ -923,9 +988,18 @@ mod tests {
         set.set_cursors(vec![Cursor::caret(99), Cursor::caret(2)], &buf);
         // 99 clamps to 6 (end); 2 (mid-'é') snaps to 1.
         let heads: Vec<usize> = set.cursors().iter().map(|c| c.head).collect();
-        assert!(heads.contains(&1), "mid-char offset snapped to 1; got {heads:?}");
-        assert!(heads.contains(&6), "out-of-range offset clamped to 6; got {heads:?}");
-        assert!(heads.iter().all(|&h| h <= 6), "no offset past len; got {heads:?}");
+        assert!(
+            heads.contains(&1),
+            "mid-char offset snapped to 1; got {heads:?}"
+        );
+        assert!(
+            heads.contains(&6),
+            "out-of-range offset clamped to 6; got {heads:?}"
+        );
+        assert!(
+            heads.iter().all(|&h| h <= 6),
+            "no offset past len; got {heads:?}"
+        );
     }
 
     #[test]

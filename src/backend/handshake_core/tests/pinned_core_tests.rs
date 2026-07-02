@@ -11,15 +11,15 @@ use handshake_core::memory::outcome_feedback::{
 };
 use handshake_core::memory::persistence_postgres::PostgresKernelActionSubmitter;
 use handshake_core::memory::pinned_core::{
-    FR_EVT_MEMORY_PIN, FR_EVT_MEMORY_UNPIN, PIN_MEMORY_ACTION_ID, PinError, PinIpcService,
-    PinReceipt, PinSubmitter, PinnedBudget, PinnedCoreSelector, PinnedItem, SetPinRequest,
+    PinError, PinIpcService, PinReceipt, PinSubmitter, PinnedBudget, PinnedCoreSelector,
+    PinnedItem, SetPinRequest, FR_EVT_MEMORY_PIN, FR_EVT_MEMORY_UNPIN, PIN_MEMORY_ACTION_ID,
     UNPIN_MEMORY_ACTION_ID,
 };
 use handshake_core::memory::{
     BuildContext, BuilderError, CapsuleBuilder, CapsulePolicyTable, DegradationTier, FemsError,
-    FemsRetriever, RETRIEVAL_SCORING_FORMULA_V0, RetrievalPolicy, RetrievedItem, TaskType,
+    FemsRetriever, RetrievalPolicy, RetrievedItem, TaskType, RETRIEVAL_SCORING_FORMULA_V0,
 };
-use handshake_core::storage::{Database, StorageError, StorageResult, postgres::PostgresDatabase};
+use handshake_core::storage::{postgres::PostgresDatabase, Database, StorageError, StorageResult};
 use sqlx::{Connection, PgPool, Row};
 use uuid::Uuid;
 
@@ -210,17 +210,14 @@ fn pin_and_unpin_actions_are_registered_in_kernel_action_catalog() {
 
     assert_eq!(pin.expected_write_boxes[0].target_id, "memory_item_pin");
     assert_eq!(unpin.expected_write_boxes[0].target_id, "memory_item_unpin");
-    assert!(
-        pin.validation_hooks
-            .iter()
-            .any(|hook| hook.hook_id == "flight_recorder_event")
-    );
-    assert!(
-        unpin
-            .validation_hooks
-            .iter()
-            .any(|hook| hook.hook_id == "flight_recorder_event")
-    );
+    assert!(pin
+        .validation_hooks
+        .iter()
+        .any(|hook| hook.hook_id == "flight_recorder_event"));
+    assert!(unpin
+        .validation_hooks
+        .iter()
+        .any(|hook| hook.hook_id == "flight_recorder_event"));
 }
 
 #[test]
@@ -324,7 +321,7 @@ fn pin_postgres_submitter_uses_atomic_action_and_manifest_append() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires POSTGRES_TEST_URL and an isolated live Postgres schema"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
 async fn postgres_pin_submitter_persists_pin_unpin_events_and_list_replays_latest_pin_state() {
     let (db, pool) = isolated_postgres().await.expect("isolated postgres");
     let submitter = PostgresKernelActionSubmitter::with_db(db);
@@ -488,8 +485,7 @@ fn retrieved(id: &str, score: f64, capsule_bytes: u64, pinned: bool) -> Retrieve
 }
 
 async fn isolated_postgres() -> StorageResult<(Arc<dyn Database>, PgPool)> {
-    let url = std::env::var("POSTGRES_TEST_URL")
-        .map_err(|_| StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests"))?;
+    let url = handshake_core::storage::tests::postgres_test_base_url().await?;
     let mut conn = sqlx::PgConnection::connect(&url).await?;
     let schema = format!("mt159_pinned_core_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))

@@ -97,13 +97,31 @@ fn unit_slow_frame_emits_one_event_and_stats_are_correct() {
     );
 
     // (b) Exactly one SlowFrame DiagEvent, typed micros, no content.
-    assert_eq!(events.len(), 1, "exactly one SlowFrame event for the one slow frame");
+    assert_eq!(
+        events.len(),
+        1,
+        "exactly one SlowFrame event for the one slow frame"
+    );
     let e = events[0];
-    assert_eq!(e.event_code, DiagEventCode::SlowFrame.as_u16(), "event code is SlowFrame");
+    assert_eq!(
+        e.event_code,
+        DiagEventCode::SlowFrame.as_u16(),
+        "event code is SlowFrame"
+    );
     assert_eq!(e.phase_marker, DiagPhase::Tick.as_u8(), "phase is Tick");
-    assert_eq!(e.severity, DiagSeverity::Warn.as_u8(), "severity is Warn (a stutter, not fatal)");
-    assert_eq!(e.metric_micros, 250_000, "frame_micros is the 250ms slow frame in micros");
-    assert_eq!(e.counter_a, 3, "frame_index is the 3rd recorded frame (the slow one)");
+    assert_eq!(
+        e.severity,
+        DiagSeverity::Warn.as_u8(),
+        "severity is Warn (a stutter, not fatal)"
+    );
+    assert_eq!(
+        e.metric_micros, 250_000,
+        "frame_micros is the 250ms slow frame in micros"
+    );
+    assert_eq!(
+        e.counter_a, 3,
+        "frame_index is the 3rd recorded frame (the slow one)"
+    );
 
     // (a) Stats correctness across the whole sequence.
     let s = timer.stats();
@@ -118,9 +136,17 @@ fn unit_slow_frame_emits_one_event_and_stats_are_correct() {
         "p50 ({}) within observed range",
         s.p50_micros
     );
-    assert!(s.p95_micros >= s.p50_micros, "p95 ({}) >= p50 ({})", s.p95_micros, s.p50_micros);
+    assert!(
+        s.p95_micros >= s.p50_micros,
+        "p95 ({}) >= p50 ({})",
+        s.p95_micros,
+        s.p50_micros
+    );
     // The p95 of a 4-sample set [8,16,33,250]ms (nearest-rank) is the max, 250ms.
-    assert_eq!(s.p95_micros, 250_000, "p95 over the 4-sample ring is the 250ms slow frame");
+    assert_eq!(
+        s.p95_micros, 250_000,
+        "p95 over the 4-sample ring is the 250ms slow frame"
+    );
 
     assert_no_local_artifact_dir();
 }
@@ -152,7 +178,9 @@ fn live_slow_frame_flags_and_fast_frames_do_not() {
     // (2) A REAL slow frame MUST flag. Inject work well past the ~100ms threshold so the live
     //     `self.ui(ctx)` measurement genuinely exceeds it, then step ONE frame.
     let slow_micros = u64::try_from(SLOW_FRAME_THRESHOLD.as_micros()).unwrap() + 120_000; // +120ms
-    harness.state_mut().set_extra_frame_work_for_test(slow_micros);
+    harness
+        .state_mut()
+        .set_extra_frame_work_for_test(slow_micros);
     let slow_before = global_slow_frame_count();
     harness.step();
     // Stop injecting so the in-app stats settle and later steps are fast again.
@@ -172,7 +200,10 @@ fn live_slow_frame_flags_and_fast_frames_do_not() {
         stats.max_micros,
         slow_micros
     );
-    assert!(stats.slow_emit_count >= 1, "the in-app tracker emitted at least one slow frame");
+    assert!(
+        stats.slow_emit_count >= 1,
+        "the in-app tracker emitted at least one slow frame"
+    );
 
     assert_no_local_artifact_dir();
 }
@@ -253,12 +284,19 @@ fn sustained_slow_streak_is_debounced() {
         "the in-tracker emit count is gated to one per window"
     );
     // But every frame is still counted in the stats (the stats are free; only the emit is debounced).
-    assert_eq!(timer.stats().frame_count, 60, "all 60 slow frames counted in the stats");
+    assert_eq!(
+        timer.stats().frame_count,
+        60,
+        "all 60 slow frames counted in the stats"
+    );
 
     // The gate is time-based: a slow frame past the debounce window emits a SECOND event.
     let t1 = t0 + SLOW_FRAME_EMIT_DEBOUNCE + Duration::from_millis(50);
     timer.record_frame(Duration::from_millis(200), t1, |_| emitted += 1);
-    assert_eq!(emitted, 2, "a slow frame past the debounce window emits again (not a permanent one-shot)");
+    assert_eq!(
+        emitted, 2,
+        "a slow frame past the debounce window emits again (not a permanent one-shot)"
+    );
     assert_eq!(timer.stats().slow_emit_count, 2);
 
     // The emitted count over 61 slow frames is BOUNDED (2), not 61 — the core debounce guarantee.

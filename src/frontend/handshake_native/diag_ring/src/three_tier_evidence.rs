@@ -318,8 +318,7 @@ impl ThreeTierDiagnosticWiringRecord {
     /// [`io::ErrorKind::InvalidData`] so the caller handles one error type.
     pub fn load(path: impl AsRef<Path>) -> io::Result<Self> {
         let text = fs::read_to_string(path)?;
-        Self::from_json_str(&text)
-            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+        Self::from_json_str(&text).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
     }
 
     /// Validate then ATOMICALLY write [`EVIDENCE_FILE_NAME`] into `out_dir`, returning the written
@@ -382,7 +381,10 @@ impl fmt::Display for ValidationError {
                 write!(f, "run metadata field `{field}` is empty")
             }
             ValidationError::MissingTier(tier) => {
-                write!(f, "tier {tier} is missing (every tier must be accounted for)")
+                write!(
+                    f,
+                    "tier {tier} is missing (every tier must be accounted for)"
+                )
             }
             ValidationError::DuplicateTier(tier) => {
                 write!(f, "tier {tier} appears more than once")
@@ -573,7 +575,9 @@ mod tests {
         rec.tiers
             .push(TierWiring::wired(DiagTier::InternalDiagnostics, "dupe"));
         let errs = rec.validate().expect_err("duplicate tier must fail");
-        assert!(errs.contains(&ValidationError::DuplicateTier(DiagTier::InternalDiagnostics)));
+        assert!(errs.contains(&ValidationError::DuplicateTier(
+            DiagTier::InternalDiagnostics
+        )));
     }
 
     #[test]
@@ -586,7 +590,9 @@ mod tests {
             }
         }
         let errs = rec.validate().expect_err("WIRED w/o proof_ref must fail");
-        assert!(errs.contains(&ValidationError::MissingProofRef(DiagTier::InternalDiagnostics)));
+        assert!(errs.contains(&ValidationError::MissingProofRef(
+            DiagTier::InternalDiagnostics
+        )));
     }
 
     #[test]
@@ -597,7 +603,9 @@ mod tests {
                 row.reason = String::new();
             }
         }
-        let errs = rec.validate().expect_err("NOT_APPLICABLE w/o reason must fail");
+        let errs = rec
+            .validate()
+            .expect_err("NOT_APPLICABLE w/o reason must fail");
         assert!(errs.contains(&ValidationError::MissingReason(DiagTier::FlightRecorder)));
     }
 
@@ -615,7 +623,9 @@ mod tests {
             ],
         );
         let errs = rec.validate().expect_err("DEFERRED w/o reason must fail");
-        assert!(errs.contains(&ValidationError::MissingReason(DiagTier::InternalDiagnostics)));
+        assert!(errs.contains(&ValidationError::MissingReason(
+            DiagTier::InternalDiagnostics
+        )));
     }
 
     #[test]

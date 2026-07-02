@@ -33,8 +33,8 @@ use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
-use handshake_native::backend_client::{LoomGraphClient, MAX_BACKLINK_DEPTH, MIN_BACKLINK_DEPTH};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::backend_client::{LoomGraphClient, MAX_BACKLINK_DEPTH, MIN_BACKLINK_DEPTH};
 use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
@@ -85,12 +85,15 @@ fn secondary_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
         migration_version: Some(1),
     }));
     app.set_runtime_handle(runtime.handle().clone());
-    retype_panes(&app, &[
-        ("pane-a", PaneType::AtelierEditor),            // canvas board
-        ("pane-b", PaneType::KernelDcc),                // graph view
-        ("pane-c", PaneType::LoomBlock),                // outgoing links
-        ("pane-d", PaneType::UserManual),               // manual
-    ]);
+    retype_panes(
+        &app,
+        &[
+            ("pane-a", PaneType::AtelierEditor), // canvas board
+            ("pane-b", PaneType::KernelDcc),     // graph view
+            ("pane-c", PaneType::LoomBlock),     // outgoing links
+            ("pane-d", PaneType::UserManual),    // manual
+        ],
+    );
     (app, runtime)
 }
 
@@ -127,9 +130,9 @@ fn live_author_ids(harness: &Harness<'_, HandshakeApp>) -> std::collections::Has
 #[test]
 fn secondary_panes_render_live_in_app_tree_and_screenshot() {
     use handshake_native::fems::relevant_memory_panel::RELEVANT_MEMORY_PANEL_AUTHOR_ID;
-    use handshake_native::graph::{MODE_LOCAL_AUTHOR_ID, STATUS_AUTHOR_ID as CANVAS_STATUS_AUTHOR_ID};
+    use handshake_native::graph::{ADD_CARD_AUTHOR_ID, DAILY_JOURNAL_PANEL_AUTHOR_ID};
     use handshake_native::graph::{
-        DAILY_JOURNAL_PANEL_AUTHOR_ID, ADD_CARD_AUTHOR_ID,
+        MODE_LOCAL_AUTHOR_ID, STATUS_AUTHOR_ID as CANVAS_STATUS_AUTHOR_ID,
     };
     use handshake_native::manual_pane::MANUAL_PANE_AUTHOR_ID;
     use handshake_native::rich_editor::wikilinks::outgoing_links_panel::PANEL_AUTHOR_ID as OUTGOING_PANEL_AUTHOR_ID;
@@ -197,12 +200,18 @@ fn secondary_panes_render_live_in_app_tree_and_screenshot() {
 
     // Second frame batch: the relevant-memory / Stage / daily-journal side panes (re-typed into the slots).
     let (app2, _rt2) = secondary_shell();
-    retype_panes(&app2, &[
-        ("pane-a", PaneType::Placeholder("Relevant Memory".to_owned())),
-        ("pane-b", PaneType::Placeholder("Stage".to_owned())),
-        ("pane-c", PaneType::LoomDailyJournal),
-        ("pane-d", PaneType::UserManual),
-    ]);
+    retype_panes(
+        &app2,
+        &[
+            (
+                "pane-a",
+                PaneType::Placeholder("Relevant Memory".to_owned()),
+            ),
+            ("pane-b", PaneType::Placeholder("Stage".to_owned())),
+            ("pane-c", PaneType::LoomDailyJournal),
+            ("pane-d", PaneType::UserManual),
+        ],
+    );
     let mut harness2 = Harness::builder()
         .with_size(egui::vec2(1400.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app2);
@@ -241,12 +250,19 @@ fn canvas_resize_event_routes_to_host() {
     // queue, then run a live frame: the shell drains it (drive_secondary_mounts -> route_canvas_events)
     // and maps it to the EXISTING CanvasBoardClient PATCH + board re-fetch. After the frame the queue is
     // empty (drained) — the event reached the host path (the live PG round-trip is gated).
-    canvas_events.lock().unwrap().push(CanvasEvent::ResizePlacement {
-        placement_id: "p-mt080".into(),
-        w: 320.0,
-        h: 180.0,
-    });
-    assert_eq!(canvas_events.lock().unwrap().len(), 1, "the event is enqueued before the frame");
+    canvas_events
+        .lock()
+        .unwrap()
+        .push(CanvasEvent::ResizePlacement {
+            placement_id: "p-mt080".into(),
+            w: 320.0,
+            h: 180.0,
+        });
+    assert_eq!(
+        canvas_events.lock().unwrap().len(),
+        1,
+        "the event is enqueued before the frame"
+    );
     harness.run_steps(2);
     assert!(
         canvas_events.lock().unwrap().is_empty(),
@@ -262,7 +278,9 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
 
     // The depth-parameterized builder carries the new backlink_depth on the verified endpoint (the host
     // re-query the DepthChanged fires). This is the pure builder proof; the live fetch is gated.
-    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
     let client = LoomGraphClient::production(rt.handle().clone());
     let spec = client.local_request_with_depth(DEFAULT_PROJECT_ID, "Focused Note", 4);
     assert_eq!(
@@ -272,11 +290,15 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
     );
     // Clamp envelope (RISK-080-3): an out-of-range depth never reaches the backend as an abusive traversal.
     assert_eq!(
-        client.local_request_with_depth(DEFAULT_PROJECT_ID, "T", 99).query[1],
+        client
+            .local_request_with_depth(DEFAULT_PROJECT_ID, "T", 99)
+            .query[1],
         ("backlink_depth".to_owned(), MAX_BACKLINK_DEPTH.to_string())
     );
     assert_eq!(
-        client.local_request_with_depth(DEFAULT_PROJECT_ID, "T", 0).query[1],
+        client
+            .local_request_with_depth(DEFAULT_PROJECT_ID, "T", 0)
+            .query[1],
         ("backlink_depth".to_owned(), MIN_BACKLINK_DEPTH.to_string())
     );
 
@@ -287,7 +309,10 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
     let graph_view = app.mounted_graph_view();
     {
         let mut v = graph_view.lock().unwrap();
-        v.mode = GraphMode::Local { block_id: "blk-1".into(), title: "Focused Note".into() };
+        v.mode = GraphMode::Local {
+            block_id: "blk-1".into(),
+            title: "Focused Note".into(),
+        };
         v.workspace_id = DEFAULT_PROJECT_ID.to_owned();
     }
     let events = app.editor_mounts_graph_events_for_test();
@@ -295,7 +320,10 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(2);
-    events.lock().unwrap().push(GraphEvent::DepthChanged { depth: 3 });
+    events
+        .lock()
+        .unwrap()
+        .push(GraphEvent::DepthChanged { depth: 3 });
     harness.run_steps(2);
     assert!(
         events.lock().unwrap().is_empty(),
@@ -327,7 +355,9 @@ fn canvas_clear_group_sends_backend_accepted_clear_body() {
     // `{"group_id": null}` body is a verified no-op (deserializes to `group_id: None`, leaves the group
     // unchanged), so the host MUST send `{"clear_group": true}` or a card dragged out of a section silently
     // re-snaps on the next board refresh.
-    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
     let client = CanvasBoardClient::production(rt.handle().clone());
     let clear = client.clear_group_request(DEFAULT_PROJECT_ID, "p-clear");
     assert_eq!(
@@ -350,11 +380,18 @@ fn canvas_clear_group_sends_backend_accepted_clear_body() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(2);
-    canvas_events.lock().unwrap().push(CanvasEvent::AssignSection {
-        placement_id: "p-clear".into(),
-        group_id: None,
-    });
-    assert_eq!(canvas_events.lock().unwrap().len(), 1, "the clear event is enqueued before the frame");
+    canvas_events
+        .lock()
+        .unwrap()
+        .push(CanvasEvent::AssignSection {
+            placement_id: "p-clear".into(),
+            group_id: None,
+        });
+    assert_eq!(
+        canvas_events.lock().unwrap().len(),
+        1,
+        "the clear event is enqueued before the frame"
+    );
     harness.run_steps(2);
     assert!(
         canvas_events.lock().unwrap().is_empty(),
@@ -415,7 +452,13 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
         migration_version: Some(1),
     }));
     app.set_runtime_handle(runtime.handle().clone());
-    retype_panes(&app, &[("pane-a", PaneType::Placeholder("Relevant Memory".to_owned()))]);
+    retype_panes(
+        &app,
+        &[(
+            "pane-a",
+            PaneType::Placeholder("Relevant Memory".to_owned()),
+        )],
+    );
     let panel = app.mounted_relevant_memory();
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -474,7 +517,8 @@ fn code_text_node_exposes_swarm_edit_actions() {
     // Probe the RAW NodeData action set (single-arg `supports_action`, the same `test_e7_swarm_edit_proof`
     // uses) so the assertion reads the node's OWN declared actions.
     assert!(
-        node.data().supports_action(egui::accesskit::Action::SetValue),
+        node.data()
+            .supports_action(egui::accesskit::Action::SetValue),
         "AC-080-6: the code text node advertises Action::SetValue (swarm author-whole-file)"
     );
     assert!(
@@ -508,7 +552,9 @@ fn code_text_setvalue_dispatch_mutates_buffer() {
         egui::accesskit::ActionRequest {
             action: egui::accesskit::Action::SetValue,
             target: node_id,
-            data: Some(egui::accesskit::ActionData::Value("new swarm contents".into())),
+            data: Some(egui::accesskit::ActionData::Value(
+                "new swarm contents".into(),
+            )),
         },
     ));
     harness.run_steps(2);

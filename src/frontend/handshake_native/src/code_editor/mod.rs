@@ -148,19 +148,10 @@ pub use breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 pub use buffer::{BufferError, TextBuffer};
 pub use code_actions::{
     draw_lightbulb, lightbulb_color, normalize_code_actions, quickfix_item_author_id,
-    quickfix_lightbulb_author_id, render_menu, AppliedAction, CodeActionController, CodeActionError,
-    CodeActionItem, CodeActionResult, CodeActionState, LspCommand, MenuAction,
+    quickfix_lightbulb_author_id, render_menu, AppliedAction, CodeActionController,
+    CodeActionError, CodeActionItem, CodeActionResult, CodeActionState, LspCommand, MenuAction,
     CODE_EDITOR_QUICKFIX_ITEM_AUTHOR_PREFIX, CODE_EDITOR_QUICKFIX_LIGHTBULB_AUTHOR_PREFIX,
     CODE_EDITOR_QUICKFIX_MENU_AUTHOR_ID, MAX_QUICKFIX_NODES, NO_ACTIONS_TEXT,
-};
-pub use diff_editor_panel::{
-    build_line_map, right_line_for_left_line, DiffEditorPaneFactory, DiffEditorPanel, DiffMode, Side,
-    SyncRow, SyncScrollState, DIFF_BLOCK_ACCEPT_LOCAL_PREFIX, DIFF_EDITOR_PANEL_AUTHOR_ID,
-    DIFF_MODE_TOGGLE_AUTHOR_ID,
-};
-pub use diff_engine::{
-    diff_json_blocks, DiffBlock, DiffEngine, DiffStatus, MergeBlock, MergeChoice, MergeEngine,
-    MergeStatus,
 };
 pub use code_nav::{
     code_symbol_staleness_label, markdown_for_symbol, staleness_marker_for, symbol_file_path,
@@ -169,26 +160,27 @@ pub use code_nav::{
     CompletionKind, HoverResult as CodeNavHoverResult, Location as CodeNavLocation,
     COMPLETION_DEBOUNCE_MS, HOVER_DWELL_MS, LOOKUP_CACHE_TTL, SYMBOL_LOOKUP_LIMIT,
 };
+pub use cursor::{
+    byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet, MoveDir,
+    MAX_ACCESSKIT_CURSORS,
+};
+pub use diff_editor_panel::{
+    build_line_map, right_line_for_left_line, DiffEditorPaneFactory, DiffEditorPanel, DiffMode,
+    Side, SyncRow, SyncScrollState, DIFF_BLOCK_ACCEPT_LOCAL_PREFIX, DIFF_EDITOR_PANEL_AUTHOR_ID,
+    DIFF_MODE_TOGGLE_AUTHOR_ID,
+};
+pub use diff_engine::{
+    diff_json_blocks, DiffBlock, DiffEngine, DiffStatus, MergeBlock, MergeChoice, MergeEngine,
+    MergeStatus,
+};
 pub use editor_view::{
     CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome, HoverState, HoverTooltip,
     CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX, CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID,
     CODE_EDITOR_HOVER_AUTHOR_ID, CODE_EDITOR_HOVER_GOTODEF_AUTHOR_ID,
 };
-pub use lsp_client::{
-    published_diagnostics_from_lsp, HoverResult as LspHoverResult, LspClient, LspCompletionItem,
-    LspDiagnostic, LspError, LspServerConfig, PublishedDiagnostics, REQUEST_TIMEOUT, SHUTDOWN_TIMEOUT,
-};
-pub use gutter::{
-    breakpoint_color, diagnostic_tokens_for, DiagnosticSeverity, Gutter, GutterConfig,
-    GutterGeometry, GutterMarker, GutterMarkerKind, GutterResponse,
-};
-pub use file_meta::{
-    detect_indent, Encoding, Eol, IndentKind, IndentStyle, RenderWhitespace,
-};
-pub use language_mode::{
-    available_languages, detect_language, DetectionSource, LanguageDetection, LanguageId,
-};
+pub use file_meta::{detect_indent, Encoding, Eol, IndentKind, IndentStyle, RenderWhitespace};
 pub use find_replace::{FindEngine, FindQuery, Match, MAX_PATTERN_LEN};
+pub use folding::{FoldProvider, FoldRegion, FoldSet, FoldableNodeTypes};
 pub use formatting::{
     apply_text_edits, apply_text_edits_to_string as apply_format_edits_to_string,
     byte_to_lsp_position, default_formatting_options, formatter_available, lsp_range_to_byte_range,
@@ -197,75 +189,79 @@ pub use formatting::{
     FORMAT_DOCUMENT_CTX_AUTHOR_ID, FORMAT_DOCUMENT_MENU_AUTHOR_ID, FORMAT_SELECTION_CTX_AUTHOR_ID,
     NO_FORMATTER_TOOLTIP,
 };
-pub use cursor::{
-    byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet, MoveDir,
-    MAX_ACCESSKIT_CURSORS,
+pub use gutter::{
+    breakpoint_color, diagnostic_tokens_for, DiagnosticSeverity, Gutter, GutterConfig,
+    GutterGeometry, GutterMarker, GutterMarkerKind, GutterResponse,
 };
-pub use folding::{FoldProvider, FoldRegion, FoldSet, FoldableNodeTypes};
 pub use highlight::{
     language_id_for_extension, resolve_scope_color, HighlightScope, HighlightSpan, Highlighter,
     LanguageRegistry, SafeLanguage,
 };
-pub use keymap::{
-    mod_chord, mod_is_ctrl, CodeEditorAction, KeyBinding, KeyChord, Keymap,
-};
-pub use line_ops::{
-    affected_lines, delete_line as line_ops_delete_line, dedent_line, duplicate_line,
-    indent_line, insert_tab, line_comment_token, move_line_down, move_line_up, toggle_comment,
-    LineEditContext,
-};
-pub use keymap_settings::{
-    key_from_str, keymap_settings_path, KeymapOverride, KeymapSettings, KeymapSettingsError,
-};
 pub use jump_history::{
     JumpEntry, JumpHistory, COALESCE_LINE_TOLERANCE, MAX_ENTRIES as MAX_JUMP_ENTRIES,
 };
-pub use minimap::{Minimap, MinimapResponse, DEFAULT_MINIMAP_WIDTH};
-pub use navigation::{
-    next_diagnostic, prev_diagnostic, BufferPosition, DiagnosticNavigator,
+pub use keymap::{mod_chord, mod_is_ctrl, CodeEditorAction, KeyBinding, KeyChord, Keymap};
+pub use keymap_settings::{
+    key_from_str, keymap_settings_path, KeymapOverride, KeymapSettings, KeymapSettingsError,
 };
+pub use language_mode::{
+    available_languages, detect_language, DetectionSource, LanguageDetection, LanguageId,
+};
+pub use line_ops::{
+    affected_lines, dedent_line, delete_line as line_ops_delete_line, duplicate_line, indent_line,
+    insert_tab, line_comment_token, move_line_down, move_line_up, toggle_comment, LineEditContext,
+};
+pub use lsp_client::{
+    published_diagnostics_from_lsp, HoverResult as LspHoverResult, LspClient, LspCompletionItem,
+    LspDiagnostic, LspError, LspServerConfig, PublishedDiagnostics, REQUEST_TIMEOUT,
+    SHUTDOWN_TIMEOUT,
+};
+pub use minimap::{Minimap, MinimapResponse, DEFAULT_MINIMAP_WIDTH};
+pub use navigation::{next_diagnostic, prev_diagnostic, BufferPosition, DiagnosticNavigator};
 pub use note_refs_panel::{
-    render_note_refs_panel, row_author_id as note_ref_row_author_id,
-    NoteRefsState, PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
+    render_note_refs_panel, row_author_id as note_ref_row_author_id, NoteRefsState,
+    PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
 };
 pub use outline::{OutlineItem, OutlineKind, OutlineProvider};
+pub use panel::{
+    scope_to_color, CodeEditorPaneFactory, CodeEditorPanel, FindState, GotoLineState, PerfStats,
+    CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX, CODE_EDITOR_COMMAND_AUTHOR_PREFIX,
+    CODE_EDITOR_CURSOR_AUTHOR_PREFIX, CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX,
+    CODE_EDITOR_FIND_BAR_AUTHOR_ID, CODE_EDITOR_FIND_NEXT_AUTHOR_ID,
+    CODE_EDITOR_FIND_PREV_AUTHOR_ID, CODE_EDITOR_GOTO_LINE_AUTHOR_ID, CODE_EDITOR_GUTTER_AUTHOR_ID,
+    CODE_EDITOR_MINIMAP_AUTHOR_ID, CODE_EDITOR_OUTLINE_AUTHOR_ID, CODE_EDITOR_PANEL_AUTHOR_ID,
+    CODE_EDITOR_REPLACE_BAR_AUTHOR_ID, CODE_EDITOR_SCROLL_AREA_AUTHOR_ID,
+    CODE_EDITOR_STICKY_HEADER_AUTHOR_PREFIX, CODE_EDITOR_STICKY_SCROLL_AUTHOR_ID,
+    CODE_EDITOR_SYMBOL_PALETTE_AUTHOR_ID, CODE_EDITOR_SYMBOL_PALETTE_SEARCH_AUTHOR_ID,
+    CODE_EDITOR_SYMBOL_ROW_AUTHOR_PREFIX, CODE_EDITOR_TEXT_AUTHOR_ID, MAX_ACCESSKIT_SYMBOL_ROWS,
+    TWO_CHORD_TIMEOUT,
+};
+pub use panel::{CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID, EDITOR_WRAP_TOGGLE_NODE_ID};
 pub use rename::{
     apply_preview, apply_text_edits_to_buffer, apply_text_edits_to_string, begin_rename,
-    identifier_occurrences, identifier_range_at, is_identifier_kind, references_lack_precise_ranges,
-    render_inline_input, render_no_lsp_banner, render_preview, write_file_atomic, FileEditPreview,
-    LspRange, PreviewAction, PreviewHunk, RenameApplyReport, RenameError, RenameState,
-    TextEdit as RenameTextEdit, WorkspaceEditPreview, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
-    CODE_EDITOR_RENAME_APPLY_AUTHOR_ID, CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID,
-    CODE_EDITOR_RENAME_INPUT_AUTHOR_ID, CODE_EDITOR_RENAME_NO_LSP_BANNER_AUTHOR_ID, NO_LSP_BANNER_TEXT,
+    identifier_occurrences, identifier_range_at, is_identifier_kind,
+    references_lack_precise_ranges, render_inline_input, render_no_lsp_banner, render_preview,
+    write_file_atomic, FileEditPreview, LspRange, PreviewAction, PreviewHunk, RenameApplyReport,
+    RenameError, RenameState, TextEdit as RenameTextEdit, WorkspaceEditPreview,
+    CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID, CODE_EDITOR_RENAME_APPLY_AUTHOR_ID,
+    CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID, CODE_EDITOR_RENAME_INPUT_AUTHOR_ID,
+    CODE_EDITOR_RENAME_NO_LSP_BANNER_AUTHOR_ID, NO_LSP_BANNER_TEXT,
+};
+pub use render_decorations::{
+    bracket_pair_colors, depth_color_index, find_matching_bracket, indent_guide_x, indent_level_of,
+    BracketMatch, BRACKET_SCAN_CAP_BYTES,
 };
 pub use signature_help::{
     active_parameter_from_commas, render_signature_popup, signature_from_code_nav_symbol,
     signature_label_runs, ParamSpan, SignatureHelpState, SignatureInfo, SignatureSource,
     CODE_EDITOR_SIGNATURE_HELP_AUTHOR_ID, SIGNATURE_HELP_TRIGGER_CHARS,
 };
-pub use panel::{
-    scope_to_color, CodeEditorPanel, CodeEditorPaneFactory, FindState, GotoLineState, PerfStats,
-    CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX, CODE_EDITOR_COMMAND_AUTHOR_PREFIX,
-    CODE_EDITOR_CURSOR_AUTHOR_PREFIX, CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX,
-    CODE_EDITOR_FIND_BAR_AUTHOR_ID, CODE_EDITOR_FIND_NEXT_AUTHOR_ID, CODE_EDITOR_FIND_PREV_AUTHOR_ID,
-    CODE_EDITOR_GOTO_LINE_AUTHOR_ID, CODE_EDITOR_GUTTER_AUTHOR_ID, CODE_EDITOR_MINIMAP_AUTHOR_ID,
-    CODE_EDITOR_OUTLINE_AUTHOR_ID, CODE_EDITOR_PANEL_AUTHOR_ID, CODE_EDITOR_REPLACE_BAR_AUTHOR_ID,
-    CODE_EDITOR_SCROLL_AREA_AUTHOR_ID, CODE_EDITOR_STICKY_HEADER_AUTHOR_PREFIX,
-    CODE_EDITOR_STICKY_SCROLL_AUTHOR_ID, CODE_EDITOR_SYMBOL_PALETTE_AUTHOR_ID,
-    CODE_EDITOR_SYMBOL_PALETTE_SEARCH_AUTHOR_ID, CODE_EDITOR_SYMBOL_ROW_AUTHOR_PREFIX,
-    CODE_EDITOR_TEXT_AUTHOR_ID, MAX_ACCESSKIT_SYMBOL_ROWS, TWO_CHORD_TIMEOUT,
-};
+pub use sticky_scroll::{StickyHeader, StickyScroll, StickyScrollConfig};
 pub use symbol_palette::{
     flatten_outline, FileSymbol, SymbolPalette, SymbolPaletteAction, MAX_FILE_SYMBOLS,
 };
-pub use sticky_scroll::{StickyHeader, StickyScroll, StickyScrollConfig};
 pub use virtual_lines::{VirtualLineLayout, OVERSCAN_LINES};
-pub use render_decorations::{
-    bracket_pair_colors, depth_color_index, find_matching_bracket, indent_guide_x, indent_level_of,
-    BracketMatch, BRACKET_SCAN_CAP_BYTES,
-};
 pub use word_wrap::{layout_visual_rows, VisualRow, WrapConfig};
-pub use panel::{CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID, EDITOR_WRAP_TOGGLE_NODE_ID};
 
 use std::sync::Arc;
 

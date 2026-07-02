@@ -255,7 +255,11 @@ mod tests {
     fn non_diagnostic_markers_are_ignored() {
         // A breakpoint / fold-triangle marker is NOT a problem; only diagnostics are traversed.
         let markers = vec![
-            GutterMarker { line: 3, kind: GutterMarkerKind::Breakpoint, message: String::new() },
+            GutterMarker {
+                line: 3,
+                kind: GutterMarkerKind::Breakpoint,
+                message: String::new(),
+            },
             diag(10),
             GutterMarker {
                 line: 15,
@@ -285,6 +289,9 @@ mod tests {
         let _ = next_diagnostic(&markers, pos(0));
         let _ = prev_diagnostic(&markers, pos(50));
         let after: Vec<usize> = markers.iter().map(|m| m.line).collect();
-        assert_eq!(before, after, "the caller's marker slice must not be reordered");
+        assert_eq!(
+            before, after,
+            "the caller's marker slice must not be reordered"
+        );
     }
 }

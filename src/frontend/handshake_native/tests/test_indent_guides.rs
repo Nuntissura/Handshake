@@ -19,8 +19,8 @@ use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::code_editor::{
-    indent_guide_x, indent_level_of, CodeEditorPanel, Cursor, CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID,
-    TextBuffer,
+    indent_guide_x, indent_level_of, CodeEditorPanel, Cursor, TextBuffer,
+    CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID,
 };
 
 /// The EXTERNAL artifact root for MT-054 test output (CX-212E / CX-212E screenshot rule). NEVER
@@ -47,8 +47,16 @@ fn assert_no_local_artifact_dir() {
 fn indent_level_counts_spaces_and_tabs() {
     // tab_width 4: 4 spaces -> level 1, 8 spaces -> level 2, no indent -> level 0.
     let buf = TextBuffer::new("    a\n        b\nc");
-    assert_eq!(indent_level_of(&buf, 0, 4), 1, "4 leading spaces -> level 1");
-    assert_eq!(indent_level_of(&buf, 1, 4), 2, "8 leading spaces -> level 2");
+    assert_eq!(
+        indent_level_of(&buf, 0, 4),
+        1,
+        "4 leading spaces -> level 1"
+    );
+    assert_eq!(
+        indent_level_of(&buf, 1, 4),
+        2,
+        "8 leading spaces -> level 2"
+    );
     assert_eq!(indent_level_of(&buf, 2, 4), 0, "no indent -> level 0");
 }
 
@@ -67,13 +75,29 @@ fn indent_guide_x_equals_gutter_plus_level_times_tab_times_glyph() {
     let gutter_right = 50.0;
     let tab_width = 4;
     let char_width = 8.0;
-    assert_eq!(indent_guide_x(gutter_right, 1, tab_width, char_width), 50.0, "level 1 at the gutter");
-    assert_eq!(indent_guide_x(gutter_right, 2, tab_width, char_width), 82.0, "level 2 = +1 cell");
-    assert_eq!(indent_guide_x(gutter_right, 3, tab_width, char_width), 114.0, "level 3 = +2 cells");
+    assert_eq!(
+        indent_guide_x(gutter_right, 1, tab_width, char_width),
+        50.0,
+        "level 1 at the gutter"
+    );
+    assert_eq!(
+        indent_guide_x(gutter_right, 2, tab_width, char_width),
+        82.0,
+        "level 2 = +1 cell"
+    );
+    assert_eq!(
+        indent_guide_x(gutter_right, 3, tab_width, char_width),
+        114.0,
+        "level 3 = +2 cells"
+    );
     // The step between adjacent levels is exactly one indent cell (tab_width * char_width).
     let step = indent_guide_x(gutter_right, 3, tab_width, char_width)
         - indent_guide_x(gutter_right, 2, tab_width, char_width);
-    assert_eq!(step, tab_width as f32 * char_width, "adjacent guide x step = tab_width * char_width");
+    assert_eq!(
+        step,
+        tab_width as f32 * char_width,
+        "adjacent guide x step = tab_width * char_width"
+    );
 }
 
 // ── AC-006 / PT-004: live chrome screenshot (bracket highlight + indent guide) ─────────────────────
@@ -136,7 +160,10 @@ fn chrome_screenshot_shows_bracket_and_indent_guide() {
                 "PT-004 chrome screenshot: {w}x{h}, saved={saved} ({})",
                 abs.display()
             );
-            assert!(saved, "PT-004: the MT-054 chrome screenshot PNG saved to the external root");
+            assert!(
+                saved,
+                "PT-004: the MT-054 chrome screenshot PNG saved to the external root"
+            );
         }
         Err(e) => {
             println!(

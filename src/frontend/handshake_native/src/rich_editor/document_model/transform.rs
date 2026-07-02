@@ -69,7 +69,10 @@ pub enum Step {
     /// new sibling block of the SAME kind after it carrying the tail text. Used for
     /// "Enter splits a paragraph". `path` addresses the BLOCK (e.g. the paragraph),
     /// whose single text leaf is split.
-    SplitNode { path: Vec<usize>, char_offset: usize },
+    SplitNode {
+        path: Vec<usize>,
+        char_offset: usize,
+    },
     /// Merge the block at `index` of `parent_path` into its previous sibling
     /// (appending the merged node's text leaf content). Used for "Backspace at start
     /// of paragraph merges into the previous one". Requires `index >= 1`.
@@ -161,7 +164,11 @@ pub enum TransformError {
     NotATextLeaf { path: Vec<usize> },
     /// A node-insert/delete index was out of range for the parent's children.
     #[error("child index {index} out of range for parent {parent:?} (len {len})")]
-    ChildIndexOutOfRange { parent: NodeKind, index: usize, len: usize },
+    ChildIndexOutOfRange {
+        parent: NodeKind,
+        index: usize,
+        len: usize,
+    },
     /// A split/merge precondition failed (e.g. merge at index 0, or split target is
     /// not an inline-content block with a text leaf).
     #[error("structural step invalid: {reason}")]
@@ -226,7 +233,11 @@ pub fn apply_transaction(
 /// still present.
 fn compute_inverse(doc: &BlockNode, step: &Step) -> Result<Step, TransformError> {
     match step {
-        Step::InsertText { path, char_offset, text } => {
+        Step::InsertText {
+            path,
+            char_offset,
+            text,
+        } => {
             // Inverse of inserting `text` is deleting the char range it occupies.
             // `RopeText::insert` CLAMPS the offset into `0..=len_chars`, so the text
             // actually lands at `min(char_offset, len)` — the inverse must address
@@ -251,7 +262,9 @@ fn compute_inverse(doc: &BlockNode, step: &Step) -> Result<Step, TransformError>
                 text: removed,
             })
         }
-        Step::InsertNode { parent_path, index, .. } => {
+        Step::InsertNode {
+            parent_path, index, ..
+        } => {
             // Inverse of inserting a node is deleting it.
             Ok(Step::DeleteNode {
                 parent_path: parent_path.clone(),
@@ -263,14 +276,15 @@ fn compute_inverse(doc: &BlockNode, step: &Step) -> Result<Step, TransformError>
             let parent = block_at(doc, parent_path)?;
             let parent_kind = parent.kind;
             let parent_len = parent.children.len();
-            let child = parent
-                .children
-                .get(*index)
-                .ok_or(TransformError::ChildIndexOutOfRange {
-                    parent: parent_kind,
-                    index: *index,
-                    len: parent_len,
-                })?;
+            let child =
+                parent
+                    .children
+                    .get(*index)
+                    .ok_or(TransformError::ChildIndexOutOfRange {
+                        parent: parent_kind,
+                        index: *index,
+                        len: parent_len,
+                    })?;
             let node = child
                 .as_block()
                 .ok_or_else(|| TransformError::InvalidStructuralStep {
@@ -353,7 +367,9 @@ fn compute_inverse(doc: &BlockNode, step: &Step) -> Result<Step, TransformError>
                 }),
             }
         }
-        Step::InsertInlineChild { parent_path, index, .. } => {
+        Step::InsertInlineChild {
+            parent_path, index, ..
+        } => {
             // Inverse of inserting an inline child is deleting it.
             Ok(Step::DeleteInlineChild {
                 parent_path: parent_path.clone(),
@@ -388,7 +404,11 @@ fn compute_inverse(doc: &BlockNode, step: &Step) -> Result<Step, TransformError>
 /// caller's job. Returns an addressing error if a path/index/range is invalid.
 fn apply_step(doc: &mut BlockNode, step: &Step) -> Result<(), TransformError> {
     match step {
-        Step::InsertText { path, char_offset, text } => {
+        Step::InsertText {
+            path,
+            char_offset,
+            text,
+        } => {
             let leaf = text_leaf_at_mut(doc, path)?;
             leaf.text.insert(*char_offset, text);
             Ok(())
@@ -398,7 +418,11 @@ fn apply_step(doc: &mut BlockNode, step: &Step) -> Result<(), TransformError> {
             leaf.text.remove(*start, *end);
             Ok(())
         }
-        Step::InsertNode { parent_path, index, node } => {
+        Step::InsertNode {
+            parent_path,
+            index,
+            node,
+        } => {
             let parent = block_at_mut(doc, parent_path)?;
             if *index > parent.children.len() {
                 return Err(TransformError::ChildIndexOutOfRange {
@@ -434,7 +458,11 @@ fn apply_step(doc: &mut BlockNode, step: &Step) -> Result<(), TransformError> {
             leaf.remove_marks_of_type(mark);
             Ok(())
         }
-        Step::InsertInlineChild { parent_path, index, child } => {
+        Step::InsertInlineChild {
+            parent_path,
+            index,
+            child,
+        } => {
             let parent = block_at_mut(doc, parent_path)?;
             if *index > parent.children.len() {
                 return Err(TransformError::ChildIndexOutOfRange {
@@ -472,7 +500,11 @@ fn apply_step(doc: &mut BlockNode, step: &Step) -> Result<(), TransformError> {
 /// wholesale to whichever side the offset falls on. This is the correct behaviour for
 /// every styled paragraph (bold/italic/link runs, embedded wikilinks), not only the
 /// single-run case.
-fn apply_split(doc: &mut BlockNode, path: &[usize], char_offset: usize) -> Result<(), TransformError> {
+fn apply_split(
+    doc: &mut BlockNode,
+    path: &[usize],
+    char_offset: usize,
+) -> Result<(), TransformError> {
     let (parent_path, index) = split_path(path)?;
     let target_kind;
     let target_attrs;
@@ -527,8 +559,14 @@ fn split_inline_children(children: &[Child], char_offset: usize) -> (Vec<Child>,
                     let cut = char_offset - consumed;
                     let head_text = leaf.text.slice_chars(0, cut);
                     let tail_text = leaf.text.slice_chars(cut, len);
-                    head.push(Child::Text(TextLeaf::with_marks(&head_text, leaf.marks.clone())));
-                    tail.push(Child::Text(TextLeaf::with_marks(&tail_text, leaf.marks.clone())));
+                    head.push(Child::Text(TextLeaf::with_marks(
+                        &head_text,
+                        leaf.marks.clone(),
+                    )));
+                    tail.push(Child::Text(TextLeaf::with_marks(
+                        &tail_text,
+                        leaf.marks.clone(),
+                    )));
                 }
                 other => {
                     // Defensive: a non-text child cannot straddle (len 1); place it in
@@ -561,7 +599,11 @@ fn split_inline_children(children: &[Child], char_offset: usize) -> (Vec<Child>,
 /// sides are inline-content blocks, the boundary leaves are joined into one run only
 /// when their marks match (so a bold tail does not silently lose its boldness); else
 /// the merged children are appended as-is.
-fn apply_merge(doc: &mut BlockNode, parent_path: &[usize], index: usize) -> Result<(), TransformError> {
+fn apply_merge(
+    doc: &mut BlockNode,
+    parent_path: &[usize],
+    index: usize,
+) -> Result<(), TransformError> {
     if index == 0 {
         return Err(TransformError::InvalidStructuralStep {
             reason: "cannot merge the first child into a previous sibling".to_string(),
@@ -570,11 +612,13 @@ fn apply_merge(doc: &mut BlockNode, parent_path: &[usize], index: usize) -> Resu
     // Take the merged node's full child list first (immutable read + clone).
     let merged_children = {
         let parent = block_at(doc, parent_path)?;
-        let merged = parent.children.get(index).and_then(Child::as_block).ok_or_else(|| {
-            TransformError::InvalidStructuralStep {
+        let merged = parent
+            .children
+            .get(index)
+            .and_then(Child::as_block)
+            .ok_or_else(|| TransformError::InvalidStructuralStep {
                 reason: format!("child {index} is not a block to merge"),
-            }
-        })?;
+            })?;
         merged.children.clone()
     };
     // Append the full sequence to the previous sibling.
@@ -645,21 +689,28 @@ fn block_at<'a>(doc: &'a BlockNode, path: &[usize]) -> Result<&'a BlockNode, Tra
             .children
             .get(idx)
             .and_then(Child::as_block)
-            .ok_or_else(|| TransformError::NoNodeAtPath { path: path.to_vec() })?;
+            .ok_or_else(|| TransformError::NoNodeAtPath {
+                path: path.to_vec(),
+            })?;
     }
     Ok(node)
 }
 
 /// Resolve a child-index `path` to a mutable block reference. The empty path is the
 /// root `doc` itself.
-fn block_at_mut<'a>(doc: &'a mut BlockNode, path: &[usize]) -> Result<&'a mut BlockNode, TransformError> {
+fn block_at_mut<'a>(
+    doc: &'a mut BlockNode,
+    path: &[usize],
+) -> Result<&'a mut BlockNode, TransformError> {
     let mut node = doc;
     for &idx in path {
         node = node
             .children
             .get_mut(idx)
             .and_then(Child::as_block_mut)
-            .ok_or_else(|| TransformError::NoNodeAtPath { path: path.to_vec() })?;
+            .ok_or_else(|| TransformError::NoNodeAtPath {
+                path: path.to_vec(),
+            })?;
     }
     Ok(node)
 }
@@ -675,12 +726,17 @@ fn text_leaf_at<'a>(doc: &'a BlockNode, path: &[usize]) -> Result<&'a TextLeaf, 
         .children
         .get(leaf_idx)
         .and_then(Child::as_text)
-        .ok_or_else(|| TransformError::NotATextLeaf { path: path.to_vec() })
+        .ok_or_else(|| TransformError::NotATextLeaf {
+            path: path.to_vec(),
+        })
 }
 
 /// Resolve a `path` whose LAST element addresses a text leaf, returning a mutable
 /// reference to that leaf.
-fn text_leaf_at_mut<'a>(doc: &'a mut BlockNode, path: &[usize]) -> Result<&'a mut TextLeaf, TransformError> {
+fn text_leaf_at_mut<'a>(
+    doc: &'a mut BlockNode,
+    path: &[usize],
+) -> Result<&'a mut TextLeaf, TransformError> {
     let (parent_path, leaf_idx) = split_path(path).map_err(|_| TransformError::NotATextLeaf {
         path: path.to_vec(),
     })?;
@@ -696,16 +752,21 @@ fn text_leaf_at_mut<'a>(doc: &'a mut BlockNode, path: &[usize]) -> Result<&'a mu
             len,
         })?
         .as_text_mut()
-        .ok_or_else(|| TransformError::NotATextLeaf { path: path.to_vec() })
+        .ok_or_else(|| TransformError::NotATextLeaf {
+            path: path.to_vec(),
+        })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::node::NodeKind;
+    use super::*;
 
     fn doc_two_paras() -> BlockNode {
-        BlockNode::doc(vec![BlockNode::paragraph("hello"), BlockNode::paragraph("world")])
+        BlockNode::doc(vec![
+            BlockNode::paragraph("hello"),
+            BlockNode::paragraph("world"),
+        ])
     }
 
     #[test]
@@ -719,7 +780,11 @@ mod tests {
         }]);
         let receipt = apply_transaction(&mut doc, tx).unwrap();
         assert_eq!(
-            doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+            doc.children[0].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string(),
             "hello world"
         );
         // Apply the inverse to undo.
@@ -748,12 +813,19 @@ mod tests {
         let mut doc = doc_two_paras();
         // Combine the two paras into "helloworld" via merge, then check inverse split.
         let before = doc.clone();
-        let merge = Transaction::operator(vec![Step::MergeNodes { parent_path: vec![], index: 1 }]);
+        let merge = Transaction::operator(vec![Step::MergeNodes {
+            parent_path: vec![],
+            index: 1,
+        }]);
         let receipt = apply_transaction(&mut doc, merge).unwrap();
         // After merge: one paragraph "helloworld".
         assert_eq!(doc.children.len(), 1);
         assert_eq!(
-            doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+            doc.children[0].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string(),
             "helloworld"
         );
         // Inverse restores the two paragraphs.
@@ -790,8 +862,10 @@ mod tests {
         use super::super::node::{HsLinkNode, TransclusionNode};
         let mut para = BlockNode::new(NodeKind::Paragraph);
         para.children.push(Child::Text(TextLeaf::new("a")));
-        para.children.push(Child::Transclusion(TransclusionNode::new("BLK-9")));
-        para.children.push(Child::HsLink(HsLinkNode::new("note", "N-1", "note one")));
+        para.children
+            .push(Child::Transclusion(TransclusionNode::new("BLK-9")));
+        para.children
+            .push(Child::HsLink(HsLinkNode::new("note", "N-1", "note one")));
         let mut doc = BlockNode::doc(vec![para]);
         let before = doc.clone();
         // Delete the transclusion at inline index 1.
@@ -820,23 +894,40 @@ mod tests {
         }]);
         let err = apply_transaction(&mut doc, tx).unwrap_err();
         assert!(matches!(err, TransformError::Schema(_)));
-        assert_eq!(doc, before, "doc must be unchanged after the rejected inline insert");
+        assert_eq!(
+            doc, before,
+            "doc must be unchanged after the rejected inline insert"
+        );
     }
 
     #[test]
     fn split_paragraph_creates_sibling() {
         let mut doc = BlockNode::doc(vec![BlockNode::paragraph("helloworld")]);
-        let tx = Transaction::operator(vec![Step::SplitNode { path: vec![0], char_offset: 5 }]);
+        let tx = Transaction::operator(vec![Step::SplitNode {
+            path: vec![0],
+            char_offset: 5,
+        }]);
         apply_transaction(&mut doc, tx).unwrap();
         assert_eq!(doc.children.len(), 2);
         assert_eq!(
-            doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+            doc.children[0].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string(),
             "hello"
         );
         assert_eq!(
-            doc.children[1].as_block().unwrap().children[0].as_text().unwrap().text.to_string(),
+            doc.children[1].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string(),
             "world"
         );
-        assert_eq!(doc.children[1].as_block().unwrap().kind, NodeKind::Paragraph);
+        assert_eq!(
+            doc.children[1].as_block().unwrap().kind,
+            NodeKind::Paragraph
+        );
     }
 }

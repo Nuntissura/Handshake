@@ -62,7 +62,10 @@ pub const SECTION_TITLE_BAND: f32 = 22.0;
 /// The stable AccessKit author_id for a section frame, sanitizing `group_id` to `[a-z0-9-]` (reusing the
 /// shell's slugger) so a raw group id with slashes/colons can never break AccessKit tree integrity.
 pub fn section_author_id(group_id: &str) -> String {
-    format!("{SECTION_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(group_id))
+    format!(
+        "{SECTION_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(group_id)
+    )
 }
 
 /// One derived section/group FRAME: a titled rounded-rectangle container drawn behind its member cards.
@@ -107,19 +110,19 @@ impl SectionLayer {
     /// Colors are assigned by the group's discovery order (first appearance scanning `placements`) modulo
     /// the [`canvas_section_palette`], so the same `group_id` reads with the same hue across reloads as
     /// long as the membership order is stable; the assignment is recomputed deterministically here.
-    pub fn derive(
-        placements: &[CanvasPlacementCard],
-        labels: &BTreeMap<String, String>,
-    ) -> Self {
+    pub fn derive(placements: &[CanvasPlacementCard], labels: &BTreeMap<String, String>) -> Self {
         // Group member rects by group_id, preserving first-appearance order for stable color assignment.
         let mut order: Vec<String> = Vec::new();
         let mut bounds: BTreeMap<String, Rect> = BTreeMap::new();
         for card in placements {
-            let Some(gid) = card.group_id.as_ref() else { continue };
+            let Some(gid) = card.group_id.as_ref() else {
+                continue;
+            };
             if gid.trim().is_empty() {
                 continue; // an empty-string group_id is "ungrouped" — never a frame
             }
-            let card_rect = Rect::from_min_size(Pos2::new(card.x, card.y), Vec2::new(card.w, card.h));
+            let card_rect =
+                Rect::from_min_size(Pos2::new(card.x, card.y), Vec2::new(card.w, card.h));
             match bounds.get_mut(gid) {
                 Some(existing) => *existing = existing.union(card_rect),
                 None => {
@@ -135,7 +138,10 @@ impl SectionLayer {
             let raw = bounds[gid];
             // Pad the member union, reserving a title band at the top so the label never overlaps a card.
             let rect = Rect::from_min_max(
-                Pos2::new(raw.min.x - SECTION_PADDING, raw.min.y - SECTION_PADDING - SECTION_TITLE_BAND),
+                Pos2::new(
+                    raw.min.x - SECTION_PADDING,
+                    raw.min.y - SECTION_PADDING - SECTION_TITLE_BAND,
+                ),
                 Pos2::new(raw.max.x + SECTION_PADDING, raw.max.y + SECTION_PADDING),
             );
             let label = labels
@@ -204,12 +210,22 @@ mod tests {
             card("p3", "b3", 0.0, 400.0, None), // ungrouped -> no frame
         ];
         let layer = SectionLayer::derive(&placements, &BTreeMap::new());
-        assert_eq!(layer.frames.len(), 1, "one distinct non-null group => one frame");
+        assert_eq!(
+            layer.frames.len(),
+            1,
+            "one distinct non-null group => one frame"
+        );
         let f = &layer.frames[0];
         assert_eq!(f.id, "g-a");
         // Member union is x:[0,300] y:[0,60]; padded + title band must enclose it.
-        assert!(f.rect.min.x < 0.0 && f.rect.max.x > 300.0, "frame encloses + pads member x bounds");
-        assert!(f.rect.min.y < 0.0 && f.rect.max.y > 60.0, "frame encloses + pads member y bounds");
+        assert!(
+            f.rect.min.x < 0.0 && f.rect.max.x > 300.0,
+            "frame encloses + pads member x bounds"
+        );
+        assert!(
+            f.rect.min.y < 0.0 && f.rect.max.y > 60.0,
+            "frame encloses + pads member y bounds"
+        );
         // The title band makes the top padding larger than the bottom padding.
         assert!(
             (0.0 - f.rect.min.y) > (f.rect.max.y - 60.0),
@@ -222,7 +238,10 @@ mod tests {
     fn empty_group_id_is_ungrouped() {
         let placements = vec![card("p1", "b1", 0.0, 0.0, Some(""))];
         let layer = SectionLayer::derive(&placements, &BTreeMap::new());
-        assert!(layer.is_empty(), "an empty-string group_id is ungrouped, not a frame");
+        assert!(
+            layer.is_empty(),
+            "an empty-string group_id is ungrouped, not a frame"
+        );
     }
 
     /// Board section metadata supplies the label; absent metadata falls back to the group_id string.
@@ -238,7 +257,10 @@ mod tests {
         let fa = layer.frame("g-a").unwrap();
         let fb = layer.frame("g-b").unwrap();
         assert_eq!(fa.label, "Research", "metadata label used when present");
-        assert_eq!(fb.label, "g-b", "fallback to group_id string when no metadata label");
+        assert_eq!(
+            fb.label, "g-b",
+            "fallback to group_id string when no metadata label"
+        );
     }
 
     /// which_section: a drop inside a frame returns its group_id; a drop outside all frames returns None
@@ -249,10 +271,18 @@ mod tests {
         let layer = SectionLayer::derive(&placements, &BTreeMap::new());
         let f = &layer.frames[0];
         let inside = f.rect.center();
-        assert_eq!(layer.which_section(inside), Some("g-a"), "drop inside the frame assigns its group");
+        assert_eq!(
+            layer.which_section(inside),
+            Some("g-a"),
+            "drop inside the frame assigns its group"
+        );
         // A point far outside any member bounds.
         let outside = Pos2::new(5000.0, 5000.0);
-        assert_eq!(layer.which_section(outside), None, "drop outside all frames clears (None)");
+        assert_eq!(
+            layer.which_section(outside),
+            None,
+            "drop outside all frames clears (None)"
+        );
     }
 
     /// RISK-061-4 / MC-061-4: with NESTED/OVERLAPPING frames, the smallest-area enclosing frame wins
@@ -272,7 +302,9 @@ mod tests {
             rect: Rect::from_min_max(Pos2::new(100.0, 100.0), Pos2::new(200.0, 200.0)),
             color: palette[1],
         };
-        let layer = SectionLayer { frames: vec![big, small] };
+        let layer = SectionLayer {
+            frames: vec![big, small],
+        };
         // A point inside BOTH frames must resolve to the smaller (inner) one.
         assert_eq!(
             layer.which_section(Pos2::new(150.0, 150.0)),
@@ -288,8 +320,18 @@ mod tests {
     fn which_section_equal_area_tie_breaks_by_id() {
         let palette = canvas_section_palette();
         let rect = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(100.0, 100.0));
-        let z = SectionFrame { id: "z".to_owned(), label: "z".to_owned(), rect, color: palette[0] };
-        let a = SectionFrame { id: "a".to_owned(), label: "a".to_owned(), rect, color: palette[1] };
+        let z = SectionFrame {
+            id: "z".to_owned(),
+            label: "z".to_owned(),
+            rect,
+            color: palette[0],
+        };
+        let a = SectionFrame {
+            id: "a".to_owned(),
+            label: "a".to_owned(),
+            rect,
+            color: palette[1],
+        };
         let layer = SectionLayer { frames: vec![z, a] };
         assert_eq!(
             layer.which_section(Pos2::new(50.0, 50.0)),
@@ -305,7 +347,9 @@ mod tests {
         assert!(id.starts_with(SECTION_AUTHOR_ID_PREFIX));
         let suffix = &id[SECTION_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
     }

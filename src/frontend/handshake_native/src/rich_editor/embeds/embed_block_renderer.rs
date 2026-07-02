@@ -36,7 +36,9 @@ use crate::rich_editor::embeds::asset_resolver::{
 };
 use crate::rich_editor::embeds::image_view::{self, EmbedTextureCache};
 use crate::rich_editor::embeds::slideshow_view::{self, SlideshowViewState};
-use crate::rich_editor::embeds::video_view::{self, InlineRevealPlayHandler, VideoPlayHandler, VideoViewState};
+use crate::rich_editor::embeds::video_view::{
+    self, InlineRevealPlayHandler, VideoPlayHandler, VideoViewState,
+};
 use crate::theme::HsPalette;
 
 /// One-slot delivery cell for an off-thread single-asset resolution (the MT-009 delivery-cell
@@ -171,7 +173,8 @@ impl EmbedRuntime {
                         self.decoded_images.insert(asset_id, image);
                     }
                     Err(e) => {
-                        self.resolutions.insert(asset_id, EmbedResolutionState::Err(e));
+                        self.resolutions
+                            .insert(asset_id, EmbedResolutionState::Err(e));
                     }
                 }
                 applied = true;
@@ -187,7 +190,8 @@ impl EmbedRuntime {
         if !self.resolutions.needs_fetch(asset_id) {
             return; // already resolving / resolved / failed — do not re-spawn (AC-9).
         }
-        self.resolutions.insert(asset_id.to_owned(), EmbedResolutionState::Resolving);
+        self.resolutions
+            .insert(asset_id.to_owned(), EmbedResolutionState::Resolving);
         let Some(runtime) = self.runtime.clone() else {
             return; // headless: the caller seeds the cache directly in tests.
         };
@@ -265,7 +269,8 @@ impl EmbedRuntime {
         if self.sequences.contains_key(ref_value) {
             return; // already resolving / resolved.
         }
-        self.sequences.insert(ref_value.to_owned(), SequenceState::Resolving);
+        self.sequences
+            .insert(ref_value.to_owned(), SequenceState::Resolving);
         let Some(runtime) = self.runtime.clone() else {
             return;
         };
@@ -297,7 +302,12 @@ impl EmbedRuntime {
 ///
 /// [`super::super::renderer::block_renderer`] never paints these; the renderer calls this from
 /// its `egui::Ui` context for an embed-bearing block.
-pub fn render_embed(ui: &mut egui::Ui, link: &HsLinkNode, runtime: &mut EmbedRuntime, palette: &HsPalette) {
+pub fn render_embed(
+    ui: &mut egui::Ui,
+    link: &HsLinkNode,
+    runtime: &mut EmbedRuntime,
+    palette: &HsPalette,
+) {
     let Some(kind) = MediaEmbedKind::from_ref_kind(&link.ref_kind) else {
         // Not a media kind — this should not be routed here (the renderer only routes media
         // embeds), but fail-closed with a visible chip rather than silently drawing nothing.
@@ -319,9 +329,13 @@ pub fn render_embed(ui: &mut egui::Ui, link: &HsLinkNode, runtime: &mut EmbedRun
 
     let max_width = ui.available_width().max(1.0);
     match kind {
-        MediaEmbedKind::Images => render_single_image(ui, kind, &link.ref_value, runtime, palette, max_width),
+        MediaEmbedKind::Images => {
+            render_single_image(ui, kind, &link.ref_value, runtime, palette, max_width)
+        }
         MediaEmbedKind::Video => render_video(ui, &link.ref_value, runtime, palette),
-        MediaEmbedKind::Slideshow => render_slideshow(ui, &link.ref_value, runtime, palette, max_width),
+        MediaEmbedKind::Slideshow => {
+            render_slideshow(ui, &link.ref_value, runtime, palette, max_width)
+        }
         MediaEmbedKind::Album => render_album(ui, &link.ref_value, runtime, palette, max_width),
     }
 }
@@ -422,7 +436,12 @@ fn render_resolved_image(
 
 /// Render a `video` embed: poster/placeholder + play button + filename + content URL (never an
 /// external launch). Fail-closed and HBR-QUIET by construction.
-fn render_video(ui: &mut egui::Ui, ref_value: &str, runtime: &mut EmbedRuntime, palette: &HsPalette) {
+fn render_video(
+    ui: &mut egui::Ui,
+    ref_value: &str,
+    runtime: &mut EmbedRuntime,
+    palette: &HsPalette,
+) {
     let asset_id = match crate::rich_editor::embeds::asset_resolver::validate_asset_ref(ref_value) {
         Ok(id) => id,
         Err(e) => {
@@ -471,14 +490,23 @@ fn render_video(ui: &mut egui::Ui, ref_value: &str, runtime: &mut EmbedRuntime, 
         }
         // The content URL is ALWAYS visible (red-team RISK-4 control: the operator can inspect
         // exactly what would play); after a play click it is emphasized as the revealed target.
-        let url_color = if state.url_revealed { palette.text } else { palette.text_subtle };
+        let url_color = if state.url_revealed {
+            palette.text
+        } else {
+            palette.text_subtle
+        };
         ui.colored_label(url_color, &resolved.content_url);
         ui.colored_label(
             palette.text_subtle,
             "In-process video decode is deferred to a future MT (poster placeholder).",
         );
     });
-    emit_node_author(ui.ctx(), container.response.id, accesskit::Role::Group, &container_author);
+    emit_node_author(
+        ui.ctx(),
+        container.response.id,
+        accesskit::Role::Group,
+        &container_author,
+    );
 }
 
 /// Render a `slideshow` embed: one member at a time with wrapping prev/next. `_max_width` is
@@ -509,7 +537,10 @@ fn render_slideshow(
     let first_token = slideshow_view::first_asset_token(ref_value);
     let container_author = slideshow_view::container_author_id(ref_value);
 
-    let state = runtime.slideshow_states.entry(ref_value.to_owned()).or_default();
+    let state = runtime
+        .slideshow_states
+        .entry(ref_value.to_owned())
+        .or_default();
     let idx = state.clamped_index(len);
 
     let frame = egui::Frame::new()
@@ -543,19 +574,34 @@ fn render_slideshow(
         // Prev / position / next controls.
         ui.horizontal(|ui| {
             let prev = ui.button("\u{2039}");
-            emit_node_author(ui.ctx(), prev.id, accesskit::Role::Button, &slideshow_view::prev_author_id(&first_token));
+            emit_node_author(
+                ui.ctx(),
+                prev.id,
+                accesskit::Role::Button,
+                &slideshow_view::prev_author_id(&first_token),
+            );
             if prev.clicked() {
                 state.prev(len);
             }
             ui.colored_label(palette.text_subtle, format!("{}/{}", idx + 1, len));
             let next = ui.button("\u{203A}");
-            emit_node_author(ui.ctx(), next.id, accesskit::Role::Button, &slideshow_view::next_author_id(&first_token));
+            emit_node_author(
+                ui.ctx(),
+                next.id,
+                accesskit::Role::Button,
+                &slideshow_view::next_author_id(&first_token),
+            );
             if next.clicked() {
                 state.next(len);
             }
         });
     });
-    emit_node_author(ui.ctx(), container.response.id, accesskit::Role::Group, &container_author);
+    emit_node_author(
+        ui.ctx(),
+        container.response.id,
+        accesskit::Role::Group,
+        &container_author,
+    );
 }
 
 /// Render an `album` embed: a 3-per-row thumbnail grid, click-to-enlarge modal.
@@ -581,7 +627,10 @@ fn render_album(
     };
     let len = items.len();
     let grid_author = album_view::grid_author_id(ref_value);
-    let state = runtime.album_states.entry(ref_value.to_owned()).or_default();
+    let state = runtime
+        .album_states
+        .entry(ref_value.to_owned())
+        .or_default();
 
     let frame = egui::Frame::new()
         .fill(palette.surface)
@@ -614,7 +663,12 @@ fn render_album(
                 }
             });
     });
-    emit_node_author(ui.ctx(), container.response.id, accesskit::Role::Group, &grid_author);
+    emit_node_author(
+        ui.ctx(),
+        container.response.id,
+        accesskit::Role::Group,
+        &grid_author,
+    );
 
     // The full-size modal for the open member (egui::Window) — AC-6 click-to-enlarge.
     if let Some(open_idx) = state.open_index {
@@ -672,7 +726,10 @@ fn render_error_chip(ui: &mut egui::Ui, ref_value: &str, error: &EmbedError, pal
         .corner_radius(6.0);
     let resp = frame
         .show(ui, |ui| {
-            ui.colored_label(palette.error_text, format!("Embed failed ({kind}): {error}"));
+            ui.colored_label(
+                palette.error_text,
+                format!("Embed failed ({kind}): {error}"),
+            );
         })
         .response;
     // A Label-role addressable node so the gate (which only flags UNNAMED interactive nodes)
@@ -760,16 +817,23 @@ mod tests {
             });
         });
         // No asset was ever fetched (the empty ref short-circuits before ensure_single).
-        assert!(rt.resolutions.is_empty(), "AC-2: an empty ref issues no resolution");
+        assert!(
+            rt.resolutions.is_empty(),
+            "AC-2: an empty ref issues no resolution"
+        );
     }
 
     #[test]
     fn drain_applies_single_delivery() {
         let mut rt = headless_runtime();
         // Simulate an off-thread delivery landing in the cell.
-        *rt.single_cell.lock().unwrap() = Some(("a1".to_owned(), EmbedResolutionState::Ok(ok_resolved("a1"))));
+        *rt.single_cell.lock().unwrap() =
+            Some(("a1".to_owned(), EmbedResolutionState::Ok(ok_resolved("a1"))));
         assert!(rt.drain_deliveries());
-        assert!(matches!(rt.resolutions.get("a1"), Some(EmbedResolutionState::Ok(_))));
+        assert!(matches!(
+            rt.resolutions.get("a1"),
+            Some(EmbedResolutionState::Ok(_))
+        ));
     }
 
     #[test]
@@ -777,7 +841,8 @@ mod tests {
         // AC-9: a terminal asset is never re-marked / re-spawned. Seed an Ok, then ensure_single
         // must NOT downgrade it back to Resolving.
         let mut rt = headless_runtime();
-        rt.resolutions.insert("a1", EmbedResolutionState::Ok(ok_resolved("a1")));
+        rt.resolutions
+            .insert("a1", EmbedResolutionState::Ok(ok_resolved("a1")));
         rt.ensure_single(MediaEmbedKind::Images, "a1");
         assert!(
             matches!(rt.resolutions.get("a1"), Some(EmbedResolutionState::Ok(_))),
@@ -788,8 +853,12 @@ mod tests {
     #[test]
     fn ensure_sequence_is_idempotent() {
         let mut rt = headless_runtime();
-        rt.sequences.insert("a1,a2".to_owned(), SequenceState::Err(EmbedError::EmptyRef));
+        rt.sequences
+            .insert("a1,a2".to_owned(), SequenceState::Err(EmbedError::EmptyRef));
         rt.ensure_sequence(MediaEmbedKind::Album, "a1,a2");
-        assert!(matches!(rt.sequences.get("a1,a2"), Some(SequenceState::Err(_))));
+        assert!(matches!(
+            rt.sequences.get("a1,a2"),
+            Some(SequenceState::Err(_))
+        ));
     }
 }

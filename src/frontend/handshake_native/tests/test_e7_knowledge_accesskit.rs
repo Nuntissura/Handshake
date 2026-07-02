@@ -59,17 +59,17 @@ use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::accessibility::knowledge_action_registry::{
-    canvas_card_author_id, collection_lane_author_id, collection_row_author_id, graph_node_author_id,
-    KnowledgeActionRegistry, CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG,
-    HEALTH_CANARY_AUTHOR_ID,
+    canvas_card_author_id, collection_lane_author_id, collection_row_author_id,
+    graph_node_author_id, KnowledgeActionRegistry, CANVAS_CONTROL_CATALOG,
+    COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG, HEALTH_CANARY_AUTHOR_ID,
 };
 use handshake_native::backend::loom::{CreateLoomEdgeRequest, LoomEdgeCreatedBy, LoomEdgeType};
 use handshake_native::backend_client::{BlockViewClient, CanvasBoardClient, HttpMethod};
-use handshake_native::graph::canvas_board::PAN_STEP;
 use handshake_native::graph::block_collection_view::{
     BlockCollectionView, BlockViewDefinition, BlockViewEvent, BlockViewKind, BlockViewLane,
     BlockViewResults, LoomBlockRow,
 };
+use handshake_native::graph::canvas_board::PAN_STEP;
 use handshake_native::graph::canvas_board::{CanvasEvent, CanvasPlacementCard, LoomCanvasBoard};
 use handshake_native::graph::graph_view::{GraphEdge, GraphEvent, GraphNode, LoomGraphView};
 use handshake_native::theme::HsTheme;
@@ -126,7 +126,14 @@ fn canvas_board(registry: &Arc<Mutex<KnowledgeActionRegistry>>) -> LoomCanvasBoa
     let placements: Vec<CanvasPlacementCard> = (0..2)
         .map(|i| {
             let pid = uuid::Uuid::new_v4().to_string(); // CTRL-042-02: real UUID, not a sequential int.
-            let mut c = CanvasPlacementCard::new(pid, uuid::Uuid::new_v4().to_string(), (i as f32) * 240.0 + 30.0, 40.0, 200.0, 120.0);
+            let mut c = CanvasPlacementCard::new(
+                pid,
+                uuid::Uuid::new_v4().to_string(),
+                (i as f32) * 240.0 + 30.0,
+                40.0,
+                200.0,
+                120.0,
+            );
             c.live_title = Some(format!("Placed Card {}", i + 1));
             c.live_content_type = Some("note".to_owned());
             c
@@ -160,8 +167,14 @@ fn collection_view(registry: &Arc<Mutex<KnowledgeActionRegistry>>) -> BlockColle
         kind_str: "kanban".to_owned(),
         blocks: vec![r1.clone(), r2.clone()],
         groups: vec![
-            BlockViewLane { key: "todo".to_owned(), blocks: vec![r1] },
-            BlockViewLane { key: "done".to_owned(), blocks: vec![r2] },
+            BlockViewLane {
+                key: "todo".to_owned(),
+                blocks: vec![r1],
+            },
+            BlockViewLane {
+                key: "done".to_owned(),
+                blocks: vec![r2],
+            },
         ],
         total_returned: 2,
     };
@@ -309,7 +322,9 @@ fn build_harness<'a>() -> KnowledgeHarness<'a> {
                             cce.lock().unwrap().push(ev);
                         }
                     });
-                    cce.lock().unwrap().extend(collection.drain_knowledge_events());
+                    cce.lock()
+                        .unwrap()
+                        .extend(collection.drain_knowledge_events());
                 });
             });
         });
@@ -342,15 +357,27 @@ fn ac01_02_03_08_all_knowledge_nodes_present_with_roles() {
 
     // AC-042-08: every graph-level control node present (global controls, content-independent).
     for entry in GRAPH_CONTROL_CATALOG {
-        let n = find_node(&root, entry.author_id)
-            .unwrap_or_else(|| panic!("AC-042-08: graph control '{}' must be present", entry.author_id));
+        let n = find_node(&root, entry.author_id).unwrap_or_else(|| {
+            panic!(
+                "AC-042-08: graph control '{}' must be present",
+                entry.author_id
+            )
+        });
         assert_eq!(n.role, "Button", "{} is a Button control", entry.author_id);
     }
     for entry in CANVAS_CONTROL_CATALOG {
-        assert!(find_node(&root, entry.author_id).is_some(), "canvas control '{}' present", entry.author_id);
+        assert!(
+            find_node(&root, entry.author_id).is_some(),
+            "canvas control '{}' present",
+            entry.author_id
+        );
     }
     for entry in COLLECTION_CONTROL_CATALOG {
-        assert!(find_node(&root, entry.author_id).is_some(), "collection control '{}' present", entry.author_id);
+        assert!(
+            find_node(&root, entry.author_id).is_some(),
+            "collection control '{}' present",
+            entry.author_id
+        );
     }
 
     // AC-042-02: every graph block => graph.node.<block_id> Role::TreeItem.
@@ -360,7 +387,10 @@ fn ac01_02_03_08_all_knowledge_nodes_present_with_roles() {
         let author = graph_node_author_id(&node.block_id);
         let found = find_node(&root, &author)
             .unwrap_or_else(|| panic!("AC-042-02: '{author}' (TreeItem) must be present"));
-        assert_eq!(found.role, "TreeItem", "AC-042-02: '{author}' role must be TreeItem");
+        assert_eq!(
+            found.role, "TreeItem",
+            "AC-042-02: '{author}' role must be TreeItem"
+        );
     }
     drop(graph);
 
@@ -371,10 +401,17 @@ fn ac01_02_03_08_all_knowledge_nodes_present_with_roles() {
         let author = canvas_card_author_id(&card.placement_id);
         let found = find_node(&root, &author)
             .unwrap_or_else(|| panic!("AC-042-03: '{author}' (Group) must be present"));
-        assert_eq!(found.role, "Group", "AC-042-03: '{author}' role must be Group");
+        assert_eq!(
+            found.role, "Group",
+            "AC-042-03: '{author}' role must be Group"
+        );
         // The card carries its source block_id in the AccessKit value (IN-042-02).
         assert!(
-            found.value.as_deref().map(|v| v.contains("block_id=")).unwrap_or(false),
+            found
+                .value
+                .as_deref()
+                .map(|v| v.contains("block_id="))
+                .unwrap_or(false),
             "AC-042-03/IN-042-02: '{author}' value must carry block_id=; got {:?}",
             found.value
         );
@@ -399,7 +436,8 @@ fn ac01_02_03_08_all_knowledge_nodes_present_with_roles() {
     }
     for lane in &results.groups {
         let author = collection_lane_author_id(&lane.key);
-        let found = find_node(&root, &author).unwrap_or_else(|| panic!("'{author}' (Group lane) present"));
+        let found =
+            find_node(&root, &author).unwrap_or_else(|| panic!("'{author}' (Group lane) present"));
         assert_eq!(found.role, "Group", "'{author}' lane role must be Group");
     }
     drop(collection);
@@ -443,8 +481,13 @@ fn ac08_graph_controls_present_with_no_blocks() {
             .map(|a| a.starts_with("graph.node."))
             .unwrap_or(false)
     });
-    assert!(!any_node, "AC-042-08: no per-node identity nodes when 0 blocks loaded");
-    println!("AC-042-08: all graph-level controls present with 0 blocks; 0 per-node identity nodes");
+    assert!(
+        !any_node,
+        "AC-042-08: no per-node identity nodes when 0 blocks loaded"
+    );
+    println!(
+        "AC-042-08: all graph-level controls present with 0 blocks; 0 per-node identity nodes"
+    );
 }
 
 // ── AC-042-04: dispatch graph.open-node {block_id} -> the pane emits OpenNode for that block ─────────
@@ -457,7 +500,8 @@ fn ac04_dispatch_graph_open_node_emits_open() {
 
     // The target block is the first fixture block.
     let block_id = h.graph.lock().unwrap().nodes[0].block_id.clone();
-    let open = find_node(&h.harness.root(), "graph.open-node").expect("graph.open-node control present");
+    let open =
+        find_node(&h.harness.root(), "graph.open-node").expect("graph.open-node control present");
     let payload = format!(r#"{{"block_id":"{block_id}"}}"#);
     h.harness.event(click_event(open.node_id, Some(&payload)));
     h.harness.run(); // the pane consumes the Click + parses the payload this frame
@@ -469,7 +513,10 @@ fn ac04_dispatch_graph_open_node_emits_open() {
         "AC-042-04: dispatching graph.open-node{{block_id}} emitted OpenNode for that block; got {events:?}"
     );
     // The selection moved to the opened node (observable in-pane state).
-    assert_eq!(h.graph.lock().unwrap().selected.as_deref(), Some(block_id.as_str()));
+    assert_eq!(
+        h.graph.lock().unwrap().selected.as_deref(),
+        Some(block_id.as_str())
+    );
     println!("AC-042-04: AccessKit dispatch of graph.open-node opened the block (cross-pane open + selection)");
 }
 
@@ -503,7 +550,8 @@ fn ac05_dispatch_canvas_place_block_emits_place_and_new_card() {
     h.harness.run();
 
     let new_block = uuid::Uuid::new_v4().to_string();
-    let place = find_node(&h.harness.root(), "canvas.place-block").expect("canvas.place-block control present");
+    let place = find_node(&h.harness.root(), "canvas.place-block")
+        .expect("canvas.place-block control present");
     let payload = format!(r#"{{"block_id":"{new_block}","x":100,"y":100}}"#);
     h.harness.event(click_event(place.node_id, Some(&payload)));
     h.harness.run();
@@ -529,7 +577,14 @@ fn ac05_dispatch_canvas_place_block_emits_place_and_new_card() {
         let mut cards = canvas.placements.clone();
         let visual = canvas.visual_edges.clone();
         let (pan, zoom) = (canvas.pan, canvas.zoom);
-        let mut c = CanvasPlacementCard::new(new_placement_id.clone(), new_block.clone(), 100.0, 100.0, 200.0, 120.0);
+        let mut c = CanvasPlacementCard::new(
+            new_placement_id.clone(),
+            new_block.clone(),
+            100.0,
+            100.0,
+            200.0,
+            120.0,
+        );
         c.live_title = Some("Newly placed".to_owned());
         cards.push(c);
         canvas.set_board(cards, visual, pan, zoom);
@@ -557,7 +612,11 @@ fn ac03_dispatch_card_delete_emits_remove_placement() {
     let author = canvas_card_author_id(&placement_id);
     let card = find_node(&h.harness.root(), &author).expect("card node present");
     // The card declares exactly one custom action ('delete') at index 0.
-    assert_eq!(card.custom_actions, vec!["delete".to_owned()], "card declares the delete custom action");
+    assert_eq!(
+        card.custom_actions,
+        vec!["delete".to_owned()],
+        "card declares the delete custom action"
+    );
     h.harness.event(custom_action_event(card.node_id, 0));
     h.harness.run();
     h.harness.run();
@@ -579,8 +638,19 @@ fn ac06_dispatch_kanban_move_emits_cardmove_tag_shape() {
     h.harness.run();
 
     // Move the first row's block from "todo" to "done".
-    let block_id = h.collection.lock().unwrap().results.as_ref().unwrap().groups[0].blocks[0].block_id.clone();
-    let mv = find_node(&h.harness.root(), "collection.kanban-move").expect("collection.kanban-move control present");
+    let block_id = h
+        .collection
+        .lock()
+        .unwrap()
+        .results
+        .as_ref()
+        .unwrap()
+        .groups[0]
+        .blocks[0]
+        .block_id
+        .clone();
+    let mv = find_node(&h.harness.root(), "collection.kanban-move")
+        .expect("collection.kanban-move control present");
     let payload = format!(r#"{{"block_id":"{block_id}","from_lane":"todo","to_lane":"done"}}"#);
     h.harness.event(click_event(mv.node_id, Some(&payload)));
     h.harness.run();
@@ -612,7 +682,8 @@ fn ac07_dispatch_graph_add_edge_emits_add_edge() {
         let g = h.graph.lock().unwrap();
         (g.nodes[0].block_id.clone(), g.nodes[2].block_id.clone())
     };
-    let add = find_node(&h.harness.root(), "graph.add-edge").expect("graph.add-edge control present");
+    let add =
+        find_node(&h.harness.root(), "graph.add-edge").expect("graph.add-edge control present");
     let payload = format!(r#"{{"source_id":"{src}","target_id":"{tgt}"}}"#);
     h.harness.event(click_event(add.node_id, Some(&payload)));
     h.harness.run();
@@ -714,7 +785,8 @@ fn toolbar_plain_click_applies_pan_exactly_once() {
     h.harness.run();
 
     let pan_before = h.canvas.lock().unwrap().pan.x;
-    let pan_left = find_node(&h.harness.root(), "canvas.pan-left").expect("canvas.pan-left toolbar node");
+    let pan_left =
+        find_node(&h.harness.root(), "canvas.pan-left").expect("canvas.pan-left toolbar node");
     // A PLAIN (no-payload) swarm Click on the toolbar-owned pan-left node.
     h.harness.event(click_event(pan_left.node_id, None));
     h.harness.run();
@@ -756,7 +828,8 @@ fn ac05_place_block_event_builds_real_placements_request() {
     h.harness.run();
     h.harness.run();
     let new_block = uuid::Uuid::new_v4().to_string();
-    let place = find_node(&h.harness.root(), "canvas.place-block").expect("canvas.place-block control");
+    let place =
+        find_node(&h.harness.root(), "canvas.place-block").expect("canvas.place-block control");
     let payload = format!(r#"{{"block_id":"{new_block}","x":100,"y":100}}"#);
     h.harness.event(click_event(place.node_id, Some(&payload)));
     h.harness.run();
@@ -767,9 +840,11 @@ fn ac05_place_block_event_builds_real_placements_request() {
         events
             .iter()
             .find_map(|e| match e {
-                CanvasEvent::PlaceBlock { placed_block_id, x, y } => {
-                    Some((placed_block_id.clone(), *x as f64, *y as f64))
-                }
+                CanvasEvent::PlaceBlock {
+                    placed_block_id,
+                    x,
+                    y,
+                } => Some((placed_block_id.clone(), *x as f64, *y as f64)),
                 _ => None,
             })
             .expect("a PlaceBlock event was dispatched")
@@ -778,15 +853,29 @@ fn ac05_place_block_event_builds_real_placements_request() {
     let rt = request_runtime();
     let client = CanvasBoardClient::new("http://127.0.0.1:37501", rt.handle().clone());
     // The default card geometry the host would supply (DEFAULT_CARD_W/H — the MT-026 verified body).
-    let spec = client.place_block_request("ws-test", "canvas-block-1", &placed_block_id, x, y, 200.0, 120.0);
-    assert!(matches!(spec.method, HttpMethod::Post), "placeBlockOnCanvas is a POST");
+    let spec = client.place_block_request(
+        "ws-test",
+        "canvas-block-1",
+        &placed_block_id,
+        x,
+        y,
+        200.0,
+        120.0,
+    );
+    assert!(
+        matches!(spec.method, HttpMethod::Post),
+        "placeBlockOnCanvas is a POST"
+    );
     assert_eq!(
         spec.url,
         "http://127.0.0.1:37501/workspaces/ws-test/loom/canvas-boards/canvas-block-1/placements",
         "the REAL placements route (NOT the contract's stale /loom/canvas/{{cb}}/place)"
     );
     let body = spec.body.expect("placements POST carries a body");
-    assert_eq!(body.get("placed_block_id").and_then(|v| v.as_str()), Some(new_block.as_str()));
+    assert_eq!(
+        body.get("placed_block_id").and_then(|v| v.as_str()),
+        Some(new_block.as_str())
+    );
     assert_eq!(body.get("x").and_then(|v| v.as_f64()), Some(100.0));
     assert_eq!(body.get("y").and_then(|v| v.as_f64()), Some(100.0));
     println!("AC-042-05 (request-shape): the dispatched PlaceBlock event builds the REAL POST .../placements request (route + body verified standalone)");
@@ -800,9 +889,19 @@ fn ac06_card_move_event_builds_real_update_loom_block_request() {
     let mut h = build_harness();
     h.harness.run();
     h.harness.run();
-    let block_id =
-        h.collection.lock().unwrap().results.as_ref().unwrap().groups[0].blocks[0].block_id.clone();
-    let mv = find_node(&h.harness.root(), "collection.kanban-move").expect("collection.kanban-move control");
+    let block_id = h
+        .collection
+        .lock()
+        .unwrap()
+        .results
+        .as_ref()
+        .unwrap()
+        .groups[0]
+        .blocks[0]
+        .block_id
+        .clone();
+    let mv = find_node(&h.harness.root(), "collection.kanban-move")
+        .expect("collection.kanban-move control");
     let payload = format!(r#"{{"block_id":"{block_id}","from_lane":"todo","to_lane":"done"}}"#);
     h.harness.event(click_event(mv.node_id, Some(&payload)));
     h.harness.run();
@@ -813,9 +912,11 @@ fn ac06_card_move_event_builds_real_update_loom_block_request() {
         events
             .iter()
             .find_map(|e| match e {
-                BlockViewEvent::CardMove { block_id, add_tags, remove_tags } => {
-                    Some((block_id.clone(), add_tags.clone(), remove_tags.clone()))
-                }
+                BlockViewEvent::CardMove {
+                    block_id,
+                    add_tags,
+                    remove_tags,
+                } => Some((block_id.clone(), add_tags.clone(), remove_tags.clone())),
                 _ => None,
             })
             .expect("a CardMove event was dispatched")
@@ -824,7 +925,10 @@ fn ac06_card_move_event_builds_real_update_loom_block_request() {
     let rt = request_runtime();
     let client = BlockViewClient::new("http://127.0.0.1:37501", rt.handle().clone());
     let spec = client.card_move_request("ws-test", &mv_block, &add_tags, &remove_tags);
-    assert!(matches!(spec.method, HttpMethod::Patch), "updateLoomBlock is a PATCH");
+    assert!(
+        matches!(spec.method, HttpMethod::Patch),
+        "updateLoomBlock is a PATCH"
+    );
     assert_eq!(
         spec.url,
         format!("http://127.0.0.1:37501/workspaces/ws-test/loom/blocks/{block_id}"),
@@ -832,7 +936,12 @@ fn ac06_card_move_event_builds_real_update_loom_block_request() {
     );
     let body = spec.body.expect("card_move PATCH carries a body");
     // add_tags/remove_tags are TOP-LEVEL string arrays (the verified LoomBlockPatchRequest shape).
-    assert_eq!(body.get("add_tags").and_then(|v| v.as_array()).map(|a| a.len()), Some(1));
+    assert_eq!(
+        body.get("add_tags")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len()),
+        Some(1)
+    );
     assert_eq!(body["add_tags"][0].as_str(), Some("done"));
     assert_eq!(body["remove_tags"][0].as_str(), Some("todo"));
     println!("AC-042-06 (request-shape): the dispatched CardMove event builds the REAL PATCH /loom/blocks/:id request (top-level add_tags/remove_tags verified standalone)");
@@ -863,14 +972,18 @@ fn ac07_add_edge_event_builds_real_create_loom_edge_request() {
         events
             .iter()
             .find_map(|e| match e {
-                GraphEvent::AddEdge { source_block_id, target_block_id } => {
-                    Some((source_block_id.clone(), target_block_id.clone()))
-                }
+                GraphEvent::AddEdge {
+                    source_block_id,
+                    target_block_id,
+                } => Some((source_block_id.clone(), target_block_id.clone())),
                 _ => None,
             })
             .expect("an AddEdge event was dispatched")
     };
-    assert_eq!((ev_src.as_str(), ev_tgt.as_str()), (src.as_str(), tgt.as_str()));
+    assert_eq!(
+        (ev_src.as_str(), ev_tgt.as_str()),
+        (src.as_str(), tgt.as_str())
+    );
 
     // (a) The host builds the REAL backend request, supplying the two backend-required fields the AddEdge
     // intent event does NOT carry (created_by=user for a manual swarm edge, edge_type=mention).
@@ -887,17 +1000,34 @@ fn ac07_add_edge_event_builds_real_create_loom_edge_request() {
     let v = serde_json::to_value(&req).expect("CreateLoomEdgeRequest serializes");
     assert_eq!(v["source_block_id"].as_str(), Some(src.as_str()));
     assert_eq!(v["target_block_id"].as_str(), Some(tgt.as_str()));
-    assert_eq!(v["edge_type"].as_str(), Some("mention"), "edge_type is a backend-required field");
-    assert_eq!(v["created_by"].as_str(), Some("user"), "created_by is a backend-required field");
-    assert!(v.get("edge_id").is_none(), "an absent edge_id is omitted (the backend mints it)");
+    assert_eq!(
+        v["edge_type"].as_str(),
+        Some("mention"),
+        "edge_type is a backend-required field"
+    );
+    assert_eq!(
+        v["created_by"].as_str(),
+        Some("user"),
+        "created_by is a backend-required field"
+    );
+    assert!(
+        v.get("edge_id").is_none(),
+        "an absent edge_id is omitted (the backend mints it)"
+    );
 
     // (b) And the SAME body is what the production CanvasBoardClient::semantic_edge_request builder emits,
     // proving the host wiring (route + the two required fields) is correct against the real builder.
     let rt = request_runtime();
     let client = CanvasBoardClient::new("http://127.0.0.1:37501", rt.handle().clone());
     let spec = client.semantic_edge_request("ws-test", &ev_src, &ev_tgt);
-    assert!(matches!(spec.method, HttpMethod::Post), "createLoomEdge is a POST");
-    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws-test/loom/edges");
+    assert!(
+        matches!(spec.method, HttpMethod::Post),
+        "createLoomEdge is a POST"
+    );
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws-test/loom/edges"
+    );
     let body = spec.body.expect("edges POST carries a body");
     assert_eq!(body["source_block_id"].as_str(), Some(src.as_str()));
     assert_eq!(body["target_block_id"].as_str(), Some(tgt.as_str()));
@@ -916,16 +1046,31 @@ fn proof_b_full_knowledge_tree_dump() {
     let root = h.harness.root();
 
     let dump = knowledge_author_ids(&root);
-    println!("--- PROOF-042-B: knowledge.* AccessKit node dump ({} nodes) ---", dump.len());
+    println!(
+        "--- PROOF-042-B: knowledge.* AccessKit node dump ({} nodes) ---",
+        dump.len()
+    );
     for (author, role) in &dump {
         println!("{author}  role={role}");
     }
 
     // The reviewer must locate >=2 graph.node.<uuid>, >=1 canvas.card.<uuid>, and all graph controls.
-    let graph_nodes = dump.iter().filter(|(a, _)| a.starts_with("graph.node.")).count();
-    let canvas_cards = dump.iter().filter(|(a, _)| a.starts_with("canvas.card.")).count();
-    assert!(graph_nodes >= 2, "PROOF-042-B: at least two graph.node.<uuid> nodes in the dump; got {graph_nodes}");
-    assert!(canvas_cards >= 1, "PROOF-042-B: at least one canvas.card.<uuid> node in the dump; got {canvas_cards}");
+    let graph_nodes = dump
+        .iter()
+        .filter(|(a, _)| a.starts_with("graph.node."))
+        .count();
+    let canvas_cards = dump
+        .iter()
+        .filter(|(a, _)| a.starts_with("canvas.card."))
+        .count();
+    assert!(
+        graph_nodes >= 2,
+        "PROOF-042-B: at least two graph.node.<uuid> nodes in the dump; got {graph_nodes}"
+    );
+    assert!(
+        canvas_cards >= 1,
+        "PROOF-042-B: at least one canvas.card.<uuid> node in the dump; got {canvas_cards}"
+    );
     for entry in GRAPH_CONTROL_CATALOG {
         assert!(
             dump.iter().any(|(a, _)| a == entry.author_id),
@@ -947,14 +1092,29 @@ fn ctrl02_placement_ids_are_stable_uuids() {
 
     let ids_before: Vec<String> = {
         let canvas = h.canvas.lock().unwrap();
-        canvas.placements.iter().map(|c| c.placement_id.clone()).collect()
+        canvas
+            .placements
+            .iter()
+            .map(|c| c.placement_id.clone())
+            .collect()
     };
     for id in &ids_before {
-        assert_eq!(id.len(), 36, "CTRL-042-02: placement_id must be a 36-char UUID; got '{id}' ({} chars)", id.len());
-        assert!(uuid::Uuid::parse_str(id).is_ok(), "CTRL-042-02: placement_id must parse as a UUID; got '{id}'");
+        assert_eq!(
+            id.len(),
+            36,
+            "CTRL-042-02: placement_id must be a 36-char UUID; got '{id}' ({} chars)",
+            id.len()
+        );
+        assert!(
+            uuid::Uuid::parse_str(id).is_ok(),
+            "CTRL-042-02: placement_id must parse as a UUID; got '{id}'"
+        );
         // The card node is addressable by the sanitized UUID.
         let author = canvas_card_author_id(id);
-        assert!(find_node(&h.harness.root(), &author).is_some(), "card node for '{id}' present");
+        assert!(
+            find_node(&h.harness.root(), &author).is_some(),
+            "card node for '{id}' present"
+        );
     }
 
     // A refresh cycle (set_board with the SAME placements) keeps the ids + their AccessKit nodes stable.
@@ -966,11 +1126,24 @@ fn ctrl02_placement_ids_are_stable_uuids() {
     }
     h.harness.run();
     h.harness.run();
-    let ids_after: Vec<String> = h.canvas.lock().unwrap().placements.iter().map(|c| c.placement_id.clone()).collect();
-    assert_eq!(ids_before, ids_after, "CTRL-042-02: placement_ids are stable across a refresh cycle");
+    let ids_after: Vec<String> = h
+        .canvas
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .map(|c| c.placement_id.clone())
+        .collect();
+    assert_eq!(
+        ids_before, ids_after,
+        "CTRL-042-02: placement_ids are stable across a refresh cycle"
+    );
     for id in &ids_after {
         let author = canvas_card_author_id(id);
-        assert!(find_node(&h.harness.root(), &author).is_some(), "card node for '{id}' still present after refresh");
+        assert!(
+            find_node(&h.harness.root(), &author).is_some(),
+            "card node for '{id}' still present after refresh"
+        );
     }
     println!("CTRL-042-02: placement_ids are 36-char UUIDs, stable across a refresh cycle (no sequential-int reuse)");
 }
@@ -985,32 +1158,48 @@ fn ctrl03_malformed_payload_does_not_panic() {
 
     // Dispatch graph.open-node with GARBAGE JSON; the pane's serde match must log + drop, never panic.
     let open = find_node(&h.harness.root(), "graph.open-node").expect("graph.open-node present");
-    h.harness.event(click_event(open.node_id, Some("this is not json {{{ ]")));
+    h.harness
+        .event(click_event(open.node_id, Some("this is not json {{{ ]")));
     h.harness.run();
     h.harness.run();
     // No OpenNode produced (the payload was dropped) and the app is still alive (no panic).
     assert!(
-        !h.graph_events.lock().unwrap().iter().any(|e| matches!(e, GraphEvent::OpenNode { .. })),
+        !h.graph_events
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, GraphEvent::OpenNode { .. })),
         "CTRL-042-03: a malformed payload must NOT produce an OpenNode (logged + dropped)"
     );
 
     // Dispatch canvas.place-block with a MISSING required field; same no-panic + no-event contract.
-    let place = find_node(&h.harness.root(), "canvas.place-block").expect("canvas.place-block present");
-    h.harness.event(click_event(place.node_id, Some(r#"{"block_id":"x"}"#))); // missing x/y
+    let place =
+        find_node(&h.harness.root(), "canvas.place-block").expect("canvas.place-block present");
+    h.harness
+        .event(click_event(place.node_id, Some(r#"{"block_id":"x"}"#))); // missing x/y
     h.harness.run();
     h.harness.run();
     assert!(
-        !h.canvas_events.lock().unwrap().iter().any(|e| matches!(e, CanvasEvent::PlaceBlock { .. })),
+        !h.canvas_events
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, CanvasEvent::PlaceBlock { .. })),
         "CTRL-042-03: a payload missing required fields must NOT produce a PlaceBlock"
     );
 
     // Dispatch a parameterized action with NO payload at all; no-panic + no-event.
-    let mv = find_node(&h.harness.root(), "collection.kanban-move").expect("collection.kanban-move present");
+    let mv = find_node(&h.harness.root(), "collection.kanban-move")
+        .expect("collection.kanban-move present");
     h.harness.event(click_event(mv.node_id, None));
     h.harness.run();
     h.harness.run();
     assert!(
-        !h.collection_events.lock().unwrap().iter().any(|e| matches!(e, BlockViewEvent::CardMove { .. })),
+        !h.collection_events
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, BlockViewEvent::CardMove { .. })),
         "CTRL-042-03: a parameterized dispatch with no payload must NOT produce a CardMove"
     );
     println!("CTRL-042-03: malformed / missing / absent payloads are logged + dropped — no panic on the UI thread");

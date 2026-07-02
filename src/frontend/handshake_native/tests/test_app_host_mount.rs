@@ -169,7 +169,10 @@ fn editors_render_live_in_app_tree_and_screenshot() {
                 "PT-079-A mounted-editors screenshot: {w}x{h}, saved={saved} ({})",
                 abs.display()
             );
-            assert!(saved, "PT-079-A: the mounted-editors screenshot PNG saved to the external root");
+            assert!(
+                saved,
+                "PT-079-A: the mounted-editors screenshot PNG saved to the external root"
+            );
         }
         Err(e) => {
             println!(
@@ -202,10 +205,21 @@ fn editor_mounts_thread_session_context() {
     );
     // AC-079-2: the rich pane's wikilink context bound the same workspace (set_wikilink_context ran).
     let ws = rich_state.lock().unwrap().wikilinks.workspace_id.clone();
-    assert_eq!(ws, DEFAULT_PROJECT_ID, "the mounted rich pane threaded the wikilink workspace context");
+    assert_eq!(
+        ws, DEFAULT_PROJECT_ID,
+        "the mounted rich pane threaded the wikilink workspace context"
+    );
     // The session cell carries the bound context the editors read each frame.
-    let bound = harness.state().editor_session_context().lock().unwrap().is_bound();
-    assert!(bound, "the shell pushed a BOUND session context (workspace + runtime) into the cell");
+    let bound = harness
+        .state()
+        .editor_session_context()
+        .lock()
+        .unwrap()
+        .is_bound();
+    assert!(
+        bound,
+        "the shell pushed a BOUND session context (workspace + runtime) into the cell"
+    );
 }
 
 // ── PT-079-C / AC-079-3: code pane undo dispatches through the unified-undo bus ────────────────────────
@@ -240,9 +254,17 @@ fn code_pane_undo_dispatches_through_bus() {
             TextBuffer::new(&after),
             "MT-079 proof edit",
         );
-        assert_eq!(guard.local_undo_count(&pane_id), 1, "the unified-undo scope holds one entry");
+        assert_eq!(
+            guard.local_undo_count(&pane_id),
+            1,
+            "the unified-undo scope holds one entry"
+        );
     }
-    assert_eq!(code_panel.buffer().to_string(), after, "panel shows the edited text before undo");
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        after,
+        "panel shows the edited text before undo"
+    );
 
     // Dispatch Undo through the SAME command channel the keymap uses, then run a frame so the shell drain
     // (`drive_editor_mounts`) routes it to the bus undo for the FOCUSED pane (menu+keyboard share one
@@ -303,11 +325,15 @@ fn rich_pending_events_drain_and_route() {
     harness.run_steps(2);
 
     // Enqueue a WikilinkActivated the way a chip click would, on the SAME mounted rich state.
-    rich_state.lock().unwrap().pending_events.push(EditorEvent::WikilinkActivated {
-        ref_kind: "note".into(),
-        ref_value: "KRD-target-doc".into(),
-        resolved: true,
-    });
+    rich_state
+        .lock()
+        .unwrap()
+        .pending_events
+        .push(EditorEvent::WikilinkActivated {
+            ref_kind: "note".into(),
+            ref_value: "KRD-target-doc".into(),
+            resolved: true,
+        });
     assert_eq!(
         rich_state.lock().unwrap().pending_events.len(),
         1,

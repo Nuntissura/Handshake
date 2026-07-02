@@ -41,7 +41,10 @@ pub enum LoomGraphEvent {
     /// Split right then open the block.
     OpenToSide { block_id: String },
     /// Rename the block via the verified PATCH `{title}`.
-    Rename { block_id: String, current_title: String },
+    Rename {
+        block_id: String,
+        current_title: String,
+    },
     /// PATCH `{pinned: target}` on the block.
     SetPinned { block_id: String, target: bool },
     /// PATCH `{favorite: target}` on the block.
@@ -110,13 +113,19 @@ pub struct LoomGraphSurface {
 
 impl LoomGraphSurface {
     pub fn new(nodes: Vec<GraphNode>) -> Self {
-        Self { nodes, workspace_id: String::new() }
+        Self {
+            nodes,
+            workspace_id: String::new(),
+        }
     }
 
     /// Build a surface for an explicit workspace (MT-032), so each node's tooltip shows the full
     /// `loom://{workspace_id}/{block_id}` address.
     pub fn with_workspace(nodes: Vec<GraphNode>, workspace_id: impl Into<String>) -> Self {
-        Self { nodes, workspace_id: workspace_id.into() }
+        Self {
+            nodes,
+            workspace_id: workspace_id.into(),
+        }
     }
 
     /// Render the nodes; return the typed event a confirmed right-click menu item produced this frame.
@@ -148,14 +157,19 @@ impl LoomGraphSurface {
                 );
                 let resp = ui.interact(rect, id, egui::Sense::click());
                 if ui.is_rect_visible(rect) {
-                    let bg = if resp.hovered() { colors.node_hover_bg } else { colors.node_bg };
+                    let bg = if resp.hovered() {
+                        colors.node_hover_bg
+                    } else {
+                        colors.node_bg
+                    };
                     ui.painter().rect_filled(rect, 4.0, bg);
                     let galley = ui.painter().layout_no_wrap(
                         label.clone(),
                         egui::FontId::proportional(13.0),
                         colors.node_text,
                     );
-                    let pos = egui::pos2(rect.left() + 8.0, rect.center().y - galley.size().y * 0.5);
+                    let pos =
+                        egui::pos2(rect.left() + 8.0, rect.center().y - galley.size().y * 0.5);
                     ui.painter().galley(pos, galley, colors.node_text);
                 }
                 resp.widget_info(|| {
@@ -263,8 +277,14 @@ mod tests {
     fn pin_event_sends_flipped_target() {
         let surface = LoomGraphSurface::new(vec![node(false)]);
         assert_eq!(
-            surface.event_for(LoomNodeMenuAction::TogglePin { target: true }, &surface.nodes[0]),
-            LoomGraphEvent::SetPinned { block_id: "blk-1".to_owned(), target: true },
+            surface.event_for(
+                LoomNodeMenuAction::TogglePin { target: true },
+                &surface.nodes[0]
+            ),
+            LoomGraphEvent::SetPinned {
+                block_id: "blk-1".to_owned(),
+                target: true
+            },
         );
     }
 
@@ -284,7 +304,9 @@ mod tests {
     fn author_id_slug_safe() {
         let id = loom_node_author_id("blk 1/x");
         assert!(id.starts_with("loom_node_"));
-        assert!(id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
+        assert!(id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
     }
 
     /// MT-032: the node tooltip shows the node's loom:// URI; with a resolved count it adds a backlink
@@ -293,21 +315,38 @@ mod tests {
     fn tooltip_shows_loom_uri_and_optional_backlink_count() {
         let n = node(false);
         // No count resolved yet -> only the loom:// line.
-        assert_eq!(node_tooltip_text(&n, "ws-1").as_deref(), Some("loom://ws-1/blk-1"));
+        assert_eq!(
+            node_tooltip_text(&n, "ws-1").as_deref(),
+            Some("loom://ws-1/blk-1")
+        );
         // A resolved count adds a second line, correctly singular/plural.
         let n1 = node(false).with_backlink_count(1);
-        assert_eq!(node_tooltip_text(&n1, "ws-1").as_deref(), Some("loom://ws-1/blk-1\n1 backlink"));
+        assert_eq!(
+            node_tooltip_text(&n1, "ws-1").as_deref(),
+            Some("loom://ws-1/blk-1\n1 backlink")
+        );
         let n3 = node(false).with_backlink_count(3);
-        assert_eq!(node_tooltip_text(&n3, "ws-1").as_deref(), Some("loom://ws-1/blk-1\n3 backlinks"));
+        assert_eq!(
+            node_tooltip_text(&n3, "ws-1").as_deref(),
+            Some("loom://ws-1/blk-1\n3 backlinks")
+        );
         let n0 = node(false).with_backlink_count(0);
-        assert_eq!(node_tooltip_text(&n0, "ws-1").as_deref(), Some("loom://ws-1/blk-1\n0 backlinks"));
+        assert_eq!(
+            node_tooltip_text(&n0, "ws-1").as_deref(),
+            Some("loom://ws-1/blk-1\n0 backlinks")
+        );
     }
 
     /// MT-032 RISK-3: a node with an empty block id has no loom:// tooltip (no fabricated URI).
     #[test]
     fn unaddressable_node_has_no_tooltip() {
         let n = GraphNode::new(
-            LoomNodeState { block_id: String::new(), pinned: false, favorite: false, has_edges: false },
+            LoomNodeState {
+                block_id: String::new(),
+                pinned: false,
+                favorite: false,
+                has_edges: false,
+            },
             "Orphan",
         );
         assert_eq!(node_tooltip_text(&n, "ws-1"), None);

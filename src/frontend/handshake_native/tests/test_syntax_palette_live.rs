@@ -23,7 +23,10 @@ use handshake_native::workspace_settings::{SyntaxPalette, SyntaxPaletteMode};
 #[test]
 fn every_mode_resolves_every_scope() {
     // Muted.
-    let muted = SyntaxPalette { mode: SyntaxPaletteMode::Muted, custom: Default::default() };
+    let muted = SyntaxPalette {
+        mode: SyntaxPaletteMode::Muted,
+        custom: Default::default(),
+    };
     for scope in HighlightScope::ALL.iter().copied() {
         assert_eq!(
             resolve_scope_color(scope, &muted),
@@ -32,7 +35,10 @@ fn every_mode_resolves_every_scope() {
         );
     }
     // Standard.
-    let standard = SyntaxPalette { mode: SyntaxPaletteMode::Standard, custom: Default::default() };
+    let standard = SyntaxPalette {
+        mode: SyntaxPaletteMode::Standard,
+        custom: Default::default(),
+    };
     for scope in HighlightScope::ALL.iter().copied() {
         assert_eq!(
             resolve_scope_color(scope, &standard),
@@ -41,7 +47,10 @@ fn every_mode_resolves_every_scope() {
         );
     }
     // Custom with NO overrides: every scope falls back to Standard (no gap — AC-004).
-    let custom_empty = SyntaxPalette { mode: SyntaxPaletteMode::Custom, custom: Default::default() };
+    let custom_empty = SyntaxPalette {
+        mode: SyntaxPaletteMode::Custom,
+        custom: Default::default(),
+    };
     for scope in HighlightScope::ALL.iter().copied() {
         assert_eq!(
             resolve_scope_color(scope, &custom_empty),
@@ -55,11 +64,17 @@ fn every_mode_resolves_every_scope() {
 /// reads the override map live, so mutating it and re-resolving returns the new color with no caching.
 #[test]
 fn custom_swatch_edit_is_picked_up_live_in_the_same_frame() {
-    let mut palette = SyntaxPalette { mode: SyntaxPaletteMode::Custom, custom: Default::default() };
+    let mut palette = SyntaxPalette {
+        mode: SyntaxPaletteMode::Custom,
+        custom: Default::default(),
+    };
 
     // Frame N: Keyword resolves to the Standard fallback.
     let before = resolve_scope_color(HighlightScope::Keyword, &palette);
-    assert_eq!(before, HighlightScope::Keyword.builtin_color(&STANDARD_PALETTE));
+    assert_eq!(
+        before,
+        HighlightScope::Keyword.builtin_color(&STANDARD_PALETTE)
+    );
 
     // The user edits the Keyword swatch (the section writes the sRGBA into palette.custom).
     let edited = [0x11, 0x22, 0x33, 0xFF];
@@ -72,7 +87,10 @@ fn custom_swatch_edit_is_picked_up_live_in_the_same_frame() {
         egui::Color32::from_rgba_unmultiplied(0x11, 0x22, 0x33, 0xFF),
         "AC-003: the Custom Keyword swatch edit changes the resolved color in the same frame"
     );
-    assert_ne!(after, before, "the color actually changed (no caching / restart needed)");
+    assert_ne!(
+        after, before,
+        "the color actually changed (no caching / restart needed)"
+    );
 
     // Only the edited scope changed; other scopes still resolve to Standard.
     for scope in HighlightScope::ALL.iter().copied() {
@@ -91,7 +109,10 @@ fn custom_swatch_edit_is_picked_up_live_in_the_same_frame() {
 /// highlighter immediately): the same scope resolves to different colors under Muted vs Standard.
 #[test]
 fn switching_mode_changes_resolved_colors_live() {
-    let mut palette = SyntaxPalette { mode: SyntaxPaletteMode::Standard, custom: Default::default() };
+    let mut palette = SyntaxPalette {
+        mode: SyntaxPaletteMode::Standard,
+        custom: Default::default(),
+    };
     let standard_keyword = resolve_scope_color(HighlightScope::Keyword, &palette);
 
     palette.mode = SyntaxPaletteMode::Muted;
@@ -101,7 +122,10 @@ fn switching_mode_changes_resolved_colors_live() {
         standard_keyword, muted_keyword,
         "switching Standard -> Muted changes the resolved Keyword color in the same frame"
     );
-    assert_eq!(muted_keyword, HighlightScope::Keyword.builtin_color(&MUTED_PALETTE));
+    assert_eq!(
+        muted_keyword,
+        HighlightScope::Keyword.builtin_color(&MUTED_PALETTE)
+    );
 }
 
 /// The persisted scope keys round-trip through the resolver: a Custom override keyed by each scope's
@@ -109,7 +133,10 @@ fn switching_mode_changes_resolved_colors_live() {
 /// persistence layer relies on is consistent).
 #[test]
 fn custom_overrides_keyed_by_scope_key_resolve_to_the_right_scope() {
-    let mut palette = SyntaxPalette { mode: SyntaxPaletteMode::Custom, custom: Default::default() };
+    let mut palette = SyntaxPalette {
+        mode: SyntaxPaletteMode::Custom,
+        custom: Default::default(),
+    };
     // Distinct color per scope so a mis-keyed override would surface as a wrong color.
     for (i, scope) in HighlightScope::ALL.iter().copied().enumerate() {
         let c = (i as u8) * 10 + 1;

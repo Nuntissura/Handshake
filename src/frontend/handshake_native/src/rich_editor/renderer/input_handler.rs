@@ -16,11 +16,11 @@
 //! validated/clamped against the addressed leaf length HERE, at the input layer, so an
 //! off-by-one is caught at the source rather than masked by the rope's silent clamp.
 
+use crate::rich_editor::document_model::history::UndoManager;
 use crate::rich_editor::document_model::node::{BlockNode, Child, NodeKind};
 use crate::rich_editor::document_model::position::DocPosition;
 use crate::rich_editor::document_model::selection::Selection;
 use crate::rich_editor::document_model::transform::{apply_transaction, Step, Transaction};
-use crate::rich_editor::document_model::history::UndoManager;
 use crate::rich_editor::formatting::commands::{self, CommandContext, FormattingCommand};
 use crate::rich_editor::formatting::keymap;
 
@@ -315,7 +315,9 @@ fn head(ctx: &EditContext<'_>) -> DocPosition {
 /// the leaf). Returns 0 when the path does not resolve to a text leaf (defensive — the
 /// caret-bound clamp then keeps offsets at 0).
 fn leaf_len(doc: &BlockNode, pos: &DocPosition) -> usize {
-    resolve_leaf(doc, &pos.path).map(|l| l.text.len_chars()).unwrap_or(0)
+    resolve_leaf(doc, &pos.path)
+        .map(|l| l.text.len_chars())
+        .unwrap_or(0)
 }
 
 /// Resolve a `path` (block child indices then a final text-leaf index) to a shared
@@ -391,7 +393,11 @@ fn delete(ctx: &mut EditContext<'_>, backward: bool) -> bool {
         (offset, next, offset)
     };
     let tx = Transaction::new(
-        vec![Step::DeleteText { path: pos.path.clone(), start, end }],
+        vec![Step::DeleteText {
+            path: pos.path.clone(),
+            start,
+            end,
+        }],
         crate::rich_editor::document_model::transform::ActorKind::Operator,
         ctx.actor_id,
     );
@@ -518,11 +524,20 @@ mod tests {
         sel: &'a mut Selection,
         undo: &'a mut UndoManager,
     ) -> EditContext<'a> {
-        EditContext { doc, selection: sel, undo, actor_id: "operator" }
+        EditContext {
+            doc,
+            selection: sel,
+            undo,
+            actor_id: "operator",
+        }
     }
 
     fn leaf_text(doc: &BlockNode) -> String {
-        doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string()
+        doc.children[0].as_block().unwrap().children[0]
+            .as_text()
+            .unwrap()
+            .text
+            .to_string()
     }
 
     #[test]
@@ -538,7 +553,12 @@ mod tests {
             physical_key: None,
             pressed: true,
             repeat: false,
-            modifiers: egui::Modifiers { shift, ctrl, command: ctrl, ..Default::default() },
+            modifiers: egui::Modifiers {
+                shift,
+                ctrl,
+                command: ctrl,
+                ..Default::default()
+            },
         };
         let events = vec![
             mk(egui::Key::Backspace, false, false),
@@ -650,8 +670,11 @@ mod tests {
         let mut ctx = ctx_at(&mut doc, &mut sel, &mut undo);
         apply_action(&mut ctx, EditAction::MoveRight { extend: false });
         // The caret crosses all family scalars in one move: 1 -> 1 + family_scalars.
-        assert!(matches!(&sel, Selection::Text { head, .. } if head.char_offset == 1 + family_scalars),
-            "RIGHT crosses the whole family emoji cluster (expected char offset {})", 1 + family_scalars);
+        assert!(
+            matches!(&sel, Selection::Text { head, .. } if head.char_offset == 1 + family_scalars),
+            "RIGHT crosses the whole family emoji cluster (expected char offset {})",
+            1 + family_scalars
+        );
     }
 
     #[test]
@@ -665,7 +688,11 @@ mod tests {
         let mut undo = UndoManager::new();
         let mut ctx = ctx_at(&mut doc, &mut sel, &mut undo);
         assert!(apply_action(&mut ctx, EditAction::DeleteBackward));
-        assert_eq!(leaf_text(&doc), "ab", "the whole family emoji is deleted as one grapheme");
+        assert_eq!(
+            leaf_text(&doc),
+            "ab",
+            "the whole family emoji is deleted as one grapheme"
+        );
         assert!(matches!(&sel, Selection::Text { head, .. } if head.char_offset == 1));
     }
 
@@ -678,7 +705,11 @@ mod tests {
         let mut undo = UndoManager::new();
         let mut ctx = ctx_at(&mut doc, &mut sel, &mut undo);
         assert!(apply_action(&mut ctx, EditAction::DeleteForward));
-        assert_eq!(leaf_text(&doc), "x", "the whole flag is deleted as one grapheme");
+        assert_eq!(
+            leaf_text(&doc),
+            "x",
+            "the whole flag is deleted as one grapheme"
+        );
     }
 
     #[test]
@@ -690,8 +721,10 @@ mod tests {
         let mut undo = UndoManager::new();
         let mut ctx = ctx_at(&mut doc, &mut sel, &mut undo);
         apply_action(&mut ctx, EditAction::MoveLeft { extend: false });
-        assert!(matches!(&sel, Selection::Text { head, .. } if head.char_offset == 1),
-            "LEFT crosses the whole combining sequence to char offset 1");
+        assert!(
+            matches!(&sel, Selection::Text { head, .. } if head.char_offset == 1),
+            "LEFT crosses the whole combining sequence to char offset 1"
+        );
     }
 
     #[test]
@@ -758,7 +791,11 @@ mod tests {
             physical_key: None,
             pressed: true,
             repeat: false,
-            modifiers: egui::Modifiers { ctrl, command: ctrl, ..Default::default() },
+            modifiers: egui::Modifiers {
+                ctrl,
+                command: ctrl,
+                ..Default::default()
+            },
         };
         assert_eq!(
             decode_find_replace_shortcut(&[mk(egui::Key::F, true)]),
@@ -769,14 +806,22 @@ mod tests {
             Some(FindReplaceShortcut::OpenReplace)
         );
         // No ctrl -> not a find/replace shortcut (a bare 'f' is a typed char).
-        assert_eq!(decode_find_replace_shortcut(&[mk(egui::Key::F, false)]), None);
+        assert_eq!(
+            decode_find_replace_shortcut(&[mk(egui::Key::F, false)]),
+            None
+        );
         // Ctrl+Alt+F is NOT the shortcut (alt excluded).
         let ctrl_alt_f = egui::Event::Key {
             key: egui::Key::F,
             physical_key: None,
             pressed: true,
             repeat: false,
-            modifiers: egui::Modifiers { ctrl: true, command: true, alt: true, ..Default::default() },
+            modifiers: egui::Modifiers {
+                ctrl: true,
+                command: true,
+                alt: true,
+                ..Default::default()
+            },
         };
         assert_eq!(decode_find_replace_shortcut(&[ctrl_alt_f]), None);
     }

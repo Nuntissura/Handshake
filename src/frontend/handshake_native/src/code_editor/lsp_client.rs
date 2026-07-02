@@ -314,8 +314,10 @@ impl ActiveChildRequestWatch {
         let _ = std::fs::remove_file(&self.liveness_path);
     }
 
-    fn leave_for_timeout(mut self) {
+    fn cancel(mut self) {
+        crate::diagnostics::enqueue_palmistry_child_deregister(self.pid, self.child_session_id);
         self.deregister_on_drop = false;
+        let _ = std::fs::remove_file(&self.liveness_path);
     }
 }
 
@@ -1078,7 +1080,7 @@ impl LspClient {
                     .unwrap_or_else(|e| e.into_inner())
                     .remove(&id);
                 if let Some(watch) = child_watch.take() {
-                    watch.leave_for_timeout();
+                    watch.cancel();
                 }
                 None
             }
@@ -1413,6 +1415,9 @@ mod tests {
         assert!(source.contains("enqueue_palmistry_child_liveness_file"));
         assert!(source.contains("enqueue_palmistry_child_deregister"));
         assert!(source.contains("ActiveChildRequestWatch::new"));
+        assert!(source.contains("watch.cancel()"));
+        let retired_timeout_method = ["leave", "for_timeout"].join("_");
+        assert!(!source.contains(&retired_timeout_method));
     }
 
     #[test]

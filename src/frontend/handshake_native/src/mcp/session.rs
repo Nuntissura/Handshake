@@ -138,7 +138,9 @@ impl McpSession {
         match request.method.as_str() {
             "click_widget" | "set_value" => {
                 match request.params.get("target").and_then(|v| v.as_str()) {
-                    Some(t) if !t.is_empty() => DispatchPlan::ExclusiveWrite { target: t.to_owned() },
+                    Some(t) if !t.is_empty() => DispatchPlan::ExclusiveWrite {
+                        target: t.to_owned(),
+                    },
                     // Missing/empty target is malformed: no lease, let dispatch_request emit -32602.
                     _ => DispatchPlan::Direct,
                 }
@@ -193,14 +195,14 @@ impl McpSession {
             }
             DispatchPlan::ExclusiveWrite { target } => {
                 // Acquire the EXCLUSIVE per-widget lease FIRST (the gate). Loser -> typed -32004.
-                let _guard = match self.leases.try_acquire(
-                    &target,
-                    LeaseKind::Exclusive,
-                    self.lease_timeout,
-                ) {
-                    Ok(g) => g,
-                    Err(e) => return Self::lease_timeout_response(request, e),
-                };
+                let _guard =
+                    match self
+                        .leases
+                        .try_acquire(&target, LeaseKind::Exclusive, self.lease_timeout)
+                    {
+                        Ok(g) => g,
+                        Err(e) => return Self::lease_timeout_response(request, e),
+                    };
                 let response = dispatch_request(request, &self.token, snapshot, channel, capture);
                 self.attribute_and_stamp(response, request, &target)
                 // _guard drops here, releasing the exclusive widget lease for the next agent.
@@ -276,10 +278,16 @@ impl McpSession {
     }
 
     /// Build the typed [`ERR_LEASE_TIMEOUT`] (-32004) response for a contended lease.
-    fn lease_timeout_response(request: &McpRequest, e: crate::mcp::leases::LeaseError) -> McpResponse {
+    fn lease_timeout_response(
+        request: &McpRequest,
+        e: crate::mcp::leases::LeaseError,
+    ) -> McpResponse {
         McpResponse::error(
             request.id.clone(),
-            McpError { code: ERR_LEASE_TIMEOUT, message: e.to_string() },
+            McpError {
+                code: ERR_LEASE_TIMEOUT,
+                message: e.to_string(),
+            },
         )
     }
 
@@ -322,7 +330,9 @@ impl McpSession {
 /// Lock the shared channel for the minimum span, recovering a poisoned lock (a prior holder panicked
 /// while holding it) so one agent's panic cannot wedge every other connection's enqueue path.
 fn lock_channel(channel: &Arc<Mutex<ActionChannel>>) -> std::sync::MutexGuard<'_, ActionChannel> {
-    channel.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    channel
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// The shared steering + safety state the server hands to every [`McpSession`]. Built once at server
@@ -350,7 +360,11 @@ pub struct SwarmSafetyState {
 impl SwarmSafetyState {
     /// Build the shared safety state for a server. Each connection derives its own [`McpSession`] from
     /// this via [`Self::session`]. The lease registry + attribution log are fresh (per-server).
-    pub fn new(token: SessionToken, snapshot: Arc<Mutex<UiTreeSnapshot>>, channel: Arc<Mutex<ActionChannel>>) -> Self {
+    pub fn new(
+        token: SessionToken,
+        snapshot: Arc<Mutex<UiTreeSnapshot>>,
+        channel: Arc<Mutex<ActionChannel>>,
+    ) -> Self {
         Self {
             token,
             leases: LeaseRegistry::new(),
@@ -380,7 +394,14 @@ impl SwarmSafetyState {
         leases: LeaseRegistry,
         log: ActionLog,
     ) -> Self {
-        Self { token, leases, log, snapshot, channel, lease_timeout: DEFAULT_LEASE_TIMEOUT }
+        Self {
+            token,
+            leases,
+            log,
+            snapshot,
+            channel,
+            lease_timeout: DEFAULT_LEASE_TIMEOUT,
+        }
     }
 
     /// A session for one accepted connection (shares the registry + log + dispatch state, and inherits
@@ -432,7 +453,11 @@ mod tests {
             bounds: None,
             children: vec![button],
         };
-        UiTreeSnapshot { root, captured_at_utc: "0Z".to_owned(), widget_count: 2 }
+        UiTreeSnapshot {
+            root,
+            captured_at_utc: "0Z".to_owned(),
+            widget_count: 2,
+        }
     }
 
     fn req(method: &str, params: serde_json::Value, token: &str) -> McpRequest {
@@ -461,7 +486,11 @@ mod tests {
         let mut channel = ActionChannel::new();
 
         let resp = session.dispatch(
-            &req("click_widget", serde_json::json!({ "target": "btn" }), "secret"),
+            &req(
+                "click_widget",
+                serde_json::json!({ "target": "btn" }),
+                "secret",
+            ),
             &snapshot,
             &mut channel,
             no_capture,
@@ -469,7 +498,8 @@ mod tests {
         assert_eq!(resp.to_json()["result"]["queued"], true);
         // MAJOR #2 / AC#2: the success result is stamped with the acting agent_id.
         assert_eq!(
-            resp.to_json()["result"]["agent_id"], session.agent_id(),
+            resp.to_json()["result"]["agent_id"],
+            session.agent_id(),
             "the click result carries the acting agent_id"
         );
         assert_eq!(channel.pending(), 1, "action enqueued under the lease");
@@ -498,14 +528,25 @@ mod tests {
         let mut channel = ActionChannel::new();
 
         let resp = session.dispatch(
-            &req("click_widget", serde_json::json!({ "target": "btn" }), "WRONG"),
+            &req(
+                "click_widget",
+                serde_json::json!({ "target": "btn" }),
+                "WRONG",
+            ),
             &snapshot,
             &mut channel,
             no_capture,
         );
         assert_eq!(resp.to_json()["error"]["code"], -32001);
-        assert_eq!(channel.pending(), 0, "no action enqueued for an unauthorized caller");
-        assert!(state.log().is_empty(), "no attribution for an unauthorized caller");
+        assert_eq!(
+            channel.pending(),
+            0,
+            "no action enqueued for an unauthorized caller"
+        );
+        assert!(
+            state.log().is_empty(),
+            "no attribution for an unauthorized caller"
+        );
         assert_eq!(state.leases().active_resource_count(), 0, "no lease taken");
     }
 
@@ -523,11 +564,17 @@ mod tests {
             .try_acquire("btn", LeaseKind::Exclusive, Duration::from_millis(10))
             .expect("hold btn lease");
 
-        let session = state.session().with_lease_timeout(Duration::from_millis(30));
+        let session = state
+            .session()
+            .with_lease_timeout(Duration::from_millis(30));
         let snapshot = snap();
         let mut channel = ActionChannel::new();
         let resp = session.dispatch(
-            &req("click_widget", serde_json::json!({ "target": "btn" }), "secret"),
+            &req(
+                "click_widget",
+                serde_json::json!({ "target": "btn" }),
+                "secret",
+            ),
             &snapshot,
             &mut channel,
             no_capture,
@@ -537,7 +584,11 @@ mod tests {
             ERR_LEASE_TIMEOUT,
             "a contended widget lease yields a typed lease-timeout error"
         );
-        assert_eq!(channel.pending(), 0, "no action enqueued when the lease could not be acquired");
+        assert_eq!(
+            channel.pending(),
+            0,
+            "no action enqueued when the lease could not be acquired"
+        );
     }
 
     #[test]
@@ -558,6 +609,10 @@ mod tests {
             no_capture,
         );
         assert_eq!(resp.to_json()["result"]["widget_count"], 2);
-        assert_eq!(state.leases().active_resource_count(), 0, "shared read lease released after");
+        assert_eq!(
+            state.leases().active_resource_count(),
+            0,
+            "shared read lease released after"
+        );
     }
 }

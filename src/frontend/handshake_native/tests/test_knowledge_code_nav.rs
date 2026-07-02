@@ -224,12 +224,22 @@ fn ac_lookup_symbols_by_name_returns_typed_response_with_matches() {
 
     let resp = resp.expect("lookup against a real-shape 200 must deserialize, not panic/err");
     assert_eq!(resp.workspace_id, "ws-1");
-    assert_eq!(resp.matches.len(), 1, "matches populated from the real lookup body");
+    assert_eq!(
+        resp.matches.len(),
+        1,
+        "matches populated from the real lookup body"
+    );
     let m = &resp.matches[0];
-    assert_eq!(m.symbol_entity_id, "KE-11111111-2222-3333-4444-555555555555");
+    assert_eq!(
+        m.symbol_entity_id,
+        "KE-11111111-2222-3333-4444-555555555555"
+    );
     assert_eq!(m.symbol_key, "rust:src/lib.rs#Foo");
     assert_eq!(m.display_name, "Foo");
-    assert!(m.staleness.is_fresh(), "the fresh staleness shape parses as fresh");
+    assert!(
+        m.staleness.is_fresh(),
+        "the fresh staleness shape parses as fresh"
+    );
     let def = m.definition.as_ref().expect("definition span parsed");
     assert_eq!(def.line_start, Some(10));
     assert_eq!(def.line_end, Some(20));
@@ -239,7 +249,9 @@ fn ac_lookup_symbols_by_name_returns_typed_response_with_matches() {
 
     // The request hit the right route with name + workspace_id, and the required identity headers.
     assert!(
-        exchange.captured_request_line.starts_with("GET /knowledge/code/symbols?"),
+        exchange
+            .captured_request_line
+            .starts_with("GET /knowledge/code/symbols?"),
         "lookup hits GET /knowledge/code/symbols : {}",
         exchange.captured_request_line
     );
@@ -249,16 +261,26 @@ fn ac_lookup_symbols_by_name_returns_typed_response_with_matches() {
         "lookup query carries workspace_id + name : {}",
         exchange.captured_request_line
     );
-    for required in ["x-hsk-actor-id", "x-hsk-kernel-task-run-id", "x-hsk-session-run-id"] {
+    for required in [
+        "x-hsk-actor-id",
+        "x-hsk-kernel-task-run-id",
+        "x-hsk-session-run-id",
+    ] {
         assert!(
-            exchange.captured_headers.get(required).is_some_and(|v| !v.is_empty()),
+            exchange
+                .captured_headers
+                .get(required)
+                .is_some_and(|v| !v.is_empty()),
             "the required '{required}' header reached the wire: {:?}",
             exchange.captured_headers
         );
     }
     // A nav asserts the `system` actor-kind (the verified-valid nav kind).
     assert_eq!(
-        exchange.captured_headers.get("x-hsk-actor-kind").map(String::as_str),
+        exchange
+            .captured_headers
+            .get("x-hsk-actor-kind")
+            .map(String::as_str),
         Some("system"),
         "a nav asserts the system actor-kind on the wire"
     );
@@ -308,7 +330,10 @@ fn ac_file_lens_url_encodes_path_slash_as_pct_2f() {
     assert_eq!(e.definition.start_line, 10);
     assert_eq!(e.references.len(), 2, "in-file reference ranges parse");
     assert_eq!(e.caller_count, 3);
-    assert!(resp.staleness.is_fresh(), "the StalenessVerdict 'fresh' (no bool) parses as fresh");
+    assert!(
+        resp.staleness.is_fresh(),
+        "the StalenessVerdict 'fresh' (no bool) parses as fresh"
+    );
     assert!(!resp.truncated);
     assert_eq!(resp.nav_receipt_event_id, "KEV-nav-lens");
     assert_eq!(resp.quiet_background_work_receipt_id, "QBW-quiet-lens");
@@ -338,12 +363,14 @@ fn ac_file_lens_rejects_unsafe_path_before_sending() {
     let client = KnowledgeCodeNavClient::with_base_url("http://127.0.0.1:1");
     let headers = code_nav_headers(&ctx());
 
-    for bad in ["/etc/passwd", "../../secret.rs", "a/../b.rs", "win\\path.rs"] {
-        let result = rt().block_on(async {
-            client
-                .file_lens(&headers, bad, "ws-1", "h", "v")
-                .await
-        });
+    for bad in [
+        "/etc/passwd",
+        "../../secret.rs",
+        "a/../b.rs",
+        "win\\path.rs",
+    ] {
+        let result =
+            rt().block_on(async { client.file_lens(&headers, bad, "ws-1", "h", "v").await });
         match result {
             Err(CodeNavError::UnsafePath(p)) => assert_eq!(p, bad),
             other => panic!("unsafe path '{bad}' must be a client-side UnsafePath, got {other:?}"),
@@ -359,11 +386,7 @@ fn ac_symbol_references_populates_callers_and_callees() {
     let client = KnowledgeCodeNavClient::with_base_url(base_url);
     let headers = code_nav_headers(&ctx());
 
-    let resp = rt().block_on(async {
-        client
-            .symbol_references(&headers, "KE-target")
-            .await
-    });
+    let resp = rt().block_on(async { client.symbol_references(&headers, "KE-target").await });
     let exchange = server.join().unwrap();
 
     let resp = resp.expect("references against a real-shape 200 must deserialize");
@@ -373,7 +396,10 @@ fn ac_symbol_references_populates_callers_and_callees() {
     assert_eq!(resp.callers[0].symbol_key, "rust:src/a.rs#call_target");
     assert_eq!(resp.callers[0].evidence_spans.len(), 1);
     assert_eq!(resp.callers[0].evidence_spans[0].line_start, Some(5));
-    assert!((resp.callers[0].confidence - 0.92).abs() < 1e-9, "edge confidence parses as f64");
+    assert!(
+        (resp.callers[0].confidence - 0.92).abs() < 1e-9,
+        "edge confidence parses as f64"
+    );
     assert_eq!(resp.callees[0].symbol_key, "rust:src/b.rs#helper");
     // RISK-3: the callee's "unindexed" staleness deserializes tolerantly and reads as STALE.
     assert!(
@@ -420,7 +446,8 @@ fn ac_unknown_future_staleness_state_does_not_break_a_real_nav_body() {
     let resp = rt().block_on(async { client.get_symbol(&headers, "KE-future").await });
     let _ = server.join().unwrap();
 
-    let resp = resp.expect("an unknown future staleness state must NOT break response deserialization");
+    let resp =
+        resp.expect("an unknown future staleness state must NOT break response deserialization");
     assert_eq!(resp.symbol.staleness.state, "custom_future_state");
     assert!(
         !resp.symbol.staleness.is_fresh(),
@@ -428,7 +455,11 @@ fn ac_unknown_future_staleness_state_does_not_break_a_real_nav_body() {
     );
     // The unknown extra field is captured, not dropped.
     assert_eq!(
-        resp.symbol.staleness.extra.get("future_field").and_then(Value::as_i64),
+        resp.symbol
+            .staleness
+            .extra
+            .get("future_field")
+            .and_then(Value::as_i64),
         Some(7)
     );
     // The definition was JSON null -> None (not a parse error).
@@ -481,15 +512,24 @@ fn ac_symbol_spans_with_null_line_numbers_deserializes_to_none_not_parse_error()
     assert_eq!(resp.spans.len(), 1, "the span with null lines is preserved");
     let span = &resp.spans[0];
     assert_eq!(span.span_id, "KSP-null");
-    assert_eq!(span.line_start, None, "a JSON null line_start deserializes to None (tolerant, MC-3)");
-    assert_eq!(span.line_end, None, "a JSON null line_end deserializes to None (tolerant, MC-3)");
+    assert_eq!(
+        span.line_start, None,
+        "a JSON null line_start deserializes to None (tolerant, MC-3)"
+    );
+    assert_eq!(
+        span.line_end, None,
+        "a JSON null line_end deserializes to None (tolerant, MC-3)"
+    );
     // The non-null sibling fields still parse.
     assert_eq!(span.range_start, Some(100));
     assert_eq!(span.range_end, Some(200));
     assert_eq!(span.content_sha256.as_deref(), Some("sha256:c"));
     // Receipt ids preserved through deserialization (RISK-4/MC-4).
     assert_eq!(resp.nav_receipt_event_id, "KEV-nav-spans-null");
-    assert_eq!(resp.quiet_background_work_receipt_id, "QBW-quiet-spans-null");
+    assert_eq!(
+        resp.quiet_background_work_receipt_id,
+        "QBW-quiet-spans-null"
+    );
     // The request hit the right route (also closes the symbol_spans integration coverage gap).
     assert!(
         exchange

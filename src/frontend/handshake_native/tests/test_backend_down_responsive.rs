@@ -65,7 +65,9 @@ static BACKEND_EVENT_TEST_LOCK: Mutex<()> = Mutex::new(());
 /// Acquire [`BACKEND_EVENT_TEST_LOCK`], recovering from a poisoned lock (a panicking test must not wedge
 /// the others). The returned guard is held for the test body so event deltas stay deterministic.
 fn lock_backend_event_tests() -> std::sync::MutexGuard<'static, ()> {
-    BACKEND_EVENT_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner())
+    BACKEND_EVENT_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
 }
 
 // ── artifact hygiene (CX-212E): no repo-local artifact dir may exist ───────────────────────────────
@@ -364,8 +366,12 @@ fn recovery_fires_recovered_event() {
     // Scripted reachability: Err (down), Err (still down — must NOT re-emit), Ok(None) (recovered),
     // Ok(None) (still up — must NOT re-emit).
     let transport = ScriptedTransport::new(vec![
-        Err(LayoutError::Transport("connection refused (backend down)".into())),
-        Err(LayoutError::Transport("connection refused (still down)".into())),
+        Err(LayoutError::Transport(
+            "connection refused (backend down)".into(),
+        )),
+        Err(LayoutError::Transport(
+            "connection refused (still down)".into(),
+        )),
         Ok(None),
         Ok(None),
     ]);
@@ -379,16 +385,27 @@ fn recovery_fires_recovered_event() {
 
     // 1) Down edge: a transport error must set the degraded state + record ONE BackendUnreachable.
     app.load_layout("proj-x", extent);
-    assert!(app.backend_is_down(), "a transport-error load enters the degraded (down) state");
+    assert!(
+        app.backend_is_down(),
+        "a transport-error load enters the degraded (down) state"
+    );
     let (u1, r1) = count_backend_events();
-    assert_eq!(u1 - unreachable0, 1, "exactly one BackendUnreachable on the down edge");
+    assert_eq!(
+        u1 - unreachable0,
+        1,
+        "exactly one BackendUnreachable on the down edge"
+    );
     assert_eq!(r1 - recovered0, 0, "no BackendRecovered yet (still down)");
 
     // 2) Still down: a second error observation must NOT re-emit (debounced to the edge).
     app.load_layout("proj-x", extent);
     assert!(app.backend_is_down(), "still down after a second error");
     let (u2, r2) = count_backend_events();
-    assert_eq!(u2 - u1, 0, "no second BackendUnreachable while already down (debounced)");
+    assert_eq!(
+        u2 - u1,
+        0,
+        "no second BackendUnreachable while already down (debounced)"
+    );
     assert_eq!(r2 - r1, 0, "no BackendRecovered while still down");
 
     // 3) Recovery edge: a successful load must clear the degraded state + record ONE BackendRecovered.
@@ -399,14 +416,25 @@ fn recovery_fires_recovered_event() {
     );
     let (u3, r3) = count_backend_events();
     assert_eq!(u3 - u2, 0, "no new BackendUnreachable on recovery");
-    assert_eq!(r3 - r2, 1, "exactly one BackendRecovered on the recovery edge");
+    assert_eq!(
+        r3 - r2,
+        1,
+        "exactly one BackendRecovered on the recovery edge"
+    );
 
     // 4) Still up: a second successful observation must NOT re-emit (debounced to the edge).
     app.load_layout("proj-x", extent);
-    assert!(!app.backend_is_down(), "still reachable after a second success");
+    assert!(
+        !app.backend_is_down(),
+        "still reachable after a second success"
+    );
     let (u4, r4) = count_backend_events();
     assert_eq!(u4 - u3, 0, "no BackendUnreachable while reachable");
-    assert_eq!(r4 - r3, 0, "no second BackendRecovered while already reachable (debounced)");
+    assert_eq!(
+        r4 - r3,
+        0,
+        "no second BackendRecovered while already reachable (debounced)"
+    );
 
     assert_no_local_artifact_dir();
 }

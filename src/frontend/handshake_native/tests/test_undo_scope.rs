@@ -40,9 +40,9 @@ use std::sync::{Arc, Mutex};
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
+use handshake_native::code_editor::panel::CodeEditorPanel;
 use handshake_native::interop::interaction_bus::InteractionBus;
 use handshake_native::interop::{render_undo_count_indicator, undo_count_author_id};
-use handshake_native::code_editor::panel::CodeEditorPanel;
 use handshake_native::pane_registry::PaneId;
 use handshake_native::stage_pane::{push_route_to_stage_undo, StageContent, StagePane};
 use handshake_native::undo_stack::{
@@ -98,7 +98,9 @@ fn sync_action(tag: &'static str, log: Arc<Mutex<Vec<String>>>) -> UndoAction {
 /// using the real `set_text` restore + the real snapshot applier — no `sync_action` logging stand-in.
 #[test]
 fn local_first_isolation_via_real_pane_adapters() {
-    use handshake_native::rich_editor::interop_adapter::{push_rich_edit_undo, RichSnapshotApplier};
+    use handshake_native::rich_editor::interop_adapter::{
+        push_rich_edit_undo, RichSnapshotApplier,
+    };
 
     let code_panel = Arc::new(CodeEditorPanel::new("fn main() {}\n", "rs"));
     let code_pane = pane("pane-code");
@@ -112,7 +114,11 @@ fn local_first_isolation_via_real_pane_adapters() {
     let before = code_panel.buffer();
     code_panel.set_text("fn main() { let x = 1; }\n");
     let after = code_panel.buffer();
-    assert_ne!(before.to_string(), after.to_string(), "the code edit changed the buffer");
+    assert_ne!(
+        before.to_string(),
+        after.to_string(),
+        "the code edit changed the buffer"
+    );
 
     // Record the code edit on the code pane's LOCAL ring via the REAL adapter (POLICY-1).
     handshake_native::code_editor::interop_adapter::push_code_edit_undo(
@@ -146,7 +152,9 @@ fn local_first_isolation_via_real_pane_adapters() {
 
     // Focus the CODE pane and undo (local-first). Only the code buffer reverts.
     bus.set_focus_owner(code_pane.clone());
-    let result = bus.undo(&code_pane).expect("an action to undo on the focused code pane");
+    let result = bus
+        .undo(&code_pane)
+        .expect("an action to undo on the focused code pane");
     assert!(result.ok, "the code undo applied: {result:?}");
     assert_eq!(
         code_panel.buffer().to_string(),
@@ -160,19 +168,31 @@ fn local_first_isolation_via_real_pane_adapters() {
         "POLICY-1: the rich pane's doc was NOT reverted by the code undo (local-first isolation)"
     );
     assert_eq!(bus.local_undo_count(&code_pane), 0, "code ring drained");
-    assert_eq!(bus.local_undo_count(&rich_pane), 1, "rich ring UNTOUCHED (POLICY-1 local-first)");
+    assert_eq!(
+        bus.local_undo_count(&rich_pane),
+        1,
+        "rich ring UNTOUCHED (POLICY-1 local-first)"
+    );
 
     // Redo re-applies the code edit.
     let redo = bus.redo(&code_pane).expect("a redo on the code pane");
     assert!(redo.ok);
-    assert_eq!(code_panel.buffer().to_string(), after.to_string(), "redo re-applied the code edit");
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        after.to_string(),
+        "redo re-applied the code edit"
+    );
 
     // And the rich pane's OWN undo (focused) reverts ONLY the rich doc, proving the symmetric isolation
     // through the real rich adapter.
     bus.set_focus_owner(rich_pane.clone());
     let rich_result = bus.undo(&rich_pane).expect("a rich undo");
     assert!(rich_result.ok);
-    assert_eq!(*rich_doc.lock().unwrap(), "rich-before", "the rich adapter's undo_fn restored the snapshot");
+    assert_eq!(
+        *rich_doc.lock().unwrap(),
+        "rich-before",
+        "the rich adapter's undo_fn restored the snapshot"
+    );
 }
 
 /// The registered Ctrl+Z COMMAND (not the direct `bus.undo` call) dispatches local-first through the
@@ -190,13 +210,19 @@ fn registered_undo_command_dispatches_local_first() {
     code_panel.set_text("abcXYZ\n");
     let after = code_panel.buffer();
     handshake_native::code_editor::interop_adapter::push_code_edit_undo(
-        &mut bus, code_pane.clone(), &code_panel, before.clone(), after, "edit",
+        &mut bus,
+        code_pane.clone(),
+        &code_panel,
+        before.clone(),
+        after,
+        "edit",
     );
     bus.set_focus_owner(code_pane.clone());
 
     // Dispatch the Ctrl+Z command by id (the keybind resolves to this id via matching_keybind_command).
     let ctrl_z =
-        handshake_native::interop::default_keybind_for(handshake_native::interop::CMD_UNDO).unwrap();
+        handshake_native::interop::default_keybind_for(handshake_native::interop::CMD_UNDO)
+            .unwrap();
     assert_eq!(
         bus.matching_keybind_command(&ctrl_z),
         Some(handshake_native::interop::CMD_UNDO),
@@ -264,19 +290,30 @@ fn rich_pane_ctrl_z_reverts_through_bus() {
     // Focus the editor surface, then type a real character through the live input loop.
     focus_rich_surface(&harness);
     harness.step();
-    let before_text = state.lock().unwrap().block_plain_text(0).unwrap_or_default();
+    let before_text = state
+        .lock()
+        .unwrap()
+        .block_plain_text(0)
+        .unwrap_or_default();
     assert_eq!(before_text, "Hello", "the doc starts as 'Hello'");
 
     // Drive a REAL edit: type "X" at the caret (the caret is at doc start after `new`). One frame to
     // apply, which records the undo entry on the bus.
     harness.event(egui::Event::Text("X".to_owned()));
     harness.step();
-    let edited = state.lock().unwrap().block_plain_text(0).unwrap_or_default();
-    assert_ne!(edited, "Hello", "the typed char mutated the doc (got {edited:?})");
+    let edited = state
+        .lock()
+        .unwrap()
+        .block_plain_text(0)
+        .unwrap_or_default();
+    assert_ne!(
+        edited, "Hello",
+        "the typed char mutated the doc (got {edited:?})"
+    );
 
     // PROOF the edit recorded on the UNIFIED bus scope (POLICY-1 local ring), not a parallel stack.
-    let depth_after_edit = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
-        .expect("bus lock");
+    let depth_after_edit =
+        InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
     assert_eq!(
         depth_after_edit, 1,
         "AC-1 LIVE: the rich edit recorded ONE entry on the unified bus scope (got {depth_after_edit})"
@@ -287,15 +324,19 @@ fn rich_pane_ctrl_z_reverts_through_bus() {
     harness.step();
     harness.step(); // a second frame for the post-undo repaint to settle.
 
-    let reverted = state.lock().unwrap().block_plain_text(0).unwrap_or_default();
+    let reverted = state
+        .lock()
+        .unwrap()
+        .block_plain_text(0)
+        .unwrap_or_default();
     assert_eq!(
         reverted, "Hello",
         "AC-1 LIVE: a real Ctrl+Z through the rich widget reverted the doc via the UNIFIED scope \
          (got {reverted:?})"
     );
     // The bus ring drained (the entry was consumed by the live undo).
-    let depth_after_undo = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
-        .expect("bus lock");
+    let depth_after_undo =
+        InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
     assert_eq!(
         depth_after_undo, 0,
         "AC-1 LIVE: the unified ring drained after the live undo (got {depth_after_undo})"
@@ -320,7 +361,10 @@ fn rich_undo_batcher_coalesces_rapid_keystrokes() {
     let t0 = Instant::now();
 
     // First edit ALWAYS pushes (starts a batch).
-    assert!(batcher.should_push(t0), "the first edit pushes a fresh entry");
+    assert!(
+        batcher.should_push(t0),
+        "the first edit pushes a fresh entry"
+    );
     // Rapid edits within the 500ms window COALESCE (do NOT push).
     let mut pushed = 1;
     for ms in [50u64, 120, 250, 400, 499] {
@@ -358,9 +402,15 @@ fn rich_undo_coalesce_keeps_one_entry_reverting_the_whole_burst() {
 
     // Edit 1 (fresh batch): "a" -> "ab". batch_before = "a".
     let pushed = push_or_coalesce_rich_edit_undo(
-        &mut bus, p.clone(), &doc, /*should_push=*/ true,
-        serde_json::json!("a"), serde_json::json!("a"), serde_json::json!("ab"),
-        restore.clone(), "rich: edit",
+        &mut bus,
+        p.clone(),
+        &doc,
+        /*should_push=*/ true,
+        serde_json::json!("a"),
+        serde_json::json!("a"),
+        serde_json::json!("ab"),
+        restore.clone(),
+        "rich: edit",
     );
     assert!(pushed, "the first edit of a batch pushes a fresh entry");
     *doc.lock().unwrap() = "ab".to_owned();
@@ -368,9 +418,15 @@ fn rich_undo_coalesce_keeps_one_entry_reverting_the_whole_burst() {
 
     // Edit 2 (same batch, coalesce): "ab" -> "abc". batch_before stays "a"; tail replaced.
     let pushed2 = push_or_coalesce_rich_edit_undo(
-        &mut bus, p.clone(), &doc, /*should_push=*/ false,
-        serde_json::json!("a"), serde_json::json!("ab"), serde_json::json!("abc"),
-        restore.clone(), "rich: edit",
+        &mut bus,
+        p.clone(),
+        &doc,
+        /*should_push=*/ false,
+        serde_json::json!("a"),
+        serde_json::json!("ab"),
+        serde_json::json!("abc"),
+        restore.clone(),
+        "rich: edit",
     );
     assert!(!pushed2, "an in-window edit coalesces (no new entry)");
     *doc.lock().unwrap() = "abc".to_owned();
@@ -382,12 +438,22 @@ fn rich_undo_coalesce_keeps_one_entry_reverting_the_whole_burst() {
 
     // Edit 3 (same batch, coalesce): "abc" -> "abcd".
     push_or_coalesce_rich_edit_undo(
-        &mut bus, p.clone(), &doc, /*should_push=*/ false,
-        serde_json::json!("a"), serde_json::json!("abc"), serde_json::json!("abcd"),
-        restore.clone(), "rich: edit",
+        &mut bus,
+        p.clone(),
+        &doc,
+        /*should_push=*/ false,
+        serde_json::json!("a"),
+        serde_json::json!("abc"),
+        serde_json::json!("abcd"),
+        restore.clone(),
+        "rich: edit",
     );
     *doc.lock().unwrap() = "abcd".to_owned();
-    assert_eq!(bus.local_undo_count(&p), 1, "still one entry after 3 coalesced edits");
+    assert_eq!(
+        bus.local_undo_count(&p),
+        1,
+        "still one entry after 3 coalesced edits"
+    );
 
     // ONE undo reverts the WHOLE burst back to the batch-START snapshot "a" (not just the last char).
     bus.set_focus_owner(p.clone());
@@ -404,7 +470,11 @@ fn rich_undo_coalesce_keeps_one_entry_reverting_the_whole_burst() {
     // Redo re-applies the burst's final state in ONE step.
     let redo = bus.redo(&p).expect("a redo");
     assert!(redo.ok);
-    assert_eq!(*doc.lock().unwrap(), "abcd", "redo re-applies the coalesced burst's final state");
+    assert_eq!(
+        *doc.lock().unwrap(),
+        "abcd",
+        "redo re-applies the coalesced burst's final state"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -462,10 +532,24 @@ fn ctrl_shift_z_reverts_route_to_stage() {
     assert_eq!(previous, StageContent::Empty);
     let routed = StageContent::Selection("hello".to_owned(), "DOC-7".to_owned());
     stage.lock().unwrap().set_content(routed.clone());
-    push_route_to_stage_undo(&mut bus, &stage, previous.clone(), routed.clone(), "route to stage");
+    push_route_to_stage_undo(
+        &mut bus,
+        &stage,
+        previous.clone(),
+        routed.clone(),
+        "route to stage",
+    );
 
-    assert_eq!(stage.lock().unwrap().content, routed, "the stage shows the routed selection");
-    assert_eq!(bus.undo_scope().cross_pane_undo_count(), 1, "one cross-pane action recorded");
+    assert_eq!(
+        stage.lock().unwrap().content,
+        routed,
+        "the stage shows the routed selection"
+    );
+    assert_eq!(
+        bus.undo_scope().cross_pane_undo_count(),
+        1,
+        "one cross-pane action recorded"
+    );
 
     // Ctrl+Shift+Z (the cross-pane undo command) reverts the stage to EMPTY.
     let ctrl_shift_z = handshake_native::interop::default_keybind_for(
@@ -484,7 +568,11 @@ fn ctrl_shift_z_reverts_route_to_stage() {
     );
     // Redo re-routes it.
     assert!(bus.redo_cross_pane().is_some());
-    assert_eq!(stage.lock().unwrap().content, routed, "cross-pane redo re-routed the selection");
+    assert_eq!(
+        stage.lock().unwrap().content,
+        routed,
+        "cross-pane redo re-routed the selection"
+    );
 }
 
 /// Cross-pane undo is INDEPENDENT of any pane's local-first ring: a focused pane with its OWN local
@@ -502,7 +590,11 @@ fn cross_pane_ring_is_independent_of_local_rings() {
     // Local-first undo consumes the LOCAL action, not the cross-pane one.
     bus.undo(&code_pane).unwrap();
     assert_eq!(*log.lock().unwrap(), vec!["local"]);
-    assert_eq!(bus.undo_scope().cross_pane_undo_count(), 1, "cross-pane entry survived a local undo");
+    assert_eq!(
+        bus.undo_scope().cross_pane_undo_count(),
+        1,
+        "cross-pane entry survived a local undo"
+    );
     // The cross-pane undo consumes the cross-pane action.
     bus.undo_cross_pane().unwrap();
     assert_eq!(*log.lock().unwrap(), vec!["local", "cross"]);
@@ -516,10 +608,16 @@ fn cross_pane_ring_is_independent_of_local_rings() {
 fn fresh_scope_is_empty_and_session_scoped() {
     // A fresh scope (the only state that exists on app restart) holds nothing.
     let scope = UnifiedUndoScope::new();
-    assert!(scope.is_empty(), "AC-3: a fresh scope is empty (session-scoped, never reloaded)");
+    assert!(
+        scope.is_empty(),
+        "AC-3: a fresh scope is empty (session-scoped, never reloaded)"
+    );
     // A fresh bus exposes an empty scope too (the bus lives in egui app data which is not persisted).
     let bus = InteractionBus::new();
-    assert!(bus.undo_scope().is_empty(), "AC-3: a fresh bus's undo scope is empty");
+    assert!(
+        bus.undo_scope().is_empty(),
+        "AC-3: a fresh bus's undo scope is empty"
+    );
     assert_eq!(bus.local_undo_count(&pane("any")), 0);
 }
 
@@ -542,8 +640,17 @@ fn undo_scope_does_not_implement_serialize() {
         .collect::<Vec<_>>()
         .join("\n");
     // No serde derive macro and no manual Serialize/Deserialize impl anywhere in the undo-scope code.
-    for forbidden in ["derive(Serialize", "Serialize)", "Serialize,", "derive(Deserialize", "Deserialize)",
-        "impl Serialize", "impl Deserialize", "use serde", "serde::"] {
+    for forbidden in [
+        "derive(Serialize",
+        "Serialize)",
+        "Serialize,",
+        "derive(Deserialize",
+        "Deserialize)",
+        "impl Serialize",
+        "impl Deserialize",
+        "use serde",
+        "serde::",
+    ] {
         assert!(
             !code.contains(forbidden),
             "AC-3 / POLICY-3: src/undo_stack.rs code must NOT contain {forbidden:?} — the undo scope is \
@@ -569,7 +676,11 @@ fn pane_ring_caps_at_200_after_201_pushes() {
     for _ in 0..201 {
         ring.push(sync_action("z", log.clone()));
     }
-    assert_eq!(ring.undo_len(), 200, "AC-5: a cap-200 pane ring holds 200 after 201 pushes (oldest dropped)");
+    assert_eq!(
+        ring.undo_len(),
+        200,
+        "AC-5: a cap-200 pane ring holds 200 after 201 pushes (oldest dropped)"
+    );
 }
 
 #[test]
@@ -636,7 +747,10 @@ fn undo_count_indicator_tracks_ring_depth() {
         .with_size(egui::vec2(320.0, 80.0))
         .build_state(
             |ctx, a: &mut IndicatorApp| a.ui(ctx),
-            IndicatorApp { bus: bus.clone(), pane_id: pane_id.clone() },
+            IndicatorApp {
+                bus: bus.clone(),
+                pane_id: pane_id.clone(),
+            },
         );
     harness.run();
     assert_eq!(
@@ -657,12 +771,17 @@ fn undo_count_indicator_tracks_ring_depth() {
     // HBR-VIS screenshot (best-effort on a GPU host); artifacts ONLY to the external root.
     match harness.render() {
         Ok(image) => {
-            let dir = Path::new("../../../../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-035");
+            let dir =
+                Path::new("../../../../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-035");
             let _ = std::fs::create_dir_all(dir);
             let path = dir.join("MT-035-undo-count-indicator.png");
             let saved = image.save(&path).is_ok();
-            println!("AC-6 indicator screenshot: {}x{}, saved={saved} ({})",
-                image.width(), image.height(), path.display());
+            println!(
+                "AC-6 indicator screenshot: {}x{}, saved={saved} ({})",
+                image.width(),
+                image.height(),
+                path.display()
+            );
         }
         Err(e) => println!(
             "BLOCKER(non-fatal): MT-035 indicator screenshot unavailable (no wgpu adapter): {e}. \
@@ -684,13 +803,21 @@ fn undo_count_indicator_tracks_ring_depth() {
 #[test]
 fn canvas_compensating_undo_uses_verified_delete_route() {
     use handshake_native::backend_client::{CanvasBoardClient, HttpMethod};
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     let client = CanvasBoardClient::new("http://127.0.0.1:0", rt.handle().clone());
     // The undo = remove_placement_request (the compensating call the async undo_fn sends).
     let spec = client.remove_placement_request("ws-1", "placement-42");
-    assert_eq!(spec.method, HttpMethod::Delete, "POLICY-4: canvas undo is a DELETE (compensating)");
+    assert_eq!(
+        spec.method,
+        HttpMethod::Delete,
+        "POLICY-4: canvas undo is a DELETE (compensating)"
+    );
     assert!(
-        spec.url.ends_with("/workspaces/ws-1/loom/canvas-placements/placement-42"),
+        spec.url
+            .ends_with("/workspaces/ws-1/loom/canvas-placements/placement-42"),
         "POLICY-4: the compensating route is the verified MT-026 canvas-placements route, not PUT \
          /canvas/{{id}}/graph; got {}",
         spec.url
@@ -698,7 +825,9 @@ fn canvas_compensating_undo_uses_verified_delete_route() {
     // The redo = re-place the SAME block at the SAME geometry (POST .../placements).
     let redo = client.place_block_request("ws-1", "canvas-9", "blk-7", 10.0, 20.0, 200.0, 120.0);
     assert_eq!(redo.method, HttpMethod::Post);
-    assert!(redo.url.ends_with("/workspaces/ws-1/loom/canvas-boards/canvas-9/placements"));
+    assert!(redo
+        .url
+        .ends_with("/workspaces/ws-1/loom/canvas-boards/canvas-9/placements"));
 }
 
 /// AC-4 full round-trip: place a canvas block, Ctrl+Shift+Z to issue the compensating DELETE, reload the
@@ -711,7 +840,10 @@ fn canvas_placement_undo_round_trip_live_pg() {
     use handshake_native::backend_client::CanvasBoardClient;
     use handshake_native::graph::interop_adapter::push_canvas_placement_undo;
 
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     let client = Arc::new(CanvasBoardClient::production(rt.handle().clone()));
     let mut bus = InteractionBus::new();
     bus.set_undo_runtime(rt.handle().clone());

@@ -93,7 +93,10 @@ impl FileSymbol {
 pub enum SymbolPaletteAction {
     /// Jump to the selected symbol: scroll the viewport to `line` (fold-aware) and place the caret /
     /// selection over `byte_range`.
-    JumpTo { line: usize, byte_range: Range<usize> },
+    JumpTo {
+        line: usize,
+        byte_range: Range<usize>,
+    },
 }
 
 /// Flatten an MT-006 outline tree into a flat [`FileSymbol`] list in source order (depth-first), carrying
@@ -107,7 +110,10 @@ pub enum SymbolPaletteAction {
 ///
 /// `byte_range` is resolved from the buffer as the declaration line's byte span via `line_to_byte`.
 /// Truncated to [`MAX_FILE_SYMBOLS`] (RISK — unbounded input).
-pub fn flatten_outline(items: &[OutlineItem], buffer: &super::buffer::TextBuffer) -> Vec<FileSymbol> {
+pub fn flatten_outline(
+    items: &[OutlineItem],
+    buffer: &super::buffer::TextBuffer,
+) -> Vec<FileSymbol> {
     let mut out: Vec<FileSymbol> = Vec::with_capacity(items.len().min(MAX_FILE_SYMBOLS));
     // Stack of (indent, name) for the enclosing-symbol chain. The container of an item at indent `d`
     // is the top entry whose indent is `< d` (the nearest shallower ancestor).
@@ -428,19 +434,38 @@ fn standalone() -> i32 {
         let symbols = flatten_outline(&items, &buffer);
 
         // The two methods inside the impl carry the container name.
-        let new = symbols.iter().find(|s| s.name == "new").expect("new symbol");
-        assert_eq!(new.container.as_deref(), Some("Widget"), "method carries its container");
-        let inc = symbols.iter().find(|s| s.name == "increment").expect("increment symbol");
+        let new = symbols
+            .iter()
+            .find(|s| s.name == "new")
+            .expect("new symbol");
+        assert_eq!(
+            new.container.as_deref(),
+            Some("Widget"),
+            "method carries its container"
+        );
+        let inc = symbols
+            .iter()
+            .find(|s| s.name == "increment")
+            .expect("increment symbol");
         assert_eq!(inc.container.as_deref(), Some("Widget"));
 
         // A top-level fn has no container.
-        let standalone = symbols.iter().find(|s| s.name == "standalone").expect("standalone");
+        let standalone = symbols
+            .iter()
+            .find(|s| s.name == "standalone")
+            .expect("standalone");
         assert_eq!(standalone.container, None, "top-level fn has no container");
 
         // The byte_range lands on the symbol's declaration line (the start byte equals line_to_byte).
         let expected_start = buffer.line_to_byte(standalone.line).unwrap();
-        assert_eq!(standalone.byte_range.start, expected_start, "byte_range starts at the decl line");
-        assert!(standalone.byte_range.end > standalone.byte_range.start, "byte_range spans the line");
+        assert_eq!(
+            standalone.byte_range.start, expected_start,
+            "byte_range starts at the decl line"
+        );
+        assert!(
+            standalone.byte_range.end > standalone.byte_range.start,
+            "byte_range spans the line"
+        );
     }
 
     #[test]
@@ -453,7 +478,10 @@ fn standalone() -> i32 {
         palette.open(&items, &buffer);
         // The unfiltered set is the full outline.
         let full = palette.symbol_count();
-        assert!(full >= 4, "outline has struct + impl + 2 methods + standalone fn; got {full}");
+        assert!(
+            full >= 4,
+            "outline has struct + impl + 2 methods + standalone fn; got {full}"
+        );
 
         // Fuzzy query "inc" -> increment is a subset of the file outline.
         let results = palette.filter("inc");
@@ -485,7 +513,10 @@ fn standalone() -> i32 {
         let action = palette.confirm().expect("confirm emits JumpTo");
         match action {
             SymbolPaletteAction::JumpTo { line, byte_range } => {
-                assert_eq!(line, standalone_line, "AC-001: JumpTo line matches the symbol's outline line");
+                assert_eq!(
+                    line, standalone_line,
+                    "AC-001: JumpTo line matches the symbol's outline line"
+                );
                 let expected_start = buffer.line_to_byte(standalone_line).unwrap();
                 assert_eq!(
                     byte_range.start, expected_start,
@@ -510,7 +541,10 @@ fn standalone() -> i32 {
         assert_eq!(results.len(), expected, "empty query keeps every symbol");
         let mut last_line = 0usize;
         for sym in &results {
-            assert!(sym.line >= last_line, "empty-query results stay in source order");
+            assert!(
+                sym.line >= last_line,
+                "empty-query results stay in source order"
+            );
             last_line = sym.line;
         }
     }
@@ -525,7 +559,11 @@ fn standalone() -> i32 {
 
         let results = palette.filter("zzzznotasymbol");
         assert!(results.is_empty(), "an unmatched query yields no rows");
-        assert_eq!(palette.confirm(), None, "confirm with no rows returns None (no crash, no jump)");
+        assert_eq!(
+            palette.confirm(),
+            None,
+            "confirm with no rows returns None (no crash, no jump)"
+        );
     }
 
     #[test]
@@ -570,8 +608,8 @@ fn standalone() -> i32 {
         let _ = fuzzy_match("\u{307}", weird); // the combining-mark trigger from the review
         let _ = fuzzy_match("İ", weird);
         let _ = fuzzy_match("x", weird); // no match path
-        // Mixed: a normal identifier prefixed with the expanding char, querying a later char so the walk
-        // crosses the position whose lowercase expanded — this is the exact ci > orig.len() trigger.
+                                         // Mixed: a normal identifier prefixed with the expanding char, querying a later char so the walk
+                                         // crosses the position whose lowercase expanded — this is the exact ci > orig.len() trigger.
         assert!(
             fuzzy_match("name", "İcamelName").is_some() || fuzzy_match("İcn", "İcamelName").is_some(),
             "an identifier containing a multi-char-lowercasing char still fuzzy-matches without panic"
@@ -603,6 +641,10 @@ fn standalone() -> i32 {
             })
             .collect();
         let symbols = flatten_outline(&items, &buffer);
-        assert_eq!(symbols.len(), MAX_FILE_SYMBOLS, "flatten caps at MAX_FILE_SYMBOLS");
+        assert_eq!(
+            symbols.len(),
+            MAX_FILE_SYMBOLS,
+            "flatten caps at MAX_FILE_SYMBOLS"
+        );
     }
 }

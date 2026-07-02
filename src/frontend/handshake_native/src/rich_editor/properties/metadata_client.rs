@@ -137,7 +137,8 @@ impl MetadataError {
 /// A boxed `Send` future yielding a Result, returned by the [`KnowledgeMetadataBackend`] methods.
 /// Spelled out (not `async-trait`) so this module adds ZERO new dependency families — the same
 /// boxed-future pattern MT-014/MT-015 use.
-pub type MetadataFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, MetadataError>> + Send + 'a>>;
+pub type MetadataFuture<'a, T> =
+    Pin<Box<dyn Future<Output = Result<T, MetadataError>> + Send + 'a>>;
 
 /// The backend transport for the MT-017 bindings. A trait (not hard reqwest calls) so the save / load /
 /// backlinks-count logic is unit-testable with a counted mock and NO backend. The production impl
@@ -145,7 +146,11 @@ pub type MetadataFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, MetadataE
 pub trait KnowledgeMetadataBackend: Send + Sync {
     /// Rename: `POST /knowledge/documents/{id}/rename` with `{ title }`. Returns the updated document
     /// (refreshed `title` + `updated_at`). This is the REAL title-update path (NOT `/save`).
-    fn rename<'a>(&'a self, document_id: &'a str, title: &'a str) -> MetadataFuture<'a, DocMetadata>;
+    fn rename<'a>(
+        &'a self,
+        document_id: &'a str,
+        title: &'a str,
+    ) -> MetadataFuture<'a, DocMetadata>;
 
     /// Move: `POST /knowledge/documents/{id}/move` with `{ project_ref?, folder_ref? }`. An absent
     /// (`None`) field leaves that membership unchanged; an explicit `Some(None)` clears it; `Some(Some)`
@@ -204,8 +209,15 @@ fn map_status(status: u16, what: &str) -> MetadataError {
 }
 
 impl KnowledgeMetadataBackend for ReqwestMetadataBackend {
-    fn rename<'a>(&'a self, document_id: &'a str, title: &'a str) -> MetadataFuture<'a, DocMetadata> {
-        let url = format!("{}/knowledge/documents/{}/rename", self.base_url, document_id);
+    fn rename<'a>(
+        &'a self,
+        document_id: &'a str,
+        title: &'a str,
+    ) -> MetadataFuture<'a, DocMetadata> {
+        let url = format!(
+            "{}/knowledge/documents/{}/rename",
+            self.base_url, document_id
+        );
         let client = self.client.clone();
         let title = title.trim().to_owned();
         Box::pin(async move {
@@ -243,10 +255,18 @@ impl KnowledgeMetadataBackend for ReqwestMetadataBackend {
             // explicit None serializes as JSON null (clear); a Some(value) sets it.
             let mut body = serde_json::Map::new();
             if let Some(p) = project_ref {
-                body.insert("project_ref".into(), p.map(serde_json::Value::String).unwrap_or(serde_json::Value::Null));
+                body.insert(
+                    "project_ref".into(),
+                    p.map(serde_json::Value::String)
+                        .unwrap_or(serde_json::Value::Null),
+                );
             }
             if let Some(f) = folder_ref {
-                body.insert("folder_ref".into(), f.map(serde_json::Value::String).unwrap_or(serde_json::Value::Null));
+                body.insert(
+                    "folder_ref".into(),
+                    f.map(serde_json::Value::String)
+                        .unwrap_or(serde_json::Value::Null),
+                );
             }
             let response = client
                 .post(&url)
@@ -278,7 +298,10 @@ impl KnowledgeMetadataBackend for ReqwestMetadataBackend {
                 .map_err(|e| MetadataError::NetworkError(format!("load failed: {e}")))?;
             let status = response.status();
             if !status.is_success() {
-                return Err(map_status(status.as_u16(), &format!("document '{document_id}'")));
+                return Err(map_status(
+                    status.as_u16(),
+                    &format!("document '{document_id}'"),
+                ));
             }
             let parsed: RichDocLoadEnvelope = response
                 .json()
@@ -289,23 +312,27 @@ impl KnowledgeMetadataBackend for ReqwestMetadataBackend {
     }
 
     fn backlinks_count<'a>(&'a self, document_id: &'a str) -> MetadataFuture<'a, usize> {
-        let url = format!("{}/knowledge/documents/{}/backlinks", self.base_url, document_id);
+        let url = format!(
+            "{}/knowledge/documents/{}/backlinks",
+            self.base_url, document_id
+        );
         let client = self.client.clone();
         let document_id = document_id.to_owned();
         Box::pin(async move {
-            let response = client
-                .get(&url)
-                .send()
-                .await
-                .map_err(|e| MetadataError::NetworkError(format!("backlinks-count failed: {e}")))?;
+            let response =
+                client.get(&url).send().await.map_err(|e| {
+                    MetadataError::NetworkError(format!("backlinks-count failed: {e}"))
+                })?;
             let status = response.status();
             if !status.is_success() {
-                return Err(map_status(status.as_u16(), &format!("backlinks for '{document_id}'")));
+                return Err(map_status(
+                    status.as_u16(),
+                    &format!("backlinks for '{document_id}'"),
+                ));
             }
-            let parsed: BacklinksCountEnvelope = response
-                .json()
-                .await
-                .map_err(|e| MetadataError::ServerError(format!("backlinks-count body invalid: {e}")))?;
+            let parsed: BacklinksCountEnvelope = response.json().await.map_err(|e| {
+                MetadataError::ServerError(format!("backlinks-count body invalid: {e}"))
+            })?;
             Ok(parsed.backlinks.len())
         })
     }
@@ -371,7 +398,10 @@ pub struct PropertiesRuntime {
 
 impl PropertiesRuntime {
     /// Build a runtime over `backend`, spawning onto `runtime` (pass `None` for a headless test).
-    pub fn new(backend: Arc<dyn KnowledgeMetadataBackend>, runtime: Option<tokio::runtime::Handle>) -> Self {
+    pub fn new(
+        backend: Arc<dyn KnowledgeMetadataBackend>,
+        runtime: Option<tokio::runtime::Handle>,
+    ) -> Self {
         Self {
             backend,
             runtime,
@@ -568,7 +598,9 @@ mod tests {
     }
     impl MockClipboard {
         fn new() -> Self {
-            Self { last: Mutex::new(None) }
+            Self {
+                last: Mutex::new(None),
+            }
         }
     }
     impl ClipboardSink for MockClipboard {
@@ -618,8 +650,14 @@ mod tests {
         assert_eq!(MetadataError::EmptyTitle.kind_str(), "empty_title");
         assert_eq!(MetadataError::NotFound("x".into()).kind_str(), "not_found");
         assert_eq!(MetadataError::Forbidden("x".into()).kind_str(), "forbidden");
-        assert_eq!(MetadataError::ServerError("x".into()).kind_str(), "server_error");
-        assert_eq!(MetadataError::NetworkError("x".into()).kind_str(), "network_error");
+        assert_eq!(
+            MetadataError::ServerError("x".into()).kind_str(),
+            "server_error"
+        );
+        assert_eq!(
+            MetadataError::NetworkError("x".into()).kind_str(),
+            "network_error"
+        );
     }
 
     #[test]
@@ -636,7 +674,12 @@ mod tests {
             let t = t.to_owned();
             Box::pin(async move { Ok(meta(&t)) })
         }
-        fn move_doc<'a>(&'a self, _d: &'a str, _p: Option<Option<String>>, _f: Option<Option<String>>) -> MetadataFuture<'a, DocMetadata> {
+        fn move_doc<'a>(
+            &'a self,
+            _d: &'a str,
+            _p: Option<Option<String>>,
+            _f: Option<Option<String>>,
+        ) -> MetadataFuture<'a, DocMetadata> {
             Box::pin(async { Ok(meta("moved")) })
         }
         fn load<'a>(&'a self, _d: &'a str) -> MetadataFuture<'a, DocMetadata> {
@@ -678,7 +721,10 @@ mod tests {
         let (fresh, applied) = rt.drain();
         assert!(applied);
         assert!(fresh.is_none());
-        assert!(matches!(rt.save_state, SaveState::Failed(MetadataError::ServerError(_))));
+        assert!(matches!(
+            rt.save_state,
+            SaveState::Failed(MetadataError::ServerError(_))
+        ));
     }
 
     #[test]
@@ -715,8 +761,14 @@ mod tests {
         rt.set_document("DOC-A");
         let gen = rt.count_generation;
         rt.ensure_backlinks_count_loaded();
-        assert!(matches!(rt.backlinks_count, BacklinksCountState::Idle), "headless stays Idle (no spinner)");
-        assert_eq!(rt.count_generation, gen, "no generation bump without a runtime to dispatch the fetch");
+        assert!(
+            matches!(rt.backlinks_count, BacklinksCountState::Idle),
+            "headless stays Idle (no spinner)"
+        );
+        assert_eq!(
+            rt.count_generation, gen,
+            "no generation bump without a runtime to dispatch the fetch"
+        );
     }
 
     #[test]

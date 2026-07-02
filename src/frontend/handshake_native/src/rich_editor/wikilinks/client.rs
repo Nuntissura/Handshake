@@ -196,7 +196,8 @@ impl WikilinkResult {
 /// A boxed `Send` future yielding a Result, returned by the [`WikilinkBackend`] methods. Spelled out
 /// (not `async-trait`) so this module adds ZERO new dependency families — the same boxed-future
 /// pattern MT-014's `AssetMetadataFetcher` uses.
-pub type WikilinkFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, WikilinkError>> + Send + 'a>>;
+pub type WikilinkFuture<'a, T> =
+    Pin<Box<dyn Future<Output = Result<T, WikilinkError>> + Send + 'a>>;
 
 /// The backend transport for the three MT-015 bindings. A trait (not hard reqwest calls) so the
 /// debounce / cancellation / error-mapping / 404-remove logic is unit-testable with a counted mock
@@ -204,12 +205,21 @@ pub type WikilinkFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, WikilinkE
 pub trait WikilinkBackend: Send + Sync {
     /// Autocomplete search: `POST /workspaces/{ws}/loom/search-v2` with `{query, limit}`. Returns the
     /// ranked block hits the popup lists (mapped to [`WikilinkResult`] by the caller).
-    fn search<'a>(&'a self, workspace_id: &'a str, query: &'a str, limit: usize) -> WikilinkFuture<'a, Vec<WikilinkResult>>;
+    fn search<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        query: &'a str,
+        limit: usize,
+    ) -> WikilinkFuture<'a, Vec<WikilinkResult>>;
 
     /// Resolve a transclusion: `GET /workspaces/{ws}/loom/blocks/{ref_value}/transclusion`. Returns
     /// the resolved source content + metadata. A 404 maps to [`WikilinkError::NotFound`] (drives the
     /// "Remove embed" affordance, MC-003).
-    fn resolve_transclusion<'a>(&'a self, workspace_id: &'a str, ref_value: &'a str) -> WikilinkFuture<'a, LoomBlockTransclusion>;
+    fn resolve_transclusion<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        ref_value: &'a str,
+    ) -> WikilinkFuture<'a, LoomBlockTransclusion>;
 
     /// List backlinks: `GET /knowledge/documents/{doc_id}/backlinks`. Returns every document linking
     /// to `document_id`.
@@ -256,8 +266,16 @@ fn map_status(status: u16, what: &str) -> WikilinkError {
 }
 
 impl WikilinkBackend for ReqwestWikilinkBackend {
-    fn search<'a>(&'a self, workspace_id: &'a str, query: &'a str, limit: usize) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
-        let url = format!("{}/workspaces/{}/loom/search-v2", self.base_url, workspace_id);
+    fn search<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        query: &'a str,
+        limit: usize,
+    ) -> WikilinkFuture<'a, Vec<WikilinkResult>> {
+        let url = format!(
+            "{}/workspaces/{}/loom/search-v2",
+            self.base_url, workspace_id
+        );
         let client = self.client.clone();
         let query = query.to_owned();
         let ws_empty = workspace_id.trim().is_empty();
@@ -282,15 +300,22 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
             if !status.is_success() {
                 return Err(map_status(status.as_u16(), "loom search-v2"));
             }
-            let parsed: LoomSearchV2Response = response
-                .json()
-                .await
-                .map_err(|e| WikilinkError::ServerError(format!("loom search body invalid: {e}")))?;
-            Ok(parsed.hits.into_iter().map(WikilinkResult::from_hit).collect())
+            let parsed: LoomSearchV2Response = response.json().await.map_err(|e| {
+                WikilinkError::ServerError(format!("loom search body invalid: {e}"))
+            })?;
+            Ok(parsed
+                .hits
+                .into_iter()
+                .map(WikilinkResult::from_hit)
+                .collect())
         })
     }
 
-    fn resolve_transclusion<'a>(&'a self, workspace_id: &'a str, ref_value: &'a str) -> WikilinkFuture<'a, LoomBlockTransclusion> {
+    fn resolve_transclusion<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        ref_value: &'a str,
+    ) -> WikilinkFuture<'a, LoomBlockTransclusion> {
         let url = format!(
             "{}/workspaces/{}/loom/blocks/{}/transclusion",
             self.base_url, workspace_id, ref_value
@@ -302,36 +327,41 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
             if ws_empty {
                 return Err(WikilinkError::NoWorkspace);
             }
-            let response = client
-                .get(&url)
-                .send()
-                .await
-                .map_err(|e| WikilinkError::NetworkError(format!("transclusion fetch failed: {e}")))?;
+            let response = client.get(&url).send().await.map_err(|e| {
+                WikilinkError::NetworkError(format!("transclusion fetch failed: {e}"))
+            })?;
             let status = response.status();
             if !status.is_success() {
-                return Err(map_status(status.as_u16(), &format!("transclusion '{ref_value}'")));
+                return Err(map_status(
+                    status.as_u16(),
+                    &format!("transclusion '{ref_value}'"),
+                ));
             }
-            let parsed: LoomBlockTransclusion = response
-                .json()
-                .await
-                .map_err(|e| WikilinkError::ServerError(format!("transclusion body invalid: {e}")))?;
+            let parsed: LoomBlockTransclusion = response.json().await.map_err(|e| {
+                WikilinkError::ServerError(format!("transclusion body invalid: {e}"))
+            })?;
             Ok(parsed)
         })
     }
 
     fn list_backlinks<'a>(&'a self, document_id: &'a str) -> WikilinkFuture<'a, BacklinksResponse> {
-        let url = format!("{}/knowledge/documents/{}/backlinks", self.base_url, document_id);
+        let url = format!(
+            "{}/knowledge/documents/{}/backlinks",
+            self.base_url, document_id
+        );
         let client = self.client.clone();
         let document_id = document_id.to_owned();
         Box::pin(async move {
-            let response = client
-                .get(&url)
-                .send()
-                .await
-                .map_err(|e| WikilinkError::NetworkError(format!("backlinks fetch failed: {e}")))?;
+            let response =
+                client.get(&url).send().await.map_err(|e| {
+                    WikilinkError::NetworkError(format!("backlinks fetch failed: {e}"))
+                })?;
             let status = response.status();
             if !status.is_success() {
-                return Err(map_status(status.as_u16(), &format!("backlinks for '{document_id}'")));
+                return Err(map_status(
+                    status.as_u16(),
+                    &format!("backlinks for '{document_id}'"),
+                ));
             }
             let parsed: BacklinksResponse = response
                 .json()
@@ -351,8 +381,14 @@ mod tests {
         assert_eq!(WikilinkError::NoWorkspace.kind_str(), "no_workspace");
         assert_eq!(WikilinkError::NotFound("x".into()).kind_str(), "not_found");
         assert_eq!(WikilinkError::Forbidden("x".into()).kind_str(), "forbidden");
-        assert_eq!(WikilinkError::ServerError("x".into()).kind_str(), "server_error");
-        assert_eq!(WikilinkError::NetworkError("x".into()).kind_str(), "network_error");
+        assert_eq!(
+            WikilinkError::ServerError("x".into()).kind_str(),
+            "server_error"
+        );
+        assert_eq!(
+            WikilinkError::NetworkError("x".into()).kind_str(),
+            "network_error"
+        );
     }
 
     #[test]

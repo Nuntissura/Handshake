@@ -97,35 +97,59 @@ pub const RETRY_AUTHOR_ID_PREFIX: &str = "wiki.retry.";
 
 /// The stable AccessKit author_id for the title label: `wiki.title.{sanitized_projection_id}`.
 pub fn title_author_id(projection_id: &str) -> String {
-    format!("{TITLE_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(projection_id))
+    format!(
+        "{TITLE_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
 }
 /// The stable AccessKit author_id for the content area: `wiki.content.{sanitized_projection_id}`.
 pub fn content_author_id(projection_id: &str) -> String {
-    format!("{CONTENT_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(projection_id))
+    format!(
+        "{CONTENT_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
 }
 /// The stable AccessKit author_id for the Edit button: `wiki.edit.{sanitized_projection_id}`.
 pub fn edit_author_id(projection_id: &str) -> String {
-    format!("{EDIT_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(projection_id))
+    format!(
+        "{EDIT_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
 }
 /// The stable AccessKit author_id for the overlay edit area: `wiki.edit-area.{sanitized_projection_id}`.
 pub fn edit_area_author_id(projection_id: &str) -> String {
-    format!("{EDIT_AREA_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(projection_id))
+    format!(
+        "{EDIT_AREA_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
 }
 /// The stable AccessKit author_id for the Save button: `wiki.save.{sanitized_projection_id}`.
 pub fn save_author_id(projection_id: &str) -> String {
-    format!("{SAVE_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(projection_id))
+    format!(
+        "{SAVE_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
 }
 /// The stable AccessKit author_id for the Cancel button: `wiki.cancel.{sanitized_projection_id}`.
 pub fn cancel_author_id(projection_id: &str) -> String {
-    format!("{CANCEL_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(projection_id))
+    format!(
+        "{CANCEL_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
 }
 /// The stable AccessKit author_id for the optional Rebuild button: `wiki.rebuild.{sanitized}`.
 pub fn rebuild_author_id(projection_id: &str) -> String {
-    format!("{REBUILD_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(projection_id))
+    format!(
+        "{REBUILD_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
 }
 /// The stable AccessKit author_id for the error-state Retry button: `wiki.retry.{sanitized}`.
 pub fn retry_author_id(projection_id: &str) -> String {
-    format!("{RETRY_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(projection_id))
+    format!(
+        "{RETRY_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
 }
 
 /// Decide whether a page's `staleness_verdict` indicates STALE (RISK-5 / MC-5). The React type is
@@ -342,10 +366,19 @@ impl LoomWikiPagePanel {
 
         // Title (large bold) — AccessKit Role::Label `wiki.title.{id}`.
         let title_resp = ui.add(
-            egui::Label::new(egui::RichText::new(&page.title).heading().color(palette.text))
-                .sense(Sense::hover()),
+            egui::Label::new(
+                egui::RichText::new(&page.title)
+                    .heading()
+                    .color(palette.text),
+            )
+            .sense(Sense::hover()),
         );
-        emit_label_accesskit(ui, title_resp.id, &title_author_id(&self.projection_id), &page.title);
+        emit_label_accesskit(
+            ui,
+            title_resp.id,
+            &title_author_id(&self.projection_id),
+            &page.title,
+        );
 
         // Metadata chip row: page_type badge, rebuild_status badge, "(N sources)".
         ui.horizontal(|ui| {
@@ -382,7 +415,8 @@ impl LoomWikiPagePanel {
                 if shown.trim().is_empty() {
                     ui.add(
                         egui::Label::new(
-                            egui::RichText::new("No rendered wiki content.").color(palette.text_subtle),
+                            egui::RichText::new("No rendered wiki content.")
+                                .color(palette.text_subtle),
                         )
                         .sense(Sense::hover()),
                     );
@@ -427,7 +461,12 @@ impl LoomWikiPagePanel {
         // a no-context operator/agent understands `rendered_content` is not directly editable (MC-1).
         ui.horizontal(|ui| {
             let edit = ui.button("Edit overlay");
-            emit_button_accesskit(ui, edit.id, &edit_author_id(&self.projection_id), "Edit overlay");
+            emit_button_accesskit(
+                ui,
+                edit.id,
+                &edit_author_id(&self.projection_id),
+                "Edit overlay",
+            );
             if edit.clicked() && self.begin_edit() {
                 event = Some(WikiPageEvent::EditBegan);
             }
@@ -464,17 +503,34 @@ impl LoomWikiPagePanel {
 
         // Keep the title visible while editing so the operator knows which page they are annotating.
         let title_resp = ui.add(
-            egui::Label::new(egui::RichText::new(&page.title).heading().color(palette.text))
-                .sense(Sense::hover()),
+            egui::Label::new(
+                egui::RichText::new(&page.title)
+                    .heading()
+                    .color(palette.text),
+            )
+            .sense(Sense::hover()),
         );
-        emit_label_accesskit(ui, title_resp.id, &title_author_id(&self.projection_id), &page.title);
-        ui.colored_label(palette.text_subtle, "New overlay annotation (saved alongside the page):");
+        emit_label_accesskit(
+            ui,
+            title_resp.id,
+            &title_author_id(&self.projection_id),
+            &page.title,
+        );
+        ui.colored_label(
+            palette.text_subtle,
+            "New overlay annotation (saved alongside the page):",
+        );
 
         // Toolbar: Save + Cancel.
         ui.horizontal(|ui| {
             let save_label = if self.saving { "Saving…" } else { "Save" };
             let save = ui.add_enabled(!self.saving, egui::Button::new(save_label));
-            emit_button_accesskit(ui, save.id, &save_author_id(&self.projection_id), "Save overlay");
+            emit_button_accesskit(
+                ui,
+                save.id,
+                &save_author_id(&self.projection_id),
+                "Save overlay",
+            );
             if save.clicked() {
                 if let Some(annotation) = self.begin_save() {
                     event = Some(WikiPageEvent::Save { annotation });
@@ -482,7 +538,12 @@ impl LoomWikiPagePanel {
             }
 
             let cancel = ui.button("Cancel");
-            emit_button_accesskit(ui, cancel.id, &cancel_author_id(&self.projection_id), "Cancel edit");
+            emit_button_accesskit(
+                ui,
+                cancel.id,
+                &cancel_author_id(&self.projection_id),
+                "Cancel edit",
+            );
             if cancel.clicked() {
                 self.cancel_edit();
                 event = Some(WikiPageEvent::Cancel);
@@ -682,8 +743,14 @@ mod tests {
         p.save_error = Some("old error".to_owned());
         assert!(p.begin_edit(), "begin_edit succeeds with a loaded page");
         assert!(p.edit_mode, "edit mode entered");
-        assert_eq!(p.edit_buffer, "", "buffer starts empty (overlay is additive, not a content copy)");
-        assert!(p.save_error.is_none(), "prior save error cleared on a fresh edit");
+        assert_eq!(
+            p.edit_buffer, "",
+            "buffer starts empty (overlay is additive, not a content copy)"
+        );
+        assert!(
+            p.save_error.is_none(),
+            "prior save error cleared on a fresh edit"
+        );
     }
 
     /// begin_edit is a no-op without a loaded page (you cannot annotate a page that has not loaded).
@@ -705,7 +772,10 @@ mod tests {
         p.cancel_edit();
         assert!(!p.edit_mode, "edit mode exited");
         assert_eq!(p.edit_buffer, "", "buffer discarded");
-        assert_eq!(p.page, page_before, "the page is UNCHANGED by cancel (cancel-no-mutation)");
+        assert_eq!(
+            p.page, page_before,
+            "the page is UNCHANGED by cancel (cancel-no-mutation)"
+        );
     }
 
     /// AC5 / PROOF5: a failed save KEEPS the buffer and STAYS in edit mode with the error surfaced.
@@ -714,13 +784,18 @@ mod tests {
         let mut p = loaded_panel();
         p.begin_edit();
         p.set_edit_buffer("important note");
-        let sent = p.begin_save().expect("non-empty buffer yields an annotation to send");
+        let sent = p
+            .begin_save()
+            .expect("non-empty buffer yields an annotation to send");
         assert_eq!(sent, "important note");
         assert!(p.saving, "save marked in flight");
         p.apply_save_error("500 Internal Server Error");
         assert!(!p.saving, "saving cleared after the error");
         assert!(p.edit_mode, "AC5: edit mode is NOT exited on a save error");
-        assert_eq!(p.edit_buffer, "important note", "AC5: the buffer is PRESERVED on a save error");
+        assert_eq!(
+            p.edit_buffer, "important note",
+            "AC5: the buffer is PRESERVED on a save error"
+        );
         assert_eq!(p.save_error.as_deref(), Some("500 Internal Server Error"));
     }
 
@@ -743,7 +818,10 @@ mod tests {
         let mut p = loaded_panel();
         p.begin_edit();
         p.set_edit_buffer("   \n  ");
-        assert!(p.begin_save().is_none(), "whitespace-only buffer is not saved");
+        assert!(
+            p.begin_save().is_none(),
+            "whitespace-only buffer is not saved"
+        );
         assert!(!p.saving);
     }
 
@@ -751,12 +829,30 @@ mod tests {
     /// null is not stale.
     #[test]
     fn verdict_staleness_rule() {
-        assert!(!verdict_is_stale(&serde_json::json!({ "state": "fresh" })), "fresh is not stale");
-        assert!(verdict_is_stale(&serde_json::json!({ "state": "stale" })), "stale state is stale");
-        assert!(verdict_is_stale(&serde_json::json!({ "state": "unstamped" })), "unstamped is stale");
-        assert!(verdict_is_stale(&serde_json::json!({})), "empty object (no state) is stale");
-        assert!(!verdict_is_stale(&serde_json::Value::Null), "null verdict is not stale");
-        assert!(verdict_is_stale(&serde_json::json!("anything")), "a bare non-null value is stale");
+        assert!(
+            !verdict_is_stale(&serde_json::json!({ "state": "fresh" })),
+            "fresh is not stale"
+        );
+        assert!(
+            verdict_is_stale(&serde_json::json!({ "state": "stale" })),
+            "stale state is stale"
+        );
+        assert!(
+            verdict_is_stale(&serde_json::json!({ "state": "unstamped" })),
+            "unstamped is stale"
+        );
+        assert!(
+            verdict_is_stale(&serde_json::json!({})),
+            "empty object (no state) is stale"
+        );
+        assert!(
+            !verdict_is_stale(&serde_json::Value::Null),
+            "null verdict is not stale"
+        );
+        assert!(
+            verdict_is_stale(&serde_json::json!("anything")),
+            "a bare non-null value is stale"
+        );
     }
 
     /// is_stale reflects the loaded page's verdict (AC6).
@@ -777,7 +873,11 @@ mod tests {
         p.begin_edit();
         let huge = "x".repeat(OVERLAY_INPUT_CAP + 5000);
         p.set_edit_buffer(huge);
-        assert_eq!(p.edit_buffer.len(), OVERLAY_INPUT_CAP, "buffer capped at OVERLAY_INPUT_CAP bytes");
+        assert_eq!(
+            p.edit_buffer.len(),
+            OVERLAY_INPUT_CAP,
+            "buffer capped at OVERLAY_INPUT_CAP bytes"
+        );
     }
 
     /// RISK-2: display_content truncates a huge page on a char boundary with the truncated flag set.

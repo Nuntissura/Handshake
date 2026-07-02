@@ -27,16 +27,18 @@ use egui_kittest::Harness;
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, NodeKind, TextLeaf};
 use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
+#[cfg(feature = "integration")]
+use handshake_native::rich_editor::properties::metadata_client::ReqwestMetadataBackend;
 use handshake_native::rich_editor::properties::metadata_client::{
     ClipboardSink, DocMetadata, KnowledgeMetadataBackend, MetadataError, MetadataFuture,
     PropertiesRuntime, SaveState,
 };
-#[cfg(feature = "integration")]
-use handshake_native::rich_editor::properties::metadata_client::ReqwestMetadataBackend;
 use handshake_native::rich_editor::properties::panel::PropertiesPanel;
 use handshake_native::rich_editor::properties::tag_editor::BACKEND_GAP_BANNER;
 use handshake_native::rich_editor::properties::PropertiesState;
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::theme::HsTheme;
 
 // ── Artifact-root helpers (CX-212E) ─────────────────────────────────────────────────────────────
@@ -101,7 +103,12 @@ impl KnowledgeMetadataBackend for MockMetadataBackend {
             Ok(m)
         })
     }
-    fn move_doc<'a>(&'a self, _d: &'a str, _p: Option<Option<String>>, _f: Option<Option<String>>) -> MetadataFuture<'a, DocMetadata> {
+    fn move_doc<'a>(
+        &'a self,
+        _d: &'a str,
+        _p: Option<Option<String>>,
+        _f: Option<Option<String>>,
+    ) -> MetadataFuture<'a, DocMetadata> {
         Box::pin(async { Ok(sample_metadata()) })
     }
     fn load<'a>(&'a self, _d: &'a str) -> MetadataFuture<'a, DocMetadata> {
@@ -119,7 +126,9 @@ struct MockClipboard {
 }
 impl MockClipboard {
     fn new() -> Self {
-        Self { last: Mutex::new(None) }
+        Self {
+            last: Mutex::new(None),
+        }
     }
 }
 impl ClipboardSink for MockClipboard {
@@ -153,7 +162,8 @@ fn seeded_state(backlinks_count: usize) -> RichEditorState {
     use handshake_native::rich_editor::properties::metadata_client::BacklinksCountState;
     let doc = BlockNode::doc(vec![BlockNode::paragraph("Body text.")]);
     let props = PropertiesState::new(sample_metadata());
-    let mut runtime = PropertiesRuntime::headless(Arc::new(MockMetadataBackend::new(backlinks_count)));
+    let mut runtime =
+        PropertiesRuntime::headless(Arc::new(MockMetadataBackend::new(backlinks_count)));
     runtime.set_document("KRD-MT017-1");
     runtime.backlinks_count = BacklinksCountState::Loaded(backlinks_count);
     let mut state = RichEditorState::new(doc).with_properties(props, runtime);
@@ -185,7 +195,9 @@ fn mt017_properties_collapsed_by_default() {
     );
     // ... and COLLAPSED by default: the title field value is NOT shown while collapsed.
     assert!(
-        harness.query_by_label_contains("Sample Knowledge Document").is_none(),
+        harness
+            .query_by_label_contains("Sample Knowledge Document")
+            .is_none(),
         "AC-1: the panel is collapsed by default — the title value is hidden until expanded"
     );
 
@@ -224,7 +236,8 @@ fn expanded_panel_harness<'a>(clipboard: Arc<MockClipboard>, backlinks: usize) -
             let clip = Arc::clone(&clipboard);
             let st = &mut *st;
             let props = st.properties.as_mut().expect("seeded");
-            PropertiesPanel::new(props, &mut st.properties_runtime, clip.as_ref(), &palette).show(ui);
+            PropertiesPanel::new(props, &mut st.properties_runtime, clip.as_ref(), &palette)
+                .show(ui);
         })
 }
 
@@ -276,8 +289,16 @@ fn mt017_properties_expanded_shows_all_fields() {
             }
         }
     }
-    for id in ["properties-panel", "properties-title", "properties-doc-id", "properties-tags"] {
-        assert!(found.contains(id), "AC-9: the AccessKit tree must contain author_id '{id}' (found {found:?})");
+    for id in [
+        "properties-panel",
+        "properties-title",
+        "properties-doc-id",
+        "properties-tags",
+    ] {
+        assert!(
+            found.contains(id),
+            "AC-9: the AccessKit tree must contain author_id '{id}' (found {found:?})"
+        );
     }
     assert_eq!(
         title_value.as_deref(),
@@ -322,7 +343,8 @@ fn mt017_add_tag_appends_chip_via_button() {
             let clip = Arc::clone(&clip_render);
             let st = &mut *st;
             let props = st.properties.as_mut().expect("seeded");
-            PropertiesPanel::new(props, &mut st.properties_runtime, clip.as_ref(), &palette).show(ui);
+            PropertiesPanel::new(props, &mut st.properties_runtime, clip.as_ref(), &palette)
+                .show(ui);
         });
     harness.run();
 
@@ -331,21 +353,32 @@ fn mt017_add_tag_appends_chip_via_button() {
     {
         let mut st = state.lock().unwrap();
         let props = st.properties.as_mut().unwrap();
-        assert!(props.add_tag("rust"), "AC-4: adding a tag appends it to the list");
+        assert!(
+            props.add_tag("rust"),
+            "AC-4: adding a tag appends it to the list"
+        );
         assert_eq!(props.tags, vec!["rust".to_owned()]);
     }
     harness.run();
     harness.run();
 
-    let chip_present = harness.root().children_recursive().any(|n| {
-        n.accesskit_node().author_id() == Some("tag-chip-rust")
-    });
-    assert!(chip_present, "AC-4: the new tag chip ('tag-chip-rust') appears in the rendered tree");
+    let chip_present = harness
+        .root()
+        .children_recursive()
+        .any(|n| n.accesskit_node().author_id() == Some("tag-chip-rust"));
+    assert!(
+        chip_present,
+        "AC-4: the new tag chip ('tag-chip-rust') appears in the rendered tree"
+    );
     // The add button itself is addressable for an agent.
-    let add_button_present = harness.root().children_recursive().any(|n| {
-        n.accesskit_node().author_id() == Some("tag-add-button")
-    });
-    assert!(add_button_present, "AC-4: the 'tag-add-button' add affordance is AccessKit-addressable");
+    let add_button_present = harness
+        .root()
+        .children_recursive()
+        .any(|n| n.accesskit_node().author_id() == Some("tag-add-button"));
+    assert!(
+        add_button_present,
+        "AC-4: the 'tag-add-button' add affordance is AccessKit-addressable"
+    );
 }
 
 // ── AC-6: clicking the document id copies it to the clipboard (mock) ─────────────────────────────
@@ -380,14 +413,26 @@ fn mt017_pending_save_dispatches_rename_through_runtime() {
     let mut props = PropertiesState::new(sample_metadata());
     props.title_edit = Some("Edited Title".into());
     assert!(props.commit_title_edit(), "the title change commits");
-    assert!(props.pending_save, "AC-3: pending_save is set after the commit");
+    assert!(
+        props.pending_save,
+        "AC-3: pending_save is set after the commit"
+    );
 
     let tokio_rt = tokio::runtime::Runtime::new().unwrap();
-    let mut runtime =
-        PropertiesRuntime::new(Arc::new(MockMetadataBackend::new(0)), Some(tokio_rt.handle().clone()));
+    let mut runtime = PropertiesRuntime::new(
+        Arc::new(MockMetadataBackend::new(0)),
+        Some(tokio_rt.handle().clone()),
+    );
     runtime.set_document(&props.doc_metadata.rich_document_id);
-    runtime.dispatch_rename(&props.doc_metadata.rich_document_id, &props.doc_metadata.title);
-    assert_eq!(runtime.save_state, SaveState::Saving, "the dispatch enters Saving while in flight");
+    runtime.dispatch_rename(
+        &props.doc_metadata.rich_document_id,
+        &props.doc_metadata.title,
+    );
+    assert_eq!(
+        runtime.save_state,
+        SaveState::Saving,
+        "the dispatch enters Saving while in flight"
+    );
 
     // Poll the drain until the spawned rename delivers (bounded — the mock resolves immediately).
     let mut fresh = None;
@@ -399,10 +444,17 @@ fn mt017_pending_save_dispatches_rename_through_runtime() {
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    assert_eq!(runtime.save_state, SaveState::Saved, "AC-3: the rename round-trip reaches Saved");
+    assert_eq!(
+        runtime.save_state,
+        SaveState::Saved,
+        "AC-3: the rename round-trip reaches Saved"
+    );
     let fresh = fresh.expect("the rename returns the updated document");
     assert_eq!(fresh.title, "Edited Title");
-    assert_eq!(fresh.doc_version, 6, "the version bumped on the persisted rename (mock bumps it)");
+    assert_eq!(
+        fresh.doc_version, 6,
+        "the version bumped on the persisted rename (mock bumps it)"
+    );
 }
 
 // ── PT-4 / integration (real backend, gated): title-save round-trip ───────────────────────────────
@@ -424,14 +476,26 @@ fn title_save_roundtrip_live() {
     let backend = ReqwestMetadataBackend::production();
     rt.block_on(async {
         // 1) Load the real document metadata.
-        let before = backend.load(&doc_id).await.expect("load the seeded document");
+        let before = backend
+            .load(&doc_id)
+            .await
+            .expect("load the seeded document");
         // 2) Rename to a unique title.
         let new_title = format!("{}-mt017-{}", before.title, std::process::id());
-        let renamed = backend.rename(&doc_id, &new_title).await.expect("rename succeeds");
-        assert_eq!(renamed.title, new_title, "the rename response carries the new title");
+        let renamed = backend
+            .rename(&doc_id, &new_title)
+            .await
+            .expect("rename succeeds");
+        assert_eq!(
+            renamed.title, new_title,
+            "the rename response carries the new title"
+        );
         // 3) Reload and verify the persisted title.
         let after = backend.load(&doc_id).await.expect("reload after rename");
-        assert_eq!(after.title, new_title, "PT-4: the title persisted across a reload (real backend)");
+        assert_eq!(
+            after.title, new_title,
+            "PT-4: the title persisted across a reload (real backend)"
+        );
         // Restore the original title so the seed is reusable.
         let _ = backend.rename(&doc_id, &before.title).await;
     });
@@ -453,10 +517,15 @@ fn mt017_live_content_json_is_pulled_from_the_doc_mc001() {
     let mut state = RichEditorState::new(doc);
     state.selection = Selection::caret(DocPosition::new(vec![0, 0], 5));
     let before = state.current_content_json();
-    assert!(before.to_string().contains("hello"), "the live content_json includes the current text");
+    assert!(
+        before.to_string().contains("hello"),
+        "the live content_json includes the current text"
+    );
 
     // Mutate the live doc (as the operator typing would) and re-read: the accessor reflects it (no cache).
-    use handshake_native::rich_editor::document_model::transform::{apply_transaction, Step, Transaction};
+    use handshake_native::rich_editor::document_model::transform::{
+        apply_transaction, Step, Transaction,
+    };
     let tx = Transaction::operator(vec![Step::InsertText {
         path: vec![0, 0],
         char_offset: 5,

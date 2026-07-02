@@ -921,31 +921,6 @@ pub const TERMINAL_OUTPUT_LOGGING_SETTING: NotYetWiredSetting = NotYetWiredSetti
     note: "Not yet wired - backend redacts + records captured output",
 };
 
-/// Model-session default provider. MT-101 keeps provider per-launch; durable defaults are not wired yet.
-pub const MODEL_SESSION_DEFAULT_PROVIDER_SETTING: NotYetWiredSetting = NotYetWiredSetting {
-    id: "model-session-default-provider",
-    label: "Model-session default provider",
-    fixed_value: "Per launch",
-    note: "Not yet wired - choose Local or Cloud in the launch dialog",
-};
-
-/// Model-session default wrapper. The MT-101 dialog seeds this value but does not persist it yet.
-pub const MODEL_SESSION_DEFAULT_WRAPPER_SETTING: NotYetWiredSetting = NotYetWiredSetting {
-    id: "model-session-default-wrapper",
-    label: "Model-session default wrapper",
-    fixed_value: "repo-folder-wrapper-v1",
-    note: "Not yet wired - edit the wrapper in the launch dialog",
-};
-
-/// Model-session local model root. Native launch records model_id/path in /jobs but does not own model
-/// inventory discovery yet.
-pub const MODEL_SESSION_LOCAL_MODEL_ROOT_SETTING: NotYetWiredSetting = NotYetWiredSetting {
-    id: "model-session-local-model-root",
-    label: "Model-session local model root",
-    fixed_value: "Configured outside native settings",
-    note: "Not yet wired - provide the model id/path in the launch dialog",
-};
-
 /// The app name shown in the About section. Port of `ABOUT_INFO.appName`.
 pub const ABOUT_APP_NAME: &str = "Handshake";
 
@@ -1295,7 +1270,8 @@ mod tests {
         // RISK-001 guard: the editor bindings did NOT leak into the backend-validated `keybindings` map.
         let kb = obj.get("keybindings").and_then(Value::as_object).unwrap();
         assert!(
-            kb.keys().all(|k| k == "app.quick_switcher.open" || k == "app.command_palette.open"),
+            kb.keys()
+                .all(|k| k == "app.quick_switcher.open" || k == "app.command_palette.open"),
             "the WP-011 keybindings map keeps ONLY the two app actions the backend allows (RISK-001); \
              editor bindings live in the separate editor_keybindings list, got {:?}",
             kb.keys().collect::<Vec<_>>()

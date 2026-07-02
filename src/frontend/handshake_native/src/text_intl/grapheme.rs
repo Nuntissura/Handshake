@@ -139,7 +139,8 @@ fn next_boundary_in_growing_window(text: &str, start: usize, forward: bool) -> O
     // sequences, regional indicators). We position it at `start` over the WHOLE string conceptually but
     // feed it only a chunk, growing the chunk only if it asks for pre/next context at the edge.
     let mut cursor = UsGraphemeCursor::new(start, len, true);
-    let mut window_end = grow_to_char_boundary(text, (start + GRAPHEME_LOCAL_WINDOW_BYTES).min(len));
+    let mut window_end =
+        grow_to_char_boundary(text, (start + GRAPHEME_LOCAL_WINDOW_BYTES).min(len));
     loop {
         let chunk = &text[start..window_end];
         match cursor.next_boundary(chunk, start) {
@@ -276,7 +277,12 @@ mod tests {
         // From offset 0, the next grapheme boundary jumps the WHOLE family emoji to its end (= its byte
         // length), not into the middle after the first scalar.
         let end = next_grapheme_boundary(FAMILY, 0);
-        assert_eq!(end, FAMILY.len(), "RIGHT over the family emoji crosses all {} bytes", FAMILY.len());
+        assert_eq!(
+            end,
+            FAMILY.len(),
+            "RIGHT over the family emoji crosses all {} bytes",
+            FAMILY.len()
+        );
         // And it is strictly more than one scalar (the man emoji alone is 4 bytes).
         assert!(end > 4, "must not stop after the first scalar (4 bytes)");
     }
@@ -285,7 +291,10 @@ mod tests {
     fn family_emoji_is_one_cluster_backward() {
         // From the end, the previous boundary jumps back to 0 (Backspace deletes the whole cluster).
         let start = prev_grapheme_boundary(FAMILY, FAMILY.len());
-        assert_eq!(start, 0, "Backspace over the family emoji removes ALL its codepoints");
+        assert_eq!(
+            start, 0,
+            "Backspace over the family emoji removes ALL its codepoints"
+        );
     }
 
     #[test]
@@ -305,8 +314,14 @@ mod tests {
     #[test]
     fn decomposed_hangul_is_one_cluster() {
         // The three conjoining jamo form a single syllable cluster.
-        assert_eq!(next_grapheme_boundary(HANGUL_DECOMPOSED, 0), HANGUL_DECOMPOSED.len());
-        assert_eq!(prev_grapheme_boundary(HANGUL_DECOMPOSED, HANGUL_DECOMPOSED.len()), 0);
+        assert_eq!(
+            next_grapheme_boundary(HANGUL_DECOMPOSED, 0),
+            HANGUL_DECOMPOSED.len()
+        );
+        assert_eq!(
+            prev_grapheme_boundary(HANGUL_DECOMPOSED, HANGUL_DECOMPOSED.len()),
+            0
+        );
     }
 
     #[test]
@@ -327,7 +342,11 @@ mod tests {
         let after_a = next_grapheme_boundary(&s, 0);
         assert_eq!(after_a, 1, "first cluster is 'a'");
         let after_family = next_grapheme_boundary(&s, after_a);
-        assert_eq!(after_family, 1 + FAMILY.len(), "second cluster is the whole family emoji");
+        assert_eq!(
+            after_family,
+            1 + FAMILY.len(),
+            "second cluster is the whole family emoji"
+        );
         let after_b = next_grapheme_boundary(&s, after_family);
         assert_eq!(after_b, s.len(), "third cluster is 'b'");
     }
@@ -336,8 +355,12 @@ mod tests {
     fn char_offset_variant_agrees_with_byte_variant() {
         // The rich editor's char-offset path must give the same cluster crossings.
         let s = format!("x{COMBINING_E}y"); // x | é(e+mark) | y  -> chars: x e ́ y = 4 chars
-        // From char 1 (start of "é"), the next grapheme boundary is char 3 (after the combining mark).
-        assert_eq!(next_grapheme_boundary_chars(&s, 1), 3, "crosses base+mark in char units");
+                                            // From char 1 (start of "é"), the next grapheme boundary is char 3 (after the combining mark).
+        assert_eq!(
+            next_grapheme_boundary_chars(&s, 1),
+            3,
+            "crosses base+mark in char units"
+        );
         // Backward from char 3 returns char 1.
         assert_eq!(prev_grapheme_boundary_chars(&s, 3), 1);
     }
@@ -347,14 +370,26 @@ mod tests {
         // A byte offset INSIDE the family emoji must snap to a char boundary, never panic.
         let mid = 2; // inside the first 4-byte scalar
         let next = next_grapheme_boundary(FAMILY, mid);
-        assert_eq!(next, FAMILY.len(), "a mid-char offset snaps and still crosses the cluster");
+        assert_eq!(
+            next,
+            FAMILY.len(),
+            "a mid-char offset snaps and still crosses the cluster"
+        );
     }
 
     #[test]
     fn boundaries_at_extremes_are_stable() {
         let s = "abc";
-        assert_eq!(next_grapheme_boundary(s, s.len()), s.len(), "next at EOF stays at EOF");
-        assert_eq!(prev_grapheme_boundary(s, 0), 0, "prev at start stays at start");
+        assert_eq!(
+            next_grapheme_boundary(s, s.len()),
+            s.len(),
+            "next at EOF stays at EOF"
+        );
+        assert_eq!(
+            prev_grapheme_boundary(s, 0),
+            0,
+            "prev at start stays at start"
+        );
     }
 
     #[test]
@@ -365,7 +400,11 @@ mod tests {
         let pad_len = GRAPHEME_LOCAL_WINDOW_BYTES - 2; // family starts 2 bytes before the window edge
         let s = format!("{}{FAMILY}", "a".repeat(pad_len));
         let next = next_grapheme_boundary(&s, pad_len);
-        assert_eq!(next, pad_len + FAMILY.len(), "a cluster straddling the window edge still crosses whole");
+        assert_eq!(
+            next,
+            pad_len + FAMILY.len(),
+            "a cluster straddling the window edge still crosses whole"
+        );
     }
 
     #[test]

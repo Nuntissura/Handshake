@@ -67,7 +67,10 @@ fn text_buffer_range_ops_are_panic_free() {
     // Out-of-range insert -> Err, not panic.
     assert_eq!(
         b.insert(1000, "x"),
-        Err(BufferError::OffsetOutOfRange { offset: 1000, len_bytes: 4 })
+        Err(BufferError::OffsetOutOfRange {
+            offset: 1000,
+            len_bytes: 4
+        })
     );
     // Inverted / out-of-range delete -> Err. The `3..1` inversion is INTENTIONAL negative-path
     // coverage — `delete` must reject start>end with `InvalidRange`. clippy's deny-by-default
@@ -76,7 +79,10 @@ fn text_buffer_range_ops_are_panic_free() {
     #[allow(clippy::reversed_empty_ranges)]
     let inverted_delete = matches!(b.delete(3..1), Err(BufferError::InvalidRange { .. }));
     assert!(inverted_delete);
-    assert!(matches!(b.delete(0..1000), Err(BufferError::InvalidRange { .. })));
+    assert!(matches!(
+        b.delete(0..1000),
+        Err(BufferError::InvalidRange { .. })
+    ));
     // Conversions return None for out-of-range, never panic.
     assert_eq!(b.byte_to_line(1000), None);
     assert_eq!(b.line_to_byte(1000), None);
@@ -94,7 +100,10 @@ fn text_buffer_handles_non_ascii_without_off_by_one() {
     let mut b = TextBuffer::new("café\n");
     assert_eq!(b.len_bytes(), 6);
     // Inserting at a non-char-boundary (byte 4, inside 'é') is rejected, not a panic.
-    assert!(matches!(b.insert(4, "x"), Err(BufferError::NotACharBoundary { .. })));
+    assert!(matches!(
+        b.insert(4, "x"),
+        Err(BufferError::NotACharBoundary { .. })
+    ));
     // Inserting at a valid boundary works.
     b.insert(3, "X").unwrap(); // after "caf"
     assert_eq!(b.to_string(), "cafXé\n");

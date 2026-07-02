@@ -60,18 +60,40 @@ fn rename_graceful_single_file_fallback_and_banner_present() {
     // Begin the rename (the F2 / context-menu path). The identifier resolves via tree-sitter.
     panel.begin_rename_at_cursor();
     match panel.rename_state() {
-        RenameState::Editing { original, draft, .. } => {
-            assert_eq!(original, "value", "AC-001: the input pre-fills with the identifier");
+        RenameState::Editing {
+            original, draft, ..
+        } => {
+            assert_eq!(
+                original, "value",
+                "AC-001: the input pre-fills with the identifier"
+            );
             assert_eq!(draft, "value");
         }
-        other => panic!("AC-003: begin_rename should enter Editing on an identifier, got {other:?}"),
+        other => {
+            panic!("AC-003: begin_rename should enter Editing on an identifier, got {other:?}")
+        }
     }
 
     // Type the new name + confirm. With no runtime injected, the panel uses the synchronous single-file
     // fallback (the deterministic headless path). Set the draft directly then confirm via the input render.
-    if let RenameState::Editing { mut draft, original, anchor_byte, ident_range, entity_id, focus_requested } = panel.rename_state() {
+    if let RenameState::Editing {
+        mut draft,
+        original,
+        anchor_byte,
+        ident_range,
+        entity_id,
+        focus_requested,
+    } = panel.rename_state()
+    {
         draft = "total".to_owned();
-        panel.set_rename_state(RenameState::Editing { original, draft, anchor_byte, ident_range, entity_id, focus_requested });
+        panel.set_rename_state(RenameState::Editing {
+            original,
+            draft,
+            anchor_byte,
+            ident_range,
+            entity_id,
+            focus_requested,
+        });
     }
 
     // Drive a frame with the input open + an Enter key event so the panel's render path confirms.
@@ -95,17 +117,24 @@ fn rename_graceful_single_file_fallback_and_banner_present() {
         preview.is_single_file_fallback,
         "AC-003: the no-LSP path is a SINGLE-FILE fallback (the banner is shown)"
     );
-    assert_eq!(preview.files.len(), 1, "AC-003: only the current file is in the fallback preview");
-    assert!(preview.total_edits() >= 1, "AC-003: the in-file occurrences are renamed");
+    assert_eq!(
+        preview.files.len(),
+        1,
+        "AC-003: only the current file is in the fallback preview"
+    );
+    assert!(
+        preview.total_edits() >= 1,
+        "AC-003: the in-file occurrences are renamed"
+    );
 
     // Render the preview frame so the no-LSP banner node is emitted; assert it carries the exact text.
     harness.run();
     harness.run();
-    let banner = harness
-        .root()
-        .children_recursive()
-        .find(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_RENAME_NO_LSP_BANNER_AUTHOR_ID));
-    let banner = banner.expect("MC-004 / AC-003: the no-LSP banner node is present in the live tree");
+    let banner = harness.root().children_recursive().find(|n| {
+        n.accesskit_node().author_id() == Some(CODE_EDITOR_RENAME_NO_LSP_BANNER_AUTHOR_ID)
+    });
+    let banner =
+        banner.expect("MC-004 / AC-003: the no-LSP banner node is present in the live tree");
     let ak = banner.accesskit_node();
     assert_eq!(
         format!("{:?}", ak.role()),
@@ -129,7 +158,10 @@ fn rename_graceful_single_file_fallback_and_banner_present() {
         "AC-003: the in-file occurrences are renamed value -> total; got {after:?}"
     );
     // Rename returns to Idle after apply.
-    assert!(matches!(panel.rename_state(), RenameState::Idle), "AC-003: rename returns to Idle after apply");
+    assert!(
+        matches!(panel.rename_state(), RenameState::Idle),
+        "AC-003: rename returns to Idle after apply"
+    );
 
     println!(
         "PT-002 rename_graceful: no-LSP single-file rename applied ({} edits), banner present, no panic\n  after => {after:?}",
@@ -159,7 +191,11 @@ fn rename_atomic_disk_write_never_half_written() {
     // target must be the intact previous content — proving the rename (not an in-place write) is the
     // mutation point, so an interruption never leaves a half-written source file.
     let temp_sibling = dir.join(".victim.rs.interrupted.hsk-rename-tmp");
-    std::fs::write(&temp_sibling, "HALF WRITTEN GARBAGE WITHOUT A CLOSING BRACE").unwrap();
+    std::fs::write(
+        &temp_sibling,
+        "HALF WRITTEN GARBAGE WITHOUT A CLOSING BRACE",
+    )
+    .unwrap();
     assert_eq!(
         std::fs::read_to_string(&target).unwrap(),
         "fn frobnicate() {}\n",
@@ -169,7 +205,9 @@ fn rename_atomic_disk_write_never_half_written() {
     let _ = std::fs::remove_file(&temp_sibling);
     let _ = std::fs::remove_file(&target);
     let _ = std::fs::remove_dir(&dir);
-    println!("AC-008 rename_atomic_disk_write: full replace ok; interruption leaves the original intact");
+    println!(
+        "AC-008 rename_atomic_disk_write: full replace ok; interruption leaves the original intact"
+    );
 }
 
 // ── AC-009: the references API lacks precise ranges -> typed blocker, no backend edit ──────────────────

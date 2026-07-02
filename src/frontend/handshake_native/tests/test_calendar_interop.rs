@@ -48,11 +48,11 @@ use handshake_native::graph::daily_journal_panel::{
     DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID, DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
     DAILY_JOURNAL_PANEL_AUTHOR_ID,
 };
+use handshake_native::interop::calendar_interop::CMD_OPEN_DOCUMENT as CMD_ACTIVITY_OPEN_DOCUMENT;
 use handshake_native::interop::{
     ActivitySpan, CalendarEvent, CalendarInteropService, DocId, InteropError,
     CMD_FOCUS_CALENDAR_EVENT, CMD_OPEN_DAILY_NOTE_FOR_DATE,
 };
-use handshake_native::interop::calendar_interop::CMD_OPEN_DOCUMENT as CMD_ACTIVITY_OPEN_DOCUMENT;
 use handshake_native::rich_editor::daily_notes::date_nav::{DateNav, NEXT_DAY_ID, PREV_DAY_ID};
 use handshake_native::rich_editor::daily_notes::journal_store::{
     JournalBackend, JournalBlock, JournalDocLoad, JournalError, JournalFuture,
@@ -231,8 +231,14 @@ fn open_or_create_is_idempotent_and_delegates() {
     let svc = CalendarInteropService::with_base_url("http://unused", "WS-1", backend.clone());
     let date = d(2026, 6, 21);
     let (a, b) = rt().block_on(async {
-        let a = svc.open_or_create_daily_note(date).await.expect("first open");
-        let b = svc.open_or_create_daily_note(date).await.expect("second open");
+        let a = svc
+            .open_or_create_daily_note(date)
+            .await
+            .expect("first open");
+        let b = svc
+            .open_or_create_daily_note(date)
+            .await
+            .expect("second open");
         (a, b)
     });
     // AC-1: same date -> same DocId, zero duplicate documents (idempotent get-or-create).
@@ -275,8 +281,9 @@ const LIVE_BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
 fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     use handshake_native::rich_editor::daily_notes::journal_store::ReqwestJournalBackend;
 
-    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID")
-        .expect("set HSK_TEST_WORKSPACE_ID to a real workspace on the managed handshake_core/PG backend");
+    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID").expect(
+        "set HSK_TEST_WORKSPACE_ID to a real workspace on the managed handshake_core/PG backend",
+    );
 
     // The REAL MT-019 daily-note transport: the production ReqwestJournalBackend issuing the verified
     // PUT /workspaces/{ws}/loom/journals/{date} get-or-create against managed PostgreSQL/EventLedger.
@@ -286,10 +293,9 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
 
     // Call the SAME production open_or_create_daily_note twice for one date against the REAL route.
     let (a, b) = rt().block_on(async {
-        let a = svc
-            .open_or_create_daily_note(date)
-            .await
-            .expect("AC-1 LIVE: first open against the real PUT /loom/journals/:date route succeeds");
+        let a = svc.open_or_create_daily_note(date).await.expect(
+            "AC-1 LIVE: first open against the real PUT /loom/journals/:date route succeeds",
+        );
         let b = svc
             .open_or_create_daily_note(date)
             .await
@@ -304,7 +310,10 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         "AC-1 LIVE: open_or_create_daily_note twice for one date returns the SAME DocId from real PG \
          (single durable journal block per date — idempotent get-or-create, no duplicate)"
     );
-    assert_eq!(a.date, date, "AC-1 LIVE: the binding carries the requested date");
+    assert_eq!(
+        a.date, date,
+        "AC-1 LIVE: the binding carries the requested date"
+    );
     assert!(
         !a.doc_id.as_str().trim().is_empty(),
         "AC-1 LIVE: the real route returns a non-empty stable doc/block id for the date"
@@ -400,7 +409,10 @@ fn activity_strip_renders_read_only_chips_and_no_write() {
     use std::rc::Rc;
 
     let mut state = DailyJournalState::new(DateNav::new(d(2026, 6, 21), d(2026, 6, 21)));
-    state.set_event_with_spans(event("E-1", "Block"), vec![span("S-1", &["DOC-A", "DOC-B"])]);
+    state.set_event_with_spans(
+        event("E-1", "Block"),
+        vec![span("S-1", &["DOC-A", "DOC-B"])],
+    );
 
     let captured: Rc<RefCell<DailyJournalEvent>> = Rc::new(RefCell::new(DailyJournalEvent::None));
     let cap = captured.clone();
@@ -416,14 +428,22 @@ fn activity_strip_renders_read_only_chips_and_no_write() {
 
     // The read-only doc chips are addressable by their per-item author_id; clicking one emits navigation.
     let chip_a = activity_item_author_id(&DocId("DOC-A".to_owned()));
-    harness.get_by(|n| n.author_id() == Some(chip_a.as_str())).click();
+    harness
+        .get_by(|n| n.author_id() == Some(chip_a.as_str()))
+        .click();
     harness.run();
 
     match &*captured.borrow() {
         DailyJournalEvent::OpenDocument(doc_id) => {
-            assert_eq!(doc_id, &DocId("DOC-A".to_owned()), "AC-3: chip click navigates to the doc");
+            assert_eq!(
+                doc_id,
+                &DocId("DOC-A".to_owned()),
+                "AC-3: chip click navigates to the doc"
+            );
         }
-        other => panic!("AC-3: a read-only chip click must emit OpenDocument (navigation), got {other:?}"),
+        other => panic!(
+            "AC-3: a read-only chip click must emit OpenDocument (navigation), got {other:?}"
+        ),
     }
 
     // AC-3 / RISK-5/MC-5: the panel source has NO mutation path on ActivitySpan data — the only outcome a
@@ -431,13 +451,22 @@ fn activity_strip_renders_read_only_chips_and_no_write() {
     // grepping its source for write verbs against the activity data (no `.post(`/`.put(`/etc., no
     // `edited_doc_ids` mutation). The activity strip is render-only.
     let panel_src = include_str!("../src/graph/daily_journal_panel.rs");
-    for verb in [".post(", ".put(", ".delete(", ".patch(", "push_to_span", "write_span"] {
+    for verb in [
+        ".post(",
+        ".put(",
+        ".delete(",
+        ".patch(",
+        "push_to_span",
+        "write_span",
+    ] {
         assert!(
             !panel_src.contains(verb),
             "AC-3/RISK-5: the panel must have no ActivitySpan write path — found '{verb}'"
         );
     }
-    println!("AC-3 OK: read-only activity chips render, click navigates, zero write path on span data");
+    println!(
+        "AC-3 OK: read-only activity chips render, click navigates, zero write path on span data"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -450,15 +479,20 @@ fn activity_spans_404_is_typed_blocker_and_panel_stays_alive() {
     // a generic Http error). The events route is equally absent (this build), so the daily-note half is what
     // stays functional.
     let backend = Arc::new(CountingJournalBackend::new(Some("DOC-2026-06-21")));
-    let (base_url, server) =
-        spawn_mock("HTTP/1.1 404 Not Found", serde_json::json!({"error": "not found"}));
+    let (base_url, server) = spawn_mock(
+        "HTTP/1.1 404 Not Found",
+        serde_json::json!({"error": "not found"}),
+    );
     let svc = CalendarInteropService::with_base_url(base_url, "WS-1", backend.clone());
 
     let result = rt().block_on(async { svc.activity_spans_for_event("E-1").await });
     let req_line = server.join().unwrap();
 
     // The probe is a read-only GET at the documented route.
-    assert!(req_line.starts_with("GET "), "AC-4: activity-spans read must be a GET; got '{req_line}'");
+    assert!(
+        req_line.starts_with("GET "),
+        "AC-4: activity-spans read must be a GET; got '{req_line}'"
+    );
     assert!(
         req_line.contains("/workspaces/WS-1/calendar/activity-spans"),
         "AC-4: probes the documented activity-spans route; got '{req_line}'"
@@ -470,14 +504,18 @@ fn activity_spans_404_is_typed_blocker_and_panel_stays_alive() {
                 "AC-4: EndpointUnavailable names the probed path; got '{probed_path}'"
             );
         }
-        other => panic!("AC-4: a 404 must map to EndpointUnavailable (typed blocker), got {other:?}"),
+        other => {
+            panic!("AC-4: a 404 must map to EndpointUnavailable (typed blocker), got {other:?}")
+        }
     }
 
     // The daily-note binding STILL works (the panel never dies on the absent calendar routes): the MT-019
     // delegation still produces the single doc for the date.
     let binding = rt()
         .block_on(async { svc.open_or_create_daily_note(d(2026, 6, 21)).await })
-        .expect("AC-4: the daily-note binding stays functional alongside the typed calendar blocker");
+        .expect(
+            "AC-4: the daily-note binding stays functional alongside the typed calendar blocker",
+        );
     assert_eq!(binding.doc_id, DocId("DOC-2026-06-21".to_owned()));
 
     // The panel renders the typed empty-states (chip + strip) WITHOUT panicking; the date header stays.
@@ -510,7 +548,8 @@ fn events_404_is_typed_blocker() {
     for status in ["HTTP/1.1 404 Not Found", "HTTP/1.1 501 Not Implemented"] {
         let (base_url, server) = spawn_mock(status, serde_json::json!({"error": "absent"}));
         let svc = CalendarInteropService::with_base_url(base_url, "WS-1", backend.clone());
-        let result = rt().block_on(async { svc.resolve_event_for_daily_note(d(2026, 6, 21)).await });
+        let result =
+            rt().block_on(async { svc.resolve_event_for_daily_note(d(2026, 6, 21)).await });
         let _ = server.join();
         assert!(
             matches!(result, Err(InteropError::EndpointUnavailable { .. })),
@@ -592,7 +631,10 @@ fn daily_journal_panel_accesskit_nodes_present() {
         .build_ui(|ui| {
             let mut state = DailyJournalState::new(DateNav::new(d(2026, 6, 21), d(2026, 6, 21)));
             // Seed a resolved event + spans so the chip (Button) + the activity strip (List) both render.
-            state.set_event_with_spans(event("E-1", "Sprint planning"), vec![span("S-1", &["DOC-A"])]);
+            state.set_event_with_spans(
+                event("E-1", "Sprint planning"),
+                vec![span("S-1", &["DOC-A"])],
+            );
             let _ = DailyJournalPanel::show(ui, &mut state, &dark());
         });
     harness.run();
@@ -622,20 +664,38 @@ fn daily_journal_panel_accesskit_nodes_present() {
         "PT-5: 'daily-journal-activity-strip' must be Role::List"
     );
     // The reused MT-019 date nav buttons are present (the panel reuses the nav, no second date-picker).
-    assert!(role_of(&root, PREV_DAY_ID).is_some(), "AC-6: reused MT-019 journal-prev-day present");
-    assert!(role_of(&root, NEXT_DAY_ID).is_some(), "AC-6: reused MT-019 journal-next-day present");
+    assert!(
+        role_of(&root, PREV_DAY_ID).is_some(),
+        "AC-6: reused MT-019 journal-prev-day present"
+    );
+    assert!(
+        role_of(&root, NEXT_DAY_ID).is_some(),
+        "AC-6: reused MT-019 journal-next-day present"
+    );
 
     // Nesting: the date header, the chip, and the activity strip are under the panel container.
     assert!(
-        author_under(&root, DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID, DAILY_JOURNAL_PANEL_AUTHOR_ID),
+        author_under(
+            &root,
+            DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
+            DAILY_JOURNAL_PANEL_AUTHOR_ID
+        ),
         "AC-6: the date header nests under the panel container"
     );
     assert!(
-        author_under(&root, DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID, DAILY_JOURNAL_PANEL_AUTHOR_ID),
+        author_under(
+            &root,
+            DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+            DAILY_JOURNAL_PANEL_AUTHOR_ID
+        ),
         "AC-6: the calendar-event chip nests under the panel container"
     );
     assert!(
-        author_under(&root, DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID, DAILY_JOURNAL_PANEL_AUTHOR_ID),
+        author_under(
+            &root,
+            DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID,
+            DAILY_JOURNAL_PANEL_AUTHOR_ID
+        ),
         "AC-6: the activity strip nests under the panel container"
     );
 
@@ -660,7 +720,9 @@ fn daily_journal_panel_accesskit_nodes_present() {
             ext_path.display()
         );
     } else {
-        println!("PT-5 screenshot: GPU readback unavailable on this host (structural proof stands)");
+        println!(
+            "PT-5 screenshot: GPU readback unavailable on this host (structural proof stands)"
+        );
     }
 
     assert_no_local_artifact_dir();
@@ -674,15 +736,34 @@ fn daily_journal_panel_accesskit_nodes_present() {
 fn daily_note_command_ids_registered() {
     use handshake_native::command_registry::all_commands;
 
-    for id in [CMD_OPEN_DAILY_NOTE_FOR_DATE, CMD_FOCUS_CALENDAR_EVENT, CMD_ACTIVITY_OPEN_DOCUMENT] {
+    for id in [
+        CMD_OPEN_DAILY_NOTE_FOR_DATE,
+        CMD_FOCUS_CALENDAR_EVENT,
+        CMD_ACTIVITY_OPEN_DOCUMENT,
+    ] {
         let rows: Vec<_> = all_commands().iter().filter(|c| c.id == id).collect();
-        assert_eq!(rows.len(), 1, "AC-6: command id '{id}' must be present exactly once in the palette catalog");
-        assert!(!rows[0].disabled, "AC-6: command '{id}' is enabled (bus-driven)");
+        assert_eq!(
+            rows.len(),
+            1,
+            "AC-6: command id '{id}' must be present exactly once in the palette catalog"
+        );
+        assert!(
+            !rows[0].disabled,
+            "AC-6: command '{id}' is enabled (bus-driven)"
+        );
     }
-    assert_eq!(CMD_OPEN_DAILY_NOTE_FOR_DATE, "loom.daily-note.open-for-date");
-    assert_eq!(CMD_FOCUS_CALENDAR_EVENT, "loom.daily-note.focus-calendar-event");
+    assert_eq!(
+        CMD_OPEN_DAILY_NOTE_FOR_DATE,
+        "loom.daily-note.open-for-date"
+    );
+    assert_eq!(
+        CMD_FOCUS_CALENDAR_EVENT,
+        "loom.daily-note.focus-calendar-event"
+    );
     assert_eq!(CMD_ACTIVITY_OPEN_DOCUMENT, "loom.activity.open-document");
-    println!("AC-6 command surface OK: 3 daily-note/calendar bus command ids registered exactly once");
+    println!(
+        "AC-6 command surface OK: 3 daily-note/calendar bus command ids registered exactly once"
+    );
 }
 
 // ── small AccessKit tree helpers (the proven MT-066 helpers) ──────────────────────────────────────

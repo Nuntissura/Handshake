@@ -136,14 +136,20 @@ fn pt003_accesskit_entry_and_section_nodes_present_and_deduped() {
 
     let ids = author_ids(&harness);
     // Section containers present (AC-005).
-    assert!(ids.iter().any(|a| a == RESOLVED_SECTION_AUTHOR_ID), "resolved section node present ({ids:?})");
+    assert!(
+        ids.iter().any(|a| a == RESOLVED_SECTION_AUTHOR_ID),
+        "resolved section node present ({ids:?})"
+    );
     assert!(
         ids.iter().any(|a| a == UNRESOLVED_SECTION_AUTHOR_ID),
         "unresolved section node present ({ids:?})"
     );
     // The resolved entry is keyed on the live document id (the nav target).
     let resolved_id = resolved_author_id("DOC-existing");
-    assert!(ids.iter().any(|a| a == &resolved_id), "resolved entry node '{resolved_id}' present ({ids:?})");
+    assert!(
+        ids.iter().any(|a| a == &resolved_id),
+        "resolved entry node '{resolved_id}' present ({ids:?})"
+    );
     // The unresolved entry is keyed on the NORMALIZED dangling value.
     let unresolved_id = unresolved_author_id("DoesNotExist");
     assert!(
@@ -155,7 +161,11 @@ fn pt003_accesskit_entry_and_section_nodes_present_and_deduped() {
     sorted.sort();
     let before = sorted.len();
     sorted.dedup();
-    assert_eq!(before, sorted.len(), "no duplicate author_id in the AccessKit tree (ids={ids:?})");
+    assert_eq!(
+        before,
+        sorted.len(),
+        "no duplicate author_id in the AccessKit tree (ids={ids:?})"
+    );
     println!("PT-003/AC-005: section + entry nodes present, all author_ids unique");
 }
 
@@ -199,7 +209,11 @@ fn pt003_shared_target_yields_no_duplicate_author_id() {
     sorted.sort();
     let before = sorted.len();
     sorted.dedup();
-    assert_eq!(before, sorted.len(), "no duplicate author_id even with near-identical targets ({ids:?})");
+    assert_eq!(
+        before,
+        sorted.len(),
+        "no duplicate author_id even with near-identical targets ({ids:?})"
+    );
     println!("PT-003: near-identical resolved targets produce unique author_ids");
 }
 
@@ -243,7 +257,8 @@ fn pt002_resolved_click_fires_navtarget_block_ac004() {
     );
     // It must NOT fire an Unresolved nav for a resolved entry.
     assert!(
-        !evs.iter().any(|t| matches!(t, NavTarget::Unresolved { .. })),
+        !evs.iter()
+            .any(|t| matches!(t, NavTarget::Unresolved { .. })),
         "a resolved entry must route as a Block target, never Unresolved (got {evs:?})"
     );
     println!("PT-002/AC-004: resolved click -> NavTarget::block('DOC-existing')");
@@ -312,11 +327,15 @@ fn pt004_empty_document_renders_literal_no_outgoing_links_ac006() {
 
     // The literal 'No outgoing links' is present in the live tree (a label node).
     let found_empty = harness.query_by_label(EMPTY_TEXT).is_some();
-    assert!(found_empty, "AC-006: an empty document shows the literal '{EMPTY_TEXT}'");
+    assert!(
+        found_empty,
+        "AC-006: an empty document shows the literal '{EMPTY_TEXT}'"
+    );
     // RISK-006: NO spinner and NO section containers render on the empty path.
     let ids = author_ids(&harness);
     assert!(
-        !ids.iter().any(|a| a == RESOLVED_SECTION_AUTHOR_ID || a == UNRESOLVED_SECTION_AUTHOR_ID),
+        !ids.iter()
+            .any(|a| a == RESOLVED_SECTION_AUTHOR_ID || a == UNRESOLVED_SECTION_AUTHOR_ID),
         "the empty path renders no section containers (got {ids:?})"
     );
     println!("PT-004/AC-006: empty doc -> literal '{EMPTY_TEXT}', no spinner, no panic");
@@ -345,12 +364,19 @@ fn mc002_show_renders_cached_state_with_no_io() {
         harness.run();
     }
 
-    assert_eq!(panel.lock().unwrap().resolved, resolved_before, "show() did not mutate the resolved bucket");
     assert_eq!(
-        panel.lock().unwrap().unresolved, unresolved_before,
+        panel.lock().unwrap().resolved,
+        resolved_before,
+        "show() did not mutate the resolved bucket"
+    );
+    assert_eq!(
+        panel.lock().unwrap().unresolved,
+        unresolved_before,
         "show() did not mutate the unresolved bucket (renders cached state only — MC-002)"
     );
-    println!("MC-002/RISK-002: 20 render passes mutated nothing — show() renders cached state, no I/O");
+    println!(
+        "MC-002/RISK-002: 20 render passes mutated nothing — show() renders cached state, no I/O"
+    );
 }
 
 // ── HBR-VIS: external screenshot of the rendered pane (resolved + unresolved sections) ────────────────
@@ -379,7 +405,10 @@ fn hbr_vis_outgoing_links_screenshot() {
             let _ = std::fs::create_dir_all(&ext_dir);
             let png = ext_dir.join("MT-062-outgoing-links.png");
             let saved = image.save(&png).is_ok();
-            println!("HBR-VIS: {w}x{h} outgoing-links screenshot saved={saved} ({})", png.display());
+            println!(
+                "HBR-VIS: {w}x{h} outgoing-links screenshot saved={saved} ({})",
+                png.display()
+            );
         }
         Err(e) => {
             println!("BLOCKER(non-fatal): outgoing-links screenshot render unavailable (no wgpu adapter): {e}");

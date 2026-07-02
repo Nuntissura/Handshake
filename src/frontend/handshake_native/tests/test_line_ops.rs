@@ -21,10 +21,8 @@ use std::sync::Arc;
 use egui_kittest::Harness;
 
 use handshake_native::code_editor::keymap::CodeEditorAction;
-use handshake_native::code_editor::{
-    line_comment_token, Cursor, LineEditContext, TextBuffer,
-};
 use handshake_native::code_editor::panel::{CodeEditorPaneFactory, CodeEditorPanel};
+use handshake_native::code_editor::{line_comment_token, Cursor, LineEditContext, TextBuffer};
 
 // ── Artifact hygiene (CX-212E / AC-006): screenshots go to the EXTERNAL root ONLY ─────────────────────
 
@@ -84,8 +82,15 @@ fn multi_cursor_toggle_comment_is_one_undo() {
     let (description, before, after) = panel
         .take_pending_line_op_undo()
         .expect("AC-007: a line transform queues exactly one undo snapshot");
-    assert_eq!(before, original, "the snapshot's BEFORE is the exact pre-transform text");
-    assert_eq!(after, panel.buffer().to_string(), "the snapshot's AFTER is the post-transform text");
+    assert_eq!(
+        before, original,
+        "the snapshot's BEFORE is the exact pre-transform text"
+    );
+    assert_eq!(
+        after,
+        panel.buffer().to_string(),
+        "the snapshot's AFTER is the post-transform text"
+    );
     // A second drain yields nothing — there was exactly one entry.
     assert!(
         panel.take_pending_line_op_undo().is_none(),
@@ -116,7 +121,11 @@ fn multi_cursor_toggle_comment_is_one_undo() {
         original,
         "PT-003 / AC-007: a SINGLE undo reverts the multi-cursor ToggleComment to the exact original"
     );
-    assert_eq!(bus.local_undo_count(&pane_id), 0, "the single entry was consumed");
+    assert_eq!(
+        bus.local_undo_count(&pane_id),
+        0,
+        "the single entry was consumed"
+    );
     println!(
         "PT-003 multi_cursor_toggle_comment_is_one_undo: 1 undo entry ('{description}'), single undo \
          reverts all 3 lines exactly"
@@ -146,7 +155,10 @@ fn all_eight_line_edit_actions_mutate_the_buffer() {
         let before = panel.buffer().to_string();
         panel.dispatch_action(*action);
         let after = panel.buffer().to_string();
-        assert_ne!(after, before, "{action:?} must change the document (not a dead key)");
+        assert_ne!(
+            after, before,
+            "{action:?} must change the document (not a dead key)"
+        );
         assert!(
             after.contains(expect),
             "{action:?}: expected the result to contain {expect:?}, got {after:?}"
@@ -160,7 +172,10 @@ fn all_eight_line_edit_actions_mutate_the_buffer() {
     panel.dispatch_action(CodeEditorAction::DedentLine);
     let after = panel.buffer().to_string();
     assert_ne!(after, before, "DedentLine must change an indented line");
-    assert_eq!(after, "    deep", "DedentLine removed one 4-space indent unit");
+    assert_eq!(
+        after, "    deep",
+        "DedentLine removed one 4-space indent unit"
+    );
 
     println!("all_eight_line_edit_actions_mutate_the_buffer: 8/8 actions live (no dead keys)");
 }
@@ -175,14 +190,22 @@ fn insert_tab_respects_operator_indent_settings() {
     assert_eq!(panel.indent_settings(), (2, true));
     panel.set_single_cursor(0);
     panel.dispatch_action(CodeEditorAction::InsertTab);
-    assert_eq!(panel.buffer().to_string(), "  z", "InsertTab inserted tab_size=2 spaces");
+    assert_eq!(
+        panel.buffer().to_string(),
+        "  z",
+        "InsertTab inserted tab_size=2 spaces"
+    );
 
     // Tab character mode.
     let panel = CodeEditorPanel::new("z", "rs");
     panel.set_indent_settings(4, false);
     panel.set_single_cursor(0);
     panel.dispatch_action(CodeEditorAction::IndentLine);
-    assert_eq!(panel.buffer().to_string(), "\tz", "IndentLine inserted a tab char (insert_spaces=false)");
+    assert_eq!(
+        panel.buffer().to_string(),
+        "\tz",
+        "IndentLine inserted a tab char (insert_spaces=false)"
+    );
 }
 
 // ── RISK-007 / MC-007: the comment token follows the file's highlight language ────────────────────────
@@ -197,7 +220,11 @@ fn comment_token_follows_file_language() {
     for (ext, family) in [("rs", "rust"), ("js", "javascript")] {
         let panel = CodeEditorPanel::new("f()", ext);
         // The panel carries the SAME family id the token table is keyed on (no second enum, RISK-007).
-        assert_eq!(panel.language_id(), family, "{ext} panel carries family id {family}");
+        assert_eq!(
+            panel.language_id(),
+            family,
+            "{ext} panel carries family id {family}"
+        );
         panel.set_single_cursor(0);
         panel.dispatch_action(CodeEditorAction::ToggleComment);
         assert!(
@@ -214,7 +241,16 @@ fn comment_token_follows_file_language() {
     // panel can carry their id) intentionally return None — a safe ToggleComment no-op (AC-008) — until the
     // registry bundles their grammar (future work). Asserting None keeps the table free of dead Some(_)
     // arms that could only ever be tested against themselves.
-    for unmapped in ["python", "sql", "lua", "typescript", "go", "c", "plaintext", ""] {
+    for unmapped in [
+        "python",
+        "sql",
+        "lua",
+        "typescript",
+        "go",
+        "c",
+        "plaintext",
+        "",
+    ] {
         assert_eq!(
             line_comment_token(unmapped),
             None,
@@ -230,7 +266,8 @@ fn no_unimplemented_markers_on_handler_paths() {
     // Scan the two source files that carry the eight action handlers: the dispatch site (panel.rs) and the
     // transform library (line_ops.rs). Neither may contain a `todo!`/`unimplemented!` macro invocation —
     // the handlers are REAL (AC-010 / PT-004). The crate root is the CWD for cargo test.
-    let line_ops = std::fs::read_to_string("src/code_editor/line_ops.rs").expect("read line_ops.rs");
+    let line_ops =
+        std::fs::read_to_string("src/code_editor/line_ops.rs").expect("read line_ops.rs");
     // line_ops.rs is the transform library: it must contain ZERO of these markers anywhere.
     for marker in ["todo!", "unimplemented!"] {
         assert!(
@@ -287,7 +324,10 @@ fn line_ops_panel_renders_and_screenshots_externally() {
     let panel = CodeEditorPanel::new("fn main() {\n    let x = 1;\n}", "rs");
     panel.set_single_cursor(0);
     panel.dispatch_action(CodeEditorAction::ToggleComment);
-    assert!(panel.buffer().to_string().starts_with("// "), "the transform applied before render");
+    assert!(
+        panel.buffer().to_string().starts_with("// "),
+        "the transform applied before render"
+    );
 
     let factory = CodeEditorPaneFactory::new(panel);
     let panel_arc = factory.panel();

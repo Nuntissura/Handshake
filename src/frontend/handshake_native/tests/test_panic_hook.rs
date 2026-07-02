@@ -108,7 +108,10 @@ fn caught_panic_writes_durable_record_signals_ring_and_chains() {
                 // sidecar and kept OUT of the primary record.
                 panic!("MT-083 deliberate test panic SENTINEL_PAYLOAD_should_not_be_in_json");
             });
-            assert!(result.is_err(), "the worker panic was caught (process survives)");
+            assert!(
+                result.is_err(),
+                "the worker panic was caught (process survives)"
+            );
         })
         .expect("spawn the panic worker thread");
     worker.join().expect("join the panic worker thread");
@@ -253,6 +256,9 @@ fn crash_dir_resolves_portably_via_dirs() {
         // It must be an absolute, per-user resolved path — but NOT one we hardcoded. (The source scan
         // PT-003-D / the grep in the handoff is the authoritative no-hardcoded-path proof; this asserts
         // the runtime resolution is non-empty and rooted, complementing it.)
-        assert!(dir.is_absolute(), "the resolved crash dir is an absolute per-user path");
+        assert!(
+            dir.is_absolute(),
+            "the resolved crash dir is an absolute per-user path"
+        );
     }
 }

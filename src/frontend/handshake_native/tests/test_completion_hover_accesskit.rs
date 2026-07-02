@@ -89,7 +89,10 @@ fn ac005_completion_popup_emits_listbox_and_item_nodes() {
     panel.open_completion(synthetic_completions());
     harness.run();
     harness.run(); // settle so the popup's AccessKit nodes are emitted.
-    assert!(panel.is_completion_open(), "AC-005: completion popup is open");
+    assert!(
+        panel.is_completion_open(),
+        "AC-005: completion popup is open"
+    );
 
     // The live tree must contain the ListBox container node.
     let root = harness.root();
@@ -111,11 +114,17 @@ fn ac005_completion_popup_emits_listbox_and_item_nodes() {
     let has_item_0 = root
         .children_recursive()
         .any(|n| n.accesskit_node().author_id() == Some("code_editor_completion_item_0"));
-    assert!(has_item_0, "AC-005: at least one completion item node (code_editor_completion_item_0)");
+    assert!(
+        has_item_0,
+        "AC-005: at least one completion item node (code_editor_completion_item_0)"
+    );
     let has_item_1 = root
         .children_recursive()
         .any(|n| n.accesskit_node().author_id() == Some("code_editor_completion_item_1"));
-    assert!(has_item_1, "AC-005: the second completion item is also addressable");
+    assert!(
+        has_item_1,
+        "AC-005: the second completion item is also addressable"
+    );
 
     println!(
         "PT-005 completion popup: {{\"{CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID}\":\"{:?}\", \
@@ -131,7 +140,10 @@ fn ac005_completion_popup_emits_listbox_and_item_nodes() {
         .root()
         .children_recursive()
         .any(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID));
-    assert!(!still_present, "AC-005: the popup node is removed after closing");
+    assert!(
+        !still_present,
+        "AC-005: the popup node is removed after closing"
+    );
 }
 
 /// AC-005 follow-up: keyboard selection moves through the list (the command-palette semantics) and
@@ -154,10 +166,19 @@ fn ac005_completion_keyboard_select_and_accept_inserts() {
     panel.completion_select_next();
     assert_eq!(panel.completion_state().unwrap().selected_index, 1);
     // Accept the selected item -> 'adder' inserted into the (empty) buffer, popup closed.
-    assert!(panel.accept_completion(), "AC-005: accept inserts the selected item");
-    assert!(!panel.is_completion_open(), "AC-005: accept closes the popup");
+    assert!(
+        panel.accept_completion(),
+        "AC-005: accept inserts the selected item"
+    );
+    assert!(
+        !panel.is_completion_open(),
+        "AC-005: accept closes the popup"
+    );
     let text = panel.buffer().to_string();
-    assert!(text.contains("adder"), "AC-005: the accepted item text was inserted; got {text:?}");
+    assert!(
+        text.contains("adder"),
+        "AC-005: the accepted item text was inserted; got {text:?}"
+    );
     println!("PT-005 keyboard: ArrowDown->'adder', Enter inserted it (buffer now {text:?})");
 }
 
@@ -178,8 +199,9 @@ fn ac006_hover_tooltip_contains_identifier() {
     // Open the hover for the identifier 'add' (the markdown is the code-nav `markdown_for_symbol`
     // output — the same data a live lookup delivers).
     panel.open_hover(HoverState {
-        markdown: "**add**\nKind: `function`\nSymbol: `rust:src/lib.rs#add`\nStaleness: `fresh (fresh)`"
-            .into(),
+        markdown:
+            "**add**\nKind: `function`\nSymbol: `rust:src/lib.rs#add`\nStaleness: `fresh (fresh)`"
+                .into(),
         display_name: "add".into(),
         anchor: egui::pos2(120.0, 60.0),
         definition_line: Some(0),
@@ -244,7 +266,10 @@ fn ac007_staleness_check_pushes_gutter_diagnostic_marker() {
             panel_ui.show(ui);
         });
     harness.run();
-    assert!(panel.diagnostic_markers().is_empty(), "no markers before the staleness check");
+    assert!(
+        panel.diagnostic_markers().is_empty(),
+        "no markers before the staleness check"
+    );
 
     let version_before = panel.buffer_version_for_test();
 
@@ -254,7 +279,11 @@ fn ac007_staleness_check_pushes_gutter_diagnostic_marker() {
         display_name: "add".into(),
         symbol_kind: "function".into(),
         symbol_key: "rust:src/lib.rs#add".into(),
-        definition: Some(CodeSymbolDefinition { line_start: Some(1), line_end: Some(1), ..Default::default() }),
+        definition: Some(CodeSymbolDefinition {
+            line_start: Some(1),
+            line_end: Some(1),
+            ..Default::default()
+        }),
         staleness: Some(CodeStaleness {
             state: Some("marked_stale".into()),
             fresh: false,
@@ -264,7 +293,11 @@ fn ac007_staleness_check_pushes_gutter_diagnostic_marker() {
     };
     let pushed = panel.push_staleness_markers(&[stale_symbol]);
     assert_eq!(pushed, 1, "AC-007: one staleness Warning marker pushed");
-    assert_eq!(panel.diagnostic_markers().len(), 1, "AC-007: the gutter now has one diagnostic marker");
+    assert_eq!(
+        panel.diagnostic_markers().len(),
+        1,
+        "AC-007: the gutter now has one diagnostic marker"
+    );
     // AC-007 / MT-007 perf invariant: pushing diagnostics does NOT bump buffer_version (no re-parse).
     assert_eq!(
         panel.buffer_version_for_test(),
@@ -280,7 +313,10 @@ fn ac007_staleness_check_pushes_gutter_diagnostic_marker() {
         .root()
         .children_recursive()
         .any(|n| n.accesskit_node().author_id() == Some("code_editor_diagnostic_0"));
-    assert!(has_diag_node, "AC-007: the line-0 diagnostic node is AccessKit-addressable");
+    assert!(
+        has_diag_node,
+        "AC-007: the line-0 diagnostic node is AccessKit-addressable"
+    );
 
     // Screenshot proof: the gutter renders a yellow/orange Warning dot + left bar. Save to the external
     // artifact root. A yellow-dominant pixel signature in the gutter strip confirms the dot rendered.
@@ -363,10 +399,18 @@ fn mustfix_completion_popup_keyboard_through_input_handler() {
     panel.open_completion(synthetic_completions());
     harness.run();
     assert!(panel.is_completion_open(), "popup is open");
-    assert_eq!(panel.completion_state().unwrap().selected_index, 0, "selection starts at 0 ('add')");
+    assert_eq!(
+        panel.completion_state().unwrap().selected_index,
+        0,
+        "selection starts at 0 ('add')"
+    );
 
     // ArrowDown THROUGH the input handler -> selection advances to 1 ('adder').
-    press_key(&mut harness, egui::Key::ArrowDown, egui::Modifiers::default());
+    press_key(
+        &mut harness,
+        egui::Key::ArrowDown,
+        egui::Modifiers::default(),
+    );
     harness.run();
     assert_eq!(
         panel.completion_state().unwrap().selected_index,
@@ -384,11 +428,18 @@ fn mustfix_completion_popup_keyboard_through_input_handler() {
     );
 
     // ArrowDown then Enter THROUGH the input handler -> 'adder' inserted, popup closed.
-    press_key(&mut harness, egui::Key::ArrowDown, egui::Modifiers::default());
+    press_key(
+        &mut harness,
+        egui::Key::ArrowDown,
+        egui::Modifiers::default(),
+    );
     harness.run();
     press_key(&mut harness, egui::Key::Enter, egui::Modifiers::default());
     harness.run();
-    assert!(!panel.is_completion_open(), "must-fix: Enter through the input handler closed the popup");
+    assert!(
+        !panel.is_completion_open(),
+        "must-fix: Enter through the input handler closed the popup"
+    );
     let text = panel.buffer().to_string();
     assert!(
         text.contains("adder"),
@@ -440,13 +491,25 @@ fn mustfix_ctrl_space_arms_and_pump_fires_trigger() {
     harness.run();
 
     // Place the caret inside the identifier "total" so the trigger has a >=2-char prefix word.
-    let offset = panel.buffer().to_string().find("total").expect("identifier present") + 3;
+    let offset = panel
+        .buffer()
+        .to_string()
+        .find("total")
+        .expect("identifier present")
+        + 3;
     panel.set_single_cursor(offset);
     // The debounce clock must have elapsed for the trigger to fire — leave last_edit at None (which the
     // panel treats as "elapsed") by NOT marking an edit just before; the pump fires on the armed frame.
 
     // Ctrl+Space THROUGH the input handler arms the request; the same frame's pump consumes it.
-    press_key(&mut harness, egui::Key::Space, egui::Modifiers { ctrl: true, ..Default::default() });
+    press_key(
+        &mut harness,
+        egui::Key::Space,
+        egui::Modifiers {
+            ctrl: true,
+            ..Default::default()
+        },
+    );
     harness.run();
     // The arm flag was consumed by the pump (it does not linger to fire on a later, unrelated frame).
     assert!(
@@ -485,7 +548,12 @@ fn mustfix_hover_dwell_pump_fires_trigger() {
     panel.set_workspace_id("ws-test");
 
     // Park the caret inside the identifier 'add' so the dwell target is a real word.
-    let offset = panel.buffer().to_string().find("add").expect("identifier present") + 1;
+    let offset = panel
+        .buffer()
+        .to_string()
+        .find("add")
+        .expect("identifier present")
+        + 1;
     panel.set_single_cursor(offset);
 
     let panel_ui = Arc::clone(&panel);

@@ -189,7 +189,10 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        std::env::temp_dir().join(format!("hsk-mt090-unit-{label}-{}-{nanos}.ring", std::process::id()))
+        std::env::temp_dir().join(format!(
+            "hsk-mt090-unit-{label}-{}-{nanos}.ring",
+            std::process::id()
+        ))
     }
 
     struct PathGuard(PathBuf);
@@ -253,7 +256,10 @@ mod tests {
 
         let reader = result.expect("open_with_retry must succeed once the ring appears");
         assert_eq!(reader.read_heartbeat().unwrap().counter, 42);
-        assert!(attempt.get() >= create_on_attempt, "it retried until the ring appeared");
+        assert!(
+            attempt.get() >= create_on_attempt,
+            "it retried until the ring appeared"
+        );
     }
 
     #[test]
@@ -276,7 +282,10 @@ mod tests {
             },
         );
 
-        assert!(result.is_err(), "a never-created ring must time out, not succeed");
+        assert!(
+            result.is_err(),
+            "a never-created ring must time out, not succeed"
+        );
         // Bounded: with a 200ms deadline and 50ms backoff it does ~4 sleeps then stops — NOT unbounded.
         assert!(
             sleeps.get() <= 5,

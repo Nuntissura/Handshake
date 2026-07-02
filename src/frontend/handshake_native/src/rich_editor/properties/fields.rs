@@ -8,7 +8,9 @@
 
 use egui::accesskit;
 
-use crate::rich_editor::properties::metadata_client::{ClipboardSink, PropertiesRuntime, SaveState};
+use crate::rich_editor::properties::metadata_client::{
+    ClipboardSink, PropertiesRuntime, SaveState,
+};
 use crate::rich_editor::properties::{
     format_iso_local, PropertiesState, DOC_ID_FIELD_AUTHOR_ID, TITLE_FIELD_AUTHOR_ID,
 };
@@ -21,7 +23,10 @@ fn emit_node_author(ctx: &egui::Context, id: egui::Id, role: accesskit::Role, au
     let role_for_closure = role;
     let author = author_id.to_owned();
     ctx.accesskit_node_builder(id, move |node| {
-        if !matches!(role_for_closure, accesskit::Role::Button | accesskit::Role::TextInput) {
+        if !matches!(
+            role_for_closure,
+            accesskit::Role::Button | accesskit::Role::TextInput
+        ) {
             node.set_role(role_for_closure);
         }
         node.set_author_id(author);
@@ -46,14 +51,22 @@ pub fn title_field(
 
     // The widget needs a `&mut String`; take the buffer out, edit it, then put it back. This keeps the
     // buffer owned by `PropertiesState` across frames (so partial edits survive a re-render).
-    let mut buf = state.title_edit.take().unwrap_or_else(|| state.doc_metadata.title.clone());
+    let mut buf = state
+        .title_edit
+        .take()
+        .unwrap_or_else(|| state.doc_metadata.title.clone());
     let resp = ui.add(
         egui::TextEdit::singleline(&mut buf)
             .desired_width(220.0)
             .hint_text("Document title"),
     );
     state.title_edit = Some(buf);
-    emit_node_author(ui.ctx(), resp.id, accesskit::Role::TextInput, TITLE_FIELD_AUTHOR_ID);
+    emit_node_author(
+        ui.ctx(),
+        resp.id,
+        accesskit::Role::TextInput,
+        TITLE_FIELD_AUTHOR_ID,
+    );
 
     // Commit on focus-loss, which egui reports for BOTH an Enter submit (single-line TextEdit surrenders
     // focus on Enter) and a plain click-away. The contract is "autosaves on blur or Enter", and both
@@ -61,7 +74,10 @@ pub fn title_field(
     // commit via `PropertiesState::commit_title_edit` to avoid depending on egui's focus internals.)
     if resp.lost_focus() && state.commit_title_edit() && state.pending_save {
         // Dispatch the rename for the committed (optimistically-applied) title.
-        runtime.dispatch_rename(&state.doc_metadata.rich_document_id, &state.doc_metadata.title);
+        runtime.dispatch_rename(
+            &state.doc_metadata.rich_document_id,
+            &state.doc_metadata.title,
+        );
         state.pending_save = false; // the dispatch consumed the one-shot request.
         dispatched = true;
     }
@@ -73,7 +89,10 @@ pub fn title_field(
             ui.colored_label(palette.text_subtle, "Saving…");
         }
         SaveState::Failed(e) => {
-            ui.colored_label(palette.error_text, format!("Save failed ({}): {e}", e.kind_str()));
+            ui.colored_label(
+                palette.error_text,
+                format!("Save failed ({}): {e}", e.kind_str()),
+            );
         }
         SaveState::Idle | SaveState::Saved => {}
     }
@@ -91,12 +110,18 @@ pub fn doc_id_field(
     palette: &HsPalette,
 ) {
     let id = state.doc_metadata.rich_document_id.clone();
-    let resp = ui.add(
-        egui::Label::new(egui::RichText::new(&id).monospace().color(palette.text))
-            .sense(egui::Sense::click()),
-    )
-    .on_hover_text("Click to copy");
-    emit_node_author(ui.ctx(), resp.id, accesskit::Role::Label, DOC_ID_FIELD_AUTHOR_ID);
+    let resp = ui
+        .add(
+            egui::Label::new(egui::RichText::new(&id).monospace().color(palette.text))
+                .sense(egui::Sense::click()),
+        )
+        .on_hover_text("Click to copy");
+    emit_node_author(
+        ui.ctx(),
+        resp.id,
+        accesskit::Role::Label,
+        DOC_ID_FIELD_AUTHOR_ID,
+    );
     if resp.clicked() {
         clipboard.copy(&id);
     }
@@ -176,7 +201,10 @@ mod tests {
         let promoted = "promoted".eq_ignore_ascii_case("promoted");
         let draft = "draft".eq_ignore_ascii_case("promoted");
         assert!(promoted, "promoted matches the success branch");
-        assert!(!draft, "draft takes the muted branch -> a different fill/text than promoted");
+        assert!(
+            !draft,
+            "draft takes the muted branch -> a different fill/text than promoted"
+        );
     }
 
     fn _meta() -> DocMetadata {

@@ -85,7 +85,9 @@ pub struct EditorSurfaceRegistry {
 impl EditorSurfaceRegistry {
     /// A fresh empty registry (the production state until a future surface registers).
     pub fn new() -> Self {
-        Self { surfaces: HashMap::new() }
+        Self {
+            surfaces: HashMap::new(),
+        }
     }
 
     /// Register a future surface (called once at startup by that surface's bootstrap). Keyed by
@@ -167,10 +169,16 @@ mod tests {
             *self.selection_changes.lock().unwrap() += 1;
         }
         fn on_event_emitted(&self, event: &NativeEditorEvent, _emitter: &NativeEditorEventEmitter) {
-            self.events_observed.lock().unwrap().push(event.action.as_str().to_owned());
+            self.events_observed
+                .lock()
+                .unwrap()
+                .push(event.action.as_str().to_owned());
         }
         fn undo_local(&self) -> Option<UndoResult> {
-            Some(UndoResult { ok: true, description: "mock undo".to_owned() })
+            Some(UndoResult {
+                ok: true,
+                description: "mock undo".to_owned(),
+            })
         }
         fn redo_local(&self) -> Option<UndoResult> {
             None
@@ -206,12 +214,17 @@ mod tests {
 
         let emitter = NativeEditorEventEmitter::new(
             "WS-1",
-            Arc::new(crate::event_emitter::RuntimeChatLedgerTransport::new("http://test")),
+            Arc::new(crate::event_emitter::RuntimeChatLedgerTransport::new(
+                "http://test",
+            )),
             None,
         );
         let event = NativeEditorEvent::undo_fired(UndoScope::Local, "pane-rich", "act", "WS-1");
         reg.dispatch_event_emitted(&event, &emitter);
-        assert_eq!(events_observed.lock().unwrap().as_slice(), &["undo_fired".to_owned()]);
+        assert_eq!(
+            events_observed.lock().unwrap().as_slice(),
+            &["undo_fired".to_owned()]
+        );
     }
 
     #[test]

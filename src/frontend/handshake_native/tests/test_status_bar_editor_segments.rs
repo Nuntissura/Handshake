@@ -125,7 +125,10 @@ fn five_segments_render_with_stable_button_author_ids() {
         .iter()
         .filter(|(a, _, _)| a.starts_with("status-bar-"))
         .count();
-    assert_eq!(seg_count, 5, "exactly five editor segments in the live tree: {nodes:?}");
+    assert_eq!(
+        seg_count, 5,
+        "exactly five editor segments in the live tree: {nodes:?}"
+    );
     assert_no_local_artifact_dir();
 }
 
@@ -142,7 +145,10 @@ fn segments_hide_when_no_code_document_active() {
         .iter()
         .filter(|(a, _, _)| a.starts_with("status-bar-"))
         .count();
-    assert_eq!(hidden_count, 0, "no editor segments when no code document active: {hidden_nodes:?}");
+    assert_eq!(
+        hidden_count, 0,
+        "no editor segments when no code document active: {hidden_nodes:?}"
+    );
 
     // Some state -> the five segments re-appear with their metadata.
     let mut shown = segments_harness(Some(state_from_rust_snippet()), captured);
@@ -151,7 +157,10 @@ fn segments_hide_when_no_code_document_active() {
         .iter()
         .filter(|(a, _, _)| a.starts_with("status-bar-"))
         .count();
-    assert_eq!(shown_count, 5, "five editor segments when a code document is focused");
+    assert_eq!(
+        shown_count, 5,
+        "five editor segments when a code document is focused"
+    );
 }
 
 // ── AC-004 (right-click menu) / AC-008: the WP-011 segment context menu opens with contract items ─────
@@ -243,7 +252,9 @@ fn language_segment_picker_opens_with_listitems_and_dispatches() {
     let action = captured.lock().unwrap().clone();
     assert_eq!(
         action,
-        Some(EditorSegmentAction::SetLanguage(LanguageId::new("javascript"))),
+        Some(EditorSegmentAction::SetLanguage(LanguageId::new(
+            "javascript"
+        ))),
         "selecting JavaScript emits SetLanguage(javascript)",
     );
 }
@@ -256,7 +267,11 @@ fn language_override_sticks_per_document_across_rerender() {
     let panel = CodeEditorPanel::new("#!/usr/bin/env python\nprint(1)\n", "rs");
     panel.set_file_path("script.rs");
     let auto = panel.resolved_language();
-    assert_eq!(auto.source, DetectionSource::Shebang, "shebang beats the .rs extension");
+    assert_eq!(
+        auto.source,
+        DetectionSource::Shebang,
+        "shebang beats the .rs extension"
+    );
     assert_eq!(auto.detected.as_str(), "python");
 
     // A user override to javascript beats the shebang and the extension, and STICKS across a re-resolve
@@ -267,7 +282,11 @@ fn language_override_sticks_per_document_across_rerender() {
     assert_eq!(overridden.detected.as_str(), "javascript");
     // Re-resolve again (simulating re-render / re-focus): the override is still there.
     let again = panel.resolved_language();
-    assert_eq!(again.source, DetectionSource::UserOverride, "override persists across re-resolve");
+    assert_eq!(
+        again.source,
+        DetectionSource::UserOverride,
+        "override persists across re-resolve"
+    );
     assert_eq!(again.detected.as_str(), "javascript");
 
     // Clearing the override falls back to the shebang again.
@@ -288,23 +307,38 @@ fn eol_convert_is_one_undo_step() {
     assert!(changed, "conversion changed the buffer");
     assert_eq!(panel.eol(), Eol::Crlf);
     let crlf_text = panel.buffer().to_string();
-    assert_eq!(crlf_text, "line1\r\nline2\r\nline3\r\n", "every ending became CRLF");
+    assert_eq!(
+        crlf_text, "line1\r\nline2\r\nline3\r\n",
+        "every ending became CRLF"
+    );
     assert!(!crlf_text.contains("\n\r"), "no malformed endings");
 
     // The conversion queued EXACTLY ONE unified-undo snapshot (description, before, after) — the SAME
     // single-undo bus boundary every code edit records at (the factory render drains this into ONE undo
     // entry, so a single Ctrl+Z reverts the WHOLE conversion — RISK-002/MC-002, no per-line edits).
-    let pending = panel.take_pending_line_op_undo().expect("EOL convert queued one undo snapshot");
+    let pending = panel
+        .take_pending_line_op_undo()
+        .expect("EOL convert queued one undo snapshot");
     assert_eq!(pending.0, "Convert Line Endings");
-    assert_eq!(pending.1, original, "undo restores the original byte-for-byte");
+    assert_eq!(
+        pending.1, original,
+        "undo restores the original byte-for-byte"
+    );
     assert_eq!(pending.2, crlf_text, "redo re-applies the converted text");
     // Applying the snapshot's `before` (what the single Ctrl+Z does) returns the original exactly.
     panel.set_text(&pending.1);
-    assert_eq!(panel.buffer().to_string(), original, "single undo returns the original exactly");
+    assert_eq!(
+        panel.buffer().to_string(),
+        original,
+        "single undo returns the original exactly"
+    );
 
     // Idempotent: converting to the already-active EOL is a no-op.
     let panel_lf = CodeEditorPanel::new(original, "rs");
-    assert!(!panel_lf.convert_eol(Eol::Lf), "converting to the same EOL is a no-op");
+    assert!(
+        !panel_lf.convert_eol(Eol::Lf),
+        "converting to the same EOL is a no-op"
+    );
 }
 
 // ── AC-003: indent detection + Tab-key behavior override (live doc model) ─────────────────────────────
@@ -313,18 +347,33 @@ fn eol_convert_is_one_undo_step() {
 fn indent_detection_and_tab_key_override() {
     // A tab-indented file detects Tabs.
     let tabs = CodeEditorPanel::new("fn f() {\n\tlet x = 1;\n}\n", "rs");
-    assert_eq!(tabs.indent_style().kind, IndentKind::Tabs, "tab-indented -> Tabs");
+    assert_eq!(
+        tabs.indent_style().kind,
+        IndentKind::Tabs,
+        "tab-indented -> Tabs"
+    );
 
     // A 4-space file detects Spaces size 4, and that drives the REUSED MT-051 Tab-key indent settings.
     let spaces = CodeEditorPanel::new("def f():\n    x = 1\n    return x\n", "py");
     let style = spaces.indent_style();
     assert_eq!(style.kind, IndentKind::Spaces);
     assert_eq!(style.size, 4);
-    assert_eq!(spaces.indent_settings(), (4, true), "Tab key inserts 4 spaces");
+    assert_eq!(
+        spaces.indent_settings(),
+        (4, true),
+        "Tab key inserts 4 spaces"
+    );
 
     // A set_indent override to Tabs flips the Tab-key behavior to a literal tab (AC-003).
-    spaces.set_indent_style(IndentStyle { kind: IndentKind::Tabs, size: 4 });
-    assert_eq!(spaces.indent_settings(), (4, false), "override flips Tab key to a literal tab");
+    spaces.set_indent_style(IndentStyle {
+        kind: IndentKind::Tabs,
+        size: 4,
+    });
+    assert_eq!(
+        spaces.indent_settings(),
+        (4, false),
+        "override flips Tab key to a literal tab"
+    );
     assert_eq!(spaces.indent_style().kind, IndentKind::Tabs);
 }
 
@@ -335,7 +384,10 @@ fn encoding_reopen_is_in_process_and_typed() {
     // An in-memory buffer (no file path) -> a TYPED error, never a silent no-op or a backend call.
     let panel = CodeEditorPanel::new("hello\n", "txt");
     let err = panel.reopen_with_encoding(Encoding::Utf16Le);
-    assert!(err.is_err(), "in-memory reopen returns a typed error (no file)");
+    assert!(
+        err.is_err(),
+        "in-memory reopen returns a typed error (no file)"
+    );
 
     // Default encoding is UTF-8; set_encoding records the load encoding the MT-010 path decoded under.
     assert_eq!(panel.encoding(), Encoding::Utf8);
@@ -477,10 +529,15 @@ fn live_shell_status_bar_shows_five_segments_when_code_pane_focused() {
     );
     // The segments carry the contract author_ids (role=Button) in the live tree.
     for segment in EditorSegment::ALL {
-        let found = harness.root().children_recursive().any(|node| {
-            node.accesskit_node().author_id() == Some(segment.author_id())
-        });
-        assert!(found, "{} present in the LIVE app status bar", segment.author_id());
+        let found = harness
+            .root()
+            .children_recursive()
+            .any(|node| node.accesskit_node().author_id() == Some(segment.author_id()));
+        assert!(
+            found,
+            "{} present in the LIVE app status bar",
+            segment.author_id()
+        );
     }
 }
 
@@ -496,7 +553,11 @@ fn live_shell_status_bar_hides_segments_when_non_code_pane_focused() {
 
     // Code pane focused -> five segments.
     focus_pane(&mut harness, "pane-a");
-    assert_eq!(live_segment_count(&harness), 5, "five segments with the code pane focused");
+    assert_eq!(
+        live_segment_count(&harness),
+        5,
+        "five segments with the code pane focused"
+    );
 
     // Non-code pane focused -> hidden.
     focus_pane(&mut harness, "pane-b");
@@ -508,7 +569,11 @@ fn live_shell_status_bar_hides_segments_when_non_code_pane_focused() {
 
     // Re-focus the code pane -> they re-appear with metadata.
     focus_pane(&mut harness, "pane-a");
-    assert_eq!(live_segment_count(&harness), 5, "segments re-appear when the code pane regains focus");
+    assert_eq!(
+        live_segment_count(&harness),
+        5,
+        "segments re-appear when the code pane regains focus"
+    );
 }
 
 #[test]
@@ -524,7 +589,10 @@ fn live_shell_segment_action_applies_to_focused_document() {
     harness.run_steps(2);
     focus_pane(&mut harness, "pane-a");
 
-    assert!(!code_panel.render_whitespace(), "render-whitespace starts off");
+    assert!(
+        !code_panel.render_whitespace(),
+        "render-whitespace starts off"
+    );
     // Click the live whitespace segment in the real status bar -> the host applies SetRenderWhitespace.
     harness.get_by_label("Whitespace").click();
     harness.run_steps(2);

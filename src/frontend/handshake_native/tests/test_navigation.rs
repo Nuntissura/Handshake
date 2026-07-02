@@ -95,8 +95,15 @@ fn f8_dispatch_moves_caret_to_next_diagnostic_and_wraps() {
 
     // F8 -> next diagnostic after line 0 is line 5.
     panel.dispatch_action(CodeEditorAction::GoToNextDiagnostic);
-    assert_eq!(caret_line(&panel), 5, "F8 jumps the caret to the next diagnostic line (5)");
-    assert!(panel.can_navigate_back(), "the F8 jump recorded a back entry");
+    assert_eq!(
+        caret_line(&panel),
+        5,
+        "F8 jumps the caret to the next diagnostic line (5)"
+    );
+    assert!(
+        panel.can_navigate_back(),
+        "the F8 jump recorded a back entry"
+    );
 
     // F8 again -> line 10, then 20, then wraps to 5.
     panel.dispatch_action(CodeEditorAction::GoToNextDiagnostic);
@@ -104,7 +111,11 @@ fn f8_dispatch_moves_caret_to_next_diagnostic_and_wraps() {
     panel.dispatch_action(CodeEditorAction::GoToNextDiagnostic);
     assert_eq!(caret_line(&panel), 20);
     panel.dispatch_action(CodeEditorAction::GoToNextDiagnostic);
-    assert_eq!(caret_line(&panel), 5, "F8 at the last marker wraps to the first");
+    assert_eq!(
+        caret_line(&panel),
+        5,
+        "F8 at the last marker wraps to the first"
+    );
 }
 
 #[test]
@@ -113,7 +124,11 @@ fn shift_f8_dispatch_moves_caret_to_prev_diagnostic_and_wraps() {
     panel.push_diagnostics(vec![diag(5), diag(10), diag(20)]);
     // Start at line 0; Shift+F8 (prev) wraps to the last marker (20).
     panel.dispatch_action(CodeEditorAction::GoToPrevDiagnostic);
-    assert_eq!(caret_line(&panel), 20, "Shift+F8 at/before the first wraps to the last");
+    assert_eq!(
+        caret_line(&panel),
+        20,
+        "Shift+F8 at/before the first wraps to the last"
+    );
     panel.dispatch_action(CodeEditorAction::GoToPrevDiagnostic);
     assert_eq!(caret_line(&panel), 10);
     panel.dispatch_action(CodeEditorAction::GoToPrevDiagnostic);
@@ -127,5 +142,8 @@ fn f8_with_no_diagnostics_is_a_graceful_no_op() {
     panel.dispatch_action(CodeEditorAction::GoToNextDiagnostic);
     panel.dispatch_action(CodeEditorAction::GoToPrevDiagnostic);
     assert_eq!(caret_line(&panel), 0, "no diagnostics -> caret unmoved");
-    assert!(!panel.can_navigate_back(), "no diagnostics -> no jump recorded");
+    assert!(
+        !panel.can_navigate_back(),
+        "no diagnostics -> no jump recorded"
+    );
 }

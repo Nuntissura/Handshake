@@ -121,7 +121,10 @@ pub enum FormattingCommand {
     SinkListItem,
     LiftListItem,
     // --- tables ---
-    InsertTable { rows: u8, cols: u8 },
+    InsertTable {
+        rows: u8,
+        cols: u8,
+    },
     AddRowBefore,
     AddRowAfter,
     DeleteRow,
@@ -564,7 +567,10 @@ fn set_code_block(
     let block = block_at(ctx.doc, &block_path).ok_or(CommandError::NoCaret)?;
     if !matches!(block.kind, NodeKind::Paragraph | NodeKind::Heading(_)) {
         return Err(CommandError::InvalidContext {
-            reason: format!("set_code_block only converts a paragraph/heading, not {:?}", block.kind),
+            reason: format!(
+                "set_code_block only converts a paragraph/heading, not {:?}",
+                block.kind
+            ),
         });
     }
     // Flatten inline content to plain text (a code block holds ONE unmarked text leaf).
@@ -639,7 +645,9 @@ fn toggle_wrap_blockquote(ctx: &mut CommandContext<'_>) -> Result<(), CommandErr
     }
 
     // Wrap: replace the block with a blockquote holding it.
-    let block = block_at(ctx.doc, &block_path).ok_or(CommandError::NoCaret)?.clone();
+    let block = block_at(ctx.doc, &block_path)
+        .ok_or(CommandError::NoCaret)?
+        .clone();
     let quote = BlockNode::with_children(NodeKind::Blockquote, vec![Child::Block(block)]);
     apply(
         ctx,
@@ -698,7 +706,10 @@ fn toggle_list(ctx: &mut CommandContext<'_>, list_kind: NodeKind) -> Result<(), 
     let block = block_at(ctx.doc, &block_path).ok_or(CommandError::NoCaret)?;
     if !matches!(block.kind, NodeKind::Paragraph | NodeKind::Heading(_)) {
         return Err(CommandError::InvalidContext {
-            reason: format!("toggle_list only converts a paragraph/heading, not {:?}", block.kind),
+            reason: format!(
+                "toggle_list only converts a paragraph/heading, not {:?}",
+                block.kind
+            ),
         });
     }
     let para = block.clone();
@@ -749,7 +760,10 @@ fn toggle_task_list(ctx: &mut CommandContext<'_>) -> Result<(), CommandError> {
     let block = block_at(ctx.doc, &block_path).ok_or(CommandError::NoCaret)?;
     if !matches!(block.kind, NodeKind::Paragraph | NodeKind::Heading(_)) {
         return Err(CommandError::InvalidContext {
-            reason: format!("toggle_task_list only converts a paragraph/heading, not {:?}", block.kind),
+            reason: format!(
+                "toggle_task_list only converts a paragraph/heading, not {:?}",
+                block.kind
+            ),
         });
     }
     let para = block.clone();
@@ -822,13 +836,15 @@ fn toggle_task_item_checked(ctx: &mut CommandContext<'_>) -> Result<(), CommandE
 /// "indent level" the AC checks.
 fn sink_list_item(ctx: &mut CommandContext<'_>) -> Result<(), CommandError> {
     let block_path = caret_block_path(ctx.selection).ok_or(CommandError::NoCaret)?;
-    let item_path = enclosing_list_item(ctx.doc, &block_path).ok_or(CommandError::InvalidContext {
-        reason: "sink_list_item requires the caret inside a list item".to_string(),
-    })?;
+    let item_path =
+        enclosing_list_item(ctx.doc, &block_path).ok_or(CommandError::InvalidContext {
+            reason: "sink_list_item requires the caret inside a list item".to_string(),
+        })?;
     let (list_path, item_index) = split_block_path(&item_path)?;
     if item_index == 0 {
         return Err(CommandError::InvalidContext {
-            reason: "cannot sink the first list item (no previous sibling to nest under)".to_string(),
+            reason: "cannot sink the first list item (no previous sibling to nest under)"
+                .to_string(),
         });
     }
     let list = block_at(ctx.doc, &list_path).ok_or(CommandError::NoCaret)?;
@@ -920,9 +936,10 @@ fn caret_into_nested_sunk_item(doc: &BlockNode, prev_item_path: &[usize]) -> Opt
 /// list level and there is nothing to lift to within the list).
 fn lift_list_item(ctx: &mut CommandContext<'_>) -> Result<(), CommandError> {
     let block_path = caret_block_path(ctx.selection).ok_or(CommandError::NoCaret)?;
-    let item_path = enclosing_list_item(ctx.doc, &block_path).ok_or(CommandError::InvalidContext {
-        reason: "lift_list_item requires the caret inside a list item".to_string(),
-    })?;
+    let item_path =
+        enclosing_list_item(ctx.doc, &block_path).ok_or(CommandError::InvalidContext {
+            reason: "lift_list_item requires the caret inside a list item".to_string(),
+        })?;
     // item_path = [.., grandparent_list_item, sub_list_index, item_index]
     // To lift, the item's list must itself be inside a parent list ITEM.
     let (sub_list_path, item_index) = split_block_path(&item_path)?;
@@ -933,7 +950,8 @@ fn lift_list_item(ctx: &mut CommandContext<'_>) -> Result<(), CommandError> {
         .unwrap_or(false);
     if !is_nested {
         return Err(CommandError::InvalidContext {
-            reason: "cannot lift a top-level list item (already at the outer list level)".to_string(),
+            reason: "cannot lift a top-level list item (already at the outer list level)"
+                .to_string(),
         });
     }
     let (outer_list_path, parent_item_index) = split_block_path(&parent_item_path)?;
@@ -974,7 +992,8 @@ fn table_cell(is_header: bool) -> BlockNode {
     cell.attrs.insert("colspan".to_string(), JsonValue::from(1));
     cell.attrs.insert("rowspan".to_string(), JsonValue::from(1));
     if is_header {
-        cell.attrs.insert("isHeader".to_string(), JsonValue::Bool(true));
+        cell.attrs
+            .insert("isHeader".to_string(), JsonValue::Bool(true));
     }
     cell
 }
@@ -1027,8 +1046,8 @@ fn insert_table(ctx: &mut CommandContext<'_>, rows: u8, cols: u8) -> Result<(), 
 /// non-header cells.
 fn add_row(ctx: &mut CommandContext<'_>, after: bool) -> Result<(), CommandError> {
     let block_path = caret_block_path(ctx.selection).ok_or(CommandError::NoCaret)?;
-    let row_path = enclosing_kind(ctx.doc, &block_path, NodeKind::TableRow)
-        .ok_or(not_in_table("add_row"))?;
+    let row_path =
+        enclosing_kind(ctx.doc, &block_path, NodeKind::TableRow).ok_or(not_in_table("add_row"))?;
     let (table_path, row_index) = split_block_path(&row_path)?;
     let row = block_at(ctx.doc, &row_path).ok_or(CommandError::NoCaret)?;
     let cols = row.children.len().max(1);
@@ -1078,8 +1097,8 @@ fn delete_row(ctx: &mut CommandContext<'_>) -> Result<(), CommandError> {
 /// if the caret is not in a table. New cells are non-header.
 fn add_col(ctx: &mut CommandContext<'_>, after: bool) -> Result<(), CommandError> {
     let block_path = caret_block_path(ctx.selection).ok_or(CommandError::NoCaret)?;
-    let cell_path = enclosing_kind(ctx.doc, &block_path, NodeKind::TableCell)
-        .ok_or(not_in_table("add_col"))?;
+    let cell_path =
+        enclosing_kind(ctx.doc, &block_path, NodeKind::TableCell).ok_or(not_in_table("add_col"))?;
     // cell_path = [.., table, row, cell]; the cell index is the column index.
     let (row_path, col_index) = split_block_path(&cell_path)?;
     let (table_path, _row_index) = split_block_path(&row_path)?;
@@ -1153,9 +1172,7 @@ fn delete_table(ctx: &mut CommandContext<'_>) -> Result<(), CommandError> {
         }],
     )?;
     // Park the caret at the doc start (the table is gone). Resolve to the first leaf.
-    if let Some(pos) =
-        crate::rich_editor::document_model::position::resolve(ctx.doc, 0)
-    {
+    if let Some(pos) = crate::rich_editor::document_model::position::resolve(ctx.doc, 0) {
         *ctx.selection = Selection::caret(pos);
     }
     Ok(())
@@ -1177,7 +1194,12 @@ fn toggle_header_row(ctx: &mut CommandContext<'_>) -> Result<(), CommandError> {
         .children
         .first()
         .and_then(Child::as_block)
-        .map(|c| c.attrs.get("isHeader").and_then(JsonValue::as_bool).unwrap_or(false))
+        .map(|c| {
+            c.attrs
+                .get("isHeader")
+                .and_then(JsonValue::as_bool)
+                .unwrap_or(false)
+        })
         .unwrap_or(false);
 
     // Rebuild the first row with toggled header cells (DeleteNode + InsertNode of the row).
@@ -1187,7 +1209,8 @@ fn toggle_header_row(ctx: &mut CommandContext<'_>) -> Result<(), CommandError> {
             if currently_header {
                 cell.attrs.remove("isHeader");
             } else {
-                cell.attrs.insert("isHeader".to_string(), JsonValue::Bool(true));
+                cell.attrs
+                    .insert("isHeader".to_string(), JsonValue::Bool(true));
             }
         }
     }
@@ -1286,12 +1309,16 @@ fn merge_backward(ctx: &mut CommandContext<'_>) -> Result<(), CommandError> {
     // the join offset within that block.
     let mut prev_path = parent_path.clone();
     prev_path.push(index - 1);
-    let caret = caret_in_block_at_offset(ctx.doc, &prev_path, join_at)
-        .unwrap_or_else(|| DocPosition::new({
-            let mut p = prev_path.clone();
-            p.push(0);
-            p
-        }, 0));
+    let caret = caret_in_block_at_offset(ctx.doc, &prev_path, join_at).unwrap_or_else(|| {
+        DocPosition::new(
+            {
+                let mut p = prev_path.clone();
+                p.push(0);
+                p
+            },
+            0,
+        )
+    });
     *ctx.selection = Selection::caret(caret);
     clamp_selection(ctx);
     Ok(())
@@ -1355,7 +1382,10 @@ fn enclosing_list(doc: &BlockNode, block_path: &[usize]) -> Option<Vec<usize>> {
 /// Unwrap a single-item list back to its inner paragraph at the list's position. Used
 /// by [`toggle_list`] / [`toggle_task_list`] to toggle off. Replaces the list node with
 /// the first item's first block child (the paragraph).
-fn unwrap_list_to_paragraph(ctx: &mut CommandContext<'_>, list_path: &[usize]) -> Result<(), CommandError> {
+fn unwrap_list_to_paragraph(
+    ctx: &mut CommandContext<'_>,
+    list_path: &[usize],
+) -> Result<(), CommandError> {
     let (parent_path, index) = split_block_path(list_path)?;
     let list = block_at(ctx.doc, list_path).ok_or(CommandError::NoCaret)?;
     let first_item = list
@@ -1386,12 +1416,16 @@ fn unwrap_list_to_paragraph(ctx: &mut CommandContext<'_>, list_path: &[usize]) -
     // Caret moves up two levels (list/item/para -> para): land it in the paragraph leaf.
     let mut new_block_path = parent_path.clone();
     new_block_path.push(index);
-    let caret = caret_in_block_at_offset(ctx.doc, &new_block_path, 0)
-        .unwrap_or_else(|| DocPosition::new({
-            let mut p = new_block_path.clone();
-            p.push(0);
-            p
-        }, 0));
+    let caret = caret_in_block_at_offset(ctx.doc, &new_block_path, 0).unwrap_or_else(|| {
+        DocPosition::new(
+            {
+                let mut p = new_block_path.clone();
+                p.push(0);
+                p
+            },
+            0,
+        )
+    });
     *ctx.selection = Selection::caret(caret);
     clamp_selection(ctx);
     Ok(())
@@ -1465,7 +1499,11 @@ fn reparent_caret(ctx: &mut CommandContext<'_>, _old_parent: &[usize], new_paren
 }
 
 /// Move the caret from its old leaf path to a new block path's first leaf, offset 0.
-fn reparent_caret_into(ctx: &mut CommandContext<'_>, _old_leaf: &[usize], new_block_path: &[usize]) {
+fn reparent_caret_into(
+    ctx: &mut CommandContext<'_>,
+    _old_leaf: &[usize],
+    new_block_path: &[usize],
+) {
     if let Some(pos) = caret_in_block_at_offset(ctx.doc, new_block_path, 0) {
         *ctx.selection = Selection::caret(pos);
         return;
@@ -1673,8 +1711,14 @@ mod tests {
         // place (a legal child of a list_item), so it succeeds here. The guard that matters is
         // refusing to convert a non-paragraph/heading block — proven by the code_block case.
         let r = ed.run(FormattingCommand::SetHeading(2));
-        assert!(r.is_ok(), "converting a paragraph inside a list item is legal");
-        assert_eq!(ed.doc.children[0].as_block().unwrap().kind, NodeKind::BulletList);
+        assert!(
+            r.is_ok(),
+            "converting a paragraph inside a list item is legal"
+        );
+        assert_eq!(
+            ed.doc.children[0].as_block().unwrap().kind,
+            NodeKind::BulletList
+        );
     }
 
     #[test]
@@ -1689,7 +1733,11 @@ mod tests {
         let mut ed = Editor::new(doc, sel);
         let err = ed.run(FormattingCommand::SetHeading(1)).unwrap_err();
         assert!(matches!(err, CommandError::InvalidContext { .. }));
-        assert_eq!(ed.block(0).kind, NodeKind::CodeBlock, "code block unchanged");
+        assert_eq!(
+            ed.block(0).kind,
+            NodeKind::CodeBlock,
+            "code block unchanged"
+        );
     }
 
     // ── AC-6: insert_table structure (2 rows x 3 cols) ─────────────────────────────────
@@ -1697,7 +1745,8 @@ mod tests {
     #[test]
     fn test_insert_table_structure() {
         let mut ed = one_para("para", 0);
-        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 3 }).unwrap();
+        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 3 })
+            .unwrap();
         // The table is inserted AFTER the paragraph -> top-level index 1.
         let table = ed.block(1);
         assert_eq!(table.kind, NodeKind::Table);
@@ -1705,13 +1754,23 @@ mod tests {
         for r in 0..2 {
             let row = table.children[r].as_block().unwrap();
             assert_eq!(row.kind, NodeKind::TableRow);
-            assert_eq!(row.children.len(), 3, "each row has exactly 3 table_cell children");
+            assert_eq!(
+                row.children.len(),
+                3,
+                "each row has exactly 3 table_cell children"
+            );
             for c in 0..3 {
                 let cell = row.children[c].as_block().unwrap();
                 assert_eq!(cell.kind, NodeKind::TableCell);
                 // Backend-shape anchor: each cell carries colspan/rowspan = 1.
-                assert_eq!(cell.attrs.get("colspan").and_then(JsonValue::as_i64), Some(1));
-                assert_eq!(cell.attrs.get("rowspan").and_then(JsonValue::as_i64), Some(1));
+                assert_eq!(
+                    cell.attrs.get("colspan").and_then(JsonValue::as_i64),
+                    Some(1)
+                );
+                assert_eq!(
+                    cell.attrs.get("rowspan").and_then(JsonValue::as_i64),
+                    Some(1)
+                );
             }
             // First row cells are header cells (withHeaderRow parity).
             let is_header = row.children[0]
@@ -1730,9 +1789,12 @@ mod tests {
     #[test]
     fn insert_table_refuses_nesting() {
         let mut ed = one_para("para", 0);
-        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 }).unwrap();
+        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 })
+            .unwrap();
         // The caret is now inside the first cell; a second insert_table must be refused.
-        let err = ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 }).unwrap_err();
+        let err = ed
+            .run(FormattingCommand::InsertTable { rows: 2, cols: 2 })
+            .unwrap_err();
         assert!(
             matches!(err, CommandError::InvalidContext { .. }),
             "MC-003: insert_table inside a table is refused"
@@ -1744,7 +1806,8 @@ mod tests {
     #[test]
     fn delete_row_decrements_row_count() {
         let mut ed = one_para("para", 0);
-        ed.run(FormattingCommand::InsertTable { rows: 3, cols: 2 }).unwrap();
+        ed.run(FormattingCommand::InsertTable { rows: 3, cols: 2 })
+            .unwrap();
         assert_eq!(ed.block(1).children.len(), 3);
         // Caret is in the first cell of row 0. delete_row removes that row.
         ed.run(FormattingCommand::DeleteRow).unwrap();
@@ -1762,10 +1825,17 @@ mod tests {
         assert_eq!(list.kind, NodeKind::OrderedList);
         let item = list.children[0].as_block().unwrap();
         assert_eq!(item.kind, NodeKind::ListItem);
-        assert_eq!(item.children[0].as_block().unwrap().kind, NodeKind::Paragraph);
+        assert_eq!(
+            item.children[0].as_block().unwrap().kind,
+            NodeKind::Paragraph
+        );
         // Toggling again converts back to a paragraph.
         ed.run(FormattingCommand::ToggleOrderedList).unwrap();
-        assert_eq!(ed.block(0).kind, NodeKind::Paragraph, "toggled back to paragraph");
+        assert_eq!(
+            ed.block(0).kind,
+            NodeKind::Paragraph,
+            "toggled back to paragraph"
+        );
         assert_eq!(
             ed.block(0).children[0].as_text().unwrap().text.to_string(),
             "item text"
@@ -1779,7 +1849,10 @@ mod tests {
         // Build a bullet list with TWO items; caret in the SECOND item so it can sink under
         // the first.
         let item = |t: &str| {
-            BlockNode::with_children(NodeKind::ListItem, vec![Child::Block(BlockNode::paragraph(t))])
+            BlockNode::with_children(
+                NodeKind::ListItem,
+                vec![Child::Block(BlockNode::paragraph(t))],
+            )
         };
         let list = BlockNode::with_children(
             NodeKind::BulletList,
@@ -1803,8 +1876,15 @@ mod tests {
             .iter()
             .filter_map(Child::as_block)
             .find(|b| matches!(b.kind, NodeKind::BulletList));
-        assert!(sub.is_some(), "first item gained a nested sub-list (indent)");
-        assert_eq!(sub.unwrap().children.len(), 1, "the nested list holds the sunk item");
+        assert!(
+            sub.is_some(),
+            "first item gained a nested sub-list (indent)"
+        );
+        assert_eq!(
+            sub.unwrap().children.len(),
+            1,
+            "the nested list holds the sunk item"
+        );
 
         // Now lift the nested item back out.
         ed.run(FormattingCommand::LiftListItem).unwrap();
@@ -1829,7 +1909,10 @@ mod tests {
         );
         let before = ed.doc.clone();
         ed.run(FormattingCommand::ToggleBold).unwrap();
-        assert!(ed.block(0).children[0].as_text().unwrap().has_mark_type(&Mark::Bold));
+        assert!(ed.block(0).children[0]
+            .as_text()
+            .unwrap()
+            .has_mark_type(&Mark::Bold));
         ed.run(FormattingCommand::Undo).unwrap();
         assert_eq!(ed.doc, before, "AC-4: undo restores the pre-bold doc");
     }
@@ -1841,7 +1924,10 @@ mod tests {
         ed.run(FormattingCommand::SetHeading(2)).unwrap();
         assert_eq!(ed.block(0).kind, NodeKind::Heading(HeadingLevel::new(2)));
         ed.run(FormattingCommand::Undo).unwrap();
-        assert_eq!(ed.doc, before, "undo restores the paragraph (heading reverted)");
+        assert_eq!(
+            ed.doc, before,
+            "undo restores the paragraph (heading reverted)"
+        );
     }
 
     // ── scope expansion: Enter split + Backspace merge + undo ──────────────────────────
@@ -1853,8 +1939,14 @@ mod tests {
         let before = ed.doc.clone();
         ed.run(FormattingCommand::InsertParagraphBreak).unwrap();
         assert_eq!(ed.doc.children.len(), 2, "Enter split into two blocks");
-        assert_eq!(ed.block(0).children[0].as_text().unwrap().text.to_string(), "hello");
-        assert_eq!(ed.block(1).children[0].as_text().unwrap().text.to_string(), "world");
+        assert_eq!(
+            ed.block(0).children[0].as_text().unwrap().text.to_string(),
+            "hello"
+        );
+        assert_eq!(
+            ed.block(1).children[0].as_text().unwrap().text.to_string(),
+            "world"
+        );
         // Caret moved to the start of the new (tail) block.
         if let Selection::Text { head, .. } = &ed.sel {
             assert_eq!(head.path, vec![1, 0]);
@@ -1877,7 +1969,11 @@ mod tests {
 
         // Undo the merge, then undo the split: back to the original single block.
         ed.run(FormattingCommand::Undo).unwrap();
-        assert_eq!(ed.doc.children.len(), 2, "undo of merge restores two blocks");
+        assert_eq!(
+            ed.doc.children.len(),
+            2,
+            "undo of merge restores two blocks"
+        );
         ed.run(FormattingCommand::Undo).unwrap();
         assert_eq!(ed.doc, before, "undo of split restores the original doc");
     }
@@ -1905,7 +2001,10 @@ mod tests {
         // Caret should now be inside the task item's paragraph; toggle the checked attr.
         ed.run(FormattingCommand::ToggleTaskItemChecked).unwrap();
         let item = ed.block(0).children[0].as_block().unwrap();
-        assert!(item.task_checked(), "toggle_task_item_checked sets checked=true");
+        assert!(
+            item.task_checked(),
+            "toggle_task_item_checked sets checked=true"
+        );
     }
 
     // ── code block: set_code_block carries language, flattens marks ────────────────────
@@ -1913,11 +2012,18 @@ mod tests {
     #[test]
     fn set_code_block_carries_language() {
         let mut ed = one_para("let x = 1;", 0);
-        ed.run(FormattingCommand::SetCodeBlock(Some("rust".to_string()))).unwrap();
+        ed.run(FormattingCommand::SetCodeBlock(Some("rust".to_string())))
+            .unwrap();
         let cb = ed.block(0);
         assert_eq!(cb.kind, NodeKind::CodeBlock);
-        assert_eq!(cb.attrs.get("language").and_then(JsonValue::as_str), Some("rust"));
-        assert_eq!(cb.children[0].as_text().unwrap().text.to_string(), "let x = 1;");
+        assert_eq!(
+            cb.attrs.get("language").and_then(JsonValue::as_str),
+            Some("rust")
+        );
+        assert_eq!(
+            cb.children[0].as_text().unwrap().text.to_string(),
+            "let x = 1;"
+        );
     }
 
     // ── blockquote wrap/unwrap ──────────────────────────────────────────────────────────
@@ -1932,7 +2038,11 @@ mod tests {
             NodeKind::Paragraph
         );
         ed.run(FormattingCommand::SetBlockquote).unwrap();
-        assert_eq!(ed.block(0).kind, NodeKind::Paragraph, "unwrapped back to paragraph");
+        assert_eq!(
+            ed.block(0).kind,
+            NodeKind::Paragraph,
+            "unwrapped back to paragraph"
+        );
     }
 
     // ── horizontal rule + DocJson round-trip of a built table (backend shape) ──────────
@@ -1941,12 +2051,16 @@ mod tests {
     fn insert_table_round_trips_doc_json() {
         use crate::rich_editor::document_model::doc_json::{from_json_string, to_json_string};
         let mut ed = one_para("p", 0);
-        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 }).unwrap();
+        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 })
+            .unwrap();
         // The built table must serialize and deserialize without an UnknownNodeType error
         // (backend node-shape anchor: table/tableRow/tableCell are known Tiptap types).
         let json = to_json_string(&ed.doc).expect("table serializes to content_json");
         let back = from_json_string(&json).expect("table round-trips from content_json");
-        assert_eq!(ed.doc, back, "the inserted table round-trips through DocJson");
+        assert_eq!(
+            ed.doc, back,
+            "the inserted table round-trips through DocJson"
+        );
     }
 
     #[test]
@@ -1962,7 +2076,8 @@ mod tests {
     #[test]
     fn add_row_and_column_operations() {
         let mut ed = one_para("p", 0);
-        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 }).unwrap();
+        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 })
+            .unwrap();
         // Caret in first cell. Add a row after -> 3 rows.
         ed.run(FormattingCommand::AddRowAfter).unwrap();
         assert_eq!(ed.block(1).children.len(), 3);
@@ -1989,7 +2104,8 @@ mod tests {
     #[test]
     fn delete_table_removes_it() {
         let mut ed = one_para("p", 0);
-        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 }).unwrap();
+        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 })
+            .unwrap();
         assert_eq!(ed.doc.children.len(), 2);
         ed.run(FormattingCommand::DeleteTable).unwrap();
         // Only the original paragraph remains.
@@ -2000,7 +2116,8 @@ mod tests {
     #[test]
     fn toggle_header_row_flips_first_row_cells() {
         let mut ed = one_para("p", 0);
-        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 }).unwrap();
+        ed.run(FormattingCommand::InsertTable { rows: 2, cols: 2 })
+            .unwrap();
         // First row starts as header (withHeaderRow). Toggle off -> no isHeader.
         ed.run(FormattingCommand::ToggleHeaderRow).unwrap();
         let first_row = ed.block(1).children[0].as_block().unwrap();

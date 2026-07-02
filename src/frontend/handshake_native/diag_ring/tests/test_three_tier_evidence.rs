@@ -111,7 +111,10 @@ fn three_tier_evidence_emit_to_external_root_and_parse_back() {
     // Parse it back into the typed struct and assert it round-trips exactly.
     let reloaded = ThreeTierDiagnosticWiringRecord::load(&written)
         .expect("AC-015-1: parse the emitted JSON back into the typed struct");
-    assert_eq!(reloaded, record, "emitted record must round-trip byte-for-byte");
+    assert_eq!(
+        reloaded, record,
+        "emitted record must round-trip byte-for-byte"
+    );
     reloaded
         .validate()
         .expect("the parsed-back record must still validate");
@@ -124,7 +127,10 @@ fn three_tier_evidence_emit_to_external_root_and_parse_back() {
             "emitted JSON must contain tier spelling {tier_spelling}"
         );
     }
-    assert!(raw.contains("WIRED"), "emitted JSON must contain a WIRED status");
+    assert!(
+        raw.contains("WIRED"),
+        "emitted JSON must contain a WIRED status"
+    );
     assert!(
         raw.contains("NOT_APPLICABLE"),
         "emitted JSON must contain the NOT_APPLICABLE status"

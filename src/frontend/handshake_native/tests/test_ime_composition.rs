@@ -39,7 +39,9 @@ use handshake_native::code_editor::CodeEditorPanel;
 use handshake_native::rich_editor::document_model::node::BlockNode;
 use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 
 /// Serialize the `.wgpu()` screenshot test (the documented Windows-wgpu concurrent-device hazard the
 /// other screenshot tests guard the same way).
@@ -81,7 +83,11 @@ fn hi_state() -> Arc<Mutex<RichEditorState>> {
 /// The leaf text of the first paragraph (the rope content under test).
 fn leaf_text(state: &Arc<Mutex<RichEditorState>>) -> String {
     let st = state.lock().unwrap();
-    st.doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string()
+    st.doc.children[0].as_block().unwrap().children[0]
+        .as_text()
+        .unwrap()
+        .text
+        .to_string()
 }
 
 /// Build an EDITABLE rich-editor harness over `state`, with the MT-075 font chain installed so CJK
@@ -142,23 +148,44 @@ fn rich_preedit_then_commit_inserts_only_commit() {
     push_ime(&mut harness, egui::ImeEvent::Enabled);
     push_ime(&mut harness, egui::ImeEvent::Preedit("ni".to_owned()));
     step(&mut harness);
-    assert!(state.lock().unwrap().preedit.is_active(), "the preedit overlay is active while composing");
-    assert_eq!(leaf_text(&state), "Hi", "RISK-1/MC-1: rope is UNCHANGED while composing (overlay-only)");
+    assert!(
+        state.lock().unwrap().preedit.is_active(),
+        "the preedit overlay is active while composing"
+    );
+    assert_eq!(
+        leaf_text(&state),
+        "Hi",
+        "RISK-1/MC-1: rope is UNCHANGED while composing (overlay-only)"
+    );
 
     // Refine the composition to "nihao": still overlay-only, rope still "Hi".
     push_ime(&mut harness, egui::ImeEvent::Preedit("nihao".to_owned()));
     step(&mut harness);
-    assert_eq!(leaf_text(&state), "Hi", "RISK-1: refining the preedit does not touch the rope");
+    assert_eq!(
+        leaf_text(&state),
+        "Hi",
+        "RISK-1: refining the preedit does not touch the rope"
+    );
 
     // Commit("你好"): the preedit clears and ONLY the committed CJK lands at the caret (char-correct).
     push_ime(&mut harness, egui::ImeEvent::Commit("你好".to_owned()));
     step(&mut harness);
-    assert_eq!(leaf_text(&state), "Hi你好", "AC1: only the committed CJK landed (no preedit chars)");
-    assert!(!state.lock().unwrap().preedit.is_active(), "preedit cleared after commit");
+    assert_eq!(
+        leaf_text(&state),
+        "Hi你好",
+        "AC1: only the committed CJK landed (no preedit chars)"
+    );
+    assert!(
+        !state.lock().unwrap().preedit.is_active(),
+        "preedit cleared after commit"
+    );
 
     // CJK char-index discipline: caret advanced by 2 CHARS (not bytes — RISK-5 multi-codepoint).
     if let Selection::Text { head, .. } = &state.lock().unwrap().selection {
-        assert_eq!(head.char_offset, 4, "AC1/RISK-5: caret advanced by 2 committed CHARS, not bytes");
+        assert_eq!(
+            head.char_offset, 4,
+            "AC1/RISK-5: caret advanced by 2 committed CHARS, not bytes"
+        );
     } else {
         panic!("expected a collapsed text caret after commit");
     }
@@ -177,12 +204,22 @@ fn rich_empty_commit_cancels_with_no_insert() {
     push_ime(&mut harness, egui::ImeEvent::Enabled);
     push_ime(&mut harness, egui::ImeEvent::Preedit("nihao".to_owned()));
     step(&mut harness);
-    assert!(state.lock().unwrap().preedit.is_active(), "composing before cancel");
+    assert!(
+        state.lock().unwrap().preedit.is_active(),
+        "composing before cancel"
+    );
     // An EMPTY commit is the cancel path (Escape during composition on many IMEs): clear, no insert.
     push_ime(&mut harness, egui::ImeEvent::Commit(String::new()));
     step(&mut harness);
-    assert_eq!(leaf_text(&state), "Hi", "AC3: empty-Commit cancel leaves the rope unchanged");
-    assert!(!state.lock().unwrap().preedit.is_active(), "AC3: preedit overlay cleared on cancel");
+    assert_eq!(
+        leaf_text(&state),
+        "Hi",
+        "AC3: empty-Commit cancel leaves the rope unchanged"
+    );
+    assert!(
+        !state.lock().unwrap().preedit.is_active(),
+        "AC3: preedit overlay cleared on cancel"
+    );
     println!("AC3: empty-Commit cancelled the composition with no insert; rope='Hi'.");
 }
 
@@ -198,8 +235,15 @@ fn rich_disabled_cancels() {
     step(&mut harness);
     push_ime(&mut harness, egui::ImeEvent::Disabled);
     step(&mut harness);
-    assert_eq!(leaf_text(&state), "Hi", "AC3: Disabled leaves the rope unchanged");
-    assert!(!state.lock().unwrap().preedit.is_active(), "AC3: Disabled cleared the preedit overlay");
+    assert_eq!(
+        leaf_text(&state),
+        "Hi",
+        "AC3: Disabled leaves the rope unchanged"
+    );
+    assert!(
+        !state.lock().unwrap().preedit.is_active(),
+        "AC3: Disabled cleared the preedit overlay"
+    );
     println!("AC3: ImeEvent::Disabled cancelled the composition with no insert; rope='Hi'.");
 }
 
@@ -236,9 +280,13 @@ fn rich_ime_caret_rect_anchors_at_caret() {
     assert!(
         ime.cursor_rect.min.x >= ime.rect.min.x - 0.5,
         "AC4: the composition caret is at the end of the preedit run; got caret={:?} rect={:?}",
-        ime.cursor_rect, ime.rect
+        ime.cursor_rect,
+        ime.rect
     );
-    println!("AC4: IMEOutput rect={:?} cursor={:?} (anchored at the caret, not origin).", ime.rect, ime.cursor_rect);
+    println!(
+        "AC4: IMEOutput rect={:?} cursor={:?} (anchored at the caret, not origin).",
+        ime.rect, ime.cursor_rect
+    );
 }
 
 // ── AC7 (rich): the editable text node exposes the composition text in its value (no new tree) ────
@@ -266,7 +314,8 @@ fn rich_accesskit_exposes_composition() {
             composing_value = ak.value().map(|v| v.to_owned());
         }
     }
-    let value = composing_value.expect("AC7: the rich-editor-root node must be present + carry a value");
+    let value =
+        composing_value.expect("AC7: the rich-editor-root node must be present + carry a value");
     assert!(
         value.contains("composing") && value.contains("nihao"),
         "AC7: the editable text node value must expose the composition state; got '{value}'"
@@ -293,10 +342,19 @@ fn rich_preedit_underline_screenshot() {
     // the installed MT-075 fallback chain, so the painted preedit is real glyphs, not notdef boxes.
     let prop = egui::FontId::proportional(15.0);
     let glyphs_ok = harness.ctx.fonts_mut(|f| f.has_glyphs(&prop, "你好世界"));
-    assert!(glyphs_ok, "AC2: the composing CJK preedit must resolve to real glyphs (MT-075 fallback chain)");
+    assert!(
+        glyphs_ok,
+        "AC2: the composing CJK preedit must resolve to real glyphs (MT-075 fallback chain)"
+    );
     // The preedit overlay is active (so the renderer painted it this frame) and reported the IME rect.
-    assert!(state.lock().unwrap().preedit.is_active(), "AC2: the preedit overlay is active while composing");
-    assert!(harness.output().platform_output.ime.is_some(), "AC2: the composing frame reported IMEOutput");
+    assert!(
+        state.lock().unwrap().preedit.is_active(),
+        "AC2: the preedit overlay is active while composing"
+    );
+    assert!(
+        harness.output().platform_output.ime.is_some(),
+        "AC2: the composing frame reported IMEOutput"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -312,7 +370,8 @@ fn rich_preedit_underline_screenshot() {
             // so the composing region adds distinct foreground colors over the editor bg. Count distinct
             // non-transparent colors (sample every 4th pixel) and require multiple foreground colors.
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut i = 0usize;
             while i + 4 <= raw.len() {
                 let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
@@ -332,7 +391,10 @@ fn rich_preedit_underline_screenshot() {
                 foreground >= 2,
                 "AC2: the underlined CJK preedit + caret must produce >= 2 distinct foreground colors; got {foreground}"
             );
-            assert!(saved, "AC2/PROOF2: the mt076_ime_preedit.png screenshot saved to the external root");
+            assert!(
+                saved,
+                "AC2/PROOF2: the mt076_ime_preedit.png screenshot saved to the external root"
+            );
         }
         Err(e) => {
             println!(
@@ -356,23 +418,53 @@ fn code_editor_ime_composes_and_commits() {
     // Enabled + Preedit: overlay-only — the buffer is UNCHANGED while composing (RISK-1 / MC-1).
     assert!(!panel.handle_ime_event(&egui::ImeEvent::Enabled));
     assert!(!panel.handle_ime_event(&egui::ImeEvent::Preedit("nihao".to_owned())));
-    assert_eq!(panel.preedit(), "nihao", "AC5: the code-editor preedit overlay shows while composing");
-    assert_eq!(panel.buffer().to_string(), "x", "AC5/RISK-1: the buffer is UNCHANGED while composing");
+    assert_eq!(
+        panel.preedit(),
+        "nihao",
+        "AC5: the code-editor preedit overlay shows while composing"
+    );
+    assert_eq!(
+        panel.buffer().to_string(),
+        "x",
+        "AC5/RISK-1: the buffer is UNCHANGED while composing"
+    );
 
     // Commit("你好"): clears the overlay, inserts ONLY the committed CJK char-correct at the caret.
-    assert!(panel.handle_ime_event(&egui::ImeEvent::Commit("你好".to_owned())), "commit mutated the buffer");
-    assert_eq!(panel.buffer().to_string(), "x你好", "AC5: only the committed CJK landed in the code buffer");
-    assert_eq!(panel.preedit(), "", "AC5: the code-editor preedit cleared after commit");
+    assert!(
+        panel.handle_ime_event(&egui::ImeEvent::Commit("你好".to_owned())),
+        "commit mutated the buffer"
+    );
+    assert_eq!(
+        panel.buffer().to_string(),
+        "x你好",
+        "AC5: only the committed CJK landed in the code buffer"
+    );
+    assert_eq!(
+        panel.preedit(),
+        "",
+        "AC5: the code-editor preedit cleared after commit"
+    );
 
     // The cursor advanced past the committed run (2 CJK chars = 6 UTF-8 bytes after the 1-byte "x").
     let (start, _end) = panel.primary_selection_bytes();
-    assert_eq!(start, "x你好".len(), "AC5: the code-editor caret advanced past the committed CJK run");
+    assert_eq!(
+        start,
+        "x你好".len(),
+        "AC5: the code-editor caret advanced past the committed CJK run"
+    );
 
     // Cancel path: an empty commit / Disabled clears the overlay with NO further insert.
     panel.handle_ime_event(&egui::ImeEvent::Enabled);
     panel.handle_ime_event(&egui::ImeEvent::Preedit("zz".to_owned()));
-    assert!(!panel.handle_ime_event(&egui::ImeEvent::Commit(String::new())), "empty commit does not mutate");
-    assert_eq!(panel.buffer().to_string(), "x你好", "AC5: empty-Commit cancel left the code buffer unchanged");
+    assert!(
+        !panel.handle_ime_event(&egui::ImeEvent::Commit(String::new())),
+        "empty commit does not mutate"
+    );
+    assert_eq!(
+        panel.buffer().to_string(),
+        "x你好",
+        "AC5: empty-Commit cancel left the code buffer unchanged"
+    );
     assert_eq!(panel.preedit(), "", "AC5: the cancel cleared the overlay");
     println!("AC5: code editor composed + committed '你好' (overlay-only); cancel left the buffer unchanged.");
 }
@@ -393,17 +485,46 @@ fn code_editor_ime_through_live_input() {
         });
     harness.run();
 
-    harness.input_mut().events.push(egui::Event::Ime(egui::ImeEvent::Enabled));
-    harness.input_mut().events.push(egui::Event::Ime(egui::ImeEvent::Preedit("nihao".to_owned())));
+    harness
+        .input_mut()
+        .events
+        .push(egui::Event::Ime(egui::ImeEvent::Enabled));
+    harness
+        .input_mut()
+        .events
+        .push(egui::Event::Ime(egui::ImeEvent::Preedit(
+            "nihao".to_owned(),
+        )));
     harness.run();
-    assert_eq!(panel.preedit(), "nihao", "AC5: live Event::Ime Preedit set the code-editor overlay");
-    assert_eq!(panel.buffer().to_string(), "x", "AC5: the buffer is unchanged while composing (live path)");
+    assert_eq!(
+        panel.preedit(),
+        "nihao",
+        "AC5: live Event::Ime Preedit set the code-editor overlay"
+    );
+    assert_eq!(
+        panel.buffer().to_string(),
+        "x",
+        "AC5: the buffer is unchanged while composing (live path)"
+    );
 
-    harness.input_mut().events.push(egui::Event::Ime(egui::ImeEvent::Commit("你好".to_owned())));
+    harness
+        .input_mut()
+        .events
+        .push(egui::Event::Ime(egui::ImeEvent::Commit("你好".to_owned())));
     harness.run();
-    assert_eq!(panel.buffer().to_string(), "x你好", "AC5: live Event::Ime Commit inserted the CJK char-correct");
-    assert_eq!(panel.preedit(), "", "AC5: the live commit cleared the overlay");
-    println!("AC5 (live): the code-editor `egui::Event::Ime` input arm composed + committed '你好'.");
+    assert_eq!(
+        panel.buffer().to_string(),
+        "x你好",
+        "AC5: live Event::Ime Commit inserted the CJK char-correct"
+    );
+    assert_eq!(
+        panel.preedit(),
+        "",
+        "AC5: the live commit cleared the overlay"
+    );
+    println!(
+        "AC5 (live): the code-editor `egui::Event::Ime` input arm composed + committed '你好'."
+    );
 }
 
 // ── AC7 (code): the code-editor text node exposes the composition text in its value ───────────────
@@ -422,8 +543,16 @@ fn code_accesskit_exposes_composition() {
             panel_for_ui.show(ui);
         });
     harness.run();
-    harness.input_mut().events.push(egui::Event::Ime(egui::ImeEvent::Enabled));
-    harness.input_mut().events.push(egui::Event::Ime(egui::ImeEvent::Preedit("nihao".to_owned())));
+    harness
+        .input_mut()
+        .events
+        .push(egui::Event::Ime(egui::ImeEvent::Enabled));
+    harness
+        .input_mut()
+        .events
+        .push(egui::Event::Ime(egui::ImeEvent::Preedit(
+            "nihao".to_owned(),
+        )));
     harness.run();
     harness.run();
 
@@ -434,7 +563,8 @@ fn code_accesskit_exposes_composition() {
             composing_value = ak.value().map(|v| v.to_owned());
         }
     }
-    let value = composing_value.expect("AC7: the code_editor_text node must be present + carry a value");
+    let value =
+        composing_value.expect("AC7: the code_editor_text node must be present + carry a value");
     assert!(
         value.contains("composing") && value.contains("nihao"),
         "AC7: the code-editor text node value must expose the composition state; got '{value}'"

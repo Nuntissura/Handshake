@@ -444,7 +444,9 @@ mod mt_190_adversarial_postgres {
     use std::sync::Arc;
 
     async fn pool_or_skip() -> Option<PgPool> {
-        let url = std::env::var("POSTGRES_TEST_URL").ok()?;
+        let url = handshake_core::storage::tests::postgres_test_base_url()
+            .await
+            .expect("resolve real PostgreSQL for session checkpoint tests");
         let mut conn = sqlx::PgConnection::connect(&url).await.ok()?;
         // Create a per-test schema to keep concurrent test runs isolated.
         let schema = format!("mt190_test_{}", Uuid::now_v7().simple());
@@ -517,10 +519,10 @@ mod mt_190_adversarial_postgres {
     }
 
     #[tokio::test]
-    #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test ... -- --ignored`"]
+    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
     async fn mt_190_adversarial_duplicate_checkpoint_id_rejected_by_primary_key() {
         let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL unset or unreachable");
+            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
         };
         let cp = SessionCheckpoint::new(
             Uuid::now_v7(),
@@ -546,10 +548,10 @@ mod mt_190_adversarial_postgres {
     }
 
     #[tokio::test]
-    #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test ... -- --ignored`"]
+    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
     async fn mt_190_adversarial_check_constraint_rejects_oversize_blob_at_db_level() {
         let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL unset or unreachable");
+            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
         };
         // Bypass SessionCheckpoint::new() — write a 40 KB blob straight at
         // the database boundary to prove the CHECK constraint also fails it.
@@ -577,10 +579,10 @@ mod mt_190_adversarial_postgres {
     }
 
     #[tokio::test]
-    #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test ... -- --ignored`"]
+    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
     async fn mt_190_adversarial_ordering_preserved_under_concurrent_writes() {
         let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL unset or unreachable");
+            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
         };
         let pool = Arc::new(pool);
         let session = Uuid::now_v7();
@@ -633,10 +635,10 @@ mod mt_190_adversarial_postgres {
     }
 
     #[tokio::test]
-    #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test ... -- --ignored`"]
+    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
     async fn mt_190_adversarial_transaction_rollback_leaves_no_visible_row() {
         let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL unset or unreachable");
+            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
         };
         let cp = SessionCheckpoint::new(
             Uuid::now_v7(),
@@ -1641,7 +1643,9 @@ mod mt_191_192_adversarial_postgres {
     use std::time::Duration;
 
     async fn pool_or_skip() -> Option<PgPool> {
-        let url = std::env::var("POSTGRES_TEST_URL").ok()?;
+        let url = handshake_core::storage::tests::postgres_test_base_url()
+            .await
+            .expect("resolve real PostgreSQL for session checkpoint tests");
         let mut conn = sqlx::PgConnection::connect(&url).await.ok()?;
         let schema = format!("mt191_test_{}", Uuid::now_v7().simple());
         sqlx::query(&format!("CREATE SCHEMA \"{schema}\""))
@@ -1686,10 +1690,10 @@ mod mt_191_192_adversarial_postgres {
     /// periodic/event-triggered/pre-shutdown cadence is durably persisted via the
     /// production sink, not a test stand-in.
     #[tokio::test]
-    #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test ... -- --ignored`"]
+    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
     async fn mt_191_adversarial_postgres_writer_drains_into_real_table() {
         let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL unset or unreachable");
+            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
         };
         let sink = Arc::new(PostgresCheckpointSink::new(pool.clone()));
         let writer = CheckpointWriter::new(
@@ -1769,10 +1773,10 @@ mod mt_191_192_adversarial_postgres {
     /// replayer reconstructs the expected final state. End-to-end proves
     /// MT-191 -> MT-192 cluster X.3 integration.
     #[tokio::test]
-    #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test ... -- --ignored`"]
+    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
     async fn mt_192_adversarial_postgres_replay_from_persisted_checkpoint() {
         let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL unset or unreachable");
+            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
         };
         let session = Uuid::now_v7();
         let cp = SessionCheckpoint::new(

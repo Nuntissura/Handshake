@@ -186,7 +186,10 @@ mod tests {
         // AC1 (UAX#14 side): a long spaceless Han run must offer many interior break points so it can
         // wrap, not collapse to one line.
         let ops = break_opportunities(HAN);
-        let interior = ops.iter().filter(|(i, op)| *i < HAN.len() && *op == BreakOpportunity::Allowed).count();
+        let interior = ops
+            .iter()
+            .filter(|(i, op)| *i < HAN.len() && *op == BreakOpportunity::Allowed)
+            .count();
         assert!(
             interior >= HAN.chars().count() - 2,
             "a spaceless Han run must break between (almost) every ideograph; got {interior} interior breaks for {} chars",
@@ -199,8 +202,14 @@ mod tests {
         // The gap MT-077's table closes: Hangul syllables offer interior break opportunities (egui's
         // is_cjk does NOT cover Hangul, so without this table a long Hangul run would not wrap).
         let ops = break_opportunities(HANGUL);
-        let interior = ops.iter().filter(|(i, op)| *i < HANGUL.len() && *op == BreakOpportunity::Allowed).count();
-        assert!(interior >= 1, "Hangul must offer interior break opportunities; got {interior}");
+        let interior = ops
+            .iter()
+            .filter(|(i, op)| *i < HANGUL.len() && *op == BreakOpportunity::Allowed)
+            .count();
+        assert!(
+            interior >= 1,
+            "Hangul must offer interior break opportunities; got {interior}"
+        );
         // And every Hangul char classifies as Hangul (so a renderer can detect the egui gap).
         for c in HANGUL.chars() {
             assert_eq!(break_class(c), BreakClass::Hangul, "char {c:?} is Hangul");
@@ -251,17 +260,29 @@ mod tests {
         let s = "hello world foo";
         let ops = break_opportunities(s);
         // Breaks after "hello " (idx 6) and "world " (idx 12), plus the mandatory end.
-        assert!(ops.iter().any(|(i, op)| *i == 6 && *op == BreakOpportunity::Allowed));
-        assert!(ops.iter().any(|(i, op)| *i == 12 && *op == BreakOpportunity::Allowed));
+        assert!(ops
+            .iter()
+            .any(|(i, op)| *i == 6 && *op == BreakOpportunity::Allowed));
+        assert!(ops
+            .iter()
+            .any(|(i, op)| *i == 12 && *op == BreakOpportunity::Allowed));
         // There is NO interior break inside the word "hello" (no break before idx 1..5).
         for i in 1..5 {
-            assert!(!is_break_before(s, i), "no break inside the ASCII word 'hello' at {i}");
+            assert!(
+                !is_break_before(s, i),
+                "no break inside the ASCII word 'hello' at {i}"
+            );
         }
     }
 
     #[test]
     fn empty_and_single_char_are_safe() {
-        assert!(break_opportunities("").is_empty() || break_opportunities("").iter().all(|(_, op)| *op == BreakOpportunity::Mandatory));
+        assert!(
+            break_opportunities("").is_empty()
+                || break_opportunities("")
+                    .iter()
+                    .all(|(_, op)| *op == BreakOpportunity::Mandatory)
+        );
         assert!(!is_break_before("", 0));
         assert!(!is_break_before("a", 0));
         assert!(!is_break_before("a", 1)); // end of text is not a soft break

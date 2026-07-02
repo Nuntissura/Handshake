@@ -110,23 +110,67 @@ struct SymbolRule {
 /// the `"type"` field, so its rule's `name_field` is `"type"` (and `symbol_name` also falls back to
 /// `"type"` for any rule whose `name_field` is absent).
 const RUST_RULES: &[SymbolRule] = &[
-    SymbolRule { node_kind: "function_item", outline_kind: OutlineKind::Function, name_field: "name" },
-    SymbolRule { node_kind: "struct_item", outline_kind: OutlineKind::Struct, name_field: "name" },
-    SymbolRule { node_kind: "enum_item", outline_kind: OutlineKind::Enum, name_field: "name" },
-    SymbolRule { node_kind: "mod_item", outline_kind: OutlineKind::Module, name_field: "name" },
-    SymbolRule { node_kind: "trait_item", outline_kind: OutlineKind::Class, name_field: "name" },
-    SymbolRule { node_kind: "impl_item", outline_kind: OutlineKind::Class, name_field: "type" },
-    SymbolRule { node_kind: "const_item", outline_kind: OutlineKind::Constant, name_field: "name" },
-    SymbolRule { node_kind: "static_item", outline_kind: OutlineKind::Constant, name_field: "name" },
+    SymbolRule {
+        node_kind: "function_item",
+        outline_kind: OutlineKind::Function,
+        name_field: "name",
+    },
+    SymbolRule {
+        node_kind: "struct_item",
+        outline_kind: OutlineKind::Struct,
+        name_field: "name",
+    },
+    SymbolRule {
+        node_kind: "enum_item",
+        outline_kind: OutlineKind::Enum,
+        name_field: "name",
+    },
+    SymbolRule {
+        node_kind: "mod_item",
+        outline_kind: OutlineKind::Module,
+        name_field: "name",
+    },
+    SymbolRule {
+        node_kind: "trait_item",
+        outline_kind: OutlineKind::Class,
+        name_field: "name",
+    },
+    SymbolRule {
+        node_kind: "impl_item",
+        outline_kind: OutlineKind::Class,
+        name_field: "type",
+    },
+    SymbolRule {
+        node_kind: "const_item",
+        outline_kind: OutlineKind::Constant,
+        name_field: "name",
+    },
+    SymbolRule {
+        node_kind: "static_item",
+        outline_kind: OutlineKind::Constant,
+        name_field: "name",
+    },
 ];
 
 /// JS/TS symbol rules (MT contract vocabulary). `function_declaration` -> Function,
 /// `method_definition` -> Method, `class_declaration` -> Class. `tree-sitter-javascript` exposes the
 /// identifier on the `"name"` field for these.
 const JS_RULES: &[SymbolRule] = &[
-    SymbolRule { node_kind: "function_declaration", outline_kind: OutlineKind::Function, name_field: "name" },
-    SymbolRule { node_kind: "method_definition", outline_kind: OutlineKind::Method, name_field: "name" },
-    SymbolRule { node_kind: "class_declaration", outline_kind: OutlineKind::Class, name_field: "name" },
+    SymbolRule {
+        node_kind: "function_declaration",
+        outline_kind: OutlineKind::Function,
+        name_field: "name",
+    },
+    SymbolRule {
+        node_kind: "method_definition",
+        outline_kind: OutlineKind::Method,
+        name_field: "name",
+    },
+    SymbolRule {
+        node_kind: "class_declaration",
+        outline_kind: OutlineKind::Class,
+        name_field: "name",
+    },
 ];
 
 impl OutlineNodeTypes {
@@ -192,7 +236,12 @@ impl OutlineProvider {
                 if let Some(name) = Self::symbol_name(&node, rule, &source) {
                     let line = node.start_position().row.min(max_line);
                     let indent = symbol_depths.len();
-                    items.push(OutlineItem { kind: rule.outline_kind, name, line, indent });
+                    items.push(OutlineItem {
+                        kind: rule.outline_kind,
+                        name,
+                        line,
+                        indent,
+                    });
                     // This node encloses any nested symbols found deeper in its subtree.
                     symbol_depths.push(cur_depth);
                 }
@@ -234,7 +283,10 @@ impl OutlineProvider {
                 let found = node.children(&mut walker).find(|c| {
                     matches!(
                         c.kind(),
-                        "identifier" | "type_identifier" | "property_identifier" | "field_identifier"
+                        "identifier"
+                            | "type_identifier"
+                            | "property_identifier"
+                            | "field_identifier"
                     )
                 });
                 found
@@ -302,7 +354,10 @@ fn beta(input: &str) -> usize {
         let buffer = TextBuffer::new(RUST_TWO_FNS);
         let items = OutlineProvider::compute(&tree, &buffer, "rust");
 
-        let fns: Vec<&OutlineItem> = items.iter().filter(|i| i.kind == OutlineKind::Function).collect();
+        let fns: Vec<&OutlineItem> = items
+            .iter()
+            .filter(|i| i.kind == OutlineKind::Function)
+            .collect();
         assert_eq!(
             fns.len(),
             2,
@@ -310,11 +365,17 @@ fn beta(input: &str) -> usize {
         );
         // Names + lines are correct and in source order.
         assert_eq!(fns[0].name, "alpha", "first function name");
-        assert_eq!(fns[0].line, 1, "first function on line 1 (after the comment line 0)");
+        assert_eq!(
+            fns[0].line, 1,
+            "first function on line 1 (after the comment line 0)"
+        );
         assert_eq!(fns[1].name, "beta", "second function name");
         assert_eq!(fns[1].line, 6, "second function on line 6");
         // Both are top-level -> indent 0.
-        assert!(fns.iter().all(|f| f.indent == 0), "top-level functions are indent 0");
+        assert!(
+            fns.iter().all(|f| f.indent == 0),
+            "top-level functions are indent 0"
+        );
     }
 
     #[test]
@@ -339,7 +400,10 @@ impl Widget {
         let items = OutlineProvider::compute(&tree, &buffer, "rust");
 
         // The struct is a top-level Struct.
-        let strukt = items.iter().find(|i| i.kind == OutlineKind::Struct).expect("struct item");
+        let strukt = items
+            .iter()
+            .find(|i| i.kind == OutlineKind::Struct)
+            .expect("struct item");
         assert_eq!(strukt.name, "Widget");
         assert_eq!(strukt.indent, 0, "struct is top-level");
 
@@ -353,9 +417,15 @@ impl Widget {
         // The two functions are INSIDE the impl -> indent 1 (one enclosing outline symbol).
         let methods: Vec<&OutlineItem> = items
             .iter()
-            .filter(|i| i.kind == OutlineKind::Function && (i.name == "new" || i.name == "increment"))
+            .filter(|i| {
+                i.kind == OutlineKind::Function && (i.name == "new" || i.name == "increment")
+            })
             .collect();
-        assert_eq!(methods.len(), 2, "two functions inside the impl; got {items:?}");
+        assert_eq!(
+            methods.len(),
+            2,
+            "two functions inside the impl; got {items:?}"
+        );
         assert!(
             methods.iter().all(|m| m.indent == 1),
             "functions inside the impl are indent 1 (nested under the impl); got {items:?}"
@@ -379,15 +449,21 @@ enum Color {
         let items = OutlineProvider::compute(&tree, &buffer, "rust");
 
         assert!(
-            items.iter().any(|i| i.kind == OutlineKind::Module && i.name == "config"),
+            items
+                .iter()
+                .any(|i| i.kind == OutlineKind::Module && i.name == "config"),
             "mod -> Module; got {items:?}"
         );
         assert!(
-            items.iter().any(|i| i.kind == OutlineKind::Constant && i.name == "MAX" && i.indent == 1),
+            items
+                .iter()
+                .any(|i| i.kind == OutlineKind::Constant && i.name == "MAX" && i.indent == 1),
             "const inside mod -> Constant at indent 1; got {items:?}"
         );
         assert!(
-            items.iter().any(|i| i.kind == OutlineKind::Enum && i.name == "Color" && i.indent == 0),
+            items
+                .iter()
+                .any(|i| i.kind == OutlineKind::Enum && i.name == "Color" && i.indent == 0),
             "enum -> Enum at indent 0; got {items:?}"
         );
     }
@@ -410,11 +486,15 @@ class Counter {
         let items = OutlineProvider::compute(&tree, &buffer, "javascript");
 
         assert!(
-            items.iter().any(|i| i.kind == OutlineKind::Function && i.name == "greet"),
+            items
+                .iter()
+                .any(|i| i.kind == OutlineKind::Function && i.name == "greet"),
             "JS function_declaration -> Function; got {items:?}"
         );
         assert!(
-            items.iter().any(|i| i.kind == OutlineKind::Class && i.name == "Counter"),
+            items
+                .iter()
+                .any(|i| i.kind == OutlineKind::Class && i.name == "Counter"),
             "JS class_declaration -> Class; got {items:?}"
         );
         assert!(
@@ -430,7 +510,10 @@ class Counter {
         let tree = rust_tree(RUST_TWO_FNS);
         let buffer = TextBuffer::new(RUST_TWO_FNS);
         let items = OutlineProvider::compute(&tree, &buffer, "cobol");
-        assert!(items.is_empty(), "an unregistered language yields no outline items");
+        assert!(
+            items.is_empty(),
+            "an unregistered language yields no outline items"
+        );
     }
 
     #[test]
@@ -450,7 +533,12 @@ class Counter {
         let max_line = short.len_lines().saturating_sub(1);
         let items = OutlineProvider::compute(&tree, &short, "rust");
         for item in &items {
-            assert!(item.line <= max_line, "line {} clamped to {}", item.line, max_line);
+            assert!(
+                item.line <= max_line,
+                "line {} clamped to {}",
+                item.line,
+                max_line
+            );
         }
     }
 

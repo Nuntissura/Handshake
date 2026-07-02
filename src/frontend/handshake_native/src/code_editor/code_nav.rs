@@ -303,7 +303,10 @@ pub fn markdown_for_symbol(symbol: &CodeSymbolNavProjection, doc: Option<&str>) 
         String::new(),
         format!("Kind: `{}`", symbol.symbol_kind),
         format!("Symbol: `{}`", symbol.symbol_key),
-        format!("Staleness: `{}`", code_symbol_staleness_label(symbol.staleness.as_ref())),
+        format!(
+            "Staleness: `{}`",
+            code_symbol_staleness_label(symbol.staleness.as_ref())
+        ),
     ];
     if let Some(doc) = doc.filter(|d| !d.is_empty()) {
         lines.push(String::new());
@@ -345,7 +348,10 @@ pub fn staleness_marker_for(symbol: &CodeSymbolNavProjection) -> Option<GutterMa
     Some(GutterMarker::diagnostic(
         line,
         DiagnosticSeverity::Warning,
-        format!("Stale code intelligence: {} is {label}", symbol.display_name),
+        format!(
+            "Stale code intelligence: {} is {label}",
+            symbol.display_name
+        ),
     ))
 }
 
@@ -368,9 +374,7 @@ impl CodeNavCache {
     /// not expired (RISK-002). A miss / expiry returns `None` so the caller hits the backend.
     pub fn get(&self, prefix: &str) -> Option<Vec<CodeSymbolNavProjection>> {
         match &self.entry {
-            Some((p, matches, at))
-                if p == prefix && at.elapsed() < LOOKUP_CACHE_TTL =>
-            {
+            Some((p, matches, at)) if p == prefix && at.elapsed() < LOOKUP_CACHE_TTL => {
                 Some(matches.clone())
             }
             _ => None,
@@ -401,7 +405,9 @@ impl Default for CodeNavClient {
 impl CodeNavClient {
     /// Build a client against an explicit `base_url` (for tests pointing at a live backend).
     pub fn new(base_url: impl Into<String>) -> Self {
-        Self { base_url: base_url.into() }
+        Self {
+            base_url: base_url.into(),
+        }
     }
 
     /// The production client against the hardcoded backend base URL.
@@ -439,10 +445,7 @@ impl CodeNavClient {
     /// `GET /knowledge/code/symbols/:entity_id` — one symbol's definition + staleness. Ports
     /// `getCodeSymbol` (`api.ts:2152`). Returns `None` when the symbol is absent / the backend errors
     /// (graceful: hover shows nothing rather than crashing).
-    pub async fn get_symbol(
-        &self,
-        entity_id: &str,
-    ) -> Result<CodeSymbolResponse, AppError> {
+    pub async fn get_symbol(&self, entity_id: &str) -> Result<CodeSymbolResponse, AppError> {
         let url = format!(
             "{}/knowledge/code/symbols/{}",
             self.base_url,
@@ -515,25 +518,65 @@ mod tests {
     #[test]
     fn completion_kind_maps_like_react() {
         // Mirror the React `completionKind` switch, including the Function default.
-        assert_eq!(CompletionKind::from_symbol_kind("struct"), CompletionKind::Class);
-        assert_eq!(CompletionKind::from_symbol_kind("class"), CompletionKind::Class);
-        assert_eq!(CompletionKind::from_symbol_kind("enum"), CompletionKind::Enum);
-        assert_eq!(CompletionKind::from_symbol_kind("field"), CompletionKind::Field);
-        assert_eq!(CompletionKind::from_symbol_kind("property"), CompletionKind::Field);
-        assert_eq!(CompletionKind::from_symbol_kind("module"), CompletionKind::Module);
-        assert_eq!(CompletionKind::from_symbol_kind("namespace"), CompletionKind::Module);
-        assert_eq!(CompletionKind::from_symbol_kind("variable"), CompletionKind::Variable);
-        assert_eq!(CompletionKind::from_symbol_kind("function"), CompletionKind::Function);
-        assert_eq!(CompletionKind::from_symbol_kind("anything-else"), CompletionKind::Function);
+        assert_eq!(
+            CompletionKind::from_symbol_kind("struct"),
+            CompletionKind::Class
+        );
+        assert_eq!(
+            CompletionKind::from_symbol_kind("class"),
+            CompletionKind::Class
+        );
+        assert_eq!(
+            CompletionKind::from_symbol_kind("enum"),
+            CompletionKind::Enum
+        );
+        assert_eq!(
+            CompletionKind::from_symbol_kind("field"),
+            CompletionKind::Field
+        );
+        assert_eq!(
+            CompletionKind::from_symbol_kind("property"),
+            CompletionKind::Field
+        );
+        assert_eq!(
+            CompletionKind::from_symbol_kind("module"),
+            CompletionKind::Module
+        );
+        assert_eq!(
+            CompletionKind::from_symbol_kind("namespace"),
+            CompletionKind::Module
+        );
+        assert_eq!(
+            CompletionKind::from_symbol_kind("variable"),
+            CompletionKind::Variable
+        );
+        assert_eq!(
+            CompletionKind::from_symbol_kind("function"),
+            CompletionKind::Function
+        );
+        assert_eq!(
+            CompletionKind::from_symbol_kind("anything-else"),
+            CompletionKind::Function
+        );
     }
 
     #[test]
     fn staleness_label_matches_react_format() {
-        let fresh = CodeStaleness { state: Some("fresh".into()), fresh: true, ..Default::default() };
+        let fresh = CodeStaleness {
+            state: Some("fresh".into()),
+            fresh: true,
+            ..Default::default()
+        };
         assert_eq!(code_symbol_staleness_label(Some(&fresh)), "fresh (fresh)");
-        let stale =
-            CodeStaleness { state: Some("marked_stale".into()), fresh: false, ..Default::default() };
-        assert_eq!(code_symbol_staleness_label(Some(&stale)), "marked_stale (not fresh)");
+        let stale = CodeStaleness {
+            state: Some("marked_stale".into()),
+            fresh: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            code_symbol_staleness_label(Some(&stale)),
+            "marked_stale (not fresh)"
+        );
         assert_eq!(code_symbol_staleness_label(None), "unknown");
     }
 
@@ -573,8 +616,14 @@ mod tests {
         // Fresh symbol -> no marker.
         let fresh = CodeSymbolNavProjection {
             display_name: "ok".into(),
-            definition: Some(CodeSymbolDefinition { line_start: Some(10), ..Default::default() }),
-            staleness: Some(CodeStaleness { fresh: true, ..Default::default() }),
+            definition: Some(CodeSymbolDefinition {
+                line_start: Some(10),
+                ..Default::default()
+            }),
+            staleness: Some(CodeStaleness {
+                fresh: true,
+                ..Default::default()
+            }),
             ..Default::default()
         };
         assert!(staleness_marker_for(&fresh).is_none(), "fresh -> no marker");
@@ -582,7 +631,10 @@ mod tests {
         // Not-fresh with a definition -> a Warning marker on the 0-based def line.
         let stale = CodeSymbolNavProjection {
             display_name: "old".into(),
-            definition: Some(CodeSymbolDefinition { line_start: Some(10), ..Default::default() }),
+            definition: Some(CodeSymbolDefinition {
+                line_start: Some(10),
+                ..Default::default()
+            }),
             staleness: Some(CodeStaleness {
                 state: Some("marked_stale".into()),
                 fresh: false,
@@ -599,7 +651,10 @@ mod tests {
 
         // Not-fresh but no definition span -> no marker (nothing to anchor it to).
         let stale_no_def = CodeSymbolNavProjection {
-            staleness: Some(CodeStaleness { fresh: false, ..Default::default() }),
+            staleness: Some(CodeStaleness {
+                fresh: false,
+                ..Default::default()
+            }),
             ..Default::default()
         };
         assert!(staleness_marker_for(&stale_no_def).is_none());
@@ -609,7 +664,10 @@ mod tests {
     fn references_total_counts_callers_and_callees() {
         let refs = CodeSymbolReferencesResponse {
             callers: vec![CodeSymbolReference::default()],
-            callees: vec![CodeSymbolReference::default(), CodeSymbolReference::default()],
+            callees: vec![
+                CodeSymbolReference::default(),
+                CodeSymbolReference::default(),
+            ],
         };
         assert_eq!(refs.total(), 3);
     }
@@ -641,9 +699,16 @@ mod tests {
     fn cache_hits_within_ttl_and_respects_prefix() {
         let mut cache = CodeNavCache::new();
         assert!(cache.get("ad").is_none(), "empty cache misses");
-        let matches = vec![CodeSymbolNavProjection { display_name: "add".into(), ..Default::default() }];
+        let matches = vec![CodeSymbolNavProjection {
+            display_name: "add".into(),
+            ..Default::default()
+        }];
         cache.put("ad", matches.clone());
-        assert_eq!(cache.get("ad").map(|m| m.len()), Some(1), "same prefix hits");
+        assert_eq!(
+            cache.get("ad").map(|m| m.len()),
+            Some(1),
+            "same prefix hits"
+        );
         assert!(cache.get("xyz").is_none(), "different prefix misses");
     }
 }

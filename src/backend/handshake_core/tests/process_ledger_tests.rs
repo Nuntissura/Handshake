@@ -217,10 +217,10 @@ fn new_process_ledger_sources_do_not_add_sqlite_paths() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test process_ledger_tests -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
 async fn process_ledger_persists_start_and_stop_in_postgres(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let postgres_url = std::env::var("POSTGRES_TEST_URL")?;
+    let postgres_url = handshake_core::storage::tests::postgres_test_base_url().await?;
     let pool = PgPoolOptions::new()
         .max_connections(1)
         .connect(&postgres_url)

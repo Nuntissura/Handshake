@@ -136,7 +136,13 @@ pub const COMMAND_LIST_ITEM_AUTHOR_PREFIX: &str = "cmd-";
 pub fn command_list_item_author_id(name: &str) -> String {
     let safe: String = name
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect();
     format!("{COMMAND_LIST_ITEM_AUTHOR_PREFIX}{safe}")
 }
@@ -175,10 +181,7 @@ pub enum SharedSelection {
         text: String,
     },
     /// A block reference selected in the rich-text surface (a whole block, addressable as `loom://`).
-    BlockRef {
-        pane_id: PaneId,
-        block_id: String,
-    },
+    BlockRef { pane_id: PaneId, block_id: String },
     /// A node reference selected in the graph or canvas surface.
     NodeRef {
         pane_id: PaneId,
@@ -202,9 +205,8 @@ impl SharedSelection {
     pub fn surface(&self) -> Option<EditorSurfaceKind> {
         match self {
             SharedSelection::None | SharedSelection::BlockRef { .. } => None,
-            SharedSelection::TextRange { surface, .. } | SharedSelection::NodeRef { surface, .. } => {
-                Some(*surface)
-            }
+            SharedSelection::TextRange { surface, .. }
+            | SharedSelection::NodeRef { surface, .. } => Some(*surface),
         }
     }
 
@@ -274,7 +276,10 @@ impl std::fmt::Debug for CommandDescriptor {
             .field("name", &self.name)
             .field("label", &self.label)
             .field("keywords", &self.keywords)
-            .field("keybind", &self.keybind.map(|k| (k.modifiers, k.logical_key)))
+            .field(
+                "keybind",
+                &self.keybind.map(|k| (k.modifiers, k.logical_key)),
+            )
             .field("handler", &"<fn>")
             .finish()
     }
@@ -315,7 +320,10 @@ impl CommandBus {
 
     /// Every registered command in registration order (the palette's row order).
     pub fn all(&self) -> Vec<&CommandDescriptor> {
-        self.order.iter().filter_map(|id| self.by_id.get(id)).collect()
+        self.order
+            .iter()
+            .filter_map(|id| self.by_id.get(id))
+            .collect()
     }
 
     /// How many commands are registered.
@@ -443,7 +451,9 @@ impl InteractionBus {
         match bus.try_lock() {
             Ok(mut guard) => Some(f(&mut guard)),
             Err(std::sync::TryLockError::WouldBlock) => {
-                tracing::debug!("InteractionBus: try_lock contention this frame; skipping (no deadlock)");
+                tracing::debug!(
+                    "InteractionBus: try_lock contention this frame; skipping (no deadlock)"
+                );
                 None
             }
             Err(std::sync::TryLockError::Poisoned(poisoned)) => {
@@ -496,7 +506,8 @@ impl InteractionBus {
             // MT-036 (E5 designed seam): fan the new selection out to every registered future surface
             // (a no-op in production — the registry is empty until an image-editor/spreadsheet/engine
             // surface registers). Kept INSIDE the accept branch so a rejected selection does not notify.
-            self.surface_registry.dispatch_selection_changed(&self.selection);
+            self.surface_registry
+                .dispatch_selection_changed(&self.selection);
         }
         accept
     }
@@ -580,7 +591,10 @@ impl InteractionBus {
     /// dispatcher uses this AFTER the pane has consumed the shortcut from egui's input (red-team RISK-3 /
     /// MC-3: the pane calls `ui.input_mut(|i| i.consume_shortcut(&shortcut))` first to suppress egui's
     /// default text-widget copy, THEN dispatches the resolved command).
-    pub fn matching_keybind_command(&self, shortcut: &egui::KeyboardShortcut) -> Option<&'static str> {
+    pub fn matching_keybind_command(
+        &self,
+        shortcut: &egui::KeyboardShortcut,
+    ) -> Option<&'static str> {
         self.commands
             .all()
             .into_iter()
@@ -637,7 +651,11 @@ impl InteractionBus {
             id: CMD_OPEN_DOCUMENT,
             name: "OpenDocument",
             label: "Open Document".to_owned(),
-            keywords: vec!["open".to_owned(), "document".to_owned(), "backlink".to_owned()],
+            keywords: vec![
+                "open".to_owned(),
+                "document".to_owned(),
+                "backlink".to_owned(),
+            ],
             keybind: None,
             handler: Arc::new(|ctx, _bus| ctx.request_repaint()),
         });
@@ -710,8 +728,11 @@ impl InteractionBus {
             .as_ref()
             .map(|p| p.as_ref().to_owned())
             .unwrap_or_else(|| "stage-route-source".to_owned());
-        let workspace_id =
-            self.event_emitter.as_ref().map(|e| e.workspace_id().to_owned()).unwrap_or_default();
+        let workspace_id = self
+            .event_emitter
+            .as_ref()
+            .map(|e| e.workspace_id().to_owned())
+            .unwrap_or_default();
         let ev = crate::event_emitter::NativeEditorEvent::route_to_stage(
             content_kind,
             &source_pane_id,
@@ -765,7 +786,11 @@ impl InteractionBus {
     /// chip path — AC-2). Returns `true` when the command was found and dispatched (it always is once
     /// [`Self::register_open_code_symbol_command`] ran). The staged id is then readable via
     /// [`Self::pending_code_symbol`] until the shell drains it.
-    pub fn open_code_symbol(&mut self, ctx: &egui::Context, symbol_entity_id: impl Into<String>) -> bool {
+    pub fn open_code_symbol(
+        &mut self,
+        ctx: &egui::Context,
+        symbol_entity_id: impl Into<String>,
+    ) -> bool {
         self.request_open_code_symbol(symbol_entity_id);
         self.dispatch_command(ctx, CMD_OPEN_CODE_SYMBOL)
     }
@@ -867,7 +892,8 @@ impl InteractionBus {
             return false; // not installed yet (unmounted-pane defer): honest no-op, never faked.
         };
         // Fan out to the design-only future-surface registry FIRST (a no-op in production); then emit.
-        self.surface_registry.dispatch_event_emitted(&event, emitter);
+        self.surface_registry
+            .dispatch_event_emitted(&event, emitter);
         let _ = emitter.emit(event); // a drop/transport-failure is recorded in the error ring, not panicked.
         true
     }
@@ -876,7 +902,10 @@ impl InteractionBus {
 
     /// Register a future editor surface into the co-located registry (DESIGN-ONLY — no production caller
     /// today; an image-editor/spreadsheet/engine surface calls this at its own startup).
-    pub fn register_surface(&mut self, surface: Box<dyn crate::surface_extension_seam::EditorSurface>) {
+    pub fn register_surface(
+        &mut self,
+        surface: Box<dyn crate::surface_extension_seam::EditorSurface>,
+    ) {
         self.surface_registry.register_surface(surface);
     }
 
@@ -1079,7 +1108,9 @@ mod tests {
     }
     impl MockClipboard {
         fn new() -> Self {
-            Self { last: StdMutex::new(None) }
+            Self {
+                last: StdMutex::new(None),
+            }
         }
         fn taken(&self) -> Option<String> {
             self.last.lock().unwrap().clone()
@@ -1130,7 +1161,9 @@ mod tests {
         // A background pane tries to overwrite — rejected, the owner's selection stays.
         assert!(!bus.set_selection(text_selection("pane-rich", "intruder")));
         assert_eq!(
-            bus.shared_selection().pane_id().map(|p| p.as_ref().to_owned()),
+            bus.shared_selection()
+                .pane_id()
+                .map(|p| p.as_ref().to_owned()),
             Some("pane-code".to_owned())
         );
     }
@@ -1187,7 +1220,10 @@ mod tests {
         });
         assert!(!bus.command_palette_open());
         assert!(bus.dispatch_command(&ctx, CMD_COMMAND_PALETTE));
-        assert!(bus.command_palette_open(), "the handler opened the palette via the locked bus");
+        assert!(
+            bus.command_palette_open(),
+            "the handler opened the palette via the locked bus"
+        );
         // An unknown id is a no-op, not a panic.
         assert!(!bus.dispatch_command(&ctx, "interop.does-not-exist"));
     }
@@ -1208,7 +1244,11 @@ mod tests {
         let ctrl_c = default_keybind_for(CMD_COPY).unwrap();
         assert_eq!(bus.matching_keybind_command(&ctrl_c), Some(CMD_COPY));
         let ctrl_x = default_keybind_for(CMD_CUT).unwrap();
-        assert_eq!(bus.matching_keybind_command(&ctrl_x), None, "no Cut command registered");
+        assert_eq!(
+            bus.matching_keybind_command(&ctrl_x),
+            None,
+            "no Cut command registered"
+        );
     }
 
     /// `get_or_init` returns the SAME `Arc` instance on repeated calls against one context (every pane
@@ -1231,7 +1271,10 @@ mod tests {
             b.open_command_palette();
             // Simulate a re-entrant attempt from "another pane" in the same frame.
             let reentrant = InteractionBus::with_try_lock(&bus, |_| 42);
-            assert_eq!(reentrant, None, "a re-entrant try_lock contends and is skipped, not deadlocked");
+            assert_eq!(
+                reentrant, None,
+                "a re-entrant try_lock contends and is skipped, not deadlocked"
+            );
             7
         });
         assert_eq!(got, Some(7));
@@ -1243,13 +1286,18 @@ mod tests {
     #[test]
     fn command_list_item_author_id_matches_contract_shape() {
         assert_eq!(command_list_item_author_id("Copy"), "cmd-Copy");
-        assert_eq!(command_list_item_author_id("CommandPalette"), "cmd-CommandPalette");
+        assert_eq!(
+            command_list_item_author_id("CommandPalette"),
+            "cmd-CommandPalette"
+        );
         // A name with unsafe chars is sanitized (dots/slashes -> '-').
         let id = command_list_item_author_id("weird.name/x");
         assert!(id.starts_with(COMMAND_LIST_ITEM_AUTHOR_PREFIX));
         let suffix = &id[COMMAND_LIST_ITEM_AUTHOR_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-'),
             "author_id suffix must be [A-Za-z0-9-]; got '{suffix}'"
         );
     }
@@ -1261,14 +1309,24 @@ mod tests {
         let ctx = egui::Context::default();
         let mut bus = InteractionBus::new();
         bus.register_open_document_command();
-        assert!(bus.commands().get(CMD_OPEN_DOCUMENT).is_some(), "open-document command registered");
+        assert!(
+            bus.commands().get(CMD_OPEN_DOCUMENT).is_some(),
+            "open-document command registered"
+        );
         assert!(bus.pending_navigation().is_none(), "nothing pending before");
         // The backlink-row click path: stage + dispatch in one call.
         assert!(bus.open_document(&ctx, "DOC-A"), "open-document dispatched");
-        assert_eq!(bus.pending_navigation(), Some("DOC-A"), "the staged target is observable");
+        assert_eq!(
+            bus.pending_navigation(),
+            Some("DOC-A"),
+            "the staged target is observable"
+        );
         // The shell drains it once.
         assert_eq!(bus.take_pending_navigation().as_deref(), Some("DOC-A"));
-        assert!(bus.take_pending_navigation().is_none(), "drained once, then empty");
+        assert!(
+            bus.take_pending_navigation().is_none(),
+            "drained once, then empty"
+        );
     }
 
     /// MT-034 AC-2: staging a symbol entity id + dispatching the Open-Code-Symbol command stages the
@@ -1279,14 +1337,30 @@ mod tests {
         let ctx = egui::Context::default();
         let mut bus = InteractionBus::new();
         bus.register_open_code_symbol_command();
-        assert!(bus.commands().get(CMD_OPEN_CODE_SYMBOL).is_some(), "open-code-symbol command registered");
-        assert!(bus.pending_code_symbol().is_none(), "nothing pending before");
+        assert!(
+            bus.commands().get(CMD_OPEN_CODE_SYMBOL).is_some(),
+            "open-code-symbol command registered"
+        );
+        assert!(
+            bus.pending_code_symbol().is_none(),
+            "nothing pending before"
+        );
         // The clicked code-ref chip path: stage + dispatch in one call.
-        assert!(bus.open_code_symbol(&ctx, "ent-42"), "open-code-symbol dispatched");
-        assert_eq!(bus.pending_code_symbol(), Some("ent-42"), "the staged symbol id is observable");
+        assert!(
+            bus.open_code_symbol(&ctx, "ent-42"),
+            "open-code-symbol dispatched"
+        );
+        assert_eq!(
+            bus.pending_code_symbol(),
+            Some("ent-42"),
+            "the staged symbol id is observable"
+        );
         // The shell drains it once.
         assert_eq!(bus.take_pending_code_symbol().as_deref(), Some("ent-42"));
-        assert!(bus.take_pending_code_symbol().is_none(), "drained once, then empty");
+        assert!(
+            bus.take_pending_code_symbol().is_none(),
+            "drained once, then empty"
+        );
     }
 
     /// Dispatching Open-Code-Symbol WITHOUT registering it is a benign false (unknown id), not a panic;
@@ -1296,7 +1370,10 @@ mod tests {
         let ctx = egui::Context::default();
         let mut bus = InteractionBus::new();
         bus.request_open_code_symbol("ent-X");
-        assert!(!bus.dispatch_command(&ctx, CMD_OPEN_CODE_SYMBOL), "unknown command id is a no-op false");
+        assert!(
+            !bus.dispatch_command(&ctx, CMD_OPEN_CODE_SYMBOL),
+            "unknown command id is a no-op false"
+        );
         assert_eq!(bus.take_pending_code_symbol().as_deref(), Some("ent-X"));
     }
 
@@ -1307,7 +1384,10 @@ mod tests {
         let mut bus = InteractionBus::new();
         // request_open_document stages even without the command; dispatch returns false (unknown id).
         bus.request_open_document("DOC-X");
-        assert!(!bus.dispatch_command(&ctx, CMD_OPEN_DOCUMENT), "unknown command id is a no-op false");
+        assert!(
+            !bus.dispatch_command(&ctx, CMD_OPEN_DOCUMENT),
+            "unknown command id is a no-op false"
+        );
         // The staged id still drains (the stage is independent of dispatch).
         assert_eq!(bus.take_pending_navigation().as_deref(), Some("DOC-X"));
     }
@@ -1320,15 +1400,31 @@ mod tests {
         let ctx = egui::Context::default();
         let mut bus = InteractionBus::new();
         bus.register_route_to_stage_command();
-        assert!(bus.commands().get(CMD_ROUTE_TO_STAGE).is_some(), "route-to-stage command registered");
-        assert!(bus.pending_stage_content().is_none(), "nothing staged before");
+        assert!(
+            bus.commands().get(CMD_ROUTE_TO_STAGE).is_some(),
+            "route-to-stage command registered"
+        );
+        assert!(
+            bus.pending_stage_content().is_none(),
+            "nothing staged before"
+        );
         let content =
             crate::stage_pane::StageContent::Selection("hello".to_owned(), "DOC-7".to_owned());
-        assert!(bus.route_to_stage(&ctx, content.clone()), "route-to-stage dispatched");
-        assert_eq!(bus.pending_stage_content(), Some(&content), "the staged content is observable");
+        assert!(
+            bus.route_to_stage(&ctx, content.clone()),
+            "route-to-stage dispatched"
+        );
+        assert_eq!(
+            bus.pending_stage_content(),
+            Some(&content),
+            "the staged content is observable"
+        );
         // The shell drains it once.
         assert_eq!(bus.take_pending_stage_content(), Some(content));
-        assert!(bus.take_pending_stage_content().is_none(), "drained once, then empty");
+        assert!(
+            bus.take_pending_stage_content().is_none(),
+            "drained once, then empty"
+        );
     }
 
     /// Dispatching Route-to-Stage WITHOUT registering it is a benign false (unknown id), not a panic;
@@ -1338,8 +1434,14 @@ mod tests {
         let ctx = egui::Context::default();
         let mut bus = InteractionBus::new();
         bus.request_route_to_stage(crate::stage_pane::StageContent::Empty);
-        assert!(!bus.dispatch_command(&ctx, CMD_ROUTE_TO_STAGE), "unknown command id is a no-op false");
-        assert!(bus.take_pending_stage_content().is_some(), "the staged content still drains");
+        assert!(
+            !bus.dispatch_command(&ctx, CMD_ROUTE_TO_STAGE),
+            "unknown command id is a no-op false"
+        );
+        assert!(
+            bus.take_pending_stage_content().is_some(),
+            "the staged content still drains"
+        );
     }
 
     /// The default keybinds match the contract's VS Code mapping.

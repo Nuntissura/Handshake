@@ -36,7 +36,7 @@ pub const DEFAULT_DENY_PATTERNS: &[&str] = &[
     "**/secrets/**",
     "**/node_modules/**",
     "**/target/**",
-    "Handshake_Artifacts/managed_pgdata/**",
+    "Handshake_Artifacts/handshake-product/managed_pgdata/**",
     // MT-091 #10: secret-bearing file shapes that must never be index roots
     // even when nested under an otherwise-allowed tree (dotenv files, private
     // keys, SSH identities, cloud-credential and registry-auth stores).
@@ -247,7 +247,7 @@ mod tests {
             "ops/secrets/prod",
             "app/node_modules/x",
             "src/backend/target/debug",
-            "Handshake_Artifacts/managed_pgdata/base",
+            "Handshake_Artifacts/handshake-product/managed_pgdata/base",
             // MT-091 #10 secret-bearing file shapes.
             ".env",
             "app/.env.local",

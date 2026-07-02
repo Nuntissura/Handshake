@@ -44,7 +44,9 @@ use crate::rich_editor::document_model::history::UndoManager;
 use crate::rich_editor::document_model::node::BlockNode;
 use crate::rich_editor::document_model::position::DocPosition;
 use crate::rich_editor::document_model::selection::Selection;
-use crate::rich_editor::document_model::transform::{apply_transaction, ActorKind, Step, Transaction};
+use crate::rich_editor::document_model::transform::{
+    apply_transaction, ActorKind, Step, Transaction,
+};
 
 use scanner::{scan, FindMatch, FindQuery, FindScanResult};
 
@@ -306,10 +308,7 @@ mod tests {
     use scanner::FindQuery;
 
     fn leaf_text(doc: &BlockNode, block: usize, leaf: usize) -> String {
-        doc.children[block]
-            .as_block()
-            .unwrap()
-            .children[leaf]
+        doc.children[block].as_block().unwrap().children[leaf]
             .as_text()
             .unwrap()
             .text
@@ -318,8 +317,14 @@ mod tests {
 
     #[test]
     fn open_find_only_vs_find_replace() {
-        assert!(!FindReplaceState::open(false).with_replace, "Ctrl+F = find-only");
-        assert!(FindReplaceState::open(true).with_replace, "Ctrl+H = find + replace");
+        assert!(
+            !FindReplaceState::open(false).with_replace,
+            "Ctrl+F = find-only"
+        );
+        assert!(
+            FindReplaceState::open(true).with_replace,
+            "Ctrl+H = find + replace"
+        );
         // A fresh panel has the one-shot focus flag set and no active match.
         let st = FindReplaceState::open(false);
         assert!(st.focus_find_input);
@@ -354,7 +359,10 @@ mod tests {
         let mut st = FindReplaceState::open(false);
         st.query = FindQuery::literal("x");
         st.rescan(&doc);
-        assert!(st.count_label().ends_with('+'), "a truncated scan marks the count with '+'");
+        assert!(
+            st.count_label().ends_with('+'),
+            "a truncated scan marks the count with '+'"
+        );
     }
 
     #[test]
@@ -383,7 +391,11 @@ mod tests {
         // Replace the FIRST match only.
         let replaced = replace_one(&mut doc, &mut undo, &mut sel, &result.matches[0], "BAZ");
         assert!(replaced);
-        assert_eq!(leaf_text(&doc, 0, 0), "BAZ bar foo", "only the first foo is replaced");
+        assert_eq!(
+            leaf_text(&doc, 0, 0),
+            "BAZ bar foo",
+            "only the first foo is replaced"
+        );
         // The caret advanced to just after the inserted "BAZ" (char 3).
         assert!(matches!(&sel, Selection::Text { head, .. } if head.char_offset == 3));
         // A SINGLE undo restores the original (one Ctrl+Z).

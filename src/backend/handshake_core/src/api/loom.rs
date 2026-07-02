@@ -3,13 +3,13 @@ use crate::loom_fs::{loom_asset_blob_path, resolve_handshake_root};
 use crate::models::ErrorResponse;
 use crate::storage::{
     artifacts, Asset, BlockViewDefinition, BlockViewRecord, BlockViewResults, LoomBlock,
-    LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate,
-    LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementUpdate,
-    LoomCanvasVisualEdge, LoomEdge,
+    LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView,
+    LoomCanvasPlacement, LoomCanvasPlacementUpdate, LoomCanvasVisualEdge, LoomEdge,
     LoomEdgeCreatedBy, LoomEdgeType, LoomGraphSearchResult, LoomSearchFilters,
     LoomSearchSourceKind, LoomViewFilters, LoomViewResponse, LoomViewType, LoomVisualDebugSnapshot,
-    NewAsset, NewLoomBlock, NewLoomCanvasPlacement, NewLoomEdge, PreviewStatus, QuickSwitcherRecent,
-    QuickSwitcherRecentInput, StorageCapabilityStore, StorageError, WriteContext,
+    NewAsset, NewLoomBlock, NewLoomCanvasPlacement, NewLoomEdge, PreviewStatus,
+    QuickSwitcherRecent, QuickSwitcherRecentInput, StorageCapabilityStore, StorageError,
+    WriteContext,
 };
 use crate::AppState;
 use axum::{
@@ -467,8 +467,13 @@ async fn create_loom_block(
 /// while the embedding can be backfilled, rather than failing an otherwise
 /// successful authority write.
 async fn refresh_loom_block_embedding(state: &AppState, ctx: &WriteContext, block: &LoomBlock) {
-    match crate::loom_search::reindex_block(state.storage.as_ref(), state.llm_client.as_ref(), ctx, block)
-        .await
+    match crate::loom_search::reindex_block(
+        state.storage.as_ref(),
+        state.llm_client.as_ref(),
+        ctx,
+        block,
+    )
+    .await
     {
         Ok(_wrote_embedding) => {}
         Err(err) => {
@@ -2760,7 +2765,9 @@ async fn accept_loom_ai_suggestion(
     match outcome {
         LoomAiAcceptOutcome::Promoted { suggestion, .. } => Ok(Json(*suggestion)),
         LoomAiAcceptOutcome::AlreadyPromoted(suggestion) => Ok(Json(*suggestion)),
-        LoomAiAcceptOutcome::UnknownSuggestion { .. } => Err(not_found("loom_ai_suggestion_not_found")),
+        LoomAiAcceptOutcome::UnknownSuggestion { .. } => {
+            Err(not_found("loom_ai_suggestion_not_found"))
+        }
         LoomAiAcceptOutcome::Denied(_) => Err((
             StatusCode::FORBIDDEN,
             Json(ErrorResponse {
@@ -2802,7 +2809,9 @@ async fn reject_loom_ai_suggestion(
 
     match outcome {
         LoomAiRejectOutcome::Rejected(suggestion) => Ok(Json(*suggestion)),
-        LoomAiRejectOutcome::UnknownSuggestion { .. } => Err(not_found("loom_ai_suggestion_not_found")),
+        LoomAiRejectOutcome::UnknownSuggestion { .. } => {
+            Err(not_found("loom_ai_suggestion_not_found"))
+        }
         LoomAiRejectOutcome::Denied(_) => Err((
             StatusCode::FORBIDDEN,
             Json(ErrorResponse {
@@ -4126,7 +4135,9 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter};
     use crate::llm::ollama::InMemoryLlmClient;
-    use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database, NewWorkspace};
+    use crate::storage::{
+        tests::optional_postgres_backend_with_pool_from_env, Database, NewWorkspace,
+    };
     use once_cell::sync::Lazy;
     use std::sync::{Arc, Mutex};
     use tempfile::TempDir;
@@ -4250,8 +4261,8 @@ mod tests {
     /// calls `reindex_block`. Editing the title through `patch_loom_block`
     /// re-embeds the new text. Both are proven against real PostgreSQL.
     #[tokio::test]
-    async fn mt264_api_create_and_update_refresh_embedding() -> Result<(), Box<dyn std::error::Error>>
-    {
+    async fn mt264_api_create_and_update_refresh_embedding(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state_with_embedding().await? else {
             return Ok(());
         };
@@ -4353,12 +4364,11 @@ mod tests {
         let block_id = journal.0.block_id.clone();
 
         // The journal block has an index row immediately on creation.
-        let index_rows: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM loom_block_search_index WHERE block_id = $1",
-        )
-        .bind(&block_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let index_rows: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM loom_block_search_index WHERE block_id = $1")
+                .bind(&block_id)
+                .fetch_one(&state.postgres_pool)
+                .await?;
         assert_eq!(
             index_rows, 1,
             "journal block must get a search-index row on creation (no drift)"
@@ -4731,7 +4741,7 @@ mod tests {
     async fn mt258_bookmark_routes_persist_add_remove_and_emit_receipts(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
-            eprintln!("SKIP MT-258 bookmark route proof: POSTGRES_TEST_URL unavailable");
+            eprintln!("SKIP MT-258 bookmark route proof: PostgreSQL backend unavailable");
             return Ok(());
         };
         let workspace_id = create_workspace(&state).await?;
@@ -4866,9 +4876,15 @@ mod tests {
             "remove flow must clear pin_order before unpinning"
         );
 
-        let stored = state.storage.get_loom_block(&workspace_id, &block_id).await?;
+        let stored = state
+            .storage
+            .get_loom_block(&workspace_id, &block_id)
+            .await?;
         assert!(!stored.pinned, "Postgres read after remove is unpinned");
-        assert_eq!(stored.pin_order, None, "Postgres read after remove is unordered");
+        assert_eq!(
+            stored.pin_order, None,
+            "Postgres read after remove is unordered"
+        );
 
         let pins_after_remove = query_loom_view(
             State(state.clone()),
@@ -4916,11 +4932,7 @@ mod tests {
                         .payload
                         .get("fields_changed")
                         .and_then(|value| value.as_array())
-                        .map(|fields| {
-                            fields
-                                .iter()
-                                .any(|changed| changed.as_str() == Some(field))
-                        })
+                        .map(|fields| fields.iter().any(|changed| changed.as_str() == Some(field)))
                         .unwrap_or(false)
                 })
                 .count()
@@ -4948,7 +4960,7 @@ mod tests {
     async fn mt258_properties_tag_edit_persists_edges_and_metrics(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
-            eprintln!("SKIP MT-258 tag-edit route proof: POSTGRES_TEST_URL unavailable");
+            eprintln!("SKIP MT-258 tag-edit route proof: PostgreSQL backend unavailable");
             return Ok(());
         };
         let workspace_id = create_workspace(&state).await?;
@@ -5030,9 +5042,7 @@ mod tests {
             .await?;
         let tag_targets: std::collections::HashSet<String> = edges_after_add
             .iter()
-            .filter(|edge| {
-                edge.edge_type == LoomEdgeType::Tag && edge.source_block_id == block_id
-            })
+            .filter(|edge| edge.edge_type == LoomEdgeType::Tag && edge.source_block_id == block_id)
             .map(|edge| edge.target_block_id.clone())
             .collect();
         assert!(
@@ -5075,7 +5085,10 @@ mod tests {
         );
 
         // Postgres read after the route confirms durability (not in-memory only).
-        let stored = state.storage.get_loom_block(&workspace_id, &block_id).await?;
+        let stored = state
+            .storage
+            .get_loom_block(&workspace_id, &block_id)
+            .await?;
         assert_eq!(
             stored.derived.tag_count, 1,
             "Postgres re-read confirms the tag mutation persisted"
@@ -5088,7 +5101,10 @@ mod tests {
             .expect_err("non-TagHub target must be rejected");
         assert_eq!(guard.status, StatusCode::BAD_REQUEST);
         assert_eq!(guard.code, "HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB");
-        let after_guard = state.storage.get_loom_block(&workspace_id, &block_id).await?;
+        let after_guard = state
+            .storage
+            .get_loom_block(&workspace_id, &block_id)
+            .await?;
         assert_eq!(
             after_guard.derived.tag_count, 1,
             "rejected tag target must not change the tag set"

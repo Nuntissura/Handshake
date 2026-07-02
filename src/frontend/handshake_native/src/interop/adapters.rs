@@ -35,7 +35,14 @@ use crate::rich_editor::properties::metadata_client::ClipboardSink;
 /// The canonical melt-together command ids every editor surface participates in (the VS-Code-parity set
 /// the contract names: Copy/Cut/Paste/SelectAll/Find + the CommandPalette opener).
 pub fn surface_command_ids() -> [&'static str; 6] {
-    [CMD_COPY, CMD_CUT, CMD_PASTE, CMD_SELECT_ALL, CMD_FIND, CMD_COMMAND_PALETTE]
+    [
+        CMD_COPY,
+        CMD_CUT,
+        CMD_PASTE,
+        CMD_SELECT_ALL,
+        CMD_FIND,
+        CMD_COMMAND_PALETTE,
+    ]
 }
 
 /// Register the standard melt-together command set into the shared bus for `surface`. Every pane calls
@@ -115,9 +122,19 @@ const STANDARD_COMMANDS: &[(&str, &str, &str, &[&str])] = &[
     (CMD_COPY, "Copy", "Copy", &["copy", "clipboard"]),
     (CMD_CUT, "Cut", "Cut", &["cut", "clipboard"]),
     (CMD_PASTE, "Paste", "Paste", &["paste", "clipboard"]),
-    (CMD_SELECT_ALL, "SelectAll", "Select All", &["select", "all"]),
+    (
+        CMD_SELECT_ALL,
+        "SelectAll",
+        "Select All",
+        &["select", "all"],
+    ),
     (CMD_FIND, "Find", "Find", &["find", "search"]),
-    (CMD_COMMAND_PALETTE, "CommandPalette", "Command Palette", &["command", "palette", "actions"]),
+    (
+        CMD_COMMAND_PALETTE,
+        "CommandPalette",
+        "Command Palette",
+        &["command", "palette", "actions"],
+    ),
 ];
 
 /// A human/model-readable label for a surface kind (used in the disambiguated command labels).
@@ -140,7 +157,13 @@ pub fn text_range_selection(
     end: usize,
     text: impl Into<String>,
 ) -> SharedSelection {
-    SharedSelection::TextRange { pane_id, surface, start, end, text: text.into() }
+    SharedSelection::TextRange {
+        pane_id,
+        surface,
+        start,
+        end,
+        text: text.into(),
+    }
 }
 
 /// Build the [`ClipboardPayload`] a surface writes on Copy/Cut. A text surface copies
@@ -254,7 +277,9 @@ mod tests {
     }
     impl MockClipboard {
         fn new() -> Self {
-            Self { last: StdMutex::new(None) }
+            Self {
+                last: StdMutex::new(None),
+            }
         }
         fn taken(&self) -> Option<String> {
             self.last.lock().unwrap().clone()
@@ -287,7 +312,11 @@ mod tests {
                     "surface {surface:?} registered command {id}"
                 );
             }
-            assert_eq!(bus.commands().len(), 6, "exactly the six standard commands for {surface:?}");
+            assert_eq!(
+                bus.commands().len(),
+                6,
+                "exactly the six standard commands for {surface:?}"
+            );
         }
     }
 
@@ -296,7 +325,8 @@ mod tests {
     #[test]
     fn surface_clipboard_payload_maps_each_surface() {
         // Text surface -> PlainText.
-        let text_sel = text_range_selection(pane("pane-code"), EditorSurfaceKind::Code, 0, 5, "hello");
+        let text_sel =
+            text_range_selection(pane("pane-code"), EditorSurfaceKind::Code, 0, 5, "hello");
         assert_eq!(
             surface_clipboard_payload(&text_sel),
             Some(ClipboardPayload::PlainText("hello".to_owned()))
@@ -322,7 +352,11 @@ mod tests {
         assert!(copy_selection_to_clipboard(&mut bus, &canvas_sel, &mock));
         assert_eq!(mock.taken().as_deref(), Some("loom://blk-9"));
         // An empty / None selection copies nothing.
-        assert!(!copy_selection_to_clipboard(&mut bus, &SharedSelection::None, &mock));
+        assert!(!copy_selection_to_clipboard(
+            &mut bus,
+            &SharedSelection::None,
+            &mock
+        ));
     }
 
     /// The CommandPalette opener has a real handler (opens the palette).
@@ -333,7 +367,10 @@ mod tests {
         register_standard_commands(&mut bus, EditorSurfaceKind::Code);
         assert!(!bus.command_palette_open());
         assert!(bus.dispatch_command(&ctx, CMD_COMMAND_PALETTE));
-        assert!(bus.command_palette_open(), "the standard CommandPalette handler opens the palette");
+        assert!(
+            bus.command_palette_open(),
+            "the standard CommandPalette handler opens the palette"
+        );
     }
 
     /// The Copy/Cut handlers are NOT permanent no-ops: dispatching Copy materializes the bus's current
@@ -354,7 +391,10 @@ mod tests {
             5,
             "hello",
         ));
-        assert!(bus.clipboard_read().is_none(), "no clipboard cache before Copy");
+        assert!(
+            bus.clipboard_read().is_none(),
+            "no clipboard cache before Copy"
+        );
         assert!(bus.dispatch_command(&ctx, CMD_COPY), "Copy dispatched");
         assert_eq!(
             bus.clipboard_read_text().as_deref(),

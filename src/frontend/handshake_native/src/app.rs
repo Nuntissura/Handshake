@@ -614,6 +614,10 @@ pub struct HandshakeApp {
     /// Last direct-spawn blocker paired with the current/last MT-101 `/jobs` attempt. Kept separately so
     /// async job completion cannot drop the exact probed URL needed for state recovery.
     model_session_launch_direct_status: Option<String>,
+    /// Last operator-issued model-session id. It is generated before `/jobs` dispatch and carried in
+    /// both the job inputs and visible status so a no-context recovery pass can inspect the durable
+    /// backend ModelSession by id instead of guessing from a job list.
+    model_session_launch_last_session_id: Option<String>,
     /// Prevents duplicate `/jobs` dispatch while the current off-thread request is still unresolved.
     model_session_launch_pending: bool,
     /// MT-021 source-control off-thread client (verified `/source-control/*` endpoints). `None` in the
@@ -1646,6 +1650,7 @@ impl HandshakeApp {
             model_session_launch_dialog: None,
             model_session_launch_status: None,
             model_session_launch_direct_status: None,
+            model_session_launch_last_session_id: None,
             model_session_launch_pending: false,
             source_control_client: Some(crate::backend_client::SourceControlClient::production(
                 rt_handle.clone(),
@@ -2129,6 +2134,7 @@ impl HandshakeApp {
             model_session_launch_dialog: None,
             model_session_launch_status: None,
             model_session_launch_direct_status: None,
+            model_session_launch_last_session_id: None,
             model_session_launch_pending: false,
             // Headless/test shell: no runtime to bridge the SCM/canvas clients onto. A test injects a
             // runtime via `set_runtime_handle` if it wants live calls; without one these stay None.
@@ -2282,7 +2288,7 @@ impl HandshakeApp {
         let screenshot = match crate::mcp::screenshot::capture_handshake_window() {
             Ok(screenshot) => screenshot,
             Err(err) => {
-                return crate::visual_debugger::ScreenshotEvidence::deferred_from_mcp_error(err)
+                return crate::visual_debugger::ScreenshotEvidence::deferred_from_mcp_error(err);
             }
         };
 
@@ -4760,6 +4766,11 @@ impl HandshakeApp {
                 self.reset_layout_pending = true;
                 true
             }
+            O::OpenModelSessionLaunch => {
+                self.close_settings();
+                self.open_model_session_launch_dialog();
+                true
+            }
             // MT-072 editor settings: mutate the corresponding field on workspace_settings and schedule
             // the SAME debounced PUT every other wired outcome uses (no new save code — AC-009). The new
             // fields ride the same serialized settings struct.
@@ -5130,6 +5141,8 @@ impl HandshakeApp {
             return true;
         }
         let request = self.model_session_launch_request(dialog);
+        let session_id = request.session_id.clone();
+        self.model_session_launch_last_session_id = Some(session_id.clone());
         let Some(client) = self.model_session_launch_client.clone() else {
             let direct_status =
                 match backend_client::ModelSessionLaunchClient::direct_spawn_workspace(
@@ -5144,7 +5157,7 @@ impl HandshakeApp {
                 };
             self.model_session_launch_direct_status = Some(direct_status.clone());
             self.model_session_launch_status = Some(format!(
-                "Model session: POST /jobs not issued (no backend runtime); {direct_status}"
+                "Model session: POST /jobs not issued (no backend runtime); session {session_id}; {direct_status}"
             ));
             return true;
         };
@@ -5162,14 +5175,14 @@ impl HandshakeApp {
             Ok(_spec) => {
                 self.model_session_launch_pending = true;
                 self.model_session_launch_status = Some(format!(
-                    "Model session: POST /jobs pending; {direct_status}"
+                    "Model session: POST /jobs pending; session {session_id}; {direct_status}"
                 ));
                 true
             }
             Err(err) => {
                 self.model_session_launch_pending = false;
                 self.model_session_launch_status = Some(format!(
-                    "Model session: POST /jobs not issued; {}; {direct_status}",
+                    "Model session: POST /jobs not issued; session {session_id}; {}; {direct_status}",
                     err
                 ));
                 true
@@ -5191,15 +5204,26 @@ impl HandshakeApp {
             .model_session_launch_direct_status
             .as_deref()
             .unwrap_or("EndpointMissing kernel_swarm_spawn_session");
+        let session_id = self
+            .model_session_launch_last_session_id
+            .as_deref()
+            .unwrap_or("unknown-session");
         self.model_session_launch_status = Some(match result {
             Ok(job) => {
                 let status = job.status.as_deref().unwrap_or("unknown");
+                let workflow = job
+                    .workflow_run_id
+                    .as_deref()
+                    .map(|id| format!(" workflow {id}"))
+                    .unwrap_or_default();
                 format!(
-                    "Model session: /jobs job {} status={status}; NEEDS_MANAGED_RESOURCE_PROOF; {direct_status}",
+                    "Model session: /jobs job {}{workflow} session {session_id} status={status}; NEEDS_MANAGED_RESOURCE_PROOF; {direct_status}",
                     job.job_id
                 )
             }
-            Err(message) => format!("Model session: POST /jobs failed: {message}; {direct_status}"),
+            Err(message) => format!(
+                "Model session: POST /jobs failed for session {session_id}: {message}; {direct_status}"
+            ),
         });
     }
 
@@ -5209,12 +5233,16 @@ impl HandshakeApp {
         role: egui::accesskit::Role,
         author_id: &'static str,
         label: impl Into<String>,
+        enabled_for_accesskit: bool,
     ) {
         let label = label.into();
         ctx.accesskit_node_builder(id, |node| {
             node.set_role(role);
             node.set_author_id(author_id.to_owned());
             node.set_label(label.clone());
+            if enabled_for_accesskit {
+                node.clear_disabled();
+            }
         });
     }
 
@@ -5269,6 +5297,7 @@ impl HandshakeApp {
                                         egui::accesskit::Role::MenuItem,
                                         MODEL_SESSION_LAUNCH_PROVIDER_LOCAL_AUTHOR_ID,
                                         "Local model provider",
+                                        true,
                                     );
                                     let cloud = ui.selectable_value(
                                         &mut dialog.provider,
@@ -5281,6 +5310,7 @@ impl HandshakeApp {
                                         egui::accesskit::Role::MenuItem,
                                         MODEL_SESSION_LAUNCH_PROVIDER_CLOUD_AUTHOR_ID,
                                         "Cloud model provider",
+                                        true,
                                     );
                                 });
                         Self::name_launch_node(
@@ -5289,6 +5319,7 @@ impl HandshakeApp {
                             egui::accesskit::Role::ComboBox,
                             MODEL_SESSION_LAUNCH_PROVIDER_AUTHOR_ID,
                             format!("Provider {}", dialog.provider.label()),
+                            true,
                         );
                     });
                     ui.add_space(6.0);
@@ -5303,6 +5334,7 @@ impl HandshakeApp {
                         egui::accesskit::Role::TextInput,
                         MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID,
                         "Workspace folder",
+                        true,
                     );
                     ui.add_space(6.0);
                     ui.label("Model");
@@ -5314,6 +5346,7 @@ impl HandshakeApp {
                         egui::accesskit::Role::TextInput,
                         MODEL_SESSION_LAUNCH_MODEL_AUTHOR_ID,
                         "Model id or cloud model name",
+                        true,
                     );
                     ui.add_space(6.0);
                     ui.label("Wrapper");
@@ -5325,6 +5358,7 @@ impl HandshakeApp {
                         egui::accesskit::Role::TextInput,
                         MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID,
                         "Wrapper",
+                        true,
                     );
                     ui.add_space(10.0);
                     ui.horizontal(|ui| {
@@ -5338,6 +5372,7 @@ impl HandshakeApp {
                             egui::accesskit::Role::Button,
                             MODEL_SESSION_LAUNCH_START_AUTHOR_ID,
                             "Launch model session",
+                            dialog.is_ready() && !self.model_session_launch_pending,
                         );
                         if launch_response.clicked() {
                             launch = true;
@@ -5349,6 +5384,7 @@ impl HandshakeApp {
                             egui::accesskit::Role::Button,
                             MODEL_SESSION_LAUNCH_CANCEL_AUTHOR_ID,
                             "Cancel model session launch",
+                            true,
                         );
                         if cancel_response.clicked() {
                             cancel = true;
@@ -5362,6 +5398,7 @@ impl HandshakeApp {
                         egui::accesskit::Role::Status,
                         MODEL_SESSION_LAUNCH_INLINE_STATUS_AUTHOR_ID,
                         status.clone(),
+                        false,
                     );
                 });
             });
@@ -5373,6 +5410,7 @@ impl HandshakeApp {
                 egui::accesskit::Role::Dialog,
                 MODEL_SESSION_LAUNCH_DIALOG_AUTHOR_ID,
                 "Launch Model Session",
+                true,
             );
         }
         if launch {

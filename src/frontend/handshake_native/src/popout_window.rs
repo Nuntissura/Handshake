@@ -551,7 +551,10 @@ mod tests {
         // Mirror show_all's drain.
         let removed = mgr.drain_closed_for_test();
         assert_eq!(removed, vec![a.clone()], "the closed entry is drained");
-        assert!(!mgr.is_popped_out(&a), "pane-a no longer popped out after drain");
+        assert!(
+            !mgr.is_popped_out(&a),
+            "pane-a no longer popped out after drain"
+        );
         assert_eq!(mgr.len(), 0);
     }
 
@@ -590,7 +593,10 @@ mod tests {
         );
         // Different panes get different ids.
         let b = PopOutState::new(pid("pane-b"), PopOutGeometry::default());
-        assert_ne!(s1.viewport_id, b.viewport_id, "distinct panes -> distinct viewport ids");
+        assert_ne!(
+            s1.viewport_id, b.viewport_id,
+            "distinct panes -> distinct viewport ids"
+        );
     }
 
     #[test]
@@ -614,7 +620,10 @@ mod tests {
             size: egui::vec2(800.0, 600.0),
         };
         let clamped = off.clamped_to(screen);
-        assert_eq!(clamped.pos, FALLBACK_POPOUT_POS, "off-screen pos reset to fallback");
+        assert_eq!(
+            clamped.pos, FALLBACK_POPOUT_POS,
+            "off-screen pos reset to fallback"
+        );
         assert_eq!(clamped.size, off.size, "size is preserved on clamp");
 
         // An on-screen position is left untouched.
@@ -659,7 +668,11 @@ mod tests {
             let _ = ctx.run(egui::RawInput::default(), |ctx| {
                 // NO-OP render_content: the real body's CentralPanel is intentionally NOT opened here,
                 // so any CentralPanel that appears was opened by show_all itself (the bug).
-                mgr.show_all(ctx, |p| popout_title_for(p.as_ref()), |_ctx, _class, _pane| {});
+                mgr.show_all(
+                    ctx,
+                    |p| popout_title_for(p.as_ref()),
+                    |_ctx, _class, _pane| {},
+                );
             });
         }
 
@@ -704,7 +717,11 @@ mod tests {
         // Run several show_all frames; geometry must be untouched after every one.
         for frame in 0..3 {
             let _ = ctx.run(egui::RawInput::default(), |ctx| {
-                mgr.show_all(ctx, |p| popout_title_for(p.as_ref()), |_ctx, _class, _pane| {});
+                mgr.show_all(
+                    ctx,
+                    |p| popout_title_for(p.as_ref()),
+                    |_ctx, _class, _pane| {},
+                );
             });
             let geo = mgr.get(&a).expect("pop-out still open").geometry;
             assert_eq!(
@@ -723,13 +740,23 @@ mod tests {
         mgr.pop_out(pid("pane-a"), PopOutGeometry::default());
         mgr.pop_out(pid("pane-b"), PopOutGeometry::default());
         let ids: Vec<String> = mgr.popped_out_ids().iter().map(|p| p.to_string()).collect();
-        assert_eq!(ids, vec!["pane-a", "pane-b", "pane-c"], "stable sorted order");
+        assert_eq!(
+            ids,
+            vec!["pane-a", "pane-b", "pane-c"],
+            "stable sorted order"
+        );
     }
 
     #[test]
     fn title_uses_en_dash_and_resolved_label() {
-        assert_eq!(popout_title_for("Workspace"), "Handshake \u{2013} Workspace");
-        assert_eq!(popout_title_for("Inference Lab"), "Handshake \u{2013} Inference Lab");
+        assert_eq!(
+            popout_title_for("Workspace"),
+            "Handshake \u{2013} Workspace"
+        );
+        assert_eq!(
+            popout_title_for("Inference Lab"),
+            "Handshake \u{2013} Inference Lab"
+        );
     }
 
     #[test]

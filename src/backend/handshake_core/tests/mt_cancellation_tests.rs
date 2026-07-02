@@ -266,7 +266,10 @@ fn mt_186_cooperative_drain_completes_within_one_second_timeout() {
         std::thread::sleep(Duration::from_millis(5));
     }
     flipper.join().expect("flipper join");
-    assert!(observed, "cooperative cancellation must be observed within 1s");
+    assert!(
+        observed,
+        "cooperative cancellation must be observed within 1s"
+    );
     assert_eq!(
         token.reason(),
         Some(MtCancellationReason::BudgetExceeded),
@@ -294,9 +297,12 @@ fn mt_186_forced_cancellation_bypasses_cooperative_drain() {
     // No cooperative request, no polling loop, no waiting period:
     // force() runs the hook chain immediately.
     let start = Instant::now();
-    let report = c.force(id, MtCancellationReason::OperatorRequested {
-        operator_id: "op-1".to_string(),
-    });
+    let report = c.force(
+        id,
+        MtCancellationReason::OperatorRequested {
+            operator_id: "op-1".to_string(),
+        },
+    );
     let elapsed = start.elapsed();
 
     assert!(
@@ -478,14 +484,14 @@ fn mt_186_cleanup_hook_error_does_not_abort_chain() {
     );
     // Reverse-order check: registration was [fail_a, fail_b, recorder,
     // fail_c]; expected force order is [fail_c, recorder, fail_b, fail_a].
-    let names: Vec<String> = report
-        .errors
-        .iter()
-        .map(|f| f.hook_name.clone())
-        .collect();
+    let names: Vec<String> = report.errors.iter().map(|f| f.hook_name.clone()).collect();
     assert_eq!(
         names,
-        vec!["fail_c".to_string(), "fail_b".to_string(), "fail_a".to_string()],
+        vec![
+            "fail_c".to_string(),
+            "fail_b".to_string(),
+            "fail_a".to_string()
+        ],
         "failure ordering reflects reverse-registration order"
     );
 }
@@ -738,10 +744,7 @@ struct FakeLedgerReclaimer {
 
 #[async_trait::async_trait]
 impl ForcedCancelReclaimer for FakeLedgerReclaimer {
-    async fn reclaim_session(
-        &self,
-        session_id: &str,
-    ) -> Result<ReclaimRecord, ProcessLedgerError> {
+    async fn reclaim_session(&self, session_id: &str) -> Result<ReclaimRecord, ProcessLedgerError> {
         if self.fail {
             return Err(ProcessLedgerError::Store(
                 "simulated reclaim store failure".to_string(),
@@ -813,7 +816,11 @@ async fn mt_186_forced_cancel_always_reclaims_without_user_hook() {
     ledger.spawn(session, 1003);
 
     let sink = Arc::new(CapturingEventSink::default());
-    let c = reclaim_canceller(Arc::clone(&ledger), Arc::clone(&sink), Duration::from_secs(30));
+    let c = reclaim_canceller(
+        Arc::clone(&ledger),
+        Arc::clone(&sink),
+        Duration::from_secs(30),
+    );
 
     let id = MicroTaskJobId::new_v7();
     c.register_with_session(id, session);
@@ -858,7 +865,11 @@ async fn mt_186_forced_cancel_runs_builtin_reclaim_and_user_hooks() {
     let ledger = Arc::new(FakeProcessLedger::default());
     ledger.spawn(session, 2001);
     let sink = Arc::new(CapturingEventSink::default());
-    let c = reclaim_canceller(Arc::clone(&ledger), Arc::clone(&sink), Duration::from_secs(30));
+    let c = reclaim_canceller(
+        Arc::clone(&ledger),
+        Arc::clone(&sink),
+        Duration::from_secs(30),
+    );
 
     let id = MicroTaskJobId::new_v7();
     c.register_with_session(id, session);
@@ -947,12 +958,9 @@ async fn mt_186_escalation_timer_fires_builtin_for_hung_executor() {
     // `drained` always returns false: the executor is hung and never honours
     // the cooperative token. The canceller drives the timer itself.
     let outcome = c
-        .request_with_force_after(
-            id,
-            MtCancellationReason::EscalationToHardGate,
-            None,
-            || false,
-        )
+        .request_with_force_after(id, MtCancellationReason::EscalationToHardGate, None, || {
+            false
+        })
         .await
         .expect("escalation path must succeed (reclaimer wired)");
     let elapsed = start.elapsed();
@@ -968,7 +976,10 @@ async fn mt_186_escalation_timer_fires_builtin_for_hung_executor() {
                 "hung executor's processes were force-reclaimed"
             );
             assert_eq!(forced.reclaim.processes_reclaimed, 2);
-            assert!(forced.cancelled_state.force_used, "force_used recorded true");
+            assert!(
+                forced.cancelled_state.force_used,
+                "force_used recorded true"
+            );
         }
         EscalationOutcome::Cooperative { .. } => {
             panic!("hung executor must escalate to forced, not cooperative")
@@ -1008,12 +1019,9 @@ async fn mt_186_escalation_timer_no_force_when_cooperative_drains() {
     });
 
     let outcome = c
-        .request_with_force_after(
-            id,
-            MtCancellationReason::SessionShutdown,
-            None,
-            || drained_flag.load(Ordering::SeqCst),
-        )
+        .request_with_force_after(id, MtCancellationReason::SessionShutdown, None, || {
+            drained_flag.load(Ordering::SeqCst)
+        })
         .await
         .expect("cooperative path returns Ok");
 
@@ -1028,7 +1036,11 @@ async fn mt_186_escalation_timer_no_force_when_cooperative_drains() {
         1,
         "cooperative drain must not trigger forced reclaim"
     );
-    assert_eq!(sink.events.lock().unwrap().len(), 0, "no forced-cancel event");
+    assert_eq!(
+        sink.events.lock().unwrap().len(),
+        0,
+        "no forced-cancel event"
+    );
 }
 
 // (c) force_used=true + FR-EVT-MT-CANCEL-FORCED are recorded.
@@ -1038,7 +1050,11 @@ async fn mt_186_force_used_and_forced_cancel_event_recorded() {
     let ledger = Arc::new(FakeProcessLedger::default());
     ledger.spawn(session, 6001);
     let sink = Arc::new(CapturingEventSink::default());
-    let c = reclaim_canceller(Arc::clone(&ledger), Arc::clone(&sink), Duration::from_secs(30));
+    let c = reclaim_canceller(
+        Arc::clone(&ledger),
+        Arc::clone(&sink),
+        Duration::from_secs(30),
+    );
 
     let id = MicroTaskJobId::new_v7();
     c.register_with_session(id, session);
@@ -1086,7 +1102,11 @@ async fn mt_186_force_cancel_session_override_used_for_reclaim() {
     let ledger = Arc::new(FakeProcessLedger::default());
     ledger.spawn(session, 7001);
     let sink = Arc::new(CapturingEventSink::default());
-    let c = reclaim_canceller(Arc::clone(&ledger), Arc::clone(&sink), Duration::from_secs(30));
+    let c = reclaim_canceller(
+        Arc::clone(&ledger),
+        Arc::clone(&sink),
+        Duration::from_secs(30),
+    );
 
     let id = MicroTaskJobId::new_v7();
     // NOTE: register WITHOUT a session.
@@ -1117,12 +1137,11 @@ async fn mt_186_force_cancel_session_override_used_for_reclaim() {
 // ============================================================================
 
 #[cfg(test)]
-async fn postgres_pool_or_skip() -> Option<sqlx::PgPool> {
-    let url = match std::env::var("POSTGRES_TEST_URL") {
-        Ok(u) => u,
-        Err(_) => return None,
-    };
-    Some(sqlx::PgPool::connect(&url).await.expect("postgres connect"))
+async fn postgres_pool() -> sqlx::PgPool {
+    let url = handshake_core::storage::tests::postgres_test_base_url()
+        .await
+        .expect("resolve real PostgreSQL test URL");
+    sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }
 
 fn unique_wp_id(label: &str) -> String {
@@ -1130,13 +1149,10 @@ fn unique_wp_id(label: &str) -> String {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_186_pg_cancelled_job_is_terminal_in_queue() {
     use handshake_core::mt_executor::queue::MicroTaskQueue;
-    let Some(pool) = postgres_pool_or_skip().await else {
-        eprintln!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
-        return;
-    };
+    let pool = postgres_pool().await;
     let queue = MicroTaskQueue::new(pool.clone());
     queue.ensure_schema().await.expect("ensure schema");
 
@@ -1185,13 +1201,10 @@ async fn mt_186_pg_cancelled_job_is_terminal_in_queue() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_186_pg_cooperative_to_cancelled_transition_with_hook_side_effect() {
     use handshake_core::mt_executor::queue::MicroTaskQueue;
-    let Some(pool) = postgres_pool_or_skip().await else {
-        eprintln!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
-        return;
-    };
+    let pool = postgres_pool().await;
     let queue = MicroTaskQueue::new(pool.clone());
     queue.ensure_schema().await.expect("ensure schema");
 
@@ -1254,13 +1267,10 @@ async fn mt_186_pg_cooperative_to_cancelled_transition_with_hook_side_effect() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_186_pg_cleanup_hook_runs_even_when_cancellation_interrupts_mid_loop() {
     use handshake_core::mt_executor::queue::MicroTaskQueue;
-    let Some(pool) = postgres_pool_or_skip().await else {
-        eprintln!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL not set");
-        return;
-    };
+    let pool = postgres_pool().await;
     let queue = Arc::new(MicroTaskQueue::new(pool.clone()));
     queue.ensure_schema().await.expect("ensure schema");
 

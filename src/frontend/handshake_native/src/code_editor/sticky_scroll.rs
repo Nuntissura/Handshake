@@ -57,7 +57,9 @@ pub struct StickyScrollConfig {
 impl Default for StickyScrollConfig {
     fn default() -> Self {
         // VS Code's `editor.stickyScroll.maxLineCount` default.
-        Self { max_sticky_lines: 5 }
+        Self {
+            max_sticky_lines: 5,
+        }
     }
 }
 
@@ -220,11 +222,23 @@ impl Thing {
             "AC-002: line inside block->fn->impl yields >=3 enclosing headers; got {headers:?}"
         );
         assert_eq!(headers[0].line, 0, "outermost header is the impl (line 0)");
-        assert!(headers[0].text.contains("impl Thing"), "outermost header text is the impl decl");
+        assert!(
+            headers[0].text.contains("impl Thing"),
+            "outermost header text is the impl decl"
+        );
         assert_eq!(headers[1].line, 1, "next header is the fn (line 1)");
-        assert!(headers[1].text.contains("fn deep"), "second header text is the fn decl");
-        assert_eq!(headers[2].line, 2, "innermost header is the if-block (line 2)");
-        assert!(headers[2].text.contains("if true"), "innermost header text is the if decl");
+        assert!(
+            headers[1].text.contains("fn deep"),
+            "second header text is the fn decl"
+        );
+        assert_eq!(
+            headers[2].line, 2,
+            "innermost header is the if-block (line 2)"
+        );
+        assert!(
+            headers[2].text.contains("if true"),
+            "innermost header text is the if decl"
+        );
 
         // depth is contiguous 0..n, outermost = 0.
         for (i, h) in headers.iter().enumerate() {
@@ -239,7 +253,10 @@ impl Thing {
         let headers = sticky.compute(5, &regions, &buffer);
         // The fn header is the literal source line "    fn deep(&self) -> i32 {" trimmed of the trailing
         // whitespace (leading indent preserved — it is the literal line).
-        let fn_header = headers.iter().find(|h| h.line == 1).expect("fn header present");
+        let fn_header = headers
+            .iter()
+            .find(|h| h.line == 1)
+            .expect("fn header present");
         assert!(
             fn_header.text.trim_start() == "fn deep(&self) -> i32 {",
             "header is the literal decl line (not a reconstructed label); got {:?}",
@@ -251,11 +268,20 @@ impl Thing {
     fn cap_truncates_keeping_innermost_scopes() {
         let (regions, buffer) = nested_regions();
         // Cap at 2: line 4 has 3 enclosing scopes (impl, fn, if-block) -> keep the 2 INNERMOST (fn, if).
-        let sticky = StickyScroll::with_config(StickyScrollConfig { max_sticky_lines: 2 });
+        let sticky = StickyScroll::with_config(StickyScrollConfig {
+            max_sticky_lines: 2,
+        });
         let headers = sticky.compute(4, &regions, &buffer);
-        assert_eq!(headers.len(), 2, "AC-002 / MC-006: capped at max_sticky_lines=2");
+        assert_eq!(
+            headers.len(),
+            2,
+            "AC-002 / MC-006: capped at max_sticky_lines=2"
+        );
         // The OUTERMOST (impl) was dropped; the kept headers are fn (line 1) then if-block (line 2).
-        assert_eq!(headers[0].line, 1, "after cap, outermost shown is the fn (impl dropped)");
+        assert_eq!(
+            headers[0].line, 1,
+            "after cap, outermost shown is the fn (impl dropped)"
+        );
         assert_eq!(headers[1].line, 2, "innermost kept is the if-block");
         // depth still contiguous from 0.
         assert_eq!(headers[0].depth, 0);
@@ -312,7 +338,10 @@ impl Thing {
         // viewport_top 60 is inside the stale region; compute must not panic.
         let headers = sticky.compute(60, &stale, &buffer);
         for h in &headers {
-            assert!(h.line < buffer.len_lines(), "header line clamped to the live buffer");
+            assert!(
+                h.line < buffer.len_lines(),
+                "header line clamped to the live buffer"
+            );
         }
     }
 }

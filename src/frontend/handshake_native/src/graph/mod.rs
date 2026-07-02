@@ -55,10 +55,10 @@ pub use graph_view::{
 // WP-KERNEL-012 MT-060 (E3): the graph control panel state + pure filter/group/sizing fns + AccessKit
 // author_ids, re-exported flat for the host pane + the proof tests.
 pub use graph_controls::{
-    assign_group_color, compute_visibility, group_author_id, node_degree, node_radius, GraphControls,
-    GraphControlsEvent, GraphGroup, GroupKind, NodeVisibility, DEPTH_AUTHOR_ID, DIM_ALPHA,
-    GROUP_AUTHOR_ID_PREFIX, ORPHAN_AUTHOR_ID, SEARCH_AUTHOR_ID as GRAPH_FILTER_SEARCH_AUTHOR_ID,
-    SIZE_DEGREE_AUTHOR_ID, TOGGLE_AUTHOR_ID,
+    assign_group_color, compute_visibility, group_author_id, node_degree, node_radius,
+    GraphControls, GraphControlsEvent, GraphGroup, GroupKind, NodeVisibility, DEPTH_AUTHOR_ID,
+    DIM_ALPHA, GROUP_AUTHOR_ID_PREFIX, ORPHAN_AUTHOR_ID,
+    SEARCH_AUTHOR_ID as GRAPH_FILTER_SEARCH_AUTHOR_ID, SIZE_DEGREE_AUTHOR_ID, TOGGLE_AUTHOR_ID,
 };
 
 // WP-KERNEL-012 MT-067 (E10): the daily journal panel + its state/event types + AccessKit author_ids,
@@ -85,12 +85,12 @@ pub use tags_panel::{
 };
 
 pub use sidebar_panel::{
-    backlink_row_author_id, breadcrumb_author_id, favorite_remove_author_id, favorite_row_author_id,
-    pin_remove_author_id, pin_row_author_id, section_retry_author_id, truncate_label,
-    unlinked_row_author_id, BacklinkRow, BreadcrumbEntry, LoomSidebarPanel, SectionKind, SidebarBlock,
-    SidebarEvent, UnlinkedRow, BACKLINK_ROW_AUTHOR_ID_PREFIX, BREADCRUMB_AUTHOR_ID_PREFIX,
-    FAVORITE_ROW_AUTHOR_ID_PREFIX, MAX_BREADCRUMBS, PIN_ROW_AUTHOR_ID_PREFIX,
-    UNLINKED_ROW_AUTHOR_ID_PREFIX,
+    backlink_row_author_id, breadcrumb_author_id, favorite_remove_author_id,
+    favorite_row_author_id, pin_remove_author_id, pin_row_author_id, section_retry_author_id,
+    truncate_label, unlinked_row_author_id, BacklinkRow, BreadcrumbEntry, LoomSidebarPanel,
+    SectionKind, SidebarBlock, SidebarEvent, UnlinkedRow, BACKLINK_ROW_AUTHOR_ID_PREFIX,
+    BREADCRUMB_AUTHOR_ID_PREFIX, FAVORITE_ROW_AUTHOR_ID_PREFIX, MAX_BREADCRUMBS,
+    PIN_ROW_AUTHOR_ID_PREFIX, UNLINKED_ROW_AUTHOR_ID_PREFIX,
 };
 
 pub use wiki_page_panel::{
@@ -105,20 +105,20 @@ pub use wiki_page_panel::{
 // host/sub-view types re-export flat for the host pane + the proof tests. The `bcv.*` author-id
 // namespace is unique, so `STATUS_AUTHOR_ID` is re-exported under an aliased name to avoid colliding
 // with `canvas_board::STATUS_AUTHOR_ID` (which is NOT re-exported flat) at the module path level.
+pub use block_collection_view::STATUS_AUTHOR_ID as BCV_STATUS_AUTHOR_ID;
 pub use block_collection_view::{
     bucket_key, calendar_day_author_id, calendar_entry_author_id, card_move_tags, flip_direction,
     is_iso_date, kanban_card_author_id, kanban_lane_author_id, table_row_author_id,
     table_sort_author_id, BlockCollectionView, BlockViewDefinition, BlockViewEvent, BlockViewField,
     BlockViewKind, BlockViewLane, BlockViewQuery, BlockViewResults, BlockViewSort,
     BlockViewSortDirection, CalendarSubView, KanbanDragState, KanbanSubView, LoomBlockRow,
-    TableSubView, BLOCK_VIEW_UNTAGGED_LANE, CALENDAR_DATE_FROM_AUTHOR_ID, CALENDAR_DATE_TO_AUTHOR_ID,
-    CALENDAR_DAY_AUTHOR_ID_PREFIX, CALENDAR_ENTRY_AUTHOR_ID_PREFIX, KANBAN_CARD_AUTHOR_ID_PREFIX,
-    KANBAN_DRAG_MIME, KANBAN_LANE_AUTHOR_ID_PREFIX, KIND_CALENDAR_AUTHOR_ID, KIND_KANBAN_AUTHOR_ID,
-    KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID, NEW_VIEW_CONFIRM_AUTHOR_ID,
-    NEW_VIEW_KIND_TABLE_AUTHOR_ID, NEW_VIEW_TITLE_AUTHOR_ID, TABLE_ROW_AUTHOR_ID_PREFIX,
-    TABLE_SORT_AUTHOR_ID_PREFIX,
+    TableSubView, BLOCK_VIEW_UNTAGGED_LANE, CALENDAR_DATE_FROM_AUTHOR_ID,
+    CALENDAR_DATE_TO_AUTHOR_ID, CALENDAR_DAY_AUTHOR_ID_PREFIX, CALENDAR_ENTRY_AUTHOR_ID_PREFIX,
+    KANBAN_CARD_AUTHOR_ID_PREFIX, KANBAN_DRAG_MIME, KANBAN_LANE_AUTHOR_ID_PREFIX,
+    KIND_CALENDAR_AUTHOR_ID, KIND_KANBAN_AUTHOR_ID, KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID,
+    NEW_VIEW_CONFIRM_AUTHOR_ID, NEW_VIEW_KIND_TABLE_AUTHOR_ID, NEW_VIEW_TITLE_AUTHOR_ID,
+    TABLE_ROW_AUTHOR_ID_PREFIX, TABLE_SORT_AUTHOR_ID_PREFIX,
 };
-pub use block_collection_view::STATUS_AUTHOR_ID as BCV_STATUS_AUTHOR_ID;
 
 /// MT-031 (E5 melt-together): the graph + canvas surfaces' thin adapter into the shared
 /// [`crate::interop::InteractionBus`]. A graph node / canvas card selection feeds the ONE
@@ -158,7 +158,10 @@ pub mod interop_adapter {
     /// Build a [`SharedSelection::NodeRef`] for a selected canvas placement's referenced block (the
     /// canvas pane publishes this when its selection changes). `placed_block_id` is the canvas card's
     /// referenced Loom block.
-    pub fn canvas_node_selection(pane_id: PaneId, placed_block_id: impl Into<String>) -> SharedSelection {
+    pub fn canvas_node_selection(
+        pane_id: PaneId,
+        placed_block_id: impl Into<String>,
+    ) -> SharedSelection {
         SharedSelection::NodeRef {
             pane_id,
             surface: EditorSurfaceKind::Canvas,
@@ -255,7 +258,9 @@ pub mod interop_adapter {
                 let spec = client.remove_placement_request(&ws, &placement);
                 match send_canvas_compensation(&client, spec).await {
                     Ok(()) => UndoResult::ok(),
-                    Err(e) => UndoResult::err(format!("canvas undo (remove placement) failed: {e}")),
+                    Err(e) => {
+                        UndoResult::err(format!("canvas undo (remove placement) failed: {e}"))
+                    }
                 }
             })
         });

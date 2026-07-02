@@ -31,15 +31,19 @@ use std::sync::{Arc, Mutex};
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
+};
 use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
 use handshake_native::rich_editor::reading_mode::{
-    view_mode_toggle, ReadingModeStore, ViewMode, TOGGLE_CONTAINER_AUTHOR_ID, TOGGLE_EDIT_AUTHOR_ID,
-    TOGGLE_READING_AUTHOR_ID,
+    view_mode_toggle, ReadingModeStore, ViewMode, TOGGLE_CONTAINER_AUTHOR_ID,
+    TOGGLE_EDIT_AUTHOR_ID, TOGGLE_READING_AUTHOR_ID,
 };
 use handshake_native::rich_editor::renderer::block_author_id;
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::wikilinks::inline_view::{chip_author_id, EditorEvent};
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic — the crate
@@ -137,9 +141,15 @@ fn reading_harness<'a>(state: Arc<Mutex<RichEditorState>>) -> Harness<'a, ()> {
 fn ac001_view_mode_reading_builds_read_only_widget() {
     let state = Arc::new(Mutex::new(RichEditorState::demo()));
     let reading = RichEditorWidget::for_view_mode(Arc::clone(&state), ViewMode::Reading);
-    assert!(reading.is_read_only(), "AC-001: ViewMode::Reading builds a read_only=true widget");
+    assert!(
+        reading.is_read_only(),
+        "AC-001: ViewMode::Reading builds a read_only=true widget"
+    );
     let edit = RichEditorWidget::for_view_mode(Arc::clone(&state), ViewMode::Edit);
-    assert!(!edit.is_read_only(), "AC-001: ViewMode::Edit builds a read_only=false widget");
+    assert!(
+        !edit.is_read_only(),
+        "AC-001: ViewMode::Edit builds a read_only=false widget"
+    );
     // The plain `new` constructor is editable; `new_read_only` is read-only.
     assert!(!RichEditorWidget::new(Arc::clone(&state)).is_read_only());
     assert!(RichEditorWidget::new_read_only(Arc::clone(&state)).is_read_only());
@@ -152,13 +162,17 @@ fn ac001_reading_render_does_not_mutate_doc() {
     // the read-only branch allocates no caret/selection state and dispatches no input, so the
     // DocModel is byte-identical before/after. We compare the canonical content_json.
     let doc = seeded_doc();
-    let before = handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&doc);
+    let before =
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&doc);
     let state = Arc::new(Mutex::new(RichEditorState::new(doc)));
 
     let mut harness = reading_harness(Arc::clone(&state));
     harness.run();
     // Try to "type" into the read-only editor: push a Text event + an Enter key for the next frame.
-    harness.input_mut().events.push(egui::Event::Text("X".to_owned()));
+    harness
+        .input_mut()
+        .events
+        .push(egui::Event::Text("X".to_owned()));
     harness.input_mut().events.push(egui::Event::Key {
         key: egui::Key::Enter,
         physical_key: None,
@@ -259,17 +273,25 @@ fn pt004_wikilink_click_in_reading_mode_routes_navigation_event() {
     let event = {
         let st = state_ck.lock().unwrap();
         st.pending_events.iter().find_map(|e| match e {
-            EditorEvent::WikilinkActivated { ref_kind, ref_value, .. } if ref_kind == "note" => {
-                Some((ref_kind.clone(), ref_value.clone()))
-            }
+            EditorEvent::WikilinkActivated {
+                ref_kind,
+                ref_value,
+                ..
+            } if ref_kind == "note" => Some((ref_kind.clone(), ref_value.clone())),
             _ => None,
         })
     };
-    let (ref_kind, ref_value) =
-        event.expect("AC-004: clicking the wikilink chip in Reading mode must enqueue a WikilinkActivated event");
+    let (ref_kind, ref_value) = event.expect(
+        "AC-004: clicking the wikilink chip in Reading mode must enqueue a WikilinkActivated event",
+    );
     assert_eq!(ref_kind, "note");
-    assert_eq!(ref_value, "target-doc-id", "AC-004: the event carries the navigation target");
-    println!("PT-004: wikilink click in Reading mode routed WikilinkActivated{{note, target-doc-id}}");
+    assert_eq!(
+        ref_value, "target-doc-id",
+        "AC-004: the event carries the navigation target"
+    );
+    println!(
+        "PT-004: wikilink click in Reading mode routed WikilinkActivated{{note, target-doc-id}}"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -298,7 +320,8 @@ fn pt003_reading_mode_screenshot() {
             // (heading glyphs, body glyphs, the colored wikilink chip), so there are >= 2 distinct
             // foreground colors over the background (AC-005 content visible). Sample every 4th pixel.
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut i = 0usize;
             while i + 4 <= raw.len() {
                 let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
@@ -323,7 +346,10 @@ fn pt003_reading_mode_screenshot() {
                  over the bg); got {} (bg={bg:?})",
                 foreground.len()
             );
-            assert!(saved, "the mt055_reading_mode.png screenshot must be saved to the external artifact root");
+            assert!(
+                saved,
+                "the mt055_reading_mode.png screenshot must be saved to the external artifact root"
+            );
             assert_no_local_artifact_dir();
         }
         Err(e) => {
@@ -351,7 +377,9 @@ fn pt005_mode_persists_per_document_across_render() {
     let mut harness = Harness::builder()
         .with_size(egui::vec2(400.0, 200.0))
         .build_ui(move |ui| {
-            use handshake_native::rich_editor::reading_mode::{reading_mode_store, write_reading_mode_store};
+            use handshake_native::rich_editor::reading_mode::{
+                reading_mode_store, write_reading_mode_store,
+            };
             let mut store = reading_mode_store(ui.ctx());
             // On the first frame the store is empty -> set doc-A to Reading and persist it. On a later
             // frame the persisted store already carries doc-A = Reading, so this branch is skipped and
@@ -369,7 +397,10 @@ fn pt005_mode_persists_per_document_across_render() {
     harness.run(); // frame 1: writes doc-A = Reading
     harness.run(); // frame 2: reads it back from the persisted store
 
-    let (doc_a, doc_b) = observed.lock().unwrap().expect("the render closure recorded the modes");
+    let (doc_a, doc_b) = observed
+        .lock()
+        .unwrap()
+        .expect("the render closure recorded the modes");
     assert_eq!(
         doc_a,
         ViewMode::Reading,
@@ -405,8 +436,15 @@ fn ac006_toggle_emits_accesskit_ids_and_active_toggled() {
     harness.run();
 
     let ids = author_ids(&harness);
-    for want in [TOGGLE_CONTAINER_AUTHOR_ID, TOGGLE_EDIT_AUTHOR_ID, TOGGLE_READING_AUTHOR_ID] {
-        assert!(ids.contains(want), "AC-006: toggle must emit `{want}`; ids: {ids:?}");
+    for want in [
+        TOGGLE_CONTAINER_AUTHOR_ID,
+        TOGGLE_EDIT_AUTHOR_ID,
+        TOGGLE_READING_AUTHOR_ID,
+    ] {
+        assert!(
+            ids.contains(want),
+            "AC-006: toggle must emit `{want}`; ids: {ids:?}"
+        );
     }
     // The Reading segment (the active mode) must be marked toggled True; the Edit segment must not.
     let mut reading_toggled = None;
@@ -486,14 +524,19 @@ fn ac008_edit_after_reading_edits_the_doc() {
                 RichEditorWidget::new_read_only(Arc::clone(&state_ro)).show(ui);
             });
         ro.run();
-        ro.input_mut().events.push(egui::Event::Text("Z".to_owned()));
+        ro.input_mut()
+            .events
+            .push(egui::Event::Text("Z".to_owned()));
         ro.run();
     }
     let after_reading = {
         let st = state.lock().unwrap();
         st.block_plain_text(0).unwrap_or_default()
     };
-    assert_eq!(before, after_reading, "AC-008 pre: Reading mode ignored the typed Z");
+    assert_eq!(
+        before, after_reading,
+        "AC-008 pre: Reading mode ignored the typed Z"
+    );
 
     // FRAME SET 2: editable — focus the surface and type; the doc mutates (no regression). The
     // editable editor schedules a caret-blink repaint while focused, so use single-frame `step()`
@@ -510,7 +553,9 @@ fn ac008_edit_after_reading_edits_the_doc() {
             });
         ed.step();
         ed.step(); // settle focus
-        ed.input_mut().events.push(egui::Event::Text("Z".to_owned()));
+        ed.input_mut()
+            .events
+            .push(egui::Event::Text("Z".to_owned()));
         ed.step();
         ed.step();
     }

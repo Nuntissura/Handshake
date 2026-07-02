@@ -111,11 +111,17 @@ fn schema_source_declares_no_content_field_in_diag_event() {
     // `name: Type,`. The ONLY permitted byte-array is the explicit `_reserved` POD padding (always
     // zero, asserted by `constructors_set_typed_codes`); every other heap/text/blob marker is a
     // hard allowlist violation.
-    let forbidden_markers = ["String", "Vec<", "&str", "[u8", "Box<", "*const", "*mut", "&[", "&'"];
+    let forbidden_markers = [
+        "String", "Vec<", "&str", "[u8", "Box<", "*const", "*mut", "&[", "&'",
+    ];
     for raw_line in body.lines() {
         let line = raw_line.trim();
         // Skip doc comments, attributes, and blank lines — only inspect actual field declarations.
-        if line.is_empty() || line.starts_with("///") || line.starts_with("//") || line.starts_with('#') {
+        if line.is_empty()
+            || line.starts_with("///")
+            || line.starts_with("//")
+            || line.starts_with('#')
+        {
             continue;
         }
         // Field declarations contain a `:`; grab the field name before it.

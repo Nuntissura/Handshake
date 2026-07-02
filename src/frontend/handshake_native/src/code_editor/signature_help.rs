@@ -111,9 +111,16 @@ impl SignatureInfo {
             if let Some(r) = &range {
                 search_from = r.end;
             }
-            parameters.push(ParamSpan { label: p, range_in_label: range });
+            parameters.push(ParamSpan {
+                label: p,
+                range_in_label: range,
+            });
         }
-        Self { label, parameters, documentation: None }
+        Self {
+            label,
+            parameters,
+            documentation: None,
+        }
     }
 }
 
@@ -267,11 +274,18 @@ fn signature_info_from_lsp(sig: &lsp_types::SignatureInformation) -> SignatureIn
                     (name.clone(), range)
                 }
             };
-            parameters.push(ParamSpan { label: text, range_in_label: range });
+            parameters.push(ParamSpan {
+                label: text,
+                range_in_label: range,
+            });
         }
     }
     let documentation = sig.documentation.as_ref().map(documentation_to_string);
-    SignatureInfo { label, parameters, documentation }
+    SignatureInfo {
+        label,
+        parameters,
+        documentation,
+    }
 }
 
 /// Flatten an `lsp_types::Documentation` (plain string or markup) to a display string.
@@ -312,7 +326,13 @@ pub fn signature_from_code_nav_symbol(symbol: &CodeSymbolNavProjection) -> Optio
     // is the parameter list (split at top-level commas). Absent -> a bare-name signature.
     let params = match top_level_paren_args(&label) {
         Some(args) => args,
-        None => return Some(SignatureInfo { label, parameters: Vec::new(), documentation: None }),
+        None => {
+            return Some(SignatureInfo {
+                label,
+                parameters: Vec::new(),
+                documentation: None,
+            })
+        }
     };
     Some(SignatureInfo::from_label_and_param_strings(label, params))
 }
@@ -468,7 +488,11 @@ pub fn render_signature_popup(
     };
     let runs = signature_label_runs(sig, state.active_parameter);
     let overload_indicator = if state.signatures.len() > 1 {
-        Some(format!("{}/{}", state.active_signature + 1, state.signatures.len()))
+        Some(format!(
+            "{}/{}",
+            state.active_signature + 1,
+            state.signatures.len()
+        ))
     } else {
         None
     };
@@ -480,7 +504,9 @@ pub fn render_signature_popup(
 
     // Estimate the popup height to anchor it ABOVE the cursor line (one signature line + optional
     // overload/doc lines). A modest fixed estimate is enough; egui clamps the Area into the screen.
-    let line_h = ctx.style().text_styles
+    let line_h = ctx
+        .style()
+        .text_styles
         .get(&egui::TextStyle::Body)
         .map(|f| f.size)
         .unwrap_or(14.0);
@@ -531,7 +557,9 @@ pub fn render_signature_popup(
                 });
                 if let Some(doc) = &doc_first_line {
                     ui.label(
-                        egui::RichText::new(doc).small().color(ui.visuals().weak_text_color()),
+                        egui::RichText::new(doc)
+                            .small()
+                            .color(ui.visuals().weak_text_color()),
                     );
                 }
 
@@ -772,8 +800,14 @@ mod tests {
         let sig = SignatureInfo {
             label: "fn add(a: i32, b: i32) -> i32".to_owned(),
             parameters: vec![
-                ParamSpan { label: "a: i32".into(), range_in_label: Some(7..13) },
-                ParamSpan { label: "b: i32".into(), range_in_label: Some(15..21) },
+                ParamSpan {
+                    label: "a: i32".into(),
+                    range_in_label: Some(7..13),
+                },
+                ParamSpan {
+                    label: "b: i32".into(),
+                    range_in_label: Some(15..21),
+                },
             ],
             documentation: None,
         };
@@ -799,11 +833,21 @@ mod tests {
         assert!(r0.end <= r1.start, "the second match is after the first");
         // The active run for param 1 is the SECOND 'x: i32'.
         let runs = signature_label_runs(&sig, 1);
-        let active_start = sig.label.find("x: i32").map(|i| i + "x: i32".len()).unwrap();
-        let active_text: String =
-            runs.iter().filter(|(_, a)| *a).map(|(t, _)| t.clone()).collect();
+        let active_start = sig
+            .label
+            .find("x: i32")
+            .map(|i| i + "x: i32".len())
+            .unwrap();
+        let active_text: String = runs
+            .iter()
+            .filter(|(_, a)| *a)
+            .map(|(t, _)| t.clone())
+            .collect();
         assert_eq!(active_text, "x: i32");
-        assert!(r1.start >= active_start, "param 1 maps to the second occurrence");
+        assert!(
+            r1.start >= active_start,
+            "param 1 maps to the second occurrence"
+        );
     }
 
     #[test]
@@ -831,7 +875,10 @@ mod tests {
             active_parameter: Some(1),
         };
         let state = SignatureHelpState::from_lsp(&help, 42).expect("one signature -> Some");
-        assert_eq!(state.active_parameter, 1, "active parameter parsed from the response");
+        assert_eq!(
+            state.active_parameter, 1,
+            "active parameter parsed from the response"
+        );
         assert_eq!(state.source, SignatureSource::Lsp);
         assert_eq!(state.anchor_byte, 42);
         let sig = state.active().unwrap();
@@ -840,7 +887,11 @@ mod tests {
         assert!(sig.parameters[1].range_in_label.is_some());
         // The active run is 'b: i32'.
         let runs = signature_label_runs(sig, state.active_parameter);
-        let active: String = runs.iter().filter(|(_, a)| *a).map(|(t, _)| t.clone()).collect();
+        let active: String = runs
+            .iter()
+            .filter(|(_, a)| *a)
+            .map(|(t, _)| t.clone())
+            .collect();
         assert_eq!(active, "b: i32");
         assert_eq!(sig.documentation.as_deref(), Some("Adds two numbers"));
     }
@@ -873,8 +924,14 @@ mod tests {
             active_parameter: Some(9), // out of range
         };
         let state = SignatureHelpState::from_lsp(&help, 0).unwrap();
-        assert_eq!(state.active_signature, 0, "out-of-range signature index clamped");
-        assert_eq!(state.active_parameter, 0, "out-of-range parameter index clamped");
+        assert_eq!(
+            state.active_signature, 0,
+            "out-of-range signature index clamped"
+        );
+        assert_eq!(
+            state.active_parameter, 0,
+            "out-of-range parameter index clamped"
+        );
     }
 
     #[test]
@@ -915,7 +972,10 @@ mod tests {
         let state = SignatureHelpState::from_code_nav(&real_symbol, 10, 1).expect("Some signature");
         assert_eq!(state.source, SignatureSource::CodeNavFallback);
         let sig = state.active().unwrap();
-        assert_eq!(sig.label, "add", "the real fallback label is the bare call-target name");
+        assert_eq!(
+            sig.label, "add",
+            "the real fallback label is the bare call-target name"
+        );
         assert!(
             sig.parameters.is_empty(),
             "the REAL backend symbol carries no parameter signature -> zero params"
@@ -953,17 +1013,28 @@ mod tests {
         };
         let state = SignatureHelpState::from_code_nav(&future_rich_symbol, 10, 1).expect("Some");
         let sig = state.active().unwrap();
-        assert_eq!(sig.parameters.len(), 2, "a rich label's two params parse via the forward path");
+        assert_eq!(
+            sig.parameters.len(),
+            2,
+            "a rich label's two params parse via the forward path"
+        );
         assert_eq!(sig.parameters[0].label, "a: i32");
         assert_eq!(sig.parameters[1].label, "b: i32");
         let runs = signature_label_runs(sig, state.active_parameter);
-        let active: String = runs.iter().filter(|(_, a)| *a).map(|(t, _)| t.clone()).collect();
+        let active: String = runs
+            .iter()
+            .filter(|(_, a)| *a)
+            .map(|(t, _)| t.clone())
+            .collect();
         assert_eq!(active, "b: i32");
     }
 
     #[test]
     fn code_nav_fallback_empty_name_is_none() {
-        let symbol = CodeSymbolNavProjection { display_name: "   ".into(), ..Default::default() };
+        let symbol = CodeSymbolNavProjection {
+            display_name: "   ".into(),
+            ..Default::default()
+        };
         assert!(SignatureHelpState::from_code_nav(&symbol, 0, 0).is_none());
     }
 
@@ -976,7 +1047,11 @@ mod tests {
         };
         let state = SignatureHelpState::from_code_nav(&symbol, 0, 0).unwrap();
         let sig = state.active().unwrap();
-        assert_eq!(sig.parameters.len(), 2, "the generic comma did not split the parameter");
+        assert_eq!(
+            sig.parameters.len(),
+            2,
+            "the generic comma did not split the parameter"
+        );
         assert_eq!(sig.parameters[0].label, "map: HashMap<K, V>");
         assert_eq!(sig.parameters[1].label, "n: usize");
     }
@@ -985,7 +1060,10 @@ mod tests {
     fn overload_cycling_wraps_and_clamps_active_parameter() {
         let mut state = SignatureHelpState {
             signatures: vec![
-                SignatureInfo::from_label_and_param_strings("f(a, b)", vec!["a".into(), "b".into()]),
+                SignatureInfo::from_label_and_param_strings(
+                    "f(a, b)",
+                    vec!["a".into(), "b".into()],
+                ),
                 SignatureInfo::from_label_and_param_strings("f(a)", vec!["a".into()]),
             ],
             active_signature: 0,
@@ -996,7 +1074,10 @@ mod tests {
         // Switch to the second overload (1 param): the active parameter clamps from 1 to 0.
         state.select_next_signature();
         assert_eq!(state.active_signature, 1);
-        assert_eq!(state.active_parameter, 0, "active param clamped to the smaller overload");
+        assert_eq!(
+            state.active_parameter, 0,
+            "active param clamped to the smaller overload"
+        );
         // Wrap forward back to the first.
         state.select_next_signature();
         assert_eq!(state.active_signature, 0);

@@ -13,9 +13,6 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
 {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!("ENVIRONMENT_BLOCKED: Kernel002 CRDT persistence tests require POSTGRES_TEST_URL; {msg}");
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
@@ -117,7 +114,7 @@ fn kernel_crdt_postgres_update_log_contract_declares_persistence_columns_and_con
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
     let db = postgres_or_environment_blocked().await;
     let suffix = Uuid::now_v7().simple().to_string();
@@ -175,7 +172,7 @@ async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_update_persistence_rejects_missing_eventledger_ref() {
     let db = postgres_or_environment_blocked().await;
     let suffix = Uuid::now_v7().simple().to_string();

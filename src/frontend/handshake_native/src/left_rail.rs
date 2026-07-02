@@ -60,14 +60,14 @@ pub const LEFT_RAIL_NODE_ID_BASE: u64 = 80;
 /// automatically covered. Slots: activity files/agenda/mail/notes (0..3), stash toggle (4), bottom
 /// agenda/mail/notes affordances (5..7), collapse toggle (8).
 pub const LEFT_RAIL_BUTTONS: [(&str, u64); 9] = [
-    ("left-rail.activity.files", LEFT_RAIL_NODE_ID_BASE),      // 80
+    ("left-rail.activity.files", LEFT_RAIL_NODE_ID_BASE), // 80
     ("left-rail.activity.agenda", LEFT_RAIL_NODE_ID_BASE + 1), // 81
-    ("left-rail.activity.mail", LEFT_RAIL_NODE_ID_BASE + 2),   // 82
-    ("left-rail.activity.notes", LEFT_RAIL_NODE_ID_BASE + 3),  // 83
-    ("left-rail.stash-toggle", LEFT_RAIL_NODE_ID_BASE + 4),    // 84
-    ("left-rail.agenda", LEFT_RAIL_NODE_ID_BASE + 5),          // 85
-    ("left-rail.mail", LEFT_RAIL_NODE_ID_BASE + 6),            // 86
-    ("left-rail.notes", LEFT_RAIL_NODE_ID_BASE + 7),           // 87
+    ("left-rail.activity.mail", LEFT_RAIL_NODE_ID_BASE + 2), // 82
+    ("left-rail.activity.notes", LEFT_RAIL_NODE_ID_BASE + 3), // 83
+    ("left-rail.stash-toggle", LEFT_RAIL_NODE_ID_BASE + 4), // 84
+    ("left-rail.agenda", LEFT_RAIL_NODE_ID_BASE + 5),     // 85
+    ("left-rail.mail", LEFT_RAIL_NODE_ID_BASE + 6),       // 86
+    ("left-rail.notes", LEFT_RAIL_NODE_ID_BASE + 7),      // 87
     ("left-rail.collapse-toggle", LEFT_RAIL_NODE_ID_BASE + 8), // 88
 ];
 
@@ -161,14 +161,14 @@ pub enum LeftRailEvent {
     },
     /// MT-033 explorer-row context menu: "Route to Stage" — route this DOCUMENT to the Stage pane via
     /// the MT-031 Route-to-Stage command. Carries the document id + title the Stage pane displays.
-    RouteToStage {
-        document_id: String,
-        title: String,
-    },
+    RouteToStage { document_id: String, title: String },
     /// The Retry button on a failed project-tree load was clicked.
     RetryProjectTree,
     /// A quick-link row was clicked: focus this pane and activate its tab at `tab_index`.
-    FocusPaneTab { pane_id: crate::pane_registry::PaneId, tab_index: usize },
+    FocusPaneTab {
+        pane_id: crate::pane_registry::PaneId,
+        tab_index: usize,
+    },
     /// The stash toggle was clicked: flip the bottom drawer open/closed.
     ToggleStash,
     /// A bottom affordance was clicked: open the corresponding tab on the active pane.
@@ -225,18 +225,47 @@ impl LeftRail {
                 ui.set_width(32.0);
                 // Collapse toggle at the very top so it is reachable in both states.
                 let collapse_glyph = if rail_open { "\u{25C2}" } else { "\u{25B8}" }; // ◂ / ▸
-                if Self::icon_button(ui, collapse_glyph, COLLAPSE_TOGGLE_AUTHOR_ID, "Collapse rail", false, colors) {
+                if Self::icon_button(
+                    ui,
+                    collapse_glyph,
+                    COLLAPSE_TOGGLE_AUTHOR_ID,
+                    "Collapse rail",
+                    false,
+                    colors,
+                ) {
                     event = Some(LeftRailEvent::ToggleRail);
                 }
                 ui.add_space(4.0);
                 for (section, glyph, author_id, tip) in [
-                    (ActivitySection::Files, "\u{1F4C1}", ACTIVITY_FILES_AUTHOR_ID, "Files"),
-                    (ActivitySection::Agenda, "\u{1F4C5}", ACTIVITY_AGENDA_AUTHOR_ID, "Agenda"),
-                    (ActivitySection::Mail, "\u{2709}", ACTIVITY_MAIL_AUTHOR_ID, "Mail"),
-                    (ActivitySection::Notes, "\u{1F4DD}", ACTIVITY_NOTES_AUTHOR_ID, "Notes"),
+                    (
+                        ActivitySection::Files,
+                        "\u{1F4C1}",
+                        ACTIVITY_FILES_AUTHOR_ID,
+                        "Files",
+                    ),
+                    (
+                        ActivitySection::Agenda,
+                        "\u{1F4C5}",
+                        ACTIVITY_AGENDA_AUTHOR_ID,
+                        "Agenda",
+                    ),
+                    (
+                        ActivitySection::Mail,
+                        "\u{2709}",
+                        ACTIVITY_MAIL_AUTHOR_ID,
+                        "Mail",
+                    ),
+                    (
+                        ActivitySection::Notes,
+                        "\u{1F4DD}",
+                        ACTIVITY_NOTES_AUTHOR_ID,
+                        "Notes",
+                    ),
                 ] {
                     let active = self.state.is_open(section);
-                    if Self::icon_button(ui, glyph, author_id, tip, active, colors) && event.is_none() {
+                    if Self::icon_button(ui, glyph, author_id, tip, active, colors)
+                        && event.is_none()
+                    {
                         self.state.toggle(section);
                     }
                 }
@@ -264,18 +293,28 @@ impl LeftRail {
                         let tree_colors = colors.tree_colors();
                         if let Some(tree_event) = self.project_tree.show(ui, tree_colors) {
                             event = Some(match tree_event {
-                                ProjectTreeEvent::OpenDocument(id) => LeftRailEvent::OpenDocument(id),
-                                ProjectTreeEvent::OpenCanvas(id) => LeftRailEvent::OpenCanvas(id),
-                                ProjectTreeEvent::OpenBookmark { document_id, block_id } => {
-                                    LeftRailEvent::OpenBookmark { document_id, block_id }
+                                ProjectTreeEvent::OpenDocument(id) => {
+                                    LeftRailEvent::OpenDocument(id)
                                 }
+                                ProjectTreeEvent::OpenCanvas(id) => LeftRailEvent::OpenCanvas(id),
+                                ProjectTreeEvent::OpenBookmark {
+                                    document_id,
+                                    block_id,
+                                } => LeftRailEvent::OpenBookmark {
+                                    document_id,
+                                    block_id,
+                                },
                                 ProjectTreeEvent::CopyPath(id) => LeftRailEvent::CopyPath(id),
                                 ProjectTreeEvent::RouteToStage { document_id, title } => {
                                     LeftRailEvent::RouteToStage { document_id, title }
                                 }
-                                ProjectTreeEvent::RenameBlock { block_id, current_title } => {
-                                    LeftRailEvent::RenameBlock { block_id, current_title }
-                                }
+                                ProjectTreeEvent::RenameBlock {
+                                    block_id,
+                                    current_title,
+                                } => LeftRailEvent::RenameBlock {
+                                    block_id,
+                                    current_title,
+                                },
                             });
                         }
                         if self.project_tree.take_retry_request() && event.is_none() {
@@ -298,7 +337,9 @@ impl LeftRail {
                     ui.separator();
 
                     // Section 4: STASH affordance (entry point only; full UI is MT-022).
-                    if Self::text_button(ui, "\u{1F4E5} Stash", STASH_TOGGLE_AUTHOR_ID, colors) && event.is_none() {
+                    if Self::text_button(ui, "\u{1F4E5} Stash", STASH_TOGGLE_AUTHOR_ID, colors)
+                        && event.is_none()
+                    {
                         event = Some(LeftRailEvent::ToggleStash);
                     }
 
@@ -308,13 +349,23 @@ impl LeftRail {
                     // pane type that does not exist yet.
                     // TODO(MT-future): replace the Agenda/Mail placeholders with PaneType::Agenda /
                     // PaneType::Mail once those surfaces land.
-                    if Self::text_button(ui, "\u{1F4C5} Agenda", AGENDA_AUTHOR_ID, colors) && event.is_none() {
-                        event = Some(LeftRailEvent::OpenModuleTab(PaneType::Placeholder("Agenda".to_owned())));
+                    if Self::text_button(ui, "\u{1F4C5} Agenda", AGENDA_AUTHOR_ID, colors)
+                        && event.is_none()
+                    {
+                        event = Some(LeftRailEvent::OpenModuleTab(PaneType::Placeholder(
+                            "Agenda".to_owned(),
+                        )));
                     }
-                    if Self::text_button(ui, "\u{2709} Mail", MAIL_AUTHOR_ID, colors) && event.is_none() {
-                        event = Some(LeftRailEvent::OpenModuleTab(PaneType::Placeholder("Mail".to_owned())));
+                    if Self::text_button(ui, "\u{2709} Mail", MAIL_AUTHOR_ID, colors)
+                        && event.is_none()
+                    {
+                        event = Some(LeftRailEvent::OpenModuleTab(PaneType::Placeholder(
+                            "Mail".to_owned(),
+                        )));
                     }
-                    if Self::text_button(ui, "\u{1F4DD} Notes", NOTES_AUTHOR_ID, colors) && event.is_none() {
+                    if Self::text_button(ui, "\u{1F4DD} Notes", NOTES_AUTHOR_ID, colors)
+                        && event.is_none()
+                    {
                         event = Some(LeftRailEvent::OpenModuleTab(PaneType::LoomDailyJournal));
                     }
                 });
@@ -351,16 +402,23 @@ impl LeftRail {
                 colors.icon_bg
             };
             ui.painter().rect_filled(rect, 4.0, bg);
-            let g = ui
-                .painter()
-                .layout_no_wrap(glyph.to_owned(), egui::FontId::proportional(15.0), colors.icon_text);
+            let g = ui.painter().layout_no_wrap(
+                glyph.to_owned(),
+                egui::FontId::proportional(15.0),
+                colors.icon_text,
+            );
             ui.painter().galley(
-                egui::pos2(rect.center().x - g.size().x * 0.5, rect.center().y - g.size().y * 0.5),
+                egui::pos2(
+                    rect.center().x - g.size().x * 0.5,
+                    rect.center().y - g.size().y * 0.5,
+                ),
                 g,
                 colors.icon_text,
             );
         }
-        resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tooltip));
+        resp.widget_info(|| {
+            egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tooltip)
+        });
         ui.ctx().accesskit_node_builder(id, |node| {
             node.set_role(accesskit::Role::Button);
             node.set_author_id(author_id.to_owned());
@@ -374,7 +432,12 @@ impl LeftRail {
 
     /// Render one full-width text button (Stash / Agenda / Mail / Notes affordances) at its FIXED id and
     /// emit a `Role::Button` node. Returns `true` if clicked this frame.
-    fn text_button(ui: &mut egui::Ui, label: &str, author_id: &str, colors: LeftRailColors) -> bool {
+    fn text_button(
+        ui: &mut egui::Ui,
+        label: &str,
+        author_id: &str,
+        colors: LeftRailColors,
+    ) -> bool {
         let node_id = button_node_id(author_id);
         let id = unsafe { egui::Id::from_high_entropy_bits(node_id) };
         let height = 22.0;
@@ -382,18 +445,26 @@ impl LeftRail {
         let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
         let resp = ui.interact(rect, id, egui::Sense::click());
         if ui.is_rect_visible(rect) {
-            let bg = if resp.hovered() { colors.icon_hover_bg } else { colors.icon_bg };
+            let bg = if resp.hovered() {
+                colors.icon_hover_bg
+            } else {
+                colors.icon_bg
+            };
             ui.painter().rect_filled(rect, 3.0, bg);
-            let g = ui
-                .painter()
-                .layout_no_wrap(label.to_owned(), egui::FontId::proportional(13.0), colors.icon_text);
+            let g = ui.painter().layout_no_wrap(
+                label.to_owned(),
+                egui::FontId::proportional(13.0),
+                colors.icon_text,
+            );
             ui.painter().galley(
                 egui::pos2(rect.left() + 6.0, rect.center().y - g.size().y * 0.5),
                 g,
                 colors.icon_text,
             );
         }
-        resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label));
+        resp.widget_info(|| {
+            egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
+        });
         ui.ctx().accesskit_node_builder(id, |node| {
             node.set_role(accesskit::Role::Button);
             node.set_author_id(author_id.to_owned());
@@ -411,7 +482,9 @@ fn button_node_id(author_id: &str) -> u64 {
         .iter()
         .find(|(a, _)| *a == author_id)
         .map(|(_, id)| *id)
-        .unwrap_or_else(|| panic!("left-rail control '{author_id}' not declared in LEFT_RAIL_BUTTONS"))
+        .unwrap_or_else(|| {
+            panic!("left-rail control '{author_id}' not declared in LEFT_RAIL_BUTTONS")
+        })
 }
 
 /// Colors the rail paints with, sourced from the active theme tokens by the caller so the rail never
@@ -464,9 +537,16 @@ mod tests {
         // The nine controls occupy 80..=88, strictly below the pane id base (100) and the project-tree
         // (89) / quick-links (90) containers. The full collision proof is in accessibility::registry.
         for (i, (_, id)) in LEFT_RAIL_BUTTONS.iter().enumerate() {
-            assert_eq!(*id, LEFT_RAIL_NODE_ID_BASE + i as u64, "sequential band slot");
+            assert_eq!(
+                *id,
+                LEFT_RAIL_NODE_ID_BASE + i as u64,
+                "sequential band slot"
+            );
             assert!(*id < crate::accessibility::PANE_NODE_ID_BASE);
-            assert!(*id < crate::project_tree::PROJECT_TREE_NODE_ID, "below project-tree (89)");
+            assert!(
+                *id < crate::project_tree::PROJECT_TREE_NODE_ID,
+                "below project-tree (89)"
+            );
         }
         // Ids are unique.
         let ids: Vec<u64> = LEFT_RAIL_BUTTONS.iter().map(|(_, id)| *id).collect();

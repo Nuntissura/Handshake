@@ -40,8 +40,8 @@ use egui_kittest::Harness;
 
 use handshake_native::code_editor::panel::{scope_to_color, CodeEditorPaneFactory};
 use handshake_native::code_editor::{
-    CodeEditorPanel, HighlightScope, CODE_EDITOR_PANEL_AUTHOR_ID, CODE_EDITOR_SCROLL_AREA_AUTHOR_ID,
-    CODE_EDITOR_TEXT_AUTHOR_ID, OVERSCAN_LINES,
+    CodeEditorPanel, HighlightScope, CODE_EDITOR_PANEL_AUTHOR_ID,
+    CODE_EDITOR_SCROLL_AREA_AUTHOR_ID, CODE_EDITOR_TEXT_AUTHOR_ID, OVERSCAN_LINES,
 };
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneHostWidget, PaneId, PaneRecord,
@@ -108,7 +108,9 @@ fn code_editor_panel_accesskit() {
 
     for node in root.children_recursive() {
         let ak = node.accesskit_node();
-        let Some(author) = ak.author_id() else { continue };
+        let Some(author) = ak.author_id() else {
+            continue;
+        };
         if author == CODE_EDITOR_PANEL_AUTHOR_ID {
             container_found = true;
             container_role = format!("{:?}", ak.role());
@@ -174,7 +176,9 @@ fn scroll_area_node_present() {
 
     for node in root.children_recursive() {
         let ak = node.accesskit_node();
-        let Some(author) = ak.author_id() else { continue };
+        let Some(author) = ak.author_id() else {
+            continue;
+        };
         if author == CODE_EDITOR_SCROLL_AREA_AUTHOR_ID {
             scroll_found = true;
             scroll_role = format!("{:?}", ak.role());
@@ -262,7 +266,8 @@ fn code_editor_panel_basic() {
             assert!(w > 0 && h > 0, "rendered image must be non-empty");
 
             let raw = image.as_raw();
-            let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+            let mut counts: std::collections::HashMap<[u8; 4], u32> =
+                std::collections::HashMap::new();
             let mut i = 0usize;
             while i + 4 <= raw.len() {
                 let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
@@ -319,7 +324,10 @@ fn large_file_frame_time() {
     // has work to do, but only the visible window is highlighted/painted (virtualization).
     let big = "let x = 1; // a line of code\n".repeat(100_000);
     let panel = Arc::new(CodeEditorPanel::new(&big, "rs"));
-    assert!(panel.buffer().len_lines() > 100_000, "100k-line buffer loaded");
+    assert!(
+        panel.buffer().len_lines() > 100_000,
+        "100k-line buffer loaded"
+    );
 
     let panel_for_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
@@ -342,7 +350,10 @@ fn large_file_frame_time() {
 
     // Virtualization sanity: the panel painted far fewer lines than the document.
     let stats = panel.perf_stats();
-    assert_eq!(stats.buffer_len_lines, 100_001, "whole 100k-line doc reported");
+    assert_eq!(
+        stats.buffer_len_lines, 100_001,
+        "whole 100k-line doc reported"
+    );
     assert!(
         stats.frame_lines_rendered > 0 && stats.frame_lines_rendered < 1_000,
         "AC-002: virtualized — a bounded window painted, not 100k lines (got {})",
@@ -425,7 +436,8 @@ fn large_file_frame_time() {
             median < 60.0,
             "DEBUG: median frame {median:.3} ms must stay well under the un-virtualized baseline \
              (virtualization regressed?) — painted {} of {} lines",
-            stats.frame_lines_rendered, stats.buffer_len_lines
+            stats.frame_lines_rendered,
+            stats.buffer_len_lines
         );
         println!(
             "PT-002 NOTE: debug build — virtualization invariant gate passed (painted {} of {}, \
@@ -449,7 +461,10 @@ fn scroll_mid_virtualizes() {
         doc.push_str(&format!("line {n}\n"));
     }
     let panel = Arc::new(CodeEditorPanel::new(&doc, "txt"));
-    assert!(panel.spans().is_empty(), "plain-text panel has no highlight spans (single label/row)");
+    assert!(
+        panel.spans().is_empty(),
+        "plain-text panel has no highlight spans (single label/row)"
+    );
     let panel_for_ui = Arc::clone(&panel);
 
     // A short viewport (200px) so only ~14 lines fit — scrolling to line 100 unambiguously pushes
@@ -471,7 +486,10 @@ fn scroll_mid_virtualizes() {
         top_stats.frame_lines_rendered
     );
     let top_visible = panel.last_visible_range();
-    assert_eq!(top_visible.start, 0, "at the top the painted range starts at line 0 (no overscan)");
+    assert_eq!(
+        top_visible.start, 0,
+        "at the top the painted range starts at line 0 (no overscan)"
+    );
     assert!(
         harness.query_by_label("line 0").is_some(),
         "at the top, the 'line 0' label must be on screen ({top_visible:?})"
@@ -536,7 +554,9 @@ fn scroll_mid_virtualizes() {
         );
     }
     assert!(
-        harness.query_by_label(&format!("line {}", visible.end)).is_none(),
+        harness
+            .query_by_label(&format!("line {}", visible.end))
+            .is_none(),
         "AC-007: line {} is just BELOW the painted range {visible:?}; it must NOT be on screen",
         visible.end
     );
@@ -560,7 +580,10 @@ fn scroll_mid_virtualizes() {
             let png_path = ext_dir.join("MT-002-scroll-mid.png");
             let saved = image.save(&png_path).is_ok();
             // The image is non-empty and renders content (colored numbered lines).
-            assert!(image.width() > 0 && image.height() > 0, "scroll-mid image is non-empty");
+            assert!(
+                image.width() > 0 && image.height() > 0,
+                "scroll-mid image is non-empty"
+            );
             println!(
                 "PT-003 scroll-mid: {}x{} saved={saved} ({}); painted {} lines; visible={:?} \
                  (egui's actual row_range; line 0 proven absent, every in-range label present)",
@@ -625,5 +648,7 @@ fn code_editor_panel_mounts_through_pane_registry() {
          existing PaneHostWidget"
     );
     let _ = harness.query_by_label("Code editor");
-    println!("PASS: CodeEditorPanel mounts through the existing WP-011 PaneHostWidget (pane registry)");
+    println!(
+        "PASS: CodeEditorPanel mounts through the existing WP-011 PaneHostWidget (pane registry)"
+    );
 }

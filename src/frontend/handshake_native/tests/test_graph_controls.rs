@@ -35,8 +35,8 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
 use handshake_native::graph::graph_controls::{
-    DEPTH_AUTHOR_ID, GROUP_AUTHOR_ID_PREFIX, ORPHAN_AUTHOR_ID, SEARCH_AUTHOR_ID, SIZE_DEGREE_AUTHOR_ID,
-    TOGGLE_AUTHOR_ID,
+    DEPTH_AUTHOR_ID, GROUP_AUTHOR_ID_PREFIX, ORPHAN_AUTHOR_ID, SEARCH_AUTHOR_ID,
+    SIZE_DEGREE_AUTHOR_ID, TOGGLE_AUTHOR_ID,
 };
 use handshake_native::graph::graph_view::{
     GraphEdge, GraphEvent, GraphMode, GraphNode, LoomGraphView, NODE_AUTHOR_ID_PREFIX,
@@ -88,7 +88,13 @@ fn seeded_view(n: usize) -> LoomGraphView {
     // One orphan node with a distinct title so search can target it; no edges, so degree 0.
     nodes.push(GraphNode::new("orphan-x", "Orphan node", "note"));
     let edges: Vec<GraphEdge> = (0..n)
-        .map(|i| GraphEdge::new(format!("block-{i:03}"), format!("block-{:03}", (i + 1) % n), "mention"))
+        .map(|i| {
+            GraphEdge::new(
+                format!("block-{i:03}"),
+                format!("block-{:03}", (i + 1) % n),
+                "mention",
+            )
+        })
         .collect();
     v.set_graph(nodes, edges);
     // The membership the tag/folder panels already fetch: the "research" hub and the "src/frontend" folder
@@ -99,8 +105,10 @@ fn seeded_view(n: usize) -> LoomGraphView {
     let mut tag_membership: std::collections::HashMap<String, std::collections::HashSet<String>> =
         std::collections::HashMap::new();
     tag_membership.insert("research".to_owned(), block_ids.clone());
-    let mut folder_membership: std::collections::HashMap<String, std::collections::HashSet<String>> =
-        std::collections::HashMap::new();
+    let mut folder_membership: std::collections::HashMap<
+        String,
+        std::collections::HashSet<String>,
+    > = std::collections::HashMap::new();
     folder_membership.insert("src/frontend".to_owned(), block_ids);
     v.apply_group_identity(&tag_membership, &folder_membership);
     v
@@ -168,7 +176,11 @@ fn harness_for(
 fn graph_controls_accesskit_nodes_present() {
     let mut view = seeded_view(5);
     // Enable a group so a `graph.group.{key}` node is rendered (AC6 requires >= 1 group node).
-    view.controls.groups.first_mut().expect("a group discovered").enabled = true;
+    view.controls
+        .groups
+        .first_mut()
+        .expect("a group discovered")
+        .enabled = true;
     let events = Arc::new(Mutex::new(Vec::new()));
     let mut harness = harness_for(shared(view), Arc::clone(&events), egui::vec2(1000.0, 700.0));
     harness.run();
@@ -181,10 +193,19 @@ fn graph_controls_accesskit_nodes_present() {
         SIZE_DEGREE_AUTHOR_ID,
         TOGGLE_AUTHOR_ID,
     ] {
-        assert!(ids.contains(required), "AC6: control author_id '{required}' missing from tree {ids:?}");
+        assert!(
+            ids.contains(required),
+            "AC6: control author_id '{required}' missing from tree {ids:?}"
+        );
     }
-    let group_count = ids.iter().filter(|a| a.starts_with(GROUP_AUTHOR_ID_PREFIX)).count();
-    assert!(group_count >= 1, "AC6: expected >= 1 graph.group.{{key}} node, got {group_count} (ids={ids:?})");
+    let group_count = ids
+        .iter()
+        .filter(|a| a.starts_with(GROUP_AUTHOR_ID_PREFIX))
+        .count();
+    assert!(
+        group_count >= 1,
+        "AC6: expected >= 1 graph.group.{{key}} node, got {group_count} (ids={ids:?})"
+    );
     println!("PROOF4/AC6: control author_ids + {group_count} group node(s) present");
 }
 
@@ -194,12 +215,23 @@ fn graph_controls_accesskit_nodes_present() {
 fn depth_slider_emits_requery_in_local_only() {
     // Local mode with a focused block (so the depth slider is enabled).
     let mut view = seeded_view(5);
-    view.mode = GraphMode::Local { block_id: "block-001".to_owned(), title: "Block 1".to_owned() };
+    view.mode = GraphMode::Local {
+        block_id: "block-001".to_owned(),
+        title: "Block 1".to_owned(),
+    };
     let view = shared(view);
     let events = Arc::new(Mutex::new(Vec::new()));
-    let mut harness = harness_for(Arc::clone(&view), Arc::clone(&events), egui::vec2(1000.0, 700.0));
+    let mut harness = harness_for(
+        Arc::clone(&view),
+        Arc::clone(&events),
+        egui::vec2(1000.0, 700.0),
+    );
     harness.run();
-    assert_eq!(view.lock().unwrap().controls.link_depth, 2, "default depth 2 before interaction");
+    assert_eq!(
+        view.lock().unwrap().controls.link_depth,
+        2,
+        "default depth 2 before interaction"
+    );
 
     // Drive the REAL slider via the keyboard (the swarm/AccessKit `SetValue`/arrow path): focus the slider
     // by its stable author_id and press ArrowRight to increment 2 -> 3. egui reports the slider `changed()`
@@ -232,7 +264,11 @@ fn depth_slider_emits_requery_in_local_only() {
     gview.mode = GraphMode::Global;
     let gview = shared(gview);
     let gevents = Arc::new(Mutex::new(Vec::new()));
-    let mut gharness = harness_for(Arc::clone(&gview), Arc::clone(&gevents), egui::vec2(1000.0, 700.0));
+    let mut gharness = harness_for(
+        Arc::clone(&gview),
+        Arc::clone(&gevents),
+        egui::vec2(1000.0, 700.0),
+    );
     gharness.run();
     // Focus is rejected for a disabled control; press ArrowRight anyway to prove it is inert.
     if let Some(node) = gharness.query_by_label("Graph link depth") {
@@ -249,7 +285,9 @@ fn depth_slider_emits_requery_in_local_only() {
         "AC4: Global-mode disabled slider keeps depth at default 2"
     );
     assert!(
-        !gevs.iter().any(|e| matches!(e, GraphEvent::DepthChanged { .. })),
+        !gevs
+            .iter()
+            .any(|e| matches!(e, GraphEvent::DepthChanged { .. })),
         "AC4: Global mode must fire NO DepthChanged (slider disabled), got {gevs:?}"
     );
     println!("PROOF3/AC4: Local depth->DepthChanged(3); Global slider disabled, no requery");
@@ -264,7 +302,11 @@ fn client_side_controls_emit_no_backend_event() {
     // all four interactions the emitted-event log contains ZERO DepthChanged.
     let view = shared(seeded_view(5));
     let events = Arc::new(Mutex::new(Vec::new()));
-    let mut harness = harness_for(Arc::clone(&view), Arc::clone(&events), egui::vec2(1000.0, 700.0));
+    let mut harness = harness_for(
+        Arc::clone(&view),
+        Arc::clone(&events),
+        egui::vec2(1000.0, 700.0),
+    );
     harness.run();
 
     // 1) search
@@ -298,7 +340,10 @@ fn client_side_controls_emit_no_backend_event() {
     harness.run();
 
     let evs = events.lock().unwrap().clone();
-    let backend_events = evs.iter().filter(|e| matches!(e, GraphEvent::DepthChanged { .. })).count();
+    let backend_events = evs
+        .iter()
+        .filter(|e| matches!(e, GraphEvent::DepthChanged { .. }))
+        .count();
     assert_eq!(
         backend_events, 0,
         "AC7/AC8: search/group/orphan/size are client-side — ZERO DepthChanged (backend) events expected, got {evs:?}"
@@ -319,13 +364,19 @@ fn orphan_off_removes_node_from_canvas_and_selection() {
         }
     }
     let events = Arc::new(Mutex::new(Vec::new()));
-    let mut harness = harness_for(Arc::clone(&view), Arc::clone(&events), egui::vec2(1000.0, 700.0));
+    let mut harness = harness_for(
+        Arc::clone(&view),
+        Arc::clone(&events),
+        egui::vec2(1000.0, 700.0),
+    );
     harness.run();
 
     // With orphans ON, the orphan node IS addressable.
     let ids_on = author_ids(&harness);
     assert!(
-        ids_on.iter().any(|a| a == &format!("{NODE_AUTHOR_ID_PREFIX}orphan-x")),
+        ids_on
+            .iter()
+            .any(|a| a == &format!("{NODE_AUTHOR_ID_PREFIX}orphan-x")),
         "AC2: orphan node present when show_orphans=true"
     );
 
@@ -351,11 +402,22 @@ fn orphan_off_removes_node_from_canvas_and_selection() {
     // re-run with orphans hidden and assert it no longer opens — isolating the hide as the cause.
     let (world, zoom, pan, center) = {
         let v = view.lock().unwrap();
-        let node = v.nodes.iter().find(|n| n.block_id == "orphan-x").expect("orphan present in vec");
-        let center = v.canvas_rect().expect("canvas rect recorded").center().to_vec2();
+        let node = v
+            .nodes
+            .iter()
+            .find(|n| n.block_id == "orphan-x")
+            .expect("orphan present in vec");
+        let center = v
+            .canvas_rect()
+            .expect("canvas rect recorded")
+            .center()
+            .to_vec2();
         (egui::pos2(node.x, node.y), v.zoom, v.pan, center)
     };
-    let click_pos = egui::pos2(center.x + pan.x + world.x * zoom, center.y + pan.y + world.y * zoom);
+    let click_pos = egui::pos2(
+        center.x + pan.x + world.x * zoom,
+        center.y + pan.y + world.y * zoom,
+    );
 
     // Control: with orphans SHOWN, this exact click DOES open the orphan (proves the click position is on
     // the node, so the later no-open is due to hiding — not a missed click).
@@ -411,7 +473,8 @@ fn orphan_off_removes_node_from_canvas_and_selection() {
     harness.run();
     let evs = events.lock().unwrap().clone();
     assert!(
-        !evs.iter().any(|e| matches!(e, GraphEvent::OpenNode { block_id } if block_id == "orphan-x")),
+        !evs.iter()
+            .any(|e| matches!(e, GraphEvent::OpenNode { block_id } if block_id == "orphan-x")),
         "RISK-6/MC-6: a hidden orphan must NOT be selectable (got {evs:?})"
     );
     println!("AC2 + RISK-6: orphan removed from canvas + not selectable when show_orphans=false");
@@ -506,7 +569,10 @@ fn search_dims_non_matching_node_pixels() {
             harness.run();
             if let Ok(image) = harness.render() {
                 let saved = image.save(&png).is_ok();
-                println!("AC1: search-dim screenshot saved={saved} ({})", png.display());
+                println!(
+                    "AC1: search-dim screenshot saved={saved} ({})",
+                    png.display()
+                );
             }
         }
         println!("PROOF2/AC1: search dimmed non-matching node pixels (before={before}, after_dim={after})");
@@ -547,7 +613,10 @@ fn size_by_degree_screenshot() {
             let _ = std::fs::create_dir_all(&ext_dir);
             let png = ext_dir.join("MT-060-size-by-degree.png");
             let saved = image.save(&png).is_ok();
-            println!("AC5: {w}x{h} size-by-degree screenshot saved={saved} ({})", png.display());
+            println!(
+                "AC5: {w}x{h} size-by-degree screenshot saved={saved} ({})",
+                png.display()
+            );
         }
         Err(e) => {
             println!("BLOCKER(non-fatal): size-by-degree screenshot render unavailable (no wgpu adapter): {e}");
@@ -577,7 +646,11 @@ fn enabled_group_colors_matching_nodes() {
     };
     view.recompute_overlays();
     // Every block-* node (tagged research) must be in the group-colour overlay with the research colour.
-    for node in view.nodes.iter().filter(|n| n.block_id.starts_with("block-")) {
+    for node in view
+        .nodes
+        .iter()
+        .filter(|n| n.block_id.starts_with("block-"))
+    {
         let c = view.group_color_for(&node.block_id);
         assert_eq!(
             c,
@@ -587,8 +660,14 @@ fn enabled_group_colors_matching_nodes() {
         );
     }
     // The orphan node has no tags, so no group colour.
-    assert_eq!(view.group_color_for("orphan-x"), None, "AC3: untagged node has no group colour");
-    println!("AC3: enabled research group coloured all tagged nodes via the overlay the painter reads");
+    assert_eq!(
+        view.group_color_for("orphan-x"),
+        None,
+        "AC3: untagged node has no group colour"
+    );
+    println!(
+        "AC3: enabled research group coloured all tagged nodes via the overlay the painter reads"
+    );
 }
 
 // ── AC3 PRODUCTION PATH: group identity comes from the REAL membership cross-reference ───────────────
@@ -610,8 +689,16 @@ fn apply_group_identity_cross_references_by_block_id() {
 
     // Before cross-reference, the bare nodes carry NO identity (the live backend payload cannot supply it).
     for node in &view.nodes {
-        assert!(node.tags.is_empty(), "bare node {} must have no inline tags", node.block_id);
-        assert!(node.folder_path.is_none(), "bare node {} must have no inline folder", node.block_id);
+        assert!(
+            node.tags.is_empty(),
+            "bare node {} must have no inline tags",
+            node.block_id
+        );
+        assert!(
+            node.folder_path.is_none(),
+            "bare node {} must have no inline folder",
+            node.block_id
+        );
     }
 
     // Membership maps shaped like the real endpoints:
@@ -619,22 +706,45 @@ fn apply_group_identity_cross_references_by_block_id() {
     //   folders: GET /loom/folders/{id}/blocks -> {folder path -> member block_ids}
     let mut tag_membership: std::collections::HashMap<String, std::collections::HashSet<String>> =
         std::collections::HashMap::new();
-    tag_membership.insert("research".to_owned(), ["b-research".to_owned()].into_iter().collect());
-    let mut folder_membership: std::collections::HashMap<String, std::collections::HashSet<String>> =
-        std::collections::HashMap::new();
+    tag_membership.insert(
+        "research".to_owned(),
+        ["b-research".to_owned()].into_iter().collect(),
+    );
+    let mut folder_membership: std::collections::HashMap<
+        String,
+        std::collections::HashSet<String>,
+    > = std::collections::HashMap::new();
     // b-deep is a member of BOTH a parent folder and its child; the DEEPEST (most-specific) folder wins.
-    folder_membership.insert("src".to_owned(), ["b-deep".to_owned()].into_iter().collect());
+    folder_membership.insert(
+        "src".to_owned(),
+        ["b-deep".to_owned()].into_iter().collect(),
+    );
     folder_membership.insert(
         "src/frontend/widgets".to_owned(),
         ["b-deep".to_owned()].into_iter().collect(),
     );
-    folder_membership.insert("src/frontend".to_owned(), ["b-research".to_owned()].into_iter().collect());
+    folder_membership.insert(
+        "src/frontend".to_owned(),
+        ["b-research".to_owned()].into_iter().collect(),
+    );
 
     view.apply_group_identity(&tag_membership, &folder_membership);
 
-    let research = view.nodes.iter().find(|n| n.block_id == "b-research").unwrap();
-    assert_eq!(research.tags, vec!["research".to_owned()], "tag identity from the hub membership");
-    assert_eq!(research.folder_path.as_deref(), Some("src/frontend"), "folder identity from membership");
+    let research = view
+        .nodes
+        .iter()
+        .find(|n| n.block_id == "b-research")
+        .unwrap();
+    assert_eq!(
+        research.tags,
+        vec!["research".to_owned()],
+        "tag identity from the hub membership"
+    );
+    assert_eq!(
+        research.folder_path.as_deref(),
+        Some("src/frontend"),
+        "folder identity from membership"
+    );
 
     let deep = view.nodes.iter().find(|n| n.block_id == "b-deep").unwrap();
     assert!(deep.tags.is_empty(), "b-deep is in no tag hub");
@@ -645,7 +755,10 @@ fn apply_group_identity_cross_references_by_block_id() {
     );
 
     let none = view.nodes.iter().find(|n| n.block_id == "b-none").unwrap();
-    assert!(none.tags.is_empty() && none.folder_path.is_none(), "a block in no membership stays identity-free");
+    assert!(
+        none.tags.is_empty() && none.folder_path.is_none(),
+        "a block in no membership stays identity-free"
+    );
 
     // AC3 LIVE off the cross-referenced identity: enable the research tag group; only b-research colours.
     let research_color = {
@@ -659,9 +772,19 @@ fn apply_group_identity_cross_references_by_block_id() {
         g.color
     };
     view.recompute_overlays();
-    assert_eq!(view.group_color_for("b-research"), Some(research_color), "AC3: cross-referenced tag colours the node");
-    assert_eq!(view.group_color_for("b-deep"), None, "AC3: a node in no enabled group has no group colour");
-    println!("AC3 production: group identity cross-referenced by block_id from real membership maps");
+    assert_eq!(
+        view.group_color_for("b-research"),
+        Some(research_color),
+        "AC3: cross-referenced tag colours the node"
+    );
+    assert_eq!(
+        view.group_color_for("b-deep"),
+        None,
+        "AC3: a node in no enabled group has no group colour"
+    );
+    println!(
+        "AC3 production: group identity cross-referenced by block_id from real membership maps"
+    );
 }
 
 #[test]
@@ -671,11 +794,20 @@ fn cached_degree_matches_node_degree() {
     let view = seeded_view(5);
     for node in view.nodes.iter() {
         let cached = view.node_degree_cached(&node.block_id);
-        let direct = handshake_native::graph::graph_controls::node_degree(&node.block_id, &view.edges);
-        assert_eq!(cached, direct, "cached degree for {} must equal node_degree", node.block_id);
+        let direct =
+            handshake_native::graph::graph_controls::node_degree(&node.block_id, &view.edges);
+        assert_eq!(
+            cached, direct,
+            "cached degree for {} must equal node_degree",
+            node.block_id
+        );
     }
     // The ring nodes have degree 2; the orphan has degree 0.
-    assert_eq!(view.node_degree_cached("block-000"), 2, "ring node degree 2");
+    assert_eq!(
+        view.node_degree_cached("block-000"),
+        2,
+        "ring node degree 2"
+    );
     assert_eq!(view.node_degree_cached("orphan-x"), 0, "orphan degree 0");
 }
 
@@ -683,8 +815,18 @@ fn cached_degree_matches_node_degree() {
 
 #[test]
 fn group_legend_label_shape() {
-    let tag = GraphGroup::new(GroupKind::Tag("research".to_owned()), HsTheme::Dark.palette().accent);
-    let folder = GraphGroup::new(GroupKind::Folder("src/frontend".to_owned()), HsTheme::Dark.palette().accent);
+    let tag = GraphGroup::new(
+        GroupKind::Tag("research".to_owned()),
+        HsTheme::Dark.palette().accent,
+    );
+    let folder = GraphGroup::new(
+        GroupKind::Folder("src/frontend".to_owned()),
+        HsTheme::Dark.palette().accent,
+    );
     assert_eq!(tag.label(), "#research", "tag legend label has a leading #");
-    assert_eq!(folder.label(), "frontend/", "folder legend label is the leaf segment + /");
+    assert_eq!(
+        folder.label(),
+        "frontend/",
+        "folder legend label is the leaf segment + /"
+    );
 }

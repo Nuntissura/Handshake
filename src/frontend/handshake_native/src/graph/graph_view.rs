@@ -43,8 +43,8 @@ use egui::accesskit;
 use egui::{Color32, Pos2, Rect, Sense, Stroke, Vec2};
 
 use crate::accessibility::knowledge_action_registry::{
-    self, AddEdgePayload, AxRole as KAxRole, BlockIdPayload, EdgeIdPayload, KnowledgeActionRegistry,
-    KnowledgeNodeState, GRAPH_CONTROL_CATALOG, VIEWPORT_LOOKAHEAD,
+    self, AddEdgePayload, AxRole as KAxRole, BlockIdPayload, EdgeIdPayload,
+    KnowledgeActionRegistry, KnowledgeNodeState, GRAPH_CONTROL_CATALOG, VIEWPORT_LOOKAHEAD,
 };
 // WP-KERNEL-012 MT-060: the Obsidian-class control panel + its pure filter/group/sizing fns. The view
 // OWNS a `GraphControls`, renders it each frame, and CONSUMES the pure results in the live painter pass.
@@ -93,7 +93,10 @@ pub const NODE_AUTHOR_ID_PREFIX: &str = "graph.node.";
 /// MC-3). Reuses the shell's [`crate::project_tree::stable_part`] slugger so a block_id with slashes
 /// or colons can never inject an unsafe author_id.
 pub fn node_author_id(block_id: &str) -> String {
-    format!("{NODE_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{NODE_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// Which graph the view is showing. `Local` is the neighbourhood of a focused block (graph-search);
@@ -154,7 +157,11 @@ pub struct GraphNode {
 }
 
 impl GraphNode {
-    pub fn new(block_id: impl Into<String>, title: impl Into<String>, content_type: impl Into<String>) -> Self {
+    pub fn new(
+        block_id: impl Into<String>,
+        title: impl Into<String>,
+        content_type: impl Into<String>,
+    ) -> Self {
         Self {
             block_id: block_id.into(),
             title: title.into(),
@@ -197,7 +204,11 @@ pub struct GraphEdge {
 }
 
 impl GraphEdge {
-    pub fn new(source: impl Into<String>, target: impl Into<String>, edge_type: impl Into<String>) -> Self {
+    pub fn new(
+        source: impl Into<String>,
+        target: impl Into<String>,
+        edge_type: impl Into<String>,
+    ) -> Self {
         Self {
             source: source.into(),
             target: target.into(),
@@ -252,7 +263,10 @@ pub enum GraphEvent {
     /// MT-042: create a real semantic Loom edge (`POST /loom/edges`) between two BLOCKS — a swarm
     /// `graph.add-edge` dispatch. The host runs it through the E6 loom client (NEEDS_MANAGED_RESOURCE_PROOF
     /// for the DB round-trip).
-    AddEdge { source_block_id: String, target_block_id: String },
+    AddEdge {
+        source_block_id: String,
+        target_block_id: String,
+    },
     /// MT-042: remove a Loom edge by id — a swarm `graph.remove-edge` dispatch. Host runs it via the E6
     /// loom client.
     RemoveEdge { edge_id: String },
@@ -364,7 +378,8 @@ impl LoomGraphView {
             nodes.truncate(NODE_CAP);
         }
         // Drop edges that reference a clamped-away node so rendering never dereferences a missing node.
-        let present: std::collections::HashSet<&str> = nodes.iter().map(|n| n.block_id.as_str()).collect();
+        let present: std::collections::HashSet<&str> =
+            nodes.iter().map(|n| n.block_id.as_str()).collect();
         let edges = edges
             .into_iter()
             .filter(|e| present.contains(e.source.as_str()) && present.contains(e.target.as_str()))
@@ -503,13 +518,19 @@ impl LoomGraphView {
     /// MT-060: is this node hidden by the current visibility overlay (the orphan filter)? A hidden node is
     /// not drawn and is NOT selectable (RISK-6 / MC-6 — click detection skips it).
     fn is_hidden(&self, block_id: &str) -> bool {
-        self.visibility.get(block_id).map(|v| v.hidden).unwrap_or(false)
+        self.visibility
+            .get(block_id)
+            .map(|v| v.hidden)
+            .unwrap_or(false)
     }
 
     /// MT-060: is this node dimmed by the current visibility overlay (a search non-match)? A dimmed node
     /// renders at reduced alpha but stays on the canvas (spatial context — Obsidian behaviour).
     fn is_dimmed(&self, block_id: &str) -> bool {
-        self.visibility.get(block_id).map(|v| v.dimmed).unwrap_or(false)
+        self.visibility
+            .get(block_id)
+            .map(|v| v.dimmed)
+            .unwrap_or(false)
     }
 
     /// Reset the force layout so it re-seeds positions and re-converges from scratch (Re-layout button,
@@ -561,12 +582,21 @@ impl LoomGraphView {
         }
 
         // Build an index for edge lookups.
-        let index: HashMap<&str, usize> =
-            self.nodes.iter().enumerate().map(|(i, n)| (n.block_id.as_str(), i)).collect();
+        let index: HashMap<&str, usize> = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.block_id.as_str(), i))
+            .collect();
         let edge_pairs: Vec<(usize, usize)> = self
             .edges
             .iter()
-            .filter_map(|e| Some((*index.get(e.source.as_str())?, *index.get(e.target.as_str())?)))
+            .filter_map(|e| {
+                Some((
+                    *index.get(e.source.as_str())?,
+                    *index.get(e.target.as_str())?,
+                ))
+            })
             .filter(|(a, b)| a != b)
             .collect();
 
@@ -653,7 +683,9 @@ impl LoomGraphView {
             .iter()
             .enumerate()
             .rev()
-            .find(|(_, n)| !self.is_hidden(&n.block_id) && (n.pos() - world).length() <= NODE_RADIUS)
+            .find(|(_, n)| {
+                !self.is_hidden(&n.block_id) && (n.pos() - world).length() <= NODE_RADIUS
+            })
             .map(|(i, _)| i)
     }
 
@@ -720,7 +752,11 @@ impl LoomGraphView {
             ui.separator();
             // Node count label (AC1: matches the loaded block count; MC-2 truncation notice).
             let count_label = if self.total_available > self.nodes.len() {
-                format!("showing {} of {} nodes", self.nodes.len(), self.total_available)
+                format!(
+                    "showing {} of {} nodes",
+                    self.nodes.len(),
+                    self.total_available
+                )
             } else {
                 format!("{} nodes", self.nodes.len())
             };
@@ -742,7 +778,11 @@ impl LoomGraphView {
         let controls_event = egui::SidePanel::left(ui.id().with("graph-controls"))
             .resizable(false)
             .min_width(if self.controls.panel_open { 160.0 } else { 0.0 })
-            .frame(egui::Frame::default().fill(palette.surface).inner_margin(6.0))
+            .frame(
+                egui::Frame::default()
+                    .fill(palette.surface)
+                    .inner_margin(6.0),
+            )
             .show_inside(ui, |ui| self.controls.show(ui, is_local_mode))
             .inner;
         // Apply the control event: a DepthChanged is a backend re-query (Local only); a FiltersChanged is a
@@ -756,7 +796,8 @@ impl LoomGraphView {
                 // the view does NOT set loading here, so a headless/no-host render never spins forever.
                 event = Some(GraphEvent::DepthChanged { depth });
             }
-            GraphControlsEvent::DepthChanged(_) => { /* Global: slider is disabled; unreachable no-op. */ }
+            GraphControlsEvent::DepthChanged(_) => { /* Global: slider is disabled; unreachable no-op. */
+            }
             GraphControlsEvent::FiltersChanged => {
                 self.recompute_overlays();
             }
@@ -816,18 +857,30 @@ impl LoomGraphView {
         // endpoint is skipped entirely (the orphan filter removed that node); an edge with a DIMMED
         // endpoint draws at reduced alpha (the node it connects to is a search non-match).
         let edge_stroke_full = Stroke::new(1.5, palette.text_subtle.gamma_multiply(0.6));
-        let edge_stroke_dim =
-            Stroke::new(1.5, palette.text_subtle.gamma_multiply(0.6).gamma_multiply(0.35));
-        let pos_by_id: HashMap<&str, Pos2> =
-            self.nodes.iter().map(|n| (n.block_id.as_str(), n.pos())).collect();
+        let edge_stroke_dim = Stroke::new(
+            1.5,
+            palette.text_subtle.gamma_multiply(0.6).gamma_multiply(0.35),
+        );
+        let pos_by_id: HashMap<&str, Pos2> = self
+            .nodes
+            .iter()
+            .map(|n| (n.block_id.as_str(), n.pos()))
+            .collect();
         for e in &self.edges {
             // Skip any edge touching a hidden node (RISK-6 / MC-6: its node is off the canvas).
             if self.is_hidden(&e.source) || self.is_hidden(&e.target) {
                 continue;
             }
-            if let (Some(&s), Some(&t)) = (pos_by_id.get(e.source.as_str()), pos_by_id.get(e.target.as_str())) {
+            if let (Some(&s), Some(&t)) = (
+                pos_by_id.get(e.source.as_str()),
+                pos_by_id.get(e.target.as_str()),
+            ) {
                 let dimmed = self.is_dimmed(&e.source) || self.is_dimmed(&e.target);
-                let stroke = if dimmed { edge_stroke_dim } else { edge_stroke_full };
+                let stroke = if dimmed {
+                    edge_stroke_dim
+                } else {
+                    edge_stroke_full
+                };
                 painter.line_segment(
                     [self.to_screen(s, center), self.to_screen(t, center)],
                     stroke,
@@ -854,7 +907,11 @@ impl LoomGraphView {
                 .get(&node.block_id)
                 .copied()
                 .unwrap_or_else(|| content_type_color(&node.content_type, palette));
-            let color = if dimmed { dim_color(base_color) } else { base_color };
+            let color = if dimmed {
+                dim_color(base_color)
+            } else {
+                base_color
+            };
             // Size-by-degree: radius scales with the node's edge degree (clamped to 3x base). World-space
             // base radius is NODE_RADIUS; the screen radius multiplies by zoom (as before). The degree is
             // read from the cache recompute_overlays built in ONE O(nodes+edges) pass — NOT recomputed per
@@ -868,7 +925,11 @@ impl LoomGraphView {
                 painter.circle_stroke(screen, r + 2.0, Stroke::new(2.0, palette.accent));
             }
             // Title label beneath the node (dimmed too when the node is a search non-match).
-            let label_color = if dimmed { dim_color(palette.text) } else { palette.text };
+            let label_color = if dimmed {
+                dim_color(palette.text)
+            } else {
+                palette.text
+            };
             painter.text(
                 Pos2::new(screen.x, screen.y + r + 2.0),
                 egui::Align2::CENTER_TOP,
@@ -882,9 +943,21 @@ impl LoomGraphView {
         // Loading / error overlay. Loading animates ONLY during a genuine in-flight fetch (the host
         // sets `loading=true` only when a runtime-backed request is dispatched). Error is a static label.
         if let Some(err) = &self.error {
-            draw_overlay_label(&painter, rect, &format!("Graph error: {err}"), palette.error_text, palette);
+            draw_overlay_label(
+                &painter,
+                rect,
+                &format!("Graph error: {err}"),
+                palette.error_text,
+                palette,
+            );
         } else if self.loading {
-            draw_overlay_label(&painter, rect, "Loading graph…", palette.text_subtle, palette);
+            draw_overlay_label(
+                &painter,
+                rect,
+                "Loading graph…",
+                palette.text_subtle,
+                palette,
+            );
             // A real in-flight fetch is the ONE case we keep animating, so the spinner text can update;
             // bounded because the host clears `loading` when the fetch resolves/fails.
             ui.ctx().request_repaint();
@@ -922,7 +995,10 @@ impl LoomGraphView {
     /// Install the shared knowledge AccessKit action registry (the MT-041 `install_*` pattern). After
     /// this, [`Self::sync_knowledge_registry`] populates the registry each frame and
     /// [`Self::take_knowledge_dispatched`] consumes swarm `Click` dispatches.
-    pub fn install_knowledge_action_registry(&mut self, registry: Arc<Mutex<KnowledgeActionRegistry>>) {
+    pub fn install_knowledge_action_registry(
+        &mut self,
+        registry: Arc<Mutex<KnowledgeActionRegistry>>,
+    ) {
         self.knowledge_registry = Some(registry);
     }
 
@@ -962,7 +1038,9 @@ impl LoomGraphView {
     /// host calls [`KnowledgeActionRegistry::state_changed_since_last_push`] to decide whether to notify.
     /// `last_rect` is the canvas rect recorded by a prior `show`; pass `None` before the first render.
     pub fn sync_knowledge_registry(&self, last_rect: Option<Rect>) {
-        let Some(registry) = &self.knowledge_registry else { return };
+        let Some(registry) = &self.knowledge_registry else {
+            return;
+        };
         let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
         // Fully re-derive: clear, then re-register controls + visible identities (deletion-by-absence).
         reg.clear_nodes();
@@ -973,14 +1051,25 @@ impl LoomGraphView {
             reg.upsert_control(entry.author_id, entry.label, KnowledgeNodeState::present());
         }
         // Per-node identities for the viewport-visible set + lookahead.
-        let center = last_rect.map(|r| r.center().to_vec2()).unwrap_or(Vec2::ZERO);
+        let center = last_rect
+            .map(|r| r.center().to_vec2())
+            .unwrap_or(Vec2::ZERO);
         for i in self.visible_node_indices(last_rect, center) {
             let node = &self.nodes[i];
             let author = knowledge_action_registry::graph_node_author_id(&node.block_id);
             // value carries the raw block_id so a swarm agent correlates the sanitized author_id to the
             // real Loom id (IN-042-02 pattern). content_type is included for filtering context.
-            let value = Some(format!("block_id={};content_type={}", node.block_id, node.content_type));
-            reg.upsert_identity(author, KAxRole::TreeItem, node.title.clone(), value, KnowledgeNodeState::present());
+            let value = Some(format!(
+                "block_id={};content_type={}",
+                node.block_id, node.content_type
+            ));
+            reg.upsert_identity(
+                author,
+                KAxRole::TreeItem,
+                node.title.clone(),
+                value,
+                KnowledgeNodeState::present(),
+            );
         }
     }
 
@@ -988,7 +1077,10 @@ impl LoomGraphView {
     /// after [`Self::sync_knowledge_registry`]). No-op if no registry is installed.
     pub fn emit_knowledge_accesskit(&self, ui: &egui::Ui) {
         if let Some(registry) = &self.knowledge_registry {
-            registry.lock().unwrap_or_else(|e| e.into_inner()).emit_into_tree(ui);
+            registry
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .emit_into_tree(ui);
         }
     }
 
@@ -999,8 +1091,13 @@ impl LoomGraphView {
     /// is logged + dropped, never a panic). A `graph.node.<id>` click maps to `OpenNode` (the swarm
     /// open-by-identity path).
     pub fn take_knowledge_dispatched(&mut self, ui: &egui::Ui) -> Vec<GraphEvent> {
-        let Some(registry) = &self.knowledge_registry else { return Vec::new() };
-        let dispatched = registry.lock().unwrap_or_else(|e| e.into_inner()).take_dispatched(ui);
+        let Some(registry) = &self.knowledge_registry else {
+            return Vec::new();
+        };
+        let dispatched = registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take_dispatched(ui);
         let mut events = Vec::new();
         for (author_id, payload) in dispatched {
             match author_id.as_str() {
@@ -1011,19 +1108,29 @@ impl LoomGraphView {
                 "graph.zoom-reset" => self.zoom = 1.0,
                 "graph.deselect-all" => self.selected = None,
                 "graph.open-node" => {
-                    if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(payload.as_deref()) {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(
+                        payload.as_deref(),
+                    ) {
                         self.selected = Some(p.block_id.clone());
-                        events.push(GraphEvent::OpenNode { block_id: p.block_id });
+                        events.push(GraphEvent::OpenNode {
+                            block_id: p.block_id,
+                        });
                     }
                 }
                 "graph.select-node" => {
-                    if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(payload.as_deref()) {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(
+                        payload.as_deref(),
+                    ) {
                         self.selected = Some(p.block_id.clone());
-                        events.push(GraphEvent::SelectNode { block_id: p.block_id });
+                        events.push(GraphEvent::SelectNode {
+                            block_id: p.block_id,
+                        });
                     }
                 }
                 "graph.add-edge" => {
-                    if let Some(p) = knowledge_action_registry::parse_payload::<AddEdgePayload>(payload.as_deref()) {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<AddEdgePayload>(
+                        payload.as_deref(),
+                    ) {
                         events.push(GraphEvent::AddEdge {
                             source_block_id: p.source_id,
                             target_block_id: p.target_id,
@@ -1031,7 +1138,9 @@ impl LoomGraphView {
                     }
                 }
                 "graph.remove-edge" => {
-                    if let Some(p) = knowledge_action_registry::parse_payload::<EdgeIdPayload>(payload.as_deref()) {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<EdgeIdPayload>(
+                        payload.as_deref(),
+                    ) {
                         events.push(GraphEvent::RemoveEdge { edge_id: p.edge_id });
                     }
                 }
@@ -1039,7 +1148,9 @@ impl LoomGraphView {
                     // A per-identity node click: `graph.node.<sanitized_block_id>` -> open that node. We
                     // resolve the sanitized author_id back to the real block_id by scanning the live node
                     // set (the author_id is a sanitized projection, so a reverse map is needed).
-                    if let Some(stripped) = other.strip_prefix(knowledge_action_registry::GRAPH_NODE_AUTHOR_ID_PREFIX) {
+                    if let Some(stripped) =
+                        other.strip_prefix(knowledge_action_registry::GRAPH_NODE_AUTHOR_ID_PREFIX)
+                    {
                         if let Some(node) = self
                             .nodes
                             .iter()
@@ -1081,7 +1192,13 @@ fn draw_grid(painter: &egui::Painter, rect: Rect, palette: &HsPalette) {
 }
 
 /// Draw a centered overlay label (loading / error / empty) over the canvas.
-fn draw_overlay_label(painter: &egui::Painter, rect: Rect, text: &str, color: Color32, palette: &HsPalette) {
+fn draw_overlay_label(
+    painter: &egui::Painter,
+    rect: Rect,
+    text: &str,
+    color: Color32,
+    palette: &HsPalette,
+) {
     let galley = painter.layout_no_wrap(text.to_owned(), egui::FontId::proportional(15.0), color);
     let pos = Pos2::new(
         rect.center().x - galley.size().x * 0.5,
@@ -1133,7 +1250,13 @@ mod tests {
             .map(|i| GraphNode::new(format!("block-{i:03}"), format!("Block {i}"), "note"))
             .collect();
         let edges: Vec<GraphEdge> = (0..n)
-            .map(|i| GraphEdge::new(format!("block-{i:03}"), format!("block-{:03}", (i + 1) % n), "mention"))
+            .map(|i| {
+                GraphEdge::new(
+                    format!("block-{i:03}"),
+                    format!("block-{:03}", (i + 1) % n),
+                    "mention",
+                )
+            })
             .collect();
         v.set_graph(nodes, edges);
         v
@@ -1160,7 +1283,10 @@ mod tests {
         );
         // Positions must be finite (the step clamp guards 1/d^2 blow-up).
         for node in &v.nodes {
-            assert!(node.x.is_finite() && node.y.is_finite(), "node position must stay finite");
+            assert!(
+                node.x.is_finite() && node.y.is_finite(),
+                "node position must stay finite"
+            );
         }
         let _ = last;
     }
@@ -1177,7 +1303,10 @@ mod tests {
         // Calling step again past stability does not blow the budget or destabilize.
         v.step_layout();
         assert!(v.layout_stable(), "must remain stable");
-        assert!(v.iters_done >= iters, "iters only ever grow, capped at the budget");
+        assert!(
+            v.iters_done >= iters,
+            "iters only ever grow, capped at the budget"
+        );
         assert!(v.iters_done <= MAX_LAYOUT_ITERS + ITERS_PER_FRAME);
     }
 
@@ -1188,7 +1317,9 @@ mod tests {
         assert!(id.starts_with(NODE_AUTHOR_ID_PREFIX));
         let suffix = &id[NODE_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
         assert!(!suffix.is_empty(), "non-empty suffix");
@@ -1203,7 +1334,11 @@ mod tests {
             .collect();
         v.set_graph(nodes, vec![]);
         assert_eq!(v.nodes.len(), NODE_CAP, "clamped to the node cap");
-        assert_eq!(v.total_available, NODE_CAP + 50, "true total recorded for the notice");
+        assert_eq!(
+            v.total_available,
+            NODE_CAP + 50,
+            "true total recorded for the notice"
+        );
     }
 
     /// RISK-4: zoom is clamped to [0.1, 4.0] and zoom-to-pointer keeps the world point under the cursor
@@ -1225,11 +1360,19 @@ mod tests {
         for _ in 0..50 {
             v.apply_zoom(1.0, pointer, center);
         }
-        assert!(v.zoom <= MAX_ZOOM + 1e-3, "zoom clamped to MAX_ZOOM (got {})", v.zoom);
+        assert!(
+            v.zoom <= MAX_ZOOM + 1e-3,
+            "zoom clamped to MAX_ZOOM (got {})",
+            v.zoom
+        );
         for _ in 0..100 {
             v.apply_zoom(-1.0, pointer, center);
         }
-        assert!(v.zoom >= MIN_ZOOM - 1e-3, "zoom clamped to MIN_ZOOM (got {})", v.zoom);
+        assert!(
+            v.zoom >= MIN_ZOOM - 1e-3,
+            "zoom clamped to MIN_ZOOM (got {})",
+            v.zoom
+        );
     }
 
     /// AC7: an empty graph is stable, has 0 nodes, and never panics on layout.
@@ -1240,7 +1383,10 @@ mod tests {
         assert_eq!(v.nodes.len(), 0);
         let step = v.step_layout();
         assert_eq!(step, 0.0, "empty layout has zero displacement");
-        assert!(v.layout_stable(), "empty layout is immediately stable (no perpetual repaint)");
+        assert!(
+            v.layout_stable(),
+            "empty layout is immediately stable (no perpetual repaint)"
+        );
     }
 
     /// AC8: an error string is preserved on the view (the host sets it on a backend failure) and does
@@ -1267,8 +1413,14 @@ mod tests {
         assert_eq!(tag, pal.success_text);
         assert_eq!(other, pal.border_strong);
         // At least three of the mapped colours are visually distinct.
-        let set: std::collections::HashSet<[u8; 4]> =
-            [note, file, tag, other].iter().map(|c| c.to_array()).collect();
-        assert!(set.len() >= 3, "content-type colours must be distinguishable (got {})", set.len());
+        let set: std::collections::HashSet<[u8; 4]> = [note, file, tag, other]
+            .iter()
+            .map(|c| c.to_array())
+            .collect();
+        assert!(
+            set.len() >= 3,
+            "content-type colours must be distinguishable (got {})",
+            set.len()
+        );
     }
 }

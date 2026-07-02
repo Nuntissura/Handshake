@@ -174,7 +174,10 @@ fn record_is_nonblocking_panic_free_under_stress() {
         "writes ({total}) must equal survivors ({}) + dropped ({dropped})",
         snap.len()
     );
-    assert!(dropped > 0, "with total >> cap, some events must have been shed");
+    assert!(
+        dropped > 0,
+        "with total >> cap, some events must have been shed"
+    );
 
     drop(recorder);
     // No ring backing file is created here (writer-less recorder), so there is nothing to remove.
@@ -191,7 +194,11 @@ fn record_degrades_gracefully_with_no_writer() {
         recorder.record(marker(i));
     }
     let snap = recorder.snapshot_last_n(100);
-    assert_eq!(snap.len(), 10, "events buffer in-process even with no writer");
+    assert_eq!(
+        snap.len(),
+        10,
+        "events buffer in-process even with no writer"
+    );
     assert_eq!(snap.first().unwrap().sequence_id, 0);
     assert_eq!(snap.last().unwrap().sequence_id, 9);
     assert_eq!(recorder.dropped_count(), 0);

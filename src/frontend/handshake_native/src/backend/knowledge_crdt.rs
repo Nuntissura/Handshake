@@ -168,9 +168,9 @@ impl YjsUpdateEnvelopeV1 {
     /// STANDARD engine. Errors as [`CrdtError::SerializationError`] if the field is not valid base64
     /// (which would mean a corrupted envelope).
     pub fn update_bytes(&self) -> Result<Vec<u8>, CrdtError> {
-        b64()
-            .decode(self.update_b64.as_bytes())
-            .map_err(|e| CrdtError::SerializationError(format!("update_b64 is not valid base64: {e}")))
+        b64().decode(self.update_b64.as_bytes()).map_err(|e| {
+            CrdtError::SerializationError(format!("update_b64 is not valid base64: {e}"))
+        })
     }
 
     /// Set `update_b64` from raw bytes, encoding with the backend's base64 STANDARD engine. The inverse
@@ -446,7 +446,10 @@ impl std::fmt::Display for CrdtError {
             Self::HttpError { status, body } => write!(f, "crdt http error {status}: {body}"),
             Self::SerializationError(e) => write!(f, "crdt serialization error: {e}"),
             Self::IdentityMissing(fields) => {
-                write!(f, "crdt identity missing (empty required field(s)): {fields}")
+                write!(
+                    f,
+                    "crdt identity missing (empty required field(s)): {fields}"
+                )
             }
             Self::Transport(e) => write!(f, "crdt transport error: {e}"),
         }
@@ -738,7 +741,11 @@ mod tests {
             env.update_b64
         );
         // Roundtrip is byte-for-byte exact.
-        assert_eq!(env.update_bytes().unwrap(), raw, "base64 STANDARD roundtrip must be lossless");
+        assert_eq!(
+            env.update_bytes().unwrap(),
+            raw,
+            "base64 STANDARD roundtrip must be lossless"
+        );
     }
 
     #[test]
@@ -753,7 +760,10 @@ mod tests {
             "head_state_vector": "sv-after"
         }))
         .unwrap();
-        assert!(matches!(stored, YjsPushOutcomeV1::Stored { update_seq: 7, .. }));
+        assert!(matches!(
+            stored,
+            YjsPushOutcomeV1::Stored { update_seq: 7, .. }
+        ));
 
         let already: YjsPushOutcomeV1 = serde_json::from_value(json!({
             "outcome": "already_stored",
@@ -778,7 +788,10 @@ mod tests {
         .unwrap();
         match denied {
             YjsPushOutcomeV1::Denied { denial } => {
-                assert!(matches!(denial.reason, YjsPushDenialReasonV1::StaleBase { .. }));
+                assert!(matches!(
+                    denial.reason,
+                    YjsPushDenialReasonV1::StaleBase { .. }
+                ));
                 assert_eq!(denial.update_id, "U-1");
             }
             other => panic!("expected Denied, got {other:?}"),
@@ -794,14 +807,23 @@ mod tests {
             "ordering": "Dominates"
         }))
         .unwrap();
-        assert!(matches!(stale, YjsPushDenialReasonV1::StaleBase { head_update_seq: 5, .. }));
+        assert!(matches!(
+            stale,
+            YjsPushDenialReasonV1::StaleBase {
+                head_update_seq: 5,
+                ..
+            }
+        ));
 
         let invalid: YjsPushDenialReasonV1 = serde_json::from_value(json!({
             "code": "envelope_invalid",
             "messages": ["update bytes must not be empty"]
         }))
         .unwrap();
-        assert!(matches!(invalid, YjsPushDenialReasonV1::EnvelopeInvalid { .. }));
+        assert!(matches!(
+            invalid,
+            YjsPushDenialReasonV1::EnvelopeInvalid { .. }
+        ));
     }
 
     #[test]

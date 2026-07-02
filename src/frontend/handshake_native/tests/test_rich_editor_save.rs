@@ -33,8 +33,12 @@ use egui_kittest::Harness;
 
 use serde_json::json;
 
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, Mark, NodeKind, TextLeaf};
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, Mark, NodeKind, TextLeaf,
+};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::save::canonical_hash::canonical_content_sha256;
 use handshake_native::rich_editor::save::draft_manager::{
     DraftBackend, DraftError, DraftLoadFuture, DraftManager, DraftWriteFuture, RichDocumentDraft,
@@ -95,13 +99,17 @@ struct MockSaveBackend {
 }
 impl MockSaveBackend {
     fn new(result: Result<RichDocSaveResult, SaveError>) -> Self {
-        Self { result: Mutex::new(Some(result)) }
+        Self {
+            result: Mutex::new(Some(result)),
+        }
     }
 }
 impl SaveBackend for MockSaveBackend {
     fn save_document(&self, _id: &str, _c: serde_json::Value, _v: u64) -> SaveFuture {
         let staged = self.result.lock().unwrap().clone();
-        Box::pin(async move { staged.unwrap_or(Err(SaveError::Network("no staged result".into()))) })
+        Box::pin(
+            async move { staged.unwrap_or(Err(SaveError::Network("no staged result".into()))) },
+        )
     }
 }
 
@@ -111,7 +119,9 @@ struct MockDraftBackend {
 }
 impl MockDraftBackend {
     fn new(load: Result<RichDocumentDraftLoad, DraftError>) -> Self {
-        Self { load: Mutex::new(Some(load)) }
+        Self {
+            load: Mutex::new(Some(load)),
+        }
     }
 }
 impl DraftBackend for MockDraftBackend {
@@ -119,7 +129,13 @@ impl DraftBackend for MockDraftBackend {
         let staged = self.load.lock().unwrap().clone();
         Box::pin(async move { staged.unwrap_or(Err(DraftError::Network("no staged load".into()))) })
     }
-    fn upsert_draft(&self, _id: &str, _v: u64, _h: String, _c: serde_json::Value) -> DraftWriteFuture {
+    fn upsert_draft(
+        &self,
+        _id: &str,
+        _v: u64,
+        _h: String,
+        _c: serde_json::Value,
+    ) -> DraftWriteFuture {
         Box::pin(async { Ok(()) })
     }
     fn clear_draft(&self, _id: &str) -> DraftWriteFuture {
@@ -130,7 +146,8 @@ impl DraftBackend for MockDraftBackend {
 fn demo_doc() -> BlockNode {
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::new("Some ")));
-    para.children.push(Child::Text(TextLeaf::with_marks("bold", vec![Mark::Bold])));
+    para.children
+        .push(Child::Text(TextLeaf::with_marks("bold", vec![Mark::Bold])));
     para.children.push(Child::Text(TextLeaf::new(" text")));
     BlockNode::doc(vec![BlockNode::heading(1, "Heading"), para])
 }
@@ -148,7 +165,9 @@ fn server_doc(doc_version: u64) -> RichDocLoad {
 }
 
 fn ok_save(doc_version: u64) -> RichDocSaveResult {
-    RichDocSaveResult { document: server_doc(doc_version) }
+    RichDocSaveResult {
+        document: server_doc(doc_version),
+    }
 }
 
 /// Build a headless editor state with a save manager (mock backend, no runtime) staged with `result`,
@@ -156,7 +175,10 @@ fn ok_save(doc_version: u64) -> RichDocSaveResult {
 fn editor_with_save(result: Result<RichDocSaveResult, SaveError>) -> RichEditorState {
     let save = SaveManager::new(Arc::new(MockSaveBackend::new(result)), None, "DOC-1", 3);
     let draft = DraftManager::new(
-        Arc::new(MockDraftBackend::new(Ok(RichDocumentDraftLoad { current_doc_version: 3, draft: None }))),
+        Arc::new(MockDraftBackend::new(Ok(RichDocumentDraftLoad {
+            current_doc_version: 3,
+            draft: None,
+        }))),
         None,
         "DOC-1",
         3,
@@ -234,13 +256,18 @@ fn mt020_export_html_15mb_image_size_error() {
     // AC: a 15 MB image falls back to reference-linked with data-hs-export-error="size_exceeded".
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::HsLink(
-        handshake_native::rich_editor::document_model::node::HsLinkNode::new("image", "ASSET-1", "pic"),
+        handshake_native::rich_editor::document_model::node::HsLinkNode::new(
+            "image", "ASSET-1", "pic",
+        ),
     ));
     let doc = BlockNode::doc(vec![para]);
     let mut assets = AssetByteSource::new();
     assets.insert(
         "ASSET-1".into(),
-        ResolvedAsset { bytes: vec![0u8; 15 * 1024 * 1024], mime: "image/png".into() },
+        ResolvedAsset {
+            bytes: vec![0u8; 15 * 1024 * 1024],
+            mime: "image/png".into(),
+        },
     );
     let out = export_document(
         &doc,
@@ -251,8 +278,13 @@ fn mt020_export_html_15mb_image_size_error() {
         &assets,
     )
     .unwrap();
-    assert!(out.as_str().contains("data-hs-export-error=\"size_exceeded\""));
-    assert!(!out.as_str().contains("data:image"), "the over-cap image is NOT inlined");
+    assert!(out
+        .as_str()
+        .contains("data-hs-export-error=\"size_exceeded\""));
+    assert!(
+        !out.as_str().contains("data:image"),
+        "the over-cap image is NOT inlined"
+    );
 }
 
 // ── AC: SHA256 matches the backend canonical hash (MC-005) ────────────────────────────────────────
@@ -261,9 +293,13 @@ fn mt020_export_html_15mb_image_size_error() {
 fn mt020_draft_upsert_sha256_matches_canonical_hash() {
     // AC: the computed SHA256 in the draft upsert body matches the canonical hash of the base content
     // (the backend canonical-JSON hash — NOT serde_json::to_vec). Mock clock advances to 5s.
-    let base = handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&demo_doc());
+    let base =
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&demo_doc());
     let mut draft = DraftManager::new(
-        Arc::new(MockDraftBackend::new(Ok(RichDocumentDraftLoad { current_doc_version: 3, draft: None }))),
+        Arc::new(MockDraftBackend::new(Ok(RichDocumentDraftLoad {
+            current_doc_version: 3,
+            draft: None,
+        }))),
         None,
         "DOC-1",
         3,
@@ -284,7 +320,12 @@ fn mt020_draft_upsert_sha256_matches_canonical_hash() {
 
 #[test]
 fn mt020_save_200_clears_dirty_and_bumps_version() {
-    let mut m = SaveManager::new(Arc::new(MockSaveBackend::new(Ok(ok_save(4)))), None, "DOC-1", 3);
+    let mut m = SaveManager::new(
+        Arc::new(MockSaveBackend::new(Ok(ok_save(4)))),
+        None,
+        "DOC-1",
+        3,
+    );
     m.mark_dirty();
     m.request_save(json!({"type":"doc","content":[]}));
     m.deliver_for_test(Ok(ok_save(4)));
@@ -304,9 +345,10 @@ fn mt020_conflict_window_screenshot_and_accesskit() {
     if let Some(save) = st.save.as_mut() {
         save.state = SaveState::Conflict {
             server: Box::new(server_doc(5)),
-            local_content: handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
-                &demo_doc(),
-            ),
+            local_content:
+                handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
+                    &demo_doc(),
+                ),
         };
     }
     let state = Arc::new(Mutex::new(st));
@@ -323,9 +365,18 @@ fn mt020_conflict_window_screenshot_and_accesskit() {
 
     // The conflict window + its buttons are addressable by the contract author_ids.
     let found = collect_author_ids(&harness);
-    assert!(found.contains("conflict-dialog"), "the conflict window root id is present");
-    assert!(found.contains("conflict-keep-yours"), "Keep yours button id is present");
-    assert!(found.contains("conflict-keep-server"), "Keep server button id is present");
+    assert!(
+        found.contains("conflict-dialog"),
+        "the conflict window root id is present"
+    );
+    assert!(
+        found.contains("conflict-keep-yours"),
+        "Keep yours button id is present"
+    );
+    assert!(
+        found.contains("conflict-keep-server"),
+        "Keep server button id is present"
+    );
     // The "Server version (v5)" label proves the both-versions UI rendered.
     assert!(
         harness.query_by_label_contains("Server version").is_some(),
@@ -339,7 +390,12 @@ fn mt020_conflict_window_screenshot_and_accesskit() {
             let _ = std::fs::create_dir_all(&ext);
             let path = ext.join("mt020_conflict_ui.png");
             let saved = image.save(&path).is_ok();
-            println!("PT conflict screenshot: {}x{} saved={saved} ({})", image.width(), image.height(), path.display());
+            println!(
+                "PT conflict screenshot: {}x{} saved={saved} ({})",
+                image.width(),
+                image.height(),
+                path.display()
+            );
         }
         Err(e) => println!(
             "BLOCKER(non-fatal): mt020_conflict_ui screenshot unavailable (no wgpu adapter): {e}. \
@@ -353,7 +409,12 @@ fn mt020_conflict_window_screenshot_and_accesskit() {
 
 #[test]
 fn mt020_keep_server_reloads_and_clears() {
-    let mut m = SaveManager::new(Arc::new(MockSaveBackend::new(Ok(ok_save(4)))), None, "DOC-1", 3);
+    let mut m = SaveManager::new(
+        Arc::new(MockSaveBackend::new(Ok(ok_save(4)))),
+        None,
+        "DOC-1",
+        3,
+    );
     m.dirty = true;
     m.state = SaveState::Conflict {
         server: Box::new(server_doc(5)),
@@ -370,13 +431,21 @@ fn mt020_keep_server_reloads_and_clears() {
 
 #[test]
 fn mt020_keep_yours_requires_confirmation() {
-    let mut m = SaveManager::new(Arc::new(MockSaveBackend::new(Ok(ok_save(4)))), None, "DOC-1", 3);
+    let mut m = SaveManager::new(
+        Arc::new(MockSaveBackend::new(Ok(ok_save(4)))),
+        None,
+        "DOC-1",
+        3,
+    );
     m.state = SaveState::Conflict {
         server: Box::new(server_doc(5)),
         local_content: json!({"type":"doc","content":[]}),
     };
     m.request_keep_yours();
-    assert!(matches!(m.state, SaveState::ConfirmKeepYours { .. }), "first step is a confirmation");
+    assert!(
+        matches!(m.state, SaveState::ConfirmKeepYours { .. }),
+        "first step is a confirmation"
+    );
     assert!(!m.is_saving(), "no overwrite fires until confirmed");
 }
 
@@ -416,11 +485,22 @@ fn mt020_draft_banner_screenshot_and_accesskit() {
     harness.step();
 
     let found = collect_author_ids(&harness);
-    assert!(found.contains("draft-recovery-banner"), "the draft banner root id is present");
-    assert!(found.contains("draft-restore"), "Restore draft button id is present");
-    assert!(found.contains("draft-discard"), "Discard button id is present");
     assert!(
-        harness.query_by_label_contains("Unsaved draft recovered").is_some(),
+        found.contains("draft-recovery-banner"),
+        "the draft banner root id is present"
+    );
+    assert!(
+        found.contains("draft-restore"),
+        "Restore draft button id is present"
+    );
+    assert!(
+        found.contains("draft-discard"),
+        "Discard button id is present"
+    );
+    assert!(
+        harness
+            .query_by_label_contains("Unsaved draft recovered")
+            .is_some(),
         "the draft recovery banner text renders"
     );
 
@@ -431,7 +511,12 @@ fn mt020_draft_banner_screenshot_and_accesskit() {
             let _ = std::fs::create_dir_all(&ext);
             let path = ext.join("mt020_draft_banner.png");
             let saved = image.save(&path).is_ok();
-            println!("PT draft-banner screenshot: {}x{} saved={saved} ({})", image.width(), image.height(), path.display());
+            println!(
+                "PT draft-banner screenshot: {}x{} saved={saved} ({})",
+                image.width(),
+                image.height(),
+                path.display()
+            );
         }
         Err(e) => println!(
             "BLOCKER(non-fatal): mt020_draft_banner screenshot unavailable (no wgpu adapter): {e}. \
@@ -462,7 +547,9 @@ fn mt020_restore_draft_loads_content_into_doc() {
         draft.drain_load();
         let restored = draft.restore_draft().unwrap();
         // The widget would rebuild the doc; assert the model parses correctly here.
-        let doc = handshake_native::rich_editor::document_model::doc_json::from_json_value(&restored).unwrap();
+        let doc =
+            handshake_native::rich_editor::document_model::doc_json::from_json_value(&restored)
+                .unwrap();
         st.doc = doc;
     }
     assert_eq!(st.block_plain_text(0).as_deref(), Some("restored body"));
@@ -472,7 +559,12 @@ fn mt020_restore_draft_loads_content_into_doc() {
 
 #[test]
 fn mt020_save_in_flight_blocks_second_save_state() {
-    let mut m = SaveManager::new(Arc::new(MockSaveBackend::new(Ok(ok_save(4)))), None, "DOC-1", 3);
+    let mut m = SaveManager::new(
+        Arc::new(MockSaveBackend::new(Ok(ok_save(4)))),
+        None,
+        "DOC-1",
+        3,
+    );
     m.request_save(json!({}));
     assert!(m.is_saving());
     // A second request while in flight is a no-op (state stays Saving, never two concurrent saves).
@@ -536,14 +628,30 @@ fn mt020_pending_file_save_polls_non_blocking_and_drains() {
     let still_open: PendingFileSave = {
         // resolved_for_test pre-fills the slot; to model "open" we drain it once, leaving it empty.
         let p = PendingFileSave::resolved_for_test(Some(PathBuf::from("x")));
-        assert_eq!(p.poll(), Some(Some(PathBuf::from("x"))), "the first poll drains the resolved path");
-        assert_eq!(p.poll(), None, "a drained (or still-open) handle polls None without blocking");
+        assert_eq!(
+            p.poll(),
+            Some(Some(PathBuf::from("x"))),
+            "the first poll drains the resolved path"
+        );
+        assert_eq!(
+            p.poll(),
+            None,
+            "a drained (or still-open) handle polls None without blocking"
+        );
         p
     };
-    assert_eq!(still_open.poll(), None, "polling an open handle is non-blocking and yields None");
+    assert_eq!(
+        still_open.poll(),
+        None,
+        "polling an open handle is non-blocking and yields None"
+    );
 
     // A resolved-cancel handle drains to Some(None) (operator cancelled / write failed).
-    assert_eq!(pending.poll(), Some(None), "a cancelled dialog drains to Some(None)");
+    assert_eq!(
+        pending.poll(),
+        Some(None),
+        "a cancelled dialog drains to Some(None)"
+    );
 }
 
 // ── WIRE SHAPE: the production reqwest transport attaches the four required identity headers ──────
@@ -556,7 +664,9 @@ fn mt020_pending_file_save_polls_non_blocking_and_drains() {
 // the wire — the deterministic proof the transport can actually reach the backend.
 
 /// Read one HTTP request off a connection and return (request-line, lowercased-header-map, body).
-fn read_one_http_request(stream: &mut std::net::TcpStream) -> (String, std::collections::HashMap<String, String>, String) {
+fn read_one_http_request(
+    stream: &mut std::net::TcpStream,
+) -> (String, std::collections::HashMap<String, String>, String) {
     use std::io::{Read, Write};
     let mut buf = Vec::new();
     let mut tmp = [0u8; 4096];
@@ -644,7 +754,10 @@ fn mt020_save_transport_attaches_required_identity_headers() {
         }
     });
 
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     let backend = ReqwestSaveBackend::new(format!("http://{addr}"));
     rt.block_on(async {
         let _ = backend
@@ -653,12 +766,22 @@ fn mt020_save_transport_attaches_required_identity_headers() {
     });
     server.join().unwrap();
 
-    let (req_line, headers, body) = captured.lock().unwrap().take().expect("the save request reached the wire");
-    assert!(req_line.starts_with("PUT /knowledge/documents/DOC-9/save"), "save uses PUT /save: {req_line}");
+    let (req_line, headers, body) = captured
+        .lock()
+        .unwrap()
+        .take()
+        .expect("the save request reached the wire");
+    assert!(
+        req_line.starts_with("PUT /knowledge/documents/DOC-9/save"),
+        "save uses PUT /save: {req_line}"
+    );
     assert_required_doc_headers(&headers);
     // The body still carries the optimistic-concurrency token + content (the headers are additive).
     let v: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
-    assert_eq!(v["expected_version"], 7, "the save body carries expected_version: {body}");
+    assert_eq!(
+        v["expected_version"], 7,
+        "the save body carries expected_version: {body}"
+    );
 }
 
 #[test]
@@ -677,17 +800,32 @@ fn mt020_draft_upsert_transport_attaches_required_identity_headers() {
         }
     });
 
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     let backend = ReqwestDraftBackend::new(format!("http://{addr}"));
     rt.block_on(async {
         let _ = backend
-            .upsert_draft("DOC-9", 7, "deadbeef".into(), json!({"type":"doc","content":[]}))
+            .upsert_draft(
+                "DOC-9",
+                7,
+                "deadbeef".into(),
+                json!({"type":"doc","content":[]}),
+            )
             .await;
     });
     server.join().unwrap();
 
-    let (req_line, headers, _body) = captured.lock().unwrap().take().expect("the draft upsert reached the wire");
-    assert!(req_line.starts_with("PUT /knowledge/documents/DOC-9/draft"), "draft upsert uses PUT /draft: {req_line}");
+    let (req_line, headers, _body) = captured
+        .lock()
+        .unwrap()
+        .take()
+        .expect("the draft upsert reached the wire");
+    assert!(
+        req_line.starts_with("PUT /knowledge/documents/DOC-9/draft"),
+        "draft upsert uses PUT /draft: {req_line}"
+    );
     assert_required_doc_headers(&headers);
 }
 
@@ -700,14 +838,16 @@ fn mt020_draft_upsert_transport_attaches_required_identity_headers() {
 #[test]
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live handshake_core + seeded knowledge document on 127.0.0.1:37501"]
 fn test_real_save_conflict() {
-    let document_id = std::env::var("HANDSHAKE_TEST_DOC_ID").unwrap_or_else(|_| "DOC-1".to_string());
+    let document_id =
+        std::env::var("HANDSHAKE_TEST_DOC_ID").unwrap_or_else(|_| "DOC-1".to_string());
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("tokio runtime");
     let mut m = SaveManager::production(rt.handle().clone(), &document_id, 0);
     // Save with a deliberately stale expected_version (0) — the live doc is at a higher version.
-    let content = handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&demo_doc());
+    let content =
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&demo_doc());
     m.set_pending_local_content(content.clone());
     m.request_save(content);
     // Poll the delivery cell (the spawned save resolves on the runtime).
@@ -717,10 +857,15 @@ fn test_real_save_conflict() {
             use handshake_native::rich_editor::save::save_manager::SaveOutcome;
             match outcome {
                 SaveOutcome::Conflict => {
-                    assert!(m.has_conflict(), "a stale-version save returns 409 -> ConflictState");
+                    assert!(
+                        m.has_conflict(),
+                        "a stale-version save returns 409 -> ConflictState"
+                    );
                     return;
                 }
-                SaveOutcome::Saved { .. } => panic!("expected a 409 conflict, but the save succeeded"),
+                SaveOutcome::Saved { .. } => {
+                    panic!("expected a 409 conflict, but the save succeeded")
+                }
                 SaveOutcome::Failed(e) => panic!("save failed (not a conflict): {e}"),
             }
         }

@@ -108,22 +108,34 @@ pub const COLLECTION_LANE_AUTHOR_ID_PREFIX: &str = "collection.lane.";
 /// The stable AccessKit author_id for a graph node identity (`graph.node.<block_id>`), block id
 /// sanitized to `[a-z0-9-]` (RISK / id-integrity), reusing the shell's [`crate::project_tree::stable_part`].
 pub fn graph_node_author_id(block_id: &str) -> String {
-    format!("{GRAPH_NODE_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{GRAPH_NODE_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// The stable AccessKit author_id for a canvas placement identity (`canvas.card.<placement_id>`).
 pub fn canvas_card_author_id(placement_id: &str) -> String {
-    format!("{CANVAS_CARD_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(placement_id))
+    format!(
+        "{CANVAS_CARD_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(placement_id)
+    )
 }
 
 /// The stable AccessKit author_id for a collection row identity (`collection.row.<block_id>`).
 pub fn collection_row_author_id(block_id: &str) -> String {
-    format!("{COLLECTION_ROW_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{COLLECTION_ROW_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// The stable AccessKit author_id for a collection Kanban lane container (`collection.lane.<tag>`).
 pub fn collection_lane_author_id(lane_tag: &str) -> String {
-    format!("{COLLECTION_LANE_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(lane_tag))
+    format!(
+        "{COLLECTION_LANE_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(lane_tag)
+    )
 }
 
 /// Which knowledge surface a registered node belongs to — the `<surface>` segment of the canonical
@@ -205,18 +217,27 @@ pub struct KnowledgeNodeState {
 impl KnowledgeNodeState {
     /// A present, enabled state.
     pub fn present() -> Self {
-        Self { present: true, enabled: true }
+        Self {
+            present: true,
+            enabled: true,
+        }
     }
 
     /// A present-but-disabled state (a discoverable typed-gap node a dispatch is rejected on, never a
     /// silent no-op).
     pub fn present_disabled() -> Self {
-        Self { present: true, enabled: false }
+        Self {
+            present: true,
+            enabled: false,
+        }
     }
 
     /// An absent state — the backing widget is not rendered this frame, so the node is suppressed.
     pub fn absent() -> Self {
-        Self { present: false, enabled: false }
+        Self {
+            present: false,
+            enabled: false,
+        }
     }
 }
 
@@ -321,11 +342,19 @@ impl KnowledgeActionRegistry {
                 return;
             }
         }
-        let node = KnowledgeActionNode { author_id: author_id.clone(), role, label: label.into(), value, actions, state };
+        let node = KnowledgeActionNode {
+            author_id: author_id.clone(),
+            role,
+            label: label.into(),
+            value,
+            actions,
+            state,
+        };
         // Update the per-node hash so the host can detect which identities changed (IN-042-01).
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         KnowledgeNodeHashView(&node).hash(&mut hasher);
-        self.per_node_hash.insert(author_id.clone(), hasher.finish());
+        self.per_node_hash
+            .insert(author_id.clone(), hasher.finish());
         self.nodes.insert(author_id, node);
     }
 
@@ -498,7 +527,10 @@ impl KnowledgeActionRegistry {
                 .iter()
                 .filter(|a| a.as_str() != "Click" && a.as_str() != "Focus")
                 .enumerate()
-                .map(|(i, name)| accesskit::CustomAction { id: i as i32, description: name.clone().into() })
+                .map(|(i, name)| accesskit::CustomAction {
+                    id: i as i32,
+                    description: name.clone().into(),
+                })
                 .collect();
             ctx.accesskit_node_builder(node.egui_id(), move |n| {
                 n.set_role(role);
@@ -566,7 +598,9 @@ impl KnowledgeActionRegistry {
                     .map(|a| a.as_str())
                     .collect();
                 if !extras.is_empty() {
-                    for request in input.accesskit_action_requests(id, accesskit::Action::CustomAction) {
+                    for request in
+                        input.accesskit_action_requests(id, accesskit::Action::CustomAction)
+                    {
                         if let Some(accesskit::ActionData::CustomAction(i)) = &request.data {
                             if let Some(name) = extras.get(*i as usize) {
                                 activated.push((format!("{}#{name}", node.author_id), None));
@@ -604,43 +638,159 @@ pub struct ControlEntry {
 /// The GRAPH global controls (IN-042-07 + the contract scope.summary graph action list). pan/zoom/reset/
 /// deselect are plain; open-node / select-node / add-edge / remove-edge carry a JSON payload.
 pub const GRAPH_CONTROL_CATALOG: &[ControlEntry] = &[
-    ControlEntry { author_id: "graph.pan-left", label: "Pan graph left", parameterized: false },
-    ControlEntry { author_id: "graph.pan-right", label: "Pan graph right", parameterized: false },
-    ControlEntry { author_id: "graph.zoom-in", label: "Zoom graph in", parameterized: false },
-    ControlEntry { author_id: "graph.zoom-out", label: "Zoom graph out", parameterized: false },
-    ControlEntry { author_id: "graph.zoom-reset", label: "Reset graph zoom", parameterized: false },
-    ControlEntry { author_id: "graph.deselect-all", label: "Deselect all graph nodes", parameterized: false },
-    ControlEntry { author_id: "graph.open-node", label: "Open graph node by block id", parameterized: true },
-    ControlEntry { author_id: "graph.select-node", label: "Select graph node by block id", parameterized: true },
-    ControlEntry { author_id: "graph.add-edge", label: "Add graph edge", parameterized: true },
-    ControlEntry { author_id: "graph.remove-edge", label: "Remove graph edge", parameterized: true },
+    ControlEntry {
+        author_id: "graph.pan-left",
+        label: "Pan graph left",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "graph.pan-right",
+        label: "Pan graph right",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "graph.zoom-in",
+        label: "Zoom graph in",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "graph.zoom-out",
+        label: "Zoom graph out",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "graph.zoom-reset",
+        label: "Reset graph zoom",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "graph.deselect-all",
+        label: "Deselect all graph nodes",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "graph.open-node",
+        label: "Open graph node by block id",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "graph.select-node",
+        label: "Select graph node by block id",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "graph.add-edge",
+        label: "Add graph edge",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "graph.remove-edge",
+        label: "Remove graph edge",
+        parameterized: true,
+    },
 ];
 
 /// The CANVAS global controls (scope.summary canvas action list).
 pub const CANVAS_CONTROL_CATALOG: &[ControlEntry] = &[
-    ControlEntry { author_id: "canvas.pan-left", label: "Pan canvas left", parameterized: false },
-    ControlEntry { author_id: "canvas.pan-right", label: "Pan canvas right", parameterized: false },
-    ControlEntry { author_id: "canvas.zoom-in", label: "Zoom canvas in", parameterized: false },
-    ControlEntry { author_id: "canvas.zoom-out", label: "Zoom canvas out", parameterized: false },
-    ControlEntry { author_id: "canvas.zoom-reset", label: "Reset canvas zoom", parameterized: false },
-    ControlEntry { author_id: "canvas.deselect-all", label: "Deselect all canvas cards", parameterized: false },
-    ControlEntry { author_id: "canvas.add-card", label: "Add canvas text card", parameterized: true },
-    ControlEntry { author_id: "canvas.place-block", label: "Place block on canvas", parameterized: true },
-    ControlEntry { author_id: "canvas.remove-placement", label: "Remove canvas placement", parameterized: true },
-    ControlEntry { author_id: "canvas.add-edge", label: "Add canvas edge", parameterized: true },
-    ControlEntry { author_id: "canvas.remove-edge", label: "Remove canvas edge", parameterized: true },
-    ControlEntry { author_id: "canvas.select-card", label: "Select canvas card by placement id", parameterized: true },
+    ControlEntry {
+        author_id: "canvas.pan-left",
+        label: "Pan canvas left",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "canvas.pan-right",
+        label: "Pan canvas right",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "canvas.zoom-in",
+        label: "Zoom canvas in",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "canvas.zoom-out",
+        label: "Zoom canvas out",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "canvas.zoom-reset",
+        label: "Reset canvas zoom",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "canvas.deselect-all",
+        label: "Deselect all canvas cards",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "canvas.add-card",
+        label: "Add canvas text card",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "canvas.place-block",
+        label: "Place block on canvas",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "canvas.remove-placement",
+        label: "Remove canvas placement",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "canvas.add-edge",
+        label: "Add canvas edge",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "canvas.remove-edge",
+        label: "Remove canvas edge",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "canvas.select-card",
+        label: "Select canvas card by placement id",
+        parameterized: true,
+    },
 ];
 
 /// The COLLECTION global controls (scope.summary collection action list).
 pub const COLLECTION_CONTROL_CATALOG: &[ControlEntry] = &[
-    ControlEntry { author_id: "collection.sort", label: "Sort collection column", parameterized: true },
-    ControlEntry { author_id: "collection.filter", label: "Filter collection", parameterized: true },
-    ControlEntry { author_id: "collection.kanban-move", label: "Move kanban card between lanes", parameterized: true },
-    ControlEntry { author_id: "collection.calendar-next", label: "Calendar next period", parameterized: false },
-    ControlEntry { author_id: "collection.calendar-prev", label: "Calendar previous period", parameterized: false },
-    ControlEntry { author_id: "collection.calendar-today", label: "Calendar today", parameterized: false },
-    ControlEntry { author_id: "collection.open-block", label: "Open collection block by block id", parameterized: true },
+    ControlEntry {
+        author_id: "collection.sort",
+        label: "Sort collection column",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "collection.filter",
+        label: "Filter collection",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "collection.kanban-move",
+        label: "Move kanban card between lanes",
+        parameterized: true,
+    },
+    ControlEntry {
+        author_id: "collection.calendar-next",
+        label: "Calendar next period",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "collection.calendar-prev",
+        label: "Calendar previous period",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "collection.calendar-today",
+        label: "Calendar today",
+        parameterized: false,
+    },
+    ControlEntry {
+        author_id: "collection.open-block",
+        label: "Open collection block by block id",
+        parameterized: true,
+    },
 ];
 
 // ── Parameterized-action payload types (IN-042-04). Parsed via serde_json::from_str MATCH (NEVER
@@ -728,13 +878,21 @@ mod tests {
         // graph.node reuses the MT-021 prefix; canvas.card / collection.row / collection.lane are MT-042.
         assert_eq!(graph_node_author_id("blk-7").as_str(), "graph.node.blk-7");
         assert_eq!(canvas_card_author_id("p-1").as_str(), "canvas.card.p-1");
-        assert_eq!(collection_row_author_id("blk-7").as_str(), "collection.row.blk-7");
-        assert_eq!(collection_lane_author_id("todo").as_str(), "collection.lane.todo");
+        assert_eq!(
+            collection_row_author_id("blk-7").as_str(),
+            "collection.row.blk-7"
+        );
+        assert_eq!(
+            collection_lane_author_id("todo").as_str(),
+            "collection.lane.todo"
+        );
         // A raw id with slashes/colons/spaces sanitizes to [a-z0-9-] (id-integrity, RISK).
         let id = graph_node_author_id("ws:1/Block 7#x");
         let suffix = &id[GRAPH_NODE_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
     }
@@ -750,11 +908,21 @@ mod tests {
     #[test]
     fn upsert_and_lookup_roundtrip_with_per_node_hash() {
         let mut reg = KnowledgeActionRegistry::new();
-        reg.upsert_control("graph.pan-left", "Pan graph left", KnowledgeNodeState::present());
+        reg.upsert_control(
+            "graph.pan-left",
+            "Pan graph left",
+            KnowledgeNodeState::present(),
+        );
         let node = reg.node("graph.pan-left").expect("control present");
         assert_eq!(node.role, AxRole::Button);
-        assert!(node.actions.iter().any(|a| a == "Click"), "declares >=1 (Click) action");
-        assert!(reg.node_hash("graph.pan-left").is_some(), "per-node hash recorded (IN-042-01)");
+        assert!(
+            node.actions.iter().any(|a| a == "Click"),
+            "declares >=1 (Click) action"
+        );
+        assert!(
+            reg.node_hash("graph.pan-left").is_some(),
+            "per-node hash recorded (IN-042-01)"
+        );
     }
 
     #[test]
@@ -765,45 +933,97 @@ mod tests {
             reg.upsert_control(entry.author_id, entry.label, KnowledgeNodeState::present());
         }
         // A graph node identity.
-        reg.upsert_identity(graph_node_author_id("blk-1"), AxRole::TreeItem, "Note one", None, KnowledgeNodeState::present());
+        reg.upsert_identity(
+            graph_node_author_id("blk-1"),
+            AxRole::TreeItem,
+            "Note one",
+            None,
+            KnowledgeNodeState::present(),
+        );
         // First push reports changed.
-        assert!(reg.state_changed_since_last_push(), "first push is a change");
+        assert!(
+            reg.state_changed_since_last_push(),
+            "first push is a change"
+        );
         // Re-registering the SAME controls + node (a pan/zoom-only frame re-runs registration but the
         // node SET is identical) reports unchanged — viewport state is not in the hash (CTRL-042-01).
         for entry in GRAPH_CONTROL_CATALOG {
             reg.upsert_control(entry.author_id, entry.label, KnowledgeNodeState::present());
         }
-        reg.upsert_identity(graph_node_author_id("blk-1"), AxRole::TreeItem, "Note one", None, KnowledgeNodeState::present());
-        assert!(!reg.state_changed_since_last_push(), "pan/zoom-only (unchanged node set) reports unchanged (HBR-QUIET)");
+        reg.upsert_identity(
+            graph_node_author_id("blk-1"),
+            AxRole::TreeItem,
+            "Note one",
+            None,
+            KnowledgeNodeState::present(),
+        );
+        assert!(
+            !reg.state_changed_since_last_push(),
+            "pan/zoom-only (unchanged node set) reports unchanged (HBR-QUIET)"
+        );
         // Adding a NEW node IS a change (the node set actually changed).
-        reg.upsert_identity(graph_node_author_id("blk-2"), AxRole::TreeItem, "Note two", None, KnowledgeNodeState::present());
-        assert!(reg.state_changed_since_last_push(), "adding a node is a change");
+        reg.upsert_identity(
+            graph_node_author_id("blk-2"),
+            AxRole::TreeItem,
+            "Note two",
+            None,
+            KnowledgeNodeState::present(),
+        );
+        assert!(
+            reg.state_changed_since_last_push(),
+            "adding a node is a change"
+        );
     }
 
     #[test]
     fn absent_identity_excluded_from_present_set_and_hash() {
         let mut reg = KnowledgeActionRegistry::new();
-        reg.upsert_identity(graph_node_author_id("blk-1"), AxRole::TreeItem, "n1", None, KnowledgeNodeState::present());
+        reg.upsert_identity(
+            graph_node_author_id("blk-1"),
+            AxRole::TreeItem,
+            "n1",
+            None,
+            KnowledgeNodeState::present(),
+        );
         assert!(reg.state_changed_since_last_push());
         // A deleted node marked absent (deletion-by-absence, IN-042-10) does NOT change the present hash.
-        reg.upsert_identity(graph_node_author_id("blk-2"), AxRole::TreeItem, "n2", None, KnowledgeNodeState::absent());
-        assert!(!reg.state_changed_since_last_push(), "absent node does not change the push hash");
+        reg.upsert_identity(
+            graph_node_author_id("blk-2"),
+            AxRole::TreeItem,
+            "n2",
+            None,
+            KnowledgeNodeState::absent(),
+        );
+        assert!(
+            !reg.state_changed_since_last_push(),
+            "absent node does not change the push hash"
+        );
         // present_ids_with_prefix excludes the absent node.
         let present = reg.present_ids_with_prefix(GRAPH_NODE_AUTHOR_ID_PREFIX);
-        assert_eq!(present, vec!["graph.node.blk-1"], "only the present node is enumerated");
+        assert_eq!(
+            present,
+            vec!["graph.node.blk-1"],
+            "only the present node is enumerated"
+        );
     }
 
     #[test]
     fn parse_payload_matches_never_unwraps() {
         // Valid payloads parse.
-        let p: BlockIdPayload = parse_payload(Some(r#"{"block_id":"blk-7"}"#)).expect("valid block id");
+        let p: BlockIdPayload =
+            parse_payload(Some(r#"{"block_id":"blk-7"}"#)).expect("valid block id");
         assert_eq!(p.block_id, "blk-7");
         let pb: PlaceBlockPayload =
             parse_payload(Some(r#"{"block_id":"blk-7","x":100,"y":100}"#)).expect("valid place");
         assert_eq!((pb.x, pb.y), (100.0, 100.0));
-        let km: KanbanMovePayload =
-            parse_payload(Some(r#"{"block_id":"b","from_lane":"todo","to_lane":"done"}"#)).expect("valid move");
-        assert_eq!((km.from_lane.as_str(), km.to_lane.as_str()), ("todo", "done"));
+        let km: KanbanMovePayload = parse_payload(Some(
+            r#"{"block_id":"b","from_lane":"todo","to_lane":"done"}"#,
+        ))
+        .expect("valid move");
+        assert_eq!(
+            (km.from_lane.as_str(), km.to_lane.as_str()),
+            ("todo", "done")
+        );
         // Malformed JSON -> None, no panic (RISK-042-03 / CTRL-042-03).
         let bad: Option<BlockIdPayload> = parse_payload(Some("not json {{"));
         assert!(bad.is_none(), "malformed JSON yields None, never a panic");
@@ -819,21 +1039,50 @@ mod tests {
     fn control_catalogs_cover_the_contract_action_lists() {
         // The exact global-control ids the MT scope.summary + IN-042-07 list, per surface.
         let graph: Vec<&str> = GRAPH_CONTROL_CATALOG.iter().map(|e| e.author_id).collect();
-        for want in ["graph.pan-left", "graph.pan-right", "graph.zoom-in", "graph.zoom-out",
-            "graph.zoom-reset", "graph.open-node", "graph.add-edge", "graph.remove-edge",
-            "graph.select-node", "graph.deselect-all"] {
+        for want in [
+            "graph.pan-left",
+            "graph.pan-right",
+            "graph.zoom-in",
+            "graph.zoom-out",
+            "graph.zoom-reset",
+            "graph.open-node",
+            "graph.add-edge",
+            "graph.remove-edge",
+            "graph.select-node",
+            "graph.deselect-all",
+        ] {
             assert!(graph.contains(&want), "graph catalog missing '{want}'");
         }
         let canvas: Vec<&str> = CANVAS_CONTROL_CATALOG.iter().map(|e| e.author_id).collect();
-        for want in ["canvas.pan-left", "canvas.pan-right", "canvas.zoom-in", "canvas.zoom-out",
-            "canvas.zoom-reset", "canvas.add-card", "canvas.place-block", "canvas.remove-placement",
-            "canvas.add-edge", "canvas.remove-edge", "canvas.select-card", "canvas.deselect-all"] {
+        for want in [
+            "canvas.pan-left",
+            "canvas.pan-right",
+            "canvas.zoom-in",
+            "canvas.zoom-out",
+            "canvas.zoom-reset",
+            "canvas.add-card",
+            "canvas.place-block",
+            "canvas.remove-placement",
+            "canvas.add-edge",
+            "canvas.remove-edge",
+            "canvas.select-card",
+            "canvas.deselect-all",
+        ] {
             assert!(canvas.contains(&want), "canvas catalog missing '{want}'");
         }
-        let coll: Vec<&str> = COLLECTION_CONTROL_CATALOG.iter().map(|e| e.author_id).collect();
-        for want in ["collection.sort", "collection.filter", "collection.kanban-move",
-            "collection.calendar-next", "collection.calendar-prev", "collection.calendar-today",
-            "collection.open-block"] {
+        let coll: Vec<&str> = COLLECTION_CONTROL_CATALOG
+            .iter()
+            .map(|e| e.author_id)
+            .collect();
+        for want in [
+            "collection.sort",
+            "collection.filter",
+            "collection.kanban-move",
+            "collection.calendar-next",
+            "collection.calendar-prev",
+            "collection.calendar-today",
+            "collection.open-block",
+        ] {
             assert!(coll.contains(&want), "collection catalog missing '{want}'");
         }
     }
@@ -849,7 +1098,10 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for id in &all {
             assert!(seen.insert(*id), "duplicate control author_id '{id}'");
-            assert!(!id.starts_with("editor."), "knowledge id '{id}' must not collide with the MT-041 editor. prefix");
+            assert!(
+                !id.starts_with("editor."),
+                "knowledge id '{id}' must not collide with the MT-041 editor. prefix"
+            );
         }
     }
 }

@@ -161,7 +161,9 @@ pub struct FoldProvider {
 impl FoldProvider {
     /// A provider with the bundled (Rust + JS) foldable-node table.
     pub fn new() -> Self {
-        Self { node_types: FoldableNodeTypes::bundled() }
+        Self {
+            node_types: FoldableNodeTypes::bundled(),
+        }
     }
 
     /// A provider with a custom node-type table (tests / extra languages).
@@ -209,7 +211,12 @@ impl FoldProvider {
                 // Only regions spanning at least two lines fold (end - start >= 1).
                 if end_line > start_line {
                     let label = FoldRegion::label_for(start_line, buffer);
-                    regions.push(FoldRegion { start_line, end_line, folded: false, label });
+                    regions.push(FoldRegion {
+                        start_line,
+                        end_line,
+                        folded: false,
+                        label,
+                    });
                 }
             }
 
@@ -292,7 +299,10 @@ impl FoldSet {
 
     /// Build a fold set from `regions` (already sorted by [`FoldProvider::compute`]).
     pub fn from_regions(regions: Vec<FoldRegion>) -> Self {
-        Self { regions, visible_map_cache: None }
+        Self {
+            regions,
+            visible_map_cache: None,
+        }
     }
 
     /// Replace the regions, preserving the folded state of any region whose `start_line` still exists
@@ -356,7 +366,10 @@ impl FoldSet {
     /// line (never panics / never indexes past the buffer — the stale-tree guard discipline).
     pub fn visible_line_to_buffer_line(&mut self, visible_line: usize) -> usize {
         self.ensure_visible_map();
-        let map = self.visible_map_cache.as_ref().expect("visible map built by ensure_visible_map");
+        let map = self
+            .visible_map_cache
+            .as_ref()
+            .expect("visible map built by ensure_visible_map");
         if map.is_empty() {
             return 0;
         }
@@ -552,7 +565,11 @@ fn compute(input: i32) -> i32 {
             "fold label is the first line text; got {:?}",
             outer.label
         );
-        assert!(outer.label.ends_with('…'), "fold label ends with an ellipsis; got {:?}", outer.label);
+        assert!(
+            outer.label.ends_with('…'),
+            "fold label ends with an ellipsis; got {:?}",
+            outer.label
+        );
     }
 
     #[test]
@@ -583,7 +600,10 @@ function greet(name) {
             !regions.is_empty(),
             "a multi-line JS function must produce a fold region; got none"
         );
-        assert_eq!(regions[0].start_line, 0, "JS fold starts on the function line");
+        assert_eq!(
+            regions[0].start_line, 0,
+            "JS fold starts on the function line"
+        );
     }
 
     #[test]
@@ -607,11 +627,23 @@ function greet(name) {
         };
         let set = FoldSet::from_regions(vec![region]);
         // AC-002 exact assertions:
-        assert!(set.is_line_visible(4), "line 4 (before the region) is visible");
-        assert!(set.is_line_visible(5), "line 5 (the start line) stays visible when folded");
-        assert!(!set.is_line_visible(6), "line 6 (inside the region) is hidden");
+        assert!(
+            set.is_line_visible(4),
+            "line 4 (before the region) is visible"
+        );
+        assert!(
+            set.is_line_visible(5),
+            "line 5 (the start line) stays visible when folded"
+        );
+        assert!(
+            !set.is_line_visible(6),
+            "line 6 (inside the region) is hidden"
+        );
         assert!(!set.is_line_visible(10), "line 10 (the end line) is hidden");
-        assert!(set.is_line_visible(11), "line 11 (after the region) is visible");
+        assert!(
+            set.is_line_visible(11),
+            "line 11 (after the region) is visible"
+        );
     }
 
     #[test]
@@ -624,7 +656,10 @@ function greet(name) {
         };
         let set = FoldSet::from_regions(vec![region]);
         for line in 0..15 {
-            assert!(set.is_line_visible(line), "an UNfolded region hides nothing (line {line})");
+            assert!(
+                set.is_line_visible(line),
+                "an UNfolded region hides nothing (line {line})"
+            );
         }
     }
 
@@ -632,16 +667,32 @@ function greet(name) {
     fn fold_set_nested_outer_fold_hides_inner_regions() {
         // Outer region [2, 12] (folded) encloses inner region [5, 8] (NOT folded). The outer fold must
         // hide every line 3..=12 regardless of the inner region's state (MT impl note 4 / MC-003).
-        let outer = FoldRegion { start_line: 2, end_line: 12, folded: true, label: "o …".to_owned() };
-        let inner = FoldRegion { start_line: 5, end_line: 8, folded: false, label: "i …".to_owned() };
+        let outer = FoldRegion {
+            start_line: 2,
+            end_line: 12,
+            folded: true,
+            label: "o …".to_owned(),
+        };
+        let inner = FoldRegion {
+            start_line: 5,
+            end_line: 8,
+            folded: false,
+            label: "i …".to_owned(),
+        };
         // compute() would sort enclosing-first; emulate that order here.
         let set = FoldSet::from_regions(vec![outer, inner]);
         assert!(set.is_line_visible(2), "outer start visible");
         assert!(!set.is_line_visible(3), "outer hides line 3");
-        assert!(!set.is_line_visible(5), "outer hides the inner region's start line too");
+        assert!(
+            !set.is_line_visible(5),
+            "outer hides the inner region's start line too"
+        );
         assert!(!set.is_line_visible(8), "outer hides inner end");
         assert!(!set.is_line_visible(12), "outer hides its own end line");
-        assert!(set.is_line_visible(13), "line after the outer region is visible");
+        assert!(
+            set.is_line_visible(13),
+            "line after the outer region is visible"
+        );
     }
 
     #[test]
@@ -652,14 +703,28 @@ function greet(name) {
         // per-region sum would subtract 10 + 3 = 13 hidden lines and report a too-small visible count.
         // visible_line_count MUST equal the length of the map the render path actually builds via
         // rebuild_visible_map_for (the is_line_visible-driven source of truth).
-        let outer = FoldRegion { start_line: 2, end_line: 12, folded: true, label: "o …".to_owned() };
-        let inner = FoldRegion { start_line: 5, end_line: 8, folded: true, label: "i …".to_owned() };
+        let outer = FoldRegion {
+            start_line: 2,
+            end_line: 12,
+            folded: true,
+            label: "o …".to_owned(),
+        };
+        let inner = FoldRegion {
+            start_line: 5,
+            end_line: 8,
+            folded: true,
+            label: "i …".to_owned(),
+        };
         let mut set = FoldSet::from_regions(vec![outer, inner]);
         let buffer_len = 20;
 
         // The outer fold hides exactly 10 lines (3..=12); the nested inner fold double-counts under a
         // naive sum, but hidden_line_count is nesting-correct.
-        assert_eq!(set.hidden_line_count(), 10, "nested inner fold adds no extra hidden lines");
+        assert_eq!(
+            set.hidden_line_count(),
+            10,
+            "nested inner fold adds no extra hidden lines"
+        );
 
         let render_visible = set.rebuild_visible_map_for(buffer_len);
         assert_eq!(
@@ -681,29 +746,59 @@ function greet(name) {
     fn fold_set_mapping_offsets_lines_after_a_folded_region() {
         // 20-line buffer; region [3, 8] folded collapses 5 lines (4..=8). Visible lines 0..=3 map 1:1;
         // visible line 4 maps to buffer line 9 (the first line after the collapsed region).
-        let region = FoldRegion { start_line: 3, end_line: 8, folded: true, label: "x …".to_owned() };
+        let region = FoldRegion {
+            start_line: 3,
+            end_line: 8,
+            folded: true,
+            label: "x …".to_owned(),
+        };
         let mut set = FoldSet::from_regions(vec![region]);
         set.rebuild_visible_map_for(20);
 
-        assert_eq!(set.visible_line_to_buffer_line(0), 0, "visible 0 -> buffer 0");
-        assert_eq!(set.visible_line_to_buffer_line(3), 3, "visible 3 -> buffer 3 (fold start)");
+        assert_eq!(
+            set.visible_line_to_buffer_line(0),
+            0,
+            "visible 0 -> buffer 0"
+        );
+        assert_eq!(
+            set.visible_line_to_buffer_line(3),
+            3,
+            "visible 3 -> buffer 3 (fold start)"
+        );
         assert_eq!(
             set.visible_line_to_buffer_line(4),
             9,
             "AC-003: visible 4 -> buffer 9 (skips the 5 collapsed lines 4..=8)"
         );
-        assert_eq!(set.visible_line_to_buffer_line(5), 10, "visible 5 -> buffer 10");
+        assert_eq!(
+            set.visible_line_to_buffer_line(5),
+            10,
+            "visible 5 -> buffer 10"
+        );
         // visible_line_count == 20 - 5 collapsed = 15.
-        assert_eq!(set.visible_line_count(20), 15, "5 collapsed lines removed from 20");
+        assert_eq!(
+            set.visible_line_count(20),
+            15,
+            "5 collapsed lines removed from 20"
+        );
     }
 
     #[test]
     fn fold_set_mapping_is_identity_when_nothing_folded() {
-        let region = FoldRegion { start_line: 3, end_line: 8, folded: false, label: "x …".to_owned() };
+        let region = FoldRegion {
+            start_line: 3,
+            end_line: 8,
+            folded: false,
+            label: "x …".to_owned(),
+        };
         let mut set = FoldSet::from_regions(vec![region]);
         set.rebuild_visible_map_for(20);
         for v in 0..20 {
-            assert_eq!(set.visible_line_to_buffer_line(v), v, "no fold -> identity map (line {v})");
+            assert_eq!(
+                set.visible_line_to_buffer_line(v),
+                v,
+                "no fold -> identity map (line {v})"
+            );
         }
         assert_eq!(set.visible_line_count(20), 20);
     }
@@ -712,12 +807,23 @@ function greet(name) {
 
     #[test]
     fn fold_set_toggle_twice_returns_to_original() {
-        let region = FoldRegion { start_line: 0, end_line: 16, folded: false, label: "fn …".to_owned() };
+        let region = FoldRegion {
+            start_line: 0,
+            end_line: 16,
+            folded: false,
+            label: "fn …".to_owned(),
+        };
         let mut set = FoldSet::from_regions(vec![region]);
-        assert!(set.is_line_visible(5), "initially unfolded -> line 5 visible");
+        assert!(
+            set.is_line_visible(5),
+            "initially unfolded -> line 5 visible"
+        );
 
         assert!(set.toggle(0), "toggle a region that exists returns true");
-        assert!(!set.is_line_visible(5), "after one toggle the region is folded -> line 5 hidden");
+        assert!(
+            !set.is_line_visible(5),
+            "after one toggle the region is folded -> line 5 hidden"
+        );
 
         assert!(set.toggle(0), "second toggle on the same start line");
         assert!(
@@ -725,14 +831,25 @@ function greet(name) {
             "AC-006: toggling twice returns to the original UNfolded state"
         );
         // Idempotency at the data level: the region's folded flag is back to false.
-        assert!(!set.regions[0].folded, "folded flag back to false after two toggles");
+        assert!(
+            !set.regions[0].folded,
+            "folded flag back to false after two toggles"
+        );
     }
 
     #[test]
     fn fold_set_toggle_missing_start_line_is_noop() {
-        let region = FoldRegion { start_line: 0, end_line: 5, folded: false, label: "x …".to_owned() };
+        let region = FoldRegion {
+            start_line: 0,
+            end_line: 5,
+            folded: false,
+            label: "x …".to_owned(),
+        };
         let mut set = FoldSet::from_regions(vec![region]);
-        assert!(!set.toggle(99), "toggling a non-existent start line returns false (no-op)");
+        assert!(
+            !set.toggle(99),
+            "toggling a non-existent start line returns false (no-op)"
+        );
         assert!(!set.regions[0].folded, "the real region is untouched");
     }
 
@@ -747,8 +864,18 @@ function greet(name) {
         let max_line = short.len_lines().saturating_sub(1);
         let regions = FoldProvider::new().compute(&tree, &short, "rust");
         for r in &regions {
-            assert!(r.start_line <= max_line, "start_line {} clamped to {}", r.start_line, max_line);
-            assert!(r.end_line <= max_line, "end_line {} clamped to {}", r.end_line, max_line);
+            assert!(
+                r.start_line <= max_line,
+                "start_line {} clamped to {}",
+                r.start_line,
+                max_line
+            );
+            assert!(
+                r.end_line <= max_line,
+                "end_line {} clamped to {}",
+                r.end_line,
+                max_line
+            );
         }
     }
 
@@ -756,14 +883,35 @@ function greet(name) {
     fn foldable_node_types_match_contract() {
         let types = FoldableNodeTypes::bundled();
         // Rust set (MT contract).
-        for kind in ["function_item", "impl_item", "struct_item", "enum_item", "block", "match_expression", "use_declaration"] {
+        for kind in [
+            "function_item",
+            "impl_item",
+            "struct_item",
+            "enum_item",
+            "block",
+            "match_expression",
+            "use_declaration",
+        ] {
             assert!(types.is_foldable("rust", kind), "rust foldable kind {kind}");
         }
         // JS set (MT contract; statement_block is the grammar's real name for block_statement).
-        for kind in ["function_declaration", "arrow_function", "class_declaration", "statement_block", "object", "array"] {
-            assert!(types.is_foldable("javascript", kind), "js foldable kind {kind}");
+        for kind in [
+            "function_declaration",
+            "arrow_function",
+            "class_declaration",
+            "statement_block",
+            "object",
+            "array",
+        ] {
+            assert!(
+                types.is_foldable("javascript", kind),
+                "js foldable kind {kind}"
+            );
         }
-        assert!(!types.is_foldable("rust", "identifier"), "a plain identifier is not foldable");
+        assert!(
+            !types.is_foldable("rust", "identifier"),
+            "a plain identifier is not foldable"
+        );
     }
 
     #[test]

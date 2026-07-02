@@ -28,21 +28,22 @@ use std::sync::{Arc, Mutex};
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
-use handshake_native::code_editor::panel::{CodeEditorPanel, CodeEditorPaneFactory};
 use handshake_native::code_editor::cursor::Cursor;
+use handshake_native::code_editor::panel::{CodeEditorPaneFactory, CodeEditorPanel};
 use handshake_native::interop::adapters::{register_standard_commands, CommandPaletteSurface};
 use handshake_native::interop::interaction_bus::{
     EditorSurfaceKind, InteractionBus, SharedSelection, CMD_COMMAND_PALETTE,
     COMMAND_PALETTE_SEARCH_AUTHOR_ID, COMMAND_PALETTE_TRIGGER_AUTHOR_ID,
 };
 use handshake_native::pane_registry::{
-    DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRenderContext, PaneType,
+    DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRenderContext,
+    PaneType,
 };
 use handshake_native::rich_editor::document_model::node::BlockNode;
+use handshake_native::rich_editor::properties::metadata_client::ClipboardSink;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorPaneFactory, RichEditorState,
 };
-use handshake_native::rich_editor::properties::metadata_client::ClipboardSink;
 
 // ── Artifact-hygiene helpers (CX-212E / CX-212F): screenshots/artifacts go to the EXTERNAL root ONLY ──
 
@@ -73,7 +74,9 @@ struct MockClipboard {
 }
 impl MockClipboard {
     fn new() -> Self {
-        Self { last: Mutex::new(None) }
+        Self {
+            last: Mutex::new(None),
+        }
     }
     fn taken(&self) -> Option<String> {
         self.last.lock().unwrap().clone()
@@ -146,7 +149,8 @@ impl PaneApp {
                 CommandPaletteSurface::emit_command_item_nodes(ui, &guard);
             }
             let mut query = String::new();
-            let search = ui.add(egui::TextEdit::singleline(&mut query).hint_text("Search actions..."));
+            let search =
+                ui.add(egui::TextEdit::singleline(&mut query).hint_text("Search actions..."));
             CommandPaletteSurface::emit_search_node(ui.ctx(), search.id);
 
             // Render the REAL code pane (its render() wires the bus + publishes selection).
@@ -172,9 +176,12 @@ impl PaneApp {
 
 fn pane_harness(code_text: &str) -> Harness<'static, PaneApp> {
     let code_panel = CodeEditorPanel::new(code_text, "rs");
-    let rich_state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("rich body text")]));
-    Harness::builder()
-        .build_state(|ctx, a: &mut PaneApp| a.ui(ctx), PaneApp::new(code_panel, rich_state))
+    let rich_state =
+        RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("rich body text")]));
+    Harness::builder().build_state(
+        |ctx, a: &mut PaneApp| a.ui(ctx),
+        PaneApp::new(code_panel, rich_state),
+    )
 }
 
 /// Collect every live AccessKit node carrying an author_id: (author_id, role, label).
@@ -216,10 +223,26 @@ fn selection_propagates_from_real_code_pane_to_rich_pane() {
     };
     let expected = &SRC[start..end];
     match observed {
-        SharedSelection::TextRange { pane_id, surface, text, .. } => {
-            assert_eq!(pane_id.as_ref(), "pane-code", "selection carries the source pane id");
-            assert_eq!(surface, EditorSurfaceKind::Code, "selection carries the source surface kind");
-            assert_eq!(text, expected, "the real code panel's selected text propagated cross-pane");
+        SharedSelection::TextRange {
+            pane_id,
+            surface,
+            text,
+            ..
+        } => {
+            assert_eq!(
+                pane_id.as_ref(),
+                "pane-code",
+                "selection carries the source pane id"
+            );
+            assert_eq!(
+                surface,
+                EditorSurfaceKind::Code,
+                "selection carries the source surface kind"
+            );
+            assert_eq!(
+                text, expected,
+                "the real code panel's selected text propagated cross-pane"
+            );
         }
         other => panic!("expected a cross-pane TextRange from the real code pane, got {other:?}"),
     }
@@ -250,7 +273,11 @@ fn clipboard_round_trip_real_code_to_real_rich_pane() {
         handshake_native::interop::adapters::copy_selection_to_clipboard(&mut b, &sel, &mock)
     };
     assert!(copied, "the real code pane copied its non-empty selection");
-    assert_eq!(mock.taken().as_deref(), Some(SRC), "the mock sink received the OS write");
+    assert_eq!(
+        mock.taken().as_deref(),
+        Some(SRC),
+        "the mock sink received the OS write"
+    );
 
     // Rich-text pane Paste (the Ctrl+V READ path): the REAL rich pane reads the SAME bus's clipboard via
     // its own `paste_text_from_bus` adapter and gets the identical text the code pane copied. The rich
@@ -313,7 +340,10 @@ fn command_bus_is_unified_and_dispatch_fires_handler() {
             b.command_palette_open(),
             "the dispatched handler reopened the palette (real handler side effect)"
         );
-        assert!(!b.dispatch_command(&dispatch_ctx, "interop.does-not-exist"), "bad id is a no-op");
+        assert!(
+            !b.dispatch_command(&dispatch_ctx, "interop.does-not-exist"),
+            "bad id is a no-op"
+        );
     }
     assert_no_local_artifact_dir();
 }
@@ -335,9 +365,15 @@ fn copy_dispatch_caches_shared_selection() {
     {
         let mut b = bus.lock().unwrap();
         // The shared selection is the real code-pane selection; the bus has no cached clipboard yet.
-        assert!(b.clipboard_read().is_none(), "no clipboard cache before Copy dispatch");
         assert!(
-            b.dispatch_command(&dispatch_ctx, handshake_native::interop::interaction_bus::CMD_COPY),
+            b.clipboard_read().is_none(),
+            "no clipboard cache before Copy dispatch"
+        );
+        assert!(
+            b.dispatch_command(
+                &dispatch_ctx,
+                handshake_native::interop::interaction_bus::CMD_COPY
+            ),
             "Copy command dispatched"
         );
         // The Copy handler is NOT a no-op: it cached the shared selection as a clipboard payload.
@@ -364,16 +400,26 @@ fn accesskit_command_surface_nodes_present() {
         .iter()
         .find(|(a, _, _)| a == COMMAND_PALETTE_TRIGGER_AUTHOR_ID)
         .unwrap_or_else(|| panic!("command-palette-trigger missing from live tree: {nodes:?}"));
-    assert_eq!(trigger.1, "Button", "command-palette-trigger role is Button");
+    assert_eq!(
+        trigger.1, "Button",
+        "command-palette-trigger role is Button"
+    );
 
     let search = nodes
         .iter()
         .find(|(a, _, _)| a == COMMAND_PALETTE_SEARCH_AUTHOR_ID)
         .unwrap_or_else(|| panic!("command-palette-search missing: {nodes:?}"));
-    assert_eq!(search.1, "TextInput", "command-palette-search role is TextInput");
+    assert_eq!(
+        search.1, "TextInput",
+        "command-palette-search role is TextInput"
+    );
 
-    let cmd_copy_author = handshake_native::interop::interaction_bus::command_list_item_author_id("Copy");
-    assert_eq!(cmd_copy_author, "cmd-Copy", "the contract's cmd-Copy address");
+    let cmd_copy_author =
+        handshake_native::interop::interaction_bus::command_list_item_author_id("Copy");
+    assert_eq!(
+        cmd_copy_author, "cmd-Copy",
+        "the contract's cmd-Copy address"
+    );
     let cmd_item = nodes
         .iter()
         .find(|(a, _, _)| a == &cmd_copy_author)

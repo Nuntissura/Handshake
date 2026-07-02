@@ -18,9 +18,6 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
 {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!("ENVIRONMENT_BLOCKED: Kernel002 CRDT promotion bridge tests require POSTGRES_TEST_URL; {msg}");
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
@@ -165,7 +162,7 @@ fn kernel_crdt_promotion_bridge_requires_validation_report_alignment() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_promotion_bridge_appends_request_and_decision_events_to_postgres_ledger() {
     let db = postgres_or_environment_blocked().await;
     let suffix = Uuid::now_v7().simple().to_string();

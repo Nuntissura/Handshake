@@ -467,13 +467,17 @@ fn stage_content_for(payload: &StageRoutePayload) -> StageResult<crate::stage_pa
                 updated_at: None,
             }))
         }
-        StageRouteSource::Selection { text, source_ref, .. } => {
+        StageRouteSource::Selection {
+            text, source_ref, ..
+        } => {
             if text.trim().is_empty() {
                 return Err(StageInteropError::EmptyPayload);
             }
             Ok(StageContent::Selection(text.clone(), source_ref.clone()))
         }
-        StageRouteSource::CanvasNode { canvas_id, node_id, .. } => {
+        StageRouteSource::CanvasNode {
+            canvas_id, node_id, ..
+        } => {
             if node_id.trim().is_empty() {
                 return Err(StageInteropError::EmptyPayload);
             }
@@ -773,7 +777,12 @@ mod tests {
         assert_eq!(payload.workspace_id, "WS-1");
         assert_eq!(payload.content_kind(), "selection");
         match &payload.source {
-            StageRouteSource::Selection { workspace_id, source_pane_id, text, source_ref } => {
+            StageRouteSource::Selection {
+                workspace_id,
+                source_pane_id,
+                text,
+                source_ref,
+            } => {
                 assert_eq!(workspace_id, "WS-1");
                 assert_eq!(source_pane_id, "pane-rich");
                 assert_eq!(text, "hello stage");
@@ -787,11 +796,17 @@ mod tests {
     /// AC-001 (block half): a BlockRef selection builds a NoteRef-source payload (document content kind).
     #[test]
     fn build_from_block_ref_selection() {
-        let sel = SharedSelection::BlockRef { pane_id: pane("pane-rich"), block_id: "BLK-7".to_owned() };
+        let sel = SharedSelection::BlockRef {
+            pane_id: pane("pane-rich"),
+            block_id: "BLK-7".to_owned(),
+        };
         let payload = build_from_selection(&sel, "WS-1").expect("builds");
         assert_eq!(payload.content_kind(), "document");
         match &payload.source {
-            StageRouteSource::NoteRef { workspace_id, note_id } => {
+            StageRouteSource::NoteRef {
+                workspace_id,
+                note_id,
+            } => {
                 assert_eq!(workspace_id, "WS-1");
                 assert_eq!(note_id, "BLK-7");
             }
@@ -812,7 +827,12 @@ mod tests {
         let payload = build_from_canvas_node(&node).expect("builds");
         assert_eq!(payload.content_kind(), "canvas_node");
         match &payload.source {
-            StageRouteSource::CanvasNode { workspace_id, canvas_id, node_id, node_kind } => {
+            StageRouteSource::CanvasNode {
+                workspace_id,
+                canvas_id,
+                node_id,
+                node_kind,
+            } => {
                 assert_eq!(workspace_id, "WS-1");
                 assert_eq!(canvas_id, "CB-9");
                 assert_eq!(node_id, "N-3");
@@ -830,7 +850,10 @@ mod tests {
             Err(StageInteropError::BadSelection(_))
         ));
         let empty = text_range("pane-rich", 0, 0, "   ");
-        assert_eq!(build_from_selection(&empty, "WS-1"), Err(StageInteropError::EmptyPayload));
+        assert_eq!(
+            build_from_selection(&empty, "WS-1"),
+            Err(StageInteropError::EmptyPayload)
+        );
     }
 
     /// RISK-007/MC-007: a selection whose source pane is no longer live is rejected as BadSelection.
@@ -897,7 +920,10 @@ mod tests {
         let mut no_hash = evidence_artifact("ART-1");
         no_hash.sha256 = String::new();
         no_hash.manifest.sha256 = String::new();
-        assert_eq!(embed_artifact_as_nodeview(&no_hash), Err(StageInteropError::ProvenanceMissing));
+        assert_eq!(
+            embed_artifact_as_nodeview(&no_hash),
+            Err(StageInteropError::ProvenanceMissing)
+        );
         // No manifest_ref.
         let mut no_manifest = evidence_artifact("ART-2");
         no_manifest.manifest.manifest_ref = String::new();
@@ -915,7 +941,9 @@ mod tests {
         };
         assert!(err.is_embed_back_endpoint_absent());
         assert!(!StageInteropError::ProvenanceMissing.is_embed_back_endpoint_absent());
-        assert!(err.to_string().contains("/workspaces/WS-1/stage/artifacts/ART-1"));
+        assert!(err
+            .to_string()
+            .contains("/workspaces/WS-1/stage/artifacts/ART-1"));
     }
 
     /// The artifact read path is the documented Stage embed-back route shape.

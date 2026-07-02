@@ -27,7 +27,13 @@ fn bracket_match_before_open_adjacency() {
     // VS Code rule: a bracket is active when the cursor is immediately BEFORE an opening bracket.
     let buf = TextBuffer::new("foo(bar)");
     let m = find_matching_bracket(&buf, 3).expect("cursor before '(' at byte 3 matches");
-    assert_eq!(m, BracketMatch { open_byte: 3, close_byte: 7 });
+    assert_eq!(
+        m,
+        BracketMatch {
+            open_byte: 3,
+            close_byte: 7
+        }
+    );
 }
 
 #[test]
@@ -35,7 +41,13 @@ fn bracket_match_after_close_adjacency() {
     // VS Code rule: a bracket is active when the cursor is immediately AFTER a closing bracket.
     let buf = TextBuffer::new("foo(bar)");
     let m = find_matching_bracket(&buf, 8).expect("cursor after ')' at byte 7 matches");
-    assert_eq!(m, BracketMatch { open_byte: 3, close_byte: 7 });
+    assert_eq!(
+        m,
+        BracketMatch {
+            open_byte: 3,
+            close_byte: 7
+        }
+    );
 }
 
 #[test]
@@ -44,13 +56,19 @@ fn bracket_match_nested_pairs_resolve_to_correct_partner() {
     let buf = TextBuffer::new("a(b[c]d)e");
     assert_eq!(
         find_matching_bracket(&buf, 1),
-        Some(BracketMatch { open_byte: 1, close_byte: 7 }),
+        Some(BracketMatch {
+            open_byte: 1,
+            close_byte: 7
+        }),
         "outer paren skips the nested square brackets"
     );
     // The inner '[' (byte 3) partners the inner ']' (byte 5).
     assert_eq!(
         find_matching_bracket(&buf, 3),
-        Some(BracketMatch { open_byte: 3, close_byte: 5 }),
+        Some(BracketMatch {
+            open_byte: 3,
+            close_byte: 5
+        }),
         "inner square brackets match each other"
     );
 }
@@ -61,15 +79,26 @@ fn bracket_match_same_family_only() {
     let buf = TextBuffer::new("([)]");
     assert_eq!(
         find_matching_bracket(&buf, 0),
-        Some(BracketMatch { open_byte: 0, close_byte: 2 }),
+        Some(BracketMatch {
+            open_byte: 0,
+            close_byte: 2
+        }),
         "a '(' pairs with a ')' (same family), never a ']'"
     );
 }
 
 #[test]
 fn bracket_match_unbalanced_returns_none() {
-    assert_eq!(find_matching_bracket(&TextBuffer::new("foo(bar"), 3), None, "unmatched '(' -> None");
-    assert_eq!(find_matching_bracket(&TextBuffer::new("abc)"), 4), None, "unmatched ')' -> None");
+    assert_eq!(
+        find_matching_bracket(&TextBuffer::new("foo(bar"), 3),
+        None,
+        "unmatched '(' -> None"
+    );
+    assert_eq!(
+        find_matching_bracket(&TextBuffer::new("abc)"), 4),
+        None,
+        "unmatched ')' -> None"
+    );
     assert_eq!(
         find_matching_bracket(&TextBuffer::new("hello"), 2),
         None,
@@ -98,7 +127,11 @@ fn bracket_match_scan_is_bounded() {
 fn bracket_pair_colors_distinct_per_depth_for_three_levels() {
     // The REAL theme palette (>= 3 hues) is the source — no hardcoded colors in the test path either.
     let palette = HsTheme::Dark.palette().bracket_pair_palette;
-    assert!(palette.len() >= 3, "the theme ships >= 3 bracket-pair hues; got {}", palette.len());
+    assert!(
+        palette.len() >= 3,
+        "the theme ships >= 3 bracket-pair hues; got {}",
+        palette.len()
+    );
 
     // "([{x}])": opens at depths 0,1,2; closes mirror them.
     let buf = TextBuffer::new("([{x}])");
@@ -109,9 +142,18 @@ fn bracket_pair_colors_distinct_per_depth_for_three_levels() {
     assert_eq!(colors[0].1, palette[0], "depth 0 -> palette[0]");
     assert_eq!(colors[1].1, palette[1], "depth 1 -> palette[1]");
     assert_eq!(colors[2].1, palette[2], "depth 2 -> palette[2]");
-    assert_ne!(colors[0].1, colors[1].1, "depth 0 and 1 are distinct colors");
-    assert_ne!(colors[1].1, colors[2].1, "depth 1 and 2 are distinct colors");
-    assert_ne!(colors[0].1, colors[2].1, "depth 0 and 2 are distinct colors");
+    assert_ne!(
+        colors[0].1, colors[1].1,
+        "depth 0 and 1 are distinct colors"
+    );
+    assert_ne!(
+        colors[1].1, colors[2].1,
+        "depth 1 and 2 are distinct colors"
+    );
+    assert_ne!(
+        colors[0].1, colors[2].1,
+        "depth 0 and 2 are distinct colors"
+    );
 
     // Closing brackets carry the same color as their matching open (same depth).
     assert_eq!(colors[3].1, palette[2], "'}}' matches '{{'");
@@ -127,7 +169,11 @@ fn bracket_pair_color_index_is_depth_modulo_palette_len() {
     // The depth->index mapping wraps around the palette (VS Code parity).
     assert_eq!(depth_color_index(0, 6), 0);
     assert_eq!(depth_color_index(5, 6), 5);
-    assert_eq!(depth_color_index(6, 6), 0, "depth 6 wraps to index 0 (modulo)");
+    assert_eq!(
+        depth_color_index(6, 6),
+        0,
+        "depth 6 wraps to index 0 (modulo)"
+    );
     assert_eq!(depth_color_index(7, 6), 1);
     // Modulo-by-zero is guarded.
     assert_eq!(depth_color_index(3, 0), 0);
@@ -136,13 +182,19 @@ fn bracket_pair_color_index_is_depth_modulo_palette_len() {
 #[test]
 fn bracket_pair_colors_empty_palette_is_safe() {
     let buf = TextBuffer::new("()");
-    assert!(bracket_pair_colors(&buf, 0..2, &[]).is_empty(), "empty palette -> no colors, no panic");
+    assert!(
+        bracket_pair_colors(&buf, 0..2, &[]).is_empty(),
+        "empty palette -> no colors, no panic"
+    );
 }
 
 // ── AC-007: render/decoration only — no buffer mutation in the MT-054 source files ──────────────────
 
 fn crate_src(file: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("src").join("code_editor").join(file)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("code_editor")
+        .join(file)
 }
 
 #[test]

@@ -132,10 +132,16 @@ fn fold_set_visibility_nested_outer_hides_inner() {
     let inner = make_region(5, 8, false);
     let set = FoldSet::from_regions(vec![outer, inner]);
     assert!(set.is_line_visible(2), "outer start visible");
-    assert!(!set.is_line_visible(5), "outer fold hides the inner region's start line");
+    assert!(
+        !set.is_line_visible(5),
+        "outer fold hides the inner region's start line"
+    );
     assert!(!set.is_line_visible(8), "outer fold hides inner end");
     assert!(!set.is_line_visible(12), "outer fold hides its own end");
-    assert!(set.is_line_visible(13), "line after the outer region visible");
+    assert!(
+        set.is_line_visible(13),
+        "line after the outer region visible"
+    );
 }
 
 #[test]
@@ -175,7 +181,11 @@ fn fold_set_mapping_offsets_after_folded_region() {
         9,
         "AC-003: visible line after the fold skips the 5 collapsed lines"
     );
-    assert_eq!(set.visible_line_count(20), 15, "AC-003: 5 of 20 lines collapsed");
+    assert_eq!(
+        set.visible_line_count(20),
+        15,
+        "AC-003: 5 of 20 lines collapsed"
+    );
 }
 
 #[test]
@@ -198,7 +208,10 @@ fn fold_set_mapping_via_panel_after_toggle() {
         .map(|r| r.collapsed_line_count())
         .unwrap();
 
-    assert!(panel.toggle_fold(outer_start), "PT-003: toggle the function-body fold");
+    assert!(
+        panel.toggle_fold(outer_start),
+        "PT-003: toggle the function-body fold"
+    );
     let folded = panel.fold_set();
     assert_eq!(
         folded.visible_line_count(buffer_lines),
@@ -210,7 +223,11 @@ fn fold_set_mapping_via_panel_after_toggle() {
     // the folded body (since line 0 is the fold start and 1..=end are hidden).
     set = panel.fold_set();
     set.rebuild_visible_map_for(buffer_lines);
-    assert_eq!(set.visible_line_to_buffer_line(0), 0, "fold start at visible 0");
+    assert_eq!(
+        set.visible_line_to_buffer_line(0),
+        0,
+        "fold start at visible 0"
+    );
     let after = set.visible_line_to_buffer_line(1);
     assert!(
         after > outer_start,
@@ -252,13 +269,19 @@ fn fold_at_cursor_keymap_surface_folds_enclosing_region() {
     // enclosing region. We drive the public fold_at_line surface the keymap calls.
     let panel = CodeEditorPanel::new(RUST_FN_20, "rs");
     // Line 10 is inside the function body.
-    assert!(panel.fold_at_line(10), "fold_at_line folds the enclosing region");
+    assert!(
+        panel.fold_at_line(10),
+        "fold_at_line folds the enclosing region"
+    );
     assert!(
         panel.fold_set().regions.iter().any(|r| r.folded),
         "a region is folded after fold_at_line"
     );
     // Unfolding the same line restores it.
-    assert!(panel.unfold_at_line(10), "unfold_at_line unfolds the enclosing region");
+    assert!(
+        panel.unfold_at_line(10),
+        "unfold_at_line unfolds the enclosing region"
+    );
     assert!(
         panel.fold_set().regions.iter().all(|r| !r.folded),
         "no region folded after unfold_at_line"
@@ -267,7 +290,11 @@ fn fold_at_cursor_keymap_surface_folds_enclosing_region() {
 
 // ── helpers ───────────────────────────────────────────────────────────────────────────────────────
 
-fn make_region(start_line: usize, end_line: usize, folded: bool) -> handshake_native::code_editor::FoldRegion {
+fn make_region(
+    start_line: usize,
+    end_line: usize,
+    folded: bool,
+) -> handshake_native::code_editor::FoldRegion {
     handshake_native::code_editor::FoldRegion {
         start_line,
         end_line,

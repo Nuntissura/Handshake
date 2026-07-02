@@ -286,8 +286,13 @@ fn new_task_list() -> BlockNode {
 /// `checked: false`) when `task` is set, else a `listItem`. The item wraps one empty
 /// paragraph so the caret has an inline-content leaf to land in.
 fn list_with_one_item(kind: NodeKind, task: bool) -> BlockNode {
-    let item_kind = if task { NodeKind::TaskItem } else { NodeKind::ListItem };
-    let mut item = BlockNode::with_children(item_kind, vec![Child::Block(BlockNode::paragraph(""))]);
+    let item_kind = if task {
+        NodeKind::TaskItem
+    } else {
+        NodeKind::ListItem
+    };
+    let mut item =
+        BlockNode::with_children(item_kind, vec![Child::Block(BlockNode::paragraph(""))]);
     if task {
         item.attrs
             .insert("checked".to_string(), serde_json::Value::Bool(false));
@@ -297,7 +302,10 @@ fn list_with_one_item(kind: NodeKind, task: bool) -> BlockNode {
 
 /// Build a fresh blockquote wrapping one empty paragraph.
 fn new_blockquote() -> BlockNode {
-    BlockNode::with_children(NodeKind::Blockquote, vec![Child::Block(BlockNode::paragraph(""))])
+    BlockNode::with_children(
+        NodeKind::Blockquote,
+        vec![Child::Block(BlockNode::paragraph(""))],
+    )
 }
 
 /// Build a fresh code block holding one empty unmarked text leaf.
@@ -319,8 +327,10 @@ fn new_table() -> BlockNode {
             NodeKind::TableCell,
             vec![Child::Block(BlockNode::paragraph(""))],
         );
-        c.attrs.insert("colspan".to_string(), serde_json::Value::from(1));
-        c.attrs.insert("rowspan".to_string(), serde_json::Value::from(1));
+        c.attrs
+            .insert("colspan".to_string(), serde_json::Value::from(1));
+        c.attrs
+            .insert("rowspan".to_string(), serde_json::Value::from(1));
         if is_header {
             c.attrs
                 .insert("isHeader".to_string(), serde_json::Value::Bool(true));
@@ -590,7 +600,11 @@ mod tests {
         // distinct across the catalog (the HBR-SWARM duplicate-author_id gate forbids dupes).
         let mut ids = HashSet::new();
         for cmd in SLASH_COMMANDS {
-            assert!(ids.insert(cmd.id), "duplicate slash command id '{}'", cmd.id);
+            assert!(
+                ids.insert(cmd.id),
+                "duplicate slash command id '{}'",
+                cmd.id
+            );
         }
         assert_eq!(ids.len(), SLASH_COMMANDS.len());
     }
@@ -600,13 +614,31 @@ mod tests {
         // The MT scope's BLOCKS list must all be present.
         let ids: HashSet<&str> = SLASH_COMMANDS.iter().map(|c| c.id).collect();
         for required in [
-            "paragraph", "heading-1", "heading-2", "heading-3", "bullet-list",
-            "ordered-list", "task-list", "blockquote", "code-block", "table",
-            "horizontal-rule", "embed-image", "embed-slideshow", "embed-album",
-            "embed-video", "insert-link", "insert-transclusion", "template-daily-note",
-            "template-meeting-notes", "manual-insert",
+            "paragraph",
+            "heading-1",
+            "heading-2",
+            "heading-3",
+            "bullet-list",
+            "ordered-list",
+            "task-list",
+            "blockquote",
+            "code-block",
+            "table",
+            "horizontal-rule",
+            "embed-image",
+            "embed-slideshow",
+            "embed-album",
+            "embed-video",
+            "insert-link",
+            "insert-transclusion",
+            "template-daily-note",
+            "template-meeting-notes",
+            "manual-insert",
         ] {
-            assert!(ids.contains(required), "catalog missing required command '{required}'");
+            assert!(
+                ids.contains(required),
+                "catalog missing required command '{required}'"
+            );
         }
     }
 
@@ -616,7 +648,11 @@ mod tests {
         // is on the three heading commands; no other label/keyword contains "head".)
         let rows = filter_slash_commands("head");
         let ids: Vec<&str> = rows.iter().map(|c| c.id).collect();
-        assert_eq!(ids, vec!["heading-1", "heading-2", "heading-3"], "got {ids:?}");
+        assert_eq!(
+            ids,
+            vec!["heading-1", "heading-2", "heading-3"],
+            "got {ids:?}"
+        );
     }
 
     #[test]
@@ -639,7 +675,10 @@ mod tests {
     fn filter_keyword_matches_h1() {
         // The keyword "h1" matches "Heading 1" even though the label does not contain "h1".
         let rows = filter_slash_commands("h1");
-        assert!(rows.iter().any(|c| c.id == "heading-1"), "h1 keyword must match Heading 1");
+        assert!(
+            rows.iter().any(|c| c.id == "heading-1"),
+            "h1 keyword must match Heading 1"
+        );
     }
 
     #[test]
@@ -667,7 +706,12 @@ mod tests {
     fn embed_kind_ref_kinds_match_backend() {
         // The embed ref_kinds must be the exact MT-014 backend strings.
         use crate::rich_editor::embeds::asset_resolver::MEDIA_EMBED_REF_KINDS;
-        for ek in [EmbedKind::Image, EmbedKind::Slideshow, EmbedKind::Album, EmbedKind::Video] {
+        for ek in [
+            EmbedKind::Image,
+            EmbedKind::Slideshow,
+            EmbedKind::Album,
+            EmbedKind::Video,
+        ] {
             assert!(
                 MEDIA_EMBED_REF_KINDS.contains(&ek.ref_kind()),
                 "embed ref_kind '{}' not in MEDIA_EMBED_REF_KINDS",
@@ -684,7 +728,10 @@ mod tests {
             let doc = from_json_string(tid.doc_json())
                 .unwrap_or_else(|e| panic!("template {tid:?} JSON must parse: {e:?}"));
             assert_eq!(doc.kind, NodeKind::Doc);
-            assert!(!doc.children.is_empty(), "template {tid:?} must have >= 1 block");
+            assert!(
+                !doc.children.is_empty(),
+                "template {tid:?} must have >= 1 block"
+            );
         }
     }
 }

@@ -74,7 +74,12 @@ pub fn require_live_backend() -> LiveBackend {
          PostgreSQL, then run with --ignored. This proof never fakes PG."
     );
 
-    LiveBackend { base, workspace_id, client, rt }
+    LiveBackend {
+        base,
+        workspace_id,
+        client,
+        rt,
+    }
 }
 
 impl LiveBackend {
@@ -101,7 +106,8 @@ impl LiveBackend {
             (status, text)
         });
         assert!(status.is_success(), "POST {path} -> {status}: {text}");
-        serde_json::from_str(&text).unwrap_or_else(|e| panic!("POST {path} response not JSON ({e}): {text}"))
+        serde_json::from_str(&text)
+            .unwrap_or_else(|e| panic!("POST {path} response not JSON ({e}): {text}"))
     }
 
     pub fn put_json(&self, path: &str, body: &serde_json::Value) -> serde_json::Value {
@@ -128,7 +134,8 @@ impl LiveBackend {
 
     pub fn get_json(&self, path: &str) -> serde_json::Value {
         let text = self.get_text(path);
-        serde_json::from_str(&text).unwrap_or_else(|e| panic!("GET {path} response not JSON ({e}): {text}"))
+        serde_json::from_str(&text)
+            .unwrap_or_else(|e| panic!("GET {path} response not JSON ({e}): {text}"))
     }
 
     pub fn get_text(&self, path: &str) -> String {

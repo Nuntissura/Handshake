@@ -131,17 +131,29 @@ pub struct EditorActionState {
 impl EditorActionState {
     /// A present, enabled, momentary-button state (no toggle).
     pub fn button() -> Self {
-        Self { present: true, enabled: true, checked: None }
+        Self {
+            present: true,
+            enabled: true,
+            checked: None,
+        }
     }
 
     /// A present, enabled toggle state with the given checked value.
     pub fn toggle(checked: bool) -> Self {
-        Self { present: true, enabled: true, checked: Some(checked) }
+        Self {
+            present: true,
+            enabled: true,
+            checked: Some(checked),
+        }
     }
 
     /// An absent state — the backing widget is not rendered this frame, so the node is suppressed.
     pub fn absent() -> Self {
-        Self { present: false, enabled: false, checked: None }
+        Self {
+            present: false,
+            enabled: false,
+            checked: None,
+        }
     }
 }
 
@@ -216,7 +228,12 @@ impl RegistrationHandle {
         if self.instance_index == 0 {
             format!("editor.{}.{}", self.pane_type.as_str(), action_id)
         } else {
-            format!("editor.{}.{}.{}", self.pane_type.as_str(), action_id, self.instance_index)
+            format!(
+                "editor.{}.{}.{}",
+                self.pane_type.as_str(),
+                action_id,
+                self.instance_index
+            )
         }
     }
 }
@@ -253,7 +270,10 @@ impl EditorActionRegistry {
     pub fn register(&mut self, pane_type: PaneType, instance_index: usize) -> RegistrationHandle {
         let next = self.next_instance.entry(pane_type).or_insert(0);
         *next = (*next).max(instance_index + 1);
-        RegistrationHandle { pane_type, instance_index }
+        RegistrationHandle {
+            pane_type,
+            instance_index,
+        }
     }
 
     /// Register a pane assigning the next free instance index automatically (the common single/multi
@@ -299,7 +319,13 @@ impl EditorActionRegistry {
         };
         self.nodes.insert(
             author_id.clone(),
-            EditorActionNode { author_id, role, label: label.into(), actions, state },
+            EditorActionNode {
+                author_id,
+                role,
+                label: label.into(),
+                actions,
+                state,
+            },
         );
     }
 
@@ -529,22 +555,118 @@ pub struct CodeActionEntry {
 /// The full CODE-editor canonical action catalog (IN-041-03). Every entry MUST appear in the AccessKit
 /// tree (AC-041-02) when its backing surface is present.
 pub const CODE_ACTION_CATALOG: &[CodeActionEntry] = &[
-    CodeActionEntry { action_id: "save", role: AxRole::Button, label: "Save", dispatch: CodeDispatch::Action(CodeEditorAction::Save), always_present: true },
-    CodeActionEntry { action_id: "find-open", role: AxRole::Button, label: "Find", dispatch: CodeDispatch::Action(CodeEditorAction::OpenFind), always_present: true },
-    CodeActionEntry { action_id: "find-next", role: AxRole::Button, label: "Find next", dispatch: CodeDispatch::Action(CodeEditorAction::FindNext), always_present: false },
-    CodeActionEntry { action_id: "find-prev", role: AxRole::Button, label: "Find previous", dispatch: CodeDispatch::Action(CodeEditorAction::FindPrev), always_present: false },
-    CodeActionEntry { action_id: "find-toggle-case", role: AxRole::ToggleButton, label: "Match case", dispatch: CodeDispatch::FindToggleCase, always_present: false },
-    CodeActionEntry { action_id: "find-toggle-word", role: AxRole::ToggleButton, label: "Match whole word", dispatch: CodeDispatch::FindToggleWord, always_present: false },
-    CodeActionEntry { action_id: "find-toggle-regex", role: AxRole::ToggleButton, label: "Use regular expression", dispatch: CodeDispatch::FindToggleRegex, always_present: false },
-    CodeActionEntry { action_id: "replace-open", role: AxRole::Button, label: "Replace", dispatch: CodeDispatch::OpenReplace, always_present: true },
-    CodeActionEntry { action_id: "replace-one", role: AxRole::Button, label: "Replace one", dispatch: CodeDispatch::ReplaceOne, always_present: false },
-    CodeActionEntry { action_id: "replace-all", role: AxRole::Button, label: "Replace all", dispatch: CodeDispatch::ReplaceAll, always_present: false },
-    CodeActionEntry { action_id: "format", role: AxRole::Button, label: "Format document", dispatch: CodeDispatch::FormatUnavailable, always_present: true },
-    CodeActionEntry { action_id: "go-to-line", role: AxRole::Button, label: "Go to line", dispatch: CodeDispatch::Action(CodeEditorAction::GoToLine), always_present: true },
-    CodeActionEntry { action_id: "multi-cursor-add", role: AxRole::Button, label: "Add cursor below", dispatch: CodeDispatch::MultiCursorAdd, always_present: true },
-    CodeActionEntry { action_id: "multi-cursor-clear", role: AxRole::Button, label: "Clear multi-cursor", dispatch: CodeDispatch::MultiCursorClear, always_present: true },
-    CodeActionEntry { action_id: "command-palette-open", role: AxRole::Button, label: "Open command palette", dispatch: CodeDispatch::Action(CodeEditorAction::OpenCommandPalette), always_present: true },
-    CodeActionEntry { action_id: "language-picker-open", role: AxRole::Button, label: "Open language picker", dispatch: CodeDispatch::LanguagePickerUnavailable, always_present: true },
+    CodeActionEntry {
+        action_id: "save",
+        role: AxRole::Button,
+        label: "Save",
+        dispatch: CodeDispatch::Action(CodeEditorAction::Save),
+        always_present: true,
+    },
+    CodeActionEntry {
+        action_id: "find-open",
+        role: AxRole::Button,
+        label: "Find",
+        dispatch: CodeDispatch::Action(CodeEditorAction::OpenFind),
+        always_present: true,
+    },
+    CodeActionEntry {
+        action_id: "find-next",
+        role: AxRole::Button,
+        label: "Find next",
+        dispatch: CodeDispatch::Action(CodeEditorAction::FindNext),
+        always_present: false,
+    },
+    CodeActionEntry {
+        action_id: "find-prev",
+        role: AxRole::Button,
+        label: "Find previous",
+        dispatch: CodeDispatch::Action(CodeEditorAction::FindPrev),
+        always_present: false,
+    },
+    CodeActionEntry {
+        action_id: "find-toggle-case",
+        role: AxRole::ToggleButton,
+        label: "Match case",
+        dispatch: CodeDispatch::FindToggleCase,
+        always_present: false,
+    },
+    CodeActionEntry {
+        action_id: "find-toggle-word",
+        role: AxRole::ToggleButton,
+        label: "Match whole word",
+        dispatch: CodeDispatch::FindToggleWord,
+        always_present: false,
+    },
+    CodeActionEntry {
+        action_id: "find-toggle-regex",
+        role: AxRole::ToggleButton,
+        label: "Use regular expression",
+        dispatch: CodeDispatch::FindToggleRegex,
+        always_present: false,
+    },
+    CodeActionEntry {
+        action_id: "replace-open",
+        role: AxRole::Button,
+        label: "Replace",
+        dispatch: CodeDispatch::OpenReplace,
+        always_present: true,
+    },
+    CodeActionEntry {
+        action_id: "replace-one",
+        role: AxRole::Button,
+        label: "Replace one",
+        dispatch: CodeDispatch::ReplaceOne,
+        always_present: false,
+    },
+    CodeActionEntry {
+        action_id: "replace-all",
+        role: AxRole::Button,
+        label: "Replace all",
+        dispatch: CodeDispatch::ReplaceAll,
+        always_present: false,
+    },
+    CodeActionEntry {
+        action_id: "format",
+        role: AxRole::Button,
+        label: "Format document",
+        dispatch: CodeDispatch::FormatUnavailable,
+        always_present: true,
+    },
+    CodeActionEntry {
+        action_id: "go-to-line",
+        role: AxRole::Button,
+        label: "Go to line",
+        dispatch: CodeDispatch::Action(CodeEditorAction::GoToLine),
+        always_present: true,
+    },
+    CodeActionEntry {
+        action_id: "multi-cursor-add",
+        role: AxRole::Button,
+        label: "Add cursor below",
+        dispatch: CodeDispatch::MultiCursorAdd,
+        always_present: true,
+    },
+    CodeActionEntry {
+        action_id: "multi-cursor-clear",
+        role: AxRole::Button,
+        label: "Clear multi-cursor",
+        dispatch: CodeDispatch::MultiCursorClear,
+        always_present: true,
+    },
+    CodeActionEntry {
+        action_id: "command-palette-open",
+        role: AxRole::Button,
+        label: "Open command palette",
+        dispatch: CodeDispatch::Action(CodeEditorAction::OpenCommandPalette),
+        always_present: true,
+    },
+    CodeActionEntry {
+        action_id: "language-picker-open",
+        role: AxRole::Button,
+        label: "Open language picker",
+        dispatch: CodeDispatch::LanguagePickerUnavailable,
+        always_present: true,
+    },
 ];
 
 /// The dispatch target a canonical RICH-editor action aliases. A swarm `Click` on the canonical node
@@ -606,18 +728,90 @@ pub struct RichActionEntry {
 /// limitation, discoverable but not silently no-op). The h4..6 gap is reported as a typed blocker.
 pub fn rich_action_catalog() -> Vec<RichActionEntry> {
     let mut v = vec![
-        RichActionEntry { action_id: "save", role: AxRole::Button, label: "Save", dispatch: RichDispatch::Save, always_present: true },
-        RichActionEntry { action_id: "find-open", role: AxRole::Button, label: "Find", dispatch: RichDispatch::FindOpen, always_present: true },
-        RichActionEntry { action_id: "find-next", role: AxRole::Button, label: "Find next", dispatch: RichDispatch::FindNext, always_present: false },
-        RichActionEntry { action_id: "find-prev", role: AxRole::Button, label: "Find previous", dispatch: RichDispatch::FindPrev, always_present: false },
-        RichActionEntry { action_id: "find-toggle-case", role: AxRole::ToggleButton, label: "Match case", dispatch: RichDispatch::FindToggleCase, always_present: false },
-        RichActionEntry { action_id: "find-toggle-word", role: AxRole::ToggleButton, label: "Match whole word", dispatch: RichDispatch::FindToggleWord, always_present: false },
-        RichActionEntry { action_id: "find-toggle-regex", role: AxRole::ToggleButton, label: "Use regular expression", dispatch: RichDispatch::FindToggleRegex, always_present: false },
-        RichActionEntry { action_id: "replace-one", role: AxRole::Button, label: "Replace one", dispatch: RichDispatch::ReplaceOne, always_present: false },
-        RichActionEntry { action_id: "replace-all", role: AxRole::Button, label: "Replace all", dispatch: RichDispatch::ReplaceAll, always_present: false },
-        RichActionEntry { action_id: "format-bold", role: AxRole::ToggleButton, label: "Bold", dispatch: RichDispatch::Format(FormattingCommand::ToggleBold), always_present: true },
-        RichActionEntry { action_id: "format-italic", role: AxRole::ToggleButton, label: "Italic", dispatch: RichDispatch::Format(FormattingCommand::ToggleItalic), always_present: true },
-        RichActionEntry { action_id: "format-code", role: AxRole::ToggleButton, label: "Inline code", dispatch: RichDispatch::Format(FormattingCommand::ToggleCode), always_present: true },
+        RichActionEntry {
+            action_id: "save",
+            role: AxRole::Button,
+            label: "Save",
+            dispatch: RichDispatch::Save,
+            always_present: true,
+        },
+        RichActionEntry {
+            action_id: "find-open",
+            role: AxRole::Button,
+            label: "Find",
+            dispatch: RichDispatch::FindOpen,
+            always_present: true,
+        },
+        RichActionEntry {
+            action_id: "find-next",
+            role: AxRole::Button,
+            label: "Find next",
+            dispatch: RichDispatch::FindNext,
+            always_present: false,
+        },
+        RichActionEntry {
+            action_id: "find-prev",
+            role: AxRole::Button,
+            label: "Find previous",
+            dispatch: RichDispatch::FindPrev,
+            always_present: false,
+        },
+        RichActionEntry {
+            action_id: "find-toggle-case",
+            role: AxRole::ToggleButton,
+            label: "Match case",
+            dispatch: RichDispatch::FindToggleCase,
+            always_present: false,
+        },
+        RichActionEntry {
+            action_id: "find-toggle-word",
+            role: AxRole::ToggleButton,
+            label: "Match whole word",
+            dispatch: RichDispatch::FindToggleWord,
+            always_present: false,
+        },
+        RichActionEntry {
+            action_id: "find-toggle-regex",
+            role: AxRole::ToggleButton,
+            label: "Use regular expression",
+            dispatch: RichDispatch::FindToggleRegex,
+            always_present: false,
+        },
+        RichActionEntry {
+            action_id: "replace-one",
+            role: AxRole::Button,
+            label: "Replace one",
+            dispatch: RichDispatch::ReplaceOne,
+            always_present: false,
+        },
+        RichActionEntry {
+            action_id: "replace-all",
+            role: AxRole::Button,
+            label: "Replace all",
+            dispatch: RichDispatch::ReplaceAll,
+            always_present: false,
+        },
+        RichActionEntry {
+            action_id: "format-bold",
+            role: AxRole::ToggleButton,
+            label: "Bold",
+            dispatch: RichDispatch::Format(FormattingCommand::ToggleBold),
+            always_present: true,
+        },
+        RichActionEntry {
+            action_id: "format-italic",
+            role: AxRole::ToggleButton,
+            label: "Italic",
+            dispatch: RichDispatch::Format(FormattingCommand::ToggleItalic),
+            always_present: true,
+        },
+        RichActionEntry {
+            action_id: "format-code",
+            role: AxRole::ToggleButton,
+            label: "Inline code",
+            dispatch: RichDispatch::Format(FormattingCommand::ToggleCode),
+            always_present: true,
+        },
     ];
     // Headings 1..3 are REAL (the model supports them); 4..6 are documented-disabled (gap).
     for level in 1u8..=6 {
@@ -647,8 +841,20 @@ pub fn rich_action_catalog() -> Vec<RichActionEntry> {
             always_present: true,
         });
     }
-    v.push(RichActionEntry { action_id: "insert-slash-command", role: AxRole::Button, label: "Insert block (slash command)", dispatch: RichDispatch::InsertSlashCommand, always_present: true });
-    v.push(RichActionEntry { action_id: "command-palette-open", role: AxRole::Button, label: "Open command palette", dispatch: RichDispatch::CommandPaletteOpen, always_present: true });
+    v.push(RichActionEntry {
+        action_id: "insert-slash-command",
+        role: AxRole::Button,
+        label: "Insert block (slash command)",
+        dispatch: RichDispatch::InsertSlashCommand,
+        always_present: true,
+    });
+    v.push(RichActionEntry {
+        action_id: "command-palette-open",
+        role: AxRole::Button,
+        label: "Open command palette",
+        dispatch: RichDispatch::CommandPaletteOpen,
+        always_present: true,
+    });
     v
 }
 
@@ -656,7 +862,10 @@ pub fn rich_action_catalog() -> Vec<RichActionEntry> {
 /// exist). The rich pane registers these DISABLED + records the typed gap. Centralized so the pane and
 /// the test agree on the gap set.
 pub fn rich_heading_is_unsupported(action_id: &str) -> bool {
-    matches!(action_id, "format-heading-4" | "format-heading-5" | "format-heading-6")
+    matches!(
+        action_id,
+        "format-heading-4" | "format-heading-5" | "format-heading-6"
+    )
 }
 
 #[cfg(test)]
@@ -668,32 +877,74 @@ mod catalog_tests {
     fn code_catalog_covers_every_in_041_03_action() {
         // IN-041-03 action set (the exact `<action>` segments the contract lists).
         let expected: &[&str] = &[
-            "save", "find-open", "find-next", "find-prev", "find-toggle-case", "find-toggle-word",
-            "find-toggle-regex", "replace-open", "replace-one", "replace-all", "format", "go-to-line",
-            "multi-cursor-add", "multi-cursor-clear", "command-palette-open", "language-picker-open",
+            "save",
+            "find-open",
+            "find-next",
+            "find-prev",
+            "find-toggle-case",
+            "find-toggle-word",
+            "find-toggle-regex",
+            "replace-open",
+            "replace-one",
+            "replace-all",
+            "format",
+            "go-to-line",
+            "multi-cursor-add",
+            "multi-cursor-clear",
+            "command-palette-open",
+            "language-picker-open",
         ];
         let have: HashSet<&str> = CODE_ACTION_CATALOG.iter().map(|e| e.action_id).collect();
         for want in expected {
-            assert!(have.contains(want), "IN-041-03: code catalog missing '{want}'");
+            assert!(
+                have.contains(want),
+                "IN-041-03: code catalog missing '{want}'"
+            );
         }
-        assert_eq!(have.len(), expected.len(), "no extra/duplicate code actions");
+        assert_eq!(
+            have.len(),
+            expected.len(),
+            "no extra/duplicate code actions"
+        );
     }
 
     #[test]
     fn rich_catalog_covers_every_in_041_04_action() {
         let expected: &[&str] = &[
-            "save", "find-open", "find-next", "find-prev", "find-toggle-case", "find-toggle-word",
-            "find-toggle-regex", "replace-one", "replace-all", "format-bold", "format-italic",
-            "format-code", "format-heading-1", "format-heading-2", "format-heading-3",
-            "format-heading-4", "format-heading-5", "format-heading-6", "insert-slash-command",
+            "save",
+            "find-open",
+            "find-next",
+            "find-prev",
+            "find-toggle-case",
+            "find-toggle-word",
+            "find-toggle-regex",
+            "replace-one",
+            "replace-all",
+            "format-bold",
+            "format-italic",
+            "format-code",
+            "format-heading-1",
+            "format-heading-2",
+            "format-heading-3",
+            "format-heading-4",
+            "format-heading-5",
+            "format-heading-6",
+            "insert-slash-command",
             "command-palette-open",
         ];
         let cat = rich_action_catalog();
         let have: HashSet<&str> = cat.iter().map(|e| e.action_id).collect();
         for want in expected {
-            assert!(have.contains(want), "IN-041-04: rich catalog missing '{want}'");
+            assert!(
+                have.contains(want),
+                "IN-041-04: rich catalog missing '{want}'"
+            );
         }
-        assert_eq!(have.len(), expected.len(), "no extra/duplicate rich actions");
+        assert_eq!(
+            have.len(),
+            expected.len(),
+            "no extra/duplicate rich actions"
+        );
     }
 
     #[test]
@@ -735,25 +986,44 @@ mod tests {
         let mut reg = EditorActionRegistry::new();
         let h = reg.register(PaneType::Rich, 0);
         let id = h.author_id("format-bold");
-        reg.upsert(&id, AxRole::ToggleButton, "Bold", EditorActionState::toggle(false));
+        reg.upsert(
+            &id,
+            AxRole::ToggleButton,
+            "Bold",
+            EditorActionState::toggle(false),
+        );
         assert_eq!(reg.node(&id).unwrap().state.checked, Some(false));
         // A ToggleButton declares at least one action (AC-041-01).
         assert!(!reg.node(&id).unwrap().actions.is_empty());
         reg.update_state(&id, EditorActionState::toggle(true));
         assert_eq!(reg.node(&id).unwrap().state.checked, Some(true));
         // Unknown id update is a benign no-op.
-        reg.update_state("editor.rich.does-not-exist", EditorActionState::toggle(true));
+        reg.update_state(
+            "editor.rich.does-not-exist",
+            EditorActionState::toggle(true),
+        );
     }
 
     #[test]
     fn hbr_quiet_skips_unchanged_state() {
         let mut reg = EditorActionRegistry::new();
         let h = reg.register(PaneType::Code, 0);
-        reg.upsert(h.author_id("save"), AxRole::Button, "Save", EditorActionState::button());
+        reg.upsert(
+            h.author_id("save"),
+            AxRole::Button,
+            "Save",
+            EditorActionState::button(),
+        );
         // First push reports changed.
-        assert!(reg.state_changed_since_last_push(), "first push is a change");
+        assert!(
+            reg.state_changed_since_last_push(),
+            "first push is a change"
+        );
         // No state change -> the next call reports unchanged (no AccessKit diff churn — IN-041-09).
-        assert!(!reg.state_changed_since_last_push(), "steady state reports unchanged");
+        assert!(
+            !reg.state_changed_since_last_push(),
+            "steady state reports unchanged"
+        );
         // A real toggle flip is a change.
         reg.upsert(
             h.author_id("find-toggle-case"),
@@ -761,9 +1031,18 @@ mod tests {
             "Match case",
             EditorActionState::toggle(false),
         );
-        assert!(reg.state_changed_since_last_push(), "adding a node is a change");
-        reg.update_state(&h.author_id("find-toggle-case"), EditorActionState::toggle(true));
-        assert!(reg.state_changed_since_last_push(), "flipping checked is a change");
+        assert!(
+            reg.state_changed_since_last_push(),
+            "adding a node is a change"
+        );
+        reg.update_state(
+            &h.author_id("find-toggle-case"),
+            EditorActionState::toggle(true),
+        );
+        assert!(
+            reg.state_changed_since_last_push(),
+            "flipping checked is a change"
+        );
     }
 
     #[test]
@@ -771,17 +1050,33 @@ mod tests {
         // An absent node's state churn must not trigger a push (it is not emitted).
         let mut reg = EditorActionRegistry::new();
         let h = reg.register(PaneType::Code, 0);
-        reg.upsert(h.author_id("save"), AxRole::Button, "Save", EditorActionState::button());
+        reg.upsert(
+            h.author_id("save"),
+            AxRole::Button,
+            "Save",
+            EditorActionState::button(),
+        );
         assert!(reg.state_changed_since_last_push());
-        reg.upsert(h.author_id("find-next"), AxRole::Button, "Find next", EditorActionState::absent());
+        reg.upsert(
+            h.author_id("find-next"),
+            AxRole::Button,
+            "Find next",
+            EditorActionState::absent(),
+        );
         // Adding an ABSENT node does not change the present-set hash.
-        assert!(!reg.state_changed_since_last_push(), "absent node does not change the push hash");
+        assert!(
+            !reg.state_changed_since_last_push(),
+            "absent node does not change the push hash"
+        );
     }
 
     #[test]
     fn role_maps_to_field_correct_accesskit_role() {
         assert_eq!(AxRole::Button.accesskit_role(), accesskit::Role::Button);
         // accesskit 0.21.1 has no ToggleButton; the field-correct two-state role is CheckBox.
-        assert_eq!(AxRole::ToggleButton.accesskit_role(), accesskit::Role::CheckBox);
+        assert_eq!(
+            AxRole::ToggleButton.accesskit_role(),
+            accesskit::Role::CheckBox
+        );
     }
 }

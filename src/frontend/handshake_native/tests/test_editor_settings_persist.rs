@@ -80,7 +80,11 @@ impl SettingsTransport for StubSettingsTransport {
         s.load_calls += 1;
         Ok(s.load_result.clone())
     }
-    fn save(&self, _workspace_id: &str, settings_state: Value) -> Result<(), SettingsTransportError> {
+    fn save(
+        &self,
+        _workspace_id: &str,
+        settings_state: Value,
+    ) -> Result<(), SettingsTransportError> {
         let mut s = self.inner.lock().unwrap();
         s.save_calls += 1;
         s.saved = Some(settings_state);
@@ -154,37 +158,62 @@ fn editor_prefs_change_persists_via_existing_put_and_reloads() {
 
     // The live settings now hold the new prefs.
     assert_eq!(
-        harness.state().workspace_settings().editor_prefs, new_prefs,
+        harness.state().workspace_settings().editor_prefs,
+        new_prefs,
         "AC-001: the editor prefs change is held in the live settings"
     );
     // AC-002: editor font size change did NOT change the chrome theme (separate surfaces).
     assert_eq!(
-        harness.state().workspace_settings().theme, chrome_theme_before,
+        harness.state().workspace_settings().theme,
+        chrome_theme_before,
         "AC-002: editor font size is a separate field from the chrome appearance"
     );
 
     // AC-001 / AC-009: the change persists via the existing debounced PUT (the ONLY save surface).
     let saved = run_until(&mut harness, 80, |_| transport.save_calls() >= 1);
-    assert!(saved, "AC-001/AC-009: editor prefs persisted via PUT /workspaces/{{id}}/settings");
+    assert!(
+        saved,
+        "AC-001/AC-009: editor prefs persisted via PUT /workspaces/{{id}}/settings"
+    );
 
     let blob = transport.saved().expect("a settings_state blob was PUT");
     let obj = blob.as_object().expect("settings_state is an object");
 
     // AC-001: the PUT blob carries all five editor pref values under editor_prefs.
-    let ep = obj.get("editor_prefs").and_then(Value::as_object).expect("editor_prefs key");
-    assert_eq!(ep.get("editor_font_size").and_then(Value::as_f64), Some(22.0));
-    assert_eq!(ep.get("tab_size").and_then(Value::as_u64), Some(8));
-    assert_eq!(ep.get("insert_spaces").and_then(Value::as_bool), Some(false));
-    assert_eq!(ep.get("render_whitespace").and_then(Value::as_str), Some("all"));
+    let ep = obj
+        .get("editor_prefs")
+        .and_then(Value::as_object)
+        .expect("editor_prefs key");
     assert_eq!(
-        ep.get("word_wrap").and_then(|w| w.get("boundedColumn")).and_then(Value::as_u64),
+        ep.get("editor_font_size").and_then(Value::as_f64),
+        Some(22.0)
+    );
+    assert_eq!(ep.get("tab_size").and_then(Value::as_u64), Some(8));
+    assert_eq!(
+        ep.get("insert_spaces").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        ep.get("render_whitespace").and_then(Value::as_str),
+        Some("all")
+    );
+    assert_eq!(
+        ep.get("word_wrap")
+            .and_then(|w| w.get("boundedColumn"))
+            .and_then(Value::as_u64),
         Some(100),
         "AC-001: bounded word-wrap column round-trips through the PUT blob"
     );
 
     // AC-002: editor_font_size is under editor_prefs, NOT a top-level chrome key; theme is its own key.
-    assert!(!obj.contains_key("editor_font_size"), "AC-002: editor font size is NOT a chrome top-level key");
-    assert!(obj.contains_key("theme"), "AC-002: chrome appearance (theme) is its own top-level key");
+    assert!(
+        !obj.contains_key("editor_font_size"),
+        "AC-002: editor font size is NOT a chrome top-level key"
+    );
+    assert!(
+        obj.contains_key("theme"),
+        "AC-002: chrome appearance (theme) is its own top-level key"
+    );
 
     // AC-001 (reload side): a NEW app GET-loading this exact blob reloads identical editor prefs.
     let reload_transport = StubSettingsTransport::with_loaded(Some(blob));
@@ -228,8 +257,15 @@ fn editor_prefs_change_drives_the_live_code_panel() {
     // Baseline: the mounted panel holds the seeded defaults (tab 4, spaces on, no whitespace glyphs, no
     // wrap) BEFORE any settings change reaches it.
     let panel0 = harness.state().mounted_code_panel();
-    assert_eq!(panel0.indent_settings(), (4, true), "baseline indent = default (4, spaces)");
-    assert!(!panel0.render_whitespace(), "baseline render-whitespace OFF");
+    assert_eq!(
+        panel0.indent_settings(),
+        (4, true),
+        "baseline indent = default (4, spaces)"
+    );
+    assert!(
+        !panel0.render_whitespace(),
+        "baseline render-whitespace OFF"
+    );
     assert!(!panel0.is_wrap_enabled(), "baseline word-wrap OFF");
 
     // Apply a full editor-prefs change through the same wired outcome the live controls produce.
@@ -257,7 +293,10 @@ fn editor_prefs_change_drives_the_live_code_panel() {
         panel.render_whitespace(),
         "MT-072 note 87: render_whitespace=All draws whitespace on the live panel"
     );
-    assert!(panel.is_wrap_enabled(), "MT-072 note 87: word_wrap enabled on the live panel");
+    assert!(
+        panel.is_wrap_enabled(),
+        "MT-072 note 87: word_wrap enabled on the live panel"
+    );
     assert_eq!(
         panel.wrap_config().wrap_column,
         Some(100),
@@ -305,9 +344,19 @@ fn loaded_editor_prefs_apply_to_the_live_code_panel() {
         (2, false),
         "loaded editor prefs (tab 2, hard tabs) applied to the live code panel"
     );
-    assert!(panel.render_whitespace(), "loaded render_whitespace=boundary draws on the live panel");
-    assert!(panel.is_wrap_enabled(), "loaded word_wrap=on enabled wrap on the live panel");
-    assert_eq!(panel.wrap_config().wrap_column, None, "word_wrap=on wraps at the viewport edge (no column)");
+    assert!(
+        panel.render_whitespace(),
+        "loaded render_whitespace=boundary draws on the live panel"
+    );
+    assert!(
+        panel.is_wrap_enabled(),
+        "loaded word_wrap=on enabled wrap on the live panel"
+    );
+    assert_eq!(
+        panel.wrap_config().wrap_column,
+        None,
+        "word_wrap=on wraps at the viewport edge (no column)"
+    );
 }
 
 // ── AC-006: a legacy WP-011-era settings doc (no editor keys) loads cleanly via GET ──────────────────
@@ -338,7 +387,10 @@ fn legacy_settings_doc_loads_cleanly_without_editor_keys() {
     // fields are the defaults (AC-006).
     let loaded = run_until(&mut harness, 80, |_app| transport.load_calls() >= 1);
     assert!(loaded, "AC-006: the legacy settings doc loaded via GET");
-    assert!(harness.state().settings_open(), "AC-006: the dialog stayed open against a legacy doc");
+    assert!(
+        harness.state().settings_open(),
+        "AC-006: the dialog stayed open against a legacy doc"
+    );
     assert_eq!(
         harness.state().workspace_settings().editor_prefs,
         EditorPrefs::default(),
@@ -355,7 +407,10 @@ fn legacy_settings_doc_loads_cleanly_without_editor_keys() {
     );
     // And the Editor section still renders (the legacy load did not break the dialog body).
     harness.run();
-    assert!(harness.query_by_label("Editor").is_some(), "AC-006: Editor section renders after legacy load");
+    assert!(
+        harness.query_by_label("Editor").is_some(),
+        "AC-006: Editor section renders after legacy load"
+    );
 }
 
 // ── AC-005 (persistence side) / RISK-001: editor keybinding override persists in the SEPARATE list ───
@@ -387,7 +442,10 @@ fn editor_keybinding_override_persists_outside_the_app_keybindings_map() {
     let obj = blob.as_object().unwrap();
 
     // RISK-001: the override is in the SEPARATE editor_keybindings list...
-    let editor_kb = obj.get("editor_keybindings").and_then(Value::as_array).expect("editor_keybindings");
+    let editor_kb = obj
+        .get("editor_keybindings")
+        .and_then(Value::as_array)
+        .expect("editor_keybindings");
     assert!(
         editor_kb.iter().any(|e| {
             e.get("action").and_then(Value::as_str) == Some("code.open_find")
@@ -404,7 +462,9 @@ fn editor_keybinding_override_persists_outside_the_app_keybindings_map() {
         "RISK-001: the backend-validated keybindings map keeps EXACTLY the two app actions, got {:?}",
         kb.keys().collect::<Vec<_>>()
     );
-    assert!(kb.contains_key("app.quick_switcher.open") && kb.contains_key("app.command_palette.open"));
+    assert!(
+        kb.contains_key("app.quick_switcher.open") && kb.contains_key("app.command_palette.open")
+    );
     assert!(
         !kb.contains_key("code.open_find"),
         "RISK-001: the editor binding did NOT leak into the backend-validated keybindings map"

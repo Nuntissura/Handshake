@@ -139,8 +139,12 @@ pub fn build_outline(doc: &BlockNode) -> Vec<OutlineNode> {
     // 1) Collect the flat ordered list of in-scope headings.
     let mut flat: Vec<FlatHeading> = Vec::new();
     for (idx, child) in doc.children.iter().enumerate() {
-        let Some(block) = child.as_block() else { continue };
-        let Some(level) = block.heading_level() else { continue };
+        let Some(block) = child.as_block() else {
+            continue;
+        };
+        let Some(level) = block.heading_level() else {
+            continue;
+        };
         // heading_level() is always 1..=3 (HeadingLevel clamps), but guard explicitly so the 1..=3
         // contract is enforced HERE rather than relied upon (AC-002 belt-and-braces).
         if !(1..=3).contains(&level) {
@@ -154,7 +158,12 @@ pub fn build_outline(doc: &BlockNode) -> Vec<OutlineNode> {
         // coordinate space (RISK-002 / MC-002: ONE coordinate space shared with the caret model).
         let first_pos = DocPosition::new(vec![idx, 0], 0);
         let char_offset = absolute_offset(doc, &first_pos);
-        flat.push(FlatHeading { block_id, level, text, char_offset });
+        flat.push(FlatHeading {
+            block_id,
+            level,
+            text,
+            char_offset,
+        });
     }
 
     // 2) Fold the flat list into a nested tree by the heading-stack algorithm. The stack holds the PATH
@@ -200,7 +209,10 @@ pub fn build_outline(doc: &BlockNode) -> Vec<OutlineNode> {
 /// Resolve a path (sequence of child indices) into a mutable node within the `roots` forest. The first
 /// index selects a root; each subsequent index descends into `children`. Returns `None` for an
 /// out-of-range path (never panics).
-fn node_at_path_mut<'a>(roots: &'a mut [OutlineNode], path: &[usize]) -> Option<&'a mut OutlineNode> {
+fn node_at_path_mut<'a>(
+    roots: &'a mut [OutlineNode],
+    path: &[usize],
+) -> Option<&'a mut OutlineNode> {
     let (first, rest) = path.split_first()?;
     let mut node = roots.get_mut(*first)?;
     for &i in rest {
@@ -225,7 +237,10 @@ fn block_plain_text(block: &BlockNode) -> String {
 /// `new_roots` whose `block_id` was collapsed in `old_roots`, set its `collapsed` flag. Recurses into
 /// children. A heading that no longer exists simply drops out (its collapse state is forgotten); a new
 /// heading defaults to expanded.
-fn carry_forward_collapse(new_roots: &mut [OutlineNode], collapsed_ids: &std::collections::HashSet<String>) {
+fn carry_forward_collapse(
+    new_roots: &mut [OutlineNode],
+    collapsed_ids: &std::collections::HashSet<String>,
+) {
     for node in new_roots.iter_mut() {
         if collapsed_ids.contains(&node.block_id) {
             node.collapsed = true;
@@ -321,7 +336,8 @@ impl OutlinePanel {
             // the `rich-editor-outline` author_id + Role::Tree (AC-005). The container is non-interactive
             // (no Click action) — it is a navigable group, not a control.
             ui.scope_builder(
-                egui::UiBuilder::new().id_salt(("rich-editor-outline-container", OUTLINE_NODE_ID_BASE)),
+                egui::UiBuilder::new()
+                    .id_salt(("rich-editor-outline-container", OUTLINE_NODE_ID_BASE)),
                 |ui| {
                     let container_id = ui.unique_id();
                     ui.ctx().accesskit_node_builder(container_id, |node| {
@@ -401,10 +417,15 @@ fn render_one(
         // Collapse caret for nodes with children (a manual triangle toggle). A leaf reserves the same
         // width so labels align.
         if node.has_children() {
-            let caret = if node.collapsed { "\u{25B6}" } else { "\u{25BC}" }; // ▶ / ▼
-            let caret_resp = ui.add(egui::Label::new(
-                egui::RichText::new(caret).color(palette.text_subtle),
-            ).sense(egui::Sense::click()));
+            let caret = if node.collapsed {
+                "\u{25B6}"
+            } else {
+                "\u{25BC}"
+            }; // ▶ / ▼
+            let caret_resp = ui.add(
+                egui::Label::new(egui::RichText::new(caret).color(palette.text_subtle))
+                    .sense(egui::Sense::click()),
+            );
             // The caret carries its own stable author_id so a swarm agent can collapse/expand a subtree.
             crate::accessibility::emit_interactive_node(
                 ui.ctx(),
@@ -483,14 +504,22 @@ mod tests {
         let h1 = &roots[0];
         assert_eq!(h1.level, 1);
         assert_eq!(h1.text, "Alpha");
-        assert_eq!(h1.block_id, block_author_id(&[0]), "h1 carries its real re-block block_id");
+        assert_eq!(
+            h1.block_id,
+            block_author_id(&[0]),
+            "h1 carries its real re-block block_id"
+        );
         assert_eq!(h1.children.len(), 2, "both h2 are children of the h1");
         assert_eq!(h1.children[0].text, "Beta");
         assert_eq!(h1.children[1].text, "Gamma");
         assert_eq!(h1.children[0].block_id, block_author_id(&[1]));
         assert_eq!(h1.children[1].block_id, block_author_id(&[2]));
         // The h3 is a child of the SECOND h2 (Gamma), in document order.
-        assert_eq!(h1.children[1].children.len(), 1, "the h3 nests under the 2nd h2");
+        assert_eq!(
+            h1.children[1].children.len(),
+            1,
+            "the h3 nests under the 2nd h2"
+        );
         assert_eq!(h1.children[1].children[0].text, "Delta");
         assert_eq!(h1.children[1].children[0].level, 3);
         assert_eq!(h1.children[1].children[0].block_id, block_author_id(&[3]));
@@ -530,11 +559,18 @@ mod tests {
         // Two headings total: the h1 root + the h2 child.
         assert_eq!(roots.len(), 1, "one root heading");
         assert_eq!(roots[0].text, "Title");
-        assert_eq!(roots[0].children.len(), 1, "the h2 is the only other outline entry");
+        assert_eq!(
+            roots[0].children.len(),
+            1,
+            "the h2 is the only other outline entry"
+        );
         assert_eq!(roots[0].children[0].text, "Section");
         // No paragraph/code/list block leaked in as an outline node.
         let total = count_nodes(&roots);
-        assert_eq!(total, 2, "exactly the 2 headings appear; paragraphs/code/lists are excluded");
+        assert_eq!(
+            total, 2,
+            "exactly the 2 headings appear; paragraphs/code/lists are excluded"
+        );
     }
 
     #[test]
@@ -546,7 +582,11 @@ mod tests {
             BlockNode::heading(2, "Child of H1"),
         ]);
         let roots = build_outline(&doc);
-        assert_eq!(roots.len(), 2, "the orphan h2 and the later h1 are both roots");
+        assert_eq!(
+            roots.len(),
+            2,
+            "the orphan h2 and the later h1 are both roots"
+        );
         assert_eq!(roots[0].text, "Orphan H2");
         assert!(roots[0].children.is_empty());
         assert_eq!(roots[1].text, "Later H1");
@@ -569,7 +609,10 @@ mod tests {
         assert!(panel.sync(&state), "first sync always builds");
         assert_eq!(count_nodes(&panel.roots), 4);
         // A second sync with no document change MUST NOT rebuild (revision unchanged).
-        assert!(!panel.sync(&state), "no rebuild on an unchanged-revision frame (RISK-001/MC-001)");
+        assert!(
+            !panel.sync(&state),
+            "no rebuild on an unchanged-revision frame (RISK-001/MC-001)"
+        );
     }
 
     #[test]
@@ -584,10 +627,20 @@ mod tests {
         let h1_id = block_author_id(&[0]);
         toggle_collapsed(&mut panel.roots, &h1_id);
         assert!(panel.roots[0].collapsed, "h1 collapsed by the user");
-        state.doc.children.push(Child::Block(BlockNode::heading(2, "Epsilon")));
+        state
+            .doc
+            .children
+            .push(Child::Block(BlockNode::heading(2, "Epsilon")));
         // The revision advanced -> sync rebuilds and includes the new heading.
-        assert!(panel.sync(&state), "adding a heading advances the revision -> rebuild");
-        assert_eq!(count_nodes(&panel.roots), 5, "the new Epsilon heading appears");
+        assert!(
+            panel.sync(&state),
+            "adding a heading advances the revision -> rebuild"
+        );
+        assert_eq!(
+            count_nodes(&panel.roots),
+            5,
+            "the new Epsilon heading appears"
+        );
         // AC-006: the user's collapse of the h1 survived the rebuild.
         assert!(
             panel.roots[0].collapsed,
@@ -607,18 +660,28 @@ mod tests {
         // Mutate the paragraph text.
         if let Some(p) = state.doc.children.get_mut(1).and_then(Child::as_block_mut) {
             if let Some(t) = p.children.get_mut(0).and_then(Child::as_text_mut) {
-                t.text = crate::rich_editor::document_model::rope_text::RopeText::from_str("body edited longer");
+                t.text = crate::rich_editor::document_model::rope_text::RopeText::from_str(
+                    "body edited longer",
+                );
             }
         }
         let rev_after = state.doc_revision();
-        assert_eq!(rev_before, rev_after, "a non-heading edit must not change the heading revision");
+        assert_eq!(
+            rev_before, rev_after,
+            "a non-heading edit must not change the heading revision"
+        );
         // Retitling the HEADING, by contrast, MUST change it.
         if let Some(h) = state.doc.children.get_mut(0).and_then(Child::as_block_mut) {
             if let Some(t) = h.children.get_mut(0).and_then(Child::as_text_mut) {
-                t.text = crate::rich_editor::document_model::rope_text::RopeText::from_str("New Title");
+                t.text =
+                    crate::rich_editor::document_model::rope_text::RopeText::from_str("New Title");
             }
         }
-        assert_ne!(rev_after, state.doc_revision(), "retitling a heading must change the revision");
+        assert_ne!(
+            rev_after,
+            state.doc_revision(),
+            "retitling a heading must change the revision"
+        );
     }
 
     #[test]
@@ -628,9 +691,15 @@ mod tests {
         let bid = block_author_id(&[0]);
         let entry = outline_entry_author_id(&bid);
         assert!(entry.starts_with("outline.heading."));
-        assert_ne!(entry, bid, "the entry id is namespaced, not the bare block id");
+        assert_ne!(
+            entry, bid,
+            "the entry id is namespaced, not the bare block id"
+        );
         assert_ne!(entry, OUTLINE_CONTAINER_AUTHOR_ID);
-        assert!(!entry.starts_with("re-block-"), "must not collide with the editor block-node namespace");
+        assert!(
+            !entry.starts_with("re-block-"),
+            "must not collide with the editor block-node namespace"
+        );
     }
 
     /// Count every node in an outline forest (recursive) for the exclusion/total assertions.

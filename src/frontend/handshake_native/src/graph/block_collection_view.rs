@@ -114,27 +114,42 @@ pub fn table_sort_author_id(field: BlockViewField) -> String {
 
 /// The stable AccessKit author_id for a table row (`bcv.table.row.{block_id}`), block id sanitized.
 pub fn table_row_author_id(block_id: &str) -> String {
-    format!("{TABLE_ROW_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{TABLE_ROW_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// The stable AccessKit author_id for a Kanban lane (`bcv.kanban.lane.{key}`), lane key sanitized.
 pub fn kanban_lane_author_id(lane_key: &str) -> String {
-    format!("{KANBAN_LANE_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(lane_key))
+    format!(
+        "{KANBAN_LANE_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(lane_key)
+    )
 }
 
 /// The stable AccessKit author_id for a Kanban card (`bcv.kanban.card.{block_id}`), block id sanitized.
 pub fn kanban_card_author_id(block_id: &str) -> String {
-    format!("{KANBAN_CARD_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{KANBAN_CARD_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 /// The stable AccessKit author_id for a calendar day header (`bcv.calendar.day.{date}`), key sanitized.
 pub fn calendar_day_author_id(date_key: &str) -> String {
-    format!("{CALENDAR_DAY_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(date_key))
+    format!(
+        "{CALENDAR_DAY_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(date_key)
+    )
 }
 
 /// The stable AccessKit author_id for a calendar entry (`bcv.calendar.entry.{block_id}`), id sanitized.
 pub fn calendar_entry_author_id(block_id: &str) -> String {
-    format!("{CALENDAR_ENTRY_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(block_id))
+    format!(
+        "{CALENDAR_ENTRY_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(block_id)
+    )
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -426,7 +441,11 @@ impl LoomBlockRow {
 }
 
 fn yes_no(b: bool) -> String {
-    if b { "yes".to_owned() } else { "no".to_owned() }
+    if b {
+        "yes".to_owned()
+    } else {
+        "no".to_owned()
+    }
 }
 
 /// One Kanban lane: a grouping key + the blocks in it (already server-side sorted/grouped). The native
@@ -545,10 +564,7 @@ pub enum BlockViewEvent {
         date_to: Option<String>,
     },
     /// Create a new saved view (`createBlockView({title, definition})`), then switch to its block id.
-    CreateView {
-        title: String,
-        kind: BlockViewKind,
-    },
+    CreateView { title: String, kind: BlockViewKind },
     /// WP-KERNEL-012 MT-042: open a block (a row / card / entry / swarm `collection.open-block` dispatch)
     /// in the active editor pane (the cross-pane open the MT names). The host routes it through the E5
     /// navigation bus; the local results vec is NOT mutated (the view is a projection).
@@ -564,7 +580,10 @@ struct NewViewForm {
 
 impl Default for NewViewForm {
     fn default() -> Self {
-        Self { title: String::new(), kind: BlockViewKind::Table }
+        Self {
+            title: String::new(),
+            kind: BlockViewKind::Table,
+        }
     }
 }
 
@@ -666,7 +685,10 @@ impl BlockCollectionView {
     // ── WP-KERNEL-012 MT-042 (E7): knowledge AccessKit action surface ─────────────────────────────
 
     /// Install the shared knowledge AccessKit action registry (the MT-041 `install_*` pattern).
-    pub fn install_knowledge_action_registry(&mut self, registry: Arc<Mutex<KnowledgeActionRegistry>>) {
+    pub fn install_knowledge_action_registry(
+        &mut self,
+        registry: Arc<Mutex<KnowledgeActionRegistry>>,
+    ) {
         self.knowledge_registry = Some(registry);
     }
 
@@ -677,7 +699,9 @@ impl BlockCollectionView {
     /// so a swarm agent can assert which lane a card is in). Fully re-derived each frame so a vanished
     /// row/lane DISAPPEARS (deletion-by-absence — IN-042-10).
     pub fn sync_knowledge_registry(&self) {
-        let Some(registry) = &self.knowledge_registry else { return };
+        let Some(registry) = &self.knowledge_registry else {
+            return;
+        };
         let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
         reg.clear_nodes();
         for entry in COLLECTION_CONTROL_CATALOG {
@@ -687,20 +711,45 @@ impl BlockCollectionView {
         // Flat table/calendar rows.
         for row in &results.blocks {
             let author = knowledge_action_registry::collection_row_author_id(&row.block_id);
-            let value = Some(format!("block_id={};content_type={}", row.block_id, row.content_type));
-            reg.upsert_identity(author, KAxRole::Row, row.display_title().to_owned(), value, KnowledgeNodeState::present());
+            let value = Some(format!(
+                "block_id={};content_type={}",
+                row.block_id, row.content_type
+            ));
+            reg.upsert_identity(
+                author,
+                KAxRole::Row,
+                row.display_title().to_owned(),
+                value,
+                KnowledgeNodeState::present(),
+            );
         }
         // Kanban lanes + the rows inside them (a card is also a row identity, keyed by block_id, so a
         // swarm agent reads which lane a block is in via the lane's value membership list).
         for lane in &results.groups {
             let lane_author = knowledge_action_registry::collection_lane_author_id(&lane.key);
             let members: Vec<&str> = lane.blocks.iter().map(|b| b.block_id.as_str()).collect();
-            let value = Some(format!("lane_key={};members={}", lane.key, members.join(",")));
-            reg.upsert_identity(lane_author, KAxRole::Group, lane.label().to_owned(), value, KnowledgeNodeState::present());
+            let value = Some(format!(
+                "lane_key={};members={}",
+                lane.key,
+                members.join(",")
+            ));
+            reg.upsert_identity(
+                lane_author,
+                KAxRole::Group,
+                lane.label().to_owned(),
+                value,
+                KnowledgeNodeState::present(),
+            );
             for row in &lane.blocks {
                 let author = knowledge_action_registry::collection_row_author_id(&row.block_id);
                 let value = Some(format!("block_id={};lane={}", row.block_id, lane.key));
-                reg.upsert_identity(author, KAxRole::Row, row.display_title().to_owned(), value, KnowledgeNodeState::present());
+                reg.upsert_identity(
+                    author,
+                    KAxRole::Row,
+                    row.display_title().to_owned(),
+                    value,
+                    KnowledgeNodeState::present(),
+                );
             }
         }
     }
@@ -709,7 +758,10 @@ impl BlockCollectionView {
     /// after [`Self::sync_knowledge_registry`]). No-op if no registry is installed.
     pub fn emit_knowledge_accesskit(&self, ui: &egui::Ui) {
         if let Some(registry) = &self.knowledge_registry {
-            registry.lock().unwrap_or_else(|e| e.into_inner()).emit_into_tree(ui);
+            registry
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .emit_into_tree(ui);
         }
     }
 
@@ -736,8 +788,13 @@ impl BlockCollectionView {
     /// `OpenBlock` (the swarm open-by-identity path). The local lane/results vecs are NEVER mutated — the
     /// re-query is truth (the load-bearing no-client-side-mutation invariant).
     pub fn take_knowledge_dispatched(&mut self, ui: &egui::Ui) -> Vec<BlockViewEvent> {
-        let Some(registry) = &self.knowledge_registry else { return Vec::new() };
-        let dispatched = registry.lock().unwrap_or_else(|e| e.into_inner()).take_dispatched(ui);
+        let Some(registry) = &self.knowledge_registry else {
+            return Vec::new();
+        };
+        let dispatched = registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take_dispatched(ui);
         let mut events = Vec::new();
         for (author_id, payload) in dispatched {
             // Mutation actions are rejected while a prior mutation is in flight (CTRL-042-04 — the single
@@ -752,13 +809,21 @@ impl BlockCollectionView {
             }
             match author_id.as_str() {
                 "collection.sort" => {
-                    if let Some(p) = knowledge_action_registry::parse_payload::<SortPayload>(payload.as_deref()) {
+                    if let Some(p) =
+                        knowledge_action_registry::parse_payload::<SortPayload>(payload.as_deref())
+                    {
                         if let Some(field) = BlockViewField::parse_str(&p.field) {
                             // direction omitted -> flip the current (the React flipDirection rule).
                             let current = self.definition.as_ref().and_then(|d| d.sort);
                             let sort = match p.direction.as_deref() {
-                                Some("asc") => BlockViewSort { field, direction: BlockViewSortDirection::Asc },
-                                Some("desc") => BlockViewSort { field, direction: BlockViewSortDirection::Desc },
+                                Some("asc") => BlockViewSort {
+                                    field,
+                                    direction: BlockViewSortDirection::Asc,
+                                },
+                                Some("desc") => BlockViewSort {
+                                    field,
+                                    direction: BlockViewSortDirection::Desc,
+                                },
                                 _ => flip_direction(current, field),
                             };
                             events.push(BlockViewEvent::Sort { sort });
@@ -766,11 +831,21 @@ impl BlockCollectionView {
                     }
                 }
                 "collection.kanban-move" => {
-                    if let Some(p) = knowledge_action_registry::parse_payload::<KanbanMovePayload>(payload.as_deref()) {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<KanbanMovePayload>(
+                        payload.as_deref(),
+                    ) {
                         // The contract's from_lane/to_lane; from_lane "" resolves from the live groups.
-                        let from = if p.from_lane.is_empty() { self.lane_of_block(&p.block_id) } else { p.from_lane };
+                        let from = if p.from_lane.is_empty() {
+                            self.lane_of_block(&p.block_id)
+                        } else {
+                            p.from_lane
+                        };
                         let (add_tags, remove_tags) = card_move_tags(&from, &p.to_lane);
-                        events.push(BlockViewEvent::CardMove { block_id: p.block_id, add_tags, remove_tags });
+                        events.push(BlockViewEvent::CardMove {
+                            block_id: p.block_id,
+                            add_tags,
+                            remove_tags,
+                        });
                     }
                 }
                 "collection.filter" => {
@@ -779,7 +854,9 @@ impl BlockCollectionView {
                     // surface the dispatch as a status note + no event so it is discoverable but honest.
                     tracing::info!("collection.filter dispatched (generic field filter is a documented typed gap this MT — no silent backend write)");
                 }
-                "collection.calendar-next" | "collection.calendar-prev" | "collection.calendar-today" => {
+                "collection.calendar-next"
+                | "collection.calendar-prev"
+                | "collection.calendar-today" => {
                     // Calendar navigation shifts the date window; emit a DateRange the host re-queries.
                     // This MT wires the DISPATCH seam; the concrete window math reuses the existing
                     // date_from/date_to inputs the host already round-trips (no new client-side bucketing).
@@ -790,14 +867,20 @@ impl BlockCollectionView {
                     });
                 }
                 "collection.open-block" => {
-                    if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(payload.as_deref()) {
-                        events.push(BlockViewEvent::OpenBlock { block_id: p.block_id });
+                    if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(
+                        payload.as_deref(),
+                    ) {
+                        events.push(BlockViewEvent::OpenBlock {
+                            block_id: p.block_id,
+                        });
                     }
                 }
                 other => {
                     // A per-identity `collection.row.<sanitized_block_id>` click -> open that block. Lanes
                     // (`collection.lane.<tag>`) are containers, not openable; a click is a no-op.
-                    if let Some(stripped) = other.strip_prefix(knowledge_action_registry::COLLECTION_ROW_AUTHOR_ID_PREFIX) {
+                    if let Some(stripped) = other
+                        .strip_prefix(knowledge_action_registry::COLLECTION_ROW_AUTHOR_ID_PREFIX)
+                    {
                         if let Some(block_id) = self.block_id_for_sanitized(stripped) {
                             events.push(BlockViewEvent::OpenBlock { block_id });
                         }
@@ -813,7 +896,10 @@ impl BlockCollectionView {
     fn block_id_for_sanitized(&self, sanitized: &str) -> Option<String> {
         let results = self.results.as_ref()?;
         let in_blocks = results.blocks.iter().map(|b| &b.block_id);
-        let in_lanes = results.groups.iter().flat_map(|l| l.blocks.iter().map(|b| &b.block_id));
+        let in_lanes = results
+            .groups
+            .iter()
+            .flat_map(|l| l.blocks.iter().map(|b| &b.block_id));
         in_blocks
             .chain(in_lanes)
             .find(|id| crate::project_tree::stable_part(id) == sanitized)
@@ -861,7 +947,11 @@ impl BlockCollectionView {
         }
 
         // ── Mode strip: kind switcher + status + new-view button ─────────────────────────────────────
-        let current_kind = self.definition.as_ref().map(|d| d.kind).unwrap_or(BlockViewKind::Table);
+        let current_kind = self
+            .definition
+            .as_ref()
+            .map(|d| d.kind)
+            .unwrap_or(BlockViewKind::Table);
         ui.horizontal(|ui| {
             if let Some(ev) = self.kind_switcher(ui, current_kind) {
                 event = Some(ev);
@@ -880,7 +970,11 @@ impl BlockCollectionView {
         } else {
             String::new()
         };
-        let status_resp = ui.label(if status_text.is_empty() { " " } else { status_text.as_str() });
+        let status_resp = ui.label(if status_text.is_empty() {
+            " "
+        } else {
+            status_text.as_str()
+        });
         emit_status_node(ui, status_resp.id, STATUS_AUTHOR_ID, &status_text);
         // Only request a repaint while a real mutation is in flight (no perpetual spinner — MT-015).
         if self.in_flight {
@@ -905,7 +999,10 @@ impl BlockCollectionView {
 
         match definition.kind {
             BlockViewKind::Table => {
-                let mut table = TableSubView { definition: &definition, results: &results };
+                let mut table = TableSubView {
+                    definition: &definition,
+                    results: &results,
+                };
                 if let Some(ev) = table.show(ui, palette, self.in_flight) {
                     event = Some(ev);
                 }
@@ -992,7 +1089,13 @@ impl BlockCollectionView {
 
                 ui.horizontal(|ui| {
                     let confirm = ui.button("Create");
-                    emit_button_node(ui, confirm.id, NEW_VIEW_CONFIRM_AUTHOR_ID, "Create view", false);
+                    emit_button_node(
+                        ui,
+                        confirm.id,
+                        NEW_VIEW_CONFIRM_AUTHOR_ID,
+                        "Create view",
+                        false,
+                    );
                     if confirm.clicked() {
                         event = Some(BlockViewEvent::CreateView {
                             title: form.title.trim().to_owned(),
@@ -1042,7 +1145,11 @@ impl BlockCollectionView {
             if tag_grouped {
                 let (add_tags, remove_tags) = card_move_tags(&from_key, &to_key);
                 self.status = "Moving card…".to_owned();
-                return Some(BlockViewEvent::CardMove { block_id, add_tags, remove_tags });
+                return Some(BlockViewEvent::CardMove {
+                    block_id,
+                    add_tags,
+                    remove_tags,
+                });
             }
         }
         None
@@ -1066,7 +1173,12 @@ impl BlockCollectionView {
                     .hint_text("YYYY-MM-DD")
                     .desired_width(110.0),
             );
-            emit_text_field_node(ui, from.id, CALENDAR_DATE_FROM_AUTHOR_ID, &self.date_from_input);
+            emit_text_field_node(
+                ui,
+                from.id,
+                CALENDAR_DATE_FROM_AUTHOR_ID,
+                &self.date_from_input,
+            );
 
             ui.label("To:");
             let to = ui.add(
@@ -1077,12 +1189,21 @@ impl BlockCollectionView {
             emit_text_field_node(ui, to.id, CALENDAR_DATE_TO_AUTHOR_ID, &self.date_to_input);
 
             let apply = ui.button("Apply range");
-            emit_button_node(ui, apply.id, "bcv.calendar.apply-range", "Apply date range", false);
+            emit_button_node(
+                ui,
+                apply.id,
+                "bcv.calendar.apply-range",
+                "Apply date range",
+                false,
+            );
             if apply.clicked() && !self.in_flight {
                 match self.validated_date_range() {
                     Ok((from, to)) => {
                         self.date_error = None;
-                        event = Some(BlockViewEvent::DateRange { date_from: from, date_to: to });
+                        event = Some(BlockViewEvent::DateRange {
+                            date_from: from,
+                            date_to: to,
+                        });
                     }
                     Err(msg) => self.date_error = Some(msg),
                 }
@@ -1094,7 +1215,10 @@ impl BlockCollectionView {
 
         ui.separator();
 
-        let calendar = CalendarSubView { definition, results };
+        let calendar = CalendarSubView {
+            definition,
+            results,
+        };
         calendar.show(ui, palette);
         event
     }
@@ -1104,10 +1228,16 @@ impl BlockCollectionView {
     /// never sent an invalid date that could crash it).
     fn validated_date_range(&self) -> Result<(Option<String>, Option<String>), String> {
         let from = self.validate_one(&self.date_from_input).map_err(|_| {
-            format!("Invalid 'from' date '{}': expected YYYY-MM-DD", self.date_from_input)
+            format!(
+                "Invalid 'from' date '{}': expected YYYY-MM-DD",
+                self.date_from_input
+            )
         })?;
         let to = self.validate_one(&self.date_to_input).map_err(|_| {
-            format!("Invalid 'to' date '{}': expected YYYY-MM-DD", self.date_to_input)
+            format!(
+                "Invalid 'to' date '{}': expected YYYY-MM-DD",
+                self.date_to_input
+            )
         })?;
         Ok((from, to))
     }
@@ -1193,17 +1323,14 @@ impl TableSubView<'_> {
             ui.weak("No blocks match this view.");
             return event;
         }
-        egui::ScrollArea::vertical().auto_shrink([false, false]).show_rows(
-            ui,
-            TABLE_ROW_HEIGHT,
-            row_count,
-            |ui, row_range| {
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show_rows(ui, TABLE_ROW_HEIGHT, row_count, |ui, row_range| {
                 for idx in row_range {
                     let block = &self.results.blocks[idx];
                     self.row(ui, palette, block, &columns);
                 }
-            },
-        );
+            });
         event
     }
 
@@ -1220,8 +1347,10 @@ impl TableSubView<'_> {
         let id = egui::Id::new(&author_id);
         let cells: Vec<String> = columns.iter().map(|&f| block.cell_value(f)).collect();
         let label = cells.join(" | ");
-        let (rect, resp) =
-            ui.allocate_exact_size(egui::vec2(ui.available_width(), TABLE_ROW_HEIGHT), egui::Sense::hover());
+        let (rect, resp) = ui.allocate_exact_size(
+            egui::vec2(ui.available_width(), TABLE_ROW_HEIGHT),
+            egui::Sense::hover(),
+        );
         if ui.is_rect_visible(rect) {
             ui.painter().text(
                 egui::pos2(rect.left() + 4.0, rect.center().y),
@@ -1322,7 +1451,13 @@ impl KanbanSubView<'_> {
     /// Render one draggable card (`bcv.kanban.card.{block_id}`). Drag start records the
     /// [`KanbanDragState`] into both the egui DragAndDrop payload store (so the drop zone reads it) and
     /// the host's `drag` field (so a busy-indicator can show). Dragging is disabled while in flight.
-    fn card(&mut self, ui: &mut egui::Ui, palette: &HsPalette, lane_key: &str, block: &LoomBlockRow) {
+    fn card(
+        &mut self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        lane_key: &str,
+        block: &LoomBlockRow,
+    ) {
         let author_id = kanban_card_author_id(&block.block_id);
         let id = egui::Id::new(&author_id);
         let label = block.display_title().to_owned();
@@ -1336,10 +1471,8 @@ impl KanbanSubView<'_> {
         // mutation is in flight we still render the card but do not start a new drag (busy guard).
         let resp = ui
             .dnd_drag_source(id, state.clone(), |ui| {
-                let (rect, r) = ui.allocate_exact_size(
-                    egui::vec2(168.0, 28.0),
-                    egui::Sense::click_and_drag(),
-                );
+                let (rect, r) =
+                    ui.allocate_exact_size(egui::vec2(168.0, 28.0), egui::Sense::click_and_drag());
                 if ui.is_rect_visible(rect) {
                     ui.painter().rect_filled(rect, 4.0, palette.surface_strong);
                     ui.painter().text(
@@ -1520,42 +1653,94 @@ mod tests {
     fn flip_direction_same_field_toggles_asc_desc() {
         // No current sort -> new field -> asc.
         let s = flip_direction(None, BlockViewField::Title);
-        assert_eq!(s, BlockViewSort { field: BlockViewField::Title, direction: BlockViewSortDirection::Asc });
+        assert_eq!(
+            s,
+            BlockViewSort {
+                field: BlockViewField::Title,
+                direction: BlockViewSortDirection::Asc
+            }
+        );
 
         // Same field currently asc -> desc.
         let s = flip_direction(Some(s), BlockViewField::Title);
-        assert_eq!(s.direction, BlockViewSortDirection::Desc, "same field asc -> desc");
+        assert_eq!(
+            s.direction,
+            BlockViewSortDirection::Desc,
+            "same field asc -> desc"
+        );
 
         // Same field currently desc -> asc.
         let s = flip_direction(Some(s), BlockViewField::Title);
-        assert_eq!(s.direction, BlockViewSortDirection::Asc, "same field desc -> asc");
+        assert_eq!(
+            s.direction,
+            BlockViewSortDirection::Asc,
+            "same field desc -> asc"
+        );
     }
 
     #[test]
     fn flip_direction_new_field_is_asc() {
-        let current = Some(BlockViewSort { field: BlockViewField::Title, direction: BlockViewSortDirection::Desc });
+        let current = Some(BlockViewSort {
+            field: BlockViewField::Title,
+            direction: BlockViewSortDirection::Desc,
+        });
         // A DIFFERENT field always starts at asc, regardless of the prior direction (React rule).
         let s = flip_direction(current, BlockViewField::Updated);
-        assert_eq!(s, BlockViewSort { field: BlockViewField::Updated, direction: BlockViewSortDirection::Asc });
+        assert_eq!(
+            s,
+            BlockViewSort {
+                field: BlockViewField::Updated,
+                direction: BlockViewSortDirection::Asc
+            }
+        );
     }
 
     // ── PROOF1(b): bucketKey for all three date-field variants ───────────────────────────────────────
 
     #[test]
     fn bucket_key_journal_date_uses_value_or_undated() {
-        let b = row("blk-1", "2026-01-01T10:00:00Z", "2026-02-02T11:00:00Z", Some("2026-03-15"));
-        assert_eq!(bucket_key(&b, Some(BlockViewField::JournalDate)), "2026-03-15");
+        let b = row(
+            "blk-1",
+            "2026-01-01T10:00:00Z",
+            "2026-02-02T11:00:00Z",
+            Some("2026-03-15"),
+        );
+        assert_eq!(
+            bucket_key(&b, Some(BlockViewField::JournalDate)),
+            "2026-03-15"
+        );
         // Missing journal_date -> "undated".
-        let b2 = row("blk-2", "2026-01-01T10:00:00Z", "2026-02-02T11:00:00Z", None);
-        assert_eq!(bucket_key(&b2, Some(BlockViewField::JournalDate)), "undated");
+        let b2 = row(
+            "blk-2",
+            "2026-01-01T10:00:00Z",
+            "2026-02-02T11:00:00Z",
+            None,
+        );
+        assert_eq!(
+            bucket_key(&b2, Some(BlockViewField::JournalDate)),
+            "undated"
+        );
         // Empty journal_date string also -> "undated".
-        let b3 = row("blk-3", "2026-01-01T10:00:00Z", "2026-02-02T11:00:00Z", Some(""));
-        assert_eq!(bucket_key(&b3, Some(BlockViewField::JournalDate)), "undated");
+        let b3 = row(
+            "blk-3",
+            "2026-01-01T10:00:00Z",
+            "2026-02-02T11:00:00Z",
+            Some(""),
+        );
+        assert_eq!(
+            bucket_key(&b3, Some(BlockViewField::JournalDate)),
+            "undated"
+        );
     }
 
     #[test]
     fn bucket_key_updated_and_created_slice_iso_date() {
-        let b = row("blk-1", "2026-01-01T10:00:00Z", "2026-02-02T11:00:00Z", None);
+        let b = row(
+            "blk-1",
+            "2026-01-01T10:00:00Z",
+            "2026-02-02T11:00:00Z",
+            None,
+        );
         // updated -> updated_at[0..10]
         assert_eq!(bucket_key(&b, Some(BlockViewField::Updated)), "2026-02-02");
         // created -> created_at[0..10]
@@ -1596,7 +1781,12 @@ mod tests {
 
     #[test]
     fn cell_value_matches_react() {
-        let mut b = row("blk-9", "2026-01-01T00:00:00Z", "2026-02-02T00:00:00Z", Some("2026-03-03"));
+        let mut b = row(
+            "blk-9",
+            "2026-01-01T00:00:00Z",
+            "2026-02-02T00:00:00Z",
+            Some("2026-03-03"),
+        );
         b.title = None;
         b.original_filename = Some("file.md".to_owned());
         // title falls back to original_filename then block_id.
@@ -1620,16 +1810,25 @@ mod tests {
 
     #[test]
     fn lane_label_untagged_else_key() {
-        let untagged = BlockViewLane { key: BLOCK_VIEW_UNTAGGED_LANE.to_owned(), blocks: vec![] };
+        let untagged = BlockViewLane {
+            key: BLOCK_VIEW_UNTAGGED_LANE.to_owned(),
+            blocks: vec![],
+        };
         assert_eq!(untagged.label(), "Untagged");
-        let tag = BlockViewLane { key: "tag-a".to_owned(), blocks: vec![] };
+        let tag = BlockViewLane {
+            key: "tag-a".to_owned(),
+            blocks: vec![],
+        };
         assert_eq!(tag.label(), "tag-a");
     }
 
     #[test]
     fn effective_columns_default_is_title_updated() {
         let def = BlockViewDefinition::of_kind(BlockViewKind::Table);
-        assert_eq!(def.effective_columns(), vec![BlockViewField::Title, BlockViewField::Updated]);
+        assert_eq!(
+            def.effective_columns(),
+            vec![BlockViewField::Title, BlockViewField::Updated]
+        );
         let mut def2 = def;
         def2.columns = vec![BlockViewField::ContentType];
         assert_eq!(def2.effective_columns(), vec![BlockViewField::ContentType]);
@@ -1644,14 +1843,19 @@ mod tests {
         assert!(!is_iso_date("2026/06/21"), "slashes must fail");
         assert!(!is_iso_date("2026-06-21T00:00:00Z"), "datetime must fail");
         assert!(!is_iso_date("nonsense"));
-        assert!(!is_iso_date(""), "empty handled by caller as a cleared bound, not here");
+        assert!(
+            !is_iso_date(""),
+            "empty handled by caller as a cleared bound, not here"
+        );
     }
 
     #[test]
     fn validated_date_range_empty_is_cleared_bound() {
         let v = BlockCollectionView::new("ws", "view-1");
         // Both inputs empty -> both bounds cleared (None), no error.
-        let r = v.validated_date_range().expect("empty inputs are valid (cleared bounds)");
+        let r = v
+            .validated_date_range()
+            .expect("empty inputs are valid (cleared bounds)");
         assert_eq!(r, (None, None));
     }
 
@@ -1659,20 +1863,33 @@ mod tests {
     fn validated_date_range_rejects_bad_shape() {
         let mut v = BlockCollectionView::new("ws", "view-1");
         v.date_from_input = "2026/01/01".to_owned();
-        assert!(v.validated_date_range().is_err(), "bad 'from' shape must be rejected (RISK-5)");
+        assert!(
+            v.validated_date_range().is_err(),
+            "bad 'from' shape must be rejected (RISK-5)"
+        );
         v.date_from_input = "2026-01-01".to_owned();
         v.date_to_input = "bad".to_owned();
-        assert!(v.validated_date_range().is_err(), "bad 'to' shape must be rejected");
+        assert!(
+            v.validated_date_range().is_err(),
+            "bad 'to' shape must be rejected"
+        );
         v.date_to_input = "2026-12-31".to_owned();
         let r = v.validated_date_range().expect("both valid");
-        assert_eq!(r, (Some("2026-01-01".to_owned()), Some("2026-12-31".to_owned())));
+        assert_eq!(
+            r,
+            (Some("2026-01-01".to_owned()), Some("2026-12-31".to_owned()))
+        );
     }
 
     // ── kind/field wire round-trips ──────────────────────────────────────────────────────────────────
 
     #[test]
     fn kind_wire_round_trip() {
-        for k in [BlockViewKind::Table, BlockViewKind::Kanban, BlockViewKind::Calendar] {
+        for k in [
+            BlockViewKind::Table,
+            BlockViewKind::Kanban,
+            BlockViewKind::Calendar,
+        ] {
             assert_eq!(BlockViewKind::parse_str(k.as_str()), k);
         }
         // unknown -> table (never panic on a backend addition).
@@ -1706,11 +1923,16 @@ mod tests {
         assert!(row_id.starts_with(TABLE_ROW_AUTHOR_ID_PREFIX));
         let suffix = &row_id[TABLE_ROW_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "row author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
         // The sort author id uses the fixed enum string.
-        assert_eq!(table_sort_author_id(BlockViewField::Title), "bcv.table.sort.title");
+        assert_eq!(
+            table_sort_author_id(BlockViewField::Title),
+            "bcv.table.sort.title"
+        );
         // A lane key with special chars sanitizes too.
         let lane_id = kanban_lane_author_id("Tag/With:Colon");
         assert!(lane_id.starts_with(KANBAN_LANE_AUTHOR_ID_PREFIX));
@@ -1730,8 +1952,14 @@ mod tests {
     fn calendar_buckets_empty_result_is_empty() {
         let def = BlockViewDefinition::of_kind(BlockViewKind::Calendar);
         let results = BlockViewResults::default();
-        let cal = CalendarSubView { definition: &def, results: &results };
-        assert!(cal.buckets().is_empty(), "AC10: empty result -> no buckets, no panic");
+        let cal = CalendarSubView {
+            definition: &def,
+            results: &results,
+        };
+        assert!(
+            cal.buckets().is_empty(),
+            "AC10: empty result -> no buckets, no panic"
+        );
     }
 
     #[test]
@@ -1741,14 +1969,32 @@ mod tests {
         let results = BlockViewResults {
             kind_str: "calendar".to_owned(),
             blocks: vec![
-                row("b1", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", Some("2026-03-02")),
-                row("b2", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", Some("2026-03-01")),
-                row("b3", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", Some("2026-03-01")),
+                row(
+                    "b1",
+                    "2026-01-01T00:00:00Z",
+                    "2026-01-01T00:00:00Z",
+                    Some("2026-03-02"),
+                ),
+                row(
+                    "b2",
+                    "2026-01-01T00:00:00Z",
+                    "2026-01-01T00:00:00Z",
+                    Some("2026-03-01"),
+                ),
+                row(
+                    "b3",
+                    "2026-01-01T00:00:00Z",
+                    "2026-01-01T00:00:00Z",
+                    Some("2026-03-01"),
+                ),
             ],
             groups: vec![],
             total_returned: 3,
         };
-        let cal = CalendarSubView { definition: &def, results: &results };
+        let cal = CalendarSubView {
+            definition: &def,
+            results: &results,
+        };
         let buckets = cal.buckets();
         // Two distinct day buckets, ordered ascending; the 2026-03-01 bucket holds 2 entries.
         assert_eq!(buckets.len(), 2);

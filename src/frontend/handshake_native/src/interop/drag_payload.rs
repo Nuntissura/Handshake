@@ -230,9 +230,9 @@ impl DragPayload {
                     title: Some(r.display_label()),
                 }
             }),
-            DragPayload::LoomBlockRef(b) => {
-                Some(crate::graph::canvas_board::CanvasDragPayload::new(b.block_id.clone()))
-            }
+            DragPayload::LoomBlockRef(b) => Some(
+                crate::graph::canvas_board::CanvasDragPayload::new(b.block_id.clone()),
+            ),
             DragPayload::PlainText(_) => None,
         }
     }
@@ -279,13 +279,21 @@ mod tests {
     /// The `item_kind` -> `refKind` mapping is in the CKC family and round-trips through `from_ref_kind`.
     #[test]
     fn item_kind_ref_kind_mapping_is_ckc_family() {
-        for kind in [AtelierItemKind::Media, AtelierItemKind::Character, AtelierItemKind::Moodboard] {
+        for kind in [
+            AtelierItemKind::Media,
+            AtelierItemKind::Character,
+            AtelierItemKind::Moodboard,
+        ] {
             let rk = kind.ref_kind();
             assert!(
                 ATELIER_EMBED_REF_KINDS.contains(&rk),
                 "refKind '{rk}' must be in the CKC family {ATELIER_EMBED_REF_KINDS:?}"
             );
-            assert_eq!(AtelierItemKind::from_ref_kind(rk), Some(kind), "round-trips refKind '{rk}'");
+            assert_eq!(
+                AtelierItemKind::from_ref_kind(rk),
+                Some(kind),
+                "round-trips refKind '{rk}'"
+            );
         }
         // The CKC refKinds are DISTINCT from the media-render kinds (so a CKC chip is never routed to the
         // image/video renderer).
@@ -310,10 +318,15 @@ mod tests {
         assert_eq!(link.ref_kind, "character");
         assert_eq!(link.ref_value, "char-9");
         assert_eq!(link.label, "Mira");
-        assert!(link.resolved, "a deliberately dropped item is a resolved reference");
+        assert!(
+            link.resolved,
+            "a deliberately dropped item is a resolved reference"
+        );
         // A non-atelier payload does NOT become an embed atom.
         assert!(DragPayload::PlainText("x".into()).to_hs_link().is_none());
-        assert!(DragPayload::LoomBlockRef(LoomBlockRef::new("b", "w")).to_hs_link().is_none());
+        assert!(DragPayload::LoomBlockRef(LoomBlockRef::new("b", "w"))
+            .to_hs_link()
+            .is_none());
     }
 
     /// RISK-3 / MC-3: an UNRESOLVED atelier item (no `loom_block_id`) is NOT placeable on the canvas
@@ -322,7 +335,8 @@ mod tests {
     #[test]
     fn canvas_drag_payload_requires_a_loom_block_id() {
         // Unresolved atelier item -> no canvas placement.
-        let unresolved = DragPayload::AtelierRef(AtelierRef::new("item-1", AtelierItemKind::Media, "Pic"));
+        let unresolved =
+            DragPayload::AtelierRef(AtelierRef::new("item-1", AtelierItemKind::Media, "Pic"));
         assert!(
             unresolved.canvas_drag_payload().is_none(),
             "RISK-3: an atelier item with no loom_block_id cannot be placed (no fake atelier_item_id POST)"
@@ -334,14 +348,21 @@ mod tests {
             "Pic",
             "blk-7",
         ));
-        let cdp = resolved.canvas_drag_payload().expect("resolved item is placeable");
-        assert_eq!(cdp.block_id, "blk-7", "placed_block_id is the loom block id, not the atelier item id");
+        let cdp = resolved
+            .canvas_drag_payload()
+            .expect("resolved item is placeable");
+        assert_eq!(
+            cdp.block_id, "blk-7",
+            "placed_block_id is the loom block id, not the atelier item id"
+        );
         assert_eq!(cdp.title.as_deref(), Some("Pic"));
         // A LoomBlockRef is always placeable.
         let block = DragPayload::LoomBlockRef(LoomBlockRef::new("blk-9", "ws-1"));
         assert_eq!(block.canvas_drag_payload().unwrap().block_id, "blk-9");
         // Plain text is not a block reference.
-        assert!(DragPayload::PlainText("hi".into()).canvas_drag_payload().is_none());
+        assert!(DragPayload::PlainText("hi".into())
+            .canvas_drag_payload()
+            .is_none());
     }
 
     /// A blank label falls back to `"{refKind}:{item_id}"` so a chip/card is never empty.

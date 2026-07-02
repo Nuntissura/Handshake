@@ -10,17 +10,12 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
 {
     match postgres_backend_from_env().await {
         Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: Kernel V1 Postgres EventLedger tests require POSTGRES_TEST_URL; {msg}"
-            );
-        }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_migration() {
     let db = postgres_or_environment_blocked().await;
 
@@ -31,7 +26,7 @@ async fn kernel_event_ledger_migration() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_replays_by_aggregate_id_in_sequence_order() {
     let db = postgres_or_environment_blocked().await;
 
@@ -87,7 +82,7 @@ async fn kernel_event_ledger_replays_by_aggregate_id_in_sequence_order() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_idempotency_rejects_divergent_duplicate() {
     let db = postgres_or_environment_blocked().await;
 
@@ -134,7 +129,7 @@ async fn kernel_event_ledger_idempotency_rejects_divergent_duplicate() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_contract_metadata_idempotency_and_sequence() {
     let db = postgres_or_environment_blocked().await;
 
@@ -216,7 +211,7 @@ async fn kernel_event_ledger_contract_metadata_idempotency_and_sequence() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_api_appends_and_lists_kernel_events_for_session() {
     let db = postgres_or_environment_blocked().await;
 
@@ -297,7 +292,7 @@ async fn kernel_event_ledger_api_appends_and_lists_kernel_events_for_session() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn durable_claim_and_lease() {
     let db = postgres_or_environment_blocked().await;
 
@@ -366,7 +361,7 @@ async fn durable_claim_and_lease() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn durable_claim_matches_retry_backpressure_and_deadletter_state_table() {
     let db = postgres_or_environment_blocked().await;
 

@@ -35,9 +35,9 @@ use egui::accesskit::Role;
 
 use crate::theme::HsPalette;
 
+use super::draft_manager::DraftManager;
 use super::export::ExportOutput;
 use super::save_manager::{SaveManager, SaveState};
-use super::draft_manager::DraftManager;
 
 // ── AccessKit author_ids (the exact contract ids) ───────────────────────────────────────────────
 
@@ -96,8 +96,14 @@ pub fn show_conflict_window(
     let mut outcome = ConflictOutcome::None;
     let confirming = matches!(save.state, SaveState::ConfirmKeepYours { .. });
     let (server_version, server_blocks, local_blocks) = match &save.state {
-        SaveState::Conflict { server, local_content }
-        | SaveState::ConfirmKeepYours { server, local_content } => (
+        SaveState::Conflict {
+            server,
+            local_content,
+        }
+        | SaveState::ConfirmKeepYours {
+            server,
+            local_content,
+        } => (
             server.doc_version,
             block_summaries(server.content_json.as_ref()),
             block_summaries(Some(local_content)),
@@ -119,7 +125,8 @@ pub fn show_conflict_window(
         ui.add_space(6.0);
         ui.columns(2, |cols| {
             // Left: server version (read-only).
-            cols[0].label(egui::RichText::new(format!("Server version (v{server_version})")).strong());
+            cols[0]
+                .label(egui::RichText::new(format!("Server version (v{server_version})")).strong());
             render_block_list(&mut cols[0], "conflict-server", &server_blocks, palette);
             // Right: your version.
             cols[1].label(egui::RichText::new("Your version").strong());
@@ -197,7 +204,9 @@ fn block_summaries(content_json: Option<&serde_json::Value>) -> Vec<(String, Str
     for child in &doc.children {
         if let Some(b) = child.as_block() {
             let kind = b.kind.to_json_type().to_string();
-            let text = super::export::export_plain_text(&crate::rich_editor::document_model::node::BlockNode::doc(vec![b.clone()]));
+            let text = super::export::export_plain_text(
+                &crate::rich_editor::document_model::node::BlockNode::doc(vec![b.clone()]),
+            );
             out.push((kind, text));
         }
     }
@@ -210,7 +219,12 @@ fn block_summaries(content_json: Option<&serde_json::Value>) -> Vec<(String, Str
 /// Render a read-only block list (kind + text) into `ui` (the conflict comparison panels). `salt`
 /// uniquely identifies the column's ScrollArea so the two panels (server / yours) never share an
 /// egui id (a shared id picks up the wrong panel's scroll/debug state).
-fn render_block_list(ui: &mut egui::Ui, salt: &str, blocks: &[(String, String)], palette: &HsPalette) {
+fn render_block_list(
+    ui: &mut egui::Ui,
+    salt: &str,
+    blocks: &[(String, String)],
+    palette: &HsPalette,
+) {
     egui::ScrollArea::vertical()
         .id_salt(salt)
         .max_height(220.0)
@@ -393,7 +407,8 @@ impl NativeFileSaveSink {
             .name("hs-export-save-dialog".to_string())
             .spawn(move || {
                 let picked = rfd::FileDialog::new().set_file_name(&filename).save_file();
-                let written = picked.and_then(|path| std::fs::write(&path, &bytes).ok().map(|_| path));
+                let written =
+                    picked.and_then(|path| std::fs::write(&path, &bytes).ok().map(|_| path));
                 // Deliver the outcome (Some(path) | None) into the slot the host polls.
                 if let Ok(mut s) = slot_for_thread.lock() {
                     *s = Some(written);
@@ -431,7 +446,9 @@ impl PendingFileSave {
     /// TEST SEAM: a pre-resolved handle (no real dialog) so a headless test can assert the poll-drain
     /// contract without opening OS UI.
     pub fn resolved_for_test(path: Option<PathBuf>) -> Self {
-        Self { slot: Arc::new(Mutex::new(Some(path))) }
+        Self {
+            slot: Arc::new(Mutex::new(Some(path))),
+        }
     }
 }
 
@@ -449,7 +466,9 @@ mod tests {
             filename: "doc.txt".to_string(),
             mime: "text/plain;charset=utf-8".to_string(),
         };
-        let path = sink.save(&output).expect("the path sink writes without a dialog");
+        let path = sink
+            .save(&output)
+            .expect("the path sink writes without a dialog");
         assert_eq!(std::fs::read(&path).unwrap(), b"hello export");
         // Cleanup.
         let _ = std::fs::remove_dir_all(&dir);
@@ -462,7 +481,10 @@ mod tests {
         assert_eq!(CONFLICT_DIALOG_AUTHOR_ID, "conflict-dialog");
         assert_eq!(CONFLICT_KEEP_YOURS_AUTHOR_ID, "conflict-keep-yours");
         assert_eq!(CONFLICT_KEEP_SERVER_AUTHOR_ID, "conflict-keep-server");
-        assert_eq!(CONFLICT_KEEP_YOURS_CONFIRM_AUTHOR_ID, "conflict-keep-yours-confirm");
+        assert_eq!(
+            CONFLICT_KEEP_YOURS_CONFIRM_AUTHOR_ID,
+            "conflict-keep-yours-confirm"
+        );
         assert_eq!(DRAFT_BANNER_AUTHOR_ID, "draft-recovery-banner");
         assert_eq!(DRAFT_RESTORE_AUTHOR_ID, "draft-restore");
         assert_eq!(DRAFT_DISCARD_AUTHOR_ID, "draft-discard");

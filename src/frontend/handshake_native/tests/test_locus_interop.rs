@@ -56,8 +56,12 @@ use handshake_native::interop::{
 use handshake_native::rich_editor::document_model::doc_json::{
     from_json_string, to_content_json_value, to_json_string,
 };
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
+};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::rich_editor::wikilinks::inline_view::{
     chip_colors, chip_label, is_locus_ref, locus_ref_chip_author_id, EditorEvent,
 };
@@ -158,8 +162,13 @@ impl FindNotesSearch for CountingReverseLookup {
         &'a self,
         _workspace_id: &'a str,
         body: &'a LoomSearchV2Body,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>> + Send + 'a>>
-    {
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>>
+                + Send
+                + 'a,
+        >,
+    > {
         self.calls.fetch_add(1, Ordering::SeqCst);
         *self.last_query.lock().unwrap() = Some(body.query.clone());
         let hits = self.hits.clone();
@@ -174,7 +183,12 @@ impl FindNotesSearch for CountingReverseLookup {
     }
 }
 
-fn hit(block_id: &str, title: Option<&str>, content_type: &str, highlight: &str) -> LoomSearchV2Hit {
+fn hit(
+    block_id: &str,
+    title: Option<&str>,
+    content_type: &str,
+    highlight: &str,
+) -> LoomSearchV2Hit {
     LoomSearchV2Hit {
         block: LoomSearchBlock {
             block_id: block_id.to_owned(),
@@ -244,19 +258,34 @@ fn no_reverse_lookup() -> Arc<dyn FindNotesSearch> {
 #[test]
 fn ac001_parse_locus_ref_wp_and_mt() {
     let wp = parse_locus_ref("locus://wp/WP-KERNEL-012").expect("a valid wp ref");
-    assert_eq!(wp.kind, LocusRefKind::WorkPacket, "AC-001: locus://wp -> WorkPacket");
-    assert_eq!(wp.id, "WP-KERNEL-012", "AC-001: the id is extracted (original case)");
-    assert_eq!(wp.normalized, "locus://wp/wp-kernel-012", "AC-001: normalized is the lower-cased key");
+    assert_eq!(
+        wp.kind,
+        LocusRefKind::WorkPacket,
+        "AC-001: locus://wp -> WorkPacket"
+    );
+    assert_eq!(
+        wp.id, "WP-KERNEL-012",
+        "AC-001: the id is extracted (original case)"
+    );
+    assert_eq!(
+        wp.normalized, "locus://wp/wp-kernel-012",
+        "AC-001: normalized is the lower-cased key"
+    );
 
     let mt = parse_locus_ref("locus://mt/MT-034").expect("a valid mt ref");
-    assert_eq!(mt.kind, LocusRefKind::Microtask, "AC-001: locus://mt -> Microtask");
+    assert_eq!(
+        mt.kind,
+        LocusRefKind::Microtask,
+        "AC-001: locus://mt -> Microtask"
+    );
     assert_eq!(mt.id, "MT-034");
     assert_eq!(mt.normalized, "locus://mt/mt-034");
 
     // The prefix-stripped `{kind}/{id}` form the WIKILINK parser emits (`[[locus:wp/WP-KERNEL-012]]` ->
     // ref_value="wp/WP-KERNEL-012") parses to the SAME canonical key as the URI form (the must-fix /
     // RISK-001 single-shared-key invariant for the form a user actually authors).
-    let authored_wp = parse_locus_ref("wp/WP-KERNEL-012").expect("AC-001: the wikilink authoring form parses");
+    let authored_wp =
+        parse_locus_ref("wp/WP-KERNEL-012").expect("AC-001: the wikilink authoring form parses");
     assert_eq!(authored_wp.kind, LocusRefKind::WorkPacket);
     assert_eq!(authored_wp.id, "WP-KERNEL-012");
     assert_eq!(
@@ -268,16 +297,34 @@ fn ac001_parse_locus_ref_wp_and_mt() {
     assert_eq!(authored_mt.normalized, "locus://mt/mt-034");
 
     // An invalid scheme returns None (AC-001).
-    assert!(parse_locus_ref("https://wp/WP-1").is_none(), "AC-001: an invalid scheme returns None");
-    assert!(parse_locus_ref("loom://ws/blk").is_none(), "AC-001: the loom scheme is not a locus ref");
-    assert!(parse_locus_ref("locus://zz/X").is_none(), "AC-001: an unknown kind returns None");
+    assert!(
+        parse_locus_ref("https://wp/WP-1").is_none(),
+        "AC-001: an invalid scheme returns None"
+    );
+    assert!(
+        parse_locus_ref("loom://ws/blk").is_none(),
+        "AC-001: the loom scheme is not a locus ref"
+    );
+    assert!(
+        parse_locus_ref("locus://zz/X").is_none(),
+        "AC-001: an unknown kind returns None"
+    );
     // A non-locus prefix-stripped value (a code/file ref, no wp/mt leading segment) does NOT match the
     // `{kind}/{id}` branch — only `wp/`/`mt/` leading segments are locus refs.
-    assert!(parse_locus_ref("src/app.ts").is_none(), "AC-001: a file path is not a locus ref");
-    assert!(parse_locus_ref("zz/Q").is_none(), "AC-001: an unknown kind/id leading segment returns None");
+    assert!(
+        parse_locus_ref("src/app.ts").is_none(),
+        "AC-001: a file path is not a locus ref"
+    );
+    assert!(
+        parse_locus_ref("zz/Q").is_none(),
+        "AC-001: an unknown kind/id leading segment returns None"
+    );
 
     // The normalized key is consistent with the MT-032/MT-015 normalizer (no second normalizer — AC-007).
-    assert_eq!(wp.normalized, normalize_locus_id(LocusRefKind::WorkPacket, "WP-KERNEL-012"));
+    assert_eq!(
+        wp.normalized,
+        normalize_locus_id(LocusRefKind::WorkPacket, "WP-KERNEL-012")
+    );
     println!("AC-001/PT-001 OK: locus://wp/WP-KERNEL-012 + locus://mt/MT-034 parse; invalid scheme -> None");
 }
 
@@ -290,14 +337,20 @@ fn ac001_parse_locus_ref_wp_and_mt() {
 fn ac002_resolve_locus_ref_route_absent_is_typed_blocker() {
     // The DESIGNED PRIMARY PATH in this build: the Locus READ route is absent, so a 404 maps to the typed
     // blocker `LocusReadApiUnavailable` naming the endpoint (NOT a fabricated record).
-    let (base_url, server) = spawn_mock("HTTP/1.1 404 Not Found", serde_json::json!({"error": "absent"}));
+    let (base_url, server) = spawn_mock(
+        "HTTP/1.1 404 Not Found",
+        serde_json::json!({"error": "absent"}),
+    );
     let svc = LocusInteropService::with_base_url(base_url, "WS-1", no_reverse_lookup());
     let wp = parse_locus_ref("locus://wp/WP-KERNEL-012").unwrap();
     let result = rt().block_on(async { svc.resolve_locus_ref(&wp).await });
     let req_line = server.join().unwrap();
 
     // The probe is a read-only GET at the documented work-packets route.
-    assert!(req_line.starts_with("GET "), "AC-009: the resolution read must be a GET; got '{req_line}'");
+    assert!(
+        req_line.starts_with("GET "),
+        "AC-009: the resolution read must be a GET; got '{req_line}'"
+    );
     assert!(
         req_line.contains("/workspaces/WS-1/locus/work-packets/WP-KERNEL-012"),
         "AC-002: probes the documented work-packets route; got '{req_line}'"
@@ -334,9 +387,15 @@ fn ac002_resolve_locus_ref_resolved_record_projection() {
 
     assert_eq!(record.kind, LocusRefKind::WorkPacket);
     assert_eq!(record.id, "WP-KERNEL-012");
-    assert!(!record.title.is_empty(), "AC-002: a resolved record has a non-empty title");
+    assert!(
+        !record.title.is_empty(),
+        "AC-002: a resolved record has a non-empty title"
+    );
     assert_eq!(record.title, "Native Editors: Obsidian + VS Code parity");
-    assert_eq!(record.summary.as_deref(), Some("Rebuild the editors as native Rust tools"));
+    assert_eq!(
+        record.summary.as_deref(),
+        Some("Rebuild the editors as native Rust tools")
+    );
     assert_eq!(record.status.as_deref(), Some("Ready for Dev"));
     println!("AC-002 OK: a Locus record body resolves to LocusRecord{{title non-empty}} (projection proof)");
 }
@@ -356,8 +415,8 @@ fn ac002_resolve_locus_ref_resolved_record_projection() {
 #[test]
 #[ignore = "needs a live handshake_core + PostgreSQL on 127.0.0.1:37501 and the (currently absent) /locus/ GET routes; until exposed the DESIGNED outcome is the LocusReadApiUnavailable typed blocker"]
 fn resolve_locus_ref_against_real_pg_live() {
-    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID")
-        .unwrap_or_else(|_| "ws-mt068-probe".to_owned());
+    let workspace_id =
+        std::env::var("HSK_TEST_WORKSPACE_ID").unwrap_or_else(|_| "ws-mt068-probe".to_owned());
     let svc = LocusInteropService::production(workspace_id);
     let wp = parse_locus_ref("locus://wp/WP-KERNEL-012").unwrap();
     let result = rt().block_on(async { svc.resolve_locus_ref(&wp).await });
@@ -367,7 +426,10 @@ fn resolve_locus_ref_against_real_pg_live() {
                 !record.title.is_empty(),
                 "AC-002 LIVE: a resolved WP record must carry a non-empty title (got empty)"
             );
-            println!("AC-002 LIVE OK: resolve_locus_ref returned a real record title='{}'", record.title);
+            println!(
+                "AC-002 LIVE OK: resolve_locus_ref returned a real record title='{}'",
+                record.title
+            );
         }
         Err(LocusInteropError::LocusReadApiUnavailable { endpoint }) => {
             // The DESIGNED outcome while the /locus/ route is not yet exposed — the typed blocker, not a
@@ -387,9 +449,9 @@ fn ac003_click_locus_ref_chip_dispatches_open_locus_ref() {
     // Render a rich editor over a doc carrying a locus-ref chip. The chip's stable author_id is
     // `locus-ref-chip-{kind}-{id}` — the kittest targets it by that id.
     let locus_uri = "locus://wp/WP-KERNEL-012";
-    let state = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::new(doc_with_locus_ref(
-        locus_uri, "WP-KERNEL-012", true,
-    ))));
+    let state = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::new(
+        doc_with_locus_ref(locus_uri, "WP-KERNEL-012", true),
+    )));
     let state_ck = std::sync::Arc::clone(&state);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(800.0, 600.0))
@@ -400,7 +462,10 @@ fn ac003_click_locus_ref_chip_dispatches_open_locus_ref() {
 
     // The chip is addressable by the contract author_id `locus-ref-chip-wp-WP-KERNEL-012`.
     let chip_id = locus_ref_chip_author_id(locus_uri);
-    assert_eq!(chip_id, "locus-ref-chip-wp-WP-KERNEL-012", "AC-008: the contract author_id shape");
+    assert_eq!(
+        chip_id, "locus-ref-chip-wp-WP-KERNEL-012",
+        "AC-008: the contract author_id shape"
+    );
     let ids = author_ids(&harness);
     assert!(
         ids.contains(&chip_id),
@@ -414,25 +479,32 @@ fn ac003_click_locus_ref_chip_dispatches_open_locus_ref() {
 
     let event = {
         let st = state_ck.lock().unwrap();
-        st.pending_events
-            .iter()
-            .find_map(|e| match e {
-                EditorEvent::WikilinkActivated { ref_kind, ref_value, .. } if ref_kind == "locus" => {
-                    Some((ref_kind.clone(), ref_value.clone()))
-                }
-                _ => None,
-            })
+        st.pending_events.iter().find_map(|e| match e {
+            EditorEvent::WikilinkActivated {
+                ref_kind,
+                ref_value,
+                ..
+            } if ref_kind == "locus" => Some((ref_kind.clone(), ref_value.clone())),
+            _ => None,
+        })
     };
-    let (ref_kind, ref_value) =
-        event.expect("AC-003: clicking the locus-ref chip enqueues a locus WikilinkActivated event");
+    let (ref_kind, ref_value) = event
+        .expect("AC-003: clicking the locus-ref chip enqueues a locus WikilinkActivated event");
     assert_eq!(ref_kind, "locus");
-    assert_eq!(ref_value, locus_uri, "AC-003: the event carries the locus ref");
+    assert_eq!(
+        ref_value, locus_uri,
+        "AC-003: the event carries the locus ref"
+    );
 
     // The bridge stages the NORMALIZED ref on the bus and dispatches `open-locus-ref` (no new channel).
     let ctx = egui::Context::default();
     let mut bus = InteractionBus::new();
     bus.register_open_locus_ref_command();
-    let evt = EditorEvent::WikilinkActivated { ref_kind, ref_value: ref_value.clone(), resolved: true };
+    let evt = EditorEvent::WikilinkActivated {
+        ref_kind,
+        ref_value: ref_value.clone(),
+        resolved: true,
+    };
     let staged = dispatch_locus_ref_open(&ctx, &mut bus, &evt);
     assert_eq!(
         staged.as_deref(),
@@ -458,10 +530,20 @@ fn ac004_reverse_lookup_lists_referencing_documents() {
     // for the search; find_documents_referencing keys on the NORMALIZED ref and lists it, de-duplicated.
     // The same block returned under two content types (note + journal) is listed ONCE (dedup proof).
     let hits = vec![
-        hit("DOC-7", Some("Design notes"), "note", "tracks <mark>locus://mt/MT-034</mark> here"),
+        hit(
+            "DOC-7",
+            Some("Design notes"),
+            "note",
+            "tracks <mark>locus://mt/MT-034</mark> here",
+        ),
         // The SAME block id under the journal content-type query (the find_notes search runs once per
         // content type) — must de-duplicate to a single DocumentRef.
-        hit("DOC-7", Some("Design notes"), "journal", "again locus://mt/MT-034"),
+        hit(
+            "DOC-7",
+            Some("Design notes"),
+            "journal",
+            "again locus://mt/MT-034",
+        ),
         hit("DOC-9", Some("Plan"), "note", "also locus://mt/MT-034"),
     ];
     let backend = Arc::new(CountingReverseLookup::new(hits));
@@ -474,7 +556,11 @@ fn ac004_reverse_lookup_lists_referencing_documents() {
         .expect("AC-004: reverse lookup returns the referencing docs");
 
     let ids: Vec<&str> = docs.iter().map(|d| d.document_id.as_str()).collect();
-    assert_eq!(ids, vec!["DOC-7", "DOC-9"], "AC-004: lists referencing docs, de-duplicated on (doc,block)");
+    assert_eq!(
+        ids,
+        vec!["DOC-7", "DOC-9"],
+        "AC-004: lists referencing docs, de-duplicated on (doc,block)"
+    );
     assert!(
         docs.iter().all(|d| d.block_id.is_some()),
         "AC-004: each DocumentRef carries its block id (mirrors NoteRef)"
@@ -488,7 +574,10 @@ fn ac004_reverse_lookup_lists_referencing_documents() {
         Some("locus://mt/mt-034"),
         "AC-004/RISK-001: the reverse lookup is keyed on the normalized locus:// ref (the single key)"
     );
-    assert_eq!(mt.normalized, "locus://mt/mt-034", "the key matches the parsed normalized form");
+    assert_eq!(
+        mt.normalized, "locus://mt/mt-034",
+        "the key matches the parsed normalized form"
+    );
     println!("AC-004/PT-004 OK: find_documents_referencing(MT-034) -> [DOC-7, DOC-9] keyed on locus://mt/mt-034, deduped");
 }
 
@@ -498,8 +587,13 @@ fn ac004_reverse_lookup_empty_is_not_an_error() {
     let backend: Arc<dyn FindNotesSearch> = Arc::new(CountingReverseLookup::new(vec![]));
     let svc = LocusInteropService::with_base_url("http://unused", "WS-1", backend);
     let mt = parse_locus_ref("locus://mt/MT-999").unwrap();
-    let docs = rt().block_on(async { svc.find_documents_referencing(&mt).await }).unwrap();
-    assert!(docs.is_empty(), "AC-004: zero references is an empty list, not an error");
+    let docs = rt()
+        .block_on(async { svc.find_documents_referencing(&mt).await })
+        .unwrap();
+    assert!(
+        docs.is_empty(),
+        "AC-004: zero references is an empty list, not an error"
+    );
 
     // An empty workspace is the NoWorkspace error (a reverse lookup needs a workspace).
     let svc2 = LocusInteropService::with_base_url(
@@ -507,8 +601,14 @@ fn ac004_reverse_lookup_empty_is_not_an_error() {
         "",
         Arc::new(CountingReverseLookup::new(vec![])),
     );
-    let err = rt().block_on(async { svc2.find_documents_referencing(&mt).await }).unwrap_err();
-    assert_eq!(err, LocusInteropError::NoWorkspace, "AC-004: no workspace -> NoWorkspace");
+    let err = rt()
+        .block_on(async { svc2.find_documents_referencing(&mt).await })
+        .unwrap_err();
+    assert_eq!(
+        err,
+        LocusInteropError::NoWorkspace,
+        "AC-004: no workspace -> NoWorkspace"
+    );
     println!("AC-004 OK: empty reverse lookup is Ok([]); no workspace -> NoWorkspace");
 }
 
@@ -523,13 +623,27 @@ fn ac005_typed_blocker_distinct_from_live_404_and_chip_greys() {
     let blocker = LocusInteropError::LocusReadApiUnavailable {
         endpoint: "/workspaces/WS-1/locus/microtasks/MT-034".into(),
     };
-    assert!(blocker.is_read_api_unavailable(), "AC-005: the absent-endpoint blocker is the typed blocker");
-    assert!(!blocker.is_record_not_found(), "AC-005: it is NOT a record-not-found 404");
-    let not_found = LocusInteropError::NotFound { id: "MT-9".into() };
-    assert!(not_found.is_record_not_found(), "AC-005: a live 404 is record-not-found");
-    assert!(!not_found.is_read_api_unavailable(), "AC-005: a 404 is NOT the typed blocker (not conflated)");
     assert!(
-        blocker.unavailable_tooltip().contains("/locus/microtasks/MT-034"),
+        blocker.is_read_api_unavailable(),
+        "AC-005: the absent-endpoint blocker is the typed blocker"
+    );
+    assert!(
+        !blocker.is_record_not_found(),
+        "AC-005: it is NOT a record-not-found 404"
+    );
+    let not_found = LocusInteropError::NotFound { id: "MT-9".into() };
+    assert!(
+        not_found.is_record_not_found(),
+        "AC-005: a live 404 is record-not-found"
+    );
+    assert!(
+        !not_found.is_read_api_unavailable(),
+        "AC-005: a 404 is NOT the typed blocker (not conflated)"
+    );
+    assert!(
+        blocker
+            .unavailable_tooltip()
+            .contains("/locus/microtasks/MT-034"),
         "AC-005: the greyed-chip tooltip names the missing endpoint"
     );
 
@@ -542,10 +656,16 @@ fn ac005_typed_blocker_distinct_from_live_404_and_chip_greys() {
         resolved: false,
     };
     let label = chip_label(&unresolved);
-    assert!(label.contains("unresolved"), "AC-005: an unavailable locus chip reads as unresolved");
+    assert!(
+        label.contains("unresolved"),
+        "AC-005: an unavailable locus chip reads as unresolved"
+    );
     let palette = HsTheme::Dark.palette();
     let (bg, fg) = chip_colors(&unresolved, &palette);
-    assert_eq!(bg, palette.error_bg, "AC-005: a greyed chip uses the theme error background (no Color32 literal)");
+    assert_eq!(
+        bg, palette.error_bg,
+        "AC-005: a greyed chip uses the theme error background (no Color32 literal)"
+    );
     assert_eq!(fg, palette.error_text);
 
     // It RENDERS in a live editor without panicking (the doc carries the unavailable locus ref).
@@ -578,23 +698,39 @@ fn ac006_locus_ref_node_round_trips_content_json() {
     let doc = doc_with_locus_ref("locus://wp/WP-KERNEL-012", "WP-KERNEL-012", true);
     let json = to_json_string(&doc).expect("serialize");
     let back = from_json_string(&json).expect("reload");
-    assert_eq!(doc, back, "AC-006: the locus-ref doc round-trips through DocJson unchanged");
+    assert_eq!(
+        doc, back,
+        "AC-006: the locus-ref doc round-trips through DocJson unchanged"
+    );
 
     // The hsLink node carries the locus ref, type=hsLink (NOT an invented `locus_ref` node — AC-007).
     let v = to_content_json_value(&doc);
     let link = &v["content"][0]["content"][1];
-    assert_eq!(link["type"], "hsLink", "AC-006/AC-007: a locus ref is an hsLink atom, never a `locus_ref` node");
+    assert_eq!(
+        link["type"], "hsLink",
+        "AC-006/AC-007: a locus ref is an hsLink atom, never a `locus_ref` node"
+    );
     assert_eq!(link["attrs"]["refKind"], "locus");
-    assert_eq!(link["attrs"]["refValue"], "locus://wp/WP-KERNEL-012", "AC-006: the locus ref is preserved");
+    assert_eq!(
+        link["attrs"]["refValue"], "locus://wp/WP-KERNEL-012",
+        "AC-006: the locus ref is preserved"
+    );
     assert_eq!(link["attrs"]["label"], "WP-KERNEL-012");
 
     // The {kind,id,normalized} the contract names survive because they are derivable from the ref_value
     // (the single source of truth) — re-parse the round-tripped ref_value and assert the triple.
     let ref_value = link["attrs"]["refValue"].as_str().unwrap();
     let reparsed = parse_locus_ref(ref_value).expect("the round-tripped ref re-parses");
-    assert_eq!(reparsed.kind, LocusRefKind::WorkPacket, "AC-006: kind survives (derivable from the ref)");
+    assert_eq!(
+        reparsed.kind,
+        LocusRefKind::WorkPacket,
+        "AC-006: kind survives (derivable from the ref)"
+    );
     assert_eq!(reparsed.id, "WP-KERNEL-012", "AC-006: id survives");
-    assert_eq!(reparsed.normalized, "locus://wp/wp-kernel-012", "AC-006: normalized survives");
+    assert_eq!(
+        reparsed.normalized, "locus://wp/wp-kernel-012",
+        "AC-006: normalized survives"
+    );
     println!("AC-006/PT-006 OK: locus hsLink atom round-trips content_json; {{kind,id,normalized}} re-derive intact");
 }
 
@@ -648,13 +784,22 @@ fn ac007_reuses_mt032_normalizer_and_mt034_machinery_no_duplicates() {
         bus_src.contains("CMD_OPEN_LOCUS_REF") && bus_src.contains("pending_locus_ref"),
         "AC-007: open-locus-ref uses the existing InteractionBus stage-then-dispatch seam (no new channel)"
     );
-    assert_eq!(CMD_OPEN_LOCUS_REF, "interop.open-locus-ref", "AC-007: the contract command id");
+    assert_eq!(
+        CMD_OPEN_LOCUS_REF, "interop.open-locus-ref",
+        "AC-007: the contract command id"
+    );
 
     // (4) AccessKit ids are derived via the chip helper (registered through the WP-011 accessibility
     // surface like every other chip — the renderer's accesskit_node_builder path), de-duplicated by
     // construction from (kind,id).
-    assert_eq!(locus_ref_chip_author_id("locus://wp/WP-KERNEL-012"), "locus-ref-chip-wp-WP-KERNEL-012");
-    assert_eq!(locus_ref_chip_author_id("locus://mt/MT-034"), "locus-ref-chip-mt-MT-034");
+    assert_eq!(
+        locus_ref_chip_author_id("locus://wp/WP-KERNEL-012"),
+        "locus-ref-chip-wp-WP-KERNEL-012"
+    );
+    assert_eq!(
+        locus_ref_chip_author_id("locus://mt/MT-034"),
+        "locus-ref-chip-mt-MT-034"
+    );
     // De-dup: the same (kind,id) yields the SAME id; distinct work units yield distinct ids.
     assert_eq!(
         locus_ref_chip_author_id("locus://wp/WP-KERNEL-012"),
@@ -746,8 +891,16 @@ fn ac008_accesskit_ids_present_with_roles_no_duplicates() {
             *counts.entry(a.to_owned()).or_default() += 1;
         }
     }
-    for id in ["locus-ref-chip-wp-WP-KERNEL-012", "locus-ref-chip-mt-MT-034", "locus-refby-DOC-7"] {
-        assert_eq!(counts.get(id).copied(), Some(1), "AC-008: author_id '{id}' must appear exactly once (no collision)");
+    for id in [
+        "locus-ref-chip-wp-WP-KERNEL-012",
+        "locus-ref-chip-mt-MT-034",
+        "locus-refby-DOC-7",
+    ] {
+        assert_eq!(
+            counts.get(id).copied(),
+            Some(1),
+            "AC-008: author_id '{id}' must appear exactly once (no collision)"
+        );
     }
 
     println!(
@@ -770,7 +923,9 @@ fn ac008_accesskit_ids_present_with_roles_no_duplicates() {
             ext_path.display()
         );
     } else {
-        println!("AC-008 screenshot: GPU readback unavailable on this host (structural proof stands)");
+        println!(
+            "AC-008 screenshot: GPU readback unavailable on this host (structural proof stands)"
+        );
     }
 
     assert_no_local_artifact_dir();
@@ -837,7 +992,10 @@ fn parses_locus_wikilink_to_locus_hs_link() {
     // machinery), so the SAME chip path renders it (AC-007). is_locus_ref recognizes the atom.
     let parsed = parse_wikilink("[[locus:wp/WP-KERNEL-012]]").expect("a valid locus wikilink");
     let link = parsed.to_hs_link();
-    assert_eq!(link.ref_kind, "locus", "the locus: prefix is a `locus` ref kind");
+    assert_eq!(
+        link.ref_kind, "locus",
+        "the locus: prefix is a `locus` ref kind"
+    );
     assert_eq!(link.ref_value, "wp/WP-KERNEL-012");
     assert!(link.resolved, "the locus: prefix is a known resolved kind");
     assert!(is_locus_ref(&link), "is_locus_ref recognizes the atom");
@@ -869,8 +1027,9 @@ fn authored_locus_wikilink_drives_chip_helpers_with_real_ref_value() {
 
     // (2) parse_locus_ref must accept the prefix-stripped authoring form and normalize it to the SAME
     // canonical key as the URI form (the single-shared-key invariant for the form a user actually types).
-    let parsed = parse_locus_ref(&link.ref_value)
-        .expect("parse_locus_ref accepts the wikilink authoring form `wp/WP-KERNEL-012` (the must-fix)");
+    let parsed = parse_locus_ref(&link.ref_value).expect(
+        "parse_locus_ref accepts the wikilink authoring form `wp/WP-KERNEL-012` (the must-fix)",
+    );
     assert_eq!(parsed.kind, LocusRefKind::WorkPacket, "wp/ -> WorkPacket");
     assert_eq!(parsed.id, "WP-KERNEL-012", "the id keeps its original case");
     assert_eq!(

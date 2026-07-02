@@ -164,7 +164,10 @@ fn seqlock_torn_read_records_are_always_consistent() {
             );
             checked += 1;
         }
-        assert!(Instant::now() < deadline, "possible livelock in record reader");
+        assert!(
+            Instant::now() < deadline,
+            "possible livelock in record reader"
+        );
     }
     let _writer = writer_handle.join().expect("writer thread");
     assert!(checked > 0, "reader observed no records to validate");

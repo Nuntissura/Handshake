@@ -37,7 +37,13 @@ pub const FR_EVENT_ROW_AUTHOR_PREFIX: &str = "fr-event-";
 pub fn fr_event_row_author_id(event_id: &str) -> String {
     let safe: String = event_id
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect();
     format!("{FR_EVENT_ROW_AUTHOR_PREFIX}{safe}")
 }
@@ -93,7 +99,11 @@ pub struct FlightRecorderPane {
 impl FlightRecorderPane {
     /// Build a pane reading through `query`, surfacing `error_ring` failures. Starts [`LoadState::Idle`].
     pub fn new(query: std::sync::Arc<dyn FlightRecorderQuery>, error_ring: ErrorRing) -> Self {
-        Self { query, state: LoadState::Idle, error_ring }
+        Self {
+            query,
+            state: LoadState::Idle,
+            error_ring,
+        }
     }
 
     /// The current load state (tests / diagnostics).
@@ -117,17 +127,23 @@ impl FlightRecorderPane {
     pub fn show(&self, ui: &mut egui::Ui, palette: &HsPalette) -> egui::Response {
         let resp = ui
             .scope(|ui| {
-                ui.label(egui::RichText::new("Flight Recorder — Native Editor Events").color(palette.text));
+                ui.label(
+                    egui::RichText::new("Flight Recorder — Native Editor Events")
+                        .color(palette.text),
+                );
                 match &self.state {
                     LoadState::Idle => {
-                        ui.label(egui::RichText::new("No load requested.").color(palette.text_subtle));
+                        ui.label(
+                            egui::RichText::new("No load requested.").color(palette.text_subtle),
+                        );
                     }
                     LoadState::Loading => {
                         ui.label(egui::RichText::new("Loading…").color(palette.text_subtle));
                     }
                     LoadState::Loaded(rows) if rows.is_empty() => {
                         ui.label(
-                            egui::RichText::new("No native editor events yet.").color(palette.text_subtle),
+                            egui::RichText::new("No native editor events yet.")
+                                .color(palette.text_subtle),
                         );
                     }
                     LoadState::Loaded(rows) => {
@@ -179,12 +195,11 @@ impl FlightRecorderPane {
             return;
         }
         ui.label(
-            egui::RichText::new(format!("Emit failures ({}):", entries.len())).color(palette.text_subtle),
+            egui::RichText::new(format!("Emit failures ({}):", entries.len()))
+                .color(palette.text_subtle),
         );
         for EmitErrorEntry { action, error } in &entries {
-            ui.label(
-                egui::RichText::new(format!("  {action}: {error}")).color(palette.error_text),
-            );
+            ui.label(egui::RichText::new(format!("  {action}: {error}")).color(palette.error_text));
         }
     }
 }
@@ -236,17 +251,26 @@ mod tests {
 
     #[test]
     fn load_failure_is_a_typed_failed_state_not_a_spinner() {
-        let query = Arc::new(MockQuery { rows: vec![], fail: Some("backend unreachable".to_owned()) });
+        let query = Arc::new(MockQuery {
+            rows: vec![],
+            fail: Some("backend unreachable".to_owned()),
+        });
         let mut pane = FlightRecorderPane::new(query, ErrorRing::new());
         pane.load_now();
-        assert_eq!(*pane.state(), LoadState::Failed("backend unreachable".to_owned()));
+        assert_eq!(
+            *pane.state(),
+            LoadState::Failed("backend unreachable".to_owned())
+        );
         // Crucially NOT Loading: there is no perpetual spinner.
         assert!(!matches!(pane.state(), LoadState::Loading));
     }
 
     #[test]
     fn empty_load_is_an_honest_empty_state() {
-        let query = Arc::new(MockQuery { rows: vec![], fail: None });
+        let query = Arc::new(MockQuery {
+            rows: vec![],
+            fail: None,
+        });
         let mut pane = FlightRecorderPane::new(query, ErrorRing::new());
         pane.load_now();
         assert_eq!(*pane.state(), LoadState::Loaded(vec![]));

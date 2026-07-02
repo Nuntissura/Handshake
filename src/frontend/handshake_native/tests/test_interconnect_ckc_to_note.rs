@@ -32,8 +32,12 @@ use handshake_native::interop::{
     CMD_ROUTE_TO_STAGE,
 };
 use handshake_native::pane_registry::PaneId;
-use handshake_native::rich_editor::document_model::doc_json::{from_json_string, to_content_json_value};
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
+use handshake_native::rich_editor::document_model::doc_json::{
+    from_json_string, to_content_json_value,
+};
+use handshake_native::rich_editor::document_model::node::{
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
+};
 use handshake_native::stage_pane::{StageContent, StagePane, STAGE_ROUTED_CONTENT_AUTHOR_ID};
 use handshake_native::theme::HsTheme;
 
@@ -50,7 +54,8 @@ fn pane(id: &str) -> PaneId {
 fn doc_with_ckc_embed(ref_kind: &str, ref_value: &str, label: &str) -> BlockNode {
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::new("embed ")));
-    para.children.push(Child::HsLink(HsLinkNode::new(ref_kind, ref_value, label)));
+    para.children
+        .push(Child::HsLink(HsLinkNode::new(ref_kind, ref_value, label)));
     para.children.push(Child::Text(TextLeaf::new("")));
     BlockNode::doc(vec![para])
 }
@@ -66,7 +71,9 @@ fn created_doc_id(created: &serde_json::Value) -> String {
         .and_then(|v| v.as_str())
         .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
         .or_else(|| created.get("id").and_then(|v| v.as_str()))
-        .expect("requires_pg: created document returns a rich_document_id (document.rich_document_id)")
+        .expect(
+            "requires_pg: created document returns a rich_document_id (document.rich_document_id)",
+        )
         .to_owned()
 }
 
@@ -153,7 +160,10 @@ fn interconnect_ic05_route_selection_to_stage() {
 
     // Before routing: the routed-content region summarizes "nothing routed".
     let before = author_node_value(&harness, STAGE_ROUTED_CONTENT_AUTHOR_ID).unwrap_or_default();
-    assert!(before.contains("nothing routed"), "IC-05: stage starts empty (got {before:?})");
+    assert!(
+        before.contains("nothing routed"),
+        "IC-05: stage starts empty (got {before:?})"
+    );
 
     // The route originates from a rich-text SELECTION published on the SHARED bus. Build the route payload
     // from that exact SharedSelection (the MT-033/MT-066 builder), then route it over the SAME bus command.
@@ -169,12 +179,20 @@ fn interconnect_ic05_route_selection_to_stage() {
     let bus = InteractionBus::get_or_init(&harness.ctx);
     let dispatched = InteractionBus::with_try_lock(&bus, |b| {
         b.register_route_to_stage_command();
-        assert!(b.commands().get(CMD_ROUTE_TO_STAGE).is_some(), "IC-05: route-to-stage cmd registered");
+        assert!(
+            b.commands().get(CMD_ROUTE_TO_STAGE).is_some(),
+            "IC-05: route-to-stage cmd registered"
+        );
         // route_to_stage stages the StageContent on the bus + dispatches the EXISTING command (reuse).
-        route_to_stage(&harness.ctx, b, &payload).map(|ack| ack.staged).unwrap_or(false)
+        route_to_stage(&harness.ctx, b, &payload)
+            .map(|ack| ack.staged)
+            .unwrap_or(false)
     })
     .unwrap_or(false);
-    assert!(dispatched, "IC-05: the route-to-stage command dispatched over the shared bus");
+    assert!(
+        dispatched,
+        "IC-05: the route-to-stage command dispatched over the shared bus"
+    );
 
     // Drain + render frames so the shell pulls the staged content into the Stage pane and the AccessKit
     // tree refreshes (Harness::run advances a layout-level frame — the established flush mechanism; the
@@ -226,14 +244,23 @@ fn ic01_ic02_ic04_ckc_embed_atom_shape_round_trips() {
         let json = handshake_native::rich_editor::document_model::doc_json::to_json_string(&doc)
             .expect("serialize content_json (the persisted blob)");
         let back = from_json_string(&json).expect("reload (the loadRichDocument shape)");
-        assert_eq!(doc, back, "{ic}: the CKC embed doc round-trips through DocJson unchanged");
+        assert_eq!(
+            doc, back,
+            "{ic}: the CKC embed doc round-trips through DocJson unchanged"
+        );
         // The atom is an hsLink carrying the named ref_kind + the asset/block id (NOT an invented node).
         let v = to_content_json_value(&doc);
         let (rk, rv) = first_hs_link(&v).expect("an hsLink atom is present");
-        assert_eq!(rk, ref_kind, "{ic}: the embed is an hsLink with the named refKind");
+        assert_eq!(
+            rk, ref_kind,
+            "{ic}: the embed is an hsLink with the named refKind"
+        );
         assert_eq!(rv, ref_value, "{ic}: refValue carries the asset/block id");
         let json_str = serde_json::to_string(&v).unwrap();
-        assert!(json_str.contains("\"hsLink\""), "{ic}: the embed serializes as an hsLink node");
+        assert!(
+            json_str.contains("\"hsLink\""),
+            "{ic}: the embed serializes as an hsLink node"
+        );
         assert!(
             !json_str.contains("atelier_embed") && !json_str.contains("\"embed\""),
             "{ic}: the embed must NOT be an invented node (it would be dropped on save)"
@@ -276,8 +303,10 @@ fn interconnect_ic01_ckc_image_into_note() {
             "mime": "image/png"
         }),
     );
-    let asset_id = asset["asset_id"].as_str()
-        .expect("requires_pg: POST /loom/import returns an asset_id (LoomImportResult.asset_id)").to_owned();
+    let asset_id = asset["asset_id"]
+        .as_str()
+        .expect("requires_pg: POST /loom/import returns an asset_id (LoomImportResult.asset_id)")
+        .to_owned();
     // (2) create a note carrying the CKC image embed hsLink (refKind=HS_images, refValue=asset_id).
     let doc = doc_with_ckc_embed("HS_images", &asset_id, "sunset.png");
     let content_json = to_content_json_value(&doc);
@@ -294,11 +323,18 @@ fn interconnect_ic01_ckc_image_into_note() {
         &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&doc) }),
     );
     let reloaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let (rk, rv) = first_hs_link(&loaded_content_json(&reloaded)).expect("reloaded doc carries an hsLink");
-    assert_eq!(rk, "HS_images", "IC-01: reloaded embed is the HS_images hsLink");
+    let (rk, rv) =
+        first_hs_link(&loaded_content_json(&reloaded)).expect("reloaded doc carries an hsLink");
+    assert_eq!(
+        rk, "HS_images",
+        "IC-01: reloaded embed is the HS_images hsLink"
+    );
     assert_eq!(rv, asset_id, "IC-01: reloaded embed points at the asset id");
     // The embedded asset renders: GET /workspaces/{ws}/assets/{asset_id} == 200.
-    assert_eq!(be.get_status(&format!("/workspaces/{ws}/assets/{asset_id}")), 200);
+    assert_eq!(
+        be.get_status(&format!("/workspaces/{ws}/assets/{asset_id}")),
+        200
+    );
     // Idempotent cleanup (DropGuard-style best-effort).
     let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     mark_status("IC-01", "PASS");
@@ -321,8 +357,10 @@ fn interconnect_ic02_ckc_video_into_note() {
             "mime": "video/mp4"
         }),
     );
-    let asset_id = asset["asset_id"].as_str()
-        .expect("requires_pg: POST /loom/import returns an asset_id").to_owned();
+    let asset_id = asset["asset_id"]
+        .as_str()
+        .expect("requires_pg: POST /loom/import returns an asset_id")
+        .to_owned();
     let doc = doc_with_ckc_embed("video", &asset_id, "clip.mp4");
     let created = be.post_json(
         "/knowledge/documents",
@@ -336,7 +374,8 @@ fn interconnect_ic02_ckc_video_into_note() {
         &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&doc) }),
     );
     let reloaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let (rk, _rv) = first_hs_link(&loaded_content_json(&reloaded)).expect("reloaded doc carries an hsLink");
+    let (rk, _rv) =
+        first_hs_link(&loaded_content_json(&reloaded)).expect("reloaded doc carries an hsLink");
     assert_eq!(rk, "video", "IC-02: reloaded embed is the video hsLink");
     let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     mark_status("IC-02", "PASS");
@@ -356,23 +395,34 @@ fn interconnect_ic03_ckc_moodboard_on_canvas() {
         &format!("/workspaces/{ws}/loom/blocks"),
         &serde_json::json!({ "title": "IC-03 moodboard (note fallback)", "content_type": "note" }),
     );
-    let block_id = block["block_id"].as_str().or_else(|| block["id"].as_str())
-        .expect("requires_pg: block id").to_owned();
+    let block_id = block["block_id"]
+        .as_str()
+        .or_else(|| block["id"].as_str())
+        .expect("requires_pg: block id")
+        .to_owned();
     // Create a canvas board and place the block on it.
     let board = be.post_json(
         &format!("/workspaces/{ws}/loom/blocks"),
         &serde_json::json!({ "title": "IC-03 canvas", "content_type": "canvas" }),
     );
-    let board_id = board["block_id"].as_str().or_else(|| board["id"].as_str())
-        .expect("requires_pg: board id").to_owned();
+    let board_id = board["block_id"]
+        .as_str()
+        .or_else(|| board["id"].as_str())
+        .expect("requires_pg: board id")
+        .to_owned();
     let _ = be.post_json(
         &format!("/workspaces/{ws}/loom/canvas-boards/{board_id}/placements"),
         &serde_json::json!({ "block_id": block_id, "x": 100.0, "y": 100.0 }),
     );
     let board_state = be.get_json(&format!("/workspaces/{ws}/loom/canvas-boards/{board_id}"));
-    let placements = board_state["placements"].as_array().cloned().unwrap_or_default();
+    let placements = board_state["placements"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     assert!(
-        placements.iter().any(|p| p["block_id"].as_str() == Some(block_id.as_str())),
+        placements
+            .iter()
+            .any(|p| p["block_id"].as_str() == Some(block_id.as_str())),
         "IC-03: the placed block appears in the canvas board"
     );
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{block_id}"));
@@ -397,8 +447,11 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
         &format!("/workspaces/{ws}/loom/blocks"),
         &serde_json::json!({ "title": "IC-04 character (note fallback)", "content_type": "note" }),
     );
-    let character_block_id = character["block_id"].as_str().or_else(|| character["id"].as_str())
-        .expect("requires_pg: character block id").to_owned();
+    let character_block_id = character["block_id"]
+        .as_str()
+        .or_else(|| character["id"].as_str())
+        .expect("requires_pg: character block id")
+        .to_owned();
     // The note carries a character ref hsLink (ref_value = the character block id); save it.
     let doc = doc_with_ckc_embed("character", &character_block_id, "Aria");
     let created = be.post_json(
@@ -422,16 +475,26 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
         &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&doc) }),
     );
     // The backlink the save registers: GET backlinks of the character block contains the note's block id.
-    let backlinks = be.get_json(&format!("/workspaces/{ws}/loom/blocks/{character_block_id}/backlinks"));
-    let found = backlinks.as_array().map(|a| {
-        a.iter().any(|b| {
-            b["source_block_id"].as_str() == Some(note_block_id.as_str())
-                || b["block_id"].as_str() == Some(note_block_id.as_str())
+    let backlinks = be.get_json(&format!(
+        "/workspaces/{ws}/loom/blocks/{character_block_id}/backlinks"
+    ));
+    let found = backlinks
+        .as_array()
+        .map(|a| {
+            a.iter().any(|b| {
+                b["source_block_id"].as_str() == Some(note_block_id.as_str())
+                    || b["block_id"].as_str() == Some(note_block_id.as_str())
+            })
         })
-    }).unwrap_or(false);
-    assert!(found, "IC-04: the note's block id appears as a backlink of the character block");
+        .unwrap_or(false);
+    assert!(
+        found,
+        "IC-04: the note's block id appears as a backlink of the character block"
+    );
     let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
-    let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{character_block_id}"));
+    let _ = be.delete(&format!(
+        "/workspaces/{ws}/loom/blocks/{character_block_id}"
+    ));
     mark_status("IC-04", "PARTIAL");
     println!(
         "IC-04 LIVE-PG PARTIAL: backlink confirmed character<-note via the `note` fallback (CTRL-8 typed \

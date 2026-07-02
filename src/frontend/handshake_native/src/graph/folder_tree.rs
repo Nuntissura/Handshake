@@ -94,13 +94,19 @@ pub const MAX_RENDER_DEPTH: usize = 5;
 /// the shell's [`crate::project_tree::stable_part`] slugger (the SAME one the graph view uses) so a
 /// folder/block id with slashes or colons can never inject an unsafe author_id.
 pub fn node_author_id(id: &str) -> String {
-    format!("{NODE_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(id))
+    format!(
+        "{NODE_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(id)
+    )
 }
 
 /// The stable AccessKit author_id for a folder's color swatch button:
 /// `folder-tree.color.{sanitized_folder_id}`.
 pub fn color_author_id(folder_id: &str) -> String {
-    format!("{COLOR_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(folder_id))
+    format!(
+        "{COLOR_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(folder_id)
+    )
 }
 
 /// Parse a `#rrggbb` (or `rrggbb`) hex color string into an opaque [`Color32`], returning `None` for any
@@ -236,7 +242,11 @@ impl FolderNode {
 
     /// Total folder nodes in this subtree (including self). Used by tests to assert the build shape.
     pub fn folder_count(&self) -> usize {
-        1 + self.child_folders.iter().map(FolderNode::folder_count).sum::<usize>()
+        1 + self
+            .child_folders
+            .iter()
+            .map(FolderNode::folder_count)
+            .sum::<usize>()
     }
 
     /// Find a folder node by id anywhere in this subtree (mutable), so a host can flip `expanded` /
@@ -272,7 +282,10 @@ pub fn build_tree(rows: &[FolderRow]) -> Vec<FolderNode> {
     for r in rows {
         match &r.parent_folder_id {
             Some(p) if id_set.contains(p.as_str()) => {
-                children_of.entry(p.as_str()).or_default().push(r.folder_id.as_str());
+                children_of
+                    .entry(p.as_str())
+                    .or_default()
+                    .push(r.folder_id.as_str());
             }
             // No parent, or a parent id that isn't in the set (orphan) => a root.
             _ => roots.push(r.folder_id.as_str()),
@@ -470,12 +483,15 @@ fn render_folder(
         // Color swatch (12x12 rect) painted with the folder color or the neutral theme token. The swatch
         // is itself an addressable button (Change-color affordance + AccessKit color id).
         let swatch_color = node.color.unwrap_or(palette.border_strong);
-        let (sw_rect, sw_resp) =
-            ui.allocate_exact_size(Vec2::splat(SWATCH_SIZE), Sense::click());
+        let (sw_rect, sw_resp) = ui.allocate_exact_size(Vec2::splat(SWATCH_SIZE), Sense::click());
         if ui.is_rect_visible(sw_rect) {
             ui.painter().rect_filled(sw_rect, 2.0, swatch_color);
-            ui.painter()
-                .rect_stroke(sw_rect, 2.0, Stroke::new(1.0, palette.border), egui::StrokeKind::Inside);
+            ui.painter().rect_stroke(
+                sw_rect,
+                2.0,
+                Stroke::new(1.0, palette.border),
+                egui::StrokeKind::Inside,
+            );
         }
         emit_button_accesskit(
             ui,
@@ -499,15 +515,20 @@ fn render_folder(
 
     // Emit the folder row's AccessKit TreeItem (Expand/Collapse + Click default-open). The row id is the
     // label's id (the primary clickable), carrying the stable `folder-tree.node.{id}` author_id.
-    emit_tree_item_accesskit(ui, label_resp.id, &node.folder_id, &node.title, node.expanded);
+    emit_tree_item_accesskit(
+        ui,
+        label_resp.id,
+        &node.folder_id,
+        &node.title,
+        node.expanded,
+    );
 
     // ── Swatch click => open the color picker popup (egui color_edit_button_srgba in a popup) ────────
     // The picker is an in-process egui popup anchored to the swatch button (HBR-QUIET — no OS window, no
     // focus theft). It opens/closes on the swatch click via `Popup::from_toggle_button_response`. On a
     // changed value we emit ChangeColor (the persist-on-change signal, the contract's "On color pick …
     // persist"); the picker is opaque-only (folder swatches have no alpha).
-    if let Some(picked) =
-        color_picker_popup(&sw_resp, node.color.unwrap_or(palette.border_strong))
+    if let Some(picked) = color_picker_popup(&sw_resp, node.color.unwrap_or(palette.border_strong))
     {
         node.color = Some(picked);
         event = Some(FolderTreeEvent::ChangeColor {
@@ -523,14 +544,20 @@ fn render_folder(
             // First expand with no cached blocks => host should lazy-fetch (AC2). Re-expanding a folder
             // whose blocks are already cached does NOT re-fetch (the lazy-load caching rule).
             if node.child_blocks.is_none() {
-                event = Some(FolderTreeEvent::ExpandFolder { folder_id: node.folder_id.clone() });
+                event = Some(FolderTreeEvent::ExpandFolder {
+                    folder_id: node.folder_id.clone(),
+                });
             }
         } else {
-            event = Some(FolderTreeEvent::CollapseFolder { folder_id: node.folder_id.clone() });
+            event = Some(FolderTreeEvent::CollapseFolder {
+                folder_id: node.folder_id.clone(),
+            });
         }
     }
     if label_resp.clicked() {
-        event = Some(FolderTreeEvent::OpenFolder { folder_id: node.folder_id.clone() });
+        event = Some(FolderTreeEvent::OpenFolder {
+            folder_id: node.folder_id.clone(),
+        });
     }
 
     // ── Children (only when expanded) ────────────────────────────────────────────────────────────────
@@ -576,13 +603,18 @@ fn render_leaf(
             // Content-type icon char + title (the contract's "block title + content_type icon
             // character").
             let label = format!("{} {}", leaf.icon(), leaf.title);
-            ui.add(egui::Label::new(egui::RichText::new(label).color(palette.text)).sense(Sense::click()))
+            ui.add(
+                egui::Label::new(egui::RichText::new(label).color(palette.text))
+                    .sense(Sense::click()),
+            )
         })
         .inner;
     // Leaf TreeItem (no Expand/Collapse — leaves do not expand). Click is the default open action.
     emit_tree_item_accesskit(ui, resp.id, &leaf.block_id, &leaf.title, false);
     if resp.clicked() {
-        event = Some(FolderTreeEvent::OpenBlock { block_id: leaf.block_id.clone() });
+        event = Some(FolderTreeEvent::OpenBlock {
+            block_id: leaf.block_id.clone(),
+        });
     }
     event
 }
@@ -629,7 +661,13 @@ fn emit_button_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &s
 /// Emit a tree row's live AccessKit node: Role::TreeItem, label = title, author_id =
 /// `folder-tree.node.{sanitized_id}` (AC6 / HBR-SWARM). Folder rows carry Expand/Collapse actions plus
 /// the default Click (open); leaf rows carry only Click. `id` is the row's primary clickable egui id.
-fn emit_tree_item_accesskit(ui: &egui::Ui, id: egui::Id, raw_id: &str, title: &str, expanded: bool) {
+fn emit_tree_item_accesskit(
+    ui: &egui::Ui,
+    id: egui::Id,
+    raw_id: &str,
+    title: &str,
+    expanded: bool,
+) {
     let author = node_author_id(raw_id);
     let label = title.to_owned();
     ui.ctx().accesskit_node_builder(id, move |node| {
@@ -656,7 +694,12 @@ mod tests {
         vec![
             FolderRow::new("folder-001", None, "Projects", Some("#ff0000".to_owned())),
             FolderRow::new("folder-002", None, "Archive", None),
-            FolderRow::new("folder-003", Some("folder-001".to_owned()), "Subproject", Some("00ff00".to_owned())),
+            FolderRow::new(
+                "folder-003",
+                Some("folder-001".to_owned()),
+                "Subproject",
+                Some("00ff00".to_owned()),
+            ),
         ]
     }
 
@@ -665,18 +708,31 @@ mod tests {
     fn build_tree_links_children_and_parses_colors() {
         let tree = build_tree(&rows_fixture());
         assert_eq!(tree.len(), 2, "two root folders");
-        let projects = tree.iter().find(|n| n.folder_id == "folder-001").expect("folder-001 root");
-        assert_eq!(projects.child_folders.len(), 1, "folder-001 has one child folder");
+        let projects = tree
+            .iter()
+            .find(|n| n.folder_id == "folder-001")
+            .expect("folder-001 root");
+        assert_eq!(
+            projects.child_folders.len(),
+            1,
+            "folder-001 has one child folder"
+        );
         assert_eq!(projects.child_folders[0].folder_id, "folder-003");
         // Color parsed from "#ff0000" => opaque red.
-        assert_eq!(projects.color, Some(Color32::from_rgba_unmultiplied(255, 0, 0, 255)));
+        assert_eq!(
+            projects.color,
+            Some(Color32::from_rgba_unmultiplied(255, 0, 0, 255))
+        );
         // The child's color came from a bare (no-#) hex.
         assert_eq!(
             projects.child_folders[0].color,
             Some(Color32::from_rgba_unmultiplied(0, 255, 0, 255))
         );
         // The un-colored root falls back to None (host paints the neutral theme swatch).
-        let archive = tree.iter().find(|n| n.folder_id == "folder-002").expect("folder-002 root");
+        let archive = tree
+            .iter()
+            .find(|n| n.folder_id == "folder-002")
+            .expect("folder-002 root");
         assert_eq!(archive.color, None);
     }
 
@@ -693,7 +749,10 @@ mod tests {
         // for a pure cycle with no root.
         let tree = build_tree(&rows);
         // The key property: build_tree returns (does not hang / stack-overflow) and yields a finite tree.
-        assert!(tree.len() <= 2, "cyclic input yields a finite, bounded forest");
+        assert!(
+            tree.len() <= 2,
+            "cyclic input yields a finite, bounded forest"
+        );
     }
 
     /// A self-parent (A->A) is treated as a root (its parent id == its own id is in-set, so it links to
@@ -706,14 +765,22 @@ mod tests {
         // important property is termination + finiteness.
         assert!(tree.len() <= 1);
         if let Some(n) = tree.first() {
-            assert!(n.folder_count() < MAX_BUILD_DEPTH, "no infinite self-nesting");
+            assert!(
+                n.folder_count() < MAX_BUILD_DEPTH,
+                "no infinite self-nesting"
+            );
         }
     }
 
     /// An orphan (parent id not present) is promoted to a root, not dropped.
     #[test]
     fn build_tree_orphan_becomes_root() {
-        let rows = vec![FolderRow::new("x", Some("missing".to_owned()), "Orphan", None)];
+        let rows = vec![FolderRow::new(
+            "x",
+            Some("missing".to_owned()),
+            "Orphan",
+            None,
+        )];
         let tree = build_tree(&rows);
         assert_eq!(tree.len(), 1, "orphan promoted to root");
         assert_eq!(tree[0].folder_id, "x");
@@ -726,7 +793,12 @@ mod tests {
         let mut prev = "root".to_owned();
         for i in 0..(MAX_BUILD_DEPTH + 10) {
             let id = format!("d{i}");
-            rows.push(FolderRow::new(id.clone(), Some(prev.clone()), format!("D{i}"), None));
+            rows.push(FolderRow::new(
+                id.clone(),
+                Some(prev.clone()),
+                format!("D{i}"),
+                None,
+            ));
             prev = id;
         }
         let tree = build_tree(&rows);
@@ -746,9 +818,18 @@ mod tests {
     /// swatch, never a panic).
     #[test]
     fn parse_hex_color_handles_valid_and_invalid() {
-        assert_eq!(parse_hex_color("#ff0000"), Some(Color32::from_rgba_unmultiplied(255, 0, 0, 255)));
-        assert_eq!(parse_hex_color("00ff00"), Some(Color32::from_rgba_unmultiplied(0, 255, 0, 255)));
-        assert_eq!(parse_hex_color("#0000FF"), Some(Color32::from_rgba_unmultiplied(0, 0, 255, 255)));
+        assert_eq!(
+            parse_hex_color("#ff0000"),
+            Some(Color32::from_rgba_unmultiplied(255, 0, 0, 255))
+        );
+        assert_eq!(
+            parse_hex_color("00ff00"),
+            Some(Color32::from_rgba_unmultiplied(0, 255, 0, 255))
+        );
+        assert_eq!(
+            parse_hex_color("#0000FF"),
+            Some(Color32::from_rgba_unmultiplied(0, 0, 255, 255))
+        );
         assert_eq!(parse_hex_color("#fff"), None, "wrong length");
         assert_eq!(parse_hex_color("#gggggg"), None, "non-hex");
         assert_eq!(parse_hex_color(""), None, "empty");
@@ -770,7 +851,9 @@ mod tests {
         assert!(node.starts_with(NODE_AUTHOR_ID_PREFIX));
         let suffix = &node[NODE_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "node author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
         let color = color_author_id("a/b:c");
@@ -782,10 +865,15 @@ mod tests {
     fn find_folder_mut_reaches_nested() {
         let mut tree = LoomFolderTree::new("ws-1");
         tree.set_folders(&rows_fixture());
-        let nested = tree.find_folder_mut("folder-003").expect("nested folder-003 reachable");
+        let nested = tree
+            .find_folder_mut("folder-003")
+            .expect("nested folder-003 reachable");
         nested.child_blocks = Some(vec![LeafBlock::new("blk-1", "Block 1", "note")]);
         assert!(
-            tree.find_folder_mut("folder-003").unwrap().child_blocks.is_some(),
+            tree.find_folder_mut("folder-003")
+                .unwrap()
+                .child_blocks
+                .is_some(),
             "installed child blocks persist on the node"
         );
     }
@@ -796,10 +884,16 @@ mod tests {
     fn loaded_node_is_not_refetched() {
         let mut node = FolderNode::new(&FolderRow::new("f", None, "F", None));
         // Not yet loaded => an expand should trigger a fetch.
-        assert!(node.child_blocks.is_none(), "fresh node has no cached blocks");
+        assert!(
+            node.child_blocks.is_none(),
+            "fresh node has no cached blocks"
+        );
         // After loading (even empty), it is cached => no re-fetch.
         node.child_blocks = Some(vec![]);
-        assert!(node.child_blocks.is_some(), "loaded (even empty) node is cached");
+        assert!(
+            node.child_blocks.is_some(),
+            "loaded (even empty) node is cached"
+        );
     }
 
     /// folder_count over the forest matches the row count (no nodes dropped for an acyclic tree).
@@ -811,7 +905,11 @@ mod tests {
             loading: false,
             error: None,
         };
-        assert_eq!(tree.folder_count(), 3, "all three acyclic rows present in the forest");
+        assert_eq!(
+            tree.folder_count(),
+            3,
+            "all three acyclic rows present in the forest"
+        );
     }
 
     /// Empty rows => empty forest (drives the AC7 "No folders" empty state).

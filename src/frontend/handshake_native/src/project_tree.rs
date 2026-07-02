@@ -178,7 +178,11 @@ pub enum ProjectTreeEvent {
 
 /// The loaded content payload for one workspace: documents, canvases, and bookmarks (pinned Loom
 /// blocks). Bundled so a single async load delivers all three over one channel message.
-type LoadedContent = (Vec<DocumentSummary>, Vec<CanvasSummary>, Vec<BookmarkSummary>);
+type LoadedContent = (
+    Vec<DocumentSummary>,
+    Vec<CanvasSummary>,
+    Vec<BookmarkSummary>,
+);
 
 /// The async load result delivered over the channel: which `load_id` it belongs to (for staleness
 /// rejection) and the loaded documents + canvases + bookmarks, or an error string.
@@ -441,7 +445,11 @@ impl ProjectTree {
     /// - the Canvases group (chevron header + paper-strip leaf rows).
     ///
     /// `colors` carries the active-theme tokens so the tree flips dark<->light with the shell.
-    pub fn show(&mut self, ui: &mut egui::Ui, colors: ProjectTreeColors) -> Option<ProjectTreeEvent> {
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        colors: ProjectTreeColors,
+    ) -> Option<ProjectTreeEvent> {
         let mut event: Option<ProjectTreeEvent> = None;
 
         // Container Tree node: register a fixed id on the tree's rect so its live AccessKit node
@@ -450,7 +458,11 @@ impl ProjectTree {
         let container_id = unsafe { egui::Id::from_high_entropy_bits(PROJECT_TREE_NODE_ID) };
 
         // Loading affordance (only while in-flight with nothing yet to show).
-        if self.loading && self.documents.is_empty() && self.canvases.is_empty() && self.error.is_none() {
+        if self.loading
+            && self.documents.is_empty()
+            && self.canvases.is_empty()
+            && self.error.is_none()
+        {
             ui.colored_label(colors.muted_text, "Loading\u{2026}");
         }
 
@@ -475,7 +487,11 @@ impl ProjectTree {
             );
             let retry_resp = ui.interact(rect, retry_id, egui::Sense::click());
             if ui.is_rect_visible(rect) {
-                let bg = if retry_resp.hovered() { colors.row_hover_bg } else { colors.row_bg };
+                let bg = if retry_resp.hovered() {
+                    colors.row_hover_bg
+                } else {
+                    colors.row_bg
+                };
                 ui.painter().rect_filled(rect, 3.0, bg);
                 ui.painter().galley(
                     egui::pos2(rect.left() + pad, rect.center().y - galley.size().y * 0.5),
@@ -584,7 +600,8 @@ impl ProjectTree {
         }
         if self.bookmarks_open {
             for bookmark in &self.bookmarks {
-                let author_id = format!("project-tree.bookmark.{}", stable_part(&bookmark.block_id));
+                let author_id =
+                    format!("project-tree.bookmark.{}", stable_part(&bookmark.block_id));
                 let label_text = format!("{}  [{}]", bookmark.title, bookmark.kind);
                 let width = *self
                     .width_cache
@@ -618,14 +635,19 @@ impl ProjectTree {
             bookmarks_container_id,
             egui::Sense::focusable_noninteractive(),
         );
-        ui.ctx().accesskit_node_builder(bookmarks_container_id, |node| {
-            node.set_role(accesskit::Role::Tree);
-            node.set_author_id(BOOKMARKS_AUTHOR_ID.to_owned());
-            node.set_label("Bookmarks".to_owned());
-        });
+        ui.ctx()
+            .accesskit_node_builder(bookmarks_container_id, |node| {
+                node.set_role(accesskit::Role::Tree);
+                node.set_author_id(BOOKMARKS_AUTHOR_ID.to_owned());
+                node.set_label("Bookmarks".to_owned());
+            });
 
         // Enrich the container node last so its rect spans everything rendered above.
-        ui.interact(container_rect, container_id, egui::Sense::focusable_noninteractive());
+        ui.interact(
+            container_rect,
+            container_id,
+            egui::Sense::focusable_noninteractive(),
+        );
         ui.ctx().accesskit_node_builder(container_id, |node| {
             node.set_role(accesskit::Role::Tree);
             node.set_author_id(PROJECT_TREE_AUTHOR_ID.to_owned());
@@ -651,10 +673,14 @@ impl ProjectTree {
         let text = format!("{chevron} {label} ({count})");
 
         let font = egui::FontId::proportional(13.0);
-        let galley = ui.painter().layout_no_wrap(text.clone(), font, colors.group_text);
+        let galley = ui
+            .painter()
+            .layout_no_wrap(text.clone(), font, colors.group_text);
         let pad = 4.0;
-        let (rect, _) =
-            ui.allocate_exact_size(egui::vec2(galley.size().x + pad * 2.0, 20.0), egui::Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(
+            egui::vec2(galley.size().x + pad * 2.0, 20.0),
+            egui::Sense::hover(),
+        );
         let resp = ui.interact(rect, id, egui::Sense::click());
         if ui.is_rect_visible(rect) {
             ui.painter().galley(
@@ -664,7 +690,9 @@ impl ProjectTree {
             );
         }
         // AccessKit: a TreeItem with a click action (expand/collapse).
-        resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &text));
+        resp.widget_info(|| {
+            egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &text)
+        });
         ui.ctx().accesskit_node_builder(id, |node| {
             node.set_role(accesskit::Role::TreeItem);
             node.set_author_id(author_id.clone());
@@ -741,7 +769,11 @@ fn paper_strip_row(
         let (rect, _) = ui.allocate_exact_size(egui::vec2(strip_w, height), egui::Sense::hover());
         let resp = ui.interact(rect, id, egui::Sense::click());
         if ui.is_rect_visible(rect) {
-            let bg = if resp.hovered() { colors.row_hover_bg } else { colors.row_bg };
+            let bg = if resp.hovered() {
+                colors.row_hover_bg
+            } else {
+                colors.row_bg
+            };
             ui.painter().rect_filled(rect, 3.0, bg);
             // Right-aligned label within the strip.
             let galley = ui.painter().layout_no_wrap(
@@ -925,7 +957,10 @@ async fn fetch_bookmarks(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "non-success status {}",
+            resp.status()
+        )));
     }
     let v: serde_json::Value = resp
         .json()
@@ -954,7 +989,10 @@ async fn fetch_bookmarks(
                 })
                 .unwrap_or(block_id)
                 .to_owned();
-            let content_type = row.get("content_type").and_then(|x| x.as_str()).unwrap_or("");
+            let content_type = row
+                .get("content_type")
+                .and_then(|x| x.as_str())
+                .unwrap_or("");
             Some(BookmarkSummary {
                 block_id: block_id.to_owned(),
                 title,
@@ -996,7 +1034,10 @@ async fn fetch_summaries(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "non-success status {}",
+            resp.status()
+        )));
     }
     let v: serde_json::Value = resp
         .json()
@@ -1033,8 +1074,15 @@ mod tests {
         assert_eq!(stable_part("  spaced  "), "spaced");
         // All-punctuation falls back to a stable hash, never empty.
         let h = stable_part("///");
-        assert!(h.starts_with("id-"), "all-punctuation slug falls back to a hash: {h}");
-        assert_eq!(stable_part("///"), stable_part("///"), "fallback hash is stable");
+        assert!(
+            h.starts_with("id-"),
+            "all-punctuation slug falls back to a hash: {h}"
+        );
+        assert_eq!(
+            stable_part("///"),
+            stable_part("///"),
+            "fallback hash is stable"
+        );
     }
 
     #[test]
@@ -1052,7 +1100,10 @@ mod tests {
     fn set_content_populates_lists_and_clears_loading() {
         let mut tree = ProjectTree::new();
         tree.set_content(
-            vec![DocumentSummary::new("d1", "Foo"), DocumentSummary::new("d2", "Bar")],
+            vec![
+                DocumentSummary::new("d1", "Foo"),
+                DocumentSummary::new("d2", "Bar"),
+            ],
             vec![CanvasSummary::new("c1", "Sketch")],
         );
         assert_eq!(tree.documents().len(), 2);
@@ -1065,13 +1116,19 @@ mod tests {
     fn remove_document_drops_the_row() {
         let mut tree = ProjectTree::new();
         tree.set_content(
-            vec![DocumentSummary::new("d1", "Foo"), DocumentSummary::new("d2", "Bar")],
+            vec![
+                DocumentSummary::new("d1", "Foo"),
+                DocumentSummary::new("d2", "Bar"),
+            ],
             vec![],
         );
         assert!(tree.remove_document("d1"));
         assert_eq!(tree.documents().len(), 1);
         assert_eq!(tree.documents()[0].id, "d2");
-        assert!(!tree.remove_document("nope"), "removing a missing id is a no-op");
+        assert!(
+            !tree.remove_document("nope"),
+            "removing a missing id is a no-op"
+        );
     }
 
     #[test]
@@ -1113,7 +1170,10 @@ mod tests {
         assert!(tree.remove_bookmark("b1"));
         assert_eq!(tree.bookmarks().len(), 1);
         assert_eq!(tree.bookmarks()[0].block_id, "b2");
-        assert!(!tree.remove_bookmark("nope"), "removing a missing bookmark is a no-op");
+        assert!(
+            !tree.remove_bookmark("nope"),
+            "removing a missing bookmark is a no-op"
+        );
     }
 
     #[test]
@@ -1131,14 +1191,17 @@ mod tests {
         let (tx, rx) = std::sync::mpsc::channel();
         tree.rx = Some(rx);
         tree.load_id = 5; // current
-        // Deliver a result tagged with an OLD load_id (3): it must not overwrite the lists.
+                          // Deliver a result tagged with an OLD load_id (3): it must not overwrite the lists.
         tx.send(LoadResult {
             load_id: 3,
             payload: Ok((vec![DocumentSummary::new("old", "Old")], vec![], vec![])),
         })
         .unwrap();
         tree.poll();
-        assert!(tree.documents().is_empty(), "stale result must be discarded");
+        assert!(
+            tree.documents().is_empty(),
+            "stale result must be discarded"
+        );
 
         // Now deliver a matching result (5): it is applied.
         tx.send(LoadResult {

@@ -38,7 +38,9 @@ use handshake_native::accessibility::editor_action_registry::{
     rich_action_catalog, EditorActionRegistry, CODE_ACTION_CATALOG, HEALTH_CANARY_AUTHOR_ID,
 };
 use handshake_native::code_editor::{CodeEditorAction, CodeEditorPanel};
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 
 // ── artifact-hygiene guard (CX-212E) ─────────────────────────────────────────────────────────────
 
@@ -61,8 +63,15 @@ fn assert_no_local_artifact_dir() {
 
 /// A code-editor-only harness with the MT-041 registry installed at instance 0. Returns the shared
 /// panel, the shared registry, and the harness. The harness renders the code editor in a CentralPanel.
-fn code_harness<'a>() -> (Arc<CodeEditorPanel>, Arc<Mutex<EditorActionRegistry>>, Harness<'a, ()>) {
-    let panel = Arc::new(CodeEditorPanel::new("fn main() {\n    let x = 1;\n}\n", "rs"));
+fn code_harness<'a>() -> (
+    Arc<CodeEditorPanel>,
+    Arc<Mutex<EditorActionRegistry>>,
+    Harness<'a, ()>,
+) {
+    let panel = Arc::new(CodeEditorPanel::new(
+        "fn main() {\n    let x = 1;\n}\n",
+        "rs",
+    ));
     let registry = Arc::new(Mutex::new(EditorActionRegistry::new()));
     panel.install_editor_action_registry(Arc::clone(&registry), 0);
     let panel_ui = Arc::clone(&panel);
@@ -76,7 +85,11 @@ fn code_harness<'a>() -> (Arc<CodeEditorPanel>, Arc<Mutex<EditorActionRegistry>>
 
 /// A rich-editor-only harness with the MT-041 registry installed at instance 0. The demo doc has a
 /// bold "world" run with the caret inside it (so `format-bold` reports checked=true — AC-041-05).
-fn rich_harness<'a>() -> (Arc<Mutex<RichEditorState>>, Arc<Mutex<EditorActionRegistry>>, Harness<'a, ()>) {
+fn rich_harness<'a>() -> (
+    Arc<Mutex<RichEditorState>>,
+    Arc<Mutex<EditorActionRegistry>>,
+    Harness<'a, ()>,
+) {
     let registry = Arc::new(Mutex::new(EditorActionRegistry::new()));
     let state = {
         let mut s = RichEditorState::demo();
@@ -144,7 +157,10 @@ fn code_actions_all_present_with_role_and_action() {
         physical_key: None,
         pressed: true,
         repeat: false,
-        modifiers: egui::Modifiers { ctrl: true, ..Default::default() },
+        modifiers: egui::Modifiers {
+            ctrl: true,
+            ..Default::default()
+        },
     });
     harness.run();
     harness.run(); // settle so the find-scoped nodes emit
@@ -190,7 +206,8 @@ fn rich_actions_all_present_with_role_and_action() {
     // Open the rich find panel so the find-scoped rich actions are present.
     {
         let mut s = state.lock().unwrap();
-        s.find_replace = Some(handshake_native::rich_editor::find_replace::FindReplaceState::open(true));
+        s.find_replace =
+            Some(handshake_native::rich_editor::find_replace::FindReplaceState::open(true));
     }
     harness.run();
     harness.run();
@@ -275,7 +292,10 @@ fn proof_b_full_tree_dump_locates_named_nodes() {
     }
     dump.sort();
     dump.dedup();
-    println!("--- PROOF-041-B: editor.* AccessKit node dump ({} nodes) ---", dump.len());
+    println!(
+        "--- PROOF-041-B: editor.* AccessKit node dump ({} nodes) ---",
+        dump.len()
+    );
     for line in &dump {
         println!("{line}");
     }
@@ -306,7 +326,10 @@ fn proof_d_find_panel_actions_dump() {
         physical_key: None,
         pressed: true,
         repeat: false,
-        modifiers: egui::Modifiers { ctrl: true, ..Default::default() },
+        modifiers: egui::Modifiers {
+            ctrl: true,
+            ..Default::default()
+        },
     });
     harness.run();
     harness.run();
@@ -332,7 +355,10 @@ fn proof_d_find_panel_actions_dump() {
         println!("{aid}  role={}  toggled={:?}", found.role, found.toggled);
         shown += 1;
     }
-    assert!(shown >= 5, "PROOF-041-D: at least 5 find-panel actions dumped; got {shown}");
+    assert!(
+        shown >= 5,
+        "PROOF-041-D: at least 5 find-panel actions dumped; got {shown}"
+    );
 }
 
 // ── AC-041-04: dispatch editor.code.find-open -> find panel node appears within one frame ─────────
@@ -352,7 +378,8 @@ fn ac04_dispatch_find_open_opens_find_panel() {
     );
 
     // Resolve the canonical find-open node id from the live tree and dispatch a Click at it.
-    let find_open = find_node(&harness.root(), "editor.code.find-open").expect("find-open node present");
+    let find_open =
+        find_node(&harness.root(), "editor.code.find-open").expect("find-open node present");
     harness.event(click_event(find_open.node_id));
     harness.run(); // the editor consumes the Click + opens find this frame
     harness.run(); // settle so the find-panel node emits
@@ -378,8 +405,12 @@ fn ac05_format_bold_toggle_reflects_cursor_in_bold() {
 
     // The demo caret sits at [1,1] offset 5 — INSIDE the bold "world" run — so the live toggle reads
     // checked=true (CTRL-041-03: toggle state tracks the cursor).
-    let bold0 = find_node(&harness.root(), "editor.rich.format-bold").expect("format-bold node present");
-    assert_eq!(bold0.role, "CheckBox", "format-bold is a ToggleButton -> CheckBox (accesskit 0.21)");
+    let bold0 =
+        find_node(&harness.root(), "editor.rich.format-bold").expect("format-bold node present");
+    assert_eq!(
+        bold0.role, "CheckBox",
+        "format-bold is a ToggleButton -> CheckBox (accesskit 0.21)"
+    );
     assert_eq!(
         bold0.toggled,
         Some(true),
@@ -395,7 +426,8 @@ fn ac05_format_bold_toggle_reflects_cursor_in_bold() {
     }
     harness.run();
     harness.run();
-    let bold_after = find_node(&harness.root(), "editor.rich.format-bold").expect("format-bold node present");
+    let bold_after =
+        find_node(&harness.root(), "editor.rich.format-bold").expect("format-bold node present");
     assert_eq!(
         bold_after.toggled,
         Some(false),
@@ -414,11 +446,13 @@ fn ac05_format_bold_toggle_reflects_cursor_in_bold() {
         };
     }
     harness.run();
-    let bold_sel = find_node(&harness.root(), "editor.rich.format-bold").expect("format-bold node present");
+    let bold_sel =
+        find_node(&harness.root(), "editor.rich.format-bold").expect("format-bold node present");
     harness.event(click_event(bold_sel.node_id));
     harness.run(); // editor consumes Click + runs toggle_mark this frame
     harness.run();
-    let bold_applied = find_node(&harness.root(), "editor.rich.format-bold").expect("format-bold node present");
+    let bold_applied =
+        find_node(&harness.root(), "editor.rich.format-bold").expect("format-bold node present");
     assert_eq!(
         bold_applied.toggled,
         Some(true),
@@ -504,12 +538,16 @@ fn ctrl01_author_ids_stable_across_layout_change() {
     add_dummy.store(true, std::sync::atomic::Ordering::Relaxed);
     harness.run();
     harness.run();
-    let after = find_node(&harness.root(), "editor.code.save").expect("save node after layout shift");
+    let after =
+        find_node(&harness.root(), "editor.code.save").expect("save node after layout shift");
     assert_eq!(
         before.node_id, after.node_id,
         "CTRL-041-01: editor.code.save NodeId must be stable across a layout change (string-hashed id)"
     );
-    println!("CTRL-041-01: editor.code.save id {:?} stable across layout change", after.node_id);
+    println!(
+        "CTRL-041-01: editor.code.save id {:?} stable across layout change",
+        after.node_id
+    );
 }
 
 // ── RISK-041-05 / CTRL-041-05: two code panes -> instance-suffixed author_ids ─────────────────────
@@ -537,8 +575,14 @@ fn ctrl05_two_code_panes_get_instance_suffixed_ids() {
     let root = harness.root();
     let zero = find_node(&root, "editor.code.save");
     let one = find_node(&root, "editor.code.save.1");
-    assert!(zero.is_some(), "CTRL-041-05: instance 0 uses the bare 'editor.code.save'");
-    assert!(one.is_some(), "CTRL-041-05: instance 1 suffixes 'editor.code.save.1'");
+    assert!(
+        zero.is_some(),
+        "CTRL-041-05: instance 0 uses the bare 'editor.code.save'"
+    );
+    assert!(
+        one.is_some(),
+        "CTRL-041-05: instance 1 suffixes 'editor.code.save.1'"
+    );
     assert_ne!(
         zero.unwrap().node_id,
         one.unwrap().node_id,
@@ -592,7 +636,9 @@ fn ac01_every_action_node_declares_at_least_one_action() {
             // container + the health canary) must declare >=1 action a swarm agent can dispatch.
             let mut checked = 0usize;
             for node in snap.iter_nodes() {
-                let Some(author) = node.author_id.as_deref() else { continue };
+                let Some(author) = node.author_id.as_deref() else {
+                    continue;
+                };
                 if !author.starts_with("editor.") || author.ends_with("find-panel") {
                     continue;
                 }
@@ -610,7 +656,10 @@ fn ac01_every_action_node_declares_at_least_one_action() {
                 );
                 checked += 1;
             }
-            assert!(checked >= 20, "AC-041-01: expected to verify many action nodes; checked {checked}");
+            assert!(
+                checked >= 20,
+                "AC-041-01: expected to verify many action nodes; checked {checked}"
+            );
             println!("AC-041-01: {checked} editor.* action nodes each declare >=1 (Click) action");
             return;
         }
@@ -673,19 +722,25 @@ fn code_find_toggle_case_dispatch_flips_the_option() {
     harness.run();
     harness.run();
 
-    let before = panel
-        .find_state()
-        .expect("find open")
-        .query
-        .case_sensitive;
+    let before = panel.find_state().expect("find open").query.case_sensitive;
     assert!(!before, "find starts with case_sensitive=false");
 
     // Dispatch a Click at the canonical toggle node and let the editor consume it this frame.
     let toggle = find_node(&harness.root(), "editor.code.find-toggle-case")
         .expect("find-toggle-case node present while find is open");
-    assert_eq!(toggle.role, "CheckBox", "find-toggle-case is a ToggleButton -> CheckBox");
-    assert!(!toggle.disabled, "an open find toggle is enabled (dispatchable)");
-    assert_eq!(toggle.toggled, Some(false), "toggle reads the live case_sensitive=false");
+    assert_eq!(
+        toggle.role, "CheckBox",
+        "find-toggle-case is a ToggleButton -> CheckBox"
+    );
+    assert!(
+        !toggle.disabled,
+        "an open find toggle is enabled (dispatchable)"
+    );
+    assert_eq!(
+        toggle.toggled,
+        Some(false),
+        "toggle reads the live case_sensitive=false"
+    );
 
     harness.event(click_event(toggle.node_id));
     harness.run(); // editor consumes the Click + runs set_find_toggles this frame
