@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-107",
+  "title": "B1-MT-107-BackendLaunchContractValidator-ManagedPgTestHarness-ReScope",
+  "group": "E6",
+  "created_at_utc": "2026-07-02T03:14:11Z",
+  "updated_at_utc": "2026-07-02T03:14:11Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-107.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_GENERATED_JSON_AUTHORITY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "CLAIMED",
+    "depends_on": [],
+    "blocks": [
+      "MT-101"
+    ],
+    "active": true,
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER",
+    "claimed_at_utc": "2026-07-02T03:14:11Z",
+    "claim_session": "KERNEL_BUILDER-20260702-012522"
+  },
+  "scope": {
+    "summary": "Re-scope and own the backend work that rode into recovery commit 3bf307a8 under MT-101 whose contract forbids src/backend/**. Owns: (1) validate_native_workspace_model_launch_contract in workflows.rs - marker-gated fail-closed validation of native workspace model_run launches (launch_surface=handshake_native, launch_mode=workspace_model_session, session_id/wrapper required, workspace_folder==working_dir, provider==backend) plus 7 pure unit tests; (2) api/jobs.rs model_run lane changes incl. workflow_run pre-creation and legacy null-binding repair; (3) managed_postgres.rs remediation - default pgdata under ../Handshake_Artifacts/handshake-product/managed_pgdata, ensure_running wait/adopt when postmaster.pid exists but pg_isready is not yet ready (double pg_ctl start race fix); (4) storage/postgres.rs postgres_test_base_url bootstrap of managed PostgreSQL when POSTGRES_TEST_URL/DATABASE_URL absent; (5) managed-PG auto-boot test harness adoption across backend test files plus DuckDbFlightRecorder to NoopTestRecorder swap in workflows tests; (6) session worktrees default to ../Handshake_Artifacts/handshake-tool/session_worktrees. GLOBAL-SCOPE-005 disclosure: this work was performed by the prior session as cross-cutting PostgreSQL recovery attached to the MT-101 continuation, violating MT-101 forbidden_paths; this MT is the governed re-scope so the Operator has one place to waive or reject it. Full touched-file list is enumerated in commit 3bf307a8 message and packet status_sync notes.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/api/jobs.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/src/api/workspaces.rs",
+      "src/backend/handshake_core/src/managed_postgres.rs",
+      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/tests.rs",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/workspace_safety.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/knowledge_ingestion/allowlist.rs",
+      "src/backend/handshake_core/src/locus/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "forbidden_paths": [
+      "src/frontend/"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-107-1",
+        "text": "Launch-contract validator fail-closes malformed native workspace launches: 7 pure unit tests (native_workspace_model_run_*) green without PostgreSQL; legacy non-native launches keep UUID fallback."
+      },
+      {
+        "id": "AC-107-2",
+        "text": "Managed PostgreSQL bootstraps by default when POSTGRES_TEST_URL and DATABASE_URL are absent: postgres_test_base_url_bootstraps_default_postgres_when_url_candidates_missing green executing SELECT 1 against real managed PG; pgdata under ../Handshake_Artifacts/handshake-product/managed_pgdata; no repo-local managed_pgdata residue."
+      },
+      {
+        "id": "AC-107-3",
+        "text": "PG-bound model_run lifecycle behaviors proven against real managed PostgreSQL: model_run_timeout_ms_fails_before_simulated_runtime_finishes; model_run_dispatch_repairs_legacy_null_workflow_run_before_parse_failure; model_run_startup_repair_backfills_legacy_null_workflow_run; model_run_capability_denial_marks_precreated_workflow_failed."
+      },
+      {
+        "id": "AC-107-4",
+        "text": "from_env_defaults_are_disk_agnostic green; no drive-specific absolute paths introduced in defaults."
+      },
+      {
+        "id": "AC-107-5",
+        "text": "Operator waiver disposition recorded for the forbidden-path breach that this MT re-scopes (why plus full touched list), per GLOBAL-SCOPE-005 / HBR-STOP."
+      }
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib native_workspace_model_run",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib storage::tests::postgres_test_base_url_bootstraps_default_postgres_when_url_candidates_missing -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib managed_postgres::tests::from_env_defaults_are_disk_agnostic -- --exact",
+      "PG-bound: cargo test --manifest-path src/backend/handshake_core/Cargo.toml model_run_timeout_ms_fails_before_simulated_runtime_finishes model_run_dispatch_repairs_legacy_null_workflow_run_before_parse_failure model_run_startup_repair_backfills_legacy_null_workflow_run model_run_capability_denial_marks_precreated_workflow_failed"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Backend-only re-scope: launch-contract validation and managed-PG test harness have no operator-visible surface; native launch UI is MT-101 scope. Trace evidence lives in typed WorkflowError rejections and test output."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": "Operator-facing behavior unchanged: the validator only rejects malformed programmatic launches (native UI always emits the valid shape). Manual coverage of model-session launch semantics is owned by MT-104; the backend user_manual/seed.rs diff rode along in 3bf307a8 and is inspected under MT-104 obligations."
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Re-scoped work was authored under a violated contract; silent acceptance without waiver normalizes forbidden-path drift.",
+      "Managed-PG adoption path could mask a genuinely broken pg_ctl start by waiting forever.",
+      "Test-harness auto-boot could leak postgres processes across parallel WP sessions on a loaded host."
+    ],
+    "minimum_controls": [
+      "AC-107-5 waiver disposition is mandatory before READY_FOR_VALIDATION.",
+      "ensure_running adoption is bounded by pg_isready timeout, proven by rerun of the no-env bootstrap test.",
+      "Proof runs record pg process ownership; artifact hygiene check confirms no orphan pgdata outside the artifacts root."
+    ]
+  }
+}

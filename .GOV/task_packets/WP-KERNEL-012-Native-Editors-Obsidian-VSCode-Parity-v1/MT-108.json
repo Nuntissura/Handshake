@@ -1,0 +1,134 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-108",
+  "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
+  "group": "R1",
+  "created_at_utc": "2026-07-02T03:14:11Z",
+  "updated_at_utc": "2026-07-02T03:14:11Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_GENERATED_JSON_AUTHORITY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Deferred residual hardening collected from the 2026-07-02 wave-A adversarial drift audit so approved-minor gaps are not forgotten (operator directive: defer uncorrelated gaps to a future MT in the same WP). Items: (1) MT-004: auto-scroll current match below find-bar occlusion (RISK-004); replace_all over-1000 cap or off-thread run plus progress indicator; kittest typing into find TextEdit. (2) MT-006: outline raw-click navigation kittest; fold-active navigation landing-row test. (3) MT-013: overflow popup 2-frame kittest; Bold toolbar button click kittest; fix stale offset-0 backspace comment in input_handler.rs. (4) MT-016: fix code-block slash-menu description promising a nonexistent language prompt (or implement code-language and table row/col prompts); assert slash char remains after Escape. (5) MT-018: keystroke-driven find-input kittest; replace-one/replace-all click kittests; scrolled-tall-doc highlight integration test. (6) MT-098: live-harness type-and-click send proof observing EndpointMissing; align probed route naming with real backend route conventions. (7) MT-100: workspace-folder resolution residual (process cwd vs chosen folder) tracked to the real /terminal route. (8) MT-102: real-GPU worksurface screenshot captured and visually inspected (PT-102-B). (9) MT-105: decide/implement hard total-runtime cap for forever-ticking operations (deadline currently = progress-gap only). (10) MT-106: surface Suspected/no-baseline child stalls as diagnostics events; make registration-time liveness baseline mandatory via register_file_child. (11) SYSTEMIC: screenshot proof harness must emit an explicit typed DEFERRED/BLOCKED marker instead of silently passing when no wgpu adapter exists, so GREEN never implies pixels on headless hosts. (12) MT-004/MT-009 dep governance nit: Cargo.toml/Cargo.lock rode outside allowed_paths for sanctioned deps - record disposition.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/",
+      "src/frontend/handshake_native/tests/",
+      "src/frontend/palmistry/src/",
+      "src/frontend/palmistry/tests/"
+    ],
+    "forbidden_paths": [
+      "src/backend/"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-108-1",
+        "text": "Each numbered residual item is either implemented with a runtime-proven test, or explicitly re-deferred with a typed reason recorded in this contract."
+      },
+      {
+        "id": "AC-108-2",
+        "text": "Systemic screenshot-harness item (11) is mandatory: headless runs produce a typed deferred marker artifact, not silent GREEN."
+      },
+      {
+        "id": "AC-108-3",
+        "text": "No regression: full handshake-native suite green after changes."
+      }
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native (full suite -j 2)",
+      "per-item targeted tests enumerated at claim time"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "find bar",
+      "formatting toolbar",
+      "slash menu",
+      "outline pane",
+      "rich find/replace panel",
+      "runtime chat pane",
+      "diagnostics panel"
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "find/replace behavior notes if thresholds change",
+      "diagnostics stall-watchdog semantics if cap added"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Residual bucket becomes a dumping ground that never closes.",
+      "Polish edits regress proven wave-A SOUND behavior.",
+      "Screenshot-harness change could destabilize the existing PNG proof suite."
+    ],
+    "minimum_controls": [
+      "Every item has a disposition (IMPLEMENTED or RE_DEFERRED-with-reason) before READY_FOR_VALIDATION.",
+      "Full-suite green gate (AC-108-3).",
+      "Harness change keeps existing GPU-host behavior identical; only the headless path gains the typed marker."
+    ]
+  }
+}
