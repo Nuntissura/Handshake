@@ -125,6 +125,13 @@ pub fn editors_manual_section() -> ManualSection {
         heading: "Atelier Settings and Defaults",
         body: atelier_settings_defaults_body(),
     });
+    // WP-CKC MT-021: dedicated prose topic for the deterministic prompt-feedback kernel (the MT-020
+    // Ingest sub-mode). Before MT-021 the kernel had only agent-tool rows and no no-context prose; this
+    // topic brings it to parity with the CKC/PoseKit/Ingest/Facial coverage in `atelier_tools_body`.
+    topics.push(ManualTopic {
+        heading: "Prompt Feedback Kernel",
+        body: prompt_feedback_body(),
+    });
     // The interop topic (its own addressable topic). AC-005/MC-007 assert all four edge names + an
     // author_id + mcp_tool appear in this topic's body.
     topics.push(ManualTopic {
@@ -375,6 +382,57 @@ preference revision and records a reset event, so the change is auditable in the
 Flight Recorder / internal_diagnostics / Palmistry: Tier 1 Flight Recorder is WIRED via the store's \
 EventLedger events; Tier 2 internal_diagnostics and Tier 3 Palmistry are DEFERRED (not yet shipped in \
 this worktree) per HBR-INT-009."
+        .to_owned()
+}
+
+fn prompt_feedback_body() -> String {
+    "PURPOSE: the prompt-feedback kernel (WP-CKC MT-020) is Handshake's deterministic prompt-feedback \
+loop for adult-production prompt QA and rewrite. It imports evaluated ComfyUI porn-prompt (CUIPP) / \
+prompt-stress rows — the Leeseo CUIPP eval set — turns each into a PromptCase, lets an \
+operator/model/subagent record verdicts on which cases failed and why, then emits a deterministic \
+corrected prompt plus a machine-readable rule_trace so a no-context model can see exactly which rules \
+fired and never has to freeform-rewrite a prompt itself.\n\
+\n\
+SURFACE LOCATION: the kernel is a prompt-feedback SUB-MODE nested under the Ingest tab \
+(atelier-tab-ingest -> atelier-promptfeedback-mode-feedback), not a 4th top-level Atelier tab. Enter it \
+with argus.click{target:'atelier-promptfeedback-mode-feedback'}; the Ingest triage surface and the \
+prompt-feedback surface share the same Ingest tab rather than adding a new AtelierPanelTab.\n\
+\n\
+DETERMINISM GUARANTEE: the rewrite engine is a PURE normalize -> validate -> evaluate_rules -> rewrite \
+-> trace pipeline over a versioned rule-pack (5 seed rules, hash-pool rule selection). Given the SAME \
+input PromptCase and the SAME rule-pack version, the engine produces a byte-stable rewrite output plus a \
+populated rule_trace every time — there is no model sampling anywhere in the rewrite path. Models NEVER \
+freeform-rewrite a prompt: every correction is a replay of the traced rules, so two runs on the same \
+input are byte-identical and fully auditable from the rule_trace.\n\
+\n\
+WORKFLOW (import -> record verdicts -> deterministic rewrite-with-trace -> hashed JSONL export):\n\
+- IMPORT: argus.click atelier-promptfeedback-import stages POST /atelier/prompt-feedback/import; the \
+adapter converts CUIPP rows into PromptCases (machine-local paths are dropped and image refs are \
+normalized to dataset:// refs). Inspect the imported rows in atelier-promptfeedback-case-list, grouped \
+by segment / cell / render-stack.\n\
+- VERDICTS: record operator/model/subagent verdicts per case through POST \
+/atelier/prompt-feedback/verdicts; a verdict marks the failure mode the rule-pack can act on.\n\
+- REWRITE: argus.click atelier-promptfeedback-rewrite previews the deterministic rewrite; \
+atelier-promptfeedback-rewrite-preview shows the corrected prompt and atelier-promptfeedback-trace shows \
+the rule_trace (the ordered rule ids that fired). POST /atelier/prompt-feedback/rewrite is the backend \
+route; GET /atelier/prompt-feedback/cases and GET /atelier/prompt-feedback/rulepacks expose the cases \
+and the versioned rule-packs.\n\
+- EXPORT: argus.click atelier-promptfeedback-export stages POST /atelier/prompt-feedback/export, which \
+materializes the corrected set as a content-hashed JSONL artifact in the ArtifactStore — never a sidecar \
+authority and never a local-file store. Persistence for cases, verdicts, and export receipts routes \
+through handshake_core (PostgreSQL/EventLedger); the kernel never persists state on its own.\n\
+\n\
+KEY INVARIANT (prompt-quality is not identity): a prompt-stress verdict is prompt-quality / porn-\
+readiness evidence ONLY and can never be an identity-success verdict. A prompt-stress positive means the \
+prompt survived stress, NOT that a character identity was matched; a standard case rejects a leaked \
+prompt-stress positive tail, so the prompt-quality and identity verdict families never cross-contaminate.\n\
+\n\
+FAILURE / RECOVERY: without a live backend client the sub-mode shows the last imported/preview state and \
+import/verdict/rewrite/export are inert (no client to dispatch); the case-list and status readouts say so \
+rather than fabricating a rewrite. Because the rewrite is deterministic, recovery is simply to re-run the \
+same case against the same rule-pack version — the byte-stable output and rule_trace reproduce exactly, \
+so a failed or interrupted export can be rebuilt without guessing. Re-import from the CUIPP source and \
+re-run rewrite once the backend is reachable to restore canonical handshake_core authority."
         .to_owned()
 }
 

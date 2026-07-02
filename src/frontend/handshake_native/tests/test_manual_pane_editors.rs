@@ -1172,6 +1172,57 @@ fn manual_documents_facial_backbone_and_argus_workflow() {
         .contains("handshake_proxy_no_model"));
 }
 
+/// MT-021 parity target: the internal manual carries a DEDICATED prose topic for the deterministic
+/// prompt-feedback kernel (the thinnest pillar before MT-021 — it had only agent-tool rows, no
+/// no-context prose). A no-context model must be able to read purpose, the determinism guarantee, the
+/// surface location, the import->verdicts->rewrite-with-trace->export workflow, and the
+/// prompt-quality-is-not-identity invariant WITHOUT reading the MT-020 source. Pure in-memory (no
+/// server / PostgreSQL): it asserts the topic exists and its body carries the key substrings.
+#[test]
+fn manual_documents_prompt_feedback_kernel() {
+    let section = editors_manual_section();
+    let topic = section
+        .topic("Prompt Feedback Kernel")
+        .expect("the Prompt Feedback Kernel topic exists in the native manual");
+
+    // A substantive no-context body, not an empty stub (mirrors the AC-001 body-length floor).
+    assert!(
+        topic.body.len() > 60,
+        "Prompt Feedback Kernel topic must carry a substantive no-context body (got {} chars)",
+        topic.body.len()
+    );
+
+    for required in [
+        // PURPOSE + the four workflow verbs.
+        "deterministic",
+        "import",
+        "export",
+        // DETERMINISM guarantee (byte-stable output + populated rule_trace for a given rule-pack version).
+        "byte-stable",
+        "rule_trace",
+        "rule-pack version",
+        "JSONL",
+        // SURFACE LOCATION: a sub-mode nested under Ingest, NOT a 4th top-level Atelier tab.
+        "nested under the Ingest tab",
+        "not a 4th",
+        // KEY INVARIANT: a prompt-stress verdict can never be an identity-success verdict.
+        "prompt-stress",
+        "identity-success",
+        "never",
+    ] {
+        assert!(
+            topic.body.contains(required),
+            "Prompt Feedback Kernel topic missing required guidance: {required}"
+        );
+    }
+
+    // MC-006 alignment: the new topic must not leak the forbidden persistence token.
+    assert!(
+        !topic.body.to_lowercase().contains("sqlite"),
+        "MC-006: the prompt-feedback topic must not mention SQLite"
+    );
+}
+
 #[test]
 fn manual_agent_tool_rows_cover_ckc_sheet_artifact_controls() {
     let rows = agent_tool_rows();
