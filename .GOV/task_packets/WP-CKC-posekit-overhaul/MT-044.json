@@ -23,7 +23,10 @@
     "D4 (test infra): mock-server tests (read_http_request .expect + tight accept/read timeouts) flake under heavy cargo load (ingest_facial, ingest_contact_sheet panic at test_atelier_panel.rs:683). Harden: longer/removed timeouts, no .expect panic, or serialize the mock tests.",
     "D5 (MT-016 bug): argus_attaches_latest_posekit_export_to_ckc_sheet_artifacts_locally FAILS deterministically (test_atelier_panel.rs ~:2744) - CKC sheet-artifact attach does not preserve the Argus/model actor on the local linked_by detail. Fix in MT-016 (its RFV is questionable).",
     "D6 (MT-013 layout): 3-panel book layout overflows below ~700px width; no narrow-width/empty-state Argus capture matrix. Responsive fix + capture coverage.",
-    "D7 (MT-043 posekit): right OpenPose viewport renders real keypoints from openpose_json, not the literal exported PNG bytes. Add an artifact-content byte-fetch route so it can show the exact exported PNG."
+    "D7 (MT-043 posekit): right OpenPose viewport renders real keypoints from openpose_json, not the literal exported PNG bytes. Add an artifact-content byte-fetch route so it can show the exact exported PNG.",
+    "D8 (MT-020 future scope): the Leeseo LoRA-training-infra wishlist (GPU preflight/isolation, kohya scaffolding, experiment registry, dataset builder, member-separation, epoch sweep/keeper selection, training monitor, eval-harness) is SEPARATE training infrastructure, largely outside Atelier/CKC - a future WP, NOT built in the MT-020 prompt-feedback kernel. Tracked here so it is not forgotten; likely promote to its own WP.",
+    "D9 (MT-020 panel round-trip): the prompt-feedback native panel (Ingest sub-mode) is honestly WIP - buttons set status strings + Argus is steerable, but the live backend round-trip + drain loop (calling the AtelierClient::prompt_feedback_* builders and delivering results into the panel, mirroring the drain_*_backend pattern) is deferred. Named follow-up MT: wire the panel to the backend engine end-to-end.",
+    "D10 (MT-020 CSV import): the adapter imports CUIPP JSON rows; the handoff also lists a prompt_stress_manifest.csv fixture. Add a CSV prompt-stress reader to the adapter (JSON path already works)."
   ],
   "lifecycle": { "status": "PENDING", "active": false, "validator_verdict": "PENDING" },
   "handoff": { "status": "PENDING" }

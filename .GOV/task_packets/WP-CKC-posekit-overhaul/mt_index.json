@@ -204,11 +204,13 @@
     },
     {
       "mt_id": "MT-020",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "964db28d",
       "title": "Integrate prompt feedback kernel and Leeseo wishlist into Handshake workflows",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-020.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "reality": "Committed 964db28d (2026-07-02): deterministic prompt-feedback kernel first slice. NEW self-contained atelier/prompt_feedback/ module (model/engine/adapter/mod) on PG+EventLedger+ArtifactStore (no SQLite). Leeseo CUIPP/prompt-stress import -> PromptCases; operator/model/subagent/validator/script verdicts; PURE engine (normalize->validate->evaluate_rules->rewrite->trace) with 5 seed rules + hash pool selection; every rewrite carries a trace (no freeform); JSONL export = hashed ArtifactStore artifact. Migration 0342 (5 tables). 6 API routes; frontend prompt-feedback sub-mode nested under Ingest (not a 4th tab); atelier-promptfeedback-* Argus ids; both manuals. Pre+post adversarial review found+fixed: F1 non-overridable prompt-stress->identity invariant (import + verdict paths), F2 unimplemented-rule-pack rejection, F3 feedback-distinct rewrite row, F6 export content-hash reuse, deadlock-retry (40P01/40001) for multi-writer safety, and a real render-stack mapping bug (no_detail->FaceDetailer). Proof: engine/adapter 13/13 unit; backend atelier_prompt_feedback_tests 7/7 managed PG; frontend test_atelier_panel 31/1 (1=pre-existing MT-016 :2812 = MT-044 D5). Deferred to MT-044: D8 LoRA wishlist (separate future scope), D9 panel live backend round-trip (panel is honest WIP), D10 CSV import."
     },
     {
       "mt_id": "MT-021",
