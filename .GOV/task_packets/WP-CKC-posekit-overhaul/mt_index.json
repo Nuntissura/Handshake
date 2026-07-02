@@ -419,12 +419,14 @@
     },
     {
       "mt_id": "MT-042",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "22a4ec8f",
       "title": "Surface Atelier/CKC/PoseKit/Ingest settings-options features in the operator settings surface",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-042.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "origin": "MT-040 audit P5 + operator goal (settings/options features)."
+      "origin": "MT-040 audit P5 + operator goal (settings/options features).",
+      "reality": "Committed 22a4ec8f (2026-07-02): 13 operator-default preferences on the existing atelier PG+EventLedger preference store (landing-tab, ckc.book-mode, posekit framing/lens/padding/markers, ingest tags/policy); routes GET/PUT/POST /atelier/preferences(+reset); backend_client; collapsing Settings/Defaults region in atelier_panel.rs (not a 4th tab, avoids editor-WIP settings_dialog.rs); Argus atelier-settings-*; UserManual. Adversarial review found+fixed: mock-consuming load-on-open regression, F1 non-atomic save, F2 tab-yank, F3 dead padding, F4 actor attribution, F5-F8. Runtime-proven: test_atelier_panel 29/1 (1=pre-existing MT-016) + 4 unit tests; backend atelier_settings_preference_tests 3/3 on managed PG. Security finding: EventLedger redacts preference values to sha256 refs. F6 note: enum fields kept as steerable TextInputs + client validation (combos would break argus.set_value TextInput-only)."
     },
     {
       "mt_id": "MT-043",
