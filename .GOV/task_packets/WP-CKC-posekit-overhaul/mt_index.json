@@ -371,12 +371,14 @@
     },
     {
       "mt_id": "MT-037",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "9f3e524f",
       "title": "Contain CKC local fallback state and persistence receipts",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-037.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "parallel_lane_note": "Follow-up from MT-010 review; captures local-only state and false-persistence risk."
+      "parallel_lane_note": "Follow-up from MT-010 review; captures local-only state and false-persistence risk.",
+      "reality": "Committed 9f3e524f (2026-07-03): EVERY CKC local-only mutation path now surfaces an Argus-readable status carrying 'Backend is unavailable; this is not persisted.' + a persistence-mode receipt node (backend:persistent vs local-preview:not-persisted). Contained: story save/beat/card, moodboard save, tag-note, character-create (was SILENT->atelier-ckc-error made Argus-readable), sheet-version save (was SILENT + minted a backend-looking atelier://sheet ref->now labeled + new atelier-ckc-sheet-status/-backend-mode receipt), sheet-artifact attach/detach. Manual recovery text (local-preview NOT canonical PG/EventLedger/CRDT; reload from backend). MT-032 album/media untouched. Pre-impl scout: MT-032 (dba73d95) already did album/media - this covers the surfaces it missed. Post-impl review found+fixed AC-1 'every path' gaps: F1 sheet-version silent fabricated ref (most dangerous), F2 sheet-artifact, F3 story-card, F5 the guard only caught persist/saved (now flags local+mutation-verb w/o 'not persisted'). Proof: test_atelier_panel 35/1 (1=pre-existing MT-016 :2816=D5) incl. the extended ckc_local_fallback_is_argus_visible_and_never_claims_persistence + MT-032/MT-013 regressions clean; test_manual_pane_editors 14/14. Scope waiver: test_manual_pane_editors.rs (id-audit atomicity) beyond contract allowed_paths. Deferred to MT-044: F4 character-create success on error channel, per-record origin schema, durable receipt log, local-state eviction."
     },
     {
       "mt_id": "MT-038",
