@@ -133,12 +133,13 @@
     },
     {
       "mt_id": "MT-013",
-      "status": "IN_PROGRESS",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "b5a973e2",
       "title": "Restore CKC book-style visual layout and work-surface behavior",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-013.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "Book layout committed ad818ca0. MEDIA VIEWER DE-SCAFFOLDED + committed b5a973e2 (2026-07-02): real decoded raster via the MT-043 byte-fetch (ckc_media 3/3 + ckc_linked_media_backend_roundtrip pass) - the scaffolding gap is CLOSED. Remaining MT-013 gaps (deferrable, NOT scaffolding): 3-panel min-width overflow below ~700px (responsive layout); no narrow-width/empty-state Argus capture matrix; singleton book-mode -> MT-022. Cross-cutting deferrals: unbounded CkcMediaImageCache/PoseSourceImageCache (add LRU); mock-server test flakes under heavy load (harden read_http_request)."
+      "reality": "DONE-BUT-DRIFTED (validated 2026-07-03, same pattern as MT-032). Full contract satisfied by committed CLEAN code: book layout ad818ca0 (media-left/sheet-right default, middle panel only for story/notes/moodboard, image-notes separate from sheet-notes, no four-window layout via assert_no_four_window_artifacts) + media viewer de-scaffolded b5a973e2 (real decoded raster via MT-043 byte-fetch). All 4 acceptance_criteria + base_scope CONFIRMED-PRESENT (atelier_panel.rs CkcBookMode :494-543, book groups emit_node :8147-8248). Validated at HEAD post-MT-031: proof tests ckc_book_layout_modes_gate_middle_panel_surfaces + argus_inspects_and_steers_ckc_character_sheet_surface pass within test_atelier_panel 34/1 (1=pre-existing MT-016 :2812=D5); manual/id-audit test_manual_pane_editors 14/14. No product build needed - status flip only. D6 (sub-700px 3-panel overflow + narrow/empty-state capture matrix) is EXTRA hardening beyond the contract acceptance (no pixel threshold in-contract) - correctly deferred to MT-044 (also D3 cache LRU, D4 mock flakes)."
     },
     {
       "mt_id": "MT-014",
