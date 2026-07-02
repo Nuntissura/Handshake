@@ -447,6 +447,59 @@ impl WikilinkRuntime {
         self.transclusions.remove(ref_value);
     }
 
+    /// WP-KERNEL-012 MT-045 (wave-2 remediation): detect a CYCLIC transclusion chain starting at
+    /// `start`, walking the LIVE resolution cache with the product
+    /// [`crate::rich_editor::wikilinks::transclusion_resolver::resolve_transclusion_chain`] (the
+    /// resolver the LR-05 perf proof drives — one algorithm, not a test-only fork). Each hop is the
+    /// FIRST `loomTransclusion` target embedded in the previous hop's resolved `content_json`.
+    ///
+    /// Returns `Some(repeated_block_id)` when the chain revisits an id (the render path then shows a
+    /// visible cycle indicator instead of the read-through preview), `None` otherwise. The walk is
+    /// evidence-based and fail-closed the honest way around:
+    /// - a hop that is NOT yet resolved in the cache ends the walk for THIS frame (`None` — never a
+    ///   cycle claim without evidence); the missing hop is handed to [`Self::ensure_transclusion`] so
+    ///   the walk deepens on later frames once the fetch lands (cached, storm-safe, headless no-op);
+    /// - a hop whose content embeds no transclusion ends the chain cleanly;
+    /// - a non-cyclic over-deep chain trips the resolver's depth bound and reports no cycle (the
+    ///   bound exists so a runaway chain can never spin the frame).
+    pub fn detect_transclusion_cycle(&mut self, start: &str) -> Option<String> {
+        use crate::rich_editor::wikilinks::transclusion_resolver::{
+            next_transclusion_ref, resolve_transclusion_chain, TransclusionResolveError,
+            MAX_TRANSCLUSION_CHAIN_DEPTH,
+        };
+
+        // The walk reads ONLY the cache; a next hop that is not cached yet is recorded so the fetch
+        // can be scheduled AFTER the walk (the closure borrows the cache immutably).
+        let mut missing_hop: Option<String> = None;
+        let transclusions = &self.transclusions;
+        let result = resolve_transclusion_chain(start, MAX_TRANSCLUSION_CHAIN_DEPTH, |id| {
+            let next = match transclusions.get(id) {
+                Some(TransclusionState::Resolved(t)) => {
+                    t.content_json.as_ref().and_then(next_transclusion_ref)?
+                }
+                // Unresolved/Failed/Resolving/uncached hop: no onward evidence — clean end.
+                _ => return None,
+            };
+            if transclusions.contains_key(&next) {
+                // Cached (any state): continue — the resolver's visited set is what flags a repeat.
+                Some(next)
+            } else {
+                // Not fetched yet: stop THIS frame's walk and schedule the hop so a deeper chain
+                // becomes verifiable on later frames.
+                missing_hop = Some(next);
+                None
+            }
+        });
+        if let Some(hop) = missing_hop {
+            self.ensure_transclusion(&hop);
+        }
+        match result {
+            Err(TransclusionResolveError::CycleDetected { at }) => Some(at),
+            // A clean end or the depth bound: no cycle EVIDENCE — render normally.
+            Ok(_) | Err(TransclusionResolveError::DepthExceeded { .. }) => None,
+        }
+    }
+
     // ── WP-KERNEL-012 MT-057: create-from-unresolved + alias stub ────────────────────────────────
 
     /// Install the production create backend (`POST /knowledge/documents` via the MT-037 binding) so
@@ -872,6 +925,77 @@ mod tests {
         assert_eq!(
             rt.backlinks_generation, gen,
             "no generation bump / fetch without a runtime to dispatch it (RISK-4 + no idle spinner)"
+        );
+    }
+
+    /// A resolved transclusion whose content embeds a `loomTransclusion` pointing at `next` (the
+    /// chain-hop shape [`WikilinkRuntime::detect_transclusion_cycle`] walks).
+    fn chained_transclusion(block_id: &str, next: &str) -> LoomBlockTransclusion {
+        let mut t = resolved_transclusion(block_id);
+        t.content_json = Some(serde_json::json!({"type":"doc","content":[
+            {"type":"paragraph","content":[
+                {"type":"loomTransclusion","attrs":{"refValue": next}}
+            ]}
+        ]}));
+        t
+    }
+
+    #[test]
+    fn detect_transclusion_cycle_flags_a_seeded_two_hop_cycle_mt045() {
+        // MT-045 (wave-2): BLK-A embeds BLK-B and BLK-B embeds BLK-A — the cache walk must report
+        // the repeated id instead of spinning, using the PRODUCT resolver.
+        let mut rt = rt();
+        rt.transclusions.insert(
+            "BLK-A".into(),
+            TransclusionState::Resolved(chained_transclusion("BLK-A", "BLK-B")),
+        );
+        rt.transclusions.insert(
+            "BLK-B".into(),
+            TransclusionState::Resolved(chained_transclusion("BLK-B", "BLK-A")),
+        );
+        assert_eq!(
+            rt.detect_transclusion_cycle("BLK-A").as_deref(),
+            Some("BLK-A"),
+            "the A->B->A walk flags the repeated id (BLK-A)"
+        );
+        // A SELF-cycle (A embeds A) is caught with no second hop needed.
+        rt.transclusions.insert(
+            "BLK-SELF".into(),
+            TransclusionState::Resolved(chained_transclusion("BLK-SELF", "BLK-SELF")),
+        );
+        assert_eq!(
+            rt.detect_transclusion_cycle("BLK-SELF").as_deref(),
+            Some("BLK-SELF")
+        );
+    }
+
+    #[test]
+    fn detect_transclusion_cycle_clean_chain_and_unfetched_hop_report_no_cycle() {
+        let mut rt = rt();
+        // A clean chain: BLK-1 embeds BLK-2; BLK-2's content embeds nothing -> no cycle.
+        rt.transclusions.insert(
+            "BLK-1".into(),
+            TransclusionState::Resolved(chained_transclusion("BLK-1", "BLK-2")),
+        );
+        rt.transclusions.insert(
+            "BLK-2".into(),
+            TransclusionState::Resolved(resolved_transclusion("BLK-2")),
+        );
+        assert_eq!(rt.detect_transclusion_cycle("BLK-1"), None);
+
+        // An UNFETCHED next hop is never claimed as a cycle (fail-closed the honest way): the walk
+        // ends this frame and the missing hop is scheduled (headless: marked Resolving, no spin).
+        rt.transclusions.insert(
+            "BLK-3".into(),
+            TransclusionState::Resolved(chained_transclusion("BLK-3", "BLK-UNFETCHED")),
+        );
+        assert_eq!(rt.detect_transclusion_cycle("BLK-3"), None);
+        assert!(
+            matches!(
+                rt.transclusions.get("BLK-UNFETCHED"),
+                Some(TransclusionState::Resolving)
+            ),
+            "the missing hop was handed to ensure_transclusion so later frames can deepen the walk"
         );
     }
 

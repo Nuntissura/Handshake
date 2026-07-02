@@ -278,6 +278,28 @@ impl Drop for FileGuard {
     }
 }
 
+/// Archive a COPY of a reader-VALIDATED minidump (plus a label) into the durable external MT-092
+/// artifact leaf (CX-212E: `<repo>/../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-092/`) BEFORE
+/// the transient temp-file guard deletes the original. Called ONLY after the `minidump` reader accepted
+/// the dump, so every archived copy is a validated real dump — the durable proof artifact the packet's
+/// real-host run requires. Best-effort on the copy (a failed archive is reported, not a proof failure —
+/// the validation itself already passed) but loud on stdout either way.
+fn archive_validated_dump(dump_path: &Path, label: &str) {
+    let dir = Path::new("../../../../Handshake_Artifacts/handshake-test").join("wp-kernel-012-mt-092");
+    if let Err(err) = std::fs::create_dir_all(&dir) {
+        println!("MT-092 dump archive UNAVAILABLE (create dir failed): {err}");
+        return;
+    }
+    let dest = dir.join(format!("validated-{label}.dmp"));
+    match std::fs::copy(dump_path, &dest) {
+        Ok(bytes) => println!(
+            "MT-092 validated dump archived: {} ({bytes} bytes)",
+            std::fs::canonicalize(&dest).unwrap_or(dest).display()
+        ),
+        Err(err) => println!("MT-092 dump archive copy FAILED: {err}"),
+    }
+}
+
 fn read_json(path: &Path, timeout: Duration) -> Option<serde_json::Value> {
     let deadline = Instant::now() + timeout;
     loop {
@@ -493,6 +515,7 @@ fn out_of_process_minidump_is_written_by_the_server_and_validates() {
         !modules.iter().collect::<Vec<_>>().is_empty(),
         "the dump must list at least one loaded module"
     );
+    archive_validated_dump(&dump_path, "same-process-oop");
 }
 
 // ===================================================================================================
@@ -637,6 +660,7 @@ fn cross_process_out_of_process_minidump_via_shipped_handler() {
         Some(8),
         "crash_event_code must be the shared CrashDetected(8): {rec}"
     );
+    archive_validated_dump(&dump_path, "cross-process-shipped-handler");
 }
 
 // ===================================================================================================

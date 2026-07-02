@@ -341,6 +341,12 @@ pub struct MenuBarState {
     /// WP-KERNEL-012 MT-069: true when the MT-031 shared clipboard holds a consumable payload — the live
     /// ENABLE PREDICATE for EDIT > Paste (VS Code enables Paste only when the clipboard has content).
     pub editor_can_paste: bool,
+    /// MT-069 REMEDIATION: true when the mounted code panel's jump history can navigate BACK — the live
+    /// ENABLE PREDICATE for GO > Back (`can_navigate_back` on the mounted panel, VS Code semantics).
+    pub editor_can_nav_back: bool,
+    /// MT-069 REMEDIATION: true when the mounted code panel's jump history can navigate FORWARD — the
+    /// live ENABLE PREDICATE for GO > Forward (`can_navigate_forward` on the mounted panel).
+    pub editor_can_nav_forward: bool,
 }
 
 /// Stateless menu-bar widget. Construct per frame from a [`MenuBarState`] and call [`MenuBar::show`].
@@ -836,89 +842,112 @@ impl MenuBar {
                     action,
                 );
                 ui.separator();
-                // WP-KERNEL-012 MT-052: editor navigation leaves. Present + AccessKit-addressable now
-                // (author_ids menu-go-next-diagnostic / menu-go-prev-diagnostic / menu-go-back /
-                // menu-go-forward, Role::MenuItem), rendered DISABLED with a disclosed reason until the
-                // editor is host-mounted (E11 MT-069). Once live, the host wires them to the matching
-                // CodeEditorAction through the editor command path (the SAME path F8/Shift+F8/Alt+Left/
-                // Alt+Right take — RISK-007), and Back/Forward reflect can_navigate_back /
-                // can_navigate_forward. No fake-enable (MT-050 precedent).
-                self.disabled_item(
+                // WP-KERNEL-012 MT-052 / MT-069 REMEDIATION: the editor navigation leaves are LIVE against
+                // the MOUNTED code panel. Each dispatches its stable command id through the ONE shell
+                // editor-command dispatcher, which routes to the panel's own `dispatch_action` — the SAME
+                // path the F8/Shift+F8/Alt+Left/Alt+Right keymap chords reach (RISK-007: no forked nav
+                // logic). Back/Forward reflect the live `can_navigate_back`/`can_navigate_forward` jump
+                // history state (no fake-enable — MT-050 precedent). Author_ids are unchanged.
+                let ed = self.state.editor_available;
+                self.item(
                     ui,
                     GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
                     "Go to Next Problem",
                     Some("F8"),
-                    MENU_GO_EDITOR_DISABLED_REASON,
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_GO_NEXT_DIAGNOSTIC,
+                    ),
+                    action,
                 );
-                self.disabled_item(
+                self.item(
                     ui,
                     GO_PREV_DIAGNOSTIC_AUTHOR_ID,
                     "Go to Previous Problem",
                     Some("Shift+F8"),
-                    MENU_GO_EDITOR_DISABLED_REASON,
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_GO_PREV_DIAGNOSTIC,
+                    ),
+                    action,
                 );
-                self.disabled_item(
+                self.item(
                     ui,
                     GO_BACK_AUTHOR_ID,
                     "Back",
                     Some("Alt+Left"),
-                    MENU_GO_EDITOR_DISABLED_REASON,
+                    ed && self.state.editor_can_nav_back,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_GO_BACK),
+                    action,
                 );
-                self.disabled_item(
+                self.item(
                     ui,
                     GO_FORWARD_AUTHOR_ID,
                     "Forward",
                     Some("Alt+Right"),
-                    MENU_GO_EDITOR_DISABLED_REASON,
+                    ed && self.state.editor_can_nav_forward,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_GO_FORWARD),
+                    action,
                 );
-                // WP-KERNEL-012 MT-053: in-file Go to Symbol leaf. Present + AccessKit-addressable now
-                // (author_id menu-go-symbol-in-file, Role::MenuItem), rendered DISABLED with a disclosed
-                // reason until the editor is host-mounted (E11 MT-069), the same disabled-until-mounted
-                // precedent as the MT-052 nav leaves. Once live, the host wires it to the SAME
-                // open_symbol_palette entry point the Ctrl+Shift+O keybind reaches (AC-005) — one path, no
-                // divergence. DISTINCT from the Quick Switcher leaf above (global, Ctrl+P). No fake-enable.
-                self.disabled_item(
+                // WP-KERNEL-012 MT-053 / MT-069 REMEDIATION: in-file Go to Symbol is LIVE — dispatches to
+                // the SAME open_symbol_palette entry point the Ctrl+Shift+O keybind reaches (AC-005).
+                // DISTINCT from the Quick Switcher leaf above (global, Ctrl+P).
+                self.item(
                     ui,
                     GO_SYMBOL_IN_FILE_AUTHOR_ID,
                     "Go to Symbol in File…",
                     Some("Ctrl+Shift+O"),
-                    MENU_GO_EDITOR_DISABLED_REASON,
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_GO_SYMBOL_IN_FILE,
+                    ),
+                    action,
                 );
                 ui.separator();
-                // WP-KERNEL-012 MT-069 (E11): the four code-navigation GO items the contract names (Go to
-                // Definition / References / Symbol / Line). Their OWNING code-nav command ids are NOT yet
-                // registered on the shell command bus (the live F12/Shift+F12 host run is a carried-forward
-                // item), so they render DISABLED with a disclosed reason — NEVER fake-enabled, NEVER a
-                // todo!()/unimplemented!()/panic!() (AC-003 / MC-003). If dispatched anyway (e.g. by id via
-                // an agent), the shell emits a typed LOGGED no-op (`is_go_nav_pending`). The author_ids are
-                // the stable command ids so a swarm agent can SEE the items and read that they are pending.
-                self.disabled_item(
+                // WP-KERNEL-012 MT-069 REMEDIATION: the four code-navigation GO items are LIVE — their
+                // owning code-nav shell commands are now REGISTERED against the mounted panel
+                // (`dispatch_editor_command` routes each id to the panel's `dispatch_action` /
+                // quick-switcher). The author_ids are the stable command ids (unchanged), so a swarm
+                // agent addresses the same node it saw as pending before.
+                self.item(
                     ui,
                     crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION,
                     "Go to Definition",
                     Some("F12"),
-                    MENU_GO_EDITOR_DISABLED_REASON,
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION,
+                    ),
+                    action,
                 );
-                self.disabled_item(
+                self.item(
                     ui,
                     crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES,
                     "Go to References",
                     Some("Shift+F12"),
-                    MENU_GO_EDITOR_DISABLED_REASON,
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES,
+                    ),
+                    action,
                 );
-                self.disabled_item(
+                self.item(
                     ui,
                     crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL,
                     "Go to Symbol in Workspace…",
                     Some("Ctrl+T"),
-                    MENU_GO_EDITOR_DISABLED_REASON,
+                    true,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL),
+                    action,
                 );
-                self.disabled_item(
+                self.item(
                     ui,
                     crate::command_registry::CMD_EDITOR_GO_TO_LINE,
                     "Go to Line…",
                     Some("Ctrl+G"),
-                    MENU_GO_EDITOR_DISABLED_REASON,
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_GO_TO_LINE),
+                    action,
                 );
             }
             MenuId::Run => {

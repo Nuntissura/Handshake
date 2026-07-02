@@ -57,4 +57,8 @@ pub mod parser;
 /// [`resolver`].
 pub mod resolver;
 pub mod runtime;
+/// WP-KERNEL-012 MT-045 (wave-2 remediation): the cycle-aware transclusion-chain resolver
+/// (`resolve_transclusion_chain` + typed `CycleDetected`), moved from the LR-05 perf test into
+/// product code so the transclusion RENDER path guards cyclic chains. See [`transclusion_resolver`].
+pub mod transclusion_resolver;
 pub mod transclusion_view;

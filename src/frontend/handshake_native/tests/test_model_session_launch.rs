@@ -493,11 +493,48 @@ fn model_session_launch_request_builds_real_jobs_post_with_explicit_fields() {
         inputs["wrapper"],
         serde_json::json!("repo-folder-wrapper-v1")
     );
-    assert_eq!(
-        inputs["wp_id"],
-        serde_json::json!("WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1")
+    // MT-101 REMEDIATION: an OPERATOR launch carries NO governed-work attribution (previously every
+    // launch was hardcoded to WP-KERNEL-012/MT-101 — misattribution), no canned prompt, and no
+    // simulation knob. All three keys must be ABSENT from the wire body.
+    assert!(
+        inputs.get("wp_id").is_none(),
+        "operator launch must not carry a wp_id (misattribution)"
     );
-    assert_eq!(inputs["mt_id"], serde_json::json!("MT-101"));
+    assert!(
+        inputs.get("mt_id").is_none(),
+        "operator launch must not carry an mt_id (misattribution)"
+    );
+    assert!(
+        inputs.get("prompt").is_none(),
+        "operator launch must not bake a canned prompt into job_inputs"
+    );
+    assert!(
+        inputs.get("simulate_duration_ms").is_none(),
+        "production launch must not carry a simulation knob"
+    );
+}
+
+#[test]
+fn model_session_launch_request_carries_governed_work_attribution_only_when_set() {
+    let _test_guard = model_session_test_guard();
+    let rt = runtime();
+    let client = ModelSessionLaunchClient::new("http://127.0.0.1:37501", rt.handle().clone());
+    // A governed/agent launch surface that really executes a WP sets the attribution explicitly.
+    let request = ModelSessionLaunchRequest::new(
+        ModelSessionProvider::Local,
+        "default-project",
+        "D:/Projects/Handshake/repo",
+        "qwen2.5-coder:7b",
+        "repo-folder-wrapper-v1",
+    )
+    .with_session_id("session-governed")
+    .with_governed_work("WP-EXAMPLE-001", "MT-007");
+
+    let spec = client.jobs_request(&request).expect("valid jobs request");
+    let body = spec.body.expect("POST /jobs body");
+    let inputs = &body["job_inputs"];
+    assert_eq!(inputs["wp_id"], serde_json::json!("WP-EXAMPLE-001"));
+    assert_eq!(inputs["mt_id"], serde_json::json!("MT-007"));
 }
 
 #[test]

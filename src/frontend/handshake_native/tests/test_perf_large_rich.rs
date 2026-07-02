@@ -37,61 +37,17 @@ mod pg_proof_support;
 use perf_proof_support::{record, skip_all, Budget};
 use pg_proof_support::LiveBackend;
 
-use std::collections::HashSet;
-
 // ── The native cycle-aware transclusion-chain resolver (LR-05) ────────────────────────────────────
-
-/// A typed resolution failure. `CycleDetected` carries the block id at which a previously-visited id
-/// repeated — so a reviewer can confirm the resolver flags a CYCLE specifically, not any transclusion
-/// (RISK-4 guard). `DepthExceeded` bounds runaway chains even without a cycle.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TransclusionResolveError {
-    CycleDetected { at: String },
-    DepthExceeded { max_depth: usize },
-}
-
-impl std::fmt::Display for TransclusionResolveError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            // The token "cycle_detected" is what proof_target #4 greps for.
-            TransclusionResolveError::CycleDetected { at } => {
-                write!(f, "cycle_detected at block {at}")
-            }
-            TransclusionResolveError::DepthExceeded { max_depth } => {
-                write!(f, "depth_exceeded (max_depth={max_depth})")
-            }
-        }
-    }
-}
-
-/// Resolve a transclusion chain starting at `start`, following each block's single transclusion target
-/// via `fetch_hop` (`block_id -> Some(next_block_id)` to continue, `None` to terminate cleanly). Tracks
-/// visited ids in a `HashSet` (impl note 5): the moment `fetch_hop` returns an id already in the set the
-/// resolver returns `Err(CycleDetected{ at })` — it NEVER loops forever and NEVER panics. `max_depth`
-/// bounds non-cyclic but pathologically long chains. Returns the ordered list of visited ids on success.
-pub fn resolve_transclusion_chain(
-    start: &str,
-    max_depth: usize,
-    mut fetch_hop: impl FnMut(&str) -> Option<String>,
-) -> Result<Vec<String>, TransclusionResolveError> {
-    let mut visited: HashSet<String> = HashSet::new();
-    let mut order: Vec<String> = Vec::new();
-    let mut current = start.to_owned();
-    loop {
-        if !visited.insert(current.clone()) {
-            // `current` was already visited — a cycle. Report the repeated id explicitly.
-            return Err(TransclusionResolveError::CycleDetected { at: current });
-        }
-        order.push(current.clone());
-        if order.len() > max_depth {
-            return Err(TransclusionResolveError::DepthExceeded { max_depth });
-        }
-        match fetch_hop(&current) {
-            Some(next) => current = next,
-            None => return Ok(order), // clean chain end
-        }
-    }
-}
+//
+// WAVE-2 REMEDIATION: the resolver used to be DEFINED in this test file (a test-only fork with no
+// production caller). It now lives in PRODUCT code —
+// `rich_editor::wikilinks::transclusion_resolver` — where the transclusion render path
+// (`WikilinkRuntime::detect_transclusion_cycle` + `transclusion_view::render_transclusion`) guards
+// cyclic chains with it. These LR-05 tests import the PRODUCT symbol, so the perf proof and the
+// product guard are one algorithm.
+use handshake_native::rich_editor::wikilinks::transclusion_resolver::{
+    resolve_transclusion_chain, TransclusionResolveError,
+};
 
 // ── LR-05 (logic, runs NOW): a LINEAR chain of 50 resolves correctly ──────────────────────────────
 

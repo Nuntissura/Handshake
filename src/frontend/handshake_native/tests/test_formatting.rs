@@ -756,3 +756,65 @@ async fn run_format_range_over_mock_transport(
 /// (it is consumed indirectly via `default_formatting_options()`); referenced here to keep the import live.
 #[allow(dead_code)]
 fn _formatting_options_type_is_exported(_o: FormattingOptions) {}
+
+// ── MT-050 wave-2: outline-integrity after a WHOLE-DOCUMENT formatting edit ───────────────────────
+
+/// The wave-1 audit saw the outline corrupt to a `fn ain(`-class shape after Format Document: the
+/// highlighter handed its UN-EDITED old tree to `Parser::parse` (a tree-sitter incremental-contract
+/// violation), so the outline resolved symbol names through stale nodes at stale byte offsets over
+/// the NEW buffer. Wave-1 fixed the reparse (full parse — `highlight.rs`); THIS test proves the cure
+/// end-to-end on the format path: a whole-document reformat (offsets, line counts, and indentation
+/// all shift) installed through the SAME `set_text` path `drain_format_result` uses must leave every
+/// outline symbol label + line correct.
+#[test]
+fn outline_labels_intact_after_whole_document_format() {
+    // A messy two-symbol buffer; the mocked format rewrites the ENTIRE document.
+    let messy = "fn  main( ){\nlet x=1;\n}\nfn  helper( ){\nlet y=2;\n}\n";
+    let formatted = "fn main() {\n    let x = 1;\n}\n\nfn helper() {\n    let y = 2;\n}\n";
+    let edits = vec![edit(0, 0, 6, 0, formatted)];
+
+    let panel = Arc::new(CodeEditorPanel::new(messy, "rs"));
+    let before: Vec<String> = panel
+        .outline_items()
+        .iter()
+        .map(|i| i.name.clone())
+        .collect();
+    assert_eq!(
+        before,
+        vec!["main".to_owned(), "helper".to_owned()],
+        "pre-format sanity: the outline names both functions"
+    );
+
+    // Apply the whole-document format and install it through the SAME whole-buffer path the format
+    // drain uses (set_text -> refresh -> full reparse).
+    let after = apply_text_edits_to_string(messy, &edits).expect("format applies");
+    assert_eq!(after, formatted, "the reformatted text is installed");
+    panel.set_text(&after);
+
+    let items = panel.outline_items();
+    let names: Vec<&str> = items.iter().map(|i| i.name.as_str()).collect();
+    assert_eq!(
+        names,
+        vec!["main", "helper"],
+        "MT-050 outline-integrity: after a whole-document format the outline labels are the REAL \
+         symbol names (the audit's 'fn ain(' stale-tree corruption class) — got {names:?}"
+    );
+    // The labels sit on the REFORMATTED lines (main at 0; helper shifted to line 4 by the reflow).
+    assert_eq!(items[0].kind.label(), "fn");
+    assert_eq!(items[0].line, 0, "main starts on reformatted line 0");
+    assert_eq!(items[1].kind.label(), "fn");
+    assert_eq!(items[1].line, 4, "helper starts on reformatted line 4");
+    // Belt-and-braces: no label carries a truncated/shifted identifier fragment.
+    for n in &names {
+        assert!(
+            *n == "main" || *n == "helper",
+            "no stale-offset fragment label (got {n:?})"
+        );
+    }
+
+    assert_no_local_artifact_dir();
+    println!(
+        "PASS MT-050 wave-2: outline labels {names:?} intact after a whole-document format \
+         (wave-1 full-reparse fix proven on the format path)"
+    );
+}

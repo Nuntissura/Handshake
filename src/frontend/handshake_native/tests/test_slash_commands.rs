@@ -692,3 +692,202 @@ fn mt020_live_code_ref_select_undo_restores_pre_insert_doc() {
     }
     assert_undo_restores(&mut harness, &state, &before, "code-ref select");
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 wave-2 remediation — slash-command Done-outcome undo gap: `execute_slash_selection`
+// (BOTH call sites: the popup Enter and the menu-row click share it) must queue a `(before, after)`
+// pending_bus_undo pair for a `Done` outcome (SetBlock / InsertNode / InsertTemplate), so a REAL
+// Ctrl+Z reverts a `/divider` insert exactly. The pre-fix defect: only the prompt-confirm /
+// code-ref / wikilink / tag paths queued pairs — a Done-outcome slash command never reached the
+// MT-035 unified undo bus (the Enter path runs BEFORE the frame's `doc_before` capture; the row
+// click runs in the render phase — the frame diff sees neither).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn mt035_live_slash_divider_bus_undo_restores_exact_doc() {
+    use handshake_native::interop::interaction_bus::InteractionBus;
+    use handshake_native::rich_editor::document_model::node::NodeKind;
+
+    // A paragraph holding the REAL typed trigger text "/divider", caret after it, menu open with the
+    // snapshot the widget would carry (trigger at char 0, filter "divider" -> horizontal-rule row 0).
+    let doc = BlockNode::doc(vec![BlockNode::paragraph("/divider")]);
+    let rich_pane: handshake_native::pane_registry::PaneId = Arc::from("pane-mt035-divider");
+    let state = Arc::new(Mutex::new({
+        let mut st = RichEditorState::new(doc);
+        st.selection = Selection::caret(DocPosition::new(vec![0, 0], 8));
+        st.undo_pane_id = Some(rich_pane.clone());
+        let mut menu = SlashMenuState::open(vec![0, 0], 0);
+        menu.filter = "divider".to_string();
+        st.slash_menu = Some(menu);
+        st
+    }));
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(600.0, 400.0));
+    harness.step();
+    focus_editor(&mut harness);
+    let before = pre_insert_json(&state);
+
+    // A REAL Enter executes the selected row (the popup-Enter call site of execute_slash_selection).
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert!(st.slash_menu.is_none(), "a Done outcome closes the menu");
+        assert_eq!(
+            st.doc.children.len(),
+            2,
+            "the divider inserted a new block after the trigger paragraph"
+        );
+        assert_eq!(
+            st.doc.children[1].as_block().unwrap().kind,
+            NodeKind::HorizontalRule,
+            "the inserted block is the horizontal rule (/divider)"
+        );
+        assert_eq!(
+            block_plain_text(&state, 0),
+            "",
+            "the `/divider` trigger text was removed by the execution"
+        );
+    }
+    // The execution recorded EXACTLY ONE unified-bus entry (trigger removal + insert, one pair).
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
+        .expect("bus lock");
+    assert_eq!(
+        depth, 1,
+        "the /divider execution recorded one unified-bus undo entry"
+    );
+
+    // A REAL Ctrl+Z restores the EXACT pre-execution doc: the rule is gone AND `/divider` is back.
+    focus_editor(&mut harness);
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert_eq!(
+            st.doc.children.len(),
+            1,
+            "Ctrl+Z removed the inserted divider block"
+        );
+        let now = handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
+            &st.doc,
+        );
+        assert_eq!(
+            now, before,
+            "bus undo restored the EXACT pre-execution doc (`/divider` trigger text included)"
+        );
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 wave-2 remediation — the in-window (<500ms) coalescing contract for ATOM CONFIRMS:
+// two prompt confirms landing inside ONE RichUndoBatcher window coalesce into ONE unified-bus undo
+// entry whose single Ctrl+Z restores the batch-START doc (both atoms gone). This pins the MT-035
+// batching behavior for the pending_bus_undo drain path as a proven contract (it was previously only
+// implied by the typed-edit batching tests).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn mt035_in_window_atom_confirms_coalesce_into_one_bus_undo_entry() {
+    use handshake_native::interop::interaction_bus::InteractionBus;
+    use handshake_native::rich_editor::interop_adapter::RICH_UNDO_BATCH_MS;
+
+    // Pin the production window value the contract names (<500ms = in-window).
+    assert_eq!(
+        RICH_UNDO_BATCH_MS, 500,
+        "the rich-undo batching window is the contract's 500ms"
+    );
+
+    let state = mt020_state("pane-mt035-coalesce");
+    let rich_pane: handshake_native::pane_registry::PaneId = Arc::from("pane-mt035-coalesce");
+    {
+        let mut st = state.lock().unwrap();
+        let mut menu = SlashMenuState::open(vec![0, 0], 0);
+        let mut prompt = SlashPrompt::new(SlashPromptKind::Embed(EmbedKind::Image));
+        prompt.input = "asset-one".to_string();
+        menu.prompt = Some(prompt);
+        st.slash_menu = Some(menu);
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(600.0, 400.0));
+    harness.step();
+    focus_editor(&mut harness);
+    let before = pre_insert_json(&state);
+    let window_start = std::time::Instant::now();
+
+    // Confirm #1 (a REAL Enter through the live prompt render).
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+
+    // Confirm #2, immediately (no window break — the same <500ms batch).
+    {
+        let mut st = state.lock().unwrap();
+        let mut menu = SlashMenuState::open(vec![0, 0], 0);
+        let mut prompt = SlashPrompt::new(SlashPromptKind::Embed(EmbedKind::Image));
+        prompt.input = "asset-two".to_string();
+        menu.prompt = Some(prompt);
+        st.slash_menu = Some(menu);
+    }
+    harness.step();
+    focus_editor(&mut harness);
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+
+    // HONEST environment guard (not a seeded pass): the coalescing claim below is only provable if
+    // both confirms actually landed inside one 500ms window. On a sane machine this elapsed is a few
+    // milliseconds; a pathologically stalled host fails HERE with the reason, never silently.
+    let elapsed = window_start.elapsed();
+    assert!(
+        elapsed < std::time::Duration::from_millis(RICH_UNDO_BATCH_MS),
+        "test host too slow to prove in-window coalescing (both confirms took {elapsed:?}, \
+         window is {RICH_UNDO_BATCH_MS}ms)"
+    );
+
+    // Both atoms are in the doc...
+    {
+        let st = state.lock().unwrap();
+        let para = st.doc.children[0].as_block().unwrap();
+        let refs: Vec<String> = para
+            .children
+            .iter()
+            .filter_map(Child::as_hs_link)
+            .map(|l| l.ref_value.clone())
+            .collect();
+        assert_eq!(
+            refs,
+            vec!["asset-one".to_string(), "asset-two".to_string()],
+            "both confirmed embeds are in the paragraph"
+        );
+    }
+    // ...but the bus holds ONE coalesced entry (the in-window contract).
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
+        .expect("bus lock");
+    assert_eq!(
+        depth, 1,
+        "two in-window atom confirms coalesced into ONE unified-bus undo entry"
+    );
+
+    // ONE Ctrl+Z restores the batch-START doc: BOTH atoms are gone.
+    focus_editor(&mut harness);
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        let para = st.doc.children[0].as_block().unwrap();
+        assert!(
+            para.children.iter().all(|c| c.as_hs_link().is_none()),
+            "one undo removed BOTH in-window confirmed atoms (batch-start restore)"
+        );
+        let now = handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
+            &st.doc,
+        );
+        assert_eq!(
+            now, before,
+            "the coalesced undo restored the EXACT batch-start doc"
+        );
+    }
+}

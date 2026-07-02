@@ -38,6 +38,13 @@ pub fn remove_author_id(ref_value: &str) -> String {
     format!("transclusion-remove-{ref_value}")
 }
 
+/// WP-KERNEL-012 MT-045 (wave-2 remediation): the AccessKit author_id for a transclusion CYCLE
+/// indicator (`transclusion-cycle-{block_id}`) — the visible guard rendered instead of the
+/// read-through preview when the chain starting at this node is cyclic.
+pub fn cycle_author_id(ref_value: &str) -> String {
+    format!("transclusion-cycle-{ref_value}")
+}
+
 /// Project a transclusion `content_json` (a Tiptap doc value) into a plain-text preview, truncated to
 /// `max_lines` lines (the contract's "content_preview truncated to 3 lines"). Walks every node's
 /// `text` field in document order, joining block nodes with newlines. Pure + unit-testable.
@@ -126,15 +133,36 @@ pub fn render_transclusion(
                     .clone()
                     .unwrap_or_else(|| ref_value.clone());
                 ui.colored_label(palette.text_subtle, format!("Source: {source}"));
-                let preview = t
-                    .content_json
-                    .as_ref()
-                    .map(|c| preview_text(c, 3))
-                    .unwrap_or_default();
-                if preview.is_empty() {
-                    ui.colored_label(palette.text_subtle, "(empty source document)");
+                // WP-KERNEL-012 MT-045 (wave-2 remediation): guard CYCLIC transclusion chains on the
+                // PRODUCT render path. The runtime walks the live resolution cache with the product
+                // `resolve_transclusion_chain` (the same cycle-safe algorithm the LR-05 perf proof
+                // drives); a detected repeat renders a VISIBLE typed cycle indicator instead of the
+                // read-through preview — never a panic, never an unguarded recursive resolve.
+                if let Some(cycle_at) = runtime.detect_transclusion_cycle(&ref_value) {
+                    let chip = ui.colored_label(
+                        palette.error_text,
+                        format!(
+                            "⟳ Transclusion cycle detected (cycle_detected at block {cycle_at}) — \
+                             preview suppressed"
+                        ),
+                    );
+                    emit_node_author(
+                        ui.ctx(),
+                        chip.id,
+                        accesskit::Role::Label,
+                        &cycle_author_id(&ref_value),
+                    );
                 } else {
-                    ui.colored_label(palette.text, preview);
+                    let preview = t
+                        .content_json
+                        .as_ref()
+                        .map(|c| preview_text(c, 3))
+                        .unwrap_or_default();
+                    if preview.is_empty() {
+                        ui.colored_label(palette.text_subtle, "(empty source document)");
+                    } else {
+                        ui.colored_label(palette.text, preview);
+                    }
                 }
                 // "Open block" link button -> enqueue the open event for the shell to route.
                 let open = ui.button("Open block →");

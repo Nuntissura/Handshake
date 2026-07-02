@@ -68,12 +68,14 @@ pub mod resource_counters;
 // honest empty-state MT-087 left. Reuse-via-FILE (the cross-process durable store) — handshake-native and
 // the `palmistry` crate share no dependency edge; the FR is kept as-is.
 pub mod survivor_forward;
-// WP-KERNEL-012 MT-096 (G2 end-to-end capstone): TEST-ONLY freeze/crash injection seams. Gated behind
-// `cfg(test)` (the crate's own unit tests) OR the `diag-test-seams` feature (the capstone's #[ignore]d
-// live cross-process crash proof, which links the lib with that feature). It is NEVER compiled into a
-// default/release build — the shipped binary cannot reach the crash trigger (AC-016-7). The whole module
-// is a thin, deterministic harness seam, NOT product behavior; the production freeze/crash paths
-// (heartbeat MT-084, panic hook MT-083, Palmistry MT-089+) are unchanged.
+// WP-KERNEL-012 MT-096 (G2 end-to-end capstone): TEST-ONLY freeze/crash injection-model documentation.
+// Gated behind `cfg(test)` (the crate's own unit tests) OR the `diag-test-seams` feature, so it is NEVER
+// compiled into a default/release build (AC-016-7). The module carries the reviewer-facing FREEZE/CRASH
+// injection rationale ONLY — the former in-crate `ENV_FORCE_CRASH` abort trigger was an ORPHAN (wired to
+// no test) and was REMOVED in the wave-2 remediation: live crash injection is owned by the
+// palmistry-side real-host gate (a REALLY-crashed victim child through the real production crash client,
+// §6.13.6), so the shipped binary carries NO crash trigger at all — the strongest AC-016-7 posture. The
+// production freeze/crash paths (heartbeat MT-084, panic hook MT-083, Palmistry MT-089+) are unchanged.
 #[cfg(any(test, feature = "diag-test-seams"))]
 pub mod test_seams;
 pub use frame_timing::{

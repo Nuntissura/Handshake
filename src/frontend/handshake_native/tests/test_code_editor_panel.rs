@@ -413,6 +413,26 @@ fn large_file_frame_time() {
         budget_pass
     );
     let saved = std::fs::write(&bench_path, &json).is_ok();
+    // SUPERSEDE the stale UNSUFFIXED `MT-002-bench.json` (wave-2 remediation): it predates the
+    // profile-scoped filenames and can only mislead (it is whichever profile ran LAST — the exact
+    // clobber the suffix fix removed). Deleted only once the suffixed artifact landed, so the
+    // directory never ends up with neither.
+    if saved {
+        let legacy = ext_dir.join("MT-002-bench.json");
+        if legacy.exists() {
+            match std::fs::remove_file(&legacy) {
+                Ok(()) => println!(
+                    "PT-002: superseded stale unsuffixed {} (profile-scoped {} is authoritative)",
+                    legacy.display(),
+                    bench_path.display()
+                ),
+                Err(e) => println!(
+                    "PT-002 WARN: could not remove stale unsuffixed {}: {e}",
+                    legacy.display()
+                ),
+            }
+        }
+    }
     println!(
         "PT-002 bench: median={median:.3}ms mean={mean:.3}ms max={max:.3}ms painted={} optimized={} \
          budget_pass={budget_pass}; saved={saved} ({})",
@@ -755,6 +775,114 @@ fn painted_row_pitch_equals_geometry_unit_and_gutter_rows() {
             g.y
         );
     }
+
+    assert_no_local_test_output();
+}
+
+// ── Wave-2 remediation regression: scroll + click in ONE frame maps to CURRENT-frame rows ─────────
+
+/// The wave-1 MAJOR: `pointer_to_byte` resolved the clicked row via `last_visible_range().start`,
+/// but `process_cursor_input` ran BEFORE the frame's painted range was stored — so a scroll and a
+/// click arriving in the SAME input batch mapped the click through the PREVIOUS frame's window
+/// (off by exactly the rows scrolled that frame) while `row_geometry` was already current-frame.
+/// This test queues a scroll (programmatic scroll-to-line — deterministically applied THIS frame —
+/// plus a wheel event, the operator gesture) AND a primary click in one input batch, steps EXACTLY
+/// one frame, and asserts the caret landed on the buffer line the CURRENT frame painted at the
+/// click pixel.
+#[test]
+fn scroll_and_click_same_frame_maps_to_current_frame_rows() {
+    use handshake_native::code_editor::byte_to_line_col;
+
+    // 300 numbered plain-text lines (no grammar -> single label per row; folds don't apply).
+    let mut doc = String::new();
+    for n in 0..300 {
+        doc.push_str(&format!("line {n}\n"));
+    }
+    let panel = Arc::new(CodeEditorPanel::new(&doc, "txt"));
+    let panel_ui = Arc::clone(&panel);
+    // A short viewport so a scroll moves the painted window unambiguously.
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(480.0, 240.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    harness.run();
+    harness.run();
+
+    let range_before = panel.last_visible_range();
+    assert!(
+        range_before.end > range_before.start,
+        "a painted window exists before the scroll"
+    );
+    let gw = panel
+        .measured_glyph_width()
+        .expect("glyph width measured after a frame");
+    let c_top = panel
+        .screen_pos_for_line_col(range_before.start, 0, gw)
+        .expect("top painted row on screen");
+    let c_next = panel
+        .screen_pos_for_line_col(range_before.start + 1, 0, gw)
+        .expect("second painted row on screen");
+    let lh = c_next.y - c_top.y;
+    assert!(lh > 1.0, "sane row pitch (got {lh})");
+    // A click pixel mid-viewport, a couple of glyphs in (inside the text region for ANY window).
+    let click = egui::pos2(c_top.x + gw * 2.0, c_top.y + 4.0 * lh);
+
+    // ONE input batch: scroll THIS frame (deterministic pending-offset scroll + the wheel gesture)
+    // AND the primary click. `step()` runs exactly one frame over this batch.
+    panel.scroll_to_line(range_before.start + 40);
+    {
+        let events = &mut harness.input_mut().events;
+        events.push(egui::Event::PointerMoved(click));
+        events.push(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, -3.0 * lh),
+            modifiers: egui::Modifiers::NONE,
+        });
+        events.push(egui::Event::PointerButton {
+            pos: click,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: egui::Modifiers::NONE,
+        });
+        events.push(egui::Event::PointerButton {
+            pos: click,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: egui::Modifiers::NONE,
+        });
+    }
+    harness.step();
+
+    // Precondition: the painted window MOVED in the click frame (else this test proves nothing).
+    let range_after = panel.last_visible_range();
+    assert_ne!(
+        range_after.start, range_before.start,
+        "precondition: the painted window scrolled in the click frame \
+         (before {range_before:?}, after {range_after:?})"
+    );
+
+    // Expected: the caret sits on the buffer line the CURRENT frame painted at the click pixel.
+    // Derive it from the post-frame geometry (screen_pos_for_line_col reads the same current-frame
+    // range + geometry the fixed input path used).
+    let top_after = panel
+        .screen_pos_for_line_col(range_after.start, 0, gw)
+        .expect("scrolled top row on screen")
+        .y
+        - 0.5 * lh;
+    let expected_row = ((click.y - top_after) / lh).floor() as usize;
+    let expected_line = range_after.start + expected_row;
+
+    let head = panel.cursors().primary().head;
+    let buffer = panel.buffer();
+    let (caret_line, _) = byte_to_line_col(head, &buffer);
+    assert_eq!(
+        caret_line, expected_line,
+        "wave-1 MAJOR regression: a click in the SAME frame as a scroll must map through the \
+         CURRENT frame's painted window ({range_after:?}), not the previous frame's \
+         ({range_before:?}) — caret landed on line {caret_line}, the clicked pixel is over line \
+         {expected_line}"
+    );
 
     assert_no_local_test_output();
 }

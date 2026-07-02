@@ -97,8 +97,12 @@ pub const TERMINAL_LAUNCH_IPC_OWNER: &str = "app/src-tauri/src/commands/terminal
 pub const MODEL_SESSION_JOBS_PATH: &str = "/jobs";
 
 /// The protocol id used by existing handshake_core tests and default workflow creation. The native
-/// frontend sends this through the real `POST /jobs` surface and keeps any repo-folder binding inside
-/// `job_inputs`; the backend does not currently enforce folder scoping for model_run jobs.
+/// frontend sends this through the real `POST /jobs` surface and keeps the repo-folder binding inside
+/// `job_inputs`; the backend NOW enforces the native workspace model-launch contract
+/// (`validate_native_workspace_model_launch_contract` in handshake_core `workflows.rs`): when
+/// `launch_surface`/`launch_mode` are present it requires explicit `session_id`, `workspace_folder`,
+/// `working_dir == workspace_folder`, `wrapper`, `model_provider == backend`, and `model_id` — so a
+/// mis-scoped or folder-less launch is rejected server-side rather than silently defaulted.
 pub const MODEL_SESSION_PROTOCOL_ID: &str = "protocol-default";
 
 /// Native-declared direct-spawn route that does not exist today. The direct repo-folder session spawn
@@ -273,6 +277,12 @@ pub struct ModelSessionLaunchRequest {
     pub workspace_folder: String,
     pub model_id: String,
     pub wrapper: String,
+    /// MT-101 REMEDIATION: OPTIONAL governed-work attribution. `None` for an operator launch (the
+    /// default — an operator model session is NOT work-packet work and must not be misattributed);
+    /// a governed/agent launch surface that really is executing a WP sets it explicitly.
+    pub wp_id: Option<String>,
+    /// MT-101 REMEDIATION: optional microtask attribution, same contract as `wp_id`.
+    pub mt_id: Option<String>,
 }
 
 impl ModelSessionLaunchRequest {
@@ -290,11 +300,25 @@ impl ModelSessionLaunchRequest {
             workspace_folder: workspace_folder.into(),
             model_id: model_id.into(),
             wrapper: wrapper.into(),
+            wp_id: None,
+            mt_id: None,
         }
     }
 
     pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
         self.session_id = session_id.into();
+        self
+    }
+
+    /// MT-101 REMEDIATION: attach governed-work attribution to this launch (a governed/agent surface
+    /// executing a real WP/MT). Operator launches never call this — the fields stay absent.
+    pub fn with_governed_work(
+        mut self,
+        wp_id: impl Into<String>,
+        mt_id: impl Into<String>,
+    ) -> Self {
+        self.wp_id = Some(wp_id.into());
+        self.mt_id = Some(mt_id.into());
         self
     }
 
@@ -334,6 +358,18 @@ impl ModelSessionLaunchRequest {
             workspace_folder: self.workspace_folder.trim().to_owned(),
             model_id: self.model_id.trim().to_owned(),
             wrapper: self.wrapper.trim().to_owned(),
+            wp_id: self
+                .wp_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned),
+            mt_id: self
+                .mt_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned),
         }
     }
 }
@@ -566,11 +602,14 @@ fn model_session_jobs_request(
     request.validate()?;
     let request = request.trimmed();
     let backend = request.provider.as_str();
-    let job_inputs = serde_json::json!({
+    // MT-101 REMEDIATION: an operator launch carries NO governed-work attribution (previously every
+    // launch was hardcoded wp_id=WP-KERNEL-012/mt_id=MT-101 — misattributing operator sessions as WP
+    // work), NO canned prompt (the session's real prompt comes from the operator's session messages,
+    // never a baked-in string), and NO `simulate_duration_ms` knob (a simulation control has no place
+    // in a production launch). The backend treats all three as optional (`string_opt`/`u64_opt`).
+    let mut job_inputs = serde_json::json!({
         "launch_surface": "handshake_native",
         "launch_mode": "workspace_model_session",
-        "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-        "mt_id": "MT-101",
         "session_id": request.session_id,
         "workspace_id": request.workspace_id,
         "workspace_folder": request.workspace_folder,
@@ -579,7 +618,6 @@ fn model_session_jobs_request(
         "model_id": request.model_id,
         "backend": backend,
         "wrapper": request.wrapper,
-        "prompt": "Native model-session launch request: bind execution to job_inputs.working_dir and wrapper before running operator work.",
         "role": "assistant",
         "lane": "PRIMARY",
         "priority": 50,
@@ -593,8 +631,15 @@ fn model_session_jobs_request(
         "capability_grants": [],
         "capability_token_ids": [],
         "session_messages": [],
-        "simulate_duration_ms": 0,
     });
+    if let Some(map) = job_inputs.as_object_mut() {
+        if let Some(wp_id) = &request.wp_id {
+            map.insert("wp_id".to_owned(), serde_json::json!(wp_id));
+        }
+        if let Some(mt_id) = &request.mt_id {
+            map.insert("mt_id".to_owned(), serde_json::json!(mt_id));
+        }
+    }
     Ok(RequestSpec {
         method: HttpMethod::Post,
         url: format!("{base_url}{MODEL_SESSION_JOBS_PATH}"),

@@ -959,3 +959,250 @@ fn mt020_live_wikilink_confirm_undo_restores_pre_insert_doc_and_ordering() {
         );
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 wave-2 remediation — LIVE-WIDGET undo-after-REMOVE (the MC-003 "Remove embed" path):
+// clicking "Remove embed" on a 404 transclusion must route through the MT-020 Transaction machinery
+// (Step::DeleteInlineChild) + the MT-035 unified undo bus, so a REAL Ctrl+Z restores the removed
+// embed exactly. The pre-fix defect: the removal was a direct `children.retain` mutation that
+// bypassed BOTH undo authorities — a removed embed was unrecoverable.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn mt020_live_remove_embed_undo_restores_the_transclusion() {
+    use handshake_native::interop::interaction_bus::InteractionBus;
+    use handshake_native::pane_registry::PaneId;
+
+    let doc = BlockNode::doc(vec![BlockNode::with_children(
+        NodeKind::Paragraph,
+        vec![Child::Transclusion(TransclusionNode::new("BLK-GONE"))],
+    )]);
+    let mut runtime = headless_runtime(
+        Err(WikilinkError::NotFound("BLK-GONE".into())),
+        Ok(BacklinksResponse {
+            source_document_id: "DOC-1".into(),
+            backlinks: vec![],
+        }),
+        vec![],
+    );
+    // Pre-seed the Failed(NotFound) state (a 404 of a deleted block) so "Remove embed" shows.
+    runtime.transclusions.insert(
+        "BLK-GONE".into(),
+        handshake_native::rich_editor::wikilinks::runtime::TransclusionState::Failed(
+            WikilinkError::NotFound("BLK-GONE".into()),
+        ),
+    );
+    let rich_pane: PaneId = Arc::from("pane-remove-embed-undo");
+    let state = Arc::new(std::sync::Mutex::new({
+        let mut st = RichEditorState::new(doc).with_wikilink_runtime(runtime);
+        st.undo_pane_id = Some(rich_pane.clone());
+        st
+    }));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(520.0, 260.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    harness.run();
+
+    let pre_remove_json = {
+        let st = state.lock().unwrap();
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc)
+    };
+
+    // A REAL click on the live "Remove embed" button (the MC-003 affordance).
+    {
+        let node = harness.get_by_label_contains("Remove embed");
+        node.click();
+    }
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        let para = st.doc.children[0].as_block().unwrap();
+        assert!(
+            para.children.iter().all(|c| c.as_transclusion().is_none()),
+            "clicking 'Remove embed' deleted the transclusion node (MC-003 behavior kept)"
+        );
+        // The removal landed on the MODEL UndoManager (the MT-020 transaction receipt) — the direct
+        // retain mutation left this empty.
+        assert_eq!(
+            st.undo.len(),
+            1,
+            "the removal pushed ONE transaction receipt onto the model UndoManager"
+        );
+    }
+    // ...and on the MT-035 unified bus (ONE entry for the removal).
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
+        .expect("bus lock");
+    assert_eq!(
+        depth, 1,
+        "the remove-embed recorded exactly one unified-bus undo entry"
+    );
+
+    // A REAL Ctrl+Z (the chord decode runs on the FOCUSED editor input path) restores the embed.
+    {
+        let root = harness.root();
+        let surface = root
+            .children_recursive()
+            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
+            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+        surface.focus();
+    }
+    harness.step();
+    harness.step();
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        let para = st.doc.children[0].as_block().unwrap();
+        assert!(
+            para.children.iter().any(|c| c.as_transclusion().is_some()),
+            "Ctrl+Z restored the removed transclusion embed"
+        );
+        let now_json =
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
+                &st.doc,
+            );
+        assert_eq!(
+            now_json, pre_remove_json,
+            "undo restored the EXACT pre-remove doc"
+        );
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-045 (wave-2 remediation) — PRODUCT-PATH cycle guard: rendering a CYCLIC
+// transclusion chain through the LIVE widget must not panic and must show a VISIBLE cycle indicator
+// (`transclusion-cycle-{id}`, error-colored, preview suppressed). The guard is the PRODUCT
+// `resolve_transclusion_chain` (rich_editor::wikilinks::transclusion_resolver) — the same symbol the
+// LR-05 perf proof imports — walking the live resolution cache via
+// `WikilinkRuntime::detect_transclusion_cycle`.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// A resolved transclusion whose content embeds a `loomTransclusion` targeting `next` (one chain hop).
+fn chained_transclusion(block_id: &str, next: &str) -> LoomBlockTransclusion {
+    LoomBlockTransclusion {
+        block_id: block_id.into(),
+        workspace_id: "ws".into(),
+        source_document_id: Some("DOC-SRC".into()),
+        source_doc_version: Some(1),
+        content_json: Some(serde_json::json!({
+            "type": "doc",
+            "content": [{"type":"paragraph","content":[
+                {"type":"text","text":"chained body"},
+                {"type":"loomTransclusion","attrs":{"refValue": next}}
+            ]}]
+        })),
+        resolved: true,
+        unresolved_reason: None,
+    }
+}
+
+#[test]
+fn mt045_cyclic_transclusion_chain_renders_visible_cycle_indicator_without_panic() {
+    use handshake_native::rich_editor::wikilinks::runtime::TransclusionState;
+
+    // The rendered doc embeds BLK-A; the resolution cache says BLK-A -> BLK-B -> BLK-A (a cycle).
+    let doc = BlockNode::doc(vec![BlockNode::with_children(
+        NodeKind::Paragraph,
+        vec![Child::Transclusion(TransclusionNode::new("BLK-A"))],
+    )]);
+    let mut runtime = headless_runtime(
+        Err(WikilinkError::NotFound("none".into())),
+        Ok(BacklinksResponse {
+            source_document_id: "DOC-1".into(),
+            backlinks: vec![],
+        }),
+        vec![],
+    );
+    runtime.transclusions.insert(
+        "BLK-A".into(),
+        TransclusionState::Resolved(chained_transclusion("BLK-A", "BLK-B")),
+    );
+    runtime.transclusions.insert(
+        "BLK-B".into(),
+        TransclusionState::Resolved(chained_transclusion("BLK-B", "BLK-A")),
+    );
+    let state = Arc::new(std::sync::Mutex::new(
+        RichEditorState::new(doc).with_wikilink_runtime(runtime),
+    ));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(560.0, 300.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    // Rendering the cyclic chain must not panic and must not spin (the resolver's visited set +
+    // depth bound terminate the walk).
+    harness.run();
+
+    // The VISIBLE cycle indicator is present: the stable AccessKit id + the typed label text.
+    let root = harness.root();
+    let mut cycle_node_found = false;
+    for node in root.children_recursive() {
+        if node.accesskit_node().author_id() == Some("transclusion-cycle-BLK-A") {
+            cycle_node_found = true;
+            break;
+        }
+    }
+    assert!(
+        cycle_node_found,
+        "MT-045: a cyclic chain renders the addressable 'transclusion-cycle-BLK-A' indicator"
+    );
+    assert!(
+        harness.query_by_label_contains("cycle_detected").is_some(),
+        "MT-045: the cycle indicator carries the typed 'cycle_detected' token visibly"
+    );
+    // The read-through preview is SUPPRESSED for the cyclic chain (the guard replaces it).
+    assert!(
+        harness.query_by_label_contains("chained body").is_none(),
+        "MT-045: the cyclic chain's content preview is suppressed"
+    );
+
+    // RISK-4-style product guard: a NON-cyclic resolved transclusion through the SAME path still
+    // renders its preview and NO cycle indicator (the guard flags cycles specifically).
+    let clean_doc = BlockNode::doc(vec![BlockNode::with_children(
+        NodeKind::Paragraph,
+        vec![Child::Transclusion(TransclusionNode::new("BLK-CLEAN"))],
+    )]);
+    let mut clean_runtime = headless_runtime(
+        Err(WikilinkError::NotFound("none".into())),
+        Ok(BacklinksResponse {
+            source_document_id: "DOC-1".into(),
+            backlinks: vec![],
+        }),
+        vec![],
+    );
+    clean_runtime.transclusions.insert(
+        "BLK-CLEAN".into(),
+        TransclusionState::Resolved(resolved_transclusion("BLK-CLEAN", "clean readthrough body")),
+    );
+    let clean_state = Arc::new(std::sync::Mutex::new(
+        RichEditorState::new(clean_doc).with_wikilink_runtime(clean_runtime),
+    ));
+    let clean_for_ui = Arc::clone(&clean_state);
+    let mut clean_harness = Harness::builder()
+        .with_size(egui::vec2(560.0, 300.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&clean_for_ui)).show(ui);
+        });
+    clean_harness.run();
+    assert!(
+        clean_harness
+            .query_by_label_contains("clean readthrough body")
+            .is_some(),
+        "MT-045 guard: a clean transclusion still renders its read-through preview"
+    );
+    let clean_root = clean_harness.root();
+    assert!(
+        !clean_root.children_recursive().any(|n| n
+            .accesskit_node()
+            .author_id()
+            .is_some_and(|id| id.starts_with("transclusion-cycle-"))),
+        "MT-045 guard: a clean chain shows NO cycle indicator (cycles are flagged specifically)"
+    );
+}

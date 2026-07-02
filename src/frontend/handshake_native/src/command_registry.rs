@@ -493,23 +493,27 @@ pub const CMD_EDITOR_EDIT_TOGGLE_COMMENT: &str = "editor.edit.toggleComment";
 pub const CMD_EDITOR_EDIT_FORMAT_DOCUMENT: &str = "editor.edit.formatDocument";
 pub const CMD_WORKBENCH_SHOW_COMMANDS: &str = "workbench.action.showCommands";
 pub const CMD_WORKBENCH_QUICK_OPEN: &str = "workbench.action.quickOpen";
-// GO (code-navigation): the owning code-nav command ids are NOT yet registered on the shell command bus
-// by their owner MT (the live F12/Shift+F12 host run is a carried-forward item), so these stay DISABLED
-// with a typed logged no-op — never a panic, never a fake-enable (AC-003 / MC-003).
+// GO (code-navigation): MT-069 REMEDIATION — the code-nav shell commands are now REGISTERED against the
+// MOUNTED code panel (`app.rs::dispatch_editor_command` routes each id to the panel's own
+// `dispatch_action` entry — the SAME path the F12/Shift+F12/F8/Alt+Left keymap chords reach), so the GO
+// menu items are LIVE (enabled whenever an editor pane is the focusable target).
 pub const CMD_EDITOR_GO_TO_DEFINITION: &str = "editor.go.toDefinition";
 pub const CMD_EDITOR_GO_TO_REFERENCES: &str = "editor.go.toReferences";
 pub const CMD_EDITOR_GO_TO_SYMBOL: &str = "editor.go.toSymbol";
 pub const CMD_EDITOR_GO_TO_LINE: &str = "editor.go.toLine";
+// MT-069 REMEDIATION: the MT-052/MT-053 GO-menu editor-navigation leaves, now dispatchable by stable
+// command id against the mounted panel (F8 / Shift+F8 / Alt+Left / Alt+Right / Ctrl+Shift+O parity).
+pub const CMD_EDITOR_GO_NEXT_DIAGNOSTIC: &str = "editor.go.nextDiagnostic";
+pub const CMD_EDITOR_GO_PREV_DIAGNOSTIC: &str = "editor.go.prevDiagnostic";
+pub const CMD_EDITOR_GO_BACK: &str = "editor.go.back";
+pub const CMD_EDITOR_GO_FORWARD: &str = "editor.go.forward";
+pub const CMD_EDITOR_GO_SYMBOL_IN_FILE: &str = "editor.go.symbolInFile";
 
-/// The four GO-menu code-navigation command ids whose owning command is NOT yet registered on the shell
-/// command bus. They render DISABLED with a typed logged no-op (never `todo!()`/`unimplemented!()`/
-/// `panic!()`) until their owner MT lands the live code-nav command (AC-003).
-pub const EDITOR_GO_NAV_PENDING_IDS: &[&str] = &[
-    CMD_EDITOR_GO_TO_DEFINITION,
-    CMD_EDITOR_GO_TO_REFERENCES,
-    CMD_EDITOR_GO_TO_SYMBOL,
-    CMD_EDITOR_GO_TO_LINE,
-];
+/// GO-menu code-navigation command ids whose owning command is NOT yet registered on the shell command
+/// bus. MT-069 REMEDIATION: EMPTY — the code-nav commands are now registered against the mounted code
+/// panel, so no GO id is pending. The list + predicate remain so a future genuinely-unowned id has a
+/// typed logged no-op path (never `todo!()`/`unimplemented!()`/`panic!()` — AC-003).
+pub const EDITOR_GO_NAV_PENDING_IDS: &[&str] = &[];
 
 /// True when `id` is a GO-menu code-navigation command whose owner has not yet registered the live
 /// handler — the dispatcher logs a typed "command not yet available" no-op for these rather than panicking.
@@ -655,6 +659,61 @@ const EDITOR_MENU_COMMANDS: &[AppCommand] = &[
         "Go to File (Quick Open)",
         &["quick", "open", "switcher", "file", "workbench"],
         "hs-editor-menu-quick-open",
+    ),
+    // MT-069 REMEDIATION: the GO code-navigation shell commands, registered against the mounted panel.
+    editor_menu_cmd(
+        CMD_EDITOR_GO_TO_DEFINITION,
+        "Editor: Go to Definition",
+        &["go", "definition", "navigate", "editor"],
+        "hs-editor-menu-go-to-definition",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_GO_TO_REFERENCES,
+        "Editor: Go to References",
+        &["go", "references", "navigate", "editor"],
+        "hs-editor-menu-go-to-references",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_GO_TO_SYMBOL,
+        "Editor: Go to Symbol in Workspace",
+        &["go", "symbol", "workspace", "navigate", "editor"],
+        "hs-editor-menu-go-to-symbol",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_GO_TO_LINE,
+        "Editor: Go to Line",
+        &["go", "line", "navigate", "editor"],
+        "hs-editor-menu-go-to-line",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_GO_NEXT_DIAGNOSTIC,
+        "Editor: Go to Next Problem",
+        &["go", "next", "problem", "diagnostic", "error", "editor"],
+        "hs-editor-menu-go-next-diagnostic",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_GO_PREV_DIAGNOSTIC,
+        "Editor: Go to Previous Problem",
+        &["go", "previous", "problem", "diagnostic", "error", "editor"],
+        "hs-editor-menu-go-prev-diagnostic",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_GO_BACK,
+        "Editor: Navigate Back",
+        &["go", "back", "navigate", "history", "editor"],
+        "hs-editor-menu-go-back",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_GO_FORWARD,
+        "Editor: Navigate Forward",
+        &["go", "forward", "navigate", "history", "editor"],
+        "hs-editor-menu-go-forward",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_GO_SYMBOL_IN_FILE,
+        "Editor: Go to Symbol in File",
+        &["go", "symbol", "file", "outline", "navigate", "editor"],
+        "hs-editor-menu-go-symbol-in-file",
     ),
 ];
 
@@ -967,8 +1026,9 @@ mod tests {
         );
     }
 
-    /// The 22 MT-069 menu/palette editor command ids are present, enabled at the catalog level, and use
-    /// the EXACT ids the contract names. The 4 GO-nav pending ids are NOT in the enabled catalog.
+    /// The 31 MT-069 menu/palette editor command ids are present, enabled at the catalog level, and use
+    /// the EXACT ids the contract names. MT-069 REMEDIATION: the GO code-nav commands are now REGISTERED
+    /// (live palette/menu commands against the mounted panel) and the pending list is EMPTY.
     #[test]
     fn editor_menu_command_ids_match_contract() {
         let menu_ids: Vec<&str> = all_commands()
@@ -999,23 +1059,30 @@ mod tests {
             CMD_EDITOR_EDIT_FORMAT_DOCUMENT,
             CMD_WORKBENCH_SHOW_COMMANDS,
             CMD_WORKBENCH_QUICK_OPEN,
+            CMD_EDITOR_GO_TO_DEFINITION,
+            CMD_EDITOR_GO_TO_REFERENCES,
+            CMD_EDITOR_GO_TO_SYMBOL,
+            CMD_EDITOR_GO_TO_LINE,
+            CMD_EDITOR_GO_NEXT_DIAGNOSTIC,
+            CMD_EDITOR_GO_PREV_DIAGNOSTIC,
+            CMD_EDITOR_GO_BACK,
+            CMD_EDITOR_GO_FORWARD,
+            CMD_EDITOR_GO_SYMBOL_IN_FILE,
         ] {
             assert!(
                 menu_ids.contains(&expected),
                 "menu command id '{expected}' present: {menu_ids:?}"
             );
         }
-        assert_eq!(menu_ids.len(), 22, "exactly 22 EditorMenu commands");
-        // The GO-nav pending ids are NOT enabled palette commands (they stay disabled GO-menu placeholders).
-        for go in EDITOR_GO_NAV_PENDING_IDS {
-            assert!(
-                !menu_ids.contains(go),
-                "GO-nav id '{go}' is NOT an enabled palette command"
-            );
-            assert!(
-                is_go_nav_pending(go),
-                "'{go}' is recognized as a pending GO-nav id"
-            );
-        }
+        assert_eq!(menu_ids.len(), 31, "exactly 31 EditorMenu commands");
+        // MT-069 REMEDIATION: no GO id is pending anymore (the code-nav commands are registered).
+        assert!(
+            EDITOR_GO_NAV_PENDING_IDS.is_empty(),
+            "GO-nav pending list is empty (code-nav commands registered)"
+        );
+        assert!(
+            !is_go_nav_pending(CMD_EDITOR_GO_TO_DEFINITION),
+            "Go to Definition is live, not pending"
+        );
     }
 }

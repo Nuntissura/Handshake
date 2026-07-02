@@ -237,6 +237,7 @@ pub use panel::{
     TWO_CHORD_TIMEOUT,
 };
 pub use panel::{CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID, EDITOR_WRAP_TOGGLE_NODE_ID};
+pub use panel::CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID;
 pub use rename::{
     apply_preview, apply_text_edits_to_buffer, apply_text_edits_to_string, begin_rename,
     identifier_occurrences, identifier_range_at, is_identifier_kind,
@@ -371,6 +372,25 @@ pub mod interop_adapter {
     ) -> bool {
         let selection = selection_for(panel, pane_id);
         copy_selection_to_clipboard(bus, &selection, sink)
+    }
+
+    /// MT-046: write a staged `[[code:…]]` note reference to the SHARED clipboard through the bus —
+    /// the 'Copy as note reference' command's REAL clipboard write. Drains the panel's staged ref
+    /// ([`CodeEditorPanel::take_pending_copy_note_reference`]) and routes it through the SAME
+    /// `bus.clipboard_write` path Ctrl+C uses (in-memory richest-variant cache + the mockable
+    /// [`ClipboardSink`] OS write — headless-safe, MT-017 precedent), so a cross-pane note Paste
+    /// recovers the ref. Returns the written ref, or `None` when nothing was staged.
+    pub fn copy_note_reference_to_bus(
+        bus: &mut InteractionBus,
+        panel: &CodeEditorPanel,
+        sink: &dyn ClipboardSink,
+    ) -> Option<String> {
+        let reference = panel.take_pending_copy_note_reference()?;
+        bus.clipboard_write(
+            crate::interop::interaction_bus::ClipboardPayload::PlainText(reference.clone()),
+            sink,
+        );
+        Some(reference)
     }
 
     /// Paste the shared clipboard's text into the code pane at its cursors (Ctrl+V path). Reads the

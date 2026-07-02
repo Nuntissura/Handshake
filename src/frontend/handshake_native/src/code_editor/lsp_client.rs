@@ -229,7 +229,7 @@ impl LspTextEdit {
 
 /// The configuration for launching a language server: the executable + its args. `None` everywhere
 /// means "no server configured" and the client degrades to empty results (AC-004).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LspServerConfig {
     /// The language-server executable (e.g. `rust-analyzer`). Empty -> no server.
     pub command: String,
@@ -249,6 +249,102 @@ impl LspServerConfig {
     /// Whether a server is actually configured (a non-empty command).
     pub fn is_configured(&self) -> bool {
         !self.command.trim().is_empty()
+    }
+}
+
+/// WP-KERNEL-012 MT-008 REMEDIATION: the typed outcome of probing the host for a language server.
+/// `Found` carries the launchable config; `Absent` is the HONEST typed absent-state the shell surfaces
+/// when no server executable exists on the host PATH (the editor stays on the graceful
+/// [`LspClient::disabled`] path — nothing is faked).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LspServerDiscovery {
+    /// A server executable was found on the host PATH; the carried config launches it.
+    Found(LspServerConfig),
+    /// No server executable was found. `probed_command` is the canonical server binary that was probed
+    /// (empty when the language has no known canonical server at all).
+    Absent {
+        /// The language id the probe ran for (e.g. `"rust"`).
+        language_id: String,
+        /// The canonical server command probed on PATH (e.g. `rust-analyzer`), or empty when no
+        /// canonical server is known for `language_id`.
+        probed_command: String,
+    },
+}
+
+impl LspServerDiscovery {
+    /// Whether the probe found a launchable server.
+    pub fn is_found(&self) -> bool {
+        matches!(self, Self::Found(_))
+    }
+}
+
+/// The canonical language-server command for `language_id`, or `None` when this build knows no server
+/// for the language. MT-008 REMEDIATION starts with rust-analyzer (the WP's own dogfood language);
+/// further languages extend this table.
+fn canonical_server_command(language_id: &str) -> Option<&'static str> {
+    match language_id {
+        "rust" | "rs" => Some("rust-analyzer"),
+        _ => None,
+    }
+}
+
+/// WP-KERNEL-012 MT-008 REMEDIATION: probe the HOST `PATH` for the canonical language server for
+/// `language_id` (rust -> `rust-analyzer`). Returns the typed [`LspServerDiscovery`]: `Found(config)`
+/// when the executable exists on PATH, else the honest `Absent` state (never a fake config).
+pub fn discover_lsp_server(language_id: &str) -> LspServerDiscovery {
+    discover_lsp_server_in(language_id, std::env::var_os("PATH"))
+}
+
+/// The PATH-parameterized body of [`discover_lsp_server`], so a test can prove BOTH branches
+/// deterministically (a temp dir containing the executable -> `Found`; an empty PATH -> `Absent`)
+/// without mutating the process environment.
+pub fn discover_lsp_server_in(
+    language_id: &str,
+    path_var: Option<std::ffi::OsString>,
+) -> LspServerDiscovery {
+    let Some(command) = canonical_server_command(language_id) else {
+        return LspServerDiscovery::Absent {
+            language_id: language_id.to_owned(),
+            probed_command: String::new(),
+        };
+    };
+    let Some(path_var) = path_var else {
+        return LspServerDiscovery::Absent {
+            language_id: language_id.to_owned(),
+            probed_command: command.to_owned(),
+        };
+    };
+    // Windows resolves executables via PATHEXT; probing the common executable extensions plus the bare
+    // name covers rust-analyzer's real install shapes (`rust-analyzer.exe` via rustup/cargo, a bare
+    // shim elsewhere). Unix probes the bare name only.
+    #[cfg(windows)]
+    let candidates: &[String] = &[
+        format!("{command}.exe"),
+        format!("{command}.cmd"),
+        format!("{command}.bat"),
+        command.to_owned(),
+    ];
+    #[cfg(not(windows))]
+    let candidates: &[String] = &[command.to_owned()];
+    for dir in std::env::split_paths(&path_var) {
+        if dir.as_os_str().is_empty() {
+            continue;
+        }
+        for candidate in candidates {
+            let probe = dir.join(candidate);
+            if probe.is_file() {
+                return LspServerDiscovery::Found(LspServerConfig {
+                    // Launch via the RESOLVED absolute path (not the bare name), so the spawn is
+                    // deterministic even if PATH changes between discovery and the lazy first spawn.
+                    command: probe.to_string_lossy().into_owned(),
+                    args: Vec::new(),
+                });
+            }
+        }
+    }
+    LspServerDiscovery::Absent {
+        language_id: language_id.to_owned(),
+        probed_command: command.to_owned(),
     }
 }
 

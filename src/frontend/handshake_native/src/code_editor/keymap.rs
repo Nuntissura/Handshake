@@ -238,6 +238,11 @@ pub enum CodeEditorAction {
     // file-scoped symbol palette (author_id code_editor_symbol_palette), STRICTLY DISTINCT from MT-030's
     // global Ctrl+P/Ctrl+T quick-switcher. The dispatch arm lives in panel.rs::dispatch_action.
     GoToSymbolInFile,
+    // WP-KERNEL-012 MT-046 (E5 — code<->note interconnection): Copy as note reference (no default
+    // binding — context-menu / command invoked). APPENDED (the same no-reorder discipline). Builds a
+    // `[[code:path#anchor]]` ref from the current selection / identifier and stages it for the SHARED
+    // InteractionBus clipboard write. The dispatch arm lives in panel.rs::dispatch_action.
+    CopyAsNoteReference,
 }
 
 impl CodeEditorAction {
@@ -314,6 +319,8 @@ impl CodeEditorAction {
             NavigateForward,
             // MT-053 (appended — keep after the MT-052 variants).
             GoToSymbolInFile,
+            // MT-046 (appended — keep after the MT-053 variant).
+            CopyAsNoteReference,
         ]
     }
 
@@ -391,6 +398,8 @@ impl CodeEditorAction {
             NavigateForward => "navigate_forward",
             // MT-053 in-file Go to Symbol.
             GoToSymbolInFile => "go_to_symbol_in_file",
+            // MT-046 copy-as-note-reference.
+            CopyAsNoteReference => "copy_as_note_reference",
         }
     }
 
@@ -465,6 +474,8 @@ impl CodeEditorAction {
             NavigateForward => "Navigate forward",
             // MT-053 in-file Go to Symbol.
             GoToSymbolInFile => "Go to symbol in file",
+            // MT-046 copy-as-note-reference.
+            CopyAsNoteReference => "Copy as note reference",
         }
     }
 
@@ -805,10 +816,10 @@ mod tests {
     #[test]
     fn all_covers_every_variant_and_names_are_unique() {
         let all = CodeEditorAction::all();
-        // 65 variants in the contract enum (56 base + MT-048 RenameSymbol + MT-049 QuickFix + MT-050
+        // 66 variants in the contract enum (56 base + MT-048 RenameSymbol + MT-049 QuickFix + MT-050
         // FormatDocument + FormatSelection + MT-052 GoToNextDiagnostic/GoToPrevDiagnostic/NavigateBack/
-        // NavigateForward + MT-053 GoToSymbolInFile).
-        assert_eq!(all.len(), 65, "all() must list every variant exactly once");
+        // NavigateForward + MT-053 GoToSymbolInFile + MT-046 CopyAsNoteReference).
+        assert_eq!(all.len(), 66, "all() must list every variant exactly once");
         let mut names: Vec<&str> = all.iter().map(|a| a.name()).collect();
         names.sort_unstable();
         let before = names.len();

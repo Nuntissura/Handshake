@@ -322,6 +322,21 @@ fn folded_region_paints_no_decorations_below_fold_label() {
                 .expect("trailing row on screen");
             let lh = c5.y - c0.y; // trailing row is the SECOND painted row -> one line_height apart
             assert!(lh > 1.0, "sane painted row pitch (got {lh})");
+            // Wave-2 hardening: anchor the band scan INDEPENDENTLY of the mapping under test.
+            // `screen_pos_for_line_col` is itself built on last_visible_range/row_geometry, so a
+            // broken mapping could derive a wrong pitch and scan the wrong band (trivially passing).
+            // The derived pitch must equal the ui-measured monospace row height — the SAME
+            // `FontId::monospace(13.0)` unit the panel's MONO_FONT_SIZE renders glyphs with — within
+            // a tight epsilon.
+            let expected_lh = harness
+                .ctx
+                .fonts_mut(|f| f.row_height(&egui::FontId::monospace(13.0)));
+            assert!(
+                (lh - expected_lh).abs() <= 0.05,
+                "fold-band anchor: derived row pitch {lh} px must equal the ui-measured monospace \
+                 row height {expected_lh} px (tight epsilon 0.05 — the scan region is otherwise \
+                 anchored to the mapping under test)"
+            );
             let text_left = c0.x - gw * 0.25;
             // The collapsed band: from just under the second painted row down 8 row-heights, across
             // the first 30 text columns (well inside the text area, left of any minimap/scrollbar).

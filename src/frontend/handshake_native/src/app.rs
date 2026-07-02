@@ -204,6 +204,25 @@ type LayoutLoadResult = (
 /// The document GET runs off the egui UI thread and the frame path drains this cell without blocking.
 type RichDocumentLoadResult = (u64, String, Result<backend_client::RichDocBody, String>);
 
+/// WP-KERNEL-012 MT-008 REMEDIATION: the typed LSP attach state the shell keeps for the mounted code
+/// pane. The HONEST absent-state is a first-class variant — when no language server exists on the host
+/// PATH the shell records (and a test/agent can read) exactly WHAT was probed and that nothing was
+/// attached, rather than pretending an LSP is live (never fake).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LspAttachState {
+    /// No runtime handle has arrived yet, so discovery/attach has not run.
+    NotProbed,
+    /// A language server was discovered on PATH and installed on the mounted panel via
+    /// `set_lsp_client`. `command` is the resolved executable the lazy first `didOpen` will spawn.
+    Attached { command: String },
+    /// No language server exists on the host PATH for the mounted document's language — the typed
+    /// absent-state (the panel keeps its graceful disabled client; every LSP method degrades to empty).
+    Absent {
+        language_id: String,
+        probed_command: String,
+    },
+}
+
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
     rt: tokio::runtime::Runtime,
@@ -321,6 +340,22 @@ pub struct HandshakeApp {
     /// [`last_editor_command`](Self::last_editor_command) so the dispatch is perceivable + testable (the
     /// Save WRITE itself is a typed carry owned by the document shell). `None` until one is dispatched.
     last_editor_command: Option<CodeEditorAction>,
+    /// WP-KERNEL-012 MT-008 REMEDIATION: the typed LSP attach state for the mounted code pane.
+    /// `NotProbed` until a runtime handle arrives (discovery needs nothing, but attach is pointless
+    /// without a runtime to drive the async client); then either `Attached` (a real language server
+    /// was discovered on PATH and installed via `set_lsp_client`) or the HONEST typed `Absent` state
+    /// (no server on this host — the editor stays on the graceful disabled path, never a fake).
+    lsp_attach: LspAttachState,
+    /// WP-KERNEL-012 MT-008 REMEDIATION: the `(uri, buffer_version)` last pushed to the LSP server by
+    /// the host drive loop. `None` until the first `didOpen`. A uri change re-opens (didOpen); a
+    /// buffer_version bump on the same uri pushes a full-text `didChange`.
+    lsp_doc_sync: Option<(String, u64)>,
+    /// WP-KERNEL-012 MT-069 REMEDIATION: optional synchronous export file-save sink (TEST SEAM). `None`
+    /// in production (exports go through the NativeFileSaveSink rfd dialog on a dedicated thread); a
+    /// kittest installs a [`crate::rich_editor::save::conflict_ui::PathFileSaveSink`] so an export click
+    /// writes real bytes without opening OS UI (HBR-QUIET).
+    export_save_sink:
+        Option<Arc<dyn crate::rich_editor::save::conflict_ui::FileSaveSink + Send + Sync>>,
     /// Persisted split fractions for the 2x2 pane grid (MT-006). Serialized into the layout snapshot
     /// by MT-009. Initialized to the React `DEFAULT_SPLIT_WEIGHTS` (`{ vertical: 0.5, horizontal:
     /// 0.55 }`).
@@ -1869,6 +1904,9 @@ impl HandshakeApp {
             rich_doc_loaded_version: None,
             rich_doc_load_error: None,
             last_editor_command: None,
+            lsp_attach: LspAttachState::NotProbed,
+            lsp_doc_sync: None,
+            export_save_sink: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -2351,6 +2389,9 @@ impl HandshakeApp {
             rich_doc_loaded_version: None,
             rich_doc_load_error: None,
             last_editor_command: None,
+            lsp_attach: LspAttachState::NotProbed,
+            lsp_doc_sync: None,
+            export_save_sink: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -3098,12 +3139,20 @@ impl HandshakeApp {
             crate::command_registry::CMD_VIEW_JOURNAL => {
                 self.open_content_on_active_pane(PaneType::LoomDailyJournal, None)
             }
-            crate::command_registry::CMD_VIEW_DIFF_MERGE => self.open_content_on_active_pane(
-                crate::editor_pane_factories::placeholder_pane_type(
-                    crate::editor_pane_factories::DIFF_MERGE_PANE_LABEL,
-                ),
-                None,
-            ),
+            crate::command_registry::CMD_VIEW_DIFF_MERGE => {
+                // WP-KERNEL-012 MT-009 REMEDIATION: the palette route now CONSTRUCTS a real diff when
+                // the mounted rich document's SaveManager sits in a save CONFLICT (local vs server —
+                // the two real buffers the shell holds); otherwise it opens the pane on the honest
+                // empty state ("open one from a conflict dialog or the palette"). Previously this only
+                // opened the pane and `diff_slot` was NEVER populated (a permanent empty state).
+                self.open_diff_from_save_conflict();
+                self.open_content_on_active_pane(
+                    crate::editor_pane_factories::placeholder_pane_type(
+                        crate::editor_pane_factories::DIFF_MERGE_PANE_LABEL,
+                    ),
+                    None,
+                )
+            }
             // WP-KERNEL-012 MT-069 (E11 menu wire-up): the editor FILE/EDIT menu + palette commands MT-079
             // host-mounted. Route through the ONE shared dispatcher the menu bar also calls, so the palette
             // path and the menu path are the SAME single substrate (RISK-001: no forked dispatch). The
@@ -3261,25 +3310,126 @@ impl HandshakeApp {
                 ctx.request_repaint();
                 true
             }
-            // ── Save / Save All / Save As / Export -> the MT-020 editor SaveManager save entry ───────────
-            cr::CMD_EDITOR_FILE_SAVE
-            | cr::CMD_EDITOR_FILE_SAVE_ALL
-            | cr::CMD_EDITOR_FILE_SAVE_AS
-            | cr::CMD_EDITOR_FILE_EXPORT_HTML
-            | cr::CMD_EDITOR_FILE_EXPORT_MD
-            | cr::CMD_EDITOR_FILE_EXPORT_TXT
-            | cr::CMD_EDITOR_FILE_EXPORT_JSON => {
-                // Invoke the REAL MT-020 SaveManager save entry on the mounted document pane — the SAME
-                // `RichEditorState::request_save_for_host` -> `SaveManager::request_save` path the rich
-                // editor's own Ctrl+S reaches (one save substrate, no fork — MC-004 / RISK-004). The
-                // SaveManager owns the `PUT /knowledge/documents/{id}/save` handshake_core write; the shell
-                // never writes directly and never opens a SQLite/shell-local path. `request_save` moves the
-                // SaveManager into `SaveState::Saving` (its OWN state machine, not a host-set marker), which
-                // is the AC-004 "dispatch reaches the MT-020 save entry" obligation, provable via
-                // `mounted_rich_state().save_is_in_flight()`. The code pane's Save channel is ALSO pinged so
-                // a focused code pane's save intent stays observable to a swarm agent (`last_editor_command`).
+            // ── Save -> SCOPED to the FOCUSED pane (MT-069 REMEDIATION) ───────────────────────────────
+            cr::CMD_EDITOR_FILE_SAVE => {
+                // Previously Save unconditionally invoked the RICH SaveManager AND pinged the code
+                // channel — so a focused CODE pane's Ctrl+S/menu Save silently saved the (possibly
+                // untouched) rich document. Now: a focused code pane routes ONLY to the code pane's
+                // host-save channel (its honest typed carry state — `last_editor_command` records the
+                // dispatch; the code document WRITE remains the documented typed carry, never a silent
+                // rich save in its place). A focused rich/Notes pane (or no code focus) reaches the REAL
+                // MT-020 SaveManager save entry, exactly as before.
+                if self.focused_pane_is_code_editor(ctx) {
+                    self.editor_mounts.code_panel.request_save_for_host();
+                } else {
+                    self.invoke_editor_save();
+                }
+                ctx.request_repaint();
+                true
+            }
+            // ── Save All -> both substrates (the "all" semantics: rich SaveManager + code channel) ───
+            cr::CMD_EDITOR_FILE_SAVE_ALL => {
                 self.invoke_editor_save();
                 self.editor_mounts.code_panel.request_save_for_host();
+                ctx.request_repaint();
+                true
+            }
+            // ── Save As -> the REAL export path's format picker (MT-069 REMEDIATION) ──────────────────
+            cr::CMD_EDITOR_FILE_SAVE_AS => {
+                // Save As names a NEW destination: that is the MT-020 export surface (format picker ->
+                // `export_document` -> the NativeFileSaveSink rfd save dialog), NOT a silent same-id
+                // SaveManager PUT (the pre-remediation lying-enabled path). Opening the picker is the
+                // same entry the rich editor's own export affordance uses (one export substrate).
+                if let Ok(mut state) = self.editor_mounts.rich_state.lock() {
+                    state.export_picker_open = true;
+                }
+                ctx.request_repaint();
+                true
+            }
+            // ── Export Document (HTML/MD/TXT/JSON) -> the REAL export path (MT-069 REMEDIATION) ──────
+            cr::CMD_EDITOR_FILE_EXPORT_HTML => {
+                self.export_active_document(crate::rich_editor::save::export::ExportFormat::HtmlReferenceLinked);
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_FILE_EXPORT_MD => {
+                self.export_active_document(crate::rich_editor::save::export::ExportFormat::Markdown);
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_FILE_EXPORT_TXT => {
+                self.export_active_document(crate::rich_editor::save::export::ExportFormat::PlainText);
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_FILE_EXPORT_JSON => {
+                self.export_active_document(crate::rich_editor::save::export::ExportFormat::ProseMirrorJson);
+                ctx.request_repaint();
+                true
+            }
+            // ── GO code-navigation -> the MOUNTED code panel's own dispatch entry (MT-069 REMEDIATION) ──
+            // Each routes to `CodeEditorPanel::dispatch_action` — the SAME arm the F8/Shift+F8/Alt+Left/
+            // Alt+Right/F12/Shift+F12/Ctrl+G/Ctrl+Shift+O keymap chords reach (one nav substrate, no fork).
+            cr::CMD_EDITOR_GO_NEXT_DIAGNOSTIC => {
+                self.editor_mounts.code_panel.dispatch_action(
+                    crate::code_editor::keymap::CodeEditorAction::GoToNextDiagnostic,
+                );
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_GO_PREV_DIAGNOSTIC => {
+                self.editor_mounts.code_panel.dispatch_action(
+                    crate::code_editor::keymap::CodeEditorAction::GoToPrevDiagnostic,
+                );
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_GO_BACK => {
+                self.editor_mounts
+                    .code_panel
+                    .dispatch_action(crate::code_editor::keymap::CodeEditorAction::NavigateBack);
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_GO_FORWARD => {
+                self.editor_mounts
+                    .code_panel
+                    .dispatch_action(crate::code_editor::keymap::CodeEditorAction::NavigateForward);
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_GO_SYMBOL_IN_FILE => {
+                self.editor_mounts.code_panel.dispatch_action(
+                    crate::code_editor::keymap::CodeEditorAction::GoToSymbolInFile,
+                );
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_GO_TO_DEFINITION => {
+                self.editor_mounts
+                    .code_panel
+                    .dispatch_action(crate::code_editor::keymap::CodeEditorAction::GoToDefinition);
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_GO_TO_REFERENCES => {
+                self.editor_mounts
+                    .code_panel
+                    .dispatch_action(crate::code_editor::keymap::CodeEditorAction::ShowReferences);
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_GO_TO_LINE => {
+                self.editor_mounts
+                    .code_panel
+                    .dispatch_action(crate::code_editor::keymap::CodeEditorAction::GoToLine);
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_GO_TO_SYMBOL => {
+                // Workspace-wide symbol search: the MT-030 global quick switcher IS the workspace
+                // search surface (Ctrl+T semantics) — one global search substrate, no second palette.
+                self.open_quick_switcher();
                 ctx.request_repaint();
                 true
             }
@@ -3408,6 +3558,182 @@ impl HandshakeApp {
             .as_ref()
             .filter(|id| !id.trim().is_empty())
             .cloned()
+    }
+
+    /// WP-KERNEL-012 MT-069 REMEDIATION: run the REAL document export for `format` on the mounted rich
+    /// document — `export_document` (the MT-020 export-to-bytes core) then the file-save sink. The four
+    /// FILE > Export Document menu items route here with their NAMED format (previously they silently
+    /// invoked the plain SaveManager save — the lying-enabled path). Production writes through
+    /// [`NativeFileSaveSink::spawn`] (the rfd dialog on a dedicated thread — HBR-QUIET, user-initiated);
+    /// a test installs a synchronous [`FileSaveSink`] via [`set_export_save_sink_for_test`] so the
+    /// export bytes are written without OS UI. Either way the outcome lands in
+    /// `state.pending_file_save` (the SAME pollable slot the rich editor's own export picker fills), so
+    /// the export is observable. Returns `true` when export bytes were produced.
+    ///
+    /// [`NativeFileSaveSink::spawn`]: crate::rich_editor::save::conflict_ui::NativeFileSaveSink::spawn
+    /// [`FileSaveSink`]: crate::rich_editor::save::conflict_ui::FileSaveSink
+    /// [`set_export_save_sink_for_test`]: Self::set_export_save_sink_for_test
+    fn export_active_document(
+        &mut self,
+        format: crate::rich_editor::save::export::ExportFormat,
+    ) -> bool {
+        use crate::rich_editor::save::conflict_ui::{NativeFileSaveSink, PendingFileSave};
+        use crate::rich_editor::save::export::{export_document, AssetByteSource};
+        let rich = Arc::clone(&self.editor_mounts.rich_state);
+        let mut state = match rich.lock() {
+            Ok(s) => s,
+            Err(p) => p.into_inner(),
+        };
+        let workspace_id = state.embeds.workspace_id.clone();
+        let title = state
+            .properties
+            .as_ref()
+            .map(|p| p.doc_metadata.title.clone())
+            .unwrap_or_else(|| "document".to_owned());
+        // No wired asset resolver on this path (same as the picker path): HTML reference-linked media
+        // URLs are built from the backend base; self-contained is not offered by the menu items.
+        let assets = AssetByteSource::new();
+        match export_document(
+            &state.doc,
+            format,
+            &workspace_id,
+            crate::backend_client::BACKEND_BASE_URL,
+            &title,
+            &assets,
+        ) {
+            Ok(output) => {
+                if let Some(sink) = &self.export_save_sink {
+                    // Test sink: synchronous write, pre-resolved handle (no OS dialog — HBR-QUIET).
+                    let written = sink.save(&output);
+                    state.pending_file_save = Some(PendingFileSave::resolved_for_test(written));
+                } else {
+                    // Production: the rfd save dialog on a dedicated thread, polled non-blockingly.
+                    state.pending_file_save = Some(NativeFileSaveSink::spawn(&output));
+                }
+                true
+            }
+            Err(err) => {
+                tracing::warn!("MT-069 export ({format:?}) failed: {err}");
+                false
+            }
+        }
+    }
+
+    /// TEST SEAM (MT-069 REMEDIATION): install a synchronous [`FileSaveSink`] so a kittest export click
+    /// writes REAL export bytes to a known directory instead of opening the OS save dialog (HBR-QUIET).
+    /// Production never calls this — the default is the NativeFileSaveSink dialog path.
+    ///
+    /// [`FileSaveSink`]: crate::rich_editor::save::conflict_ui::FileSaveSink
+    pub fn set_export_save_sink_for_test(
+        &mut self,
+        sink: Arc<dyn crate::rich_editor::save::conflict_ui::FileSaveSink + Send + Sync>,
+    ) {
+        self.export_save_sink = Some(sink);
+    }
+
+    /// WP-KERNEL-012 MT-009 REMEDIATION: the shell open-diff route — construct a REAL two-way
+    /// [`DiffEditorPanel`](crate::code_editor::DiffEditorPanel) from `left`/`right` into the mounted
+    /// `diff_slot` (the SAME slot the registered `DiffMergePaneMount` renders) and open the Diff/Merge
+    /// pane on the active pane. Previously `diff_slot` was never populated, so the pane was a permanent
+    /// empty state. Returns `true` when the pane opened.
+    pub fn open_diff(
+        &mut self,
+        left: crate::code_editor::TextBuffer,
+        right: crate::code_editor::TextBuffer,
+        extension: &str,
+    ) -> bool {
+        let panel = std::sync::Arc::new(crate::code_editor::DiffEditorPanel::diff(
+            left, right, extension,
+        ));
+        self.install_diff_panel(panel)
+    }
+
+    /// WP-KERNEL-012 MT-009 REMEDIATION: the shell open-merge route — construct a REAL three-way merge
+    /// [`DiffEditorPanel`](crate::code_editor::DiffEditorPanel) (base/local/remote, per-conflict accept
+    /// controls) into the mounted `diff_slot` and open the Diff/Merge pane.
+    pub fn open_merge(
+        &mut self,
+        base: crate::code_editor::TextBuffer,
+        local: crate::code_editor::TextBuffer,
+        remote: crate::code_editor::TextBuffer,
+        extension: &str,
+    ) -> bool {
+        let panel = std::sync::Arc::new(crate::code_editor::DiffEditorPanel::merge(
+            base, local, remote, extension,
+        ));
+        self.install_diff_panel(panel)
+    }
+
+    /// Install a constructed diff/merge panel into the mounted `diff_slot` and open the pane.
+    fn install_diff_panel(
+        &mut self,
+        panel: std::sync::Arc<crate::code_editor::DiffEditorPanel>,
+    ) -> bool {
+        if let Ok(mut slot) = self.editor_mounts.secondary.diff_slot.lock() {
+            *slot = Some(panel);
+        }
+        self.open_content_on_active_pane(
+            crate::editor_pane_factories::placeholder_pane_type(
+                crate::editor_pane_factories::DIFF_MERGE_PANE_LABEL,
+            ),
+            None,
+        )
+    }
+
+    /// WP-KERNEL-012 MT-009 REMEDIATION: when the mounted rich document's SaveManager sits in a save
+    /// CONFLICT, build the REAL local-vs-server diff into `diff_slot` (deterministic pretty-JSON
+    /// projections of the two content trees — the two real buffers the shell holds; base is unknown to
+    /// the save protocol, so this is the honest TWO-way diff, not a fabricated three-way). Returns
+    /// `true` when a conflict diff was installed; `false` (no slot write) when no conflict is open.
+    ///
+    /// NOTE (out-of-lane carry): the conflict DIALOG's own "Open merge" button
+    /// (`conflict-open-merge`, rendered inside `rich_editor/save/conflict_ui.rs`) still shows the
+    /// "Merge not yet available" note — adding a `ConflictOutcome::OpenMerge` variant there is
+    /// rich_editor-owned. The shell-side route below is the seam that wiring will call; until then the
+    /// operator route to the SAME real diff is the palette `View: Diff / Merge` command.
+    fn open_diff_from_save_conflict(&mut self) -> bool {
+        use crate::rich_editor::save::save_manager::SaveState;
+        let (local_text, server_text) = {
+            let state = self
+                .editor_mounts
+                .rich_state
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
+            let Some(save) = state.save.as_ref() else {
+                return false;
+            };
+            match &save.state {
+                SaveState::Conflict {
+                    server,
+                    local_content,
+                }
+                | SaveState::ConfirmKeepYours {
+                    server,
+                    local_content,
+                } => {
+                    let server_text = server
+                        .content_json
+                        .as_ref()
+                        .and_then(|v| serde_json::to_string_pretty(v).ok())
+                        .unwrap_or_default();
+                    let local_text =
+                        serde_json::to_string_pretty(local_content).unwrap_or_default();
+                    (local_text, server_text)
+                }
+                _ => return false,
+            }
+        };
+        let local = crate::code_editor::TextBuffer::new(&local_text);
+        let server = crate::code_editor::TextBuffer::new(&server_text);
+        self.open_diff(local, server, "json")
+    }
+
+    /// WP-KERNEL-012 MT-009 REMEDIATION: the mounted diff/merge slot (test observability — a kittest
+    /// proves the operator route populated a REAL panel the mounted pane renders).
+    pub fn mounted_diff_slot(
+        &self,
+    ) -> Arc<Mutex<Option<std::sync::Arc<crate::code_editor::DiffEditorPanel>>>> {
+        Arc::clone(&self.editor_mounts.secondary.diff_slot)
     }
 
     /// MT-099: force the next frame to re-GET a document. Used when opening/reopening a Notes tab so a
@@ -3727,6 +4053,117 @@ impl HandshakeApp {
             handle.clone(),
         ));
         self.runtime_handle = Some(handle);
+
+        // WP-KERNEL-012 MT-008 REMEDIATION: discover + attach the REAL language server for the mounted
+        // code pane's language now that a runtime exists to drive the async client. rust-analyzer on
+        // PATH -> a real LspClient installed via set_lsp_client (spawned lazily on the first didOpen);
+        // absent -> the HONEST typed absent-state (the panel keeps its graceful disabled client).
+        self.attach_lsp_for_mounted_code_pane();
+    }
+
+    /// WP-KERNEL-012 MT-008 REMEDIATION: probe the host PATH for the mounted code document's language
+    /// server and install it on the mounted [`CodeEditorPanel`]. Idempotent once `Attached`: re-probing
+    /// after an attach would tear down a live server for no reason, so a second call is a no-op unless
+    /// the state is still `NotProbed`/`Absent` (an `Absent` re-probe is allowed — the operator may have
+    /// installed the server since). Never fakes: an absent server records the typed
+    /// [`LspAttachState::Absent`] and leaves the panel's graceful disabled client in place.
+    fn attach_lsp_for_mounted_code_pane(&mut self) {
+        if matches!(self.lsp_attach, LspAttachState::Attached { .. }) {
+            return;
+        }
+        let panel = &self.editor_mounts.code_panel;
+        let language_id = panel.language_id();
+        match crate::code_editor::lsp_client::discover_lsp_server(&language_id) {
+            crate::code_editor::lsp_client::LspServerDiscovery::Found(config) => {
+                let command = config.command.clone();
+                panel.set_lsp_client(std::sync::Arc::new(
+                    crate::code_editor::lsp_client::LspClient::new(config),
+                ));
+                // A fresh client means any previous doc-sync watermark is stale.
+                self.lsp_doc_sync = None;
+                tracing::info!("MT-008 LSP attach: discovered '{command}' for '{language_id}'");
+                self.lsp_attach = LspAttachState::Attached { command };
+            }
+            crate::code_editor::lsp_client::LspServerDiscovery::Absent {
+                language_id,
+                probed_command,
+            } => {
+                tracing::info!(
+                    "MT-008 LSP attach: no language server on PATH for '{language_id}' \
+                     (probed '{probed_command}') — typed absent-state, editor stays on the \
+                     graceful disabled LSP path"
+                );
+                self.lsp_attach = LspAttachState::Absent {
+                    language_id,
+                    probed_command,
+                };
+            }
+        }
+    }
+
+    /// WP-KERNEL-012 MT-008 REMEDIATION: the typed LSP attach state for the mounted code pane (the
+    /// honest live surface a test/operator/agent reads — `Attached` vs the typed `Absent`).
+    pub fn lsp_attach_state(&self) -> LspAttachState {
+        self.lsp_attach.clone()
+    }
+
+    /// WP-KERNEL-012 MT-008 REMEDIATION: the `(uri, buffer_version)` watermark the host drive loop last
+    /// pushed to the LSP server (`None` until the first didOpen). Test-observability surface.
+    pub fn lsp_doc_sync_watermark(&self) -> Option<(String, u64)> {
+        self.lsp_doc_sync.clone()
+    }
+
+    /// WP-KERNEL-012 MT-008 REMEDIATION: the per-frame LSP document-sync pump, called from
+    /// [`drive_editor_mounts`](Self::drive_editor_mounts). When a REAL LSP client is attached and the
+    /// mounted code pane has a file-backed document (`format_uri`), it pushes:
+    /// - `textDocument/didOpen` on document load (first sight of the uri, or a uri change), and
+    /// - full-text `textDocument/didChange` when `buffer_version` bumps on the same uri
+    ///
+    /// onto the runtime (off the UI thread — the notifications are async writes). The watermark advances
+    /// EAGERLY (before the spawned write resolves) so one edit never queues duplicate didChanges across
+    /// frames; a failed/never-spawned server degrades inside the client (graceful — AC-004). An
+    /// in-memory buffer with no file path stays unsynced by design (no uri to name to the server).
+    fn drive_lsp_document_sync(&mut self) {
+        if !matches!(self.lsp_attach, LspAttachState::Attached { .. }) {
+            return;
+        }
+        let Some(rt) = self.runtime_handle.clone() else {
+            return;
+        };
+        let panel = &self.editor_mounts.code_panel;
+        let client = panel.lsp_client();
+        if !client.is_configured() {
+            return;
+        }
+        let Some(uri) = panel.format_uri() else {
+            return; // In-memory buffer (no file path): nothing to name to the server.
+        };
+        let version = panel.buffer_version_for_test();
+        let needs_open = match &self.lsp_doc_sync {
+            None => true,
+            Some((synced_uri, _)) => synced_uri != &uri,
+        };
+        if needs_open {
+            let language_id = panel.language_id();
+            let text = panel.buffer().to_string();
+            let uri_for_task = uri.clone();
+            rt.spawn(async move {
+                client.did_open(&uri_for_task, &language_id, &text).await;
+            });
+            self.lsp_doc_sync = Some((uri, version));
+            return;
+        }
+        if let Some((_, synced_version)) = &self.lsp_doc_sync {
+            if *synced_version != version {
+                let text = panel.buffer().to_string();
+                let uri_for_task = uri.clone();
+                let lsp_version = i64::try_from(version).unwrap_or(i64::MAX);
+                rt.spawn(async move {
+                    client.did_change(&uri_for_task, lsp_version, &text).await;
+                });
+                self.lsp_doc_sync = Some((uri, version));
+            }
+        }
     }
 
     /// A clone of the rail's emitted-intent slot (MT-022, the contract's `search_rail_query`:
@@ -6018,6 +6455,12 @@ impl HandshakeApp {
             editor_can_undo: editor_available && self.editor_can_undo(ctx),
             editor_can_redo: editor_available && self.editor_can_redo(ctx),
             editor_can_paste: editor_available && self.editor_can_paste(ctx),
+            // MT-069 REMEDIATION: GO > Back/Forward reflect the LIVE jump-history state of the mounted
+            // code panel (VS Code semantics — no fake-enable).
+            editor_can_nav_back: editor_available
+                && self.editor_mounts.code_panel.can_navigate_back(),
+            editor_can_nav_forward: editor_available
+                && self.editor_mounts.code_panel.can_navigate_forward(),
         }
     }
 
@@ -6826,6 +7269,9 @@ impl HandshakeApp {
                 }
             }
         }
+
+        // ── WP-KERNEL-012 MT-008 REMEDIATION: LSP document sync (didOpen on load / didChange on edit) ─
+        self.drive_lsp_document_sync();
 
         // ── WP-KERNEL-012 MT-080: drain the SECONDARY mounted panes' outbound event queues ────────────
         self.drive_secondary_mounts(ctx);

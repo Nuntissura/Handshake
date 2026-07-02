@@ -333,6 +333,12 @@ pub const EDITOR_WRAP_TOGGLE_NODE_ID: u64 = 290;
 /// deterministically by addressing THIS id (the MT names it exactly `editor-wrap-toggle`).
 pub const CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID: &str = "editor-wrap-toggle";
 
+/// MT-046 the stable id for the editor-body context menu's 'Copy as note reference' entry (the code ->
+/// note interconnection edge: selection/identifier -> `[[code:…]]` ref onto the SHARED InteractionBus
+/// clipboard). Follows the `code_editor_ctx_{action}` scheme its sibling entries (rename / quick-fix /
+/// format-selection) use.
+pub const CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID: &str = "code_editor_ctx_copy_note_ref";
+
 /// Per-frame virtualization diagnostics for the swarm/debug surface (MT-002 step 4). Reports how many
 /// lines were actually painted this frame versus the document size, so a no-context model (or a perf
 /// test) can confirm virtualization is active (`frame_lines_rendered` << `buffer_len_lines` on a
@@ -871,6 +877,20 @@ pub struct CodeEditorPanel {
     /// panel records it on the UI thread (in `drain_format_result`); the factory render drains it into
     /// `interop_adapter::push_code_edit_undo` so ONE undo entry is recorded at the bus boundary (AC-001).
     pending_format_undo: Mutex<Option<(String, String)>>,
+
+    // ── MT-046 Copy as note reference (code -> note interconnection edge) ─────────────────────────
+    /// MT-046 the queued `[[code:…]]` note-reference string a 'Copy as note reference' dispatch built
+    /// from the current selection / identifier. The factory render drains it via
+    /// [`take_pending_copy_note_reference`](Self::take_pending_copy_note_reference) and writes it to the
+    /// SHARED InteractionBus clipboard (`interop_adapter::copy_note_reference_to_bus`) — the panel has
+    /// no bus handle of its own, so the staged string is the typed hand-off (the same pattern the
+    /// pending format/line-op undo snapshots use).
+    pending_copy_note_reference: Mutex<Option<String>>,
+    /// MT-070/MT-057 the queued create-note-from-link intent: the `[[title]]` under the cursor when the
+    /// editor-body context menu's 'Create note from link' entry was confirmed. The host/shell drains it
+    /// via [`take_pending_create_note_link`](Self::take_pending_create_note_link) and routes it to the
+    /// MT-057 create-note intent handler (the code panel itself has no wikilink runtime).
+    pending_create_note_link: Mutex<Option<String>>,
 
     // ── MT-051 line-edit buffer transforms ────────────────────────────────────────────────────────
     /// MT-051 the queued single-undo snapshot `(description, before_text, after_text)` for a just-applied
@@ -1420,6 +1440,10 @@ impl CodeEditorPanel {
             // (insert_spaces=true). The host overrides them from the operator's editor settings via
             // set_indent_settings; the dispatch reads them into a LineEditContext each batch (MC-006).
             pending_line_op_undo: Mutex::new(None),
+            // MT-046 copy-as-note-reference + MT-070 create-note-from-link: nothing staged until the
+            // context-menu entry / command dispatch fires.
+            pending_copy_note_reference: Mutex::new(None),
+            pending_create_note_link: Mutex::new(None),
             // MT-071: seed indent from the document so the Indent segment + Tab key reflect the file's
             // actual style on open (tab-indented file -> Tabs; 4-space file -> Spaces 4), defaulting to
             // VS Code's Spaces 4 when ambiguous (MC-007). The host may still override via
@@ -5502,15 +5526,17 @@ impl CodeEditorPanel {
                     }
                 });
 
-                // MT-003: process multi-cursor input AFTER the rows painted this frame, so the captured
-                // row geometry is available to map a pointer position (Alt+Click / box drag) to a
-                // (line, col) byte offset. Reads egui input events from this scroll scope's `ui`.
-                self.process_cursor_input(ui, line_height, glyph_width, total_lines);
-
                 // Store egui's actual painted row range as BOTH the perf "lines painted this frame"
                 // count and the `last_visible_range` overlay seam (AC-007). The painted range is the
                 // ground truth MT-003+ reads to position the cursor/gutter/selection overlay, so the
                 // diagnostics must equal it exactly — not the overscan-padded calculator estimate.
+                //
+                // ORDER MATTERS (wave-2 remediation of the wave-1 MAJOR "one-frame-stale input
+                // mapping"): this store MUST happen BEFORE `process_cursor_input` below, because
+                // `pointer_to_byte` resolves the clicked row via `last_visible_range().start` while
+                // `row_geometry` is already CURRENT-frame — storing the range after input processing
+                // made a scroll+click-in-one-frame land the caret on the PREVIOUS frame's top row
+                // (off by exactly the rows scrolled that frame).
                 let stats = PerfStats {
                     frame_lines_rendered: painted_range.len(),
                     buffer_len_lines: total_lines,
@@ -5521,6 +5547,13 @@ impl CodeEditorPanel {
                     .last_visible_range
                     .lock()
                     .unwrap_or_else(|e| e.into_inner()) = painted_range.clone();
+
+                // MT-003: process multi-cursor input AFTER the rows painted this frame, so the captured
+                // row geometry is available to map a pointer position (Alt+Click / box drag) to a
+                // (line, col) byte offset — and AFTER the painted range was stored above, so the
+                // pointer->row mapping uses THIS frame's window, never last frame's. Reads egui input
+                // events from this scroll scope's `ui`.
+                self.process_cursor_input(ui, line_height, glyph_width, total_lines);
 
                 // Emit the ScrollView node onto THIS scroll scope's Ui id (AC-004). It is a child of
                 // the container scope and the parent of the text scope.
@@ -5933,13 +5966,23 @@ impl CodeEditorPanel {
         };
     }
 
-    /// MT-048: the editor body context menu with the code-pane 'Rename Symbol' entry. A secondary-click
-    /// over `rect` opens the menu; clicking 'Rename Symbol' runs the SAME `begin_rename` path as F2. Emits
-    /// the `Role::MenuItem` AccessKit node `code_editor_ctx_rename_symbol` (suffixed by instance) so a
-    /// swarm agent can trigger the rename by id without a right-click (AC-005 / HBR-SWARM). The node is
-    /// emitted EVERY frame (not just while the menu is open) so the swarm surface is always addressable;
-    /// an AccessKit `Click` action on it dispatches the rename via the editor-action wiring's command
-    /// path the same way F2 does.
+    /// MT-070 (wave-2 wiring): the editor body context menu, now rendered through the TYPED
+    /// `context_menu_surfaces::editor_body_context_items` layer instead of the old inline 2-entry menu.
+    /// A secondary-click over `rect` opens the 5-entry MT-070 menu (Rename Symbol / Quick Fix / Format
+    /// Selection / Peek Definition / Create note from link) plus the MT-046 'Copy as note reference'
+    /// entry; each confirmed id maps back through `editor_body_action_for_id` (a disabled/dead entry can
+    /// never fire — AC-070-5) and dispatches the SAME live panel path its keybinding uses:
+    /// - Rename Symbol -> `begin_rename_at_cursor` (F2 path, MT-048),
+    /// - Quick Fix -> arms `quick_fix_request` (Ctrl+. path, MT-049),
+    /// - Format Selection -> `request_format_selection` (MT-050),
+    /// - Peek Definition -> `request_go_to_definition` (F12 path, MT-008),
+    /// - Create note from link -> stages the typed MT-057 create-note intent
+    ///   ([`take_pending_create_note_link`](Self::take_pending_create_note_link)),
+    /// - Copy as note reference -> stages the `[[code:…]]` ref the factory render writes to the SHARED
+    ///   InteractionBus clipboard (MT-046).
+    /// Availability is read FRESH from the live panel at right-click time (RISK-070-1 — a stale snapshot
+    /// never enables a dead entry). Also emits the always-present `code_editor_ctx_rename_symbol` /
+    /// `code_editor_ctx_quick_fix` MenuItem AccessKit nodes (AC-005 / HBR-SWARM) exactly as before.
     fn render_editor_context_menu(&self, ui: &mut egui::Ui, rect: egui::Rect) {
         // A secondary-click sensing response over the editor body so `context_menu` can open on it.
         let resp = ui.interact(
@@ -5953,19 +5996,50 @@ impl CodeEditorPanel {
             node.set_author_id(context_author.clone());
             node.set_label("Code editor context surface".to_owned());
         });
-        resp.context_menu(|ui| {
-            if ui.button("Rename Symbol").clicked() {
-                self.begin_rename_at_cursor();
-                ui.close();
+
+        // Live availability + the typed MT-070 item list (the ids ARE the stable author_ids the owning
+        // MTs emit — no parallel id scheme), extended by the MT-046 copy-as-note-reference entry.
+        let availability = self.editor_body_availability();
+        let can_copy_ref = self.note_reference_for_cursor().is_some();
+        let copy_ref_item = {
+            let item = crate::context_menu::ContextMenuItem::action(
+                CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID,
+                "Copy as note reference",
+            );
+            if can_copy_ref {
+                item
+            } else {
+                item.disabled("No selection or identifier under the cursor to reference")
             }
-            // MT-049 (AC-007): the 'Quick Fix...' entry routes to the SAME request+open_menu flow as
-            // Ctrl+. — it arms the quick-fix request, which the per-frame pump fires for the caret line and
-            // opens the menu (no duplicate apply logic; the controller owns the apply path).
-            if ui.button("Quick Fix...").clicked() {
-                self.quick_fix_request.store(true, Ordering::Relaxed);
-                ui.close();
+        };
+        let menu = crate::context_menu::ContextMenu::new("editor-body")
+            .items(crate::context_menu_surfaces::editor_body_context_items(
+                availability,
+            ))
+            .separator()
+            .item(copy_ref_item);
+        if let Some(confirmed) = menu.show_on(&resp) {
+            if confirmed == CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID {
+                // MT-046: build the `[[code:…]]` ref from the live selection/identifier and stage it
+                // for the factory render's bus clipboard write (the REAL command, not a fabricated
+                // payload). The same one-path rule as the keymap dispatch (`CopyAsNoteReference`).
+                self.copy_as_note_reference();
+            } else if let Some(action) = crate::context_menu_surfaces::editor_body_action_for_id(
+                confirmed,
+                availability,
+            ) {
+                use crate::context_menu_surfaces::EditorBodyMenuAction as B;
+                match action {
+                    B::RenameSymbol => self.begin_rename_at_cursor(),
+                    // MT-049 (AC-007): the SAME request+open_menu flow as Ctrl+. — arms the quick-fix
+                    // request the per-frame pump fires for the caret line (no duplicate apply logic).
+                    B::QuickFix => self.quick_fix_request.store(true, Ordering::Relaxed),
+                    B::FormatSelection => self.request_format_selection(),
+                    B::PeekDefinition => self.request_go_to_definition(),
+                    B::CreateNoteFromLink => self.stage_create_note_from_link(),
+                }
             }
-        });
+        }
 
         // Always-present MenuItem AccessKit node carrying the exact contract author_id (AC-005). A swarm
         // agent reads/activates it by id; the value names the action so a no-context model knows what it
@@ -6025,6 +6099,155 @@ impl CodeEditorPanel {
             );
             node.add_action(accesskit::Action::Click);
         });
+    }
+
+    /// MT-070: the LIVE availability of each editor-body context-menu action for the CURRENT
+    /// caret/selection, read fresh at right-click time (RISK-070-1). Drives honest enable/disable:
+    /// - `symbol_under_cursor`: a tree-sitter identifier at the primary caret (the same
+    ///   `rename::identifier_range_at` resolution the F2 path uses),
+    /// - `quick_fix_available`: actions already resolved on the caret line (the lightbulb state) OR a
+    ///   live runtime that can discover them on request (the Ctrl+. arm-then-pump path),
+    /// - `has_selection`: a non-empty primary selection (Format Selection's target),
+    /// - `definition_available`: the F12 request's own gates (runtime + bound workspace + a word under
+    ///   the caret — without all three `request_go_to_definition` is a silent no-op, so the entry is
+    ///   honestly disabled instead of dead-but-enabled),
+    /// - `unresolved_link_under_cursor`: a syntactic `[[title]]` wikilink under the caret (resolution
+    ///   state needs a backend; the syntactic check is the honest local gate).
+    fn editor_body_availability(&self) -> crate::context_menu_surfaces::EditorBodyAvailability {
+        // Ensure the highlight tree reflects the current buffer before resolving (cache hit when
+        // unchanged) — the same freshness rule `begin_rename_at_cursor` applies.
+        self.ensure_highlight_cache();
+        let cursor_byte = self.primary_cursor_offset();
+        let symbol_under_cursor = {
+            let highlighter = self.highlighter.lock().unwrap_or_else(|e| e.into_inner());
+            highlighter
+                .as_ref()
+                .and_then(|hl| hl.tree())
+                .and_then(|tree| rename::identifier_range_at(tree, cursor_byte))
+                .is_some()
+        };
+        let cursor_line = self.primary_cursor_line();
+        let quick_fix_available =
+            self.has_quickfix_on_line(cursor_line) || self.runtime_handle().is_some();
+        let has_selection = self.selected_primary_text().is_some();
+        let definition_available = self.runtime_handle().is_some()
+            && !self.workspace_id().is_empty()
+            && !self.word_at_primary_cursor().is_empty();
+        let unresolved_link_under_cursor = self.wikilink_under_cursor().is_some();
+        crate::context_menu_surfaces::EditorBodyAvailability {
+            symbol_under_cursor,
+            quick_fix_available,
+            has_selection,
+            definition_available,
+            unresolved_link_under_cursor,
+        }
+    }
+
+    /// MT-070/MT-057: the `[[title]]` wikilink under the primary caret, or `None`. A SYNTACTIC scan of
+    /// the caret's line for a `[[…]]` span covering the caret byte (resolution state — does the note
+    /// exist — needs a backend lookup; this is the honest local availability gate for the 'Create note
+    /// from link' entry). The inner title is returned trimmed; an empty `[[]]` yields `None`.
+    pub fn wikilink_under_cursor(&self) -> Option<String> {
+        let offset = self.primary_cursor_offset();
+        self.with_buffer(|b| {
+            let (line, _) = byte_to_line_col(offset, b);
+            let start = b.line_to_byte(line)?;
+            let end = b.line_to_byte(line + 1).unwrap_or_else(|| b.len_bytes());
+            let text = b.byte_slice_to_string(start..end);
+            // The caret's BYTE offset within the line (byte units so non-ASCII lines never mis-slice).
+            let col = offset.saturating_sub(start).min(text.len());
+            let mut i = 0usize;
+            while let Some(open_rel) = text[i..].find("[[") {
+                let open = i + open_rel;
+                let close = match text[open + 2..].find("]]") {
+                    Some(c) => open + 2 + c,
+                    None => break,
+                };
+                // The span covers the caret when it sits anywhere over `[[title]]` (inclusive edges).
+                if col >= open && col <= close + 2 {
+                    let title = text[open + 2..close].trim();
+                    if title.is_empty() {
+                        return None;
+                    }
+                    return Some(title.to_owned());
+                }
+                i = close + 2;
+            }
+            None
+        })
+    }
+
+    /// MT-046: build the `[[code:…]]` note-reference string for the current selection / identifier —
+    /// the code -> note interconnection payload. The ref value follows the MT-034 `path#Symbol` shape
+    /// the wikilink parser + cross-ref resolver consume: `[[code:{file_path}#{anchor}]]`, where the
+    /// anchor is the selected text's first line (trimmed) when a selection exists, else the identifier
+    /// under the caret. An in-memory buffer with no file path degrades to `[[code:{anchor}]]` (the
+    /// resolver also accepts bare symbol keys). Returns `None` when there is nothing to anchor
+    /// (no selection AND no word under the caret) — the menu entry renders disabled then.
+    pub fn note_reference_for_cursor(&self) -> Option<String> {
+        let anchor = match self.selected_primary_text() {
+            Some((_, _, text)) => text.lines().next().unwrap_or("").trim().to_owned(),
+            None => self.word_at_primary_cursor(),
+        };
+        if anchor.is_empty() {
+            return None;
+        }
+        let path = self.file_path();
+        let path = path.trim();
+        if path.is_empty() {
+            Some(format!("[[code:{anchor}]]"))
+        } else {
+            Some(format!("[[code:{path}#{anchor}]]"))
+        }
+    }
+
+    /// MT-046: the REAL 'Copy as note reference' command — build the `[[code:…]]` ref from the live
+    /// selection/identifier ([`note_reference_for_cursor`](Self::note_reference_for_cursor)) and stage
+    /// it for the factory render's SHARED-InteractionBus clipboard write
+    /// (`interop_adapter::copy_note_reference_to_bus`). One path for the context-menu entry AND the
+    /// `CodeEditorAction::CopyAsNoteReference` command dispatch. Returns `true` when a ref was staged.
+    pub fn copy_as_note_reference(&self) -> bool {
+        match self.note_reference_for_cursor() {
+            Some(reference) => {
+                *self
+                    .pending_copy_note_reference
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(reference);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// MT-046: drain the staged `[[code:…]]` note reference (the factory render writes it to the shared
+    /// bus clipboard; a test drains it to drive the real bus write). `None` when nothing is staged.
+    pub fn take_pending_copy_note_reference(&self) -> Option<String> {
+        self.pending_copy_note_reference
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+    }
+
+    /// MT-070/MT-057: the 'Create note from link' handler — stage the `[[title]]` under the caret as
+    /// the typed create-note intent the host drains ([`take_pending_create_note_link`]). A no-op when
+    /// no wikilink is under the caret (the entry is disabled then, so this is belt-and-braces).
+    fn stage_create_note_from_link(&self) {
+        if let Some(title) = self.wikilink_under_cursor() {
+            *self
+                .pending_create_note_link
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(title);
+        }
+    }
+
+    /// MT-070/MT-057: drain the staged create-note-from-link intent (the `[[title]]` the confirmed menu
+    /// entry captured). The host/shell routes it to the MT-057 create-note handler; a test drains it to
+    /// prove the entry fired its REAL handler. `None` when nothing is staged.
+    pub fn take_pending_create_note_link(&self) -> Option<String> {
+        self.pending_create_note_link
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
     }
 
     /// Render the MT-006 outline (symbol) tree in the left side panel, with the AccessKit `Role::Tree`
@@ -9648,6 +9871,13 @@ impl CodeEditorPanel {
             // (`open_symbol_palette`) — one path so the menu + the keybind never diverge (AC-005). This
             // is STRICTLY DISTINCT from `OpenCommandPalette` / the MT-030 global quick-switcher.
             A::GoToSymbolInFile => self.open_symbol_palette(),
+            // MT-046: 'Copy as note reference' (context-menu / command-node invoked — no default
+            // binding). Builds the `[[code:…]]` ref from the live selection/identifier and stages it
+            // for the factory render's SHARED-bus clipboard write. The SAME single path the editor
+            // body context-menu entry dispatches (one command id, one handler — the MT-010 rule).
+            A::CopyAsNoteReference => {
+                self.copy_as_note_reference();
+            }
         }
     }
 
@@ -10504,6 +10734,17 @@ impl PaneFactory for CodeEditorPaneFactory {
                 );
             });
         }
+
+        // MT-046: a 'Copy as note reference' dispatch staged its `[[code:…]]` ref this frame — write it
+        // to the SHARED bus clipboard through the SAME mockable-sink path Ctrl+C uses (the production
+        // sink is the egui `copy_text` surface; headless kittest runs never touch the OS clipboard).
+        // Guarded by a cheap peek-free take inside the try-lock so an idle frame costs one lock try.
+        crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
+            let sink = crate::rich_editor::properties::metadata_client::EguiClipboard::new(
+                ui.ctx().clone(),
+            );
+            let _ = super::interop_adapter::copy_note_reference_to_bus(b, &self.panel, &sink);
+        });
     }
 
     fn accesskit_role(&self) -> accesskit::Role {

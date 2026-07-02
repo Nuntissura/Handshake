@@ -629,6 +629,18 @@ impl RichEditorState {
     }
 
     /// The plain text of the block at `idx` (for hit-testing / tests).
+    ///
+    /// ## Intentional divergence from [`crate::rich_editor::wikilinks::inline_view::chip_label`]
+    ///
+    /// An `hsLink` atom contributes its RAW text here (`label`, else `ref_kind:ref_value`) — NOT the
+    /// decorated chip text `chip_label` renders (`? …` unresolved prefix, `‹›`/`⎘` code/locus glyphs,
+    /// `(unresolved)` suffix, code-ref short-name truncation). This is deliberate, not drift:
+    /// `block_plain_text` is the STABLE MODEL projection (selection slicing by char offset, tests,
+    /// AccessKit hit-testing against document content), so its output must not change when a link's
+    /// RESOLUTION STATE flips or presentation glyphs are restyled. The PAINTED glyph/span authority
+    /// for chips is `chip_label` via `layout_block` (the MT-068 single-span rule) — presentation-layer
+    /// consumers must use that, never this. Keep the two in their lanes; do not "fix" one to match
+    /// the other.
     pub fn block_plain_text(&self, idx: usize) -> Option<String> {
         let block = self.doc.children.get(idx)?.as_block()?;
         let mut s = String::new();
@@ -2684,6 +2696,16 @@ impl RichEditorWidget {
     /// executor. Translates the executor outcome into editor state: `Done` closes the menu;
     /// `OpenPrompt` keeps the menu open carrying the prompt (the list hides, the modal shows);
     /// `OpenWikilinkAutocomplete` closes the menu (the autocomplete refresh then opens the popup).
+    ///
+    /// WP-KERNEL-012 MT-035 (wave-2 remediation): the WHOLE execution is snapshotted `(before, after)`
+    /// and queued on `pending_bus_undo` when the doc actually changed, so a `Done` outcome
+    /// (SetBlock / InsertNode / InsertTemplate — e.g. `/divider`) lands on the MT-035 unified undo bus
+    /// exactly like the prompt-confirm path. Both call sites — the popup Enter (input phase, BEFORE the
+    /// frame's `doc_before` capture) and the menu-row click (render phase, AFTER the frame-input diff)
+    /// — run where the frame diff cannot see them, so without this pair a real Ctrl+Z could not revert
+    /// a slash-inserted block. The diff-gated push also covers the transactional trigger-text removal
+    /// the deferred outcomes (OpenPrompt / OpenWikilinkAutocomplete / OpenCodeSymbolSearch) perform at
+    /// execute time (the same invisible-mutation class); a no-op execution pushes nothing.
     fn execute_slash_selection(state: &mut RichEditorState, filtered_index: usize) {
         use crate::rich_editor::slash_commands::executor::{
             execute_slash_command, SlashExecContext, SlashExecOutcome,
@@ -2698,6 +2720,8 @@ impl RichEditorWidget {
             state.slash_menu = None;
             return;
         };
+        let before =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
         let outcome = {
             let RichEditorState {
                 doc,
@@ -2714,6 +2738,11 @@ impl RichEditorWidget {
             };
             execute_slash_command(&mut ctx, &menu, cmd)
         };
+        let after =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        if after != before {
+            state.pending_bus_undo.push((before, after));
+        }
         match outcome {
             SlashExecOutcome::Done { .. } => state.slash_menu = None,
             SlashExecOutcome::OpenPrompt(prompt) => {
@@ -3315,10 +3344,62 @@ impl RichEditorWidget {
                             state.pending_events.push(ev);
                         }
                         // MC-003: the operator clicked "Remove embed" on a 404 transclusion -> delete the
-                        // node from the doc (drop this standalone-transclusion paragraph).
+                        // node from the doc (drop this standalone-transclusion paragraph's atom).
+                        //
+                        // WP-KERNEL-012 MT-020/MT-035 (wave-2 remediation): the delete goes through the
+                        // MT-020 Transaction machinery (`Step::DeleteInlineChild`, whose receipt lands on
+                        // the model UndoManager) AND queues the `(before, after)` pair on
+                        // `pending_bus_undo` for the MT-035 unified undo bus — the previous direct
+                        // `children.retain` mutation bypassed BOTH undo authorities, so a real Ctrl+Z
+                        // could not restore a removed embed. This runs in the render phase (invisible to
+                        // the frame-input diff), exactly like the prompt-confirm insert paths.
                         if removed {
-                            if let Some(parent) = state.doc.children.get_mut(idx).and_then(Child::as_block_mut) {
-                                parent.children.retain(|c| c.as_transclusion().is_none());
+                            let t_idx = state
+                                .doc
+                                .children
+                                .get(idx)
+                                .and_then(Child::as_block)
+                                .and_then(|b| {
+                                    b.children.iter().position(|c| c.as_transclusion().is_some())
+                                });
+                            if let Some(t_idx) = t_idx {
+                                use crate::rich_editor::document_model::transform::{
+                                    apply_transaction, ActorKind, Step, Transaction,
+                                };
+                                let before =
+                                    crate::rich_editor::document_model::doc_json::to_content_json_value(
+                                        &state.doc,
+                                    );
+                                let tx = Transaction::new(
+                                    vec![Step::DeleteInlineChild {
+                                        parent_path: vec![idx],
+                                        index: t_idx,
+                                    }],
+                                    ActorKind::Operator,
+                                    state.actor_id.as_str(),
+                                );
+                                match apply_transaction(&mut state.doc, tx) {
+                                    Ok(receipt) => {
+                                        state.undo.push(receipt);
+                                        let after =
+                                            crate::rich_editor::document_model::doc_json::to_content_json_value(
+                                                &state.doc,
+                                            );
+                                        state.pending_bus_undo.push((before, after));
+                                        // The removal changed the persisted document: mark the save/draft
+                                        // coordinators dirty so Ctrl+S / the 5s auto-draft persist it
+                                        // (silent-data-loss guard, same as the transactional inserts).
+                                        if let Some(save) = state.save.as_mut() {
+                                            save.mark_dirty();
+                                        }
+                                        if let Some(draft) = state.draft.as_mut() {
+                                            draft.mark_dirty(std::time::Instant::now());
+                                        }
+                                    }
+                                    // Rolled back: the doc is untouched and nothing was pushed onto
+                                    // either undo surface (never a phantom undo entry).
+                                    Err(_) => {}
+                                }
                             }
                             ui.ctx().request_repaint();
                         }

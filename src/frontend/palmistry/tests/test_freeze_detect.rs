@@ -517,7 +517,6 @@ fn maybe_run_as_window_child() -> bool {
             Win32HungWindowProbe returns Responding (pumping), NotResponding (blocked pump), and \
             WindowNotFound (destroyed window, the ERROR_INVALID_WINDOW_HANDLE path)."]
 fn live_win32_probe_detects_pumping_and_blocked_window() {
-    use std::io::{BufRead, BufReader};
     use std::process::{Command, Stdio};
 
     use palmistry::hung_window_probe::Win32HungWindowProbe;
@@ -536,26 +535,16 @@ fn live_win32_probe_detects_pumping_and_blocked_window() {
     let child_pid = child.id();
 
     let stdout = child.stdout.take().expect("child stdout piped");
-    let mut reader = BufReader::new(stdout);
 
-    // Read child stdout lines until `marker` appears (libtest banner lines are interleaved), bounded.
-    let mut wait_marker = |marker: &str, timeout: Duration| -> bool {
-        let deadline = Instant::now() + timeout;
-        let mut line = String::new();
-        while Instant::now() < deadline {
-            line.clear();
-            match reader.read_line(&mut line) {
-                Ok(0) => return false, // EOF — child exited early.
-                Ok(_) => {
-                    if line.trim() == marker {
-                        return true;
-                    }
-                }
-                Err(_) => return false,
-            }
-        }
-        false
-    };
+    // HARD EXTERNAL BOUND on every child-stdout read (packet `palmistry_test_bound_policy` + the MT-092
+    // precedent): the blocking `read_line` runs on a DEDICATED reader thread that relays each line over a
+    // channel, and the test thread only ever waits via `recv_timeout` — so a child whose pipe never
+    // produces the marker (or produces nothing at all) can NEVER hang the test thread past the bound.
+    // (The old shape called `read_line` directly on the test thread inside a deadline loop; the deadline
+    // was only re-checked BETWEEN lines, so a single silent read blocked unboundedly.)
+    let marker_rx = spawn_bounded_line_reader(stdout);
+    let wait_marker =
+        |marker: &str, timeout: Duration| -> bool { wait_marker_bounded(&marker_rx, marker, timeout) };
 
     // PHASE A — the child pumps: the REAL probe must observe Responding.
     assert!(
@@ -623,4 +612,57 @@ fn live_win32_probe_detects_pumping_and_blocked_window() {
         "after the child dies, the probe must resolve the destroyed cached HWND to WindowNotFound \
          (ERROR_INVALID_WINDOW_HANDLE), never a freeze corroboration"
     );
+}
+
+/// Spawn a DEDICATED reader thread that drains `stdout` line-by-line and relays each trimmed line over
+/// an mpsc channel. The blocking `read_line` lives ONLY on this thread; the test thread waits with
+/// `recv_timeout` (the hard external bound the packet `palmistry_test_bound_policy` mandates). On EOF or
+/// a read error the thread exits and the channel disconnects, which the waiter observes as `false`.
+#[cfg(windows)]
+fn spawn_bounded_line_reader<R: std::io::Read + Send + 'static>(
+    reader: R,
+) -> std::sync::mpsc::Receiver<String> {
+    use std::io::{BufRead, BufReader};
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+    let _ = std::thread::Builder::new()
+        .name("mt091-bounded-child-stdout-reader".to_string())
+        .spawn(move || {
+            let mut reader = BufReader::new(reader);
+            let mut line = String::new();
+            loop {
+                line.clear();
+                match reader.read_line(&mut line) {
+                    Ok(0) | Err(_) => break, // EOF / broken pipe: disconnect the channel.
+                    Ok(_) => {
+                        if tx.send(line.trim().to_string()).is_err() {
+                            break; // The test side is gone; stop draining.
+                        }
+                    }
+                }
+            }
+        });
+    rx
+}
+
+/// Wait (HARD-BOUNDED via `recv_timeout`, never a blocking pipe read on this thread) until the reader
+/// thread relays a line equal to `marker`, up to `timeout`. Returns `false` on timeout OR channel
+/// disconnect (the child exited / closed its pipe before printing the marker).
+#[cfg(windows)]
+fn wait_marker_bounded(
+    rx: &std::sync::mpsc::Receiver<String>,
+    marker: &str,
+    timeout: Duration,
+) -> bool {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            return false;
+        }
+        match rx.recv_timeout(deadline - now) {
+            Ok(line) if line == marker => return true,
+            Ok(_) => continue, // an interleaved libtest banner line — keep scanning.
+            Err(_) => return false, // timeout or disconnected (child exited early).
+        }
+    }
 }

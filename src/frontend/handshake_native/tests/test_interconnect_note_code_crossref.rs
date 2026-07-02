@@ -103,25 +103,63 @@ fn interconnect_ic06_open_code_block_from_note() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-07 — Reference code symbol from note (SUBSTRATE PASS): 'Copy as note reference' on a code symbol
-// writes a `[[code:...]]` string to a MOCKABLE clipboard (never the OS clipboard); inserting it into a note
-// yields an hsLink node kind=code that ROUND-TRIPS content_json (save+reload preserves the node).
+// IC-07 — Reference code symbol from note (SUBSTRATE PASS, wave-2: drives the REAL MT-046 command):
+// 'Copy as note reference' is dispatched on a REAL CodeEditorPanel through the REAL command surface
+// (`dispatch_command_by_author_id` — the same path a keybind / context-menu / swarm agent uses); the
+// staged `[[code:...]]` ref is written to the REAL shared InteractionBus clipboard through the MOCKABLE
+// sink (never the OS clipboard). Inserting it into a note yields an hsLink node kind=code that
+// ROUND-TRIPS content_json (save+reload preserves the node). The payload is NOT fabricated — the wave-1
+// audit's downgrade (a hand-built string passed to a mock) is remediated by the real command drive.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn interconnect_ic07_reference_code_symbol_from_note() {
-    // (1) Copy-as-note-reference: the code editor writes the note-reference string to the mock clipboard.
-    let symbol_key = "rust::src/lib.rs::my_function";
-    let note_ref = format!("[[code:{symbol_key}]]");
+    use handshake_native::code_editor::interop_adapter::copy_note_reference_to_bus;
+    use handshake_native::code_editor::{CodeEditorAction, Cursor};
+
+    // (1) The REAL 'Copy as note reference' command: a real code panel with a real selection over the
+    // symbol; the command is dispatched by its registered swarm/command author id (NOT called ad-hoc),
+    // and the staged ref is written to the REAL shared bus through the mockable clipboard sink.
+    let src = "fn my_function() {\n    let x = 1;\n}\n";
+    let code_panel = CodeEditorPanel::new(src, "rs");
+    code_panel.set_file_path("src/lib.rs");
+    let sel_start = src.find("my_function").expect("symbol in the snippet");
+    code_panel.set_cursors(vec![Cursor::selection(
+        sel_start,
+        sel_start + "my_function".len(),
+    )]);
+    let dispatched = code_panel.dispatch_command_by_author_id("code_editor_cmd_copy_as_note_reference");
+    assert_eq!(
+        dispatched,
+        Some(CodeEditorAction::CopyAsNoteReference),
+        "IC-07: the registered command surface dispatched the REAL CopyAsNoteReference command"
+    );
+
+    let mut bus = InteractionBus::new();
     let mock = MockClipboard::new();
-    mock.copy(&note_ref); // the 'Copy as note reference' command's clipboard write (mockable seam).
+    let note_ref = copy_note_reference_to_bus(&mut bus, &code_panel, &mock)
+        .expect("IC-07: the real command staged a `[[code:…]]` ref for the bus write");
+    assert_eq!(
+        note_ref, "[[code:src/lib.rs#my_function]]",
+        "IC-07: the REAL command built the MT-034-shaped path#symbol ref from the live selection"
+    );
     assert_eq!(
         mock.taken().as_deref(),
         Some(note_ref.as_str()),
-        "IC-07: the note reference is on the clipboard"
+        "IC-07: the note reference is on the (mockable) clipboard"
+    );
+    assert_eq!(
+        bus.clipboard_read_text().as_deref(),
+        Some(note_ref.as_str()),
+        "IC-07: the ref is cached on the REAL shared bus for a cross-pane note Paste"
     );
 
-    // (2) Paste/insert into a note: the inserted node is an hsLink kind=code carrying the symbol key.
+    // (2) Paste/insert into a note: the inserted node is an hsLink kind=code carrying the symbol key
+    // (the ref value INSIDE the `[[code:…]]` the real command produced).
+    let symbol_key = note_ref
+        .strip_prefix("[[code:")
+        .and_then(|s| s.strip_suffix("]]"))
+        .expect("IC-07: the real ref has the [[code:…]] shape");
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::new("see ")));
     para.children.push(Child::HsLink(HsLinkNode::new(
