@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-02T00:24:26.826Z",
+  "updated_at_utc": "2026-07-02T08:47:55.759Z",
   "active_mt_id": null,
-  "next_mt_id": "MT-044",
+  "next_mt_id": "MT-045",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -122,12 +122,14 @@
     },
     {
       "mt_id": "MT-012",
-      "status": "IN_PROGRESS",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "fb6ecf39",
+      "ready_for_validation_at_utc": "2026-07-02T08:47:55.759Z",
       "title": "Restore CKC story panels and native moodboard integration",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-012.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "Stale-PENDING corrected 2026-07-02: implementation ALREADY COMMITTED (776c4a47 story/moodboard surfaces), verified by MT-012 review reading the code. Residual gaps: moodboard live-canvas edits persist to a separate Loom canvas block, NOT the saved atelier snapshot (split-brain); shared canvas singleton (SWARM -> MT-022); story linked to character not sheet-version. Sequence gap-closure after MT-006 commits, then verify -> RFV."
+      "reality": "SPLIT-BRAIN FIXED + committed fb6ecf39 (2026-07-02): board->snapshot reverse projection so Save serializes the LIVE canvas; moodboard isolated to its own LoomCanvasBoard (no leak to default-canvas). Adversarial review found+fixed 2 HIGH bugs (F1 infinite conflict loop, F2 sub-clamp silent-growth corruption) + F3/F4/F5. Runtime-proven: ckc_moodboard_canvas_move_survives_reverse_projection_roundtrip + sub-min-size test PASS. Deferred -> MT-044: backend PG round-trip test (blocked by MT-031 WIP), canvas add/connect round-trip. Shared-canvas-singleton -> MT-022; story-to-sheet-version separate."
     },
     {
       "mt_id": "MT-013",
@@ -152,12 +154,14 @@
     },
     {
       "mt_id": "MT-015",
-      "status": "IN_PROGRESS",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "b1eca87a",
+      "ready_for_validation_at_utc": "2026-07-02T08:47:55.759Z",
       "title": "Restore Posekit marker editing, zoom/lens controls, and failure containment",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-015.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "Stale-PENDING corrected 2026-07-01 (WP-state audit): marker validate/stage/nudge + framing + failure-containment logic ALREADY COMMITTED (b1eca87a, 27efcfcc) and tested, but markers render on the SAME schematic posekit viewport as MT-014 and controls are text-inputs -> shares MT-014's de-scaffolding gap. Close alongside MT-014, then verify -> RFV."
+      "reality": "VERIFIED RFV 2026-07-02 (read-only review): marker validate/stage/nudge + framing + failure-containment committed (b1eca87a, 27efcfcc) and tested. The audit's 'rides the schematic viewport' concern is RESOLVED - markers mutate the shared openpose_json that MT-014 (ac641827) turned into the REAL viewport source of truth (draw_pose_openpose_view); controls are now real sliders. All AC met: Argus-steerable (21 ids), facial edits persist to export, zoom/lens affect pixels, bad marker fails closed. Proof: posekit_marker_editing_and_framing_controls_are_argus_steerable + posekit_split_view_rotation_export_is_argus_inspectable PASS. Optional add (defer): isolated body-marker->viewport-signature assertion."
     },
     {
       "mt_id": "MT-016",
@@ -433,6 +437,15 @@
       "depends_on": ["MT-014"],
       "reality": "Committed 9902d7b0 (source-asset byte-fetch core). Runtime-proven: backend atelier_media_asset_bytes_route_returns_exact_stored_source_bytes (managed PG, exact bytes + 404 fail-closed); frontend posekit_source_viewport_displays_real_decoded_image + no-spurious-fetch guard + failure-empty-state. Posekit left viewport loads the real image. Follow-up increment: artifact-PNG-fetch so the right viewport shows the literal exported PNG.",
       "origin": "MT-014 de-scaffolding honest follow-up: posekit viewports display real bytes once source-asset + artifact byte-fetch endpoints exist (currently left=empty-state, right=keypoints-not-PNG)."
+    },
+    {
+      "mt_id": "MT-044",
+      "status": "PENDING",
+      "title": "Deferred hardening + follow-ups (consolidated tracker)",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-044.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "origin": "Consolidated honest deferrals from MT-006/014/041/043/013-010/012: D1 moodboard backend PG test (blocked by MT-031 broken WIP); D2 moodboard add/connect round-trip; D3 unbounded image caches LRU; D4 mock-server test flakes; D5 MT-016 sheet-artifact-attach actor gap; D6 MT-013 3-panel overflow <700px; D7 MT-043 posekit right-viewport artifact-PNG-fetch. See MT-044.json."
     }
   ],
   "baseline": {

@@ -1,0 +1,30 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "operator_facing_authority": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-044",
+  "title": "Deferred hardening + follow-ups (consolidated tracker)",
+  "status": "PENDING",
+  "created_at_utc": "2026-07-02T08:47:55.759Z",
+  "updated_at_utc": "2026-07-02T08:47:55.759Z",
+  "started_at_utc": null,
+  "product_edit_allowed": true,
+  "origin": "Honest deferrals surfaced during MT-006/014/041/043/013-010/012 implementation + adversarial reviews (2026-07-02). Consolidated so they are not forgotten; split into dedicated MTs if/when prioritized.",
+  "deferred_items": [
+    "D1 (backend test): moodboard PG round-trip test (atelier_moodboard_changed_positions_record_distinct_snapshots) is BLOCKED - it lives in atelier_core_data_tests.rs which has a parallel MT-031's broken uncommitted test (metadata_request_id borrow-of-moved at ~:1997) that fails the whole test binary. Move the moodboard test to a clean file (atelier_moodboard_tests.rs) once MT-031 WIP is resolved, and prove record P1/P2 -> distinct content_sha256 + MOODBOARD_SNAPSHOT_RECORDED events on managed PG.",
+    "D2 (moodboard UX): the isolated moodboard canvas exposes add/place/connect affordances that silently no-op after FIX-2 isolation (no new card appears; no data loss of existing geometry). Either round-trip add/connect into the snapshot or hide the affordances on the moodboard board.",
+    "D3 (memory): CkcMediaImageCache + PoseSourceImageCache are unbounded BTreeMaps of decoded textures - add LRU/size eviction so browsing many images does not grow memory unbounded.",
+    "D4 (test infra): mock-server tests (read_http_request .expect + tight accept/read timeouts) flake under heavy cargo load (ingest_facial, ingest_contact_sheet panic at test_atelier_panel.rs:683). Harden: longer/removed timeouts, no .expect panic, or serialize the mock tests.",
+    "D5 (MT-016 bug): argus_attaches_latest_posekit_export_to_ckc_sheet_artifacts_locally FAILS deterministically (test_atelier_panel.rs ~:2744) - CKC sheet-artifact attach does not preserve the Argus/model actor on the local linked_by detail. Fix in MT-016 (its RFV is questionable).",
+    "D6 (MT-013 layout): 3-panel book layout overflows below ~700px width; no narrow-width/empty-state Argus capture matrix. Responsive fix + capture coverage.",
+    "D7 (MT-043 posekit): right OpenPose viewport renders real keypoints from openpose_json, not the literal exported PNG bytes. Add an artifact-content byte-fetch route so it can show the exact exported PNG."
+  ],
+  "lifecycle": { "status": "PENDING", "active": false, "validator_verdict": "PENDING" },
+  "handoff": { "status": "PENDING" }
+}

@@ -199,7 +199,7 @@
     "active_id": null,
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 42,
+    "count": 44,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -242,9 +242,11 @@
       "MT-039",
       "MT-040",
       "MT-041",
-      "MT-042"
+      "MT-042",
+      "MT-043",
+      "MT-044"
     ],
-    "next_id": "MT-043",
+    "next_id": "MT-045",
     "latest_completed_id": "MT-005",
     "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
     "latest_ready_for_validation_id": "MT-039",
