@@ -317,6 +317,16 @@ path = "tests/model_access_route_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
+name = "operator_chat_capture_tests"
+path = "tests/operator_chat_capture_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "operator_chat_route_tests"
+path = "tests/operator_chat_route_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
 name = "kernel_crdt_persistence_tests"
 path = "tests/kernel_crdt_persistence_tests.rs"
 required-features = ["test-utils"]

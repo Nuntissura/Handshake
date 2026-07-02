@@ -343,6 +343,76 @@ pub fn embedded_model_behavior_coverage_matrix() -> Vec<BehaviorCoverageRow> {
     ]
 }
 
+/// WP-1 MT-012 operator chat/launch surface behavior coverage. Mirrors the
+/// MT-013 shape and HBR-INT-009 posture: Flight Recorder / EventLedger WIRED for
+/// each captured turn/thought/tool-call and the selection-decision audit;
+/// internal_diagnostics + Palmistry DEFERRED-with-reason until WP-KERNEL-012/016
+/// ship. Verified by [`verify_embedded_model_behavior_coverage`] (the MT-013
+/// verifier — the operator-chat surface does not require the native
+/// internal-diagnostics tier that the strict model-lane verifier demands).
+pub fn operator_chat_launch_behavior_coverage_matrix() -> Vec<BehaviorCoverageRow> {
+    const DEFERRED_REASON: &str =
+        "MT-012 wires Flight Recorder/EventLedger for the operator chat/launch surface only \
+         (the FR-EVT-AGENT-* activity events, the ModelLaneMessage EventLedger authority, and \
+         the FR-EVT-MODEL-SELECTION-RECORDED selection audit); the native internal_diagnostics \
+         tier and the external Palmistry watcher are integrated from the WP-KERNEL-012/016 \
+         worktrees and must observe these records without becoming their authority.";
+    vec![
+        BehaviorCoverageRow {
+            behavior_id: "wp1.operator_chat.launch",
+            schema_id: None,
+            event_family: "model_lane_launch",
+            runtime_surface_id: "OperatorChatLaunchService::launch -> SwarmCoordinator::spawn_session",
+            user_manual_slug: "operator-chat-launch",
+            tool_id: "operator_chat_capture_tests",
+            eventledger_flight_recorder_path: "flight_recorder:model_lane_launch",
+            internal_diagnostics_posture: DiagnosticTierPosture::DeferredWithReason,
+            palmistry_posture: DiagnosticTierPosture::DeferredWithReason,
+            deferred_reason: Some(DEFERRED_REASON),
+            follow_up_ref: Some("palmistry://wp1/operator-chat/launch"),
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.operator_chat.capture_message",
+            schema_id: None,
+            event_family: "model_lane_message",
+            runtime_surface_id: "ModelLaneCaptureRecorder::capture_cli_stream -> ModelLaneStore::record_message",
+            user_manual_slug: "operator-chat-launch",
+            tool_id: "operator_chat_capture_tests",
+            eventledger_flight_recorder_path: "flight_recorder:model_lane_message",
+            internal_diagnostics_posture: DiagnosticTierPosture::DeferredWithReason,
+            palmistry_posture: DiagnosticTierPosture::DeferredWithReason,
+            deferred_reason: Some(DEFERRED_REASON),
+            follow_up_ref: Some("palmistry://wp1/operator-chat/capture-message"),
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.operator_chat.agent_activity_fr",
+            schema_id: None,
+            event_family: "agent_activity",
+            runtime_surface_id: "ModelLaneCaptureRecorder::record_activity -> agent_activity_event",
+            user_manual_slug: "operator-chat-launch",
+            tool_id: "operator_chat_capture_tests",
+            eventledger_flight_recorder_path: "flight_recorder:agent_activity",
+            internal_diagnostics_posture: DiagnosticTierPosture::DeferredWithReason,
+            palmistry_posture: DiagnosticTierPosture::DeferredWithReason,
+            deferred_reason: Some(DEFERRED_REASON),
+            follow_up_ref: Some("palmistry://wp1/operator-chat/agent-activity-fr"),
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.operator_chat.selection_audit",
+            schema_id: None,
+            event_family: "model_selection_recorded",
+            runtime_surface_id: "OperatorChatLaunchService::record_selection -> ModelCatalog::record_selection_decision",
+            user_manual_slug: "operator-chat-launch",
+            tool_id: "operator_chat_capture_tests",
+            eventledger_flight_recorder_path: "flight_recorder:model_selection_recorded",
+            internal_diagnostics_posture: DiagnosticTierPosture::DeferredWithReason,
+            palmistry_posture: DiagnosticTierPosture::DeferredWithReason,
+            deferred_reason: Some(DEFERRED_REASON),
+            follow_up_ref: Some("palmistry://wp1/operator-chat/selection-audit"),
+        },
+    ]
+}
+
 /// Verifies the WP-1 MT-013 embedded-model behavior coverage rows against the
 /// seeded UserManual pages/tools and the MT-013 HBR-INT-009 posture:
 /// Flight Recorder / EventLedger WIRED (path present and points at a real

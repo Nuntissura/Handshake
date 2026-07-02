@@ -50,8 +50,9 @@ pub mod store;
 
 pub use behavior_coverage::{
     embedded_model_behavior_coverage_matrix, model_lane_behavior_coverage_matrix,
-    verify_embedded_model_behavior_coverage, verify_model_lane_behavior_coverage,
-    BehaviorCoverageError, BehaviorCoverageRow, DiagnosticTierPosture,
+    operator_chat_launch_behavior_coverage_matrix, verify_embedded_model_behavior_coverage,
+    verify_model_lane_behavior_coverage, BehaviorCoverageError, BehaviorCoverageRow,
+    DiagnosticTierPosture,
 };
 pub use migration_plan::{
     LegacyAlias, LegacyKind, MigrationPhase, NamingMigrationPlan, PlanRow, ShimState,

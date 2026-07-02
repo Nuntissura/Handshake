@@ -109,10 +109,13 @@ pub struct SpawnRequest {
     /// recovery and board grouping. `None` for a session not bound to a worktree.
     pub worktree_id: Option<String>,
     /// Operator-assigned on-disk place for this session (absolute OR repo-relative,
-    /// disk-agnostic). RECORDED ATTRIBUTION ONLY today: it is carried into the
-    /// ledger / side-table / transcript for "where does this session live" answers
-    /// and as the bridge to future VM-execution routing. It is NOT resolved,
-    /// created, or used as a real cwd here — the swarm session runs in-process.
+    /// disk-agnostic). For CLI-bridge lanes (`ProviderKind::OfficialCli`) this is
+    /// LOAD-BEARING as of WP-1 MT-012: the production factory plumbs it into
+    /// `CliBridgeConfig.working_dir`, which `LiveCliSpawner` applies as the real
+    /// subprocess cwd (`cmd.current_dir`). For in-process local/BYOK lanes it
+    /// remains RECORDED ATTRIBUTION ONLY (carried into the ledger / side-table /
+    /// transcript for "where does this session live" answers and as the bridge to
+    /// future VM-execution routing), because those lanes have no local subprocess.
     /// `None` for a session with no assigned disk location.
     pub working_dir: Option<String>,
     /// Operator-intended isolation tier for this session (mirrors

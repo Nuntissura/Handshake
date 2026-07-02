@@ -189,6 +189,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_model_lane_navigation(),
         page_model_lane_validation_harness(),
         page_embedded_model_lifecycle_ledger(),
+        page_operator_chat_launch(),
         page_usermanual_surface(),
         page_failure_modes_and_recovery(),
         page_repair_queues_and_staleness(),
@@ -225,6 +226,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "model-lane-navigation",
         "model-lane-validation-harness",
         "embedded-model-lifecycle-ledger",
+        "operator-chat-launch",
         "usermanual-surface",
         "failure-modes-and-recovery",
         "repair-queues-and-staleness",
@@ -1253,6 +1255,103 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                 anchor_kind: "test",
                 anchor_value: "llm_client_local_routing_tests".into(),
                 http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_operator_chat_launch() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "operator-chat-launch".into(),
+        title: "Operator Chat / Launch Work-Surface".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.3.9.2.5".into(), "4.3.9.4.4".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What this surface is",
+                "The operator chat/launch pane (native egui, PaneType::OperatorChatLaunch, opened \
+                 from the RUN menu leaf `menu.run.operator-chat`) lets the operator pick a model \
+                 lane (LOCAL / CLOUD / official CLI), pick a folder/worktree as the session's \
+                 working directory, type a prompt, and launch an interactive CLI-wrapper session. \
+                 The launched conversation, the model's exposed reasoning/thought, and its tool \
+                 calls are captured as typed ModelLaneMessage records under a live ModelLaneRun \
+                 and mirrored to the Flight Recorder.",
+            ),
+            section(
+                "workflows",
+                "Pick a model + folder, launch, and watch the transcript",
+                "1. The picker enumerates LOCAL models via the MT-014 `ModelCatalog::list()` and \
+                 CLOUD providers via the MT-015 cloud enumeration API (`enumerate_cloud_access`); \
+                 an unconfigured cloud provider degrades to `unavailable`, never a mock. \
+                 2. Selecting a model records an auditable selection decision \
+                 (`ModelCatalog::record_selection_decision` -> `FR-EVT-MODEL-SELECTION-RECORDED`), \
+                 distinct from launch (spec 4.3.9.4.4). \
+                 3. The operator selects a folder/worktree; that path is plumbed \
+                 `SpawnRequest.working_dir -> CliBridgeConfig.working_dir` so the CLI subprocess \
+                 truly runs in that directory. \
+                 4. Launch resolves ONLY through `SwarmCoordinator::spawn_session` (never a \
+                 frontend/app-src/direct-endpoint/terminal authority) and persists \
+                 ModelLaneRun/ModelLane; a missing ModelLaneStore fails closed. \
+                 The operator's own prompt is persisted as a HUMAN_OPERATOR ModelLane message \
+                 (launch_authority=Operator, runtime_binding=HUMAN).",
+            ),
+            section(
+                "inputs_outputs",
+                "Where the transcript, thought, and tool calls land",
+                "The CLI is forced into `--output-format stream-json` so activities are TYPED. Each \
+                 COMPLETED activity block from `parse_agent_activity_line` becomes ONE \
+                 ModelLaneMessage via `ModelLaneStore::record_message`: a ToolCall -> ToolRequest, \
+                 a rendered tool_result -> ToolResult, and the operator prompt / model answer / \
+                 exposed thought -> Status messages discriminated by \
+                 `diagnostic_payload.activity_kind` (`tool_call|thinking|text|other`). A Flight \
+                 Recorder `FR-EVT-AGENT-*` event is emitted alongside each message. The transcript \
+                 view in the pane renders these rows; each control carries a stable AccessKit \
+                 author_id (`operator-chat.picker.model`, `operator-chat.picker.folder`, \
+                 `operator-chat.input.prompt`, `operator-chat.action.launch`, \
+                 `operator-chat.transcript`).",
+            ),
+            section(
+                "recovery",
+                "Fail-closed and HBR-INT-009 posture",
+                "If the coordinator has no ModelLaneStore/PostgreSQL authority the launch is torn \
+                 down and returns a LedgerFailed error (the route surfaces `launch_failed_closed`); \
+                 no partial lane authority is created. A launch route with no wired coordinator \
+                 returns `503 launch_not_wired`. HBR-INT-009 posture: Tier-1 Flight Recorder / \
+                 EventLedger is WIRED (agent-activity events + ModelLaneMessage authority + the \
+                 selection-decision event); Tier-2 internal_diagnostics and Tier-3 Palmistry are \
+                 DEFERRED-with-reason (integrated from the WP-KERNEL-012/016 worktrees; they \
+                 observe these records without becoming their authority).",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact Rust proof targets: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests` \
+                 (a non-mocked lane launch persists ModelLaneRun/ModelLane; a realistic multi-line \
+                 stream-json turn yields exactly one ModelLaneMessage per completed activity block \
+                 with the correct kind + activity_kind + Flight Recorder evidence; the operator \
+                 prompt is a HUMAN_OPERATOR message; the selection-decision event is emitted; a \
+                 launch without a ModelLaneStore fails closed; the operator working_dir is the real \
+                 CLI subprocess cwd). The pane itself is driven headlessly by Argus \
+                 (`cargo test -p handshake-native --test test_operator_chat_launch_argus`).",
+            ),
+        ],
+        anchors: vec![
+            page_link("manual-toc"),
+            page_link("model-lane-launch-adapters"),
+            spec_anchor("4.3.9.2.5"),
+            spec_anchor("4.3.9.4.4"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "operator_chat_capture_tests".into(),
+                http_method: "",
+            },
+            NewManualAnchor {
+                anchor_kind: "http_route",
+                anchor_value: "/operator-chat/launch".into(),
+                http_method: "POST",
             },
         ],
     }
@@ -4160,6 +4259,62 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ],
         origin: "wp1_mt013_embedded_model".into(),
         content_hash: embedded_model_ledger_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    // WP-1 MT-012: operator chat/launch capture proof tool entry backing the
+    // operator-chat behavior coverage rows.
+    let operator_chat_capture_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "operator_chat_capture_tests",
+            "name": "Operator chat/launch: spawn_session launch + CLI-capture -> ModelLaneMessage proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests",
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("operator chat capture tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "operator_chat_capture_tests".into(),
+        page_id: None,
+        name: "Operator chat/launch: spawn_session launch + CLI-capture -> ModelLaneMessage proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests".into(),
+        ),
+        http_route: Some("/operator-chat/launch".into()),
+        http_method: "POST".into(),
+        description:
+            "Exact Rust proof targets for the MT-012 operator chat/launch surface: a non-mocked lane launch through SwarmCoordinator::spawn_session persists ModelLaneRun/ModelLane; a realistic multi-line stream-json turn yields exactly ONE ModelLaneMessage per completed activity block (ToolCall->ToolRequest, rendered tool_result->ToolResult, prompt/answer/thought->Status discriminated by diagnostic_payload.activity_kind) with a matching FR-EVT-AGENT-* event; the operator prompt is a HUMAN_OPERATOR message; the selection decision emits FR-EVT-MODEL-SELECTION-RECORDED; a launch without a ModelLaneStore fails closed; the operator working_dir is the real CLI subprocess cwd."
+                .into(),
+        expected_input:
+            "test-utils feature enabled; real Handshake-managed PostgreSQL (127.0.0.1:5544) or an isolated POSTGRES_TEST_URL schema; the real parse_agent_activity_line parser + a capturing FlightRecorder; the LiveCliSpawner for the real-cwd leg."
+                .into(),
+        expected_output:
+            "One ModelLaneMessage per completed activity block persisted + replayable under the run; typed kinds and activity_kind labels; a capturing recorder holding FR-EVT-AGENT-* and FR-EVT-MODEL-SELECTION-RECORDED events; a fail-closed LedgerFailed error when the coordinator has no ModelLaneStore; a launched subprocess whose cwd equals the operator selection."
+                .into(),
+        schema_fields: vec![
+            "OperatorChatLaunchService::launch".into(),
+            "ModelLaneCaptureRecorder::capture_cli_stream".into(),
+            "ModelLaneCaptureRecorder::record_operator_prompt".into(),
+            "ModelLaneStore::record_message".into(),
+            "cli_bridge_config_with_working_dir".into(),
+            "flight_recorder".into(),
+        ],
+        common_errors: vec![
+            "launch_not_fail_closed_without_store".into(),
+            "duplicate_message_per_delta_line".into(),
+            "thought_coerced_to_unlabelled_status".into(),
+            "working_dir_not_applied_to_subprocess".into(),
+        ],
+        recovery_steps: vec![
+            "If more than one message is recorded for a streaming turn, confirm capture iterates parse_agent_activity_line output (one per completed block) and not raw delta lines.".into(),
+            "If a launch without a ModelLaneStore does not error, confirm the coordinator was built with new_with_model_lane_store only for the positive path and that spawn_session's fail-closed guard is reached.".into(),
+        ],
+        origin: "wp1_mt012_operator_chat".into(),
+        content_hash: operator_chat_capture_tool_hash,
         manual_version: USER_MANUAL_VERSION.into(),
     });
 

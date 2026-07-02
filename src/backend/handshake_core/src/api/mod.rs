@@ -21,6 +21,7 @@ pub mod logs;
 pub mod loom;
 pub mod model_access;
 pub mod model_lane_navigation;
+pub mod operator_chat;
 pub mod paths;
 pub mod role_mailbox;
 pub mod source_control;
@@ -39,6 +40,12 @@ pub fn routes(state: AppState) -> Router {
     // CloudAccessProvider seam), not `AppState`, so it is route-testable without
     // a full AppState. Production wires the OS-keychain-backed service.
     let model_access_routes = model_access::routes(model_access::ModelAccessState::production());
+    // MT-012: the operator chat/launch router owns a dedicated state (catalog +
+    // cloud registry + optional launch service), not `AppState`, so it is
+    // route-testable without a full AppState. `production()` serves enumeration;
+    // the launch route reports 503 until the live coordinator is wired.
+    let operator_chat_routes =
+        operator_chat::routes(operator_chat::OperatorChatState::production());
     let bundle_routes = bundles::routes(state.clone());
     let governance_pack_routes = governance_pack::routes(state.clone());
     let role_mailbox_routes = role_mailbox::routes(state.clone());
@@ -65,6 +72,7 @@ pub fn routes(state: AppState) -> Router {
         .merge(diagnostics_routes)
         .merge(model_lane_navigation_routes)
         .merge(model_access_routes)
+        .merge(operator_chat_routes)
         .merge(flight_recorder_routes)
         .merge(bundle_routes)
         .merge(governance_pack_routes)
