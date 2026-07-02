@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T23:16:41.315Z",
+  "updated_at_utc": "2026-07-02T00:24:26.826Z",
   "active_mt_id": null,
-  "next_mt_id": "MT-043",
+  "next_mt_id": "MT-044",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -140,7 +140,10 @@
     },
     {
       "mt_id": "MT-014",
-      "status": "IN_PROGRESS",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "ac641827",
+      "ready_for_validation_at_utc": "2026-07-02T00:24:26.826Z",
+      "descaffold_note": "DE-SCAFFOLDED + committed ac641827 (2026-07-02): real source-image decode/display, real keypoint-bound OpenPose viewport (keypoint_signature changes on rotation), real egui sliders with argus.set_value numeric steering, honest preview://-vs-artifact:// labeling. Runtime proof: test_atelier_panel 25/1 (the 1 = pre-existing MT-016 sheet-artifact-attach actor gap, red since MT-006, NOT this change) + lib slider 4/4. Byte-fetch endpoints deferred -> MT-043. The reality field below lists the prior scaffolding now removed.",
       "title": "Restore Posekit 3D-to-OpenPose split-view generation",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-014.json",
       "product_edit_allowed": true,
@@ -400,11 +403,14 @@
     },
     {
       "mt_id": "MT-041",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "7f94ef25",
+      "ready_for_validation_at_utc": "2026-07-02T00:24:26.826Z",
       "title": "Add operator-facing dropdown menu-bar item for Atelier + required Argus menu-leaf expansion",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-041.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
+      "proof_note": "Committed 7f94ef25 (2026-07-02): GO>Atelier menu group (menu.go.atelier/.ckc/.posekit/.ingest) + static leaf-discovery registry (menu_leaf_ids/menu_leaf_catalog) + open_atelier_target reusing MT-006 set_module/set_active_tab. Runtime proof: test_atelier_menu 4/4 (argus.click open-and-HOLD-across-drain-then-steer via real MCP ActionChannel; registry<->render drift gate; module/tab jump) + test_top_menu_bar 13/0. Honest follow-up (not blocking): no dedicated list_menu_leaves MCP RPC (registry exposed as pub fns + documented in manual).",
       "origin": "MT-040 audit P4 + operator goal (operator menu-bar item)."
     },
     {
@@ -415,6 +421,16 @@
       "product_edit_allowed": true,
       "started_at_utc": null,
       "origin": "MT-040 audit P5 + operator goal (settings/options features)."
+    },
+    {
+      "mt_id": "MT-043",
+      "status": "PENDING",
+      "title": "Backend+client byte-fetch endpoints for Posekit source-image and OpenPose artifact display",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-043.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "depends_on": ["MT-014"],
+      "origin": "MT-014 de-scaffolding honest follow-up: posekit viewports display real bytes once source-asset + artifact byte-fetch endpoints exist (currently left=empty-state, right=keypoints-not-PNG)."
     }
   ],
   "baseline": {
