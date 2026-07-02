@@ -106,6 +106,144 @@ impl SwarmLaneDiagnosticsTransport for SwarmLaneDiagnosticsClient {
     }
 }
 
+/// WP-1 MT-012: client for the native Operator Chat / Launch pane. Enumerates
+/// the picker inventory (`GET /operator-chat/models`), records a selection
+/// decision (`POST /operator-chat/selection`), and launches a session
+/// (`POST /operator-chat/launch`, which resolves through spawn_session). Results
+/// are delivered off the UI thread into one-slot cells the pane drains per frame.
+#[derive(Clone)]
+pub struct OperatorChatClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl OperatorChatClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    pub fn models_request(&self) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/operator-chat/models", self.base_url),
+            body: None,
+        }
+    }
+
+    pub fn launch_request(&self, model_id: &str, working_dir: &str, prompt: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/operator-chat/launch", self.base_url),
+            body: Some(serde_json::json!({
+                "lane_kind": "cli",
+                "model_id": model_id,
+                "working_dir": working_dir,
+                "prompt": prompt,
+                "owner_session": "operator-chat-native",
+                "parent_session_id": "operator-chat-native"
+            })),
+        }
+    }
+
+    pub fn selection_request(&self, model_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/operator-chat/selection", self.base_url),
+            body: Some(serde_json::json!({ "selected_model_id": model_id })),
+        }
+    }
+
+    /// Fetch the picker inventory into `cell`.
+    pub fn fetch_models(
+        &self,
+        cell: crate::operator_chat_pane::ModelsCell,
+    ) {
+        let spec = self.models_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|v| {
+                    serde_json::from_value::<crate::operator_chat_pane::OperatorChatModelInventory>(
+                        v,
+                    )
+                    .map_err(|e| AppError::Parse(e.to_string()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Launch a CLI session for the operator selection; deliver the launched ids
+    /// (or the fail-closed error) into `cell`.
+    pub fn launch(
+        &self,
+        model_id: &str,
+        working_dir: &str,
+        prompt: &str,
+        cell: crate::operator_chat_pane::LaunchCell,
+    ) {
+        let spec = self.launch_request(model_id, working_dir, prompt);
+        let client = self.client.clone();
+        let body = spec.body.unwrap_or_default();
+        self.runtime.spawn(async move {
+            let result = post_json(&client, &spec.url, &body)
+                .await
+                .and_then(|v| {
+                    serde_json::from_value::<crate::operator_chat_pane::OperatorChatLaunched>(v)
+                        .map_err(|e| AppError::Parse(e.to_string()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
+
+/// POST `body` and return the parsed JSON response. Non-success status is an
+/// error carrying the status + response body (so a fail-closed launch surfaces
+/// its reason), never a panic.
+async fn post_json(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, AppError> {
+    let resp = client
+        .post(url)
+        .timeout(Duration::from_secs(15))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    let status = resp.status();
+    let value: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))?;
+    if !status.is_success() {
+        let detail = value
+            .get("detail")
+            .and_then(|d| d.as_str())
+            .or_else(|| value.get("error").and_then(|d| d.as_str()))
+            .unwrap_or("launch failed")
+            .to_string();
+        return Err(AppError::Http(format!("{status}: {detail}")));
+    }
+    Ok(value)
+}
+
 /// GET /health with a 5s timeout (CONTROL-2). Non-success status or a parse failure is an error,
 /// never a panic.
 pub async fn fetch_health(url: &str) -> Result<HealthInfo, AppError> {

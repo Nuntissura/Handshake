@@ -643,6 +643,15 @@ impl MenuBar {
                     MenuBarAction::NavigateToTab("flight-recorder".to_owned()),
                     action,
                 );
+                self.item(
+                    ui,
+                    "menu.run.operator-chat",
+                    "Open Operator Chat",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("operator-chat".to_owned()),
+                    action,
+                );
                 self.disabled_item(
                     ui,
                     "menu.run.terminal",

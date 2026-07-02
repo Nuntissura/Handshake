@@ -427,6 +427,7 @@ pub fn pane_type_tab_id(pane_type: &PaneType) -> &'static str {
         PaneType::LoomWikiPage => "loom-wiki-page",
         PaneType::AtelierEditor => "atelier",
         PaneType::VisualDebugger => "visual-debugger",
+        PaneType::OperatorChatLaunch => "operator-chat",
         // Placeholder has no React PaneTabId; it is not part of any MODULE_DEFINITIONS tab list.
         PaneType::Placeholder(_) => "placeholder",
     }

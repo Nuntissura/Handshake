@@ -581,6 +581,7 @@ fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
         PaneType::FontManager,
         PaneType::FlightRecorder,
         PaneType::VisualDebugger,
+        PaneType::OperatorChatLaunch,
         PaneType::Placeholder(String::new()),
     ];
     let mut map: HashMap<PaneType, Box<dyn PaneFactory>> = HashMap::new();
@@ -893,6 +894,14 @@ impl HandshakeApp {
                 ),
             ),
         );
+        app.factories.insert(
+            PaneType::OperatorChatLaunch,
+            Box::new(
+                crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(Arc::new(
+                    crate::backend_client::OperatorChatClient::production(rt_handle.clone()),
+                )),
+            ),
+        );
         app.spawn_mcp_server();
         app
     }
@@ -1084,6 +1093,10 @@ impl HandshakeApp {
         app.factories.insert(
             PaneType::SwarmLaneDiagnostics,
             Box::new(crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::offline()),
+        );
+        app.factories.insert(
+            PaneType::OperatorChatLaunch,
+            Box::new(crate::operator_chat_pane::OperatorChatLaunchPaneFactory::offline()),
         );
         app
     }
@@ -1450,6 +1463,14 @@ impl HandshakeApp {
                 ),
             ),
         );
+        self.factories.insert(
+            PaneType::OperatorChatLaunch,
+            Box::new(
+                crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(Arc::new(
+                    crate::backend_client::OperatorChatClient::production(handle.clone()),
+                )),
+            ),
+        );
         self.runtime_handle = Some(handle);
     }
 
@@ -1506,6 +1527,14 @@ impl HandshakeApp {
                         handle.clone(),
                     )),
                 ),
+            ),
+        );
+        self.factories.insert(
+            PaneType::OperatorChatLaunch,
+            Box::new(
+                crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(Arc::new(
+                    crate::backend_client::OperatorChatClient::production(handle.clone()),
+                )),
             ),
         );
         self.runtime_handle = Some(handle);
@@ -3080,6 +3109,7 @@ impl HandshakeApp {
             "user-manual" => PaneType::UserManual,
             "swarm" => PaneType::Swarm,
             "swarm-lane-diagnostics" => PaneType::SwarmLaneDiagnostics,
+            "operator-chat" => PaneType::OperatorChatLaunch,
             _ => return false,
         };
         self.open_content_on_active_pane(pane_type, None)

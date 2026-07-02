@@ -21,6 +21,7 @@ pub mod left_rail;
 pub mod loom_graph;
 pub mod mcp;
 pub mod module_switcher;
+pub mod operator_chat_pane;
 pub mod pane_header;
 pub mod pane_registry;
 pub mod popout_window;

@@ -54,6 +54,9 @@ pub enum PaneType {
     FontManager,
     FlightRecorder,
     VisualDebugger,
+    /// WP-1 MT-012: operator chat/launch work-surface (model+worktree picker,
+    /// prompt input, launch through spawn_session, captured transcript).
+    OperatorChatLaunch,
     /// A surface with no dedicated variant yet; the carried string is the display label.
     Placeholder(String),
 }
@@ -83,6 +86,7 @@ impl PaneType {
             PaneType::FontManager => "Font Manager".to_owned(),
             PaneType::FlightRecorder => "Flight Recorder".to_owned(),
             PaneType::VisualDebugger => "Visual Debugger".to_owned(),
+            PaneType::OperatorChatLaunch => "Operator Chat / Launch".to_owned(),
             PaneType::Placeholder(name) => name.clone(),
         }
     }
@@ -115,6 +119,7 @@ impl PaneType {
             PaneType::LoomWikiPage => "Wiki Page",
             PaneType::AtelierEditor => "Atelier",
             PaneType::VisualDebugger => "Visual Debugger",
+            PaneType::OperatorChatLaunch => "Operator Chat",
             PaneType::Placeholder(name) => name.as_str(),
         }
     }
