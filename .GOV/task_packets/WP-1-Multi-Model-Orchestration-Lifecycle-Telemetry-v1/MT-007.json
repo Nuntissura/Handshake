@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-002",
       "MT-003",
@@ -33,12 +33,12 @@
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T01:19:49Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
-    "ready_for_validation_at_utc": "2026-07-02T02:32:12Z",
+    "ready_for_validation_at_utc": "2026-07-02T09:13:35Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "PASS_MT007_2026-07-02: model_lane_recovery_pg_tests 9/9 PASS (2557s, managed PG 5544; commit 553e6095). Prior 7/9 (2 real recovery bugs). FIX: recover_run replayed to the whole-stream high-watermark, folding in post-checkpoint adjunct state; now bounded at checkpoint.last_event_ledger_seq so post-checkpoint recovery-events/payload/CRDT/lease/MT-status are excluded and payload/CRDT repairs fail closed (spec 4.3.9.2.5). KB-reviewed: correct, no weakening. internal_diagnostics+Palmistry DEFERRED-with-reason (WP-KERNEL-012/016).",
-    "hbr_status": "PENDING",
+    "proof_status": "PASS_MT007_2026-07-02: RECONCILED per-kind recovery + identity-before-body diagnostics fix. model_lane_recovery_pg_tests 9/9 (1010s re-confirm) AND mixed_model_lane_integration_pg_tests 5/5 on ONE codebase (commits ba13ca74 + 4a3c8ef9), no cross-suite regression. Recovery catches up post-checkpoint forward stream (messages/recovery-events/MT-statuses), REJECTS post-checkpoint payload/CRDT repairs of checkpointed refs, EXCLUDES current-state leases (spec 4.3.9.2.5). Supersedes the earlier over-corrected checkpoint-bound fix (553e6095). KB-reviewed, no weakening. internal_diagnostics+Palmistry DEFERRED-with-reason (WP-KERNEL-012/016).",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT007_RECOVERY_RECONCILED",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,

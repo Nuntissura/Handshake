@@ -128,7 +128,7 @@
     },
     {
       "mt_id": "MT-007",
-      "status": "NEEDS_REIMPLEMENTATION",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-002",
         "MT-003",
@@ -143,8 +143,8 @@
         "MT-009",
         "MT-010"
       ],
-      "proof_status": "NEEDS_REIMPL_MT007_2026-07-02: checkpoint-bound fix (553e6095) made recovery_pg_tests 9/9 BUT over-corrected - it blanket-bounds recovery at checkpoint seq, which REGRESSES MT-009 mixed_model_lane_recovery_replays_post_checkpoint_eventledger_catchup (recovery must CATCH UP post-checkpoint messages/recovery-events/MT-statuses). Correct semantics: catch up forward stream past checkpoint; REJECT post-checkpoint payload/CRDT repairs of checkpointed refs; EXCLUDE current-state adjunct (leases). Reconciliation coder dispatched to satisfy BOTH recovery_pg_tests (9/9) AND mixed_model_lane_integration_pg_tests.",
-      "hbr_status": "PENDING_MT007_RECOVERY_RECONCILE",
+      "proof_status": "PASS_MT007_2026-07-02_RECOVERY_9_9_AND_MIXED_5_5_RECONCILED_PER_KIND_PLUS_IDENTITY_ORDER_FIX_COMMITS_ba13ca74_4a3c8ef9_NO_CROSS_SUITE_REGRESSION",
+      "hbr_status": "PASS_MT007_RECOVERY_RECONCILED",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "NOT_RUN",
       "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
@@ -172,7 +172,7 @@
     },
     {
       "mt_id": "MT-009",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -185,8 +185,8 @@
       "blocks": [
         "MT-010"
       ],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT009_2026-07-02_MIXED_INTEGRATION_5_5_PASS_657s_COMMITS_ba13ca74_4a3c8ef9_CATCHUP_MSGSTRING_EVENTSEQ_IDENTITY_ORDER_MT007_RECOVERY_RECONFIRMED_9_9",
+      "hbr_status": "PASS_MT009_MIXED_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "NOT_RUN",
       "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
