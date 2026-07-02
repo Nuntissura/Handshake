@@ -19,6 +19,7 @@ use crate::ai_ready_data::records::{
 };
 
 pub mod calendar;
+pub mod fems_memory;
 pub mod kb003_storage;
 pub mod knowledge;
 pub mod knowledge_crdt;
