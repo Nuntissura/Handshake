@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-07-02T04:08:05Z",
+  "updated_at_utc": "2026-07-02T22:52:58Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,7 +35,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-036",
@@ -45,7 +45,9 @@
     ],
     "active": false,
     "validator_verdict": "PENDING",
-    "remediation_appendage": "Build the backend routes that E5/E9/E10 native-editor work is typed-blocked on: (1) FR native-editor ingestion - extend api/flight_recorder.rs beyond the closed RuntimeChatEventV0_1 shape (deny_unknown_fields, 3-variant enum, hardcoded actor_id runtime_chat, UUID-only session_id) to accept a versioned native-editor event family covering NativeEditorAction kinds plus the 5 un-emitted interop kinds (STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP); (2) GET /memory/pack returning the REAL ace::MemoryPack shape (memory_id/memory_class/source_refs - the native client model must be aligned in the paired frontend change); (3) POST /memory/proposals review-gated intake (proposals land as pending review items, NEVER direct memory commits). All PostgreSQL/EventLedger-backed, no SQLite. Frontend pairing (emit variants + client model alignment + un-ignoring the gated E9 proofs) is wave-2 native work that this MT unblocks."
+    "remediation_appendage": "Build the backend routes that E5/E9/E10 native-editor work is typed-blocked on: (1) FR native-editor ingestion - extend api/flight_recorder.rs beyond the closed RuntimeChatEventV0_1 shape (deny_unknown_fields, 3-variant enum, hardcoded actor_id runtime_chat, UUID-only session_id) to accept a versioned native-editor event family covering NativeEditorAction kinds plus the 5 un-emitted interop kinds (STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP); (2) GET /memory/pack returning the REAL ace::MemoryPack shape (memory_id/memory_class/source_refs - the native client model must be aligned in the paired frontend change); (3) POST /memory/proposals review-gated intake (proposals land as pending review items, NEVER direct memory commits). All PostgreSQL/EventLedger-backed, no SQLite. Frontend pairing (emit variants + client model alignment + un-ignoring the gated E9 proofs) is wave-2 native work that this MT unblocks.",
+    "completed_by": null,
+    "implementation_evidence": "PROVEN on real managed PostgreSQL 2026-07-02 (durable log MT-109-managed-pg-verify-kb.log): api::memory::tests 6/6 (incl. proposal_cannot_mutate_committed_memory + missing-provenance fail-closed negatives), api::flight_recorder native_editor 4/4 (unknown-kind rejection, all documented kinds, ledger mirror, fail-closed). Ran with --features runtime-full,duckdb-flight-recorder,test-utils. No SQLite. Committed product 2fe559ed. Unblocks frontend MT-036/063/064/074 (their live proofs run in the managed-PG proof day)."
   },
   "scope": {
     "summary": "Backend counterpart for the native editors WP: FR native-editor event ingestion, FEMS memory-pack read route, review-gated memory-proposal intake. Discovered by the 2026-07-02 drift audit as verified typed blockers behind MT-036 (event emitter has no ingestible backend shape), MT-063 (no /memory/pack route; client shape drift vs ace::MemoryPack), MT-064 (no /memory/proposals route), MT-074 (5 expected FR event kinds emitted by nothing and ingestible by nothing). Survivor-forward ingestion (MT-093) intentionally stays WP-KERNEL-016 scope - do not fold it in here.",
