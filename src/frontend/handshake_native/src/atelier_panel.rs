@@ -284,6 +284,93 @@ pub fn ingest_item_unsure_author_id(item_id: &str) -> String {
     )
 }
 
+// --- MT-020 prompt-feedback sub-mode (nested under INGEST) -----------------
+
+/// Seed rule pack id (mirrors `handshake_core::atelier::prompt_feedback::engine`).
+pub const PROMPT_FEEDBACK_SEED_RULE_PACK_ID: &str = "prompt-feedback.seed";
+
+pub const ATELIER_PROMPTFEEDBACK_MODE_INGEST_AUTHOR_ID: &str =
+    "atelier-promptfeedback-mode-ingest";
+pub const ATELIER_PROMPTFEEDBACK_MODE_FEEDBACK_AUTHOR_ID: &str =
+    "atelier-promptfeedback-mode-feedback";
+pub const ATELIER_PROMPTFEEDBACK_HEADER_AUTHOR_ID: &str = "atelier-promptfeedback-header";
+pub const ATELIER_PROMPTFEEDBACK_PROJECT_AUTHOR_ID: &str = "atelier-promptfeedback-project";
+pub const ATELIER_PROMPTFEEDBACK_ADAPTER_AUTHOR_ID: &str = "atelier-promptfeedback-adapter";
+pub const ATELIER_PROMPTFEEDBACK_ROWS_AUTHOR_ID: &str = "atelier-promptfeedback-rows";
+pub const ATELIER_PROMPTFEEDBACK_IMPORT_AUTHOR_ID: &str = "atelier-promptfeedback-import";
+pub const ATELIER_PROMPTFEEDBACK_RULEPACK_AUTHOR_ID: &str = "atelier-promptfeedback-rulepack";
+pub const ATELIER_PROMPTFEEDBACK_CASE_LIST_AUTHOR_ID: &str = "atelier-promptfeedback-case-list";
+pub const ATELIER_PROMPTFEEDBACK_REWRITE_AUTHOR_ID: &str = "atelier-promptfeedback-rewrite";
+pub const ATELIER_PROMPTFEEDBACK_REWRITE_PREVIEW_AUTHOR_ID: &str =
+    "atelier-promptfeedback-rewrite-preview";
+pub const ATELIER_PROMPTFEEDBACK_TRACE_AUTHOR_ID: &str = "atelier-promptfeedback-trace";
+pub const ATELIER_PROMPTFEEDBACK_EXPORT_AUTHOR_ID: &str = "atelier-promptfeedback-export";
+pub const ATELIER_PROMPTFEEDBACK_EXPORT_STATUS_AUTHOR_ID: &str =
+    "atelier-promptfeedback-export-status";
+pub const ATELIER_PROMPTFEEDBACK_STATUS_AUTHOR_ID: &str = "atelier-promptfeedback-status";
+
+/// Fixed failure-tag vocabulary for the picker (handoff failure classes: technical
+/// artifacts, bland, scene incoherence, target-blocking outfits, runner leakage).
+pub const PROMPT_FEEDBACK_FAILURE_TAGS: &[&str] = &[
+    "bad_hands",
+    "smeared_fingers",
+    "broken_limbs",
+    "bad_genital_detail",
+    "plastic_skin",
+    "face_smear",
+    "bland",
+    "generic_nude",
+    "incoherent_wet_scene",
+    "target_blocked_by_outfit",
+    "protected_runner_leakage",
+    "action_claim_without_contact_proof",
+];
+
+pub fn prompt_feedback_case_row_author_id(source_case_id: &str) -> String {
+    format!(
+        "atelier-promptfeedback-case-{}",
+        crate::project_tree::stable_part(source_case_id)
+    )
+}
+
+pub fn prompt_feedback_failure_tag_author_id(tag: &str) -> String {
+    format!(
+        "atelier-promptfeedback-tag-{}",
+        crate::project_tree::stable_part(tag)
+    )
+}
+
+/// A minimal display row for the prompt-feedback case list (grouped by
+/// segment/cell/render-stack). Seeded for the WIP surface; the live backend list
+/// arrives via `AtelierClient::prompt_feedback_cases_request`.
+#[derive(Debug, Clone)]
+pub struct PromptFeedbackCaseRow {
+    pub source_case_id: String,
+    pub segment: String,
+    pub cell: String,
+    pub render_stack: String,
+    pub identity_judgement_allowed: bool,
+}
+
+fn seeded_prompt_feedback_cases() -> Vec<PromptFeedbackCaseRow> {
+    vec![
+        PromptFeedbackCaseRow {
+            source_case_id: "no_detail:0_closeup:1".to_owned(),
+            segment: "standard".to_owned(),
+            cell: "0_closeup".to_owned(),
+            render_stack: "no_detail".to_owned(),
+            identity_judgement_allowed: true,
+        },
+        PromptFeedbackCaseRow {
+            source_case_id: "with_detail_faceid:0_closeup:1".to_owned(),
+            segment: "prompt_stress".to_owned(),
+            cell: "0_closeup".to_owned(),
+            render_stack: "FaceDetailer+FaceID".to_owned(),
+            identity_judgement_allowed: false,
+        },
+    ]
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtelierPanelTab {
     CastkitCodex,
@@ -2749,6 +2836,22 @@ struct AtelierPanelState {
     settings_ingest_batch_tags: String,
     settings_ingest_policy: String,
     settings_rows: Vec<AtelierPreferenceRow>,
+    // MT-020: prompt-feedback sub-mode (nested under the INGEST tab). A WIP
+    // surface for the deterministic prompt-feedback kernel: import panel, case
+    // list grouped by segment/cell/render-stack, failure-tag picker, deterministic
+    // rewrite preview + trace, and export button.
+    prompt_feedback_mode: bool,
+    prompt_feedback_project: String,
+    prompt_feedback_adapter: String,
+    prompt_feedback_rows: String,
+    prompt_feedback_rule_pack: String,
+    prompt_feedback_selected_tags: BTreeSet<String>,
+    prompt_feedback_selected_case: Option<String>,
+    prompt_feedback_rewrite_preview: String,
+    prompt_feedback_trace: String,
+    prompt_feedback_export_status: String,
+    prompt_feedback_status: String,
+    prompt_feedback_cases: Vec<PromptFeedbackCaseRow>,
 }
 
 impl Default for AtelierPanelState {
@@ -2935,6 +3038,18 @@ impl Default for AtelierPanelState {
             settings_ingest_batch_tags: "event, outfit, source".to_owned(),
             settings_ingest_policy: "unsure".to_owned(),
             settings_rows: Vec::new(),
+            prompt_feedback_mode: false,
+            prompt_feedback_project: "leeseo".to_owned(),
+            prompt_feedback_adapter: "leeseo.cuipp.v1".to_owned(),
+            prompt_feedback_rows: String::new(),
+            prompt_feedback_rule_pack: PROMPT_FEEDBACK_SEED_RULE_PACK_ID.to_owned(),
+            prompt_feedback_selected_tags: BTreeSet::new(),
+            prompt_feedback_selected_case: None,
+            prompt_feedback_rewrite_preview: String::new(),
+            prompt_feedback_trace: String::new(),
+            prompt_feedback_export_status: "No prompt-feedback export requested.".to_owned(),
+            prompt_feedback_status: "Prompt-feedback WIP: import CUIPP rows, tag failures, preview a deterministic rewrite, export JSONL.".to_owned(),
+            prompt_feedback_cases: seeded_prompt_feedback_cases(),
         }
     }
 }
@@ -11436,10 +11551,314 @@ impl AtelierPanel {
         }
     }
 
+    /// MT-020: prompt-feedback sub-mode (nested under INGEST). A minimal WIP
+    /// surface for the deterministic prompt-feedback kernel: import panel, case
+    /// list grouped by segment/cell/render-stack, failure-tag picker, deterministic
+    /// rewrite preview + trace, and export button. All controls carry stable
+    /// `atelier-promptfeedback-*` Argus author_ids. The determinism itself lives in
+    /// the backend engine (`/atelier/prompt-feedback/*`); this panel surfaces the
+    /// workflow and the protected-eval invariant.
+    fn show_prompt_feedback(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        let Ok(mut state) = self.state.lock() else {
+            return;
+        };
+
+        let header = ui.label(
+            egui::RichText::new("Prompt feedback kernel (deterministic rewrite)")
+                .color(palette.text)
+                .strong(),
+        );
+        emit_value_node(
+            ui.ctx(),
+            header.id,
+            accesskit::Role::Label,
+            ATELIER_PROMPTFEEDBACK_HEADER_AUTHOR_ID,
+            "Prompt feedback kernel header",
+            "Prompt feedback kernel (deterministic rewrite)",
+        );
+
+        // Import panel.
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Project").color(palette.text));
+            let project = ui.text_edit_singleline(&mut state.prompt_feedback_project);
+            emit_value_node(
+                ui.ctx(),
+                project.id,
+                accesskit::Role::TextInput,
+                ATELIER_PROMPTFEEDBACK_PROJECT_AUTHOR_ID,
+                "Prompt feedback project id",
+                &state.prompt_feedback_project,
+            );
+            ui.label(egui::RichText::new("Adapter").color(palette.text));
+            let adapter = ui.text_edit_singleline(&mut state.prompt_feedback_adapter);
+            emit_value_node(
+                ui.ctx(),
+                adapter.id,
+                accesskit::Role::TextInput,
+                ATELIER_PROMPTFEEDBACK_ADAPTER_AUTHOR_ID,
+                "Prompt feedback adapter id",
+                &state.prompt_feedback_adapter,
+            );
+        });
+        let rows = ui.text_edit_multiline(&mut state.prompt_feedback_rows);
+        emit_value_node(
+            ui.ctx(),
+            rows.id,
+            accesskit::Role::TextInput,
+            ATELIER_PROMPTFEEDBACK_ROWS_AUTHOR_ID,
+            "Prompt feedback CUIPP import rows (JSONL)",
+            &state.prompt_feedback_rows,
+        );
+        ui.horizontal(|ui| {
+            let import = ui.add(egui::Button::new("Import CUIPP rows"));
+            emit_node(
+                ui.ctx(),
+                import.id,
+                accesskit::Role::Button,
+                ATELIER_PROMPTFEEDBACK_IMPORT_AUTHOR_ID,
+                "Import CUIPP rows",
+                false,
+            );
+            if import.clicked() {
+                state.prompt_feedback_status =
+                    "Import staged: POST /atelier/prompt-feedback/import with the CUIPP rows."
+                        .to_owned();
+            }
+            ui.label(egui::RichText::new("Rule pack").color(palette.text));
+            let pack = ui.text_edit_singleline(&mut state.prompt_feedback_rule_pack);
+            emit_value_node(
+                ui.ctx(),
+                pack.id,
+                accesskit::Role::TextInput,
+                ATELIER_PROMPTFEEDBACK_RULEPACK_AUTHOR_ID,
+                "Prompt feedback rule pack id",
+                &state.prompt_feedback_rule_pack,
+            );
+        });
+
+        ui.separator();
+
+        // Case list grouped by segment / cell / render stack.
+        let list_header = ui.label(egui::RichText::new("Cases").color(palette.text));
+        emit_value_node(
+            ui.ctx(),
+            list_header.id,
+            accesskit::Role::Label,
+            ATELIER_PROMPTFEEDBACK_CASE_LIST_AUTHOR_ID,
+            "Prompt feedback case list",
+            "Cases grouped by segment / cell / render stack",
+        );
+        let cases = state.prompt_feedback_cases.clone();
+        for case in &cases {
+            let selected =
+                state.prompt_feedback_selected_case.as_deref() == Some(case.source_case_id.as_str());
+            let label = format!(
+                "{} / {} / {} : {}{}",
+                case.segment,
+                case.cell,
+                case.render_stack,
+                case.source_case_id,
+                if case.identity_judgement_allowed {
+                    ""
+                } else {
+                    "  [prompt-quality only]"
+                }
+            );
+            let row = ui.add(egui::Button::selectable(selected, label.clone()));
+            emit_node(
+                ui.ctx(),
+                row.id,
+                accesskit::Role::ListItem,
+                &prompt_feedback_case_row_author_id(&case.source_case_id),
+                &label,
+                selected,
+            );
+            if row.clicked() {
+                state.prompt_feedback_selected_case = Some(case.source_case_id.clone());
+            }
+        }
+
+        ui.separator();
+
+        // Failure-tag picker.
+        ui.label(egui::RichText::new("Failure tags").color(palette.text));
+        ui.horizontal_wrapped(|ui| {
+            for tag in PROMPT_FEEDBACK_FAILURE_TAGS {
+                let selected = state.prompt_feedback_selected_tags.contains(*tag);
+                let button = ui.add(egui::Button::selectable(selected, *tag));
+                emit_node(
+                    ui.ctx(),
+                    button.id,
+                    accesskit::Role::Button,
+                    &prompt_feedback_failure_tag_author_id(tag),
+                    tag,
+                    selected,
+                );
+                if button.clicked() {
+                    if selected {
+                        state.prompt_feedback_selected_tags.remove(*tag);
+                    } else {
+                        state.prompt_feedback_selected_tags.insert((*tag).to_owned());
+                    }
+                }
+            }
+        });
+
+        ui.separator();
+
+        // Deterministic rewrite preview + trace.
+        ui.horizontal(|ui| {
+            let rewrite = ui.add(egui::Button::new("Preview deterministic rewrite"));
+            emit_node(
+                ui.ctx(),
+                rewrite.id,
+                accesskit::Role::Button,
+                ATELIER_PROMPTFEEDBACK_REWRITE_AUTHOR_ID,
+                "Preview deterministic rewrite",
+                false,
+            );
+            if rewrite.clicked() {
+                let selected_case = state.prompt_feedback_selected_case.clone();
+                let pack = state.prompt_feedback_rule_pack.clone();
+                let tags: Vec<String> = state.prompt_feedback_selected_tags.iter().cloned().collect();
+                match selected_case
+                    .as_ref()
+                    .and_then(|id| cases.iter().find(|case| &case.source_case_id == id))
+                {
+                    Some(case) => {
+                        let protected = case.segment == "standard";
+                        state.prompt_feedback_rewrite_preview = format!(
+                            "Deterministic rewrite for {} via rule pack {} (POST /atelier/prompt-feedback/rewrite).{}",
+                            case.source_case_id,
+                            pack,
+                            if protected {
+                                " Protected standard row: a prompt-stress tail is hard-rejected (protected_eval_prompt_mutation)."
+                            } else {
+                                " Prompt-quality only: this is never identity-success evidence."
+                            }
+                        );
+                        state.prompt_feedback_trace = format!(
+                            "rule_trace: rule_pack_id={}, tags=[{}] — full rule id / matched fields / input+output hash / reason code / action kind returned by the backend engine.",
+                            pack,
+                            tags.join(", ")
+                        );
+                    }
+                    None => {
+                        state.prompt_feedback_rewrite_preview =
+                            "Select a case to preview a deterministic rewrite.".to_owned();
+                        state.prompt_feedback_trace = String::new();
+                    }
+                }
+            }
+        });
+        let preview_text = state.prompt_feedback_rewrite_preview.clone();
+        let preview = ui.label(egui::RichText::new(&preview_text).color(palette.text));
+        emit_value_node(
+            ui.ctx(),
+            preview.id,
+            accesskit::Role::Label,
+            ATELIER_PROMPTFEEDBACK_REWRITE_PREVIEW_AUTHOR_ID,
+            "Prompt feedback rewrite preview",
+            &preview_text,
+        );
+        let trace_text = state.prompt_feedback_trace.clone();
+        let trace = ui.label(egui::RichText::new(&trace_text).color(palette.text));
+        emit_value_node(
+            ui.ctx(),
+            trace.id,
+            accesskit::Role::Label,
+            ATELIER_PROMPTFEEDBACK_TRACE_AUTHOR_ID,
+            "Prompt feedback rewrite trace",
+            &trace_text,
+        );
+
+        ui.separator();
+
+        // Export.
+        ui.horizontal(|ui| {
+            let export = ui.add(egui::Button::new("Export corrected JSONL"));
+            emit_node(
+                ui.ctx(),
+                export.id,
+                accesskit::Role::Button,
+                ATELIER_PROMPTFEEDBACK_EXPORT_AUTHOR_ID,
+                "Export corrected JSONL",
+                false,
+            );
+            if export.clicked() {
+                state.prompt_feedback_export_status = format!(
+                    "Export staged: POST /atelier/prompt-feedback/export (rule pack {}) -> hashed ArtifactStore JSONL artifact.",
+                    state.prompt_feedback_rule_pack
+                );
+            }
+        });
+        let export_status = state.prompt_feedback_export_status.clone();
+        let export_readout = ui.label(egui::RichText::new(&export_status).color(palette.text));
+        emit_value_node(
+            ui.ctx(),
+            export_readout.id,
+            accesskit::Role::Label,
+            ATELIER_PROMPTFEEDBACK_EXPORT_STATUS_AUTHOR_ID,
+            "Prompt feedback export status",
+            &export_status,
+        );
+
+        let status = state.prompt_feedback_status.clone();
+        let status_readout = ui.label(egui::RichText::new(&status).color(palette.text));
+        emit_value_node(
+            ui.ctx(),
+            status_readout.id,
+            accesskit::Role::Label,
+            ATELIER_PROMPTFEEDBACK_STATUS_AUTHOR_ID,
+            "Prompt feedback status",
+            &status,
+        );
+    }
+
     fn show_ingest(&self, ui: &mut egui::Ui, palette: &HsPalette) {
         self.drain_contact_sheet_export_backend();
         self.drain_facial_analysis_backend();
         self.drain_ingest_classification_backend();
+        // MT-020: INGEST sub-mode selector (Dataset intake vs Prompt feedback).
+        let prompt_feedback_mode = {
+            let Ok(mut state) = self.state.lock() else {
+                return;
+            };
+            ui.horizontal(|ui| {
+                for (mode, label, author_id) in [
+                    (
+                        false,
+                        "Dataset intake",
+                        ATELIER_PROMPTFEEDBACK_MODE_INGEST_AUTHOR_ID,
+                    ),
+                    (
+                        true,
+                        "Prompt feedback",
+                        ATELIER_PROMPTFEEDBACK_MODE_FEEDBACK_AUTHOR_ID,
+                    ),
+                ] {
+                    let selected = state.prompt_feedback_mode == mode;
+                    let button = ui.add(egui::Button::selectable(selected, label));
+                    emit_node(
+                        ui.ctx(),
+                        button.id,
+                        accesskit::Role::Button,
+                        author_id,
+                        label,
+                        selected,
+                    );
+                    if button.clicked() {
+                        state.prompt_feedback_mode = mode;
+                    }
+                }
+            });
+            state.prompt_feedback_mode
+        };
+        ui.separator();
+        if prompt_feedback_mode {
+            self.show_prompt_feedback(ui, palette);
+            return;
+        }
         ui.label(egui::RichText::new("Intake batch source").color(palette.text));
         if let Ok(mut side_panel) = self.side_panel.lock() {
             side_panel.show(ui, palette);

@@ -6012,6 +6012,137 @@ impl AtelierClient {
         }
     }
 
+    /// MT-020 pure actor-attributed builder for
+    /// `POST /atelier/prompt-feedback/import` (import CUIPP/prompt-stress rows).
+    pub fn prompt_feedback_import_actor_request(
+        &self,
+        project_id: &str,
+        source_system: &str,
+        adapter_id: &str,
+        source_iteration_id: Option<&str>,
+        rows: serde_json::Value,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/prompt-feedback/import", self.base_url),
+            body: Some(serde_json::json!({
+                "project_id": project_id,
+                "source_system": source_system,
+                "adapter_id": adapter_id,
+                "source_iteration_id": source_iteration_id,
+                "rows": rows,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// MT-020 pure builder for `GET /atelier/prompt-feedback/cases` with optional
+    /// segment/cell/render-stack filters.
+    pub fn prompt_feedback_cases_request(
+        &self,
+        segment: Option<&str>,
+        cell: Option<&str>,
+        render_stack: Option<&str>,
+    ) -> GetRequestSpec {
+        let mut query: Vec<(String, String)> = Vec::new();
+        if let Some(segment) = segment {
+            query.push(("segment".to_owned(), segment.to_owned()));
+        }
+        if let Some(cell) = cell {
+            query.push(("cell".to_owned(), cell.to_owned()));
+        }
+        if let Some(render_stack) = render_stack {
+            query.push(("render_stack".to_owned(), render_stack.to_owned()));
+        }
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/prompt-feedback/cases", self.base_url),
+            query,
+        }
+    }
+
+    /// MT-020 pure actor-attributed builder for
+    /// `POST /atelier/prompt-feedback/verdicts`.
+    pub fn prompt_feedback_verdict_actor_request(
+        &self,
+        case_id: &str,
+        reviewer_kind: &str,
+        verdict_kind: &str,
+        failure_class: Option<&str>,
+        failure_tags: &[String],
+        is_identity_judgement: bool,
+        note: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/prompt-feedback/verdicts", self.base_url),
+            body: Some(serde_json::json!({
+                "case_id": case_id,
+                "reviewer_kind": reviewer_kind,
+                "verdict_kind": verdict_kind,
+                "failure_class": failure_class,
+                "failure_tags": failure_tags,
+                "is_identity_judgement": is_identity_judgement,
+                "note": note,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// MT-020 pure actor-attributed builder for
+    /// `POST /atelier/prompt-feedback/rewrite` (deterministic preview vs a rule
+    /// pack). The backend rejects a rewrite with an empty `rule_pack_id`.
+    pub fn prompt_feedback_rewrite_actor_request(
+        &self,
+        case_id: &str,
+        rule_pack_id: &str,
+        rule_pack_version: Option<i32>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/prompt-feedback/rewrite", self.base_url),
+            body: Some(serde_json::json!({
+                "case_id": case_id,
+                "rule_pack_id": rule_pack_id,
+                "rule_pack_version": rule_pack_version,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// MT-020 pure actor-attributed builder for
+    /// `POST /atelier/prompt-feedback/export` (materialize a hashed JSONL artifact).
+    pub fn prompt_feedback_export_actor_request(
+        &self,
+        rule_pack_id: &str,
+        rule_pack_version: Option<i32>,
+        case_ids: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/prompt-feedback/export", self.base_url),
+            body: Some(serde_json::json!({
+                "rule_pack_id": rule_pack_id,
+                "rule_pack_version": rule_pack_version,
+                "case_ids": case_ids,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// MT-020 pure builder for `GET /atelier/prompt-feedback/rulepacks`.
+    pub fn prompt_feedback_rulepacks_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/prompt-feedback/rulepacks", self.base_url),
+            query: vec![],
+        }
+    }
+
     /// WP-CKC MT-042 pure actor-attributed request builder for
     /// `PUT /atelier/preferences` (set one operator default).
     pub fn set_preference_actor_request(

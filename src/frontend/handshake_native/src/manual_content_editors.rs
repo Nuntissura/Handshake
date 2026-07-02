@@ -782,6 +782,51 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         description:
             "argus.inspect reads the optional CKC middle page after Story, Notes, or Moodboard mode is selected.",
     });
+    // ── MT-020 prompt-feedback kernel (INGEST tab -> Prompt feedback sub-mode) ────────────────────────
+    // Deterministic prompt-feedback kernel: import CUIPP/prompt-stress rows, tag failures, preview a
+    // deterministic rewrite (same input + rule-pack version => byte-stable output + rule_trace), export a
+    // hashed ArtifactStore JSONL artifact. A prompt-stress verdict is prompt-quality/porn-readiness
+    // evidence only, NEVER identity success; a standard row rejects a leaked prompt-stress positive tail.
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_PROMPTFEEDBACK_MODE_FEEDBACK_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Enter the prompt-feedback sub-mode",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-promptfeedback-mode-feedback'} switches the INGEST tab into the deterministic prompt-feedback kernel (no 4th top-level tab).",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_PROMPTFEEDBACK_IMPORT_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Import CUIPP rows",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-promptfeedback-import'} stages POST /atelier/prompt-feedback/import (adapter -> PromptCases; machine paths dropped, image refs normalized to dataset://).",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_PROMPTFEEDBACK_CASE_LIST_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect prompt cases grouped by segment/cell/render-stack",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads the case list; each row (atelier-promptfeedback-case-*) shows segment / cell / render-stack and whether it is prompt-quality-only.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_PROMPTFEEDBACK_REWRITE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Preview the deterministic rewrite",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-promptfeedback-rewrite'} previews the deterministic rewrite; atelier-promptfeedback-rewrite-preview and atelier-promptfeedback-trace render the corrected prompt + rule_trace.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_PROMPTFEEDBACK_EXPORT_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Export corrected JSONL",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-promptfeedback-export'} stages POST /atelier/prompt-feedback/export, which materializes a hashed ArtifactStore JSONL artifact (never sidecar authority).",
+    });
     rows.push(AgentToolRow {
         author_id: crate::atelier_panel::ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
         surface: ManualSurface::Interop,

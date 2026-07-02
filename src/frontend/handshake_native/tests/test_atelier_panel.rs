@@ -6054,3 +6054,195 @@ fn atelier_settings_preference_requests_are_actor_attributed_and_route() {
     let reset_body = reset.body.expect("reset preference body");
     assert_eq!(reset_body["key"], "posekit.marker-hands");
 }
+
+// --- MT-020 prompt-feedback sub-mode (nested under INGEST) -----------------
+
+fn build_prompt_feedback_harness() -> Harness<'static, AtelierPanel> {
+    let panel = AtelierPanel::new(
+        seeded_side_panel(),
+        Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+        Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+    );
+    panel.set_active_tab(AtelierPanelTab::Ingest);
+    Harness::builder().with_size(egui::vec2(1280.0, 960.0)).build_state(
+        |ctx, panel: &mut AtelierPanel| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                panel.show(ui, &HsTheme::Dark.palette());
+            });
+        },
+        panel,
+    )
+}
+
+#[test]
+fn argus_inspects_and_steers_prompt_feedback_sub_mode() {
+    use handshake_native::atelier_panel::{
+        prompt_feedback_case_row_author_id, prompt_feedback_failure_tag_author_id,
+        ATELIER_PROMPTFEEDBACK_CASE_LIST_AUTHOR_ID, ATELIER_PROMPTFEEDBACK_EXPORT_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_HEADER_AUTHOR_ID, ATELIER_PROMPTFEEDBACK_IMPORT_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_MODE_FEEDBACK_AUTHOR_ID, ATELIER_PROMPTFEEDBACK_PROJECT_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_REWRITE_AUTHOR_ID, ATELIER_PROMPTFEEDBACK_REWRITE_PREVIEW_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_TRACE_AUTHOR_ID,
+    };
+
+    let mut harness = build_prompt_feedback_harness();
+    harness.run();
+    harness.run();
+
+    // The INGEST sub-mode selector renders the prompt-feedback toggle.
+    let snapshot = snapshot_harness(&mut harness);
+    assert!(
+        snapshot
+            .find_by_author_id(ATELIER_PROMPTFEEDBACK_MODE_FEEDBACK_AUTHOR_ID)
+            .is_some(),
+        "the INGEST tab must offer the prompt-feedback sub-mode toggle"
+    );
+
+    // Enter the prompt-feedback sub-mode.
+    let mut channel = ActionChannel::new();
+    argus_click_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_PROMPTFEEDBACK_MODE_FEEDBACK_AUTHOR_ID,
+    );
+    harness.run();
+
+    let snapshot = snapshot_harness(&mut harness);
+    for expected in [
+        ATELIER_PROMPTFEEDBACK_HEADER_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_PROJECT_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_IMPORT_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_CASE_LIST_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_REWRITE_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_REWRITE_PREVIEW_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_TRACE_AUTHOR_ID,
+        ATELIER_PROMPTFEEDBACK_EXPORT_AUTHOR_ID,
+    ] {
+        assert!(
+            snapshot.find_by_author_id(expected).is_some(),
+            "prompt-feedback surface must expose Argus author_id {expected}"
+        );
+    }
+    let case_row = prompt_feedback_case_row_author_id("with_detail_faceid:0_closeup:1");
+    assert!(
+        snapshot.find_by_author_id(&case_row).is_some(),
+        "each prompt case renders a stable Argus row author_id ({case_row})"
+    );
+    let tag_id = prompt_feedback_failure_tag_author_id("bad_hands");
+    assert!(
+        snapshot.find_by_author_id(&tag_id).is_some(),
+        "the failure-tag picker renders a stable Argus author_id ({tag_id})"
+    );
+
+    // Steer: select a case, then preview the deterministic rewrite.
+    argus_click_on_harness(&mut harness, &mut channel, &case_row);
+    argus_click_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_PROMPTFEEDBACK_REWRITE_AUTHOR_ID,
+    );
+    let snapshot = snapshot_harness(&mut harness);
+    let preview = snapshot
+        .find_by_author_id(ATELIER_PROMPTFEEDBACK_REWRITE_PREVIEW_AUTHOR_ID)
+        .expect("rewrite preview node present");
+    assert!(
+        preview
+            .value
+            .as_deref()
+            .map(|value| value.to_lowercase().contains("rewrite"))
+            .unwrap_or(false),
+        "clicking the rewrite button must render a rewrite preview; value={:?}",
+        preview.value
+    );
+
+    // Steer a text input to prove argus.set_value works on the surface.
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_PROMPTFEEDBACK_PROJECT_AUTHOR_ID,
+        "leeseo-argus",
+    );
+    let snapshot = snapshot_harness(&mut harness);
+    assert!(
+        snapshot
+            .find_by_author_id(ATELIER_PROMPTFEEDBACK_PROJECT_AUTHOR_ID)
+            .is_some(),
+        "the prompt-feedback project input stays Argus-addressable after set_value"
+    );
+}
+
+#[test]
+fn prompt_feedback_request_builders_target_verified_routes() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("prompt-feedback request-spec runtime");
+    let client = AtelierClient::new_with_actor_id(
+        "http://127.0.0.1:17777",
+        runtime.handle().clone(),
+        "promptfeedback-agent-020",
+    );
+
+    let import = client.prompt_feedback_import_actor_request(
+        "leeseo",
+        "leeseo",
+        "leeseo.cuipp.v1",
+        Some("i76"),
+        serde_json::json!([{ "case_id": "no_detail:0_closeup:1", "segment": "standard" }]),
+        client.actor_id(),
+    );
+    assert_eq!(import.method, HttpMethod::Post);
+    assert_eq!(
+        import.url,
+        "http://127.0.0.1:17777/atelier/prompt-feedback/import"
+    );
+    assert_eq!(
+        import.headers,
+        vec![(
+            HSK_HEADER_ACTOR_ID.to_owned(),
+            "promptfeedback-agent-020".to_owned()
+        )]
+    );
+
+    let rewrite = client.prompt_feedback_rewrite_actor_request(
+        "018f7848-1111-7000-9000-00000000b910",
+        "prompt-feedback.seed",
+        Some(1),
+        client.actor_id(),
+    );
+    assert_eq!(rewrite.method, HttpMethod::Post);
+    assert_eq!(
+        rewrite.url,
+        "http://127.0.0.1:17777/atelier/prompt-feedback/rewrite"
+    );
+    let rewrite_body = rewrite.body.expect("rewrite body");
+    assert_eq!(rewrite_body["rule_pack_id"], "prompt-feedback.seed");
+
+    let export = client.prompt_feedback_export_actor_request(
+        "prompt-feedback.seed",
+        Some(1),
+        &["018f7848-1111-7000-9000-00000000b910".to_owned()],
+        client.actor_id(),
+    );
+    assert_eq!(
+        export.url,
+        "http://127.0.0.1:17777/atelier/prompt-feedback/export"
+    );
+
+    let cases = client.prompt_feedback_cases_request(Some("prompt_stress"), None, None);
+    assert_eq!(cases.method, HttpMethod::Get);
+    assert_eq!(
+        cases.url,
+        "http://127.0.0.1:17777/atelier/prompt-feedback/cases"
+    );
+    assert_eq!(
+        cases.query,
+        vec![("segment".to_owned(), "prompt_stress".to_owned())]
+    );
+
+    let rulepacks = client.prompt_feedback_rulepacks_request();
+    assert_eq!(
+        rulepacks.url,
+        "http://127.0.0.1:17777/atelier/prompt-feedback/rulepacks"
+    );
+}

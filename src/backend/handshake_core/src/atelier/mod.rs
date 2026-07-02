@@ -50,6 +50,7 @@ pub mod model_lease;
 pub mod model_manual_merge;
 pub mod moodboards;
 pub mod pose;
+pub mod prompt_feedback;
 pub mod refs;
 pub mod relationships;
 pub mod scripts;
@@ -155,6 +156,7 @@ pub mod event_family {
     use super::model_manual_merge::model_manual_merge_event_family;
     use super::moodboards::moodboard_event_family;
     use super::pose::pose_event_family;
+    use super::prompt_feedback::prompt_feedback_event_family;
     use super::relationships::relationships_event_family;
     use super::scripts::scripts_event_family;
     use super::search::search_event_family;
@@ -281,6 +283,11 @@ pub mod event_family {
         pose_event_family::IDENTITY_PROFILE_APPENDED,
         pose_event_family::IDENTITY_CROP_ARTIFACT_RECORDED,
         pose_event_family::POSE_DEFERRED_FEATURE_RECORDED,
+        prompt_feedback_event_family::CASE_IMPORTED,
+        prompt_feedback_event_family::VERDICT_RECORDED,
+        prompt_feedback_event_family::REWRITE_PLANNED,
+        prompt_feedback_event_family::RULEPACK_REGISTERED,
+        prompt_feedback_event_family::EXPORT_MATERIALIZED,
         scripts_event_family::CHARACTER_SCRIPT_CREATED,
         scripts_event_family::CHARACTER_SCRIPT_USAGE_RECORDED,
         filesystem_health_event_family::CHECK_RECORDED,
@@ -1773,6 +1780,11 @@ impl AtelierStore {
             ))
             .execute(&mut *tx)
             .await?;
+            sqlx::raw_sql(include_str!(
+                "../../migrations/0342_atelier_prompt_feedback.sql"
+            ))
+            .execute(&mut *tx)
+            .await?;
             tx.commit().await?;
             self.repair_contact_sheet_manifest_schema_namespace()
                 .await?;
@@ -2233,6 +2245,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0341_atelier_intake_item_metadata.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0342_atelier_prompt_feedback.sql"
         ))
         .execute(&mut *tx)
         .await?;
