@@ -22,8 +22,9 @@ use crate::backend_client::{
     AtelierCkcSheetArtifactLinkRow, AtelierCkcSheetArtifactLinksCell, AtelierCkcStoryBeatCell,
     AtelierCkcStoryBeatRow, AtelierCkcStoryCardCell, AtelierCkcStoryCardRow, AtelierCkcTagNoteCell,
     AtelierCkcTagNoteRow, AtelierCkcTemplateCell, AtelierClient, AtelierContactSheetExportCell,
-    AtelierContactSheetExportRow, AtelierContactSheetItem, AtelierFacialIngestAnalysisCell,
-    AtelierFacialIngestAnalysisRow, AtelierIntakeClassificationCell,
+    AtelierContactSheetExportRow, AtelierContactSheetItem, AtelierFacialCommandCell,
+    AtelierFacialCommandResponseRow, AtelierFacialFeatureListCell, AtelierFacialFeatureListRow,
+    AtelierFacialIngestAnalysisCell, AtelierFacialIngestAnalysisRow, AtelierIntakeClassificationCell,
     AtelierIntakeClassificationDecision, AtelierItemRow, AtelierPoseSourceBytesCell,
     AtelierPosekitExportCell, AtelierPosekitExportRow, AtelierPreferenceMutationCell,
     AtelierPreferenceRow, AtelierPreferenceSaveCell, AtelierPreferencesCell, AtelierSheetExportRow,
@@ -256,6 +257,71 @@ pub const ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID: &str = "atelier-ingest-batch-s
 pub const ATELIER_INGEST_STATUS_AUTHOR_ID: &str = "atelier-ingest-status";
 pub const ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID: &str = "atelier-ingest-last-receipt";
 
+// MT-030 Facial Review sub-mode (nested under INGEST): the review-queue / montage / export command
+// family (backend MT-028/MT-029) that had backend + backend-manual coverage but no frontend surface.
+// The INGEST sub-mode selector button for Facial Review.
+pub const ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID: &str = "atelier-ingest-mode-facial-review";
+// Facial capability/health registry (GET /atelier/facial/features).
+pub const ATELIER_INGEST_FACIAL_FEATURES_LOAD_AUTHOR_ID: &str =
+    "atelier-ingest-facial-features-load";
+pub const ATELIER_INGEST_FACIAL_FEATURES_READOUT_AUTHOR_ID: &str =
+    "atelier-ingest-facial-features-readout";
+// Identity/quality/dedupe provenance readout (real vs unavailable), sourced from the last analysis.
+pub const ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID: &str = "atelier-ingest-facial-provenance";
+// Shared last-command receipt / degraded readout for the review command family.
+pub const ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID: &str =
+    "atelier-ingest-facial-command-receipt";
+// Accumulated review lineage refs (session + claim + decision refs) a model chains commands with.
+pub const ATELIER_INGEST_FACIAL_REVIEW_REFS_AUTHOR_ID: &str = "atelier-ingest-facial-review-refs";
+// Session create controls.
+pub const ATELIER_INGEST_FACIAL_SHARD_COUNT_AUTHOR_ID: &str = "atelier-ingest-facial-shard-count";
+pub const ATELIER_INGEST_FACIAL_TTL_AUTHOR_ID: &str = "atelier-ingest-facial-claim-ttl";
+pub const ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID: &str =
+    "atelier-ingest-facial-session-start";
+pub const ATELIER_INGEST_FACIAL_SESSION_REF_AUTHOR_ID: &str = "atelier-ingest-facial-session-ref";
+// Claim controls.
+pub const ATELIER_INGEST_FACIAL_CLAIM_SHARD_AUTHOR_ID: &str = "atelier-ingest-facial-claim-shard";
+pub const ATELIER_INGEST_FACIAL_CLAIM_STEAL_AUTHOR_ID: &str = "atelier-ingest-facial-claim-steal";
+pub const ATELIER_INGEST_FACIAL_CLAIM_START_AUTHOR_ID: &str = "atelier-ingest-facial-claim-start";
+pub const ATELIER_INGEST_FACIAL_CLAIM_REF_AUTHOR_ID: &str = "atelier-ingest-facial-claim-ref";
+// Decision controls.
+pub const ATELIER_INGEST_FACIAL_DECISION_ITEM_AUTHOR_ID: &str =
+    "atelier-ingest-facial-decision-item";
+pub const ATELIER_INGEST_FACIAL_DECISION_VERDICT_AUTHOR_ID: &str =
+    "atelier-ingest-facial-decision-verdict";
+pub const ATELIER_INGEST_FACIAL_DECISION_REASON_AUTHOR_ID: &str =
+    "atelier-ingest-facial-decision-reason";
+pub const ATELIER_INGEST_FACIAL_DECISION_TAGS_AUTHOR_ID: &str =
+    "atelier-ingest-facial-decision-tags";
+pub const ATELIER_INGEST_FACIAL_DECISION_NOTES_AUTHOR_ID: &str =
+    "atelier-ingest-facial-decision-notes";
+pub const ATELIER_INGEST_FACIAL_DECISION_RECORD_AUTHOR_ID: &str =
+    "atelier-ingest-facial-decision-record";
+// Status replay control + readout.
+pub const ATELIER_INGEST_FACIAL_STATUS_REPLAY_AUTHOR_ID: &str =
+    "atelier-ingest-facial-status-replay";
+pub const ATELIER_INGEST_FACIAL_REVIEW_STATUS_READOUT_AUTHOR_ID: &str =
+    "atelier-ingest-facial-review-status";
+// Montage controls.
+pub const ATELIER_INGEST_FACIAL_MONTAGE_PAGE_AUTHOR_ID: &str = "atelier-ingest-facial-montage-page";
+pub const ATELIER_INGEST_FACIAL_MONTAGE_COLUMNS_AUTHOR_ID: &str =
+    "atelier-ingest-facial-montage-columns";
+pub const ATELIER_INGEST_FACIAL_MONTAGE_ROWS_AUTHOR_ID: &str = "atelier-ingest-facial-montage-rows";
+pub const ATELIER_INGEST_FACIAL_MONTAGE_FILTER_AUTHOR_ID: &str =
+    "atelier-ingest-facial-montage-filter";
+pub const ATELIER_INGEST_FACIAL_MONTAGE_BUILD_AUTHOR_ID: &str =
+    "atelier-ingest-facial-montage-build";
+// Export controls.
+pub const ATELIER_INGEST_FACIAL_EXPORT_DATASET_AUTHOR_ID: &str =
+    "atelier-ingest-facial-export-dataset";
+pub const ATELIER_INGEST_FACIAL_EXPORT_REPEATS_AUTHOR_ID: &str =
+    "atelier-ingest-facial-export-repeats";
+pub const ATELIER_INGEST_FACIAL_EXPORT_OUTPUT_AUTHOR_ID: &str =
+    "atelier-ingest-facial-export-output";
+pub const ATELIER_INGEST_FACIAL_EXPORT_ALLOW_PARTIAL_AUTHOR_ID: &str =
+    "atelier-ingest-facial-export-allow-partial";
+pub const ATELIER_INGEST_FACIAL_EXPORT_BUILD_AUTHOR_ID: &str = "atelier-ingest-facial-export-build";
+
 pub fn ingest_item_row_author_id(item_id: &str) -> String {
     format!(
         "atelier-ingest-item-{}",
@@ -483,6 +549,37 @@ impl CkcBookMode {
             "notes" => Some(Self::Notes),
             "moodboard" => Some(Self::Moodboard),
             _ => None,
+        }
+    }
+}
+
+/// MT-020 + MT-030: the INGEST tab sub-mode. Nested UNDER `AtelierPanelTab::Ingest` (NOT a 4th
+/// top-level tab — `AtelierPanelTab::ALL` is asserted as `[Self; 3]`). Supersedes the earlier MT-020
+/// `prompt_feedback_mode: bool` toggle with a three-way selector so MT-030 can add the Facial Review
+/// review-queue/montage/export surface as a peer sub-mode without a new top-level tab.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IngestMode {
+    DatasetIntake,
+    PromptFeedback,
+    FacialReview,
+}
+
+impl IngestMode {
+    const ALL: [Self; 3] = [Self::DatasetIntake, Self::PromptFeedback, Self::FacialReview];
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::DatasetIntake => "Dataset intake",
+            Self::PromptFeedback => "Prompt feedback",
+            Self::FacialReview => "Facial review",
+        }
+    }
+
+    fn author_id(self) -> &'static str {
+        match self {
+            Self::DatasetIntake => ATELIER_PROMPTFEEDBACK_MODE_INGEST_AUTHOR_ID,
+            Self::PromptFeedback => ATELIER_PROMPTFEEDBACK_MODE_FEEDBACK_AUTHOR_ID,
+            Self::FacialReview => ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID,
         }
     }
 }
@@ -2806,6 +2903,39 @@ struct AtelierPanelState {
     ingest_active_facial_analysis_request: Option<u64>,
     ingest_last_facial_analysis: Option<FacialIngestAnalysisSnapshot>,
     ingest_facial_analysis_receipt: String,
+    // MT-030 Facial Review sub-mode state (review-queue / montage / export command family).
+    facial_features_readout: String,
+    facial_command_receipt: String,
+    facial_review_shard_count: String,
+    facial_review_claim_ttl: String,
+    facial_review_session_ref: String,
+    facial_review_claim_shard: String,
+    facial_review_steal_expired: bool,
+    facial_review_claim_ref: String,
+    facial_review_decision_item: String,
+    facial_review_decision_verdict: String,
+    facial_review_decision_reason: String,
+    facial_review_decision_tags: String,
+    facial_review_decision_notes: String,
+    facial_review_status_readout: String,
+    facial_review_montage_page: String,
+    facial_review_montage_columns: String,
+    facial_review_montage_rows: String,
+    facial_review_montage_filter: String,
+    facial_review_export_dataset: String,
+    facial_review_export_repeats: String,
+    facial_review_export_output: String,
+    facial_review_export_allow_partial: bool,
+    // Accumulated review lineage refs the model chains commands with (claim/status/montage/export).
+    facial_review_claim_refs: Vec<String>,
+    facial_review_decision_refs: Vec<String>,
+    // Single in-flight facial-command gate + request sequencing (mirrors the analyze gate).
+    facial_review_pending: bool,
+    facial_review_request_seq: u64,
+    facial_review_active_request: Option<u64>,
+    facial_features_pending: bool,
+    facial_features_request_seq: u64,
+    facial_features_active_request: Option<u64>,
     ingest_status: String,
     ingest_item_decisions: BTreeMap<String, IngestDecision>,
     ingest_persisted_item_ids: BTreeSet<String>,
@@ -2840,7 +2970,7 @@ struct AtelierPanelState {
     // surface for the deterministic prompt-feedback kernel: import panel, case
     // list grouped by segment/cell/render-stack, failure-tag picker, deterministic
     // rewrite preview + trace, and export button.
-    prompt_feedback_mode: bool,
+    ingest_mode: IngestMode,
     prompt_feedback_project: String,
     prompt_feedback_adapter: String,
     prompt_feedback_rows: String,
@@ -3006,6 +3136,38 @@ impl Default for AtelierPanelState {
             ingest_active_facial_analysis_request: None,
             ingest_last_facial_analysis: None,
             ingest_facial_analysis_receipt: "No Facial Ingest analysis yet.".to_owned(),
+            facial_features_readout:
+                "No Facial capability registry loaded. Click Load Facial capabilities to read GET /atelier/facial/features."
+                    .to_owned(),
+            facial_command_receipt: "No Facial review command run yet.".to_owned(),
+            facial_review_shard_count: "4".to_owned(),
+            facial_review_claim_ttl: "900".to_owned(),
+            facial_review_session_ref: String::new(),
+            facial_review_claim_shard: String::new(),
+            facial_review_steal_expired: false,
+            facial_review_claim_ref: String::new(),
+            facial_review_decision_item: String::new(),
+            facial_review_decision_verdict: "pass".to_owned(),
+            facial_review_decision_reason: String::new(),
+            facial_review_decision_tags: String::new(),
+            facial_review_decision_notes: String::new(),
+            facial_review_status_readout: "No Facial review status replay yet.".to_owned(),
+            facial_review_montage_page: "0".to_owned(),
+            facial_review_montage_columns: "5".to_owned(),
+            facial_review_montage_rows: "4".to_owned(),
+            facial_review_montage_filter: String::new(),
+            facial_review_export_dataset: String::new(),
+            facial_review_export_repeats: "10".to_owned(),
+            facial_review_export_output: String::new(),
+            facial_review_export_allow_partial: false,
+            facial_review_claim_refs: Vec::new(),
+            facial_review_decision_refs: Vec::new(),
+            facial_review_pending: false,
+            facial_review_request_seq: 0,
+            facial_review_active_request: None,
+            facial_features_pending: false,
+            facial_features_request_seq: 0,
+            facial_features_active_request: None,
             ingest_status:
                 "Ingest ready: stage dataset metadata, set canonical batch defaults, override visible rows, export contact sheets, and run native Facial analysis."
                     .to_owned(),
@@ -3038,7 +3200,7 @@ impl Default for AtelierPanelState {
             settings_ingest_batch_tags: "event, outfit, source".to_owned(),
             settings_ingest_policy: "unsure".to_owned(),
             settings_rows: Vec::new(),
-            prompt_feedback_mode: false,
+            ingest_mode: IngestMode::DatasetIntake,
             prompt_feedback_project: "leeseo".to_owned(),
             prompt_feedback_adapter: "leeseo.cuipp.v1".to_owned(),
             prompt_feedback_rows: String::new(),
@@ -5406,6 +5568,145 @@ fn facial_analysis_receipt_preview(snapshot: Option<&FacialIngestAnalysisSnapsho
     )
 }
 
+/// MT-030: map a native Facial `identity_source` token to a clear real-vs-unavailable disposition so a
+/// no-context model can tell whether identity is model-backed or degraded WITHOUT decoding the raw
+/// token. Tokens are the verbatim values the MT-026/MT-027 backend emits (facial_native/identity.rs):
+/// `real` (ArcFace ONNX loaded), `handshake_proxy_no_model` (no model configured — the deliberate
+/// no-model DEGRADED label, paired with `identity_verdict=proxy_unverified`),
+/// `handshake_identity_model_unavailable` (model configured but not loaded), and the summary rollup
+/// `mixed_identity_sources`. Quality/dedupe are NOT proxies — they are native-real metadata/content-hash
+/// paths (`facet_native_metadata_only_v1` / `imagededup_native_content_hash_exact_v1`).
+fn facial_identity_disposition(identity_source: &str) -> &'static str {
+    match identity_source {
+        "real" => "real:model_backed",
+        "handshake_proxy_no_model" => "unavailable:no_model_proxy",
+        "handshake_identity_model_unavailable" => "unavailable:model_configured_not_loaded",
+        "mixed_identity_sources" => "mixed:rows_disagree",
+        "" | "unknown" => "unknown:no_analysis",
+        _ => "unknown:unrecognized_source",
+    }
+}
+
+/// MT-030 provenance readout: surfaces the exact `quality_source` / `dedupe_source` / `identity_source`
+/// tokens from the last native Facial analysis plus an honest identity disposition, so a model can see
+/// whether identity is real (model-backed) or unavailable/degraded without opening the artifact.
+fn facial_provenance_preview(snapshot: Option<&FacialIngestAnalysisSnapshot>) -> String {
+    let Some(snapshot) = snapshot else {
+        return "facial_provenance=<none> identity=unknown:no_analysis \
+                run Analyze Facial in Dataset intake to populate quality_source/dedupe_source/identity_source."
+            .to_owned();
+    };
+    let verdict_hint = match snapshot.identity_source.as_str() {
+        "handshake_proxy_no_model" => "proxy_unverified",
+        "handshake_identity_model_unavailable" => "model_unavailable",
+        "real" => "unsure_without_reference",
+        _ => "n/a",
+    };
+    format!(
+        "facial_provenance quality_source={} dedupe_source={} identity_source={} identity={} identity_verdict_hint={} note=quality+dedupe_are_native_real;identity_model_backed_only_when_identity_source=real",
+        snapshot.quality_source,
+        snapshot.dedupe_source,
+        snapshot.identity_source,
+        facial_identity_disposition(&snapshot.identity_source),
+        verdict_hint
+    )
+}
+
+/// MT-030 capability/health readout for `GET /atelier/facial/features`: feature count, the distinct
+/// capability families, and the enumerated command routes a swarm agent can drive.
+fn facial_features_preview(row: &AtelierFacialFeatureListRow) -> String {
+    let capabilities = row
+        .features
+        .as_array()
+        .map(|features| {
+            let mut caps: Vec<String> = features
+                .iter()
+                .filter_map(|feature| feature.get("capability").and_then(|value| value.as_str()))
+                .map(ToOwned::to_owned)
+                .collect();
+            caps.sort();
+            caps.dedup();
+            caps.join(",")
+        })
+        .unwrap_or_default();
+    let commands = row
+        .command_routes
+        .iter()
+        .map(|route| route.command.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "facial_features schema={} registry_schema={} feature_count={} capabilities={} command_route_count={} commands={}",
+        row.schema_id,
+        row.registry_schema_id,
+        row.feature_count,
+        capabilities,
+        row.command_routes.len(),
+        commands
+    )
+}
+
+/// MT-030 last-command receipt / degraded readout shared by every review command. `status` is FREE TEXT
+/// (there is no `CommandStatus` type): a live envelope is `status=succeeded` and MAY still carry
+/// `degraded_reasons` (e.g. `arcface_model_not_configured`); a blocked/degraded/error path arrives as a
+/// backend HTTP error string on the `Err` path and is rendered by [`AtelierPanel::drain_facial_command_backend`].
+fn facial_command_receipt_preview(row: &AtelierFacialCommandResponseRow) -> String {
+    let result_artifact_ref = row
+        .result_artifact
+        .as_ref()
+        .map(|artifact| artifact.artifact_ref.as_str())
+        .unwrap_or("<none>");
+    let receipt_ref = row.receipt_ref.as_deref().unwrap_or("<none>");
+    let degraded = if row.degraded_reasons.is_empty() {
+        "none".to_owned()
+    } else {
+        row.degraded_reasons.join("|")
+    };
+    format!(
+        "facial_command command={} status={} actor={} receipt_ref={} result_artifact_ref={} degraded_reasons={} recovery_hint={} error={}",
+        row.command,
+        row.status,
+        row.actor,
+        receipt_ref,
+        result_artifact_ref,
+        degraded,
+        row.recovery_hint.as_deref().unwrap_or("none"),
+        row.error.as_deref().unwrap_or("none")
+    )
+}
+
+/// MT-030 review-queue status readout, extracted from a `status` command's `FacialReviewStatusArtifact`
+/// result so a reviewer sees the queue counts (decided/undecided/accepted/rejected/hold + claim state).
+fn facial_review_status_preview(result: &serde_json::Value) -> String {
+    let count = |key: &str| json_summary_count(result, key);
+    format!(
+        "facial_review_status session_id={} item_count={} decided={} accepted={} rejected={} hold={} undecided={} active_claims={} expired_claims={}",
+        json_summary_string(result, "session_id").unwrap_or_else(|| "<unknown>".to_owned()),
+        count("item_count"),
+        count("decided_count"),
+        count("accepted_count"),
+        count("rejected_count"),
+        count("hold_count"),
+        count("undecided_count"),
+        count("active_claim_count"),
+        count("expired_claim_count")
+    )
+}
+
+/// MT-030 accumulated review lineage refs readout (session + claim + decision refs) so a model can chain
+/// claim/status/montage/export without losing the artifact refs the backend requires.
+fn facial_review_refs_preview(state: &AtelierPanelState) -> String {
+    let session = state.facial_review_session_ref.trim();
+    let claim = state.facial_review_claim_ref.trim();
+    format!(
+        "facial_review_refs session_ref={} claim_ref={} accumulated_claim_refs={} accumulated_decision_refs={}",
+        if session.is_empty() { "<none>" } else { session },
+        if claim.is_empty() { "<none>" } else { claim },
+        state.facial_review_claim_refs.len(),
+        state.facial_review_decision_refs.len()
+    )
+}
+
 fn ingest_receipt_applied_item_ids(
     rows: &[crate::backend_client::AtelierIntakeClassificationRow],
     applied_count: usize,
@@ -5487,6 +5788,9 @@ pub struct AtelierPanel {
     pose_source_image: Mutex<PoseSourceImageCache>,
     ingest_contact_export_cell: AtelierContactSheetExportCell,
     ingest_facial_analysis_cell: AtelierFacialIngestAnalysisCell,
+    // MT-030 Facial Review sub-mode delivery cells (drained each frame, HBR-QUIET).
+    ingest_facial_features_cell: AtelierFacialFeatureListCell,
+    ingest_facial_command_cell: AtelierFacialCommandCell,
     ingest_classification_cell: AtelierIntakeClassificationCell,
     /// WP-CKC MT-042 delivery cells: load/reload effective defaults, save-batch
     /// outcome (with the failing key on error), and single reset-to-default result.
@@ -5560,6 +5864,8 @@ impl AtelierPanel {
             pose_source_image: Mutex::new(PoseSourceImageCache::default()),
             ingest_contact_export_cell: Arc::new(Mutex::new(None)),
             ingest_facial_analysis_cell: Arc::new(Mutex::new(None)),
+            ingest_facial_features_cell: Arc::new(Mutex::new(None)),
+            ingest_facial_command_cell: Arc::new(Mutex::new(None)),
             ingest_classification_cell: Arc::new(Mutex::new(None)),
             settings_cell: Arc::new(Mutex::new(None)),
             settings_save_cell: Arc::new(Mutex::new(None)),
@@ -7249,6 +7555,111 @@ impl AtelierPanel {
                         state.ingest_facial_analysis_receipt =
                             format!("facial_analysis_error={err}");
                         state.ingest_status = format!("Facial Ingest analysis failed: {err}");
+                    }
+                }
+            }
+        }
+    }
+
+    /// MT-030: drain the `GET /atelier/facial/features` capability registry result into the readout.
+    fn drain_facial_features_backend(&self) {
+        let features_result = self
+            .ingest_facial_features_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some((request_id, result)) = features_result {
+            if let Ok(mut state) = self.state.lock() {
+                if state.facial_features_active_request != Some(request_id) {
+                    return;
+                }
+                state.facial_features_pending = false;
+                state.facial_features_active_request = None;
+                match result {
+                    Ok(row) => {
+                        state.ingest_status = format!(
+                            "Loaded Facial capability registry: feature_count={} command_routes={}",
+                            row.feature_count,
+                            row.command_routes.len()
+                        );
+                        state.facial_features_readout = facial_features_preview(&row);
+                    }
+                    Err(err) => {
+                        state.facial_features_readout = format!("facial_features_error={err}");
+                        state.ingest_status =
+                            format!("Facial capability registry load failed: {err}");
+                    }
+                }
+            }
+        }
+    }
+
+    /// MT-030: drain ANY review command response (session/claim/decision/status/montage/export). On a
+    /// live `succeeded` envelope it captures the produced artifact ref into the matching lineage field
+    /// (so the model can chain the next command) and renders the shared receipt/degraded readout; on the
+    /// `Err` path it surfaces the backend HTTP error text honestly — never a fabricated success.
+    fn drain_facial_command_backend(&self) {
+        let command_result = self
+            .ingest_facial_command_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some((request_id, result)) = command_result {
+            if let Ok(mut state) = self.state.lock() {
+                if state.facial_review_active_request != Some(request_id) {
+                    state.facial_command_receipt = format!(
+                        "ignored_stale_facial_command=true request_seq={request_id} expected_request_seq={:?}",
+                        state.facial_review_active_request
+                    );
+                    return;
+                }
+                state.facial_review_pending = false;
+                state.facial_review_active_request = None;
+                match result {
+                    Ok(row) => {
+                        state.facial_command_receipt = facial_command_receipt_preview(&row);
+                        let result_artifact_ref = row
+                            .result_artifact
+                            .as_ref()
+                            .map(|artifact| artifact.artifact_ref.clone());
+                        let command = row.command.as_str();
+                        if command.contains(".session") {
+                            if let Some(reference) = result_artifact_ref {
+                                state.facial_review_session_ref = reference;
+                            }
+                        } else if command.contains(".claim") {
+                            if let Some(reference) = result_artifact_ref {
+                                state.facial_review_claim_ref = reference.clone();
+                                if !state.facial_review_claim_refs.contains(&reference) {
+                                    state.facial_review_claim_refs.push(reference);
+                                }
+                            }
+                        } else if command.contains(".decision") {
+                            if let Some(reference) = result_artifact_ref {
+                                if !state.facial_review_decision_refs.contains(&reference) {
+                                    state.facial_review_decision_refs.push(reference);
+                                }
+                            }
+                        } else if command.contains(".status") {
+                            state.facial_review_status_readout =
+                                facial_review_status_preview(&row.result);
+                        }
+                        let degraded = if row.degraded_reasons.is_empty() {
+                            "none".to_owned()
+                        } else {
+                            row.degraded_reasons.join("|")
+                        };
+                        state.ingest_status = format!(
+                            "Facial review command succeeded: command={} status={} receipt_ref={} degraded_reasons={}",
+                            row.command,
+                            row.status,
+                            row.receipt_ref.as_deref().unwrap_or("<none>"),
+                            degraded
+                        );
+                    }
+                    Err(err) => {
+                        state.facial_command_receipt = format!("facial_command_error={err}");
+                        state.ingest_status = format!("Facial review command failed: {err}");
                     }
                 }
             }
@@ -11818,46 +12229,44 @@ impl AtelierPanel {
     fn show_ingest(&self, ui: &mut egui::Ui, palette: &HsPalette) {
         self.drain_contact_sheet_export_backend();
         self.drain_facial_analysis_backend();
+        self.drain_facial_features_backend();
+        self.drain_facial_command_backend();
         self.drain_ingest_classification_backend();
-        // MT-020: INGEST sub-mode selector (Dataset intake vs Prompt feedback).
-        let prompt_feedback_mode = {
+        // MT-020 + MT-030: INGEST sub-mode selector (Dataset intake / Prompt feedback / Facial review).
+        let ingest_mode = {
             let Ok(mut state) = self.state.lock() else {
                 return;
             };
             ui.horizontal(|ui| {
-                for (mode, label, author_id) in [
-                    (
-                        false,
-                        "Dataset intake",
-                        ATELIER_PROMPTFEEDBACK_MODE_INGEST_AUTHOR_ID,
-                    ),
-                    (
-                        true,
-                        "Prompt feedback",
-                        ATELIER_PROMPTFEEDBACK_MODE_FEEDBACK_AUTHOR_ID,
-                    ),
-                ] {
-                    let selected = state.prompt_feedback_mode == mode;
-                    let button = ui.add(egui::Button::selectable(selected, label));
+                for mode in IngestMode::ALL {
+                    let selected = state.ingest_mode == mode;
+                    let button = ui.add(egui::Button::selectable(selected, mode.label()));
                     emit_node(
                         ui.ctx(),
                         button.id,
                         accesskit::Role::Button,
-                        author_id,
-                        label,
+                        mode.author_id(),
+                        mode.label(),
                         selected,
                     );
                     if button.clicked() {
-                        state.prompt_feedback_mode = mode;
+                        state.ingest_mode = mode;
                     }
                 }
             });
-            state.prompt_feedback_mode
+            state.ingest_mode
         };
         ui.separator();
-        if prompt_feedback_mode {
-            self.show_prompt_feedback(ui, palette);
-            return;
+        match ingest_mode {
+            IngestMode::PromptFeedback => {
+                self.show_prompt_feedback(ui, palette);
+                return;
+            }
+            IngestMode::FacialReview => {
+                self.show_facial_review(ui, palette);
+                return;
+            }
+            IngestMode::DatasetIntake => {}
         }
         ui.label(egui::RichText::new("Intake batch source").color(palette.text));
         if let Ok(mut side_panel) = self.side_panel.lock() {
@@ -12560,6 +12969,608 @@ impl AtelierPanel {
                     );
                     ui.end_row();
                 }
+            });
+    }
+
+    /// MT-030 Facial Review sub-mode (nested under INGEST). Surfaces the native Facial review-queue
+    /// command family (backend MT-028/MT-029: session / claim / decision / status / montage / export)
+    /// that had backend + backend-manual coverage but NO frontend surface, plus the capability registry
+    /// (`GET /atelier/facial/features`) and an identity real-vs-unavailable provenance readout. Every
+    /// control a model must SET is a `Role::TextInput` (argus.set_value is TextInput-only per
+    /// mcp/action.rs); actions are buttons/checkboxes (argus.click). All backend calls route through the
+    /// actor-attributed `facial_review_*_actor_request` builders and the off-thread
+    /// `dispatch_facial_review_command` loop — visible pending/degraded status, never a silent no-op.
+    fn show_facial_review(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        // The canonical expanded intake batch id (session-create needs it). Read without holding the
+        // side_panel lock across the state lock.
+        let expanded_batch_id = self
+            .side_panel
+            .lock()
+            .ok()
+            .and_then(|panel| panel.expanded().map(|(batch_id, _items)| batch_id.to_owned()));
+        let Ok(mut state) = self.state.lock() else {
+            return;
+        };
+        let actor_id = self
+            .ckc_client
+            .as_ref()
+            .map(|client| client.actor_id().to_owned())
+            .unwrap_or_else(|| "atelier-ingest".to_owned());
+        let client = self.ckc_client.as_ref();
+        let command_cell = self.ingest_facial_command_cell.clone();
+        let features_cell = self.ingest_facial_features_cell.clone();
+
+        egui::ScrollArea::vertical()
+            .id_salt("atelier-ingest-facial-review-scroll")
+            .show(ui, |ui| {
+                let text_input =
+                    |ui: &mut egui::Ui, label: &str, author_id: &str, value: &mut String| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new(label).color(palette.text));
+                            let resp = ui.text_edit_singleline(value);
+                            emit_value_node(
+                                ui.ctx(),
+                                resp.id,
+                                accesskit::Role::TextInput,
+                                author_id,
+                                label,
+                                value,
+                            );
+                        });
+                    };
+                let readout = |ui: &mut egui::Ui, author_id: &str, label: &str, value: &str| {
+                    let resp = ui.add(
+                        egui::Label::new(egui::RichText::new(value).color(palette.text_subtle))
+                            .wrap(),
+                    );
+                    emit_value_node(
+                        ui.ctx(),
+                        resp.id,
+                        accesskit::Role::Label,
+                        author_id,
+                        label,
+                        value,
+                    );
+                };
+
+                let pending = state.facial_review_pending;
+                // What to dispatch this frame (built inside a valid, backed handler); one dispatch site.
+                let mut pending_command: Option<(crate::backend_client::ActorRequestSpec, String)> =
+                    None;
+                let mut pending_features = false;
+
+                ui.label(
+                    egui::RichText::new(
+                        "Facial review queue — session / claim / decision / status / montage / export",
+                    )
+                    .strong()
+                    .color(palette.text),
+                );
+                ui.label(
+                    egui::RichText::new(
+                        "Non-destructive review of the canonical intake batch. Run Analyze Facial in Dataset intake first to seed provenance; then start a session and chain claim -> decision -> status/montage/export.",
+                    )
+                    .color(palette.text_subtle),
+                );
+                ui.separator();
+
+                // ── Capability registry + identity/quality/dedupe provenance (real vs unavailable) ──
+                ui.horizontal(|ui| {
+                    let load = ui.add_enabled(
+                        !state.facial_features_pending,
+                        egui::Button::new("Load Facial capabilities"),
+                    );
+                    emit_node(
+                        ui.ctx(),
+                        load.id,
+                        accesskit::Role::Button,
+                        ATELIER_INGEST_FACIAL_FEATURES_LOAD_AUTHOR_ID,
+                        "Load the native Facial capability/command registry (GET /atelier/facial/features)",
+                        state.facial_features_pending,
+                    );
+                    if load.clicked() {
+                        if client.is_some() {
+                            pending_features = true;
+                        } else {
+                            state.facial_features_readout =
+                                "facial_features_blocked=backend_required".to_owned();
+                            state.ingest_status =
+                                "Facial capability registry needs a backend client.".to_owned();
+                        }
+                    }
+                });
+                let features_readout = state.facial_features_readout.clone();
+                readout(
+                    ui,
+                    ATELIER_INGEST_FACIAL_FEATURES_READOUT_AUTHOR_ID,
+                    "Facial capability registry readout",
+                    &features_readout,
+                );
+                let provenance =
+                    facial_provenance_preview(state.ingest_last_facial_analysis.as_ref());
+                readout(
+                    ui,
+                    ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID,
+                    "Facial identity/quality/dedupe provenance (real vs unavailable)",
+                    &provenance,
+                );
+                ui.separator();
+
+                // ── Session create ────────────────────────────────────────────────────────────────
+                ui.label(egui::RichText::new("Review session").strong().color(palette.text));
+                text_input(
+                    ui,
+                    "Profile",
+                    ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+                    &mut state.ingest_facial_profile,
+                );
+                text_input(
+                    ui,
+                    "Shard count",
+                    ATELIER_INGEST_FACIAL_SHARD_COUNT_AUTHOR_ID,
+                    &mut state.facial_review_shard_count,
+                );
+                text_input(
+                    ui,
+                    "Claim TTL seconds",
+                    ATELIER_INGEST_FACIAL_TTL_AUTHOR_ID,
+                    &mut state.facial_review_claim_ttl,
+                );
+                let session = ui.add_enabled(!pending, egui::Button::new("Start review session"));
+                emit_node(
+                    ui.ctx(),
+                    session.id,
+                    accesskit::Role::Button,
+                    ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID,
+                    "Create a Facial review session over the canonical intake batch",
+                    pending,
+                );
+                if session.clicked() {
+                    match (client, expanded_batch_id.as_deref()) {
+                        (Some(client), Some(batch_id)) => {
+                            let profile = state.ingest_facial_profile.trim().to_owned();
+                            let profile_opt =
+                                if profile.is_empty() { None } else { Some(profile.as_str()) };
+                            let shard_count =
+                                state.facial_review_shard_count.trim().parse::<usize>().ok();
+                            let ttl = state.facial_review_claim_ttl.trim().parse::<u64>().ok();
+                            let spec = client.facial_review_session_actor_request(
+                                batch_id,
+                                profile_opt,
+                                shard_count,
+                                ttl,
+                                &actor_id,
+                            );
+                            pending_command =
+                                Some((spec, "atelier.facial.review.session.create".to_owned()));
+                        }
+                        (None, _) => {
+                            state.facial_command_receipt =
+                                "facial_command_blocked=backend_required".to_owned();
+                            state.ingest_status =
+                                "Facial review session needs a backend client; no local fake session emitted."
+                                    .to_owned();
+                        }
+                        (_, None) => {
+                            state.facial_command_receipt =
+                                "facial_command_blocked=missing_expanded_batch".to_owned();
+                            state.ingest_status =
+                                "Facial review session needs an expanded backend intake batch."
+                                    .to_owned();
+                        }
+                    }
+                }
+                text_input(
+                    ui,
+                    "Session artifact ref",
+                    ATELIER_INGEST_FACIAL_SESSION_REF_AUTHOR_ID,
+                    &mut state.facial_review_session_ref,
+                );
+                ui.separator();
+
+                // ── Claim a shard ─────────────────────────────────────────────────────────────────
+                ui.label(egui::RichText::new("Claim shard").strong().color(palette.text));
+                text_input(
+                    ui,
+                    "Claim shard index",
+                    ATELIER_INGEST_FACIAL_CLAIM_SHARD_AUTHOR_ID,
+                    &mut state.facial_review_claim_shard,
+                );
+                let steal = ui.checkbox(
+                    &mut state.facial_review_steal_expired,
+                    "Steal expired claims",
+                );
+                emit_node(
+                    ui.ctx(),
+                    steal.id,
+                    accesskit::Role::CheckBox,
+                    ATELIER_INGEST_FACIAL_CLAIM_STEAL_AUTHOR_ID,
+                    "Steal expired review claims when claiming a shard",
+                    state.facial_review_steal_expired,
+                );
+                let claim = ui.add_enabled(!pending, egui::Button::new("Claim shard"));
+                emit_node(
+                    ui.ctx(),
+                    claim.id,
+                    accesskit::Role::Button,
+                    ATELIER_INGEST_FACIAL_CLAIM_START_AUTHOR_ID,
+                    "Claim a Facial review shard from the active session",
+                    pending,
+                );
+                if claim.clicked() {
+                    if let Some(client) = client {
+                        let session_ref = state.facial_review_session_ref.trim().to_owned();
+                        if session_ref.is_empty() {
+                            state.facial_command_receipt =
+                                "facial_command_blocked=missing_session_ref".to_owned();
+                        } else {
+                            let shard =
+                                state.facial_review_claim_shard.trim().parse::<usize>().ok();
+                            let steal = state.facial_review_steal_expired;
+                            let claim_refs = state.facial_review_claim_refs.clone();
+                            let decision_refs = state.facial_review_decision_refs.clone();
+                            let spec = client.facial_review_claim_actor_request(
+                                &session_ref,
+                                &claim_refs,
+                                &decision_refs,
+                                shard,
+                                steal,
+                                &actor_id,
+                            );
+                            pending_command =
+                                Some((spec, "atelier.facial.review.claim".to_owned()));
+                        }
+                    } else {
+                        state.facial_command_receipt =
+                            "facial_command_blocked=backend_required".to_owned();
+                    }
+                }
+                text_input(
+                    ui,
+                    "Claim artifact ref",
+                    ATELIER_INGEST_FACIAL_CLAIM_REF_AUTHOR_ID,
+                    &mut state.facial_review_claim_ref,
+                );
+                ui.separator();
+
+                // ── Record a decision ─────────────────────────────────────────────────────────────
+                ui.label(egui::RichText::new("Record decision").strong().color(palette.text));
+                text_input(
+                    ui,
+                    "Decision item id",
+                    ATELIER_INGEST_FACIAL_DECISION_ITEM_AUTHOR_ID,
+                    &mut state.facial_review_decision_item,
+                );
+                text_input(
+                    ui,
+                    "Decision verdict (accept/reject/hold synonyms)",
+                    ATELIER_INGEST_FACIAL_DECISION_VERDICT_AUTHOR_ID,
+                    &mut state.facial_review_decision_verdict,
+                );
+                text_input(
+                    ui,
+                    "Decision reason",
+                    ATELIER_INGEST_FACIAL_DECISION_REASON_AUTHOR_ID,
+                    &mut state.facial_review_decision_reason,
+                );
+                text_input(
+                    ui,
+                    "Decision tags (comma-separated)",
+                    ATELIER_INGEST_FACIAL_DECISION_TAGS_AUTHOR_ID,
+                    &mut state.facial_review_decision_tags,
+                );
+                text_input(
+                    ui,
+                    "Decision notes",
+                    ATELIER_INGEST_FACIAL_DECISION_NOTES_AUTHOR_ID,
+                    &mut state.facial_review_decision_notes,
+                );
+                let record = ui.add_enabled(!pending, egui::Button::new("Record decision"));
+                emit_node(
+                    ui.ctx(),
+                    record.id,
+                    accesskit::Role::Button,
+                    ATELIER_INGEST_FACIAL_DECISION_RECORD_AUTHOR_ID,
+                    "Record one Facial review decision into the append-only decision ledger",
+                    pending,
+                );
+                if record.clicked() {
+                    if let Some(client) = client {
+                        let session_ref = state.facial_review_session_ref.trim().to_owned();
+                        let claim_ref = state.facial_review_claim_ref.trim().to_owned();
+                        let item_id = state.facial_review_decision_item.trim().to_owned();
+                        if session_ref.is_empty() || claim_ref.is_empty() || item_id.is_empty() {
+                            state.facial_command_receipt =
+                                "facial_command_blocked=missing_session_or_claim_or_item".to_owned();
+                        } else {
+                            let verdict =
+                                state.facial_review_decision_verdict.trim().to_owned();
+                            let reason = state.facial_review_decision_reason.trim().to_owned();
+                            let tags: Vec<String> = state
+                                .facial_review_decision_tags
+                                .split(',')
+                                .map(|tag| tag.trim().to_owned())
+                                .filter(|tag| !tag.is_empty())
+                                .collect();
+                            let notes_raw =
+                                state.facial_review_decision_notes.trim().to_owned();
+                            let notes =
+                                if notes_raw.is_empty() { None } else { Some(notes_raw.as_str()) };
+                            let spec = client.facial_review_decision_actor_request(
+                                &session_ref,
+                                &claim_ref,
+                                &item_id,
+                                &verdict,
+                                &reason,
+                                &tags,
+                                notes,
+                                &actor_id,
+                            );
+                            pending_command =
+                                Some((spec, "atelier.facial.review.decision".to_owned()));
+                        }
+                    } else {
+                        state.facial_command_receipt =
+                            "facial_command_blocked=backend_required".to_owned();
+                    }
+                }
+                ui.separator();
+
+                // ── Status / montage / export ─────────────────────────────────────────────────────
+                ui.label(
+                    egui::RichText::new("Status / montage / export").strong().color(palette.text),
+                );
+                let replay = ui.add_enabled(!pending, egui::Button::new("Replay review status"));
+                emit_node(
+                    ui.ctx(),
+                    replay.id,
+                    accesskit::Role::Button,
+                    ATELIER_INGEST_FACIAL_STATUS_REPLAY_AUTHOR_ID,
+                    "Replay Facial review queue status from persisted session/claim/decision refs",
+                    pending,
+                );
+                if replay.clicked() {
+                    if let Some(client) = client {
+                        let session_ref = state.facial_review_session_ref.trim().to_owned();
+                        if session_ref.is_empty() {
+                            state.facial_command_receipt =
+                                "facial_command_blocked=missing_session_ref".to_owned();
+                        } else {
+                            let claim_refs = state.facial_review_claim_refs.clone();
+                            let decision_refs = state.facial_review_decision_refs.clone();
+                            let spec = client.facial_review_status_actor_request(
+                                &session_ref,
+                                &claim_refs,
+                                &decision_refs,
+                                &actor_id,
+                            );
+                            pending_command =
+                                Some((spec, "atelier.facial.review.status".to_owned()));
+                        }
+                    } else {
+                        state.facial_command_receipt =
+                            "facial_command_blocked=backend_required".to_owned();
+                    }
+                }
+                let status_readout = state.facial_review_status_readout.clone();
+                readout(
+                    ui,
+                    ATELIER_INGEST_FACIAL_REVIEW_STATUS_READOUT_AUTHOR_ID,
+                    "Facial review queue status readout",
+                    &status_readout,
+                );
+
+                text_input(
+                    ui,
+                    "Montage page",
+                    ATELIER_INGEST_FACIAL_MONTAGE_PAGE_AUTHOR_ID,
+                    &mut state.facial_review_montage_page,
+                );
+                text_input(
+                    ui,
+                    "Montage columns",
+                    ATELIER_INGEST_FACIAL_MONTAGE_COLUMNS_AUTHOR_ID,
+                    &mut state.facial_review_montage_columns,
+                );
+                text_input(
+                    ui,
+                    "Montage rows",
+                    ATELIER_INGEST_FACIAL_MONTAGE_ROWS_AUTHOR_ID,
+                    &mut state.facial_review_montage_rows,
+                );
+                text_input(
+                    ui,
+                    "Montage decision filter",
+                    ATELIER_INGEST_FACIAL_MONTAGE_FILTER_AUTHOR_ID,
+                    &mut state.facial_review_montage_filter,
+                );
+                let montage = ui.add_enabled(!pending, egui::Button::new("Build montage"));
+                emit_node(
+                    ui.ctx(),
+                    montage.id,
+                    accesskit::Role::Button,
+                    ATELIER_INGEST_FACIAL_MONTAGE_BUILD_AUTHOR_ID,
+                    "Build an Argus-addressable Facial review montage tile map",
+                    pending,
+                );
+                if montage.clicked() {
+                    if let Some(client) = client {
+                        let session_ref = state.facial_review_session_ref.trim().to_owned();
+                        if session_ref.is_empty() {
+                            state.facial_command_receipt =
+                                "facial_command_blocked=missing_session_ref".to_owned();
+                        } else {
+                            let decision_refs = state.facial_review_decision_refs.clone();
+                            let page = state
+                                .facial_review_montage_page
+                                .trim()
+                                .parse::<usize>()
+                                .unwrap_or(0);
+                            let columns = state
+                                .facial_review_montage_columns
+                                .trim()
+                                .parse::<usize>()
+                                .unwrap_or(5);
+                            let rows = state
+                                .facial_review_montage_rows
+                                .trim()
+                                .parse::<usize>()
+                                .unwrap_or(4);
+                            let filter_raw =
+                                state.facial_review_montage_filter.trim().to_owned();
+                            let filter = if filter_raw.is_empty() {
+                                None
+                            } else {
+                                Some(filter_raw.as_str())
+                            };
+                            let spec = client.facial_review_montage_actor_request(
+                                &session_ref,
+                                &decision_refs,
+                                page,
+                                columns,
+                                rows,
+                                filter,
+                                &actor_id,
+                            );
+                            pending_command =
+                                Some((spec, "atelier.facial.review.montage".to_owned()));
+                        }
+                    } else {
+                        state.facial_command_receipt =
+                            "facial_command_blocked=backend_required".to_owned();
+                    }
+                }
+
+                text_input(
+                    ui,
+                    "Export dataset name",
+                    ATELIER_INGEST_FACIAL_EXPORT_DATASET_AUTHOR_ID,
+                    &mut state.facial_review_export_dataset,
+                );
+                text_input(
+                    ui,
+                    "Export repeats",
+                    ATELIER_INGEST_FACIAL_EXPORT_REPEATS_AUTHOR_ID,
+                    &mut state.facial_review_export_repeats,
+                );
+                text_input(
+                    ui,
+                    "Export output root ref",
+                    ATELIER_INGEST_FACIAL_EXPORT_OUTPUT_AUTHOR_ID,
+                    &mut state.facial_review_export_output,
+                );
+                let allow_partial = ui.checkbox(
+                    &mut state.facial_review_export_allow_partial,
+                    "Allow partial export (skip undecided)",
+                );
+                emit_node(
+                    ui.ctx(),
+                    allow_partial.id,
+                    accesskit::Role::CheckBox,
+                    ATELIER_INGEST_FACIAL_EXPORT_ALLOW_PARTIAL_AUTHOR_ID,
+                    "Allow a partial Facial review export when undecided items remain",
+                    state.facial_review_export_allow_partial,
+                );
+                let export = ui.add_enabled(!pending, egui::Button::new("Export dataset manifest"));
+                emit_node(
+                    ui.ctx(),
+                    export.id,
+                    accesskit::Role::Button,
+                    ATELIER_INGEST_FACIAL_EXPORT_BUILD_AUTHOR_ID,
+                    "Build a non-destructive Facial review export lineage manifest (no source mutation)",
+                    pending,
+                );
+                if export.clicked() {
+                    if let Some(client) = client {
+                        let session_ref = state.facial_review_session_ref.trim().to_owned();
+                        let dataset = state.facial_review_export_dataset.trim().to_owned();
+                        let output = state.facial_review_export_output.trim().to_owned();
+                        if session_ref.is_empty() || dataset.is_empty() || output.is_empty() {
+                            state.facial_command_receipt =
+                                "facial_command_blocked=missing_session_or_dataset_or_output"
+                                    .to_owned();
+                        } else {
+                            let decision_refs = state.facial_review_decision_refs.clone();
+                            let repeats = state
+                                .facial_review_export_repeats
+                                .trim()
+                                .parse::<u32>()
+                                .unwrap_or(10);
+                            let allow_partial = state.facial_review_export_allow_partial;
+                            let spec = client.facial_review_export_actor_request(
+                                &session_ref,
+                                &decision_refs,
+                                &dataset,
+                                repeats,
+                                allow_partial,
+                                &output,
+                                &actor_id,
+                            );
+                            pending_command =
+                                Some((spec, "atelier.facial.review.export".to_owned()));
+                        }
+                    } else {
+                        state.facial_command_receipt =
+                            "facial_command_blocked=backend_required".to_owned();
+                    }
+                }
+                ui.separator();
+
+                // ── Single dispatch site (BEFORE the readouts so a click's pending status is visible
+                //    in the same frame; no per-button repetition). ────────────────────────────────
+                if pending_features && !state.facial_features_pending {
+                    if let Some(client) = client {
+                        state.facial_features_request_seq =
+                            state.facial_features_request_seq.saturating_add(1);
+                        let seq = state.facial_features_request_seq;
+                        state.facial_features_pending = true;
+                        state.facial_features_active_request = Some(seq);
+                        state.ingest_status =
+                            "Loading Facial capability registry from GET /atelier/facial/features"
+                                .to_owned();
+                        client.load_facial_features(seq, features_cell.clone());
+                    }
+                }
+                if let Some((spec, command_name)) = pending_command {
+                    if !state.facial_review_pending {
+                        if let Some(client) = client {
+                            state.facial_review_request_seq =
+                                state.facial_review_request_seq.saturating_add(1);
+                            let seq = state.facial_review_request_seq;
+                            state.facial_review_pending = true;
+                            state.facial_review_active_request = Some(seq);
+                            state.facial_command_receipt =
+                                format!("facial_command_pending={command_name}");
+                            state.ingest_status = format!(
+                                "Dispatching Facial review command {command_name} to backend actor {actor_id}"
+                            );
+                            client.dispatch_facial_review_command(spec, seq, command_cell.clone());
+                        }
+                    }
+                }
+
+                // ── Lineage refs + last command receipt / degraded readout ───────────────────────
+                let refs = facial_review_refs_preview(&state);
+                readout(
+                    ui,
+                    ATELIER_INGEST_FACIAL_REVIEW_REFS_AUTHOR_ID,
+                    "Accumulated Facial review lineage refs",
+                    &refs,
+                );
+                let command_receipt = state.facial_command_receipt.clone();
+                readout(
+                    ui,
+                    ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID,
+                    "Last Facial review command receipt / degraded readout",
+                    &command_receipt,
+                );
+                let ingest_status = state.ingest_status.clone();
+                readout(
+                    ui,
+                    ATELIER_INGEST_STATUS_AUTHOR_ID,
+                    "Ingest status",
+                    &ingest_status,
+                );
             });
     }
 }

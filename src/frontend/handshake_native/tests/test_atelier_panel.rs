@@ -4660,6 +4660,314 @@ fn ingest_facial_backend_analysis_reaches_argus_artifact_refs() {
     assert!(receipt.contains("receipt_mime=application/json"));
 }
 
+/// MT-030: the shared `hsk.atelier.facial_api.command_response@1` envelope returned by the review
+/// session-create route. Includes `degraded_reasons` to prove the frontend surfaces degraded wording on
+/// a live `succeeded` envelope (the no-model ArcFace posture is honest FREE TEXT, not a fabricated
+/// success). `command` is the session-create verb so the drain routes result_artifact_ref -> session_ref.
+fn facial_review_session_command_response() -> serde_json::Value {
+    serde_json::json!({
+        "schema_id": "hsk.atelier.facial_api.command_response@1",
+        "command": "atelier.facial.review.session.create",
+        "status": "succeeded",
+        "actor": "facial-agent-030",
+        "result": {
+            "session": {
+                "schema_id": "hsk.atelier.facial_review.session@1",
+                "session_id": "facial-review-session-abc123",
+                "item_count": 3
+            }
+        },
+        "result_artifact": {
+            "artifact_ref": "artifact://.handshake/artifacts/facial-review-session/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/facial-review-session/manifest",
+            "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "byte_len": 256,
+            "mime": "application/json",
+            "file_name": "atelier-facial-review-session.json"
+        },
+        "receipt_ref": "artifact://.handshake/artifacts/facial-review-session-receipt/payload",
+        "receipt_artifact": {
+            "artifact_ref": "artifact://.handshake/artifacts/facial-review-session-receipt/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/facial-review-session-receipt/manifest",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "byte_len": 512,
+            "mime": "application/json",
+            "file_name": "atelier-facial-review-command-receipt.json"
+        },
+        "degraded_reasons": ["arcface_model_not_configured"]
+    })
+}
+
+/// MT-030 client-level proof: the six Facial review command builders (session/claim/decision/status/
+/// montage/export) plus the capability registry read target the EXACT verified backend routes and every
+/// POST command carries the `x-hsk-actor-id` actor attribution header.
+#[test]
+fn facial_review_request_builders_target_verified_routes_and_are_actor_attributed() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("request-spec runtime");
+    let base = "http://127.0.0.1:17777";
+    let client =
+        AtelierClient::new_with_actor_id(base, runtime.handle().clone(), "facial-agent-030");
+
+    // GET capability registry (self-describing; no actor header required).
+    let features = client.facial_features_request();
+    assert_eq!(features.method, HttpMethod::Get);
+    assert_eq!(features.url, "http://127.0.0.1:17777/atelier/facial/features");
+
+    // Session create over a canonical intake batch.
+    let session = client.facial_review_session_actor_request(
+        "018f7848-1111-7000-9000-00000000b030",
+        Some("quality+dedupe+identity+review"),
+        Some(4),
+        Some(900),
+        client.actor_id(),
+    );
+    assert_eq!(session.method, HttpMethod::Post);
+    assert_eq!(
+        session.url,
+        "http://127.0.0.1:17777/atelier/intake/batches/018f7848-1111-7000-9000-00000000b030/facial/review/session"
+    );
+
+    let claim_refs = vec!["artifact://claim-a".to_owned()];
+    let decision_refs = vec!["artifact://decision-a".to_owned()];
+
+    let claim = client.facial_review_claim_actor_request(
+        "artifact://session",
+        &claim_refs,
+        &decision_refs,
+        Some(0),
+        true,
+        client.actor_id(),
+    );
+    assert_eq!(claim.url, "http://127.0.0.1:17777/atelier/facial/review/claims");
+
+    let decision = client.facial_review_decision_actor_request(
+        "artifact://session",
+        "artifact://claim",
+        "item-a",
+        "pass",
+        "clean face",
+        &["keeper".to_owned()],
+        Some("note"),
+        client.actor_id(),
+    );
+    assert_eq!(
+        decision.url,
+        "http://127.0.0.1:17777/atelier/facial/review/decisions"
+    );
+
+    let status = client.facial_review_status_actor_request(
+        "artifact://session",
+        &claim_refs,
+        &decision_refs,
+        client.actor_id(),
+    );
+    assert_eq!(
+        status.url,
+        "http://127.0.0.1:17777/atelier/facial/review/status"
+    );
+
+    let montage = client.facial_review_montage_actor_request(
+        "artifact://session",
+        &decision_refs,
+        0,
+        5,
+        4,
+        Some("undecided"),
+        client.actor_id(),
+    );
+    assert_eq!(
+        montage.url,
+        "http://127.0.0.1:17777/atelier/facial/review/montage"
+    );
+
+    let export = client.facial_review_export_actor_request(
+        "artifact://session",
+        &decision_refs,
+        "leeseo-curated",
+        10,
+        true,
+        "artifact://atelier/facial/exports",
+        client.actor_id(),
+    );
+    assert_eq!(
+        export.url,
+        "http://127.0.0.1:17777/atelier/facial/review/export"
+    );
+
+    // Every POST review command is actor-attributed with the same header.
+    for spec in [&session, &claim, &decision, &status, &montage, &export] {
+        assert_eq!(
+            spec.headers,
+            vec![(
+                HSK_HEADER_ACTOR_ID.to_owned(),
+                "facial-agent-030".to_owned()
+            )],
+            "review command must carry x-hsk-actor-id actor attribution"
+        );
+    }
+}
+
+/// MT-030 full-backbone proof: the Facial review sub-mode is reachable, Argus-inspectable, and
+/// Argus-steerable end-to-end. Clicks the Ingest tab, switches to the Facial review sub-mode, asserts the
+/// review-queue controls render + reach Argus, sets a control via argus.set_value, clicks a review-queue
+/// action (session create), proves the actor-attributed POST reaches the VERIFIED backend route, and
+/// proves the succeeded-with-degraded command receipt + captured session ref become Argus-visible.
+#[test]
+fn facial_ingest_full_backbone_is_argus_steerable() {
+    use handshake_native::atelier_panel::{
+        ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_DECISION_RECORD_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_EXPORT_BUILD_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_FEATURES_LOAD_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_MONTAGE_BUILD_AUTHOR_ID, ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_REVIEW_REFS_AUTHOR_ID, ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_SHARD_COUNT_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_STATUS_REPLAY_AUTHOR_ID, ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID,
+    };
+
+    let (base_url, server) = spawn_posekit_export_server(facial_review_session_command_response());
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("Facial review backbone proof runtime");
+    let client =
+        AtelierClient::new_with_actor_id(base_url, runtime.handle().clone(), "facial-agent-030");
+    let mut harness = build_panel_harness_with_client(egui::vec2(900.0, 1800.0), client);
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    // Enter the INGEST tab, then the Facial review sub-mode (a nested sub-mode, NOT a 4th tab).
+    argus_click_on_harness(&mut harness, &mut channel, ATELIER_TAB_INGEST_AUTHOR_ID);
+    argus_click_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID,
+    );
+    harness.run();
+
+    // The review-queue controls render and reach Argus.
+    let snapshot = snapshot_harness(&mut harness);
+    for expected in [
+        ATELIER_INGEST_FACIAL_FEATURES_LOAD_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_SHARD_COUNT_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_DECISION_RECORD_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_STATUS_REPLAY_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_MONTAGE_BUILD_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_EXPORT_BUILD_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_REVIEW_REFS_AUTHOR_ID,
+    ] {
+        assert!(
+            snapshot.find_by_author_id(expected).is_some(),
+            "Facial review control {expected} must render and reach Argus"
+        );
+    }
+
+    // The identity provenance readout is honest before any analysis (no fabricated real identity).
+    let provenance = snapshot
+        .find_by_author_id(ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .unwrap_or_default();
+    assert!(
+        provenance.contains("identity=unknown:no_analysis"),
+        "provenance must be honest before analysis; got {provenance}"
+    );
+
+    // Steer a settable control via argus.set_value (TextInput-only) and confirm it reaches Argus.
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_INGEST_FACIAL_SHARD_COUNT_AUTHOR_ID,
+        "8",
+    );
+    let after_set = snapshot_harness(&mut harness);
+    assert_eq!(
+        after_set
+            .find_by_author_id(ATELIER_INGEST_FACIAL_SHARD_COUNT_AUTHOR_ID)
+            .and_then(|node| node.value.as_deref()),
+        Some("8"),
+        "argus.set_value must steer the Facial review shard-count TextInput"
+    );
+
+    // Click the review-queue action (session create).
+    argus_click_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID,
+    );
+
+    let pending = snapshot_harness(&mut harness);
+    let pending_status = pending
+        .find_by_author_id(ATELIER_INGEST_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .unwrap_or_default();
+    assert!(
+        pending_status
+            .contains("Dispatching Facial review command atelier.facial.review.session.create"),
+        "session create must expose a visible pending status; got {pending_status}"
+    );
+
+    let captured = server.join().expect("Facial review mock server joins");
+    assert_eq!(
+        captured.request_line,
+        "POST /atelier/intake/batches/batch-1/facial/review/session HTTP/1.1"
+    );
+    assert_eq!(
+        captured.headers.get("x-hsk-actor-id").map(String::as_str),
+        Some("facial-agent-030")
+    );
+    let sent_body: serde_json::Value =
+        serde_json::from_str(&captured.body).expect("Facial review request JSON body");
+    assert_eq!(sent_body["shard_count"], 8);
+
+    // The succeeded-with-degraded command receipt + captured session ref become Argus-visible.
+    let done = (0..40)
+        .find_map(|_| {
+            harness.run();
+            let snapshot = snapshot_harness(&mut harness);
+            let receipt = snapshot
+                .find_by_author_id(ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID)
+                .and_then(|node| node.value.as_deref())
+                .unwrap_or_default()
+                .to_owned();
+            if receipt.contains("status=succeeded") {
+                Some(snapshot)
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(25));
+                None
+            }
+        })
+        .expect("Facial review command receipt becomes Argus-visible");
+
+    let receipt = done
+        .find_by_author_id(ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("command receipt value");
+    assert!(receipt.contains("command=atelier.facial.review.session.create"));
+    assert!(receipt.contains("status=succeeded"));
+    assert!(receipt
+        .contains("receipt_ref=artifact://.handshake/artifacts/facial-review-session-receipt/payload"));
+    assert!(
+        receipt.contains("degraded_reasons=arcface_model_not_configured"),
+        "degraded reasons must be surfaced honestly on a succeeded envelope; got {receipt}"
+    );
+
+    let refs = done
+        .find_by_author_id(ATELIER_INGEST_FACIAL_REVIEW_REFS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("review refs value");
+    assert!(
+        refs.contains("session_ref=artifact://.handshake/artifacts/facial-review-session/payload"),
+        "the session artifact ref must be captured for command chaining; got {refs}"
+    );
+}
+
 #[test]
 fn ingest_batch_summary_and_client_default_actor_are_argus_visible() {
     let runtime = tokio::runtime::Builder::new_current_thread()

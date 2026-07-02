@@ -134,6 +134,29 @@ fn live_author_id_set() -> HashSet<String> {
     set.insert(handshake_native::fems::RELEVANT_MEMORY_PANEL_AUTHOR_ID.to_owned());
     set.insert(handshake_native::fems::RELEVANT_MEMORY_LIST_AUTHOR_ID.to_owned());
     set.insert(handshake_native::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID.to_owned());
+
+    // WP-CKC reconciliation (MT-030): prior-MT Ingest / prompt-feedback / CKC-media sub-mode control
+    // ids that ARE documented in agent_tool_rows AND emitted in their sub-modes, but were never added
+    // to this hand-maintained allowlist because test_manual_pane_editors was not run by MT-010/020/032/042.
+    // Proper fix (auto-discover from the rendered panel, no hand list) is tracked as an MT-044 follow-up.
+    for id in [
+        "atelier-promptfeedback-mode-feedback",
+        "atelier-promptfeedback-import",
+        "atelier-promptfeedback-case-list",
+        "atelier-promptfeedback-rewrite",
+        "atelier-promptfeedback-export",
+        "atelier-ckc-media-backend-mode",
+        "atelier-ckc-media-actor",
+        "atelier-ckc-selected-album-ref",
+        "atelier-ckc-selected-media-ref",
+        "atelier-ckc-selected-folder-ref",
+        "atelier-ckc-selected-source-url-ref",
+        "atelier-ckc-selected-media-status",
+        "atelier-ckc-album-link-target",
+        "atelier-ingest-actor",
+    ] {
+        set.insert(id.to_owned());
+    }
     set.insert(handshake_native::fems::FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned());
 
     // Stage fixed ids.
@@ -332,6 +355,50 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_INGEST_STATUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
+        // Ingest contact-sheet + facial-analysis controls documented in agent_tool_rows (kept in lockstep
+        // with the documented rows so the id-audit has no orphans across the ingest surface MT-030 extends).
+        handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_ANALYZE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_SUMMARY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_RECEIPT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID,
+        // MT-030 Facial review sub-mode controls (review-queue / montage / export family).
+        handshake_native::atelier_panel::ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_FEATURES_LOAD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_FEATURES_READOUT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_SHARD_COUNT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_TTL_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_SESSION_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_SHARD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_STEAL_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_START_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_ITEM_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_VERDICT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_REASON_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_TAGS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_NOTES_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_RECORD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_STATUS_REPLAY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_REVIEW_STATUS_READOUT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_PAGE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_COLUMNS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_ROWS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_FILTER_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_BUILD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_DATASET_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_REPEATS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_OUTPUT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_ALLOW_PARTIAL_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_BUILD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_REVIEW_REFS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID,
     ] {
         set.insert(id.to_owned());
     }
@@ -780,9 +847,17 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "output path",
         "preview://atelier/contact-sheet",
         "hsk.atelier.facial_ingest_analysis@1",
-        "quality_source=handshake_native_proxy_v1",
-        "dedupe_source=content_hash_exact_or_singleton",
+        // MT-030: real MT-026/MT-027 provenance tokens (quality+dedupe are native-real, not proxies).
+        "quality_source=facet_native_metadata_only_v1",
+        "dedupe_source=imagededup_native_content_hash_exact_v1",
+        // Identity is real when model-backed; the no-model degraded label is deliberately preserved.
+        "identity_source=real",
         "identity_source=handshake_proxy_no_model",
+        // MT-030 Facial review sub-mode navigation + command envelope.
+        "atelier-ingest-mode-facial-review",
+        "atelier-ingest-facial-session-start",
+        "atelier-ingest-facial-command-receipt",
+        "hsk.atelier.facial_api.command_response@1",
         "Argus",
     ] {
         assert!(
@@ -900,6 +975,80 @@ fn manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls() {
             handshake_native::atelier_panel::ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
             "argus.inspect",
         ),
+        // ── MT-030 Facial review sub-mode: settable controls are argus.set_value, actions are
+        //    argus.click, readouts are argus.inspect (argus.set_value is TextInput-only). ──────────
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_FEATURES_LOAD_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_FEATURES_READOUT_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_SHARD_COUNT_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_SESSION_REF_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_START_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_STEAL_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_VERDICT_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_RECORD_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_STATUS_REPLAY_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_BUILD_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_ALLOW_PARTIAL_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_BUILD_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_REVIEW_REFS_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_REVIEW_STATUS_READOUT_AUTHOR_ID,
+            "argus.inspect",
+        ),
     ] {
         let row = rows
             .iter()
@@ -910,6 +1059,107 @@ fn manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls() {
             "manual row for {author_id} must use {tool}"
         );
     }
+}
+
+/// MT-030 proof target: the internal manual documents the native Facial review backbone (review-queue /
+/// montage / export command family) and its Argus workflow — real provenance tokens, the command
+/// envelope, and one steering row per review command — so a no-context model can drive it.
+#[test]
+fn manual_documents_facial_backbone_and_argus_workflow() {
+    // 1. The prose navigation topic documents the sub-mode, the command envelope, and the REAL
+    //    MT-026/MT-027 provenance tokens (quality+dedupe native-real; identity real vs no-model degraded).
+    let section = editors_manual_section();
+    let tools = section
+        .topic("Atelier Tools")
+        .expect("the Atelier Tools topic exists");
+    for required in [
+        "atelier-ingest-mode-facial-review",
+        "hsk.atelier.facial_api.command_response@1",
+        "quality_source=facet_native_metadata_only_v1",
+        "dedupe_source=imagededup_native_content_hash_exact_v1",
+        "identity_source=real",
+        "identity_source=handshake_proxy_no_model",
+        "atelier-ingest-facial-session-start",
+        "atelier-ingest-facial-command-receipt",
+    ] {
+        assert!(
+            tools.body.contains(required),
+            "Atelier Tools topic missing required Facial guidance: {required}"
+        );
+    }
+    // No stale proxy wording remains for the real-implemented quality/dedupe outputs.
+    assert!(
+        !tools.body.contains("quality_source=handshake_native_proxy_v1"),
+        "stale proxy quality_source token must be removed"
+    );
+
+    // 2. Every review command + capability/provenance readout has a steering row with the right tool.
+    let rows = agent_tool_rows();
+    for (author_id, tool) in [
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_FEATURES_LOAD_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_START_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_RECORD_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_STATUS_REPLAY_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_BUILD_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_BUILD_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID,
+            "argus.inspect",
+        ),
+    ] {
+        let row = rows
+            .iter()
+            .find(|row| row.author_id == author_id)
+            .unwrap_or_else(|| panic!("missing Facial review manual row for {author_id}"));
+        assert_eq!(
+            row.mcp_tool, tool,
+            "Facial review manual row for {author_id} must use {tool}"
+        );
+    }
+
+    // 3. The Facial provenance steering row documents the real identity path AND the no-model degraded
+    //    label, so a model can tell real identity from unavailable identity.
+    let provenance_row = rows
+        .iter()
+        .find(|row| {
+            row.author_id
+                == handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID
+        })
+        .expect("Facial provenance row exists");
+    assert!(provenance_row.description.contains("identity_source=real"));
+    assert!(provenance_row
+        .description
+        .contains("handshake_proxy_no_model"));
 }
 
 #[test]

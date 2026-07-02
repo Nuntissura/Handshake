@@ -5905,6 +5905,20 @@ pub type AtelierContactSheetExportCell =
 pub type AtelierFacialIngestAnalysisCell =
     Arc<Mutex<Option<(u64, Result<AtelierFacialIngestAnalysisRow, String>)>>>;
 
+/// One-slot delivery cell for the self-describing Facial feature/command-route registry read
+/// (`GET /atelier/facial/features`). `Ok(row)` on a live parse, `Err(detail)` on a transport/parse
+/// failure so the panel can render an honest degraded readout instead of a silent no-op.
+pub type AtelierFacialFeatureListCell =
+    Arc<Mutex<Option<(u64, Result<AtelierFacialFeatureListRow, String>)>>>;
+
+/// One-slot delivery cell for ANY Facial review command response (session/claim/decision/status/
+/// montage/export). All six routes return the shared `hsk.atelier.facial_api.command_response@1`
+/// envelope, so one cell type + one dispatch method carries every review command. `Ok(row)` is a live
+/// `status="succeeded"` envelope (which may still carry `degraded_reasons`); `Err(detail)` is the
+/// backend's HTTP error text for blocked/degraded/error command paths (no fabricated success).
+pub type AtelierFacialCommandCell =
+    Arc<Mutex<Option<(u64, Result<AtelierFacialCommandResponseRow, String>)>>>;
+
 /// One-slot delivery cell for CKC per-field prior-value suggestions.
 pub type AtelierCkcFieldSuggestionsCell =
     Arc<Mutex<Option<Result<Vec<AtelierSheetFieldSuggestionRow>, String>>>>;
@@ -8274,6 +8288,53 @@ impl AtelierClient {
                         AppError::Parse("missing Facial Ingest analysis row".to_owned())
                     })
                 })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    /// Load the self-describing Facial feature/command-route registry off the UI thread
+    /// (`GET /atelier/facial/features`). Delivers the parsed [`AtelierFacialFeatureListRow`] (feature
+    /// count + capability families + command routes) so a no-context model can inspect which Facial
+    /// capabilities are live before driving any command. Never fabricates a registry on failure.
+    pub fn load_facial_features(&self, request_id: u64, cell: AtelierFacialFeatureListCell) {
+        let spec = self.facial_features_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &spec.query)
+                .await
+                .and_then(|value| {
+                    parse_atelier_facial_feature_list_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing Facial feature registry row".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    /// Dispatch ONE prebuilt Facial review command [`ActorRequestSpec`] (session/claim/decision/status/
+    /// montage/export) off the UI thread and deliver the shared command-response envelope. The panel
+    /// builds the spec with the matching `facial_review_*_actor_request` builder (so the exact verified
+    /// route + actor header + body are asserted in the builder tests), then hands it here. A live
+    /// `status="succeeded"` envelope delivers `Ok(row)` (with any `degraded_reasons` preserved); every
+    /// blocked/degraded/error path delivers `Err(detail)` from the backend's HTTP error body — no
+    /// fabricated success, no silent no-op.
+    pub fn dispatch_facial_review_command(
+        &self,
+        spec: ActorRequestSpec,
+        request_id: u64,
+        cell: AtelierFacialCommandCell,
+    ) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| parse_atelier_facial_command_response_row(&value))
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((request_id, result));

@@ -322,7 +322,7 @@ rendered ABOVE the Atelier tab strip (author_id atelier-settings-region) — it 
 tab. It surfaces the runtime defaults for the whole CKC/PoseKit/Ingest family as TYPED preferences in \
 the atelier preference store. Every value persists to PostgreSQL and emits an EventLedger event \
 (atelier.preference.set on Save, atelier.preference.reset_to_default on Reset); nothing is written to a \
-local file or SQLite. On panel open the region asynchronously loads the effective defaults (GET \
+local file or an embedded on-disk store. On panel open the region asynchronously loads the effective defaults (GET \
 /atelier/preferences) off the UI thread (HBR-QUIET) and APPLIES them to the live runtime fields \
 (landing tab, CKC book mode, PoseKit framing/markers, Ingest batch tags/policy), so a saved default \
 becomes the active default next open.\n\
@@ -617,16 +617,35 @@ receipt_ref, receipt_manifest_ref, source_ref, item_count, rendered_item_count, 
 omitted_item_count. The same receipt exposes source_items as item_id=source_ref lineage for the \
 expanded image set. No-backend harnesses expose preview://atelier/contact-sheet/... refs; backend \
 exports write ArtifactStore SVG and JSON receipt artifacts. Facial quality/dedupe/identity profile \
-selection now drives native Facial Ingest analysis through \
+selection drives native Facial Ingest analysis through \
 atelier-ingest-facial-profile and atelier-ingest-facial-analyze. The backend loads the full canonical \
 batch, writes hsk.atelier.facial_ingest_analysis@1 JSON plus receipt artifacts, and projects \
-atelier-ingest-facial-summary / atelier-ingest-facial-receipt for Argus. Current MT-019 Facial \
-quality, dedupe, identity, and review fields are explicit native proxies: quality_source=handshake_native_proxy_v1, \
-dedupe_source=content_hash_exact_or_singleton, and identity_source=handshake_proxy_no_model. The summary \
+atelier-ingest-facial-summary / atelier-ingest-facial-receipt for Argus. Quality and dedupe are \
+native-real outputs, NOT proxies: quality_source=facet_native_metadata_only_v1 (native metadata-only \
+quality band/score) and dedupe_source=imagededup_native_content_hash_exact_v1 (native exact content-hash \
+dedupe; imagededup_native_missing_hash_singleton_v1 when a row has no content hash). Identity is \
+model-backed real only when an ArcFace model is configured and loaded: identity_source=real \
+(identity_verdict=unsure without a reference identity). With no model configured the deliberate no-model \
+degraded label is identity_source=handshake_proxy_no_model (identity_verdict=proxy_unverified); a \
+configured-but-not-loaded model is identity_source=handshake_identity_model_unavailable. Inspect \
+atelier-ingest-facial-provenance for this real-vs-unavailable identity disposition alongside the exact \
+quality_source/dedupe_source/identity_source tokens. The summary \
 also exposes native_run selected_feature_ids, degraded_feature_ids, run_status, and capability_map \
-rows with native_route, required_config_keys, and unavailable_reason so models can tell native proxy \
+rows with native_route, required_config_keys, and unavailable_reason so models can tell native-real \
 work from deferred model-backed parity. Do not claim \
-ArcFace/YuNet match/no_match parity until a later model-backed MT wires those assets. Real \
+ArcFace/YuNet match/no_match parity until an ArcFace model is configured and loaded. \
+The MT-030 Facial review sub-mode (atelier-ingest-mode-facial-review, nested under atelier-tab-ingest) \
+exposes the native review-queue command family with backend + Argus parity: load capabilities with \
+atelier-ingest-facial-features-load (GET /atelier/facial/features) and read \
+atelier-ingest-facial-features-readout; start a session with atelier-ingest-facial-session-start, claim \
+a shard with atelier-ingest-facial-claim-start, record a decision with \
+atelier-ingest-facial-decision-record, replay queue status with atelier-ingest-facial-status-replay, \
+build a montage tile map with atelier-ingest-facial-montage-build, and build a non-destructive export \
+lineage manifest with atelier-ingest-facial-export-build. Every review command returns the shared \
+hsk.atelier.facial_api.command_response@1 envelope; inspect atelier-ingest-facial-command-receipt for \
+command, status, receipt_ref, result_artifact_ref, degraded_reasons, and recovery_hint, and \
+atelier-ingest-facial-review-refs for the accumulated session/claim/decision lineage refs. Review \
+status/decision replays are non-destructive and never mutate source images. Real \
 expanded intake rows are exposed as atelier-ingest-item-{stable_item_id}; per-item triage buttons are \
 atelier-ingest-item-{stable_item_id}-pass, atelier-ingest-item-{stable_item_id}-reject, and \
 atelier-ingest-item-{stable_item_id}-unsure so parallel agents can inspect and stage row decisions without \
@@ -1934,13 +1953,13 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             crate::atelier_panel::ATELIER_INGEST_FACIAL_SUMMARY_AUTHOR_ID,
             "Inspect Ingest Facial summary",
             "argus.inspect",
-            "argus.inspect reads hsk.atelier.facial_ingest_analysis@1 item_count, decoded_count, duplicate counts, keep/review/cull counts, analysis_ref, and proxy provenance sources.",
+            "argus.inspect reads hsk.atelier.facial_ingest_analysis@1 item_count, decoded_count, duplicate counts, keep/review/cull counts, analysis_ref, and the native quality_source/dedupe_source/identity_source provenance tokens.",
         ),
         (
             crate::atelier_panel::ATELIER_INGEST_FACIAL_RECEIPT_AUTHOR_ID,
             "Inspect Ingest Facial receipt",
             "argus.inspect",
-            "argus.inspect reads Facial analysis artifact refs, manifests, hashes, quality_source=handshake_native_proxy_v1, dedupe_source=content_hash_exact_or_singleton, and identity_source=handshake_proxy_no_model.",
+            "argus.inspect reads Facial analysis artifact refs, manifests, hashes, quality_source=facet_native_metadata_only_v1 (native-real), dedupe_source=imagededup_native_content_hash_exact_v1 (native-real), and identity_source=real when an ArcFace model is loaded or identity_source=handshake_proxy_no_model for the no-model degraded path.",
         ),
         (
             crate::atelier_panel::ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
@@ -1965,6 +1984,199 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             "Inspect Ingest apply receipt",
             "argus.inspect",
             "argus.inspect reads the last backend request id, batch id, requested_by actor, applied_count, applied_preview_count, total_item_count, capped applied item ids, truncated_count, stale-response marker, and failed row.",
+        ),
+        // ── MT-030 Facial review sub-mode (review-queue / montage / export command family) ──────────
+        (
+            crate::atelier_panel::ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID,
+            "Enter Facial review sub-mode",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-mode-facial-review'} switches the INGEST tab to the Facial review-queue sub-mode (session/claim/decision/status/montage/export).",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_FEATURES_LOAD_AUTHOR_ID,
+            "Load Facial capability registry",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-features-load'} reads GET /atelier/facial/features (feature families + command routes).",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_FEATURES_READOUT_AUTHOR_ID,
+            "Inspect Facial capability registry",
+            "argus.inspect",
+            "argus.inspect reads hsk.atelier.facial.features@1 feature_count, capability families (quality/dedupe/identity/review), and the enumerated command routes.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_PROVENANCE_AUTHOR_ID,
+            "Inspect Facial identity provenance",
+            "argus.inspect",
+            "argus.inspect reads quality_source=facet_native_metadata_only_v1, dedupe_source=imagededup_native_content_hash_exact_v1, and identity_source with a real-vs-unavailable disposition (identity_source=real when model-backed; handshake_proxy_no_model for the no-model degraded path).",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_SHARD_COUNT_AUTHOR_ID,
+            "Set Facial review shard count",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-shard-count', value:'4'} sets the review session shard_count.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_TTL_AUTHOR_ID,
+            "Set Facial review claim TTL",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-claim-ttl', value:'900'} sets the review claim_ttl_seconds.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID,
+            "Start Facial review session",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-session-start'} POSTs /atelier/intake/batches/:batch_id/facial/review/session over the canonical intake batch; the session artifact ref auto-fills.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_SESSION_REF_AUTHOR_ID,
+            "Set Facial review session ref",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-session-ref', value:'artifact://...session/payload'} sets the session_artifact_ref claim/decision/status/montage/export reuse.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_SHARD_AUTHOR_ID,
+            "Set Facial review claim shard",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-claim-shard', value:'0'} selects the shard index to claim (blank = next available).",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_STEAL_AUTHOR_ID,
+            "Toggle Facial review steal-expired",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-claim-steal'} toggles steal_expired for the next claim (recover an expired claim).",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_START_AUTHOR_ID,
+            "Claim a Facial review shard",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-claim-start'} POSTs /atelier/facial/review/claims; the claim artifact ref auto-fills and accumulates for status/montage/export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_CLAIM_REF_AUTHOR_ID,
+            "Set Facial review claim ref",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-claim-ref', value:'artifact://...claim/payload'} sets the claim_artifact_ref used when recording a decision.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_ITEM_AUTHOR_ID,
+            "Set Facial review decision item",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-decision-item', value:'<item_id>'} sets the item_id to decide.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_VERDICT_AUTHOR_ID,
+            "Set Facial review decision verdict",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-decision-verdict', value:'pass'} sets the decision (accept/reject/hold synonyms: pass/keep, reject/cull, unsure/review).",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_REASON_AUTHOR_ID,
+            "Set Facial review decision reason",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-decision-reason', value:'clean face'} sets the decision reason.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_TAGS_AUTHOR_ID,
+            "Set Facial review decision tags",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-decision-tags', value:'keeper,face-clear'} sets comma-separated decision tags.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_NOTES_AUTHOR_ID,
+            "Set Facial review decision notes",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-decision-notes', value:'operator note'} sets optional decision notes.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_DECISION_RECORD_AUTHOR_ID,
+            "Record a Facial review decision",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-decision-record'} POSTs /atelier/facial/review/decisions into the append-only decision ledger; the decision ref accumulates for status/montage/export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_STATUS_REPLAY_AUTHOR_ID,
+            "Replay Facial review status",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-status-replay'} POSTs /atelier/facial/review/status and rebuilds queue counts from persisted refs.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_REVIEW_STATUS_READOUT_AUTHOR_ID,
+            "Inspect Facial review status",
+            "argus.inspect",
+            "argus.inspect reads session_id, item_count, decided/accepted/rejected/hold/undecided counts, and active/expired claim counts.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_PAGE_AUTHOR_ID,
+            "Set Facial montage page",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-montage-page', value:'0'} sets the montage page.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_COLUMNS_AUTHOR_ID,
+            "Set Facial montage columns",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-montage-columns', value:'5'} sets the montage grid columns.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_ROWS_AUTHOR_ID,
+            "Set Facial montage rows",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-montage-rows', value:'4'} sets the montage grid rows.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_FILTER_AUTHOR_ID,
+            "Set Facial montage decision filter",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-montage-filter', value:'undecided'} filters montage tiles by decision (blank = all).",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_MONTAGE_BUILD_AUTHOR_ID,
+            "Build a Facial review montage",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-montage-build'} POSTs /atelier/facial/review/montage and returns an Argus-addressable tile map (argus://facial-review/<stable_image_id>).",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_DATASET_AUTHOR_ID,
+            "Set Facial export dataset name",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-export-dataset', value:'leeseo-curated'} sets the export dataset_name.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_REPEATS_AUTHOR_ID,
+            "Set Facial export repeats",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-export-repeats', value:'10'} sets the export repeats.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_OUTPUT_AUTHOR_ID,
+            "Set Facial export output root ref",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-export-output', value:'artifact://atelier/facial/exports'} sets the export output_root_ref.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_ALLOW_PARTIAL_AUTHOR_ID,
+            "Toggle Facial export allow-partial",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-export-allow-partial'} toggles allow_partial so a partial export is permitted when undecided items remain.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_EXPORT_BUILD_AUTHOR_ID,
+            "Build a Facial review export manifest",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-export-build'} POSTs /atelier/facial/review/export; the manifest is non-destructive (copy_mode=manifest_only_no_source_mutation, source_mutation=false).",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_REVIEW_REFS_AUTHOR_ID,
+            "Inspect Facial review lineage refs",
+            "argus.inspect",
+            "argus.inspect reads the accumulated session_ref, claim_ref, and the counts of accumulated claim/decision artifact refs a model chains commands with.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID,
+            "Inspect Facial review command receipt",
+            "argus.inspect",
+            "argus.inspect reads the last review command envelope: command, status, receipt_ref, result_artifact_ref, degraded_reasons, recovery_hint, and error (blocked/degraded paths arrive as backend HTTP errors, never a fabricated success).",
         ),
     ] {
         rows.push(AgentToolRow {
