@@ -1,0 +1,115 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-016",
+  "created_at_utc": "2026-07-02T03:00:00Z",
+  "updated_at_utc": "2026-07-02T03:00:00Z",
+  "scope_status": "DEFERRED_FROM_MT-014_AC4b_PENDING_SCOPE_CONFIRMATION",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-016.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-014"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_RUN",
+    "hbr_status": "PENDING",
+    "pre_implementation_adversarial_review_status": "NOT_RUN",
+    "post_implementation_adversarial_review_status": "NOT_RUN",
+    "adversarial_findings_status": "NOT_RUN"
+  },
+  "scope": {
+    "summary": "Dedicated embedding model distinct from the chat model: a second local-model registration whose ModelCapabilities declares supports_embedding + embedding dimension, so LoomSearchV2 embeds via the embedding-capable model resolved from the shared registry rather than via the single chat model's profile().model_id.",
+    "origin": "Deferred from MT-014 AC-4b per the MT-014 pre-implementation adversarial review (task aa63db63808f7a7b3, finding F9): 'dedicated embedding model distinct from the chat model' is materially larger than MT-014's embedding-dimension degrade-not-error fix and is unsupported by the current single-model config + capability model. Split out so MT-014 does not scaffold it. MT-014 keeps the degrade-not-error robustness (AC-4a); MT-016 adds the real second embedding model.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/llm/",
+      "src/backend/handshake_core/src/model_runtime/",
+      "src/backend/handshake_core/src/loom_search/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "forbidden_paths": [
+      "heavy llama.cpp C++ subprocess build (opt-in only per WP architecture_directives)",
+      "SQLite runtime/test/fixture additions",
+      "new TypeScript/React/app/src implementation"
+    ],
+    "acceptance_criteria": [
+      "TO_BE_FINALIZED_AT_ACTIVATION. Draft intent: (1) ModelCapabilities gains an embedding capability (supports_embedding + embedding dimension) declared per spec 4.6.3; (2) a second local model may be configured + registered as embedding-capable (config surface beyond the single HANDSHAKE_LOCAL_MODEL_PATH); (3) LoomSearchV2 resolves the embedding-capable model from the shared registry (MT-014) instead of hard-coding profile().model_id; (4) when no dedicated embedding model is configured it degrades per MT-014 (degrade-not-error), not crash; (5) engine-free proof using InMemoryLlmClient embedding dims; (6) same-change UserManual coverage; pre/post adversarial review."
+    ],
+    "risk_if_missed": "LoomSearchV2 semantic search is permanently tied to the single chat model's embedding output; operators cannot run a separate, correctly-dimensioned embedding model, limiting semantic search quality and the CPU-baseline story.",
+    "reference_only_paths": []
+  },
+  "implementation_notes": [
+    "Do NOT start before MT-014 lands the shared/enumerable registry + degrade-not-error (this MT resolves the embedding model FROM that registry).",
+    "Confirm scope with operator before activation: whether a second local model config surface is in-scope now or a further follow-on.",
+    "Rust-only. CPU-baseline (Candle) default; llama.cpp opt-in only."
+  ],
+  "required_build_rules": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-MAN-004"
+  ],
+  "hbr_obligations": [
+    "INT",
+    "MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "embedding_capability_declaration_spec_4_6_3",
+      "registry_resolution_of_embedding_capable_model",
+      "degrade_not_error_when_no_embedding_model",
+      "rust_native_and_usermanual_coverage"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "A second-model config could be scaffolded without a real embedding model behind it.",
+      "The embedding capability could be declared but never consulted by LoomSearchV2 (fake wiring)."
+    ],
+    "minimum_controls": [
+      "Engine-free proof that LoomSearchV2 routes embeddings to the registry-resolved embedding-capable model.",
+      "Degrade-not-error retained when no dedicated embedding model is configured."
+    ]
+  },
+  "research_basis": {
+    "authority_posture": "Master spec/SPEC_CURRENT/product code are authority.",
+    "local_authority_checked": [
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md (4.6 ModelRuntime, 4.6.3 ModelCapabilities)"
+    ],
+    "product_code_evidence": [
+      "src/backend/handshake_core/src/loom_search/mod.rs (embeds via llm.profile().model_id - single chat model)",
+      "src/backend/handshake_core/src/model_runtime/registry.rs (ModelCapabilities has no embedding capability today)",
+      "src/backend/handshake_core/src/llm/registry.rs (single HANDSHAKE_LOCAL_MODEL_* config)"
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "rust_only_implementation": "Rust backend + native egui/Argus only.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real engine-free proofs; COMPLETED is validator-only."
+  }
+}

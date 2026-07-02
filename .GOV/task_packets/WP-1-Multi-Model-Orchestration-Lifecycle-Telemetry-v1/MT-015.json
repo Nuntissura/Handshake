@@ -105,6 +105,22 @@
       "rust_native_argus_settings_surface_and_usermanual"
     ]
   },
+  "pre_implementation_review": {
+    "reviewed_at_utc": "2026-07-02T03:00:00Z",
+    "verdict": "NOT_IMPLEMENTABLE_AS_WRITTEN_CONTRACT_EDITS_REQUIRED",
+    "full_review_ref": "session task a0e9015f5c0ee8643 output (read-only adversarial, security-first, file:line evidence)",
+    "base_is_solid": "WP-KERNEL-004 backends verified good: OsKeychainSecretsVault (real keyring, os-keychain in DEFAULT features, no in-proc cache), redacted-Debug BYOK runtimes, env-scrubbed official CLI bridge (is_secret_bearing_env_name), consent gate, honest ProviderNotConfigured errors. Risks are in the NEW seams MT-015 adds.",
+    "blockers_and_decisions": [
+      "HIGH ENUMERATION: keychain cannot enumerate (OsKeychainSecretsVault::list_lanes returns empty by design). DECISION: MT-015 defines a NON-SECRET 'configured providers' registry in the native settings store / Postgres (NEVER vault.list_lanes, NEVER SQLite); map ProviderNotConfigured -> 'unavailable' not error. MT-012 is PENDING, so soften AC to 'unit-tested enumeration API MT-012 will consume'; do not require proving the picker.",
+      "HIGH CLI AUTH-STATUS: no auth_status/whoami probe exists (register_bridge only checks executable exists); 'trigger login/detect expired' risks drifting into forbidden token/credential capture. DECISION: down-scope to 'configured / not-configured' + an operator-INITIATED launch of the provider's OWN official login command in a visible terminal (reconciled with HBR-QUIET-001, operator-initiated not background); live logged-in/expired detection best-effort/DEFERRED per provider; NEVER capture/store provider credentials.",
+      "HIGH LEAK TEST: #1 leak path is the NEW egui state - key must NEVER enter DialogState, the persisted egui snapshot, or the workspace-settings PUT. DECISION: leak/negative test stores a canary key and asserts absence from persisted DialogState/settings blob, workspace-settings PUT, tracing, Flight Recorder, EventLedger, cloud_invocations rows, and all Debug/Display; asserts wired vault is OsKeychainSecretsVault (not InMemory); asserts refuse-to-persist under --no-default-features; asserts egui buffer cleared post-submit. Key must still round-trip out of the vault.",
+      "MED CONSENT: DECISION: add AC + negative test that saving a key creates/approves NO ConsentReceipt or ConsentGate entry; first lane launch still hits MT-006 fail-closed.",
+      "MED DEP: MT-006 is READY_FOR_VALIDATION (proven 3/3 this session, validator_verdict PENDING). Accepted; MT-015 also re-proves the no-bypass fail-closed itself.",
+      "MED ZEROIZE: secrecy=0.10 declared but unused. DECISION: wrap the in-memory key String + egui buffer in secrecy::SecretString / zeroize; password-masked field.",
+      "LOW-MED GEMINI: CliKind::GeminiCli exists and brief 6.11 lists Gemini as valid, but operator forbids offering it. DECISION: explicit 'Gemini not offered' enumeration filter + test; record the 6.11 divergence so it is not 'restored' later.",
+      "LOW ROTATE: DECISION: add a key remove/rotate control reusing vault.delete (idempotent) so a leaked key can be rotated."
+    ]
+  },
   "red_team": {
     "required": true,
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",

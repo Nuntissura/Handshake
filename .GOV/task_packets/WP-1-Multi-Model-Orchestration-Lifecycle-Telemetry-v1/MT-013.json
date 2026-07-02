@@ -102,6 +102,22 @@
       "swarm_safety_attribution_and_reclaim"
     ]
   },
+  "pre_implementation_review": {
+    "reviewed_at_utc": "2026-07-02T03:00:00Z",
+    "verdict": "NOT_IMPLEMENTABLE_AS_WRITTEN_CONTRACT_EDITS_REQUIRED",
+    "full_review_ref": "session task a82c84d556b628c94 output (read-only adversarial, file:line evidence)",
+    "blockers_and_decisions": [
+      "P0 AC#1 boxing contradiction: the in-process Candle library load spawns NOTHING, so spec 3.6.2 clause(1) (child of SandboxAdapter, no bare Command) is satisfied VACUOUSLY. DECISION: rewrite AC#1 - the enforced obligation is the ProcessOwnershipLedger START/STOP (clause 2); boxing applies only where a process/guest is actually spawned (swarm + CLI-bridge already boxed).",
+      "P0 ledger seam undefined for pid-less load: LedgerDecorator needs a spawn; record_spawn/register_model_process require a non-optional u32 pid and register_model_process is DEAD CODE (0 callers). DECISION: emit via record_start(ProcessStart) with os_pid=None (honest pid-less in-process row); FORBID synthetic pids; downstream consumers must tolerate pid-less rows.",
+      "P0 STOP-on-unload unreachable: default client holds Arc<dyn ModelRuntime>, never calls unload (&mut self), no Drop. DECISION: add an explicit client shutdown/close hook (or Drop on the runtime-owning holder) wired into app shutdown that fires the ledger STOP; the STOP proof MUST exercise that seam, not call unload() directly.",
+      "P0 proof false-green: named proof candle_e2e_smoke is #[ignore] + skip-if-no-weights and skip counts as pass. DECISION: add a dedicated NON-skippable ledger proof that FAILS (not skips) when it cannot load, asserting START row model_id == minted UUIDv7 + matching STOP + status != Skipped; if real weights are unavailable on host, gate that leg on an operator live-run with a captured ledger dump (state which in proof_targets).",
+      "P1 FR-on-error scope too narrow: the REAL default path LocalModelRuntimeLlmClient::completion emits nothing on ALL error branches and embedding() emits nothing at all; DisabledLlmClient emits nothing. DECISION: AC#2/#3 must name these explicitly and require CALL-TIME emission in completion()/embedding() (forbid construction-only emit on DisabledLlmClient). Reuse FlightRecorderEventType::DataEmbeddingComputed for embeddings; for error/disabled reuse LlmInference with zeroed TokenUsage + reason field.",
+      "P1 boot path lacks ledger handle: build_default_local_client/resolve_default_llm_client only receive Arc<dyn FlightRecorder>. DECISION: thread a ledger handle through main.rs::init_llm_client (signature change acknowledged).",
+      "P1 registry seam overlaps MT-014 (both edit boot.rs ModelRegistry, both depend only on MT-003). DECISION: land MT-013 and MT-014 coordinated (not concurrent worktree edits); ledger metadata_blob carries display_name for MT-008 labeling.",
+      "P2 embedding() is a product extension (not in spec 4.2.3.1 LlmClient trait), so FR-on-embedding is a product extension, not a literal 4.2.3.2(3) MUST - label it as such so a validator does not reject on 'embeddings have no TokenUsage'.",
+      "P2 NOT_INSPECTED: whether an automated HBR gate actually red-flags an unboxed/unledgered default load today - implementer must verify or add that check rather than assume."
+    ]
+  },
   "red_team": {
     "required": true,
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",

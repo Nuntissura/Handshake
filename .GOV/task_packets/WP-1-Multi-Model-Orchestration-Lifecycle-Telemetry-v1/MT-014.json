@@ -100,6 +100,23 @@
       "interconnectivity_no_duplicate_registry_world"
     ]
   },
+  "pre_implementation_review": {
+    "reviewed_at_utc": "2026-07-02T03:00:00Z",
+    "verdict": "PARTIALLY_IMPLEMENTABLE_CONTRACT_EDITS_REQUIRED",
+    "full_review_ref": "session task aa63db63808f7a7b3 output (read-only adversarial, file:line evidence)",
+    "blockers_and_decisions": [
+      "HIGH FACTUAL ERROR (F12): the 'reconcile with production_factory separate model_runtime registry world' premise is FALSE - production_factory only uses SandboxAdapterRegistry (in #[cfg(test)]) + imports RuntimeBinding; the ONLY production model_runtime::ModelRegistry instantiation is the throwaway at boot.rs. DECISION: drop the reconcile-with-production_factory directive; the task is to make boot's SINGLE registry shared, not unify nonexistent worlds.",
+      "HIGH SCAFFOLDING (F9): 'dedicated embedding model distinct from chat model' is materially larger than the degrade-fix and unsupported today (single-model config, no supports_embedding capability). DECISION: SPLIT AC-4 - 4a (embedding-dim degrade-not-error) stays in MT-014; 4b (dedicated embedding model + supports_embedding capability + second registration) DEFERRED to new MT-016 so it is not scaffolded here.",
+      "HIGH (F13): Work Profiles provider_ref has NO resolver today (free String, only non-empty check); 'resolves or is migrated' is net-new. DECISION: MT-014 adds a resolver validating against the canonical provider_id set (local_runtime, openai_compat), migrates legacy 'ollama' -> 'local_runtime', and emits a surfaced FR-EVT-PROFILE event (no silent in-place rewrite).",
+      "HIGH IDENTITY (F10): ModelId::new_v7() is re-minted every boot, so diagnostics grouped by model_id fragment across restarts. DECISION: registry surface MUST expose a stable cross-session anchor (artifact sha256 and/or base_model_tag) alongside the per-boot UUIDv7; MT-008 label-join defined against the stable anchor.",
+      "HIGH (F7/F8): the hard dim-mismatch error also 400s the SEARCH query path (not just reindex), and folding mismatch into NoModel is a SILENT drop (red_team risk). DECISION: add a distinct EmbedOutcome::DimMismatch{expected,actual}, emit a FR event on BOTH reindex and search, set semantic_available=false with a typed reason; assert event/reason in an engine-free test using InMemoryLlmClient::with_embedding_dim(896).",
+      "HIGH (F4): declared consumers MT-008/MT-012 do NOT depend on MT-014 and MT-014.blocks is empty. DECISION: downgrade 'feeds/breaks' language to 'provides an enumeration/label surface MT-008/MT-012 MAY adopt'; do not force rework of already-built MT-008.",
+      "HIGH (F3): durability posture unstated vs spec 4.6.5 'persisted registry row'. DECISION: registry is an in-memory shared handle re-derived deterministically from env config; the SELECTION decision (not the registry table) is recorded as an auditable EventLedger event per spec 4.3.9.4.4. No new Postgres registry table, no SQLite.",
+      "MED (F5/F6): registry unreachable through the object graph (private field in LocalRouter, no LlmClient accessor). DECISION: lift the shared registry into an AppState field / small enumeration API; define deterministic behavior for empty registry + unknown model_id (stable 'unknown model' sentinel label, never panic/blank).",
+      "MED (F14): built on MT-003 which is READY_FOR_VALIDATION (validator_verdict PENDING). Accepted risk; MT-003 regression guards are stable in code.",
+      "LOW (F11): enumeration keyed on model_id/sha256 (display_name is a non-unique label)."
+    ]
+  },
   "red_team": {
     "required": true,
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",

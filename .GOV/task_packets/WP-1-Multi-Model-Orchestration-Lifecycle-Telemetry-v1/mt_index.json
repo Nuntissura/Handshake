@@ -2,8 +2,8 @@
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "generated_at_utc": "2026-07-01T19:02:22Z",
-  "total": 15,
-  "range": "MT-001..MT-015",
+  "total": 16,
+  "range": "MT-001..MT-016",
   "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes.",
   "microtasks": [
     {
@@ -279,6 +279,21 @@
       ],
       "summary": "Operator-facing cloud-model access config surface: CLI-bridge/plan auth+login status for Claude Code + GPT/Codex (operator's primary), and BYOK API-key entry (Anthropic/OpenAI) stored in the OS-keychain secrets vault for other users. Gemini excluded (CLI deprecating). Backends exist (WP-KERNEL-004); this builds the config UI. OPERATOR_REQUESTED_ADDITION 2026-07-02.",
       "unlocks": "Unlocks operator/other-user cloud-model access (plan login + BYOK key) so cloud lanes are reachable from the operator surface and enumerable by the MT-012 picker.",
+      "blocks": [],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "NOT_RUN"
+    },
+    {
+      "mt_id": "MT-016",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-014"
+      ],
+      "summary": "Dedicated embedding model distinct from the chat model: second embedding-capable local registration + supports_embedding capability; LoomSearchV2 embeds via the registry-resolved embedding model, not the chat model's profile().model_id. DEFERRED from MT-014 AC-4b (pre-impl review F9).",
+      "unlocks": "Unlocks a separate correctly-dimensioned embedding model for LoomSearchV2 semantic search, decoupled from the chat model.",
       "blocks": [],
       "proof_status": "NOT_RUN",
       "hbr_status": "PENDING",
