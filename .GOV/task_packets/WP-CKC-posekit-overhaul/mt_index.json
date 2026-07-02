@@ -215,11 +215,13 @@
     },
     {
       "mt_id": "MT-021",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "64ae19db",
       "title": "Create full internal UserManual coverage for Atelier, CKC, Posekit, Ingest, Facial, Argus, and prompt feedback",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-021.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "reality": "DONE-BUT-DRIFTED + one parity enhancement committed 64ae19db (2026-07-03). Pre-review confirmed all 7 pillars (Atelier/CKC/Posekit/Ingest/Facial/Argus/prompt-feedback) already had manual coverage and all 4 acceptance criteria pass - fed incrementally by MT-042 (settings), MT-020/030/031 (Facial+prompt-feedback rows), earlier CKC/Posekit/Ingest/Argus prose+rows. The ONE thin spot (prompt-feedback had agent-tool rows but no dedicated prose topic like the other pillars) is now at parity via a new 'Prompt Feedback Kernel' topic (purpose, determinism guarantee, sub-mode-not-4th-tab, workflow+routes, prompt-stress-not-identity invariant, recovery). No new author_ids; MC-006-safe. Proof: test_manual_pane_editors 15/15 (new manual_documents_prompt_feedback_kernel + id-audit no-orphan/rendered + no-sqlite + 8-heading + tab-doc all green)."
     },
     {
       "mt_id": "MT-022",
