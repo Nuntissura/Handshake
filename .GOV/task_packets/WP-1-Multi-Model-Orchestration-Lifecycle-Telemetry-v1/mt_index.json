@@ -128,7 +128,7 @@
     },
     {
       "mt_id": "MT-007",
-      "status": "READY_FOR_VALIDATION",
+      "status": "NEEDS_REIMPLEMENTATION",
       "depends_on": [
         "MT-002",
         "MT-003",
@@ -143,8 +143,8 @@
         "MT-009",
         "MT-010"
       ],
-      "proof_status": "PASS_MT007_2026-07-02_RECOVERY_PG_TESTS_9_PASS_0_FAIL_2557s_CHECKPOINT_BOUND_FIX_COMMIT_553e6095",
-      "hbr_status": "PASS_MT007_RECOVERY_GREEN",
+      "proof_status": "NEEDS_REIMPL_MT007_2026-07-02: checkpoint-bound fix (553e6095) made recovery_pg_tests 9/9 BUT over-corrected - it blanket-bounds recovery at checkpoint seq, which REGRESSES MT-009 mixed_model_lane_recovery_replays_post_checkpoint_eventledger_catchup (recovery must CATCH UP post-checkpoint messages/recovery-events/MT-statuses). Correct semantics: catch up forward stream past checkpoint; REJECT post-checkpoint payload/CRDT repairs of checkpointed refs; EXCLUDE current-state adjunct (leases). Reconciliation coder dispatched to satisfy BOTH recovery_pg_tests (9/9) AND mixed_model_lane_integration_pg_tests.",
+      "hbr_status": "PENDING_MT007_RECOVERY_RECONCILE",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "NOT_RUN",
       "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"

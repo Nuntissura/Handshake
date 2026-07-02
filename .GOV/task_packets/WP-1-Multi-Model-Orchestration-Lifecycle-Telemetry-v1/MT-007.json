@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "NEEDS_REIMPLEMENTATION",
     "depends_on": [
       "MT-002",
       "MT-003",
