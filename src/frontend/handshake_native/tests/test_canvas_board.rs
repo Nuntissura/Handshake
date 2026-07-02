@@ -887,6 +887,50 @@ fn client_remove_edge_visual_vs_semantic_routes() {
     );
 }
 
+/// W4 (review MAJOR) HOST route-choice pin: the `RemoveEdge` visual-vs-semantic split lives in the
+/// HOST (`HandshakeApp::route_remove_edge_spec`, the exact arm `route_canvas_events` dispatches
+/// through), NOT in the two builders. The sibling `client_remove_edge_visual_vs_semantic_routes`
+/// proves the two builders in ISOLATION — it stays GREEN even if the host picks the WRONG one. This
+/// test captures the spec the HOST would dispatch for each id class and pins the CHOICE: a `ve-*` id
+/// that IS in the board's `visual_edges` projection routes to `DELETE .../loom/canvas-visual-edges/:id`;
+/// a `loom-edge-*` id that is NOT routes to `DELETE .../loom/edges/:id`. Inverting the single
+/// `contains` check in `route_remove_edge_spec` swaps BOTH urls -> both assertions fail.
+#[test]
+fn host_remove_edge_route_choice_visual_vs_semantic() {
+    use handshake_native::app::HandshakeApp;
+    use handshake_native::backend_client::HttpMethod;
+    let c = test_client();
+
+    // The board's own visual_edges projection: only `ve-1` is a board-local visual edge.
+    let mut visual_edge_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    visual_edge_ids.insert("ve-1".to_string());
+
+    // A board-local visual-edge id -> the canvas visual-edge route (through the host's contains check).
+    let visual = HandshakeApp::route_remove_edge_spec(&c, "ws1", &visual_edge_ids, "ve-1");
+    assert_eq!(visual.method, HttpMethod::Delete);
+    assert_eq!(
+        visual.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-visual-edges/ve-1",
+        "a board-local visual-edge id MUST route through the canvas visual-edge DELETE"
+    );
+    assert!(visual.body.is_none(), "visual-edge DELETE is bodyless");
+
+    // Any id NOT in the board's visual_edges -> the semantic loom-edge route.
+    let semantic = HandshakeApp::route_remove_edge_spec(&c, "ws1", &visual_edge_ids, "loom-edge-9");
+    assert_eq!(semantic.method, HttpMethod::Delete);
+    assert_eq!(
+        semantic.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/edges/loom-edge-9",
+        "a non-visual (semantic loom) edge id MUST route through the loom-edges DELETE"
+    );
+    assert!(semantic.body.is_none(), "semantic-edge DELETE is bodyless");
+
+    // The routing CHOICE is decisive: the two id classes land on DISTINCT backend surfaces. If the
+    // host's `contains` check is inverted, `ve-1` takes the semantic url and `loom-edge-9` the visual
+    // url -> the two url asserts above catch it.
+    assert_ne!(visual.url, semantic.url);
+}
+
 #[test]
 fn client_placement_routes_corrected() {
     // The MT contract said `.../canvas/{cb}/placements/{p}`; the REAL route is `.../canvas-placements/{p}`.

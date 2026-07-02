@@ -8664,6 +8664,28 @@ impl HandshakeApp {
         }
     }
 
+    /// Host routing decision for [`crate::graph::canvas_board::CanvasEvent::RemoveEdge`]
+    /// (WP-KERNEL-012 W4 review MAJOR — pin the visual-vs-semantic split). A board-local visual
+    /// edge (the id is present in the board's own `visual_edges` projection) deletes via the canvas
+    /// visual-edge route `DELETE .../loom/canvas-visual-edges/:id`; anything else is a semantic loom
+    /// edge `DELETE .../loom/edges/:id`. This is the EXACT `RequestSpec` `route_canvas_events`
+    /// dispatches through (that arm calls `Self::route_remove_edge_spec`), exposed so a host-routing
+    /// test can capture the dispatched spec and prove that inverting the `contains` check flips both
+    /// routes. Previously NO test exercised the host's CHOICE — only the two builders in isolation,
+    /// so a swapped branch was invisible.
+    pub fn route_remove_edge_spec(
+        client: &crate::backend_client::CanvasBoardClient,
+        workspace_id: &str,
+        visual_edge_ids: &std::collections::HashSet<String>,
+        edge_id: &str,
+    ) -> crate::backend_client::RequestSpec {
+        if visual_edge_ids.contains(edge_id) {
+            client.remove_visual_edge_request(workspace_id, edge_id)
+        } else {
+            client.remove_semantic_edge_request(workspace_id, edge_id)
+        }
+    }
+
     /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061) + W3 REMEDIATION (MT-026): map EVERY drained
     /// [`crate::graph::canvas_board::CanvasEvent`] mutation kind to its EXISTING verified
     /// `CanvasBoardClient` builder + the shared op-cell/re-fetch drain (the live round-trips are gated
@@ -8792,11 +8814,14 @@ impl HandshakeApp {
                 CanvasEvent::RemoveEdge { edge_id } => {
                     // A board-local visual edge (the id is in the board's own visual_edges projection)
                     // deletes via the canvas visual-edge route; anything else is a semantic loom edge.
-                    if visual_edge_ids.contains(&edge_id) {
-                        vec![client.remove_visual_edge_request(&workspace_id, &edge_id)]
-                    } else {
-                        vec![client.remove_semantic_edge_request(&workspace_id, &edge_id)]
-                    }
+                    // The single `contains` check lives in `route_remove_edge_spec` so a host-routing
+                    // test pins the CHOICE the host dispatches (W4 review MAJOR).
+                    vec![Self::route_remove_edge_spec(
+                        &client,
+                        &workspace_id,
+                        &visual_edge_ids,
+                        &edge_id,
+                    )]
                 }
                 CanvasEvent::ViewportChanged { pan_x, pan_y, zoom } => vec![client
                     .viewport_request(&workspace_id, &canvas_block_id, pan_x, pan_y, zoom)],
