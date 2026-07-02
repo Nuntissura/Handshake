@@ -39,8 +39,8 @@ use crate::stage_pane::{StageContent, StagePane};
 use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
 use crate::theme::{self, HsTheme};
 use crate::top_menu_bar::{
-    EditorMetaSegmentState, EditorSegmentAction, EditorStatusSegments, MenuBar, MenuBarAction,
-    MenuBarState,
+    AtelierMenuTarget, EditorMetaSegmentState, EditorSegmentAction, EditorStatusSegments, MenuBar,
+    MenuBarAction, MenuBarState,
 };
 
 /// Stable AccessKit id for the theme-toggle button. egui maps `accesskit::NodeId` directly
@@ -4423,6 +4423,10 @@ impl HandshakeApp {
             }
             MenuBarAction::FocusNextPane => self.focus_pane(true),
             MenuBarAction::FocusPrevPane => self.focus_pane(false),
+            // WP-CKC MT-041: the GO > Atelier group jumps to the Atelier work surface. Routed through the
+            // SAME `set_module` + MT-006 internal-tab `set_active_tab` deep-link the module switcher uses,
+            // so the menu path and the switcher path can never diverge (one state-mutation path).
+            MenuBarAction::OpenAtelier(target) => self.open_atelier_target(target),
             MenuBarAction::CloseActiveTab => self.close_active_tab(),
             MenuBarAction::OpenSwarmBoard => self.navigate_to_tab("swarm"),
             MenuBarAction::NavigateToTab(tab_id) => self.navigate_to_tab(&tab_id),
@@ -4453,6 +4457,43 @@ impl HandshakeApp {
             | MenuBarAction::ToggleFileDrawer
             | MenuBarAction::OpenTerminal => false,
         }
+    }
+
+    /// WP-CKC MT-041: open the operator-facing Atelier work surface for a GO > Atelier group leaf. Reuses
+    /// the SAME `set_module` + MT-006 internal-tab `set_active_tab` deep-link the module switcher drives, so
+    /// the menu path never forks the state machine:
+    ///
+    /// - `Module` / `Ckc` -> `set_module(ModuleId::Ckc)` opens the full-window Atelier at its Castkit Codex
+    ///   default (MT-006 already selects the CastkitCodex internal tab on CKC module entry).
+    /// - `Ingest` -> `set_module(ModuleId::Ingest)` opens the Atelier and (MT-006) lands on the Ingest tab.
+    /// - `Posekit` has no dedicated module, so it opens the Atelier surface (CKC module) and THEN selects
+    ///   the Posekit internal tab via the same shared `AtelierPanel` handle, overriding the CastkitCodex
+    ///   default `set_module` set. Posekit-select runs even when already on the CKC module (where
+    ///   `set_module` short-circuits), so the leaf always lands on Posekit.
+    ///
+    /// Returns `true` when observable state changed (the module switched and/or the internal tab moved), so
+    /// the caller repaints + the MT-006/MT-009 layout change-detector schedules the debounced save.
+    fn open_atelier_target(&mut self, target: AtelierMenuTarget) -> bool {
+        match target {
+            AtelierMenuTarget::Module | AtelierMenuTarget::Ckc => self.set_module(ModuleId::Ckc),
+            AtelierMenuTarget::Ingest => self.set_module(ModuleId::Ingest),
+            AtelierMenuTarget::Posekit => {
+                let module_changed = self.set_module(ModuleId::Ckc);
+                let panel = &self.editor_mounts.secondary.atelier_panel;
+                let tab_changed = panel.active_tab() != crate::atelier_panel::AtelierPanelTab::Posekit;
+                panel.set_active_tab(crate::atelier_panel::AtelierPanelTab::Posekit);
+                module_changed || tab_changed
+            }
+        }
+    }
+
+    /// WP-CKC MT-041 (observability): the active Atelier internal sub-module tab, read from the shared
+    /// MT-006 [`AtelierPanel`](crate::atelier_panel::AtelierPanel) handle the GO > Atelier group deep-links
+    /// into. Lets a test/agent verify a `menu.go.atelier.posekit` jump actually landed on Posekit — which
+    /// shares the CKC full-window module, so [`active_module`](Self::active_module) alone cannot distinguish
+    /// it from the Castkit Codex jump.
+    pub fn atelier_active_tab(&self) -> crate::atelier_panel::AtelierPanelTab {
+        self.editor_mounts.secondary.atelier_panel.active_tab()
     }
 
     /// WP-KERNEL-012 MT-069: whether an editor pane is the focusable/active target this frame — the live

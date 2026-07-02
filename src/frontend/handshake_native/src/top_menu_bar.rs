@@ -121,6 +121,47 @@ pub const GO_SYMBOL_IN_FILE_AUTHOR_ID: &str = "menu-go-symbol-in-file";
 pub const MENU_GO_EDITOR_DISABLED_REASON: &str =
     "Needs the live code editor (host-mounted in E11 MT-069)";
 
+/// WP-CKC MT-041 operator-facing Atelier navigation group (a group of LEAF items under the GO menu).
+/// These are the EXACT stable author_ids the MT-041 contract names so an operator or Argus jumps to the
+/// Atelier work surface without hunting for the module-switcher button. Each is a `Role::MenuItem` LEAF
+/// (dynamic — present only while the GO menu is open), addressed by these stable strings in egui's hashed
+/// id space (the same pattern as every other leaf). Unlike the editor-navigation leaves these are ENABLED
+/// today: the Atelier surface already exists (the CKC/Ingest full-window modules + the MT-006 shared
+/// `AtelierPanel` handle), so each drives the shell `set_module` + the MT-006 `set_active_tab` deep-link.
+pub const MENU_GO_ATELIER_AUTHOR_ID: &str = "menu.go.atelier";
+pub const MENU_GO_ATELIER_CKC_AUTHOR_ID: &str = "menu.go.atelier.ckc";
+pub const MENU_GO_ATELIER_POSEKIT_AUTHOR_ID: &str = "menu.go.atelier.posekit";
+pub const MENU_GO_ATELIER_INGEST_AUTHOR_ID: &str = "menu.go.atelier.ingest";
+
+/// WP-CKC MT-041: which Atelier surface an [`MenuBarAction::OpenAtelier`] leaf targets. The shell maps
+/// each variant to a `set_module` + MT-006 internal-tab `set_active_tab` pair (the menu bar carries the
+/// intent only; the shell owns the state mutation). `Module` opens the Atelier at its default (Castkit
+/// Codex) surface — the "Atelier" parent leaf; the three tab variants deep-link to a specific internal
+/// tab. Kept a small closed enum so the shell's dispatch match stays exhaustive (compiler-enforced).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AtelierMenuTarget {
+    /// Open the Atelier work surface at its default Castkit Codex tab (the "Atelier" parent leaf).
+    Module,
+    /// Jump to the Castkit Codex (CKC) internal tab.
+    Ckc,
+    /// Jump to the Posekit internal tab.
+    Posekit,
+    /// Jump to the Ingest internal tab.
+    Ingest,
+}
+
+impl AtelierMenuTarget {
+    /// The stable leaf author_id for this target's GO-menu item.
+    pub const fn author_id(self) -> &'static str {
+        match self {
+            AtelierMenuTarget::Module => MENU_GO_ATELIER_AUTHOR_ID,
+            AtelierMenuTarget::Ckc => MENU_GO_ATELIER_CKC_AUTHOR_ID,
+            AtelierMenuTarget::Posekit => MENU_GO_ATELIER_POSEKIT_AUTHOR_ID,
+            AtelierMenuTarget::Ingest => MENU_GO_ATELIER_INGEST_AUTHOR_ID,
+        }
+    }
+}
+
 /// A top-level menu in the menu bar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuId {
@@ -238,10 +279,10 @@ pub const MENU_DEFINITIONS: [MenuId; 6] = [
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuBarAction {
     // FILE
-    NewDocument,        // disabled in MT-015 (needs document model)
+    NewDocument,         // disabled in MT-015 (needs document model)
     OpenWorkspacePicker, // disabled in MT-015 (needs workspace picker)
-    SaveActiveDocument, // disabled in MT-015 (needs document model)
-    SaveAllDocuments,   // disabled in MT-015 (needs document model)
+    SaveActiveDocument,  // disabled in MT-015 (needs document model)
+    SaveAllDocuments,    // disabled in MT-015 (needs document model)
     CloseActiveTab,
     QuitApp,
     // EDIT (all disabled in MT-015 — needs the editor surface)
@@ -264,6 +305,12 @@ pub enum MenuBarAction {
     OpenCommandPalette,
     FocusNextPane,
     FocusPrevPane,
+    /// WP-CKC MT-041: open the operator-facing Atelier work surface (GO > Atelier group). The carried
+    /// [`AtelierMenuTarget`] selects the module + internal tab: `Module`/`Ckc` open the CKC full-window
+    /// Atelier at Castkit Codex, `Posekit` opens the Atelier and selects the Posekit internal tab, and
+    /// `Ingest` opens the Ingest full-window Atelier. The shell routes this through `set_module` + the
+    /// MT-006 `set_active_tab` deep-link (the menu bar never mutates state itself).
+    OpenAtelier(AtelierMenuTarget),
     // RUN
     OpenSwarmBoard,
     /// Navigate the active pane to a named tab/surface (the React `PaneTabId` string).
@@ -300,6 +347,104 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     GO_BACK_AUTHOR_ID,
     GO_FORWARD_AUTHOR_ID,
 ];
+
+/// WP-CKC MT-041 STATIC leaf-id discovery registry (HBR-VIS / HBR-SWARM).
+///
+/// Menu LEAF items are DYNAMIC — they only enter the AccessKit tree while their parent menu is OPEN
+/// ([`MenuBar::menu`] renders the popup only when open), so `argus.inspect` cannot see a leaf until the
+/// menu is opened. That defeats a no-context model that needs to know the valid leaf target BEFORE it
+/// opens the menu. This registry closes that gap: it enumerates every `menu.<x>.<leaf>` (and the few
+/// command-id / `menu-go-*` leaf ids) author_id per top-level [`MenuId`], in render order, so a model /
+/// Argus / test can query the valid leaf catalog for the two-step open-then-steer contract
+/// (`argus.click menu-<x>` -> drain+repaint -> `argus.click <leaf-id>`) WITHOUT first opening the menu.
+///
+/// It is the AUTHORITATIVE list of leaf ids; the live drift test (`tests/test_atelier_menu.rs`) opens
+/// each menu in the real shell and asserts the rendered leaf set matches this catalog exactly, so a leaf
+/// added to the render without a catalog entry (or vice-versa) fails loudly rather than drifting.
+pub fn menu_leaf_ids(menu: MenuId) -> &'static [&'static str] {
+    match menu {
+        MenuId::File => &[
+            "menu.file.new-document",
+            "menu.file.open-workspace",
+            "menu.file.save",
+            "menu.file.save-all",
+            "menu.file.save-as",
+            "menu.file.export-html",
+            "menu.file.export-md",
+            "menu.file.export-txt",
+            "menu.file.export-json",
+            "menu.file.close-tab",
+            "menu.file.quit",
+        ],
+        MenuId::Edit => &[
+            "menu.edit.undo",
+            "menu.edit.redo",
+            "menu.edit.cut",
+            "menu.edit.copy",
+            "menu.edit.paste",
+            "menu.edit.select-all",
+            "menu.edit.toggle-comment",
+            crate::code_editor::FORMAT_DOCUMENT_MENU_AUTHOR_ID,
+            "menu.edit.find-replace",
+            "menu.edit.replace",
+            "menu.edit.find-all",
+            "menu.edit.replace-all",
+            "menu.edit.command-palette",
+            "menu.edit.quick-switcher",
+        ],
+        MenuId::View => &[
+            "menu.view.theme-dark",
+            "menu.view.theme-light",
+            "menu.view.mode-nsfw",
+            "menu.view.mode-sfw",
+            "menu.view.toggle-project-drawer",
+            "menu.view.toggle-file-drawer",
+            "menu.view.toggle-bottom-panel",
+            "menu.view.reset-layout",
+        ],
+        MenuId::Go => &[
+            "menu.go.quick-switcher",
+            "menu.go.command-palette",
+            "menu.go.next-pane",
+            "menu.go.prev-pane",
+            GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
+            GO_PREV_DIAGNOSTIC_AUTHOR_ID,
+            GO_BACK_AUTHOR_ID,
+            GO_FORWARD_AUTHOR_ID,
+            GO_SYMBOL_IN_FILE_AUTHOR_ID,
+            crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION,
+            crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES,
+            crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL,
+            crate::command_registry::CMD_EDITOR_GO_TO_LINE,
+            // WP-CKC MT-041 operator-facing Atelier navigation group.
+            MENU_GO_ATELIER_AUTHOR_ID,
+            MENU_GO_ATELIER_CKC_AUTHOR_ID,
+            MENU_GO_ATELIER_POSEKIT_AUTHOR_ID,
+            MENU_GO_ATELIER_INGEST_AUTHOR_ID,
+        ],
+        MenuId::Run => &[
+            "menu.run.swarm-board",
+            "menu.run.inference-lab",
+            "menu.run.flight-recorder",
+            "menu.run.terminal",
+        ],
+        MenuId::Help => &[
+            "menu.help.user-manual",
+            "menu.help.settings",
+            "menu.help.about",
+        ],
+    }
+}
+
+/// Every top-level menu paired with its static leaf-id catalog, in display order — the whole
+/// [`menu_leaf_ids`] surface as one queryable table (what a model dumps to learn every valid menu leaf
+/// target up front). See [`menu_leaf_ids`] for the drift contract.
+pub fn menu_leaf_catalog() -> Vec<(MenuId, &'static [&'static str])> {
+    MENU_DEFINITIONS
+        .iter()
+        .map(|&menu| (menu, menu_leaf_ids(menu)))
+        .collect()
+}
 
 /// Read-only view of the live shell state the menu bar needs to render checkmarks + enable/disable
 /// leaves. The menu bar takes this by value so it never holds a `&mut` to the app while egui's menu
@@ -389,7 +534,8 @@ impl MenuBar {
         let response = ui.interact(rect, button_id, egui::Sense::click());
 
         // The button is "open" when its popup is currently showing, so we can paint the open highlight.
-        let popup_open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&response));
+        let popup_open =
+            egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&response));
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
             let bg = if popup_open {
@@ -434,22 +580,116 @@ impl MenuBar {
                 // the shared shell dispatcher; enabled only when an editor pane is the focusable target. The
                 // WP-011 AccessKit author_ids (`menu.file.*`) are REUSED (flip to enabled, no new id minted).
                 let ed = self.state.editor_available;
-                self.item(ui, "menu.file.new-document", "New Document", Some("Ctrl+N"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_NEW), action);
-                self.disabled_item(ui, "menu.file.open-workspace", "Open Workspace…", None, "Needs the workspace picker (future MT)");
+                self.item(
+                    ui,
+                    "menu.file.new-document",
+                    "New Document",
+                    Some("Ctrl+N"),
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_NEW),
+                    action,
+                );
+                self.disabled_item(
+                    ui,
+                    "menu.file.open-workspace",
+                    "Open Workspace…",
+                    None,
+                    "Needs the workspace picker (future MT)",
+                );
                 ui.separator();
-                self.item(ui, "menu.file.save", "Save", Some("Ctrl+S"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE), action);
-                self.item(ui, "menu.file.save-all", "Save All", Some("Ctrl+K S"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE_ALL), action);
-                self.item(ui, "menu.file.save-as", "Save As…", Some("Ctrl+Shift+S"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE_AS), action);
+                self.item(
+                    ui,
+                    "menu.file.save",
+                    "Save",
+                    Some("Ctrl+S"),
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.file.save-all",
+                    "Save All",
+                    Some("Ctrl+K S"),
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE_ALL),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.file.save-as",
+                    "Save As…",
+                    Some("Ctrl+Shift+S"),
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE_AS),
+                    action,
+                );
                 ui.separator();
                 // Export Document: HTML / Markdown / Text / JSON — each routes to the MT-020 editor save/
                 // export path by its stable command id.
-                self.item(ui, "menu.file.export-html", "Export Document: HTML", None, ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_EXPORT_HTML), action);
-                self.item(ui, "menu.file.export-md", "Export Document: Markdown", None, ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_EXPORT_MD), action);
-                self.item(ui, "menu.file.export-txt", "Export Document: Text", None, ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_EXPORT_TXT), action);
-                self.item(ui, "menu.file.export-json", "Export Document: JSON", None, ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_EXPORT_JSON), action);
+                self.item(
+                    ui,
+                    "menu.file.export-html",
+                    "Export Document: HTML",
+                    None,
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_FILE_EXPORT_HTML,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.file.export-md",
+                    "Export Document: Markdown",
+                    None,
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_FILE_EXPORT_MD,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.file.export-txt",
+                    "Export Document: Text",
+                    None,
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_FILE_EXPORT_TXT,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.file.export-json",
+                    "Export Document: JSON",
+                    None,
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_FILE_EXPORT_JSON,
+                    ),
+                    action,
+                );
                 ui.separator();
-                self.item(ui, "menu.file.close-tab", "Close Tab", None, self.state.has_active_tab, MenuBarAction::CloseActiveTab, action);
-                self.item(ui, "menu.file.quit", "Quit", None, true, MenuBarAction::QuitApp, action);
+                self.item(
+                    ui,
+                    "menu.file.close-tab",
+                    "Close Tab",
+                    None,
+                    self.state.has_active_tab,
+                    MenuBarAction::CloseActiveTab,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.file.quit",
+                    "Quit",
+                    None,
+                    true,
+                    MenuBarAction::QuitApp,
+                    action,
+                );
             }
             MenuId::Edit => {
                 // WP-KERNEL-012 MT-069 (E11): the editor EDIT items WP-011 shipped disabled are now LIVE
@@ -460,75 +700,277 @@ impl MenuBar {
                 // Replace to the focused editor's find family. Enable predicates are LIVE (RISK-006): Undo
                 // only when `can_undo`, Redo only when `can_redo`, Paste only when the clipboard has content.
                 let ed = self.state.editor_available;
-                self.item(ui, "menu.edit.undo", "Undo", Some("Ctrl+Z"), self.state.editor_can_undo, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_UNDO), action);
-                self.item(ui, "menu.edit.redo", "Redo", Some("Ctrl+Shift+Z"), self.state.editor_can_redo, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_REDO), action);
+                self.item(
+                    ui,
+                    "menu.edit.undo",
+                    "Undo",
+                    Some("Ctrl+Z"),
+                    self.state.editor_can_undo,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_UNDO),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.redo",
+                    "Redo",
+                    Some("Ctrl+Shift+Z"),
+                    self.state.editor_can_redo,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_REDO),
+                    action,
+                );
                 ui.separator();
-                self.item(ui, "menu.edit.cut", "Cut", Some("Ctrl+X"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_CUT), action);
-                self.item(ui, "menu.edit.copy", "Copy", Some("Ctrl+C"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_COPY), action);
-                self.item(ui, "menu.edit.paste", "Paste", Some("Ctrl+V"), self.state.editor_can_paste, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_PASTE), action);
-                self.item(ui, "menu.edit.select-all", "Select All", Some("Ctrl+A"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_SELECT_ALL), action);
+                self.item(
+                    ui,
+                    "menu.edit.cut",
+                    "Cut",
+                    Some("Ctrl+X"),
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_CUT),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.copy",
+                    "Copy",
+                    Some("Ctrl+C"),
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_COPY),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.paste",
+                    "Paste",
+                    Some("Ctrl+V"),
+                    self.state.editor_can_paste,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_PASTE),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.select-all",
+                    "Select All",
+                    Some("Ctrl+A"),
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_EDIT_SELECT_ALL,
+                    ),
+                    action,
+                );
                 ui.separator();
                 // WP-KERNEL-012 MT-051 / MT-050: Toggle Comment + Format Document. The Format Document leaf
                 // KEEPS its MT-050 AccessKit author_id (`FORMAT_DOCUMENT_MENU_AUTHOR_ID`); it now dispatches
                 // the real editor.edit.formatDocument command when an editor pane is the target (RISK-007:
                 // no new menu infra, the existing leaf flips to enabled).
-                self.item(ui, "menu.edit.toggle-comment", "Toggle Comment", Some("Ctrl+/"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_TOGGLE_COMMENT), action);
-                self.item(ui, crate::code_editor::FORMAT_DOCUMENT_MENU_AUTHOR_ID, "Format Document", Some("Alt+Shift+F"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_FORMAT_DOCUMENT), action);
+                self.item(
+                    ui,
+                    "menu.edit.toggle-comment",
+                    "Toggle Comment",
+                    Some("Ctrl+/"),
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_EDIT_TOGGLE_COMMENT,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    crate::code_editor::FORMAT_DOCUMENT_MENU_AUTHOR_ID,
+                    "Format Document",
+                    Some("Alt+Shift+F"),
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_EDIT_FORMAT_DOCUMENT,
+                    ),
+                    action,
+                );
                 ui.separator();
-                self.item(ui, "menu.edit.find-replace", "Find", Some("Ctrl+F"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_FIND), action);
-                self.item(ui, "menu.edit.replace", "Replace", Some("Ctrl+H"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_REPLACE), action);
-                self.item(ui, "menu.edit.find-all", "Find in Files", Some("Ctrl+Shift+F"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_IN_FILES), action);
-                self.item(ui, "menu.edit.replace-all", "Replace in Files", Some("Ctrl+Shift+H"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_REPLACE_IN_FILES), action);
+                self.item(
+                    ui,
+                    "menu.edit.find-replace",
+                    "Find",
+                    Some("Ctrl+F"),
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_FIND),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.replace",
+                    "Replace",
+                    Some("Ctrl+H"),
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_REPLACE),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.find-all",
+                    "Find in Files",
+                    Some("Ctrl+Shift+F"),
+                    ed,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_IN_FILES),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.replace-all",
+                    "Replace in Files",
+                    Some("Ctrl+Shift+H"),
+                    ed,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_REPLACE_IN_FILES,
+                    ),
+                    action,
+                );
                 ui.separator();
                 // Command Palette + Quick Switcher are also reachable from EDIT (AC-002 lists them here);
                 // they open the ONE WP-011 palette / switcher — always available (no editor needed).
-                self.item(ui, "menu.edit.command-palette", "Command Palette", Some("Ctrl+Shift+P"), true, MenuBarAction::EditorCommand(crate::command_registry::CMD_WORKBENCH_SHOW_COMMANDS), action);
-                self.item(ui, "menu.edit.quick-switcher", "Quick Switcher", Some("Ctrl+P"), true, MenuBarAction::EditorCommand(crate::command_registry::CMD_WORKBENCH_QUICK_OPEN), action);
+                self.item(
+                    ui,
+                    "menu.edit.command-palette",
+                    "Command Palette",
+                    Some("Ctrl+Shift+P"),
+                    true,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_WORKBENCH_SHOW_COMMANDS,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.quick-switcher",
+                    "Quick Switcher",
+                    Some("Ctrl+P"),
+                    true,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_WORKBENCH_QUICK_OPEN),
+                    action,
+                );
             }
             MenuId::View => {
                 // Theme: two FLAT checkmark items (a check on the currently active theme; selectable_label
                 // draws the native check), matching AC5's "VIEW > Theme: Dark / Theme: Light". Clicking
                 // the NON-active option toggles; clicking the already-active one is a no-op (no action
                 // emitted) so the theme never flickers (R4 handled by the same-frame apply on dispatch).
-                if self.check_item(ui, "menu.view.theme-dark", "Theme: Dark", self.state.theme_is_dark) && !self.state.theme_is_dark {
+                if self.check_item(
+                    ui,
+                    "menu.view.theme-dark",
+                    "Theme: Dark",
+                    self.state.theme_is_dark,
+                ) && !self.state.theme_is_dark
+                {
                     *action = Some(MenuBarAction::ToggleTheme);
                     ui.close();
                 }
-                if self.check_item(ui, "menu.view.theme-light", "Theme: Light", !self.state.theme_is_dark) && self.state.theme_is_dark {
+                if self.check_item(
+                    ui,
+                    "menu.view.theme-light",
+                    "Theme: Light",
+                    !self.state.theme_is_dark,
+                ) && self.state.theme_is_dark
+                {
                     *action = Some(MenuBarAction::ToggleTheme);
                     ui.close();
                 }
                 ui.separator();
                 // View Mode: two FLAT checkmark items (a check on the active mode), matching AC's
                 // "VIEW > View Mode: NSFW / SFW".
-                if self.check_item(ui, "menu.view.mode-nsfw", "View Mode: NSFW", self.state.view_mode_is_nsfw) && !self.state.view_mode_is_nsfw {
+                if self.check_item(
+                    ui,
+                    "menu.view.mode-nsfw",
+                    "View Mode: NSFW",
+                    self.state.view_mode_is_nsfw,
+                ) && !self.state.view_mode_is_nsfw
+                {
                     *action = Some(MenuBarAction::ToggleViewMode);
                     ui.close();
                 }
-                if self.check_item(ui, "menu.view.mode-sfw", "View Mode: SFW", !self.state.view_mode_is_nsfw) && self.state.view_mode_is_nsfw {
+                if self.check_item(
+                    ui,
+                    "menu.view.mode-sfw",
+                    "View Mode: SFW",
+                    !self.state.view_mode_is_nsfw,
+                ) && self.state.view_mode_is_nsfw
+                {
                     *action = Some(MenuBarAction::ToggleViewMode);
                     ui.close();
                 }
                 ui.separator();
                 // Drawer toggles show a checkmark for the current open/closed state (a check = open).
-                if self.check_item(ui, "menu.view.toggle-project-drawer", "Toggle Project Drawer", self.state.project_drawer_open) {
+                if self.check_item(
+                    ui,
+                    "menu.view.toggle-project-drawer",
+                    "Toggle Project Drawer",
+                    self.state.project_drawer_open,
+                ) {
                     *action = Some(MenuBarAction::ToggleProjectDrawer);
                     ui.close();
                 }
-                self.disabled_item(ui, "menu.view.toggle-file-drawer", "Toggle File Drawer", None, "No native file drawer yet (future MT)");
-                if self.check_item(ui, "menu.view.toggle-bottom-panel", "Toggle Bottom Panel", self.state.bottom_drawer_open) {
+                self.disabled_item(
+                    ui,
+                    "menu.view.toggle-file-drawer",
+                    "Toggle File Drawer",
+                    None,
+                    "No native file drawer yet (future MT)",
+                );
+                if self.check_item(
+                    ui,
+                    "menu.view.toggle-bottom-panel",
+                    "Toggle Bottom Panel",
+                    self.state.bottom_drawer_open,
+                ) {
                     *action = Some(MenuBarAction::ToggleBottomPanel);
                     ui.close();
                 }
                 ui.separator();
-                self.item(ui, "menu.view.reset-layout", "Reset Layout…", None, true, MenuBarAction::ResetLayout, action);
+                self.item(
+                    ui,
+                    "menu.view.reset-layout",
+                    "Reset Layout…",
+                    None,
+                    true,
+                    MenuBarAction::ResetLayout,
+                    action,
+                );
             }
             MenuId::Go => {
-                self.item(ui, "menu.go.quick-switcher", "Quick Switcher", Some("Ctrl+P"), true, MenuBarAction::OpenQuickSwitcher, action);
-                self.item(ui, "menu.go.command-palette", "Command Palette", Some("Ctrl+Shift+P"), true, MenuBarAction::OpenCommandPalette, action);
+                self.item(
+                    ui,
+                    "menu.go.quick-switcher",
+                    "Quick Switcher",
+                    Some("Ctrl+P"),
+                    true,
+                    MenuBarAction::OpenQuickSwitcher,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.go.command-palette",
+                    "Command Palette",
+                    Some("Ctrl+Shift+P"),
+                    true,
+                    MenuBarAction::OpenCommandPalette,
+                    action,
+                );
                 ui.separator();
-                self.item(ui, "menu.go.next-pane", "Go to Next Pane", None, true, MenuBarAction::FocusNextPane, action);
-                self.item(ui, "menu.go.prev-pane", "Go to Previous Pane", None, true, MenuBarAction::FocusPrevPane, action);
+                self.item(
+                    ui,
+                    "menu.go.next-pane",
+                    "Go to Next Pane",
+                    None,
+                    true,
+                    MenuBarAction::FocusNextPane,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.go.prev-pane",
+                    "Go to Previous Pane",
+                    None,
+                    true,
+                    MenuBarAction::FocusPrevPane,
+                    action,
+                );
                 ui.separator();
                 // WP-KERNEL-012 MT-052: editor navigation leaves. Present + AccessKit-addressable now
                 // (author_ids menu-go-next-diagnostic / menu-go-prev-diagnostic / menu-go-back /
@@ -537,17 +979,47 @@ impl MenuBar {
                 // CodeEditorAction through the editor command path (the SAME path F8/Shift+F8/Alt+Left/
                 // Alt+Right take — RISK-007), and Back/Forward reflect can_navigate_back /
                 // can_navigate_forward. No fake-enable (MT-050 precedent).
-                self.disabled_item(ui, GO_NEXT_DIAGNOSTIC_AUTHOR_ID, "Go to Next Problem", Some("F8"), MENU_GO_EDITOR_DISABLED_REASON);
-                self.disabled_item(ui, GO_PREV_DIAGNOSTIC_AUTHOR_ID, "Go to Previous Problem", Some("Shift+F8"), MENU_GO_EDITOR_DISABLED_REASON);
-                self.disabled_item(ui, GO_BACK_AUTHOR_ID, "Back", Some("Alt+Left"), MENU_GO_EDITOR_DISABLED_REASON);
-                self.disabled_item(ui, GO_FORWARD_AUTHOR_ID, "Forward", Some("Alt+Right"), MENU_GO_EDITOR_DISABLED_REASON);
+                self.disabled_item(
+                    ui,
+                    GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
+                    "Go to Next Problem",
+                    Some("F8"),
+                    MENU_GO_EDITOR_DISABLED_REASON,
+                );
+                self.disabled_item(
+                    ui,
+                    GO_PREV_DIAGNOSTIC_AUTHOR_ID,
+                    "Go to Previous Problem",
+                    Some("Shift+F8"),
+                    MENU_GO_EDITOR_DISABLED_REASON,
+                );
+                self.disabled_item(
+                    ui,
+                    GO_BACK_AUTHOR_ID,
+                    "Back",
+                    Some("Alt+Left"),
+                    MENU_GO_EDITOR_DISABLED_REASON,
+                );
+                self.disabled_item(
+                    ui,
+                    GO_FORWARD_AUTHOR_ID,
+                    "Forward",
+                    Some("Alt+Right"),
+                    MENU_GO_EDITOR_DISABLED_REASON,
+                );
                 // WP-KERNEL-012 MT-053: in-file Go to Symbol leaf. Present + AccessKit-addressable now
                 // (author_id menu-go-symbol-in-file, Role::MenuItem), rendered DISABLED with a disclosed
                 // reason until the editor is host-mounted (E11 MT-069), the same disabled-until-mounted
                 // precedent as the MT-052 nav leaves. Once live, the host wires it to the SAME
                 // open_symbol_palette entry point the Ctrl+Shift+O keybind reaches (AC-005) — one path, no
                 // divergence. DISTINCT from the Quick Switcher leaf above (global, Ctrl+P). No fake-enable.
-                self.disabled_item(ui, GO_SYMBOL_IN_FILE_AUTHOR_ID, "Go to Symbol in File…", Some("Ctrl+Shift+O"), MENU_GO_EDITOR_DISABLED_REASON);
+                self.disabled_item(
+                    ui,
+                    GO_SYMBOL_IN_FILE_AUTHOR_ID,
+                    "Go to Symbol in File…",
+                    Some("Ctrl+Shift+O"),
+                    MENU_GO_EDITOR_DISABLED_REASON,
+                );
                 ui.separator();
                 // WP-KERNEL-012 MT-069 (E11): the four code-navigation GO items the contract names (Go to
                 // Definition / References / Symbol / Line). Their OWNING code-nav command ids are NOT yet
@@ -556,22 +1028,142 @@ impl MenuBar {
                 // todo!()/unimplemented!()/panic!() (AC-003 / MC-003). If dispatched anyway (e.g. by id via
                 // an agent), the shell emits a typed LOGGED no-op (`is_go_nav_pending`). The author_ids are
                 // the stable command ids so a swarm agent can SEE the items and read that they are pending.
-                self.disabled_item(ui, crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION, "Go to Definition", Some("F12"), MENU_GO_EDITOR_DISABLED_REASON);
-                self.disabled_item(ui, crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES, "Go to References", Some("Shift+F12"), MENU_GO_EDITOR_DISABLED_REASON);
-                self.disabled_item(ui, crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL, "Go to Symbol in Workspace…", Some("Ctrl+T"), MENU_GO_EDITOR_DISABLED_REASON);
-                self.disabled_item(ui, crate::command_registry::CMD_EDITOR_GO_TO_LINE, "Go to Line…", Some("Ctrl+G"), MENU_GO_EDITOR_DISABLED_REASON);
+                self.disabled_item(
+                    ui,
+                    crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION,
+                    "Go to Definition",
+                    Some("F12"),
+                    MENU_GO_EDITOR_DISABLED_REASON,
+                );
+                self.disabled_item(
+                    ui,
+                    crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES,
+                    "Go to References",
+                    Some("Shift+F12"),
+                    MENU_GO_EDITOR_DISABLED_REASON,
+                );
+                self.disabled_item(
+                    ui,
+                    crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL,
+                    "Go to Symbol in Workspace…",
+                    Some("Ctrl+T"),
+                    MENU_GO_EDITOR_DISABLED_REASON,
+                );
+                self.disabled_item(
+                    ui,
+                    crate::command_registry::CMD_EDITOR_GO_TO_LINE,
+                    "Go to Line…",
+                    Some("Ctrl+G"),
+                    MENU_GO_EDITOR_DISABLED_REASON,
+                );
+                ui.separator();
+                // WP-CKC MT-041: operator-facing Atelier navigation group. ENABLED — the Atelier work
+                // surface already exists (the full-window CKC/Ingest modules + the MT-006 shared
+                // `AtelierPanel` handle). Each leaf carries a typed `OpenAtelier(target)` the shell routes
+                // into `set_module` + the MT-006 internal-tab `set_active_tab` deep-link, so an operator or
+                // Argus jumps straight to CKC / Posekit / Ingest without hunting the module switcher.
+                self.item(
+                    ui,
+                    MENU_GO_ATELIER_AUTHOR_ID,
+                    "Atelier",
+                    None,
+                    true,
+                    MenuBarAction::OpenAtelier(AtelierMenuTarget::Module),
+                    action,
+                );
+                self.item(
+                    ui,
+                    MENU_GO_ATELIER_CKC_AUTHOR_ID,
+                    "Atelier: Castkit Codex",
+                    None,
+                    true,
+                    MenuBarAction::OpenAtelier(AtelierMenuTarget::Ckc),
+                    action,
+                );
+                self.item(
+                    ui,
+                    MENU_GO_ATELIER_POSEKIT_AUTHOR_ID,
+                    "Atelier: Posekit",
+                    None,
+                    true,
+                    MenuBarAction::OpenAtelier(AtelierMenuTarget::Posekit),
+                    action,
+                );
+                self.item(
+                    ui,
+                    MENU_GO_ATELIER_INGEST_AUTHOR_ID,
+                    "Atelier: Ingest",
+                    None,
+                    true,
+                    MenuBarAction::OpenAtelier(AtelierMenuTarget::Ingest),
+                    action,
+                );
             }
             MenuId::Run => {
-                self.item(ui, "menu.run.swarm-board", "Open Swarm Board", None, true, MenuBarAction::OpenSwarmBoard, action);
-                self.item(ui, "menu.run.inference-lab", "Open Inference Lab", None, true, MenuBarAction::NavigateToTab("inference-lab".to_owned()), action);
-                self.item(ui, "menu.run.flight-recorder", "Open Flight Recorder", None, true, MenuBarAction::NavigateToTab("flight-recorder".to_owned()), action);
-                self.disabled_item(ui, "menu.run.terminal", "Open Terminal", None, "No native terminal panel yet (future MT)");
+                self.item(
+                    ui,
+                    "menu.run.swarm-board",
+                    "Open Swarm Board",
+                    None,
+                    true,
+                    MenuBarAction::OpenSwarmBoard,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.run.inference-lab",
+                    "Open Inference Lab",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("inference-lab".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.run.flight-recorder",
+                    "Open Flight Recorder",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("flight-recorder".to_owned()),
+                    action,
+                );
+                self.disabled_item(
+                    ui,
+                    "menu.run.terminal",
+                    "Open Terminal",
+                    None,
+                    "No native terminal panel yet (future MT)",
+                );
             }
             MenuId::Help => {
-                self.item(ui, "menu.help.user-manual", "Open User Manual", None, true, MenuBarAction::NavigateToTab("user-manual".to_owned()), action);
-                self.item(ui, "menu.help.settings", "Open Settings…", None, true, MenuBarAction::OpenSettings, action);
+                self.item(
+                    ui,
+                    "menu.help.user-manual",
+                    "Open User Manual",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("user-manual".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.help.settings",
+                    "Open Settings…",
+                    None,
+                    true,
+                    MenuBarAction::OpenSettings,
+                    action,
+                );
                 ui.separator();
-                self.item(ui, "menu.help.about", "About Handshake", None, true, MenuBarAction::ShowAbout, action);
+                self.item(
+                    ui,
+                    "menu.help.about",
+                    "About Handshake",
+                    None,
+                    true,
+                    MenuBarAction::ShowAbout,
+                    action,
+                );
             }
         }
     }
@@ -595,7 +1187,13 @@ impl MenuBar {
         if !enabled {
             // An enabled-call with a runtime-false condition (e.g. Close Tab with no tab) still renders
             // the leaf greyed so its presence is stable (AC2) and its reason readable.
-            self.disabled_item(ui, author_id, label, shortcut, "Unavailable in the current state");
+            self.disabled_item(
+                ui,
+                author_id,
+                label,
+                shortcut,
+                "Unavailable in the current state",
+            );
             return;
         }
         let mut button = egui::Button::new(label);
@@ -626,7 +1224,10 @@ impl MenuBar {
             button = button.shortcut_text(s);
         }
         let response = ui
-            .add_enabled(false, button.min_size(egui::vec2(ui.available_width(), 0.0)))
+            .add_enabled(
+                false,
+                button.min_size(egui::vec2(ui.available_width(), 0.0)),
+            )
             .on_disabled_hover_text(reason);
         Self::name_node(ui, response.id, author_id, label);
     }
@@ -647,11 +1248,12 @@ impl MenuBar {
     fn name_node(ui: &mut egui::Ui, widget_node_id: egui::Id, author_id: &str, label: &str) {
         let author_id = author_id.to_owned();
         let label = label.to_owned();
-        ui.ctx().accesskit_node_builder(widget_node_id, move |node| {
-            node.set_role(accesskit::Role::MenuItem);
-            node.set_author_id(author_id);
-            node.set_label(label);
-        });
+        ui.ctx()
+            .accesskit_node_builder(widget_node_id, move |node| {
+                node.set_role(accesskit::Role::MenuItem);
+                node.set_author_id(author_id);
+                node.set_label(label);
+            });
     }
 }
 
@@ -865,7 +1467,9 @@ impl EditorStatusSegments {
             });
             Self::name_segment_node(ui, response.id, segment.author_id(), &label);
             if response.clicked() {
-                *action = Some(EditorSegmentAction::SetRenderWhitespace(!state.render_whitespace));
+                *action = Some(EditorSegmentAction::SetRenderWhitespace(
+                    !state.render_whitespace,
+                ));
             }
             // RIGHT-click context menu (WP-011 infra + the toggle quick action).
             if let Some(menu_action) = self.segment_context_menu(segment, state, &response) {
@@ -952,54 +1556,61 @@ impl EditorStatusSegments {
         state: &EditorMetaSegmentState,
         action: &mut Option<EditorSegmentAction>,
     ) {
-                match segment {
-                    EditorSegment::LanguageMode => {
-                        for lang in &state.available_languages {
-                            let selected = lang.display_label() == state.language_label;
-                            if self.picker_row(ui, segment, lang.as_str(), &lang.display_label(), selected) {
-                                *action = Some(EditorSegmentAction::SetLanguage(lang.clone()));
-                                ui.close();
-                            }
-                        }
+        match segment {
+            EditorSegment::LanguageMode => {
+                for lang in &state.available_languages {
+                    let selected = lang.display_label() == state.language_label;
+                    if self.picker_row(ui, segment, lang.as_str(), &lang.display_label(), selected)
+                    {
+                        *action = Some(EditorSegmentAction::SetLanguage(lang.clone()));
+                        ui.close();
                     }
-                    EditorSegment::Eol => {
-                        for eol in [Eol::Lf, Eol::Crlf] {
-                            let selected = eol == state.eol;
-                            if self.picker_row(ui, segment, eol_value(eol), eol.label(), selected) {
-                                *action = Some(EditorSegmentAction::ConvertEol(eol));
-                                ui.close();
-                            }
-                        }
+                }
+            }
+            EditorSegment::Eol => {
+                for eol in [Eol::Lf, Eol::Crlf] {
+                    let selected = eol == state.eol;
+                    if self.picker_row(ui, segment, eol_value(eol), eol.label(), selected) {
+                        *action = Some(EditorSegmentAction::ConvertEol(eol));
+                        ui.close();
                     }
-                    EditorSegment::Indent => {
-                        // Tabs + Spaces 2/4/8 (the VS Code indent picker set).
-                        let tabs = IndentStyle { kind: IndentKind::Tabs, size: state.indent.size.max(1) };
-                        let tab_selected = matches!(state.indent.kind, IndentKind::Tabs);
-                        if self.picker_row(ui, segment, "tabs", "Indent Using Tabs", tab_selected) {
-                            *action = Some(EditorSegmentAction::SetIndent(tabs));
-                            ui.close();
-                        }
-                        for size in [2usize, 4, 8] {
-                            let style = IndentStyle { kind: IndentKind::Spaces, size };
-                            let selected = matches!(state.indent.kind, IndentKind::Spaces)
-                                && state.indent.size == size;
-                            let value = format!("spaces-{size}");
-                            let label = format!("Indent Using {size} Spaces");
-                            if self.picker_row(ui, segment, &value, &label, selected) {
-                                *action = Some(EditorSegmentAction::SetIndent(style));
-                                ui.close();
-                            }
-                        }
+                }
+            }
+            EditorSegment::Indent => {
+                // Tabs + Spaces 2/4/8 (the VS Code indent picker set).
+                let tabs = IndentStyle {
+                    kind: IndentKind::Tabs,
+                    size: state.indent.size.max(1),
+                };
+                let tab_selected = matches!(state.indent.kind, IndentKind::Tabs);
+                if self.picker_row(ui, segment, "tabs", "Indent Using Tabs", tab_selected) {
+                    *action = Some(EditorSegmentAction::SetIndent(tabs));
+                    ui.close();
+                }
+                for size in [2usize, 4, 8] {
+                    let style = IndentStyle {
+                        kind: IndentKind::Spaces,
+                        size,
+                    };
+                    let selected = matches!(state.indent.kind, IndentKind::Spaces)
+                        && state.indent.size == size;
+                    let value = format!("spaces-{size}");
+                    let label = format!("Indent Using {size} Spaces");
+                    if self.picker_row(ui, segment, &value, &label, selected) {
+                        *action = Some(EditorSegmentAction::SetIndent(style));
+                        ui.close();
                     }
-                    EditorSegment::Encoding => {
-                        for enc in Encoding::ALL {
-                            let selected = enc == state.encoding;
-                            if self.picker_row(ui, segment, enc.id(), enc.label(), selected) {
-                                *action = Some(EditorSegmentAction::ReopenWithEncoding(enc));
-                                ui.close();
-                            }
-                        }
+                }
+            }
+            EditorSegment::Encoding => {
+                for enc in Encoding::ALL {
+                    let selected = enc == state.encoding;
+                    if self.picker_row(ui, segment, enc.id(), enc.label(), selected) {
+                        *action = Some(EditorSegmentAction::ReopenWithEncoding(enc));
+                        ui.close();
                     }
+                }
+            }
             EditorSegment::RenderWhitespace => {} // toggle, no picker
         }
     }
@@ -1057,19 +1668,34 @@ impl EditorStatusSegments {
                 menu = menu
                     .separator()
                     .item(ContextMenuItem::action(EOL_CONVERT_LF_ID, "Convert to LF"))
-                    .item(ContextMenuItem::action(EOL_CONVERT_CRLF_ID, "Convert to CRLF"));
+                    .item(ContextMenuItem::action(
+                        EOL_CONVERT_CRLF_ID,
+                        "Convert to CRLF",
+                    ));
             }
             EditorSegment::Indent => {
                 menu = menu
                     .separator()
-                    .item(ContextMenuItem::action(INDENT_TO_TABS_ID, "Convert Indentation to Tabs"))
-                    .item(ContextMenuItem::action(INDENT_TO_SPACES_ID, "Convert Indentation to Spaces"));
+                    .item(ContextMenuItem::action(
+                        INDENT_TO_TABS_ID,
+                        "Convert Indentation to Tabs",
+                    ))
+                    .item(ContextMenuItem::action(
+                        INDENT_TO_SPACES_ID,
+                        "Convert Indentation to Spaces",
+                    ));
             }
             EditorSegment::Encoding => {
                 menu = menu
                     .separator()
-                    .item(ContextMenuItem::action(ENCODING_REOPEN_UTF8_ID, "Reopen with UTF-8"))
-                    .item(ContextMenuItem::action(ENCODING_REOPEN_UTF16LE_ID, "Reopen with UTF-16 LE"));
+                    .item(ContextMenuItem::action(
+                        ENCODING_REOPEN_UTF8_ID,
+                        "Reopen with UTF-8",
+                    ))
+                    .item(ContextMenuItem::action(
+                        ENCODING_REOPEN_UTF16LE_ID,
+                        "Reopen with UTF-16 LE",
+                    ));
             }
             EditorSegment::RenderWhitespace => {
                 let toggle_label = if state.render_whitespace {
@@ -1095,15 +1721,21 @@ impl EditorStatusSegments {
             })),
             INDENT_TO_SPACES_ID => Some(EditorSegmentAction::SetIndent(IndentStyle {
                 kind: IndentKind::Spaces,
-                size: if state.indent.size == 0 { 4 } else { state.indent.size },
+                size: if state.indent.size == 0 {
+                    4
+                } else {
+                    state.indent.size
+                },
             })),
-            ENCODING_REOPEN_UTF8_ID => Some(EditorSegmentAction::ReopenWithEncoding(Encoding::Utf8)),
+            ENCODING_REOPEN_UTF8_ID => {
+                Some(EditorSegmentAction::ReopenWithEncoding(Encoding::Utf8))
+            }
             ENCODING_REOPEN_UTF16LE_ID => {
                 Some(EditorSegmentAction::ReopenWithEncoding(Encoding::Utf16Le))
             }
-            WHITESPACE_TOGGLE_ID => {
-                Some(EditorSegmentAction::SetRenderWhitespace(!state.render_whitespace))
-            }
+            WHITESPACE_TOGGLE_ID => Some(EditorSegmentAction::SetRenderWhitespace(
+                !state.render_whitespace,
+            )),
             // The shared status-bar items (Copy / Hide / Refresh): only Copy maps to a doc action here
             // (Hide/Refresh are status-bar-chrome concerns the host can ignore for these editor segments).
             statusbar_ids::COPY_SEGMENT => match status_bar_action_for_id(confirmed, &base_state) {
@@ -1121,14 +1753,20 @@ impl EditorStatusSegments {
     /// exact node egui emitted). Segments are a fixed-count, count-stable set addressed by their stable
     /// author_id STRING in egui's hashed id space (the MT-007 dynamic-author_id pattern), so they need no
     /// fixed-band DECLARED_IDENTITIES entry.
-    fn name_segment_node(ui: &mut egui::Ui, widget_node_id: egui::Id, author_id: &str, label: &str) {
+    fn name_segment_node(
+        ui: &mut egui::Ui,
+        widget_node_id: egui::Id,
+        author_id: &str,
+        label: &str,
+    ) {
         let author_id = author_id.to_owned();
         let label = label.to_owned();
-        ui.ctx().accesskit_node_builder(widget_node_id, move |node| {
-            node.set_role(accesskit::Role::Button);
-            node.set_author_id(author_id);
-            node.set_label(label);
-        });
+        ui.ctx()
+            .accesskit_node_builder(widget_node_id, move |node| {
+                node.set_role(accesskit::Role::Button);
+                node.set_author_id(author_id);
+                node.set_label(label);
+            });
     }
 }
 
@@ -1198,6 +1836,7 @@ mod tests {
                 MenuBarAction::OpenCommandPalette => "command-palette",
                 MenuBarAction::FocusNextPane => "next-pane",
                 MenuBarAction::FocusPrevPane => "prev-pane",
+                MenuBarAction::OpenAtelier(_) => "open-atelier",
                 MenuBarAction::OpenSwarmBoard => "swarm-board",
                 MenuBarAction::NavigateToTab(_) => "navigate",
                 MenuBarAction::OpenTerminal => "terminal",
@@ -1212,7 +1851,10 @@ mod tests {
             dispatch(&MenuBarAction::NavigateToTab("inference-lab".to_owned())),
             "navigate"
         );
-        assert_eq!(dispatch(&MenuBarAction::OpenCommandPalette), "command-palette");
+        assert_eq!(
+            dispatch(&MenuBarAction::OpenCommandPalette),
+            "command-palette"
+        );
     }
 
     /// The six fixed menu ids sit in the 92..=97 band, are sequential, and stay strictly below the pane
@@ -1237,7 +1879,14 @@ mod tests {
         let ids: Vec<&str> = MENU_DEFINITIONS.iter().map(|m| m.author_id()).collect();
         assert_eq!(
             ids,
-            vec!["menu-file", "menu-edit", "menu-view", "menu-go", "menu-run", "menu-help"]
+            vec![
+                "menu-file",
+                "menu-edit",
+                "menu-view",
+                "menu-go",
+                "menu-run",
+                "menu-help"
+            ]
         );
         // No duplicates.
         let mut sorted = ids.clone();
@@ -1277,7 +1926,11 @@ mod tests {
         for index in 0..MENU_DEFINITIONS.len() {
             let button = menu_button_id(index);
             let popup = menu_popup_id(index);
-            assert_eq!(popup, button.with("popup"), "popup id derives from the menu button id");
+            assert_eq!(
+                popup,
+                button.with("popup"),
+                "popup id derives from the menu button id"
+            );
         }
     }
 
@@ -1287,7 +1940,11 @@ mod tests {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
         // 7 base overlay/navigation actions + the 4 MT-052 GO-menu editor-navigation leaves.
-        assert_eq!(SWARM_ACCESSIBLE_ACTIONS.len(), 11, "all overlay/navigation actions listed");
+        assert_eq!(
+            SWARM_ACCESSIBLE_ACTIONS.len(),
+            11,
+            "all overlay/navigation actions listed"
+        );
         // MT-052 GO-menu editor navigation is swarm-discoverable.
         for id in [
             GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
@@ -1295,11 +1952,58 @@ mod tests {
             GO_BACK_AUTHOR_ID,
             GO_FORWARD_AUTHOR_ID,
         ] {
-            assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&id), "{id} is swarm-accessible");
+            assert!(
+                SWARM_ACCESSIBLE_ACTIONS.contains(&id),
+                "{id} is swarm-accessible"
+            );
         }
         // Destructive/document actions are NOT swarm-exposed.
         assert!(!SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.file.quit"));
         assert!(!SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.view.reset-layout"));
+    }
+
+    /// WP-CKC MT-041: the static leaf-id discovery registry covers all six menus, is globally unique
+    /// (no leaf id appears under two menus), and lists the four operator-facing Atelier leaves under GO
+    /// with the exact contract author_ids — so a model can read valid leaf targets WITHOUT opening a menu.
+    #[test]
+    fn leaf_id_registry_is_unique_and_lists_the_atelier_group() {
+        let catalog = menu_leaf_catalog();
+        assert_eq!(catalog.len(), 6, "every top-level menu has a catalog entry");
+
+        // Global uniqueness across every menu's leaves (a duplicated author_id would make an
+        // argus.click target ambiguous).
+        let mut seen = std::collections::HashSet::new();
+        let mut total = 0usize;
+        for (_menu, leaves) in &catalog {
+            for &leaf in *leaves {
+                assert!(seen.insert(leaf), "leaf author_id is globally unique: {leaf}");
+                total += 1;
+            }
+        }
+        assert!(total >= 40, "the registry enumerates every menu leaf; got {total}");
+
+        // The GO menu carries the four MT-041 Atelier leaves in contract order.
+        let go = menu_leaf_ids(MenuId::Go);
+        for leaf in [
+            MENU_GO_ATELIER_AUTHOR_ID,
+            MENU_GO_ATELIER_CKC_AUTHOR_ID,
+            MENU_GO_ATELIER_POSEKIT_AUTHOR_ID,
+            MENU_GO_ATELIER_INGEST_AUTHOR_ID,
+        ] {
+            assert!(go.contains(&leaf), "GO registry lists the Atelier leaf {leaf}");
+        }
+        // Each target's author_id round-trips to the registry (no drift between the enum + the ids).
+        for target in [
+            AtelierMenuTarget::Module,
+            AtelierMenuTarget::Ckc,
+            AtelierMenuTarget::Posekit,
+            AtelierMenuTarget::Ingest,
+        ] {
+            assert!(
+                go.contains(&target.author_id()),
+                "AtelierMenuTarget {target:?} author_id is in the GO registry"
+            );
+        }
     }
 
     /// `MenuBar::show` paints the six top-level menu buttons as live `Role::MenuItem` nodes with stable
@@ -1362,7 +2066,10 @@ mod tests {
             EditorSegment::LanguageMode.item_author_id("rust"),
             "status-bar-language-mode-item-rust",
         );
-        assert_eq!(EditorSegment::Eol.item_author_id("lf"), "status-bar-eol-item-lf");
+        assert_eq!(
+            EditorSegment::Eol.item_author_id("lf"),
+            "status-bar-eol-item-lf"
+        );
         assert_eq!(
             EditorSegment::Encoding.item_author_id("utf8"),
             "status-bar-encoding-item-utf8",
@@ -1378,15 +2085,24 @@ mod tests {
             language_source: DetectionSource::Extension,
             available_languages: vec![],
             eol: Eol::Crlf,
-            indent: IndentStyle { kind: IndentKind::Tabs, size: 4 },
+            indent: IndentStyle {
+                kind: IndentKind::Tabs,
+                size: 4,
+            },
             encoding: Encoding::Utf8Bom,
             render_whitespace: false,
         };
         assert_eq!(auto.segment_label(EditorSegment::LanguageMode), "Rust");
         assert_eq!(auto.segment_label(EditorSegment::Eol), "CRLF");
         assert_eq!(auto.segment_label(EditorSegment::Indent), "Tab Size: 4");
-        assert_eq!(auto.segment_label(EditorSegment::Encoding), "UTF-8 with BOM");
-        assert_eq!(auto.segment_label(EditorSegment::RenderWhitespace), "Whitespace");
+        assert_eq!(
+            auto.segment_label(EditorSegment::Encoding),
+            "UTF-8 with BOM"
+        );
+        assert_eq!(
+            auto.segment_label(EditorSegment::RenderWhitespace),
+            "Whitespace"
+        );
 
         let overridden = EditorMetaSegmentState {
             language_source: DetectionSource::UserOverride,
@@ -1398,7 +2114,10 @@ mod tests {
             "Rust (override)",
             "an override shows the provenance hint",
         );
-        assert_eq!(overridden.segment_label(EditorSegment::RenderWhitespace), "Whitespace ✓");
+        assert_eq!(
+            overridden.segment_label(EditorSegment::RenderWhitespace),
+            "Whitespace ✓"
+        );
     }
 
     /// The segment-specific context-menu quick-action ids are stable + distinct (a typo gate, MC-001).
@@ -1415,7 +2134,10 @@ mod tests {
         ];
         let mut seen = std::collections::HashSet::new();
         for id in ids {
-            assert!(id.starts_with("statusbar."), "quick-action id namespaced: {id}");
+            assert!(
+                id.starts_with("statusbar."),
+                "quick-action id namespaced: {id}"
+            );
             assert!(seen.insert(id), "quick-action id is unique: {id}");
         }
     }
@@ -1448,7 +2170,10 @@ mod tests {
                     .unwrap_or(false)
             })
             .count();
-        assert_eq!(seg_nodes, 5, "five editor segments painted when a code document is active");
+        assert_eq!(
+            seg_nodes, 5,
+            "five editor segments painted when a code document is active"
+        );
 
         let mut hidden = egui_kittest::Harness::builder().build_ui(move |ui| {
             let _ = EditorStatusSegments::new(None).show(ui);
@@ -1464,6 +2189,9 @@ mod tests {
                     .unwrap_or(false)
             })
             .count();
-        assert_eq!(hidden_nodes, 0, "no segments painted when no code document is active");
+        assert_eq!(
+            hidden_nodes, 0,
+            "no segments painted when no code document is active"
+        );
     }
 }
