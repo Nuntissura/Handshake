@@ -468,7 +468,16 @@ fn gutter_widens_at_runtime_when_line_count_crosses_digit_boundaries() {
     // push the text column right by exactly 4 digit columns — and shrinking back must narrow it again.
     // Observed through the live panel: `screen_pos_for_line_col(0, 0)` x is the text-column left edge,
     // which sits at the gutter strip's right edge.
-    let panel = Arc::new(CodeEditorPanel::new(&"x\n".repeat(9), "txt"));
+    //
+    // The buffer contents deliberately end WITHOUT a trailing '\n'. `ropey` (per `TextBuffer::len_lines`)
+    // counts the text after the final line-break as a real final line, so `"x\n".repeat(9)` is TEN lines
+    // (an empty trailing line), i.e. 2 digits — not the 1-digit/9-line premise this test asserts. That
+    // off-by-one made the gutter widen by only 3 digit columns (2->5 digits), which is CORRECT gutter
+    // math for a 10->10001-line buffer but not the digit boundary this test means to cross. Build exact
+    // 9- and 10000-line buffers (no trailing newline) so the 1-digit -> 5-digit (4-column) widening the
+    // gutter is being proven for actually holds.
+    let nine_lines = |c: char| format!("{}{c}", format!("{c}\n").repeat(8)); // 8 breaks + 1 tail = 9 lines
+    let panel = Arc::new(CodeEditorPanel::new(&nine_lines('x'), "txt"));
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(640.0, 400.0))
@@ -485,8 +494,9 @@ fn gutter_widens_at_runtime_when_line_count_crosses_digit_boundaries() {
         .expect("line 0 on screen (9-line buffer)")
         .x;
 
-    // Grow the LIVE buffer across four digit boundaries (9 -> 10000 lines) and re-render.
-    panel.set_text(&"y\n".repeat(10_000));
+    // Grow the LIVE buffer across four digit boundaries (9 -> 10000 lines) and re-render. Exactly 10000
+    // lines: 9999 line-breaks + a final unterminated line (no trailing empty line -> 5 digits, not 6).
+    panel.set_text(&format!("{}y", "y\n".repeat(9_999)));
     harness.run();
     harness.run();
     let x_big = panel
@@ -501,8 +511,9 @@ fn gutter_widens_at_runtime_when_line_count_crosses_digit_boundaries() {
         4.0 * gw
     );
 
-    // And back down: the width is live, not high-watermark — shrinking narrows the gutter again.
-    panel.set_text(&"z\n".repeat(9));
+    // And back down: the width is live, not high-watermark — shrinking narrows the gutter again. Exactly
+    // 9 lines again (no trailing empty line) so the restored width matches the original 1-digit gutter.
+    panel.set_text(&nine_lines('z'));
     harness.run();
     harness.run();
     let x_back = panel

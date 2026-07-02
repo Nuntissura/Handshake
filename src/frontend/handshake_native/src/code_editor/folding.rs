@@ -289,6 +289,13 @@ pub struct FoldSet {
     /// (RISK-001 / MC-001 — the invalidation strategy is documented on the field so a maintainer sees
     /// it at the cache site).
     visible_map_cache: Option<Vec<usize>>,
+    /// The `buffer_len_lines` the current [`visible_map_cache`](Self::visible_map_cache) was built for.
+    /// Fold mutations already null the cache, so a present cache means the fold state is unchanged since
+    /// the build; the only remaining staleness is a buffer that grew/shrank between frames. Tracking the
+    /// build-time line count lets [`rebuild_visible_map_for`](Self::rebuild_visible_map_for) reuse the
+    /// cache on the common no-edit/no-fold-change frame instead of rebuilding an O(buffer_len_lines) map
+    /// EVERY frame (the MT-002 100k-line frame-budget hot path).
+    visible_map_built_for: Option<usize>,
 }
 
 impl FoldSet {
@@ -302,6 +309,7 @@ impl FoldSet {
         Self {
             regions,
             visible_map_cache: None,
+            visible_map_built_for: None,
         }
     }
 
@@ -466,6 +474,11 @@ impl FoldSet {
             .unwrap_or(0);
         let map = self.build_visible_map(max_line);
         self.visible_map_cache = Some(map);
+        // This ensure-built cache covers only `max_line` (regions' last end+1), which is usually SHORTER
+        // than the live buffer length. Invalidate `visible_map_built_for` so `rebuild_visible_map_for`
+        // never trusts this partial cache and returns a truncated visible-line count (the toggle→query→
+        // rebuild interleaving bug): a PRESENT cache with `built_for == None` forces a full rebuild.
+        self.visible_map_built_for = None;
     }
 
     /// Build (without caching) the visible→buffer map for a document of `buffer_len_lines` lines: every
@@ -487,13 +500,22 @@ impl FoldSet {
     /// the fold state changed) so the map covers the whole live document, including lines below the
     /// last fold region. Returns the number of visible lines (== the map length).
     pub fn rebuild_visible_map_for(&mut self, buffer_len_lines: usize) -> usize {
-        // Always rebuild against the live line count: a buffer can grow/shrink below the last fold
-        // region between frames, so a cache keyed only on fold state could be the wrong length. The
-        // rebuild is O(buffer_len_lines) but only the visibility predicate per line (cheap), and the
-        // result is cached for the per-visible-line lookups that follow this frame.
+        // Reuse the cached map when it is still valid. Every fold mutation ([`toggle`], [`set_regions`])
+        // already nulls `visible_map_cache`, so a PRESENT cache means the fold state has not changed since
+        // the build; the only remaining staleness is a buffer that grew/shrank (which changes
+        // `buffer_len_lines`). So rebuild ONLY when the cache is absent OR was built for a different line
+        // count. This turns the per-frame cost from O(buffer_len_lines) — a full 100k-line rebuild + an
+        // 800KB Vec allocation EVERY frame, the MT-002 AC-002 frame-budget hot path this fixes — into O(1)
+        // on the common no-edit/no-fold-change frame (a length compare + a cached-len read).
+        if self.visible_map_built_for == Some(buffer_len_lines) {
+            if let Some(map) = &self.visible_map_cache {
+                return map.len();
+            }
+        }
         let map = self.build_visible_map(buffer_len_lines);
         let len = map.len();
         self.visible_map_cache = Some(map);
+        self.visible_map_built_for = Some(buffer_len_lines);
         len
     }
 }

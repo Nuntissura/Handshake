@@ -222,14 +222,27 @@ impl Minimap {
         let row_height = (panel_height / painted_rows as f32).max(1.0);
 
         // Batch every row rect into ONE shape (MT impl note 1: a single draw call, not `painted_rows`).
+        // PERF (MT-002 frame budget): RUN-LENGTH-MERGE consecutive rows that share a color into a single
+        // rect. A large file's minimap is mostly long runs of one dominant scope color (an all-comment or
+        // all-code stretch collapses to ONE rect), so this cuts the per-frame shape count + tessellation
+        // from O(painted_rows) toward O(color-runs) with a pixel-identical result (adjacent same-color
+        // rects tessellate to the same fill). Worst case (every row a different color) is unchanged.
         let mut shapes: Vec<egui::Shape> = Vec::with_capacity(painted_rows + 1);
-        for (row, color) in row_colors.iter().enumerate() {
-            let y0 = rect.top() + row as f32 * row_height;
-            let row_rect = egui::Rect::from_min_size(
+        let mut run_start = 0usize;
+        while run_start < row_colors.len() {
+            let color = row_colors[run_start];
+            let mut run_end = run_start + 1;
+            while run_end < row_colors.len() && row_colors[run_end] == color {
+                run_end += 1;
+            }
+            let y0 = rect.top() + run_start as f32 * row_height;
+            let y1 = rect.top() + run_end as f32 * row_height;
+            let run_rect = egui::Rect::from_min_max(
                 egui::pos2(rect.left(), y0),
-                egui::vec2(self.width, row_height),
+                egui::pos2(rect.left() + self.width, y1),
             );
-            shapes.push(egui::Shape::rect_filled(row_rect, 0.0, *color));
+            shapes.push(egui::Shape::rect_filled(run_rect, 0.0, color));
+            run_start = run_end;
         }
 
         // The viewport-indicator rect over the rows the editor viewport currently shows (MT impl note).

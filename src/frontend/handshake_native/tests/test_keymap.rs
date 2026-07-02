@@ -398,8 +398,16 @@ fn keymap_single_dispatch_consolidated() {
          must be consolidated"
     );
     // That one site is the process_keymap destructuring (a `let ... else` pattern), not a match arm.
+    // Whitespace-normalize the source before matching: the AC-006 invariant is "exactly one
+    // `egui::Event::Key` site and it is the process_keymap dispatcher destructuring", which is a
+    // *semantic* property independent of how rustfmt lays the `let-else` out. rustfmt wraps the
+    // struct pattern across several lines (`let egui::Event::Key {\n  key,\n  pressed: true, ...`),
+    // so an exact single-line `contains` is brittle and would fight the formatter. Collapsing runs
+    // of whitespace to single spaces makes the check faithful to the invariant and formatter-robust.
+    let src_ws_normalized: String = src.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(
-        src.contains("let egui::Event::Key { key, pressed: true, modifiers, .. } = event else"),
+        src_ws_normalized
+            .contains("let egui::Event::Key { key, pressed: true, modifiers, .. } = event else"),
         "AC-006: the single key site is the process_keymap dispatcher destructuring"
     );
 

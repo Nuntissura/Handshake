@@ -7651,8 +7651,12 @@ impl CodeEditorPanel {
                 );
             }
         });
+        // Same duplicate-label fix as `render_line` (this is its word-wrap fragment variant): the row is a
+        // structural wrapper around the per-run text labels, not a second text label. A GenericContainer
+        // role avoids accesskit deriving the container name from the fragment text (which duplicated the
+        // inner label), so each wrapped fragment exposes exactly one text label.
         ui.ctx().accesskit_node_builder(row.response.id, |node| {
-            node.set_role(accesskit::Role::Label);
+            node.set_role(accesskit::Role::GenericContainer);
         });
     }
 
@@ -8388,6 +8392,23 @@ impl CodeEditorPanel {
         resp
     }
 
+    /// Emit ONE static text label for a whole code row from a pre-built multi-section [`LayoutJob`]
+    /// (per-run colors baked into the sections). PERF (MT-002 AC-002 frame budget): a code row was
+    /// previously painted as a SEPARATE `code_static_label` (a `ui.label` widget + an AccessKit Label
+    /// node) PER highlight run — up to ~8 widgets/AccessKit-nodes per row, times the ~45 rows painted per
+    /// frame on a 100k-line file, was the dominant per-frame cost that blew the release frame budget.
+    /// Collapsing the row into one galley (egui still caches the laid-out galley by the `LayoutJob`)
+    /// leaves exactly ONE widget + ONE AccessKit Label node per row, with identical monospace glyph
+    /// positions (contiguous, zero item-spacing) and identical per-run colors — the whole line's text is
+    /// the node's accessible value, so `by_label("line N")` still resolves to exactly this one node.
+    fn code_static_label_job(ui: &mut egui::Ui, job: egui::text::LayoutJob) -> egui::Response {
+        let resp = ui.label(job);
+        ui.ctx().accesskit_node_builder(resp.id, |node| {
+            node.set_role(accesskit::Role::Label);
+        });
+        resp
+    }
+
     /// WP-KERNEL-012 MT-078 (E13 RTL/bidi): paint ONE code-editor row whose base direction is RTL
     /// (Hebrew/Arabic string literal or comment) OR which carries a Tier-3 shaping limitation, using the
     /// SHARED `text_intl::bidi` pass (NOT a parallel one) so the code editor and rich editor agree on bidi.
@@ -8415,6 +8436,18 @@ impl CodeEditorPanel {
         mono: &egui::FontId,
         syntax: &HsSyntaxTokens,
     ) -> bool {
+        // PERF FAST-PATH (MT-002 AC-002 frame budget): the bidi entry point below runs UAX#9
+        // (`BidiInfo::new` twice — once for the base direction, once for `visual_runs`) AND allocates a
+        // reordered `visual_text` String for EVERY visible line EVERY frame. That is pure waste for the
+        // overwhelmingly common case — a pure-ASCII source line — which is ALWAYS LTR-base and can NEVER
+        // carry an Arabic/Indic shaping limitation (both require code points >= U+0600). `str::is_ascii`
+        // is a cheap byte scan (SIMD-friendly), so short-circuit it here: an ASCII line is definitionally
+        // the "pure-LTR identity" case the full pass resolves to `false` anyway. Non-ASCII lines (rare in
+        // code) still take the full, correct bidi path below — no behavioral change, only the redundant
+        // per-frame allocation+analysis removed. This was the dominant per-row cost the release bench hit.
+        if line_text.is_ascii() {
+            return false;
+        }
         // The code-editor bidi entry point lives in `code_editor/virtual_lines.rs` (the MT-078 contract's
         // named code-editor deliverable); it reuses the SHARED `text_intl::bidi` pass internally.
         let bidi = super::virtual_lines::code_line_bidi(line_text);
@@ -8487,8 +8520,14 @@ impl CodeEditorPanel {
                 }
             }
         });
+        // Same duplicate-label fix as the non-wrap `render_line`: the RTL/limited row is a STRUCTURAL
+        // wrapper around the inner text label(s), not a second text label. `Role::Label` here made
+        // accesskit derive the container name from its subtree text (the reordered VISUAL string), so an
+        // RTL line surfaced the SAME visual-order string on BOTH the container and the inner label — two
+        // nodes for one visible line, breaking `query_by_label(visual_text)` single-node queries. Use a
+        // GenericContainer (no name derivation); the inner `code_static_label` carries the one text label.
         ui.ctx().accesskit_node_builder(row.response.id, |node| {
-            node.set_role(accesskit::Role::Label);
+            node.set_role(accesskit::Role::GenericContainer);
         });
         true
     }
@@ -8540,83 +8579,92 @@ impl CodeEditorPanel {
         }
         runs.sort_by_key(|(r, _)| r.start);
 
-        let row = ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 0.0;
-            let default_color = syntax.punctuation;
-            let mut cursor = line_start_byte;
+        let default_color = syntax.punctuation;
 
-            // Helper to slice a [start,end) byte window of the line into a &str safely (RISK-002:
-            // respect char boundaries; fall back to empty on a bad boundary).
-            let line_slice = |start: usize, end: usize| -> String {
-                let rel_start = start.saturating_sub(line_start_byte);
-                let rel_end = end.saturating_sub(line_start_byte);
-                if rel_start >= rel_end || rel_end > line_text.len() {
-                    return String::new();
-                }
-                let bytes = line_text.as_bytes();
-                let mut a = rel_start;
-                while a < line_text.len() && !line_text.is_char_boundary(a) {
-                    a += 1;
-                }
-                let mut b = rel_end.min(line_text.len());
-                while b < line_text.len() && !line_text.is_char_boundary(b) {
-                    b += 1;
-                }
-                if a >= b {
-                    return String::new();
-                }
-                std::str::from_utf8(&bytes[a..b]).unwrap_or("").to_owned()
-            };
+        // Helper to slice a [start,end) byte window of the line into a &str safely (RISK-002:
+        // respect char boundaries; fall back to empty on a bad boundary). Returns a BORROWED slice of
+        // `line_text` (not an owned String): `LayoutJob::append` copies the text into the job's own buffer,
+        // so there is no need to allocate a String per run — this removes ~N-runs heap allocations per
+        // painted row per frame from the MT-002 frame-budget path.
+        let line_slice = |start: usize, end: usize| -> &str {
+            let rel_start = start.saturating_sub(line_start_byte);
+            let rel_end = end.saturating_sub(line_start_byte);
+            if rel_start >= rel_end || rel_end > line_text.len() {
+                return "";
+            }
+            let mut a = rel_start;
+            while a < line_text.len() && !line_text.is_char_boundary(a) {
+                a += 1;
+            }
+            let mut b = rel_end.min(line_text.len());
+            while b < line_text.len() && !line_text.is_char_boundary(b) {
+                b += 1;
+            }
+            if a >= b {
+                return "";
+            }
+            &line_text[a..b]
+        };
 
-            for (range, scope) in &runs {
-                if range.start > cursor {
-                    // Plain (un-highlighted) gap before this run.
-                    let gap = line_slice(cursor, range.start);
-                    if !gap.is_empty() {
-                        Self::code_static_label(
-                            ui,
-                            egui::RichText::new(gap)
-                                .font(mono.clone())
-                                .color(default_color),
-                        );
-                    }
-                }
-                let run_text = line_slice(range.start, range.end);
-                if !run_text.is_empty() {
-                    let color = scope_to_color(*scope, syntax);
-                    Self::code_static_label(
-                        ui,
-                        egui::RichText::new(run_text)
-                            .font(mono.clone())
-                            .color(color),
-                    );
-                }
-                cursor = cursor.max(range.end);
-            }
-            // Trailing plain text after the last run.
-            if cursor < line_end_byte {
-                let tail = line_slice(cursor, line_end_byte);
-                if !tail.is_empty() {
-                    Self::code_static_label(
-                        ui,
-                        egui::RichText::new(tail)
-                            .font(mono.clone())
-                            .color(default_color),
-                    );
-                }
-            }
-            // Empty line: emit a zero-width spacer so the row still occupies a line height.
-            if runs.is_empty() && line_text.is_empty() {
-                Self::code_static_label(
-                    ui,
-                    egui::RichText::new(" ")
-                        .font(mono.clone())
-                        .color(default_color),
+        // Build ONE colored `LayoutJob` for the whole row (per-run sections) instead of a `ui.label`
+        // widget per run — see `code_static_label_job` for the frame-budget rationale. The append order +
+        // slices are IDENTICAL to the previous per-label path, so glyphs and colors are byte-for-byte the
+        // same; only the widget/AccessKit-node count per row collapses from ~N-runs to one.
+        let mut job = egui::text::LayoutJob::default();
+        let append = |text: &str, color: egui::Color32, job: &mut egui::text::LayoutJob| {
+            if !text.is_empty() {
+                job.append(
+                    text,
+                    0.0,
+                    egui::TextFormat {
+                        font_id: mono.clone(),
+                        color,
+                        ..Default::default()
+                    },
                 );
             }
+        };
+        let mut cursor = line_start_byte;
+        for (range, scope) in &runs {
+            if range.start > cursor {
+                // Plain (un-highlighted) gap before this run.
+                append(line_slice(cursor, range.start), default_color, &mut job);
+            }
+            append(
+                line_slice(range.start, range.end),
+                scope_to_color(*scope, syntax),
+                &mut job,
+            );
+            cursor = cursor.max(range.end);
+        }
+        // Trailing plain text after the last run.
+        if cursor < line_end_byte {
+            append(line_slice(cursor, line_end_byte), default_color, &mut job);
+        }
+        // Empty line: emit a zero-width spacer so the row still occupies a line height.
+        if runs.is_empty() && line_text.is_empty() {
+            append(" ", default_color, &mut job);
+        }
+
+        // Wrap the single row label in a `ui.horizontal` whose `interact_size.y` floor pins the row to
+        // EXACTLY `line_height`. This wrapper is LOAD-BEARING for the MT-054 one-unit row-pitch invariant:
+        // a bare `ui.label` advances the vertical cursor by the galley's PIXEL-ROUNDED height (15.000)
+        // rather than the geometry unit `line_height` (15.125), which diverges the painted pitch from the
+        // gutter/overlay/decoration stride. Keeping the wrapper preserves the exact pitch.
+        let row = ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            Self::code_static_label_job(ui, job);
         });
+        // The row is a STRUCTURAL wrapper around the single text label, NOT a second text label. Marking
+        // it `Role::Label` made accesskit derive its accessible name from the subtree text
+        // (name-from-contents), so a plain-text line surfaced the SAME "line N" string on BOTH the
+        // container node and the inner text label — two nodes for one visible line, which broke every
+        // `get_by_label("line N")` / `query_by_label("line N")` single-node query (the inner
+        // `code_static_label_job` already carries the row's text as the one addressable Label). Use a
+        // GenericContainer role: a structural grouping that does NOT derive a name, so each painted line
+        // exposes exactly ONE "line N" text label (its glyph row), with the container as its parent.
         ui.ctx().accesskit_node_builder(row.response.id, |node| {
-            node.set_role(accesskit::Role::Label);
+            node.set_role(accesskit::Role::GenericContainer);
         });
     }
 

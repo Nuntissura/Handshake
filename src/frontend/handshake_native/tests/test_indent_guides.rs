@@ -273,7 +273,15 @@ fn folded_region_paints_no_decorations_below_fold_label() {
     // lines 0..=4) leaves exactly TWO visible rows: the fold-label row and the trailing line. The
     // Wave-B audit measured ~10 rows of orphaned braces/guides painted below the fold label because
     // the decoration layer enumerated HIDDEN buffer lines as row offsets; this test pins the fix.
-    let src = "fn demo() {\n    if cond {\n        body();\n    }\n}\ntail();\n";
+    //
+    // NOTE: the fixture must NOT end in a trailing '\n'. `ropey` (per `TextBuffer::len_lines`) counts
+    // the text after the final line-break as a real final line — an editor convention so the cursor can
+    // sit on the empty trailing line. A trailing '\n' here would therefore add a 6th buffer line (an
+    // empty line 6) that the panel CORRECTLY paints as a third visible row after the fold, making the
+    // count 3, not 2. That phantom row is real product behavior (the trailing empty line), not a fold
+    // leak, so the fixture ends at `tail();` with no trailing newline to match the "exactly TWO visible
+    // rows" premise the fold decoration test is actually pinning.
+    let src = "fn demo() {\n    if cond {\n        body();\n    }\n}\ntail();";
     let panel = Arc::new(CodeEditorPanel::new(src, "rs"));
 
     let panel_ui = Arc::clone(&panel);

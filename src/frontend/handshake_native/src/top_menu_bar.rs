@@ -1665,6 +1665,8 @@ mod tests {
             editor_can_undo: true,
             editor_can_redo: true,
             editor_can_paste: true,
+            editor_can_nav_back: true,
+            editor_can_nav_forward: true,
         }
     }
 

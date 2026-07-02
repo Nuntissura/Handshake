@@ -743,12 +743,12 @@ fn mt035_live_slash_divider_bus_undo_restores_exact_doc() {
             NodeKind::HorizontalRule,
             "the inserted block is the horizontal rule (/divider)"
         );
-        assert_eq!(
-            block_plain_text(&state, 0),
-            "",
-            "the `/divider` trigger text was removed by the execution"
-        );
-    }
+    } // drop the state guard BEFORE `block_plain_text` re-locks it (std Mutex is non-reentrant).
+    assert_eq!(
+        block_plain_text(&state, 0),
+        "",
+        "the `/divider` trigger text was removed by the execution"
+    );
     // The execution recorded EXACTLY ONE unified-bus entry (trigger removal + insert, one pair).
     let bus = InteractionBus::get_or_init(&harness.ctx);
     let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
