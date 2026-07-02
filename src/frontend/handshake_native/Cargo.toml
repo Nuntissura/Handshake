@@ -103,6 +103,12 @@ rand = "0.9"
 base64 = "0.22"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# MT-015 BYOK key entry: the in-memory API-key edit buffer is wrapped in
+# `zeroize::Zeroizing<String>` so it is wiped from memory on clear/drop and never
+# lingers after submit. zeroize is already in the locked graph (rustls/secrecy
+# family); declared here so the settings dialog's key buffer uses the audited
+# crate directly. No new dependency family.
+zeroize = "1"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here

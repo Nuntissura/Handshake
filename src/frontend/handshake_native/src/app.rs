@@ -113,6 +113,36 @@ pub enum HealthDisplayState {
     Error(String),
 }
 
+/// MT-015: launch a CLI-bridge provider's OWN official login command in a NEW visible OS terminal
+/// (operator-initiated). Focus-safe by construction: it starts a detached console via the OS shell
+/// rather than manipulating the Handshake window (never `SetForegroundWindow`). Handshake captures
+/// nothing from the spawned process — the operator completes the provider's official login there.
+fn launch_visible_login_terminal(program: &str, args: &[String]) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        // `cmd /C start "" cmd /K "<program> <args>"` opens a new visible console running the login
+        // command and keeps it open so the operator can complete the interactive login and read output.
+        let mut inner = String::from(program);
+        for arg in args {
+            inner.push(' ');
+            inner.push_str(arg);
+        }
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", "cmd", "/K", &inner])
+            .spawn()
+            .map(|_| ())
+    }
+    #[cfg(not(windows))]
+    {
+        // Best-effort on non-Windows: spawn the program directly (the product ships Windows-first; a
+        // richer terminal-emulator launch on other platforms is a follow-up).
+        std::process::Command::new(program)
+            .args(args)
+            .spawn()
+            .map(|_| ())
+    }
+}
+
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
     rt: tokio::runtime::Runtime,
@@ -315,6 +345,25 @@ pub struct HandshakeApp {
     settings_io_in_flight: Arc<std::sync::atomic::AtomicBool>,
     /// The last transient settings persistence error, surfaced on the dialog status row (HBR: visible).
     settings_persist_error: Option<String>,
+    /// MT-015: shell-owned Cloud Models UI state (enumeration snapshot + per-provider key buffers). A
+    /// BYOK key never enters `DialogState` or the persisted egui snapshot — it lives only here, in a
+    /// zeroizing buffer the shell clears immediately after a Save is dispatched.
+    cloud_models: crate::settings_dialog::CloudModelsSettingsState,
+    /// MT-015: cloud-access backend client (BYOK key store/remove + provider enumeration). `None` in the
+    /// headless/test shell; a test seeds the snapshot via `set_cloud_snapshot_for_test`.
+    cloud_access_client: Option<crate::backend_client::CloudAccessClient>,
+    /// MT-015: async delivery queue for cloud-access results (enumeration snapshots + op messages),
+    /// drained each frame so the network calls run OFF the egui UI thread (HBR-QUIET).
+    cloud_access_cell: crate::backend_client::CloudAccessCell,
+    /// MT-015: set when the Cloud Models enumeration should be (re)fetched — on settings open and after a
+    /// key save/remove — so the status rows reflect durable state.
+    cloud_access_refresh_pending: bool,
+    /// MT-015: the last CLI-bridge official-login command the operator launched (observability; also lets
+    /// a test assert launch intent without spawning a real terminal).
+    last_cli_login_launch: Option<(String, Vec<String>)>,
+    /// MT-015: when true, a CLI-bridge login records the launch intent but does NOT spawn a terminal
+    /// (tests set this so a focus-stealing console never opens during a headless run).
+    suppress_cli_login_launch: bool,
     /// A pending theme flip to apply at the START of the next frame, BEFORE any panel renders (red-team
     /// R4/MC4): applying egui `Visuals` mid-frame would leave already-rendered widgets on the old theme
     /// for one frame. The settings ComboBox / the menu toggle set this; `ui()` applies it at the top.
@@ -767,6 +816,12 @@ impl HandshakeApp {
             settings_save_due_at: None,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
+            cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
+            cloud_access_client: Some(crate::backend_client::CloudAccessClient::production()),
+            cloud_access_cell: Arc::new(Mutex::new(Vec::new())),
+            cloud_access_refresh_pending: false,
+            last_cli_login_launch: None,
+            suppress_cli_login_launch: false,
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
@@ -961,6 +1016,17 @@ impl HandshakeApp {
             settings_save_due_at: None,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
+            cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
+            // Headless/test shell: no runtime to bridge a live cloud-access client onto. A test seeds the
+            // enumeration snapshot directly via `set_cloud_snapshot_for_test`; without a client the shell
+            // never performs cloud-access I/O.
+            cloud_access_client: None,
+            cloud_access_cell: Arc::new(Mutex::new(Vec::new())),
+            cloud_access_refresh_pending: false,
+            last_cli_login_launch: None,
+            // Headless test shells suppress the terminal launch by default so a login click never opens a
+            // focus-stealing console during `cargo test`.
+            suppress_cli_login_launch: true,
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
@@ -2349,6 +2415,9 @@ impl HandshakeApp {
             // PG round-trip restart shows the saved theme — PT6). Cleared after the load dispatches.
             self.settings_load_pending = true;
             self.settings_loaded_project_id = None;
+            // MT-015: fetch the (non-secret) cloud-access enumeration so the Cloud Models section shows
+            // each provider's configured/unavailable status on open.
+            self.cloud_access_refresh_pending = true;
         }
     }
 
@@ -2382,6 +2451,39 @@ impl HandshakeApp {
     /// The last transient settings persistence error, if any (MT-018), for tests + the status row.
     pub fn settings_persist_error(&self) -> Option<&str> {
         self.settings_persist_error.as_deref()
+    }
+
+    /// MT-015 accessor: the live Cloud Models UI state (enumeration snapshot + key-buffer status).
+    pub fn cloud_models(&self) -> &crate::settings_dialog::CloudModelsSettingsState {
+        &self.cloud_models
+    }
+
+    /// MT-015 test helper: seed the non-secret cloud-access enumeration snapshot directly so the Cloud
+    /// Models section renders provider rows with no live backend.
+    #[doc(hidden)]
+    pub fn set_cloud_snapshot_for_test(
+        &mut self,
+        snapshot: crate::settings_dialog::CloudAccessSnapshot,
+    ) {
+        self.cloud_models.set_snapshot(snapshot);
+    }
+
+    /// MT-015 accessor: whether a BYOK provider's key edit buffer is currently empty (proves the buffer
+    /// clears after a Save is dispatched — the key never lingers in the UI).
+    pub fn cloud_key_draft_is_empty(&self, provider: &str) -> bool {
+        self.cloud_models.key_draft_is_empty(provider)
+    }
+
+    /// MT-015 accessor: the last CLI-bridge official-login command launched (program, args).
+    pub fn last_cli_login_launch(&self) -> Option<&(String, Vec<String>)> {
+        self.last_cli_login_launch.as_ref()
+    }
+
+    /// MT-015 test helper: control whether a CLI-bridge login actually spawns a terminal. Tests keep this
+    /// suppressed so a login click records the intent without opening a focus-stealing console.
+    #[doc(hidden)]
+    pub fn set_suppress_cli_login_launch(&mut self, suppress: bool) {
+        self.suppress_cli_login_launch = suppress;
     }
 
     /// Test helper (MT-018): seed the workspace + in-memory theme directly so a kittest starts from a
@@ -2625,6 +2727,119 @@ impl HandshakeApp {
                 self.reset_layout_pending = true;
                 true
             }
+            O::CloudByokKeySaveRequested { provider } => {
+                self.dispatch_cloud_byok_save(&provider);
+                true
+            }
+            O::CloudByokKeyRemoveRequested { provider } => {
+                self.dispatch_cloud_byok_remove(&provider);
+                true
+            }
+            O::CliBridgeLoginRequested { provider } => {
+                self.launch_cli_bridge_login(&provider);
+                true
+            }
+        }
+    }
+
+    /// MT-015: dispatch a BYOK key SAVE. Reads the shell-owned zeroizing key buffer for `provider`,
+    /// clears it immediately (the key never lingers in the UI), and — when a cloud-access client +
+    /// runtime are present — spawns a `PUT /model-access/byok/{provider}/key` OFF the egui thread that
+    /// stores the key in the OS-keychain vault, then re-fetches the enumeration. Saving a key creates NO
+    /// consent receipt; the first lane launch still hits the MT-006 fail-closed gate.
+    fn dispatch_cloud_byok_save(&mut self, provider: &str) {
+        if self.cloud_models.key_draft_is_empty(provider) {
+            self.cloud_models
+                .set_message(provider, "Enter an API key first.");
+            return;
+        }
+        // Take the key OUT of the UI buffer (the buffer is cleared here; the moved value zeroizes when
+        // the async task drops it).
+        let key = self.cloud_models.take_key_draft(provider);
+        match (self.cloud_access_client.clone(), self.runtime_handle.clone()) {
+            (Some(client), Some(handle)) => {
+                self.cloud_models.set_message(provider, "Saving…");
+                let cell = self.cloud_access_cell.clone();
+                let provider_owned = provider.to_owned();
+                handle.spawn(async move {
+                    // `key` (Zeroizing<String>) moves in; expose its inner str only to build the request
+                    // body, then it drops (zeroized) at task end.
+                    let result = client.store_key(&provider_owned, key.to_string()).await;
+                    let (message, snapshot) = match result {
+                        Ok(()) => (
+                            "Saved — key stored in the OS keychain.".to_owned(),
+                            client.enumerate().await.ok(),
+                        ),
+                        Err(err) => (format!("Save failed: {err}"), None),
+                    };
+                    if let Ok(mut slot) = cell.lock() {
+                        slot.push(crate::backend_client::CloudAccessDelivery::OpResult {
+                            provider: provider_owned,
+                            message,
+                            snapshot,
+                        });
+                    }
+                });
+            }
+            _ => {
+                // No client/runtime: the key was already cleared (fail-safe — never keep it around).
+                self.cloud_models
+                    .set_message(provider, "Backend not reachable — key not saved.");
+            }
+        }
+    }
+
+    /// MT-015: dispatch a BYOK key REMOVE/ROTATE via `DELETE /model-access/byok/{provider}/key`
+    /// (idempotent), then re-fetch the enumeration.
+    fn dispatch_cloud_byok_remove(&mut self, provider: &str) {
+        match (self.cloud_access_client.clone(), self.runtime_handle.clone()) {
+            (Some(client), Some(handle)) => {
+                self.cloud_models.set_message(provider, "Removing…");
+                let cell = self.cloud_access_cell.clone();
+                let provider_owned = provider.to_owned();
+                handle.spawn(async move {
+                    let result = client.remove_key(&provider_owned).await;
+                    let (message, snapshot) = match result {
+                        Ok(()) => ("Removed.".to_owned(), client.enumerate().await.ok()),
+                        Err(err) => (format!("Remove failed: {err}"), None),
+                    };
+                    if let Ok(mut slot) = cell.lock() {
+                        slot.push(crate::backend_client::CloudAccessDelivery::OpResult {
+                            provider: provider_owned,
+                            message,
+                            snapshot,
+                        });
+                    }
+                });
+            }
+            _ => {
+                self.cloud_models
+                    .set_message(provider, "Backend not reachable — nothing removed.");
+            }
+        }
+    }
+
+    /// MT-015: launch a CLI-bridge provider's OWN official login command in a visible terminal
+    /// (operator-initiated — HBR-QUIET allows an operator-triggered foreground window). Handshake never
+    /// captures or stores the credential this login establishes. Records the launch intent; the terminal
+    /// spawn is suppressed in headless test shells so no console steals focus during `cargo test`.
+    fn launch_cli_bridge_login(&mut self, provider: &str) {
+        let Some((program, args)) = self.cloud_models.cli_login_command(provider) else {
+            self.cloud_models
+                .set_message(provider, "No login command available for this provider.");
+            return;
+        };
+        self.last_cli_login_launch = Some((program.clone(), args.clone()));
+        self.cloud_models.set_message(
+            provider,
+            "Launching the provider's official login in a terminal…",
+        );
+        if self.suppress_cli_login_launch {
+            return;
+        }
+        if let Err(err) = launch_visible_login_terminal(&program, &args) {
+            self.cloud_models
+                .set_message(provider, format!("Could not launch terminal: {err}"));
         }
     }
 
@@ -2705,11 +2920,55 @@ impl HandshakeApp {
             }
         }
 
+        // 4b. MT-015: drain delivered cloud-access results (enumeration snapshots + op messages) and
+        //     fire the (non-secret) enumeration fetch when pending. Both run OFF the egui thread.
+        let cloud_deliveries: Vec<crate::backend_client::CloudAccessDelivery> = self
+            .cloud_access_cell
+            .try_lock()
+            .ok()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        for delivery in cloud_deliveries {
+            match delivery {
+                crate::backend_client::CloudAccessDelivery::Snapshot(snapshot) => {
+                    self.cloud_models.set_snapshot(snapshot);
+                }
+                crate::backend_client::CloudAccessDelivery::OpResult {
+                    provider,
+                    message,
+                    snapshot,
+                } => {
+                    self.cloud_models.set_message(&provider, message);
+                    if let Some(snapshot) = snapshot {
+                        self.cloud_models.set_snapshot(snapshot);
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+        if self.cloud_access_refresh_pending {
+            self.cloud_access_refresh_pending = false;
+            if let (Some(client), Some(handle)) =
+                (self.cloud_access_client.clone(), self.runtime_handle.clone())
+            {
+                let cell = self.cloud_access_cell.clone();
+                handle.spawn(async move {
+                    if let Ok(snapshot) = client.enumerate().await {
+                        if let Ok(mut slot) = cell.lock() {
+                            slot.push(crate::backend_client::CloudAccessDelivery::Snapshot(snapshot));
+                        }
+                    }
+                });
+                ctx.request_repaint();
+            }
+        }
+
         // 5. Render the dialog + apply the outcome.
         let view = crate::settings_dialog::SettingsView {
             open_count: self.settings_open_count,
             settings: &self.workspace_settings,
             persist_error: self.settings_persist_error.as_deref(),
+            cloud: &mut self.cloud_models,
         };
         let outcome = crate::settings_dialog::show(ctx, view);
         if self.apply_settings_outcome(outcome) {

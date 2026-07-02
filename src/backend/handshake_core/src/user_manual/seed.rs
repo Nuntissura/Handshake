@@ -183,6 +183,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_model_lane_promotion(),
         page_model_lane_context_bundle_handoff(),
         page_model_lane_cloud_projection_consent(),
+        page_cloud_model_access(),
         page_model_lane_recovery(),
         page_model_lane_diagnostics(),
         page_model_lane_navigation(),
@@ -217,6 +218,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "model-lane-promotion",
         "model-lane-context-bundle-handoff",
         "model-lane-cloud-projection-consent",
+        "cloud-model-access",
         "model-lane-recovery",
         "model-lane-diagnostics",
         "model-lane-navigation",
@@ -628,6 +630,68 @@ fn page_permissions_and_safety() -> NewUserManualPage {
         anchors: vec![
             page_link("rich-documents-surface"),
             route_anchor("POST", "/usermanual/resync"),
+            spec_anchor("10.15.8"),
+        ],
+    }
+}
+
+fn page_cloud_model_access() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "cloud-model-access".into(),
+        title: "Cloud Model Access — Subscription Plans And BYOK Keys".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["2.3.13.11".into(), "10.15.8".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What this surface is",
+                "The operator configures cloud model access from Settings > Cloud Models (MT-015). Two \
+                 paths exist:\n\n\
+                 - SUBSCRIPTION PLAN (primary): log in with a provider's OWN official CLI (Claude Code, \
+                 GPT/Codex) via the official CLI bridge. Handshake stores NO credential for this path — \
+                 the session lives in the provider's CLI. The surface shows configured / not-configured \
+                 status and an operator-initiated 'Log in…' button that launches the provider's official \
+                 login command in a visible terminal.\n\
+                 - BYOK (available, not required): paste an Anthropic or OpenAI API key. The key is \
+                 stored ONLY in the OS keychain (Windows Credential Manager / macOS Keychain / Linux \
+                 Secret Service). It is NEVER written to logs, the Flight Recorder, the EventLedger, the \
+                 workspace-settings blob, or any plaintext store. A Remove control rotates/clears it.\n\n\
+                 Gemini is NOT offered (its CLI is being discontinued).",
+            ),
+            section(
+                "inputs_outputs",
+                "Backend routes (models)",
+                "A model configures the same access over HTTP:\n\n\
+                 - `GET /model-access/providers` — non-secret enumeration: each provider's \
+                 `configured` / `unavailable` status (a missing key is `unavailable`, never an error), \
+                 the CLI-bridge login commands, and the explicit `excluded: [\"gemini\"]` list. This is \
+                 what the operator model-picker lists.\n\
+                 - `PUT /model-access/byok/{provider}/key` with body `{\"api_key\": \"…\"}` — store a \
+                 BYOK key in the OS keychain. The response carries only non-secret status; the key is \
+                 never echoed. `{provider}` is `anthropic` or `openai`; any other id (including \
+                 `gemini`) returns 404 `provider_not_offered`.\n\
+                 - `DELETE /model-access/byok/{provider}/key` — remove / rotate a key (idempotent).\n\n\
+                 There is no route to read a stored key back out over HTTP.",
+            ),
+            section(
+                "safety",
+                "Consent boundary + failure modes",
+                "- Saving a BYOK key creates NO ConsentReceipt and NO ConsentGate approval. Configuring \
+                 access is not consenting to a cloud send: the FIRST cloud lane launch still hits the \
+                 fail-closed per-session consent gate (see [[model-lane-cloud-projection-consent]]).\n\
+                 - The key round-trips OUT of the keychain only for the cloud backend to use it as the \
+                 provider's Authorization bearer token; it appears nowhere else.\n\
+                 - 400 `empty_api_key` — a blank key is rejected and not stored.\n\
+                 - 404 `provider_not_offered` — an unknown or excluded provider id (e.g. `gemini`).\n\
+                 - 503 `keychain_unavailable` — the OS keychain feature is disabled; Handshake REFUSES \
+                 to persist a cloud key rather than fall back to any plaintext store.",
+            ),
+        ],
+        anchors: vec![
+            page_link("model-lane-cloud-projection-consent"),
+            page_link("permissions-and-safety"),
+            spec_anchor("2.3.13.11"),
             spec_anchor("10.15.8"),
         ],
     }

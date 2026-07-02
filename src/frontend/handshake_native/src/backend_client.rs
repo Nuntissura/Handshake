@@ -835,6 +835,168 @@ async fn fetch_blame_text(
     Ok(out)
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// MT-015: operator cloud-model access client (BYOK key store/remove + non-secret enumeration).
+//
+// Reaches the `GET /model-access/providers`, `PUT/DELETE /model-access/byok/:provider/key` routes on
+// the running backend. The BYOK key is sent ONCE in the PUT body and is NEVER stored on the native side
+// (the shell holds it in a zeroizing buffer that it clears immediately after dispatch). This client
+// returns only non-secret status; it has no route to read a key back.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+use crate::settings_dialog::{CloudAccessSnapshot, CloudByokRow, CloudCliRow};
+
+/// One delivered cloud-access result, drained by the shell each frame.
+pub enum CloudAccessDelivery {
+    /// A fresh non-secret enumeration snapshot (provider statuses + CLI login commands).
+    Snapshot(CloudAccessSnapshot),
+    /// The result of a BYOK save/remove op: a per-provider message + (on success) a refreshed snapshot.
+    OpResult {
+        provider: String,
+        message: String,
+        snapshot: Option<CloudAccessSnapshot>,
+    },
+}
+
+/// The single-writer async delivery queue for cloud-access results.
+pub type CloudAccessCell = Arc<Mutex<Vec<CloudAccessDelivery>>>;
+
+/// Off-thread client for the operator cloud-model access surface (MT-015).
+#[derive(Clone)]
+pub struct CloudAccessClient {
+    client: reqwest::Client,
+    base_url: String,
+}
+
+impl CloudAccessClient {
+    pub fn new(base_url: impl Into<String>) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+        }
+    }
+
+    /// The production client against the hardcoded backend base URL.
+    pub fn production() -> Self {
+        Self::new(BACKEND_BASE_URL)
+    }
+
+    /// `GET /model-access/providers` → the non-secret enumeration snapshot.
+    pub async fn enumerate(&self) -> Result<CloudAccessSnapshot, AppError> {
+        let url = format!("{}/model-access/providers", self.base_url);
+        let value = get_json(&self.client, &url, &[]).await?;
+        Ok(parse_cloud_access_snapshot(&value))
+    }
+
+    /// `PUT /model-access/byok/{provider}/key` with `{ "api_key": <key> }` → store the key in the OS
+    /// keychain vault. The key travels in the body only; it is never logged by this client.
+    pub async fn store_key(&self, provider: &str, api_key: String) -> Result<(), AppError> {
+        let url = format!("{}/model-access/byok/{}/key", self.base_url, provider);
+        let body = serde_json::json!({ "api_key": api_key });
+        let resp = self
+            .client
+            .put(&url)
+            .timeout(Duration::from_secs(5))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Http(e.to_string()))?;
+        if !resp.status().is_success() {
+            return Err(AppError::Http(format!(
+                "PUT model-access key non-success status {}",
+                resp.status()
+            )));
+        }
+        Ok(())
+    }
+
+    /// `DELETE /model-access/byok/{provider}/key` → remove / rotate the key (idempotent).
+    pub async fn remove_key(&self, provider: &str) -> Result<(), AppError> {
+        let url = format!("{}/model-access/byok/{}/key", self.base_url, provider);
+        delete_expect_success(&self.client, &url).await
+    }
+}
+
+/// Parse the `GET /model-access/providers` JSON into the UI snapshot. Defensive: any provider id of
+/// `gemini` / `gemini_cli` is dropped even though the backend already excludes it, so a stale/spoofed
+/// response can never surface Gemini in the operator surface.
+fn parse_cloud_access_snapshot(value: &Value) -> CloudAccessSnapshot {
+    let is_excluded = |provider: &str| provider == "gemini" || provider == "gemini_cli";
+    let byok = value
+        .get("byok")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| {
+                    let provider = row.get("provider")?.as_str()?.to_owned();
+                    if is_excluded(&provider) {
+                        return None;
+                    }
+                    let label = row
+                        .get("label")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&provider)
+                        .to_owned();
+                    let configured =
+                        row.get("status").and_then(Value::as_str) == Some("configured");
+                    Some(CloudByokRow {
+                        provider,
+                        label,
+                        configured,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let cli_bridge = value
+        .get("cli_bridge")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| {
+                    let provider = row.get("provider")?.as_str()?.to_owned();
+                    if is_excluded(&provider) {
+                        return None;
+                    }
+                    let label = row
+                        .get("label")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&provider)
+                        .to_owned();
+                    let login = row.get("login");
+                    let login_program = login
+                        .and_then(|l| l.get("program"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned();
+                    let login_args = login
+                        .and_then(|l| l.get("args"))
+                        .and_then(Value::as_array)
+                        .map(|args| {
+                            args.iter()
+                                .filter_map(|a| a.as_str().map(str::to_owned))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let hint = login
+                        .and_then(|l| l.get("hint"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned();
+                    Some(CloudCliRow {
+                        provider,
+                        label,
+                        login_program,
+                        login_args,
+                        hint,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    CloudAccessSnapshot { byok, cli_bridge }
+}
+
 /// GET `url?query` and parse the JSON body. A non-success status or parse failure is an [`AppError`].
 async fn get_json(
     client: &reqwest::Client,

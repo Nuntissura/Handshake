@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::flight_recorder::FlightRecorder;
 
+pub mod access_config;
 pub mod agent_activity;
 pub mod anthropic_byok;
 pub mod cli_bridge_runtime;
@@ -38,6 +39,12 @@ pub struct CloudLaneObservability {
     pub consent: Option<CloudConsentContext>,
 }
 
+pub use access_config::{
+    enumerate as enumerate_cloud_access, enumerate_byok, enumerate_cli_bridge, AccessConfigError,
+    ByokAccessRow, ByokProvider, CliBridgeAccessRow, CliBridgeProvider, CloudAccessEnumeration,
+    CloudModelAccess, InMemoryAccessRegistry, OfficialLoginCommand, ProviderAccessRegistry,
+    ProviderAccessStatus, VaultBackedAccessRegistry,
+};
 pub use agent_activity::{
     parse_line as parse_agent_activity_line, AgentActivity, AgentActivityKind,
 };
@@ -60,3 +67,5 @@ pub use openai_byok::{
 pub use secrets_vault::{
     InMemorySecretsVault, SecretsVault, SecretsVaultError, VaultApiKeyProvider,
 };
+#[cfg(feature = "os-keychain")]
+pub use secrets_vault::{OsKeychainSecretsVault, HANDSHAKE_KEYCHAIN_SERVICE};

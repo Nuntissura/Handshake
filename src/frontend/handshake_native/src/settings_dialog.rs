@@ -107,6 +107,154 @@ pub const NOT_WIRED_AUTHOR_ID_PREFIX: &str = "settings.not-wired.";
 /// no stable address — the gap the MT-029 overlay accessibility-invariant proof surfaces.
 pub const SECTION_HEADER_AUTHOR_ID_PREFIX: &str = "settings.section.";
 
+// ── Cloud Models section (MT-015: operator cloud-model access config) ──────────────────────────────
+//
+// Per-provider BYOK API-key entry (Anthropic, OpenAI) + subscription-plan CLI-bridge login status
+// (Claude Code, GPT/Codex). Gemini is never rendered (the backend enumeration never lists it). Every
+// control carries a stable per-provider author_id so an out-of-process model (Argus) addresses each
+// provider row/field/button deterministically. author_ids are BUILT from the provider id so the set
+// stays consistent as providers are added; the stability test pins the exact strings.
+
+/// Author_id for a BYOK provider's password-masked API-key input: `settings.cloud.byok.{provider}.key`.
+pub fn cloud_byok_key_author_id(provider: &str) -> String {
+    format!("settings.cloud.byok.{provider}.key")
+}
+/// Author_id for a BYOK provider's Save button: `settings.cloud.byok.{provider}.save`.
+pub fn cloud_byok_save_author_id(provider: &str) -> String {
+    format!("settings.cloud.byok.{provider}.save")
+}
+/// Author_id for a BYOK provider's Remove/Rotate button: `settings.cloud.byok.{provider}.remove`.
+pub fn cloud_byok_remove_author_id(provider: &str) -> String {
+    format!("settings.cloud.byok.{provider}.remove")
+}
+/// Author_id for a BYOK provider's status label: `settings.cloud.byok.{provider}.status`.
+pub fn cloud_byok_status_author_id(provider: &str) -> String {
+    format!("settings.cloud.byok.{provider}.status")
+}
+/// Author_id for a CLI-bridge provider's Log-in button: `settings.cloud.cli.{provider}.login`.
+pub fn cloud_cli_login_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login")
+}
+/// Author_id for a CLI-bridge provider's status label: `settings.cloud.cli.{provider}.status`.
+pub fn cloud_cli_status_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.status")
+}
+
+/// One non-secret BYOK provider row from the backend enumeration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CloudByokRow {
+    pub provider: String,
+    pub label: String,
+    pub configured: bool,
+}
+
+/// One non-secret CLI-bridge provider row from the backend enumeration, carrying the provider's OWN
+/// official login command (launched operator-initiated in a visible terminal).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CloudCliRow {
+    pub provider: String,
+    pub label: String,
+    pub login_program: String,
+    pub login_args: Vec<String>,
+    pub hint: String,
+}
+
+/// The non-secret cloud-access enumeration snapshot the dialog renders from. Fetched by the shell from
+/// `GET /model-access/providers`; never contains key material.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CloudAccessSnapshot {
+    pub byok: Vec<CloudByokRow>,
+    pub cli_bridge: Vec<CloudCliRow>,
+}
+
+/// Mutable, shell-owned UI state for the Cloud Models section.
+///
+/// SECURITY (MT-015): the per-provider API-key edit buffer is a
+/// [`zeroize::Zeroizing<String>`] so it is wiped on clear/drop. This state lives in the shell
+/// (`HandshakeApp`), NOT in the dialog's `DialogState` and NOT in the persisted egui snapshot, so a key
+/// never reaches egui temp memory, the persisted snapshot, or the workspace-settings PUT. The shell
+/// clears the buffer immediately after a Save is dispatched.
+#[derive(Default)]
+pub struct CloudModelsSettingsState {
+    snapshot: CloudAccessSnapshot,
+    /// Per-provider editable API-key buffer (zeroized on clear/drop).
+    key_drafts: Vec<(String, zeroize::Zeroizing<String>)>,
+    /// Per-provider transient status message (e.g. "Saved", "Removed", an error).
+    messages: Vec<(String, String)>,
+}
+
+impl CloudModelsSettingsState {
+    /// Replace the non-secret enumeration snapshot (does not touch key buffers).
+    pub fn set_snapshot(&mut self, snapshot: CloudAccessSnapshot) {
+        self.snapshot = snapshot;
+    }
+
+    pub fn snapshot(&self) -> &CloudAccessSnapshot {
+        &self.snapshot
+    }
+
+    /// Mutable handle to a provider's key buffer, created empty on first use.
+    fn key_draft_mut(&mut self, provider: &str) -> &mut zeroize::Zeroizing<String> {
+        if let Some(idx) = self.key_drafts.iter().position(|(p, _)| p == provider) {
+            &mut self.key_drafts[idx].1
+        } else {
+            self.key_drafts
+                .push((provider.to_owned(), zeroize::Zeroizing::new(String::new())));
+            &mut self.key_drafts.last_mut().unwrap().1
+        }
+    }
+
+    /// Whether a provider's key buffer currently holds any non-whitespace text.
+    pub fn key_draft_is_empty(&self, provider: &str) -> bool {
+        self.key_drafts
+            .iter()
+            .find(|(p, _)| p == provider)
+            .map(|(_, b)| b.trim().is_empty())
+            .unwrap_or(true)
+    }
+
+    /// Take the provider's key buffer OUT (moving it to the caller, e.g. an async save task) and leave
+    /// the UI slot empty. The moved buffer zeroizes when the caller drops it; the UI buffer is cleared.
+    pub fn take_key_draft(&mut self, provider: &str) -> zeroize::Zeroizing<String> {
+        if let Some(idx) = self.key_drafts.iter().position(|(p, _)| p == provider) {
+            std::mem::replace(&mut self.key_drafts[idx].1, zeroize::Zeroizing::new(String::new()))
+        } else {
+            zeroize::Zeroizing::new(String::new())
+        }
+    }
+
+    /// Set a provider's transient status message.
+    pub fn set_message(&mut self, provider: &str, message: impl Into<String>) {
+        let message = message.into();
+        if let Some(slot) = self.messages.iter_mut().find(|(p, _)| p == provider) {
+            slot.1 = message;
+        } else {
+            self.messages.push((provider.to_owned(), message));
+        }
+    }
+
+    fn message_for(&self, provider: &str) -> Option<&str> {
+        self.messages
+            .iter()
+            .find(|(p, _)| p == provider)
+            .map(|(_, m)| m.as_str())
+    }
+
+    /// The transient status message for a provider, if any (for tests + drivers).
+    pub fn message(&self, provider: &str) -> Option<&str> {
+        self.message_for(provider)
+    }
+
+    /// The CLI-bridge login command for a provider, if present in the snapshot.
+    pub fn cli_login_command(&self, provider: &str) -> Option<(String, Vec<String>)> {
+        self.snapshot
+            .cli_bridge
+            .iter()
+            .find(|r| r.provider == provider)
+            .map(|r| (r.login_program.clone(), r.login_args.clone()))
+    }
+}
+
 /// What the dialog wants the shell to do after a frame.
 ///
 /// Returned by [`show`]. The shell matches on it: a wired change variant updates
@@ -133,6 +281,15 @@ pub enum SettingsOutcome {
     SwarmLaneDiagnosticsDefaultOpenChanged(bool),
     /// The Reset panes & drawers button was clicked (same action as VIEW > Reset Layout). WIRED.
     ResetLayout,
+    /// MT-015: Save clicked for a BYOK provider. The shell reads the key buffer, sends it to the vault
+    /// via `PUT /model-access/byok/{provider}/key`, then zeroizes + clears the buffer.
+    CloudByokKeySaveRequested { provider: String },
+    /// MT-015: Remove/Rotate clicked for a BYOK provider. The shell calls
+    /// `DELETE /model-access/byok/{provider}/key` (idempotent).
+    CloudByokKeyRemoveRequested { provider: String },
+    /// MT-015: Log-in clicked for a CLI-bridge provider. The shell launches the provider's OWN official
+    /// login command in a visible terminal (operator-initiated). Handshake stores no credential.
+    CliBridgeLoginRequested { provider: String },
     /// The user dismissed the dialog (Escape, the Close button, or a backdrop click). The shell clears
     /// the open flag.
     Close,
@@ -147,6 +304,9 @@ pub struct SettingsView<'a> {
     pub settings: &'a WorkspaceSettingsState,
     /// The last transient persistence error, if any, surfaced on the status row.
     pub persist_error: Option<&'a str>,
+    /// MT-015: mutable Cloud Models UI state (enumeration snapshot + per-provider key buffers). Held by
+    /// the shell — NOT in `DialogState` or the persisted snapshot — so a BYOK key never persists.
+    pub cloud: &'a mut CloudModelsSettingsState,
 }
 
 /// Transient per-open dialog UI state: the search query + the in-progress draft keybinding text per
@@ -374,7 +534,14 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
                     .max_height(440.0)
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        outcome = render_sections(ui, &query, &mut state, &view, outcome.clone());
+                        outcome = render_sections(
+                            ui,
+                            &query,
+                            &mut state,
+                            view.settings,
+                            &mut *view.cloud,
+                            outcome.clone(),
+                        );
                     });
             });
             emit_list_node(ui.ctx(), list_egui_id);
@@ -394,11 +561,10 @@ fn render_sections(
     ui: &mut egui::Ui,
     query: &str,
     state: &mut DialogState,
-    view: &SettingsView<'_>,
+    settings: &WorkspaceSettingsState,
+    cloud: &mut CloudModelsSettingsState,
     mut outcome: SettingsOutcome,
 ) -> SettingsOutcome {
-    let settings = view.settings;
-
     // ── [1] Appearance (theme + view mode — both WIRED) ────────────────────────────────────────────
     let show_appearance = setting_matches_query(
         query,
@@ -697,6 +863,42 @@ fn render_sections(
         );
     }
 
+    // ── [5b] Cloud Models (MT-015: BYOK key entry + CLI-bridge subscription-plan login) ─────────────
+    // Placed after Layout so it never pushes the earlier interactive sections (Keybindings / Layout)
+    // below the scroll fold — a section added above them would move their live widgets out of the
+    // coordinate-clickable viewport and regress those sections' kittest interaction proofs.
+    let show_cloud = setting_matches_query(
+        query,
+        &[
+            "cloud",
+            "model",
+            "models",
+            "byok",
+            "api",
+            "key",
+            "anthropic",
+            "openai",
+            "claude",
+            "gpt",
+            "codex",
+            "login",
+            "plan",
+            "subscription",
+        ],
+    );
+    if show_cloud {
+        let cloud_header = egui::CollapsingHeader::new("Cloud Models")
+            .default_open(true)
+            .show(ui, |ui| {
+                outcome = render_cloud_models_body(ui, cloud, outcome.clone());
+            });
+        set_author_id(
+            ui,
+            cloud_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}cloud-models"),
+        );
+    }
+
     // ── [6] About (app name + REAL Cargo version) ──────────────────────────────────────────────────
     let show_about = setting_matches_query(query, &["about", "app", "version"]);
     if show_about {
@@ -718,6 +920,129 @@ fn render_sections(
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}about"),
         );
         // TODO MT-0XX: CLI Bridge config panel - see app/src/components/CliBridgeConfigPanel.tsx
+    }
+
+    outcome
+}
+
+/// Render the Cloud Models section body (MT-015). BYOK provider rows (password key entry + Save +
+/// Remove/Rotate) followed by CLI-bridge provider rows (subscription-plan login launch). Every control
+/// carries a stable per-provider author_id. Gemini never appears — the snapshot never lists it.
+///
+/// SECURITY: the key input edits a shell-owned [`zeroize::Zeroizing<String>`] buffer directly; the key
+/// never enters `DialogState` or the persisted egui snapshot. The dialog only REQUESTS a save (the
+/// shell reads the buffer, sends it to the vault, and clears it) — it never persists the key itself.
+fn render_cloud_models_body(
+    ui: &mut egui::Ui,
+    cloud: &mut CloudModelsSettingsState,
+    mut outcome: SettingsOutcome,
+) -> SettingsOutcome {
+    ui.label(
+        egui::RichText::new(
+            "Configure cloud model access. Your subscription PLAN via the official CLI (Claude Code, \
+             GPT/Codex) is the primary path; a BYOK API key is available if you bring your own. \
+             Gemini is not offered.",
+        )
+        .small()
+        .weak(),
+    );
+
+    // ---- BYOK: per-provider password key entry stored only in the OS keychain. ----
+    ui.add_space(6.0);
+    ui.label(egui::RichText::new("Bring your own API key").small().strong());
+    // Clone the non-secret snapshot rows so the per-row key buffer can borrow `cloud` mutably without
+    // aliasing the snapshot.
+    let byok_rows = cloud.snapshot().byok.clone();
+    if byok_rows.is_empty() {
+        ui.label(
+            egui::RichText::new("Loading providers… (backend not reachable yet)")
+                .small()
+                .weak(),
+        );
+    }
+    for row in &byok_rows {
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.label(&row.label);
+                let status_text = if row.configured {
+                    "Configured — key stored in the OS keychain"
+                } else {
+                    "Not configured"
+                };
+                let status = ui.label(egui::RichText::new(status_text).small().weak());
+                set_author_id(ui, status.id, &cloud_byok_status_author_id(&row.provider));
+            });
+        });
+        ui.horizontal(|ui| {
+            {
+                let buf = cloud.key_draft_mut(&row.provider);
+                let input = ui.add(
+                    egui::TextEdit::singleline(&mut **buf)
+                        .password(true)
+                        .hint_text("Paste API key")
+                        .desired_width(220.0),
+                );
+                set_author_id_and_label(
+                    ui,
+                    input.id,
+                    &cloud_byok_key_author_id(&row.provider),
+                    &format!("{} API key", row.label),
+                );
+            }
+            let save = ui.button("Save");
+            set_author_id(ui, save.id, &cloud_byok_save_author_id(&row.provider));
+            if save.clicked() && outcome == SettingsOutcome::None {
+                outcome = SettingsOutcome::CloudByokKeySaveRequested {
+                    provider: row.provider.clone(),
+                };
+            }
+            let remove = ui.add_enabled(row.configured, egui::Button::new("Remove"));
+            set_author_id(ui, remove.id, &cloud_byok_remove_author_id(&row.provider));
+            if remove.clicked() && outcome == SettingsOutcome::None {
+                outcome = SettingsOutcome::CloudByokKeyRemoveRequested {
+                    provider: row.provider.clone(),
+                };
+            }
+        });
+        if let Some(msg) = cloud.message_for(&row.provider) {
+            ui.label(egui::RichText::new(msg).small().weak());
+        }
+    }
+
+    // ---- CLI bridge: subscription-plan login status + operator-initiated official login launch. ----
+    ui.add_space(8.0);
+    ui.label(
+        egui::RichText::new("Subscription plan (official CLI login)")
+            .small()
+            .strong(),
+    );
+    let cli_rows = cloud.snapshot().cli_bridge.clone();
+    for row in &cli_rows {
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.label(&row.label);
+                let status = ui.label(
+                    egui::RichText::new(if row.hint.is_empty() {
+                        "Log in with the provider's official CLI. Handshake stores no credential."
+                    } else {
+                        row.hint.as_str()
+                    })
+                    .small()
+                    .weak(),
+                );
+                set_author_id(ui, status.id, &cloud_cli_status_author_id(&row.provider));
+            });
+            let login = ui.button("Log in…");
+            set_author_id(ui, login.id, &cloud_cli_login_author_id(&row.provider));
+            if login.clicked() && outcome == SettingsOutcome::None {
+                outcome = SettingsOutcome::CliBridgeLoginRequested {
+                    provider: row.provider.clone(),
+                };
+            }
+        });
+        if let Some(msg) = cloud.message_for(&row.provider) {
+            ui.label(egui::RichText::new(msg).small().weak());
+        }
     }
 
     outcome
@@ -837,5 +1162,50 @@ mod tests {
         );
         assert_eq!(RESET_LAYOUT_AUTHOR_ID, "settings.reset-layout");
         assert_eq!(CLOSE_AUTHOR_ID, "settings.close");
+    }
+
+    /// MT-015: the Cloud Models per-provider author_ids are stable, kebab/dotted, and distinct per
+    /// provider so Argus addresses each provider's key field, Save, Remove, status, and CLI login
+    /// deterministically. Gemini is never an offered provider id here.
+    #[test]
+    fn cloud_models_author_ids_are_stable_per_provider() {
+        assert_eq!(cloud_byok_key_author_id("openai"), "settings.cloud.byok.openai.key");
+        assert_eq!(cloud_byok_key_author_id("anthropic"), "settings.cloud.byok.anthropic.key");
+        assert_eq!(cloud_byok_save_author_id("openai"), "settings.cloud.byok.openai.save");
+        assert_eq!(
+            cloud_byok_remove_author_id("anthropic"),
+            "settings.cloud.byok.anthropic.remove"
+        );
+        assert_eq!(
+            cloud_byok_status_author_id("openai"),
+            "settings.cloud.byok.openai.status"
+        );
+        assert_eq!(
+            cloud_cli_login_author_id("claude_code"),
+            "settings.cloud.cli.claude_code.login"
+        );
+        assert_eq!(
+            cloud_cli_status_author_id("codex"),
+            "settings.cloud.cli.codex.status"
+        );
+        // Distinct per provider.
+        assert_ne!(
+            cloud_byok_key_author_id("openai"),
+            cloud_byok_key_author_id("anthropic")
+        );
+    }
+
+    /// The zeroizing key buffer clears on take (proves the shell can wipe the buffer after submit) and
+    /// starts empty.
+    #[test]
+    fn cloud_key_buffer_takes_and_clears() {
+        let mut state = CloudModelsSettingsState::default();
+        assert!(state.key_draft_is_empty("openai"));
+        state.key_draft_mut("openai").push_str("sk-secret-draft");
+        assert!(!state.key_draft_is_empty("openai"));
+        let taken = state.take_key_draft("openai");
+        assert_eq!(&*taken, "sk-secret-draft");
+        // After take, the UI buffer is empty again.
+        assert!(state.key_draft_is_empty("openai"));
     }
 }
