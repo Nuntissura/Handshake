@@ -128,7 +128,7 @@
     },
     {
       "mt_id": "MT-007",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-002",
         "MT-003",
@@ -143,8 +143,8 @@
         "MT-009",
         "MT-010"
       ],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT007_2026-07-02_RECOVERY_PG_TESTS_9_PASS_0_FAIL_2557s_CHECKPOINT_BOUND_FIX_COMMIT_553e6095",
+      "hbr_status": "PASS_MT007_RECOVERY_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "NOT_RUN",
       "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
