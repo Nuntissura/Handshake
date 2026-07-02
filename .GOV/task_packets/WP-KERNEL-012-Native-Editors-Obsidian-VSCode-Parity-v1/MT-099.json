@@ -14,7 +14,7 @@
   "title": "U3-MT-099-EndToEndNotesUsability",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-29T15:18:40Z",
+  "updated_at_utc": "2026-07-02T01:51:45Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-099.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,15 +25,19 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
-    "active": false,
+    "status": "CLAIMED",
+    "active": true,
     "depends_on": [
       "MT-097"
     ],
     "blocks": [
       "MT-104"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER",
+    "claimed_at_utc": "2026-07-02T01:51:45Z",
+    "claim_session": "KERNEL_BUILDER-20260702-012522",
+    "reopen_note": "Proof-repair claim 2026-07-02: contract requires live managed-core save receipt (KNOWLEDGE_RICH_DOCUMENT_SAVED) OR explicit NEEDS_MANAGED_RESOURCE_PROOF marking - neither present. KERNEL_BUILDER will run the live half against managed PostgreSQL+handshake_core and record the result."
   },
   "scope": {
     "summary": "OPERATOR: 'i cannot use notes in handshake'. This MT is the END-TO-END NOTES USABILITY fix: prove (and fix whatever blocks) the operator flow in the RUNNING app — OPEN a document/file -> EDIT it in the live editor -> SAVE -> REOPEN shows the edit. The notes editors are mounted live (MT-079) and are the default worksurface (MT-097), but the OPEN -> live-editor -> SAVE -> PERSIST -> REOPEN chain must actually work for the operator, not just render.\n\nVERIFIED BACKEND STATE (live-app inspection 2026-06-27): the notes/documents persistence chain HAS REAL HTTP ROUTES on handshake_core — so this is a REAL WIRE, not a typed blocker:\n- GET /knowledge/documents/:document_id (load_document), PUT /knowledge/documents/:document_id/save (save_document, persists to knowledge_rich_documents + emits a KNOWLEDGE_RICH_DOCUMENT_SAVED EventLedger receipt), POST /knowledge/documents (create_document), plus the draft routes (GET/PUT /knowledge/documents/:id/draft). Routes registered in src/backend/handshake_core/src/api/knowledge_documents.rs. Loom blocks: GET/PATCH /workspaces/:workspace_id/loom/blocks/:block_id.\n- Identity headers required on these routes (x-hsk-actor-id / x-hsk-actor-kind / x-hsk-kernel-task-run-id / x-hsk-session-run-id) — the native client must send them (reuse the existing backend_client header-injection if present).\n\nWhat to do (wire-into-live + a real end-to-end proof):\n- INSPECT src/frontend/handshake_native/src/backend_client.rs for the existing RichDocClient (MT-020/079 referenced a `RichDocClient::production`) — it is the reuse-via-API surface for load/save. INSPECT the rich editor save path (rich_editor/save/** + the RichEditorState::set_embed_context / the MT-020 save the editor already calls). The open path: app.rs open_content_on_active_pane(PaneType::LoomWikiPage|LoomBlock, Some(document_id)) + the ShellNavigator open_document -> rich pane (MT-030/079).\n- WIRE THE FULL CHAIN end-to-end so it works in the running app: (1) OPEN a document by id -> the rich/notes pane loads its content from GET /knowledge/documents/:id (or the Loom block route); (2) EDIT the content in the live editor; (3) SAVE -> PUT /knowledge/documents/:id/save persists + the EventLedger receipt fires; (4) REOPEN (re-load by the same id) -> the editor shows the saved edit. Fix WHATEVER blocks this chain (a missing open-by-id wire, a save not reaching the route, a reload not re-fetching, the identity headers not set, the draft vs authoritative-save confusion).\n- This is reuse-via-API ONLY: src/backend untouched. The routes EXIST; the work is the NATIVE open->edit->save->reload wiring + the proof.\n- CREATE src/frontend/handshake_native/tests/test_notes_end_to_end.rs.\n\nReuse notes: the document load/save HTTP routes EXIST (knowledge_documents.rs); the native RichDocClient (backend_client.rs) is the reuse surface; the rich editor + its MT-020 save + MT-079 mount are built. This MT closes the operator-flow gap: it makes OPEN->EDIT->SAVE->REOPEN actually round-trip in the running app and PROVES it.\n\nProof discipline (NOT a fake pass): the end-to-end proof must exercise the REAL save route. Because a live save round-trip needs a running PostgreSQL/handshake_core (a managed resource), the proof is EITHER (a) a live end-to-end test against a managed handshake_core (open->edit->save->reload shows the edit, the KNOWLEDGE_RICH_DOCUMENT_SAVED receipt observed) when the managed resource is available, OR (b) a kittest that drives the native open->edit->save->reload chain against the REAL RichDocClient pointed at a test handshake_core / a verified-shape stub of the documented route (asserting the native side issues the correct GET/PUT with identity headers and re-renders the reloaded content), with the live-PG half marked NEEDS_MANAGED_RESOURCE_PROOF — NOT a fabricated 'save succeeded' with no route call. If a specific sub-step is genuinely blocked by an absent route, record an HONEST typed blocker for that sub-step only.\n\nRisk if missed: the headline operator complaint ('i cannot use notes') stays unfixed — the editor renders but a real open->edit->save->reopen does not round-trip.",
