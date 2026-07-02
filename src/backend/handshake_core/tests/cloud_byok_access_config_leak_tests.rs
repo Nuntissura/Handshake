@@ -187,7 +187,8 @@ async fn byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain() 
     let keychain = Arc::new(OsKeychainSecretsVault::new(namespace.clone()));
     let service = CloudModelAccess::with_vault(keychain.clone(), "OsKeychainSecretsVault");
 
-    // (2) Store the canary via the REAL settings path (SecretString end-to-end).
+    // (2) Store the canary via the REAL settings path. The key is a SecretString
+    // at the trust boundaries; only a transient String exists on the transport.
     service
         .store_byok_key(ByokProvider::OpenAi, &SecretString::from(CANARY_KEY.to_string()))
         .expect("store canary in OS keychain");

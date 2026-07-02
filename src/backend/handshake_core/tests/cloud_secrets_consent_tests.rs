@@ -27,11 +27,9 @@ impl CloudInvocationAuditSink for NopSink {
 #[test]
 fn secrets_vault_round_trips_secret_value() {
     let vault = InMemorySecretsVault::default();
-    vault
-        .put("openai", "sk-test-round-trip".to_string())
-        .unwrap();
+    vault.put("openai", "sk-test-round-trip").unwrap();
     let value = vault.get("openai").expect("get");
-    assert_eq!(value, "sk-test-round-trip");
+    assert_eq!(value.as_str(), "sk-test-round-trip");
 }
 
 #[test]
@@ -40,9 +38,7 @@ fn vault_api_key_provider_wires_into_openai_byok_runtime() {
     // the BYOK runtime constructor without leaking the key into
     // Debug output.
     let vault = Arc::new(InMemorySecretsVault::default());
-    vault
-        .put("openai-lane", "sk-DO-NOT-LOG".to_string())
-        .unwrap();
+    vault.put("openai-lane", "sk-DO-NOT-LOG").unwrap();
     let provider: Arc<dyn ApiKeyProvider> =
         Arc::new(VaultApiKeyProvider::new(vault.clone(), "openai-lane"));
     let runtime = OpenAiByokRuntime::new(

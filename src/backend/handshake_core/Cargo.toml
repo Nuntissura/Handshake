@@ -177,6 +177,12 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "str
 eventsource-stream = "0.2"
 keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
 secrecy = { version = "0.10", features = ["serde"] }
+# MT-015 hardening (F1/F2): the secrets vault returns key reads wrapped in
+# `zeroize::Zeroizing<String>` so the presence-probe and reads wipe their
+# plaintext copy on drop instead of leaving un-zeroized heap strings. zeroize is
+# already in the locked graph (secrecy / rustls / keyring crypto-rust family);
+# declared here so the vault uses the audited crate directly. No new dep family.
+zeroize = "1"
 tokio-tungstenite = "0.26"
 futures = "0.3"
 futures-util = "0.3"
@@ -304,6 +310,11 @@ required-features = ["test-utils"]
 name = "cloud_os_keychain_vault_tests"
 path = "tests/cloud_os_keychain_vault_tests.rs"
 required-features = ["os-keychain"]
+
+[[test]]
+name = "model_access_route_tests"
+path = "tests/model_access_route_tests.rs"
+required-features = ["test-utils"]
 
 [[test]]
 name = "kernel_crdt_persistence_tests"

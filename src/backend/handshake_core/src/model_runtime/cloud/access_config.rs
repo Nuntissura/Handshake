@@ -242,7 +242,9 @@ impl ProviderAccessRegistry for VaultBackedAccessRegistry {
     fn byok_status(&self, provider: ByokProvider) -> ProviderAccessStatus {
         match self.vault.get(provider.vault_lane()) {
             Ok(secret) => {
-                // Presence only: drop the key immediately; never surface it.
+                // Presence only: the read is a `Zeroizing<String>`, so dropping
+                // it here wipes the plaintext instead of leaving an un-zeroized
+                // heap copy behind (MT-015 F1). We never surface the value.
                 drop(secret);
                 ProviderAccessStatus::Configured
             }
@@ -408,10 +410,12 @@ impl CloudModelAccess {
         if api_key.expose_secret().trim().is_empty() {
             return Err(AccessConfigError::EmptyKey);
         }
-        // Expose once, hand straight to the vault. `vault.put` moves the value
-        // into the OS credential store; nothing here keeps it.
+        // Expose once as a borrowed `&str` and hand it straight to the vault,
+        // which copies it into the OS credential store. No owned, un-zeroized
+        // `String` copy is materialised on this path (MT-015 F2); nothing here
+        // keeps the key.
         self.vault
-            .put(provider.vault_lane(), api_key.expose_secret().to_owned())?;
+            .put(provider.vault_lane(), api_key.expose_secret())?;
         Ok(())
     }
 
@@ -432,7 +436,10 @@ impl CloudModelAccess {
         &self,
         provider: ByokProvider,
     ) -> Result<String, AccessConfigError> {
-        Ok(self.vault.get(provider.vault_lane())?)
+        // The vault read is `Zeroizing`; the owned `String` returned here is the
+        // deliberate transient copy the caller (the BYOK backend / the leak
+        // test) uses, and the `Zeroizing` original is wiped as it drops.
+        Ok(self.vault.get(provider.vault_lane())?.to_string())
     }
 
     /// Non-secret status for one BYOK provider (ProviderNotConfigured ->

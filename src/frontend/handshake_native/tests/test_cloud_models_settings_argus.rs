@@ -19,7 +19,9 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::settings_dialog::{CloudAccessSnapshot, CloudByokRow, CloudCliRow};
+use handshake_native::settings_dialog::{
+    cloud_byok_key_egui_id, CloudAccessSnapshot, CloudByokRow, CloudCliRow,
+};
 use handshake_native::workspace_settings::{SettingsTransport, SettingsTransportError};
 use serde_json::Value;
 
@@ -89,6 +91,24 @@ fn open_with_snapshot() -> Harness<'static, HandshakeApp> {
     let mut app = ok_app();
     app.set_settings_transport(Arc::new(StubSettingsTransport));
     app.set_cloud_snapshot_for_test(seeded_snapshot());
+
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app,
+    );
+    harness.state_mut().open_settings();
+    harness.run();
+    harness.run();
+    harness
+}
+
+/// Open the settings dialog with NO backend enumeration seeded and NO cloud-access client
+/// (`with_health` leaves `cloud_access_client = None`), so the Cloud Models section must fall back to
+/// the static seed rows (F10) rather than a backend enumeration.
+fn open_without_snapshot() -> Harness<'static, HandshakeApp> {
+    let mut app = ok_app();
+    app.set_settings_transport(Arc::new(StubSettingsTransport));
+    // Deliberately NO set_cloud_snapshot_for_test: the snapshot stays empty and no client can fetch one.
 
     let mut harness = Harness::builder().build_state(
         |ctx, app: &mut HandshakeApp| app.ui(ctx),
@@ -217,4 +237,125 @@ fn cli_bridge_login_records_the_official_command_without_stealing_focus() {
         .expect("a CLI login launch was recorded");
     assert_eq!(launch.0, "claude", "launched the provider's OWN official CLI");
     assert_eq!(launch.1, vec!["/login".to_string()]);
+}
+
+// ── F10: BYOK key entry renders even when the backend enumeration is unreachable. ────────────────────
+//
+// Before the fix, `render_cloud_models_body` gated ALL key-entry rows on a non-empty backend snapshot,
+// so with `cloud_access_client = None` (backend unreachable) it showed only a "Loading… backend not
+// reachable" note and NO fields — an operator could never enter a BYOK key offline. The section now
+// seeds the STATIC provider rows client-side, so the key field + Save ALWAYS render.
+#[test]
+fn cloud_models_key_entry_renders_when_backend_unreachable() {
+    let harness = open_without_snapshot();
+    let ids = all_author_ids(&harness);
+
+    for expected in [
+        "settings.cloud.byok.anthropic.key",
+        "settings.cloud.byok.anthropic.save",
+        "settings.cloud.byok.openai.key",
+        "settings.cloud.byok.openai.save",
+    ] {
+        assert!(
+            ids.iter().any(|id| id == expected),
+            "static seed row '{expected}' must render when the backend is unreachable: {ids:?}"
+        );
+    }
+    // Gemini is still never offered, even in the static seed.
+    assert!(
+        ids.iter().all(|id| !id.contains("gemini")),
+        "no Gemini control may appear in the static seed rows: {ids:?}"
+    );
+}
+
+// ── F3: a typed-but-unsaved BYOK key never lingers in egui memory across a dialog close. ─────────────
+//
+// The key edit buffer is a shell-owned `Zeroizing<String>`, and each key `TextEdit` keeps its own egui
+// state (cursor + undo history) in egui memory. On close the shell buffer is wiped AND each key widget's
+// egui state is reset, so neither the buffer nor the undo history (which snapshots the plaintext text)
+// retains the key. This test types a canary, deterministically seeds the undo history with the canary
+// (simulating egui's own undo checkpoint), closes the dialog, then proves the canary is ABSENT from the
+// shell buffer, from the SERIALIZED persisted egui memory, and from the key widget's reset undo history.
+#[test]
+fn typed_byok_key_is_wiped_from_egui_memory_after_close() {
+    const CANARY: &str = "sk-egui-mem-canary-NEVER-PERSIST-0xC0FFEE";
+    let mut harness = open_with_snapshot();
+
+    // Focus + type the canary into the OpenAI password field (addressed by author_id).
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.byok.openai.key")
+        })
+        .next()
+        .expect("openai key input addressable")
+        .focus();
+    harness.run();
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.byok.openai.key")
+        })
+        .next()
+        .expect("openai key input addressable")
+        .type_text(CANARY);
+    harness.run();
+    assert!(
+        !harness.state().cloud_key_draft_is_empty("openai"),
+        "the typed key is buffered before close"
+    );
+
+    // Deterministically seed the key widget's egui undo history with the canary, mirroring the plaintext
+    // snapshot egui itself keeps on edit. This makes the reset assertion below independent of undo-timing.
+    let key_id = cloud_byok_key_egui_id("openai");
+    {
+        let mut state = egui::TextEdit::load_state(&harness.ctx, key_id).unwrap_or_default();
+        let mut undoer = state.undoer();
+        undoer.add_undo(&(egui::text::CCursorRange::default(), CANARY.to_string()));
+        state.set_undoer(undoer);
+        egui::TextEdit::store_state(&harness.ctx, key_id, state);
+    }
+    // Precondition: the persisted undo history really does hold the canary now.
+    let before = egui::TextEdit::load_state(&harness.ctx, key_id).expect("key state present");
+    assert!(
+        serde_json::to_string(&before.undoer())
+            .unwrap()
+            .contains(CANARY),
+        "precondition: the undo history holds the canary before close"
+    );
+
+    // Close the dialog via the Close button (a real dismiss path that runs `show()`).
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.close")
+        })
+        .next()
+        .expect("close button addressable")
+        .click();
+    harness.run();
+    harness.run();
+
+    // (1) The shell key buffer is wiped on close.
+    assert!(
+        harness.state().cloud_key_draft_is_empty("openai"),
+        "the key buffer MUST be cleared on close"
+    );
+
+    // (2) The canary is absent from the SERIALIZED persisted egui memory (the IdTypeMap that would be
+    // written to disk — DialogState and any persisted widget state live here). The app does NOT override
+    // eframe::App::save, so this is the entire persisted footprint.
+    let mem_json = harness
+        .ctx
+        .data(|d| serde_json::to_string(d).expect("serialize egui persisted memory"));
+    assert!(
+        !mem_json.contains(CANARY),
+        "the key leaked into persisted egui memory: {mem_json}"
+    );
+
+    // (3) The key widget's egui state was reset: its undo history no longer snapshots the plaintext key.
+    if let Some(state) = egui::TextEdit::load_state(&harness.ctx, key_id) {
+        let undoer_json = serde_json::to_string(&state.undoer()).unwrap_or_default();
+        assert!(
+            !undoer_json.contains(CANARY),
+            "the TextEdit undo history retained the key after close: {undoer_json}"
+        );
+    }
 }

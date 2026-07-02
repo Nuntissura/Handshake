@@ -35,7 +35,10 @@ pub fn routes(state: AppState) -> Router {
     let flight_recorder_routes = flight_recorder::routes(state.clone());
     let diagnostics_routes = diagnostics::routes(state.clone());
     let model_lane_navigation_routes = model_lane_navigation::routes(state.clone());
-    let model_access_routes = model_access::routes(state.clone());
+    // MT-015: the model-access router owns a dedicated state (the
+    // CloudAccessProvider seam), not `AppState`, so it is route-testable without
+    // a full AppState. Production wires the OS-keychain-backed service.
+    let model_access_routes = model_access::routes(model_access::ModelAccessState::production());
     let bundle_routes = bundles::routes(state.clone());
     let governance_pack_routes = governance_pack::routes(state.clone());
     let role_mailbox_routes = role_mailbox::routes(state.clone());

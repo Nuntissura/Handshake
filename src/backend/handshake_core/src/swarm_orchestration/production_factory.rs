@@ -656,9 +656,15 @@ struct DynVaultApiKeyProvider {
 
 impl crate::model_runtime::cloud::ApiKeyProvider for DynVaultApiKeyProvider {
     fn fetch_api_key(&self) -> Result<String, crate::model_runtime::cloud::OpenAiByokError> {
-        self.vault.get(&self.lane).map_err(|err| {
-            crate::model_runtime::cloud::OpenAiByokError::ApiKeyFetch(format!("{err}"))
-        })
+        // The vault read is `Zeroizing` (wiped on drop); the owned `String`
+        // returned here is the one transient copy the transport needs and is
+        // dropped after the HTTP request is sent.
+        self.vault
+            .get(&self.lane)
+            .map(|secret| secret.to_string())
+            .map_err(|err| {
+                crate::model_runtime::cloud::OpenAiByokError::ApiKeyFetch(format!("{err}"))
+            })
     }
 }
 
@@ -2320,7 +2326,7 @@ mod tests {
     async fn vault_builder_configured_builds_real_byok_runtime() {
         let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
         vault
-            .put("anthropic", "sk-ant-test-do-not-log".to_string())
+            .put("anthropic", "sk-ant-test-do-not-log")
             .expect("store key");
         let builder =
             VaultCloudRuntimeBuilder::new(CloudProviderFlavor::Anthropic, vault, "anthropic");
@@ -2356,7 +2362,7 @@ mod tests {
     async fn from_vault_factory_cloud_spawn_records_start_and_stop() {
         let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
         vault
-            .put("openai", "sk-test-openai".to_string())
+            .put("openai", "sk-test-openai")
             .expect("store key");
         let cloud = CloudLaneFactoryConfig::from_vault(vault, None, Some("openai".to_string()));
         let (ledger, drain) = ledger_pair();
@@ -2433,7 +2439,7 @@ mod tests {
             other => panic!("unknown HANDSHAKE_TEST_CLOUD_PROVIDER: {other}"),
         };
         let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
-        vault.put(lane, api_key).expect("store live key");
+        vault.put(lane, &api_key).expect("store live key");
         let cloud = match flavor {
             CloudProviderFlavor::Anthropic => {
                 CloudLaneFactoryConfig::from_vault(vault, Some(lane.to_string()), None)

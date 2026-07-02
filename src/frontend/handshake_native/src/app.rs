@@ -2426,6 +2426,11 @@ impl HandshakeApp {
     /// closed.
     pub fn close_settings(&mut self) {
         self.settings_open = false;
+        // MT-015 F3 (defense in depth): wipe any BYOK key edit buffer on close regardless of the path
+        // that produced the close. The dialog's `show()` also resets the egui TextEdit state on the
+        // interactive close paths; this guarantees the shell buffer is cleared even for a programmatic
+        // close that never re-rendered the dialog.
+        self.cloud_models.clear_key_drafts();
         if self.settings_save_due_at.take().is_some() {
             self.flush_settings_save_now();
         }

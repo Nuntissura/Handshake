@@ -119,6 +119,24 @@ pub const SECTION_HEADER_AUTHOR_ID_PREFIX: &str = "settings.section.";
 pub fn cloud_byok_key_author_id(provider: &str) -> String {
     format!("settings.cloud.byok.{provider}.key")
 }
+/// The STABLE egui widget id for a BYOK provider's key `TextEdit`. Fixed (not
+/// auto-derived from the ui id-stack) so the dialog can RESET that widget's egui
+/// state (cursor + undo history) on close/open, wiping any typed-but-unsaved key
+/// from egui memory (MT-015 F3). The undo history would otherwise retain a
+/// plaintext copy of the key in process memory across a reopen.
+pub fn cloud_byok_key_egui_id(provider: &str) -> egui::Id {
+    egui::Id::new(("settings.cloud.byok.key", provider))
+}
+
+/// The static BYOK providers Handshake offers, used to render key-entry rows
+/// even before (or entirely without) a backend enumeration response (MT-015
+/// F10). Mirrors the backend `ByokProvider::OFFERED` ids/labels; Gemini is never
+/// present. When these seed rows are used, `configured` is unknown (the backend
+/// has not answered), so they render as not-configured with a "status unknown"
+/// note — but the key field + Save ALWAYS render so BYOK entry never depends on
+/// the backend being reachable.
+pub const STATIC_BYOK_PROVIDERS: [(&str, &str); 2] =
+    [("anthropic", "Anthropic (Claude)"), ("openai", "OpenAI (GPT)")];
 /// Author_id for a BYOK provider's Save button: `settings.cloud.byok.{provider}.save`.
 pub fn cloud_byok_save_author_id(provider: &str) -> String {
     format!("settings.cloud.byok.{provider}.save")
@@ -172,8 +190,10 @@ pub struct CloudAccessSnapshot {
 /// SECURITY (MT-015): the per-provider API-key edit buffer is a
 /// [`zeroize::Zeroizing<String>`] so it is wiped on clear/drop. This state lives in the shell
 /// (`HandshakeApp`), NOT in the dialog's `DialogState` and NOT in the persisted egui snapshot, so a key
-/// never reaches egui temp memory, the persisted snapshot, or the workspace-settings PUT. The shell
-/// clears the buffer immediately after a Save is dispatched.
+/// never reaches the persisted snapshot or the workspace-settings PUT. The buffer is cleared immediately
+/// after a Save is dispatched AND on every dialog close (Escape / Close button / backdrop) and on
+/// (re-)open; the same close/open paths also reset each key `TextEdit`'s egui state so the widget's undo
+/// history never retains a typed-but-unsaved key across a reopen (F3).
 #[derive(Default)]
 pub struct CloudModelsSettingsState {
     snapshot: CloudAccessSnapshot,
@@ -221,6 +241,54 @@ impl CloudModelsSettingsState {
         } else {
             zeroize::Zeroizing::new(String::new())
         }
+    }
+
+    /// Drop ALL per-provider key buffers. Each buffer is a [`zeroize::Zeroizing<String>`], so clearing
+    /// the vector zeroizes every held key. Called on dialog close and (re-)open so a typed-but-unsaved
+    /// key never lingers in the shell across a reopen (MT-015 F3).
+    pub fn clear_key_drafts(&mut self) {
+        self.key_drafts.clear();
+    }
+
+    /// The BYOK rows to render: the backend enumeration snapshot when present, else the static seed rows
+    /// (MT-015 F10) so a key field + Save ALWAYS render even when the backend is unreachable. Only the
+    /// `configured` badge needs the backend; key entry does not.
+    pub fn byok_rows_for_render(&self) -> Vec<CloudByokRow> {
+        if !self.snapshot.byok.is_empty() {
+            self.snapshot.byok.clone()
+        } else {
+            STATIC_BYOK_PROVIDERS
+                .iter()
+                .map(|(id, label)| CloudByokRow {
+                    provider: (*id).to_owned(),
+                    label: (*label).to_owned(),
+                    configured: false,
+                })
+                .collect()
+        }
+    }
+
+    /// True when the rendered BYOK rows are the static seed (no backend enumeration yet), so the section
+    /// can show a "status unknown" note rather than a misleading "not configured".
+    pub fn byok_rows_are_static_seed(&self) -> bool {
+        self.snapshot.byok.is_empty()
+    }
+
+    /// Every BYOK provider id that could currently own a key `TextEdit` — the union of the rendered rows
+    /// (snapshot or static) and any provider that already has a draft buffer. Used to reset each key
+    /// widget's egui state on close/open (MT-015 F3).
+    pub fn byok_provider_ids_for_clear(&self) -> Vec<String> {
+        let mut ids: Vec<String> = self
+            .byok_rows_for_render()
+            .into_iter()
+            .map(|r| r.provider)
+            .collect();
+        for (provider, _) in &self.key_drafts {
+            if !ids.iter().any(|id| id == provider) {
+                ids.push(provider.clone());
+            }
+        }
+        ids
     }
 
     /// Set a provider's transient status message.
@@ -399,6 +467,9 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
     // Reset transient state on (re-)open: a new open generation clears the query + reseeds drafts from
     // the live settings so a re-open never shows the previous session's text/drafts.
     if state.open_count != view.open_count {
+        // MT-015 F3: wipe any BYOK key buffer + reset each key TextEdit's egui state on (re-)open, so a
+        // key typed but not saved in a PRIOR open never lingers into this one.
+        clear_cloud_key_state(ctx, view.cloud);
         state = DialogState {
             open_count: view.open_count,
             query: String::new(),
@@ -447,6 +518,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
     if escape {
         let popup_open = egui::Popup::is_any_open(ctx);
         if !popup_open {
+            clear_cloud_key_state(ctx, view.cloud);
             persist(ctx, state_id, &state);
             return SettingsOutcome::Close;
         }
@@ -467,6 +539,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
             response
         });
     if backdrop.inner.clicked() {
+        clear_cloud_key_state(ctx, view.cloud);
         persist(ctx, state_id, &state);
         return SettingsOutcome::Close;
     }
@@ -551,8 +624,31 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
     // out-of-process model finds the modal by `settings.dialog`. Emitted each open frame.
     emit_dialog_node(ctx, dialog_egui_id);
 
+    // MT-015 F3: the Close BUTTON (handled inside the window) also dismisses the dialog. Wipe the BYOK
+    // key buffers + reset each key TextEdit's egui state here so this path clears exactly like Escape /
+    // backdrop before the shell tears the dialog down.
+    if outcome == SettingsOutcome::Close {
+        clear_cloud_key_state(ctx, view.cloud);
+    }
+
     persist(ctx, state_id, &state);
     outcome
+}
+
+/// Wipe every BYOK key edit buffer AND reset each key `TextEdit`'s egui state (cursor + undo history) so
+/// a typed-but-unsaved key never lingers in the shell buffer or in egui memory across a dialog close or
+/// reopen (MT-015 F3). Called on (re-)open and on every close path (Escape / Close button / backdrop).
+fn clear_cloud_key_state(ctx: &egui::Context, cloud: &mut CloudModelsSettingsState) {
+    for provider in cloud.byok_provider_ids_for_clear() {
+        // Overwrite the widget's persisted egui state with a default (empty cursor + empty undoer) so the
+        // undo history no longer holds a plaintext snapshot of the typed key.
+        egui::TextEdit::store_state(
+            ctx,
+            cloud_byok_key_egui_id(&provider),
+            egui::text_edit::TextEditState::default(),
+        );
+    }
+    cloud.clear_key_drafts();
 }
 
 /// Render every settings section in order, threading `outcome` so the first interaction this frame wins
@@ -950,12 +1046,14 @@ fn render_cloud_models_body(
     // ---- BYOK: per-provider password key entry stored only in the OS keychain. ----
     ui.add_space(6.0);
     ui.label(egui::RichText::new("Bring your own API key").small().strong());
-    // Clone the non-secret snapshot rows so the per-row key buffer can borrow `cloud` mutably without
-    // aliasing the snapshot.
-    let byok_rows = cloud.snapshot().byok.clone();
-    if byok_rows.is_empty() {
+    // F10: render the STATIC provider rows client-side when the backend enumeration has not arrived, so
+    // the key field + Save ALWAYS render (key entry never depends on the backend being reachable). Only
+    // the `configured` badge needs the backend; a seed row shows "status unknown" instead.
+    let byok_rows = cloud.byok_rows_for_render();
+    let byok_static_seed = cloud.byok_rows_are_static_seed();
+    if byok_static_seed {
         ui.label(
-            egui::RichText::new("Loading providers… (backend not reachable yet)")
+            egui::RichText::new("Provider status unknown until the backend responds — you can still enter a key.")
                 .small()
                 .weak(),
         );
@@ -966,6 +1064,8 @@ fn render_cloud_models_body(
                 ui.label(&row.label);
                 let status_text = if row.configured {
                     "Configured — key stored in the OS keychain"
+                } else if byok_static_seed {
+                    "Status unknown — backend not reachable"
                 } else {
                     "Not configured"
                 };
@@ -977,7 +1077,10 @@ fn render_cloud_models_body(
             {
                 let buf = cloud.key_draft_mut(&row.provider);
                 let input = ui.add(
+                    // Pin a STABLE egui id so the dialog can reset this widget's egui state (undo
+                    // history) on close/open, wiping any typed-but-unsaved key from egui memory (F3).
                     egui::TextEdit::singleline(&mut **buf)
+                        .id(cloud_byok_key_egui_id(&row.provider))
                         .password(true)
                         .hint_text("Paste API key")
                         .desired_width(220.0),

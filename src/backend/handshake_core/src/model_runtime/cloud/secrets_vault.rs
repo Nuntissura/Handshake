@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use thiserror::Error;
+use zeroize::Zeroizing;
 
 use super::openai_byok::{ApiKeyProvider, OpenAiByokError};
 
@@ -40,8 +41,16 @@ pub enum SecretsVaultError {
 /// - [`OsKeychainSecretsVault`] (this module; production, wraps the
 ///   `keyring` crate against the host OS credential store).
 pub trait SecretsVault: Send + Sync {
-    fn put(&self, lane: &str, secret: String) -> Result<(), SecretsVaultError>;
-    fn get(&self, lane: &str) -> Result<String, SecretsVaultError>;
+    /// Store `secret` under `lane`. Takes `&str` (not an owned `String`) so a
+    /// caller holding the key in a `secrecy::SecretString` can hand it straight
+    /// to the OS keychain without materialising an extra un-zeroized owned copy
+    /// on the store path (MT-015 F2).
+    fn put(&self, lane: &str, secret: &str) -> Result<(), SecretsVaultError>;
+    /// Read the secret for `lane`, wrapped in [`Zeroizing`] so the returned
+    /// plaintext is wiped on drop. Presence-probe callers (e.g. the enumeration
+    /// registry) that only need to know a key exists drop the value immediately
+    /// and never leave un-zeroized plaintext behind (MT-015 F1).
+    fn get(&self, lane: &str) -> Result<Zeroizing<String>, SecretsVaultError>;
     fn delete(&self, lane: &str) -> Result<(), SecretsVaultError>;
     fn list_lanes(&self) -> Result<Vec<String>, SecretsVaultError>;
 }
@@ -61,7 +70,7 @@ impl Default for InMemorySecretsVault {
 }
 
 impl SecretsVault for InMemorySecretsVault {
-    fn put(&self, lane: &str, secret: String) -> Result<(), SecretsVaultError> {
+    fn put(&self, lane: &str, secret: &str) -> Result<(), SecretsVaultError> {
         if lane.trim().is_empty() {
             return Err(SecretsVaultError::EmptyLaneId);
         }
@@ -72,11 +81,11 @@ impl SecretsVault for InMemorySecretsVault {
             .state
             .write()
             .map_err(|err| SecretsVaultError::LockPoisoned(err.to_string()))?;
-        guard.insert(lane.to_string(), secret);
+        guard.insert(lane.to_string(), secret.to_string());
         Ok(())
     }
 
-    fn get(&self, lane: &str) -> Result<String, SecretsVaultError> {
+    fn get(&self, lane: &str) -> Result<Zeroizing<String>, SecretsVaultError> {
         if lane.trim().is_empty() {
             return Err(SecretsVaultError::EmptyLaneId);
         }
@@ -86,7 +95,7 @@ impl SecretsVault for InMemorySecretsVault {
             .map_err(|err| SecretsVaultError::LockPoisoned(err.to_string()))?;
         guard
             .get(lane)
-            .cloned()
+            .map(|value| Zeroizing::new(value.clone()))
             .ok_or_else(|| SecretsVaultError::NoSecretForLane(lane.to_string()))
     }
 
@@ -142,8 +151,12 @@ impl<V: SecretsVault> std::fmt::Debug for VaultApiKeyProvider<V> {
 
 impl<V: SecretsVault + 'static> ApiKeyProvider for VaultApiKeyProvider<V> {
     fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
+        // The vault read is zeroized on drop; the returned owned `String` is the
+        // one transient copy the transport (the Authorization header builder)
+        // requires. The `Zeroizing` original is wiped as this expression ends.
         self.vault
             .get(&self.lane)
+            .map(|secret| secret.to_string())
             .map_err(|err| OpenAiByokError::ApiKeyFetch(format!("{err}")))
     }
 }
@@ -210,7 +223,7 @@ impl OsKeychainSecretsVault {
 
 #[cfg(feature = "os-keychain")]
 impl SecretsVault for OsKeychainSecretsVault {
-    fn put(&self, lane: &str, secret: String) -> Result<(), SecretsVaultError> {
+    fn put(&self, lane: &str, secret: &str) -> Result<(), SecretsVaultError> {
         if lane.trim().is_empty() {
             return Err(SecretsVaultError::EmptyLaneId);
         }
@@ -218,18 +231,20 @@ impl SecretsVault for OsKeychainSecretsVault {
             return Err(SecretsVaultError::EmptySecretValue);
         }
         let entry = self.entry(lane)?;
+        // `secret` is borrowed straight into the keychain API; no owned,
+        // un-zeroized `String` copy is materialised on the store path.
         entry
-            .set_password(&secret)
+            .set_password(secret)
             .map_err(|err| SecretsVaultError::KeychainBackend(err.to_string()))
     }
 
-    fn get(&self, lane: &str) -> Result<String, SecretsVaultError> {
+    fn get(&self, lane: &str) -> Result<Zeroizing<String>, SecretsVaultError> {
         if lane.trim().is_empty() {
             return Err(SecretsVaultError::EmptyLaneId);
         }
         let entry = self.entry(lane)?;
         match entry.get_password() {
-            Ok(secret) => Ok(secret),
+            Ok(secret) => Ok(Zeroizing::new(secret)),
             Err(keyring::Error::NoEntry) => {
                 Err(SecretsVaultError::NoSecretForLane(lane.to_string()))
             }
@@ -273,9 +288,9 @@ mod tests {
     #[test]
     fn put_get_round_trips_secret_value() {
         let vault = InMemorySecretsVault::default();
-        vault.put("openai", "sk-test-value".to_string()).unwrap();
+        vault.put("openai", "sk-test-value").unwrap();
         let retrieved = vault.get("openai").unwrap();
-        assert_eq!(retrieved, "sk-test-value");
+        assert_eq!(retrieved.as_str(), "sk-test-value");
     }
 
     #[test]
@@ -289,7 +304,7 @@ mod tests {
     fn empty_lane_id_rejected_on_put_get_delete() {
         let vault = InMemorySecretsVault::default();
         assert!(matches!(
-            vault.put("", "x".to_string()).unwrap_err(),
+            vault.put("", "x").unwrap_err(),
             SecretsVaultError::EmptyLaneId
         ));
         assert!(matches!(
@@ -305,14 +320,14 @@ mod tests {
     #[test]
     fn empty_secret_value_rejected() {
         let vault = InMemorySecretsVault::default();
-        let err = vault.put("lane", "".to_string()).unwrap_err();
+        let err = vault.put("lane", "").unwrap_err();
         assert!(matches!(err, SecretsVaultError::EmptySecretValue));
     }
 
     #[test]
     fn delete_removes_secret() {
         let vault = InMemorySecretsVault::default();
-        vault.put("lane-a", "v".to_string()).unwrap();
+        vault.put("lane-a", "v").unwrap();
         vault.delete("lane-a").unwrap();
         assert!(matches!(
             vault.get("lane-a").unwrap_err(),
@@ -323,9 +338,9 @@ mod tests {
     #[test]
     fn list_lanes_returns_sorted_keys() {
         let vault = InMemorySecretsVault::default();
-        vault.put("b", "v".to_string()).unwrap();
-        vault.put("a", "v".to_string()).unwrap();
-        vault.put("c", "v".to_string()).unwrap();
+        vault.put("b", "v").unwrap();
+        vault.put("a", "v").unwrap();
+        vault.put("c", "v").unwrap();
         assert_eq!(
             vault.list_lanes().unwrap(),
             vec!["a".to_string(), "b".to_string(), "c".to_string()]
@@ -335,7 +350,7 @@ mod tests {
     #[test]
     fn vault_api_key_provider_proxies_to_lane() {
         let vault = Arc::new(InMemorySecretsVault::default());
-        vault.put("openai", "sk-proxy".to_string()).unwrap();
+        vault.put("openai", "sk-proxy").unwrap();
         let provider = VaultApiKeyProvider::new(vault.clone(), "openai");
         let fetched = provider.fetch_api_key().expect("fetch");
         assert_eq!(fetched, "sk-proxy");
@@ -344,9 +359,7 @@ mod tests {
     #[test]
     fn vault_api_key_provider_debug_does_not_render_secret() {
         let vault = Arc::new(InMemorySecretsVault::default());
-        vault
-            .put("openai", "sk-DO-NOT-LOG-THIS".to_string())
-            .unwrap();
+        vault.put("openai", "sk-DO-NOT-LOG-THIS").unwrap();
         let provider = VaultApiKeyProvider::new(vault, "openai");
         let dbg = format!("{provider:?}");
         assert!(!dbg.contains("sk-DO-NOT-LOG-THIS"));
@@ -408,14 +421,10 @@ mod tests {
         fn os_keychain_vault_rejects_empty_lane_on_put() {
             install_mock_keyring_backend();
             let vault = OsKeychainSecretsVault::new("handshake-os-keychain-empty-lane-put");
-            let err = vault
-                .put("", "sk-value".to_string())
-                .expect_err("empty lane");
+            let err = vault.put("", "sk-value").expect_err("empty lane");
             assert!(matches!(err, SecretsVaultError::EmptyLaneId));
             // Whitespace-only lane is also rejected.
-            let err = vault
-                .put("   ", "sk-value".to_string())
-                .expect_err("whitespace lane");
+            let err = vault.put("   ", "sk-value").expect_err("whitespace lane");
             assert!(matches!(err, SecretsVaultError::EmptyLaneId));
         }
 
@@ -438,7 +447,7 @@ mod tests {
             install_mock_keyring_backend();
             let vault = OsKeychainSecretsVault::new("handshake-os-keychain-empty-secret");
             let err = vault
-                .put("openai-empty-secret", "".to_string())
+                .put("openai-empty-secret", "")
                 .expect_err("empty secret");
             assert!(matches!(err, SecretsVaultError::EmptySecretValue));
         }
@@ -491,7 +500,7 @@ mod tests {
             // `keyring::Entry` API. The full put/get/delete round
             // trip is covered by the platform-gated integration test.
             vault
-                .put("openai-put-ok", "sk-mock-stored".to_string())
+                .put("openai-put-ok", "sk-mock-stored")
                 .expect("put must succeed against mock backend");
         }
 
