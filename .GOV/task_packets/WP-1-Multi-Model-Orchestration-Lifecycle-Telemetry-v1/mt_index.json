@@ -275,18 +275,18 @@
     },
     {
       "mt_id": "MT-015",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-006"
       ],
       "summary": "Operator-facing cloud-model access config surface: CLI-bridge/plan auth+login status for Claude Code + GPT/Codex (operator's primary), and BYOK API-key entry (Anthropic/OpenAI) stored in the OS-keychain secrets vault for other users. Gemini excluded (CLI deprecating). Backends exist (WP-KERNEL-004); this builds the config UI. OPERATOR_REQUESTED_ADDITION 2026-07-02.",
       "unlocks": "Unlocks operator/other-user cloud-model access (plan login + BYOK key) so cloud lanes are reachable from the operator surface and enumerable by the MT-012 picker.",
       "blocks": [],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT015_2026-07-02_CLOUD_CONFIG_HARDENED_157b4072_6ebc8c90_LEAK_1_ACCESS_CONFIG_12_SECRETS_VAULT_19_ROUTE_5_ARGUS_5_ALL_GREEN_NO_CRITICAL_LEAK",
+      "hbr_status": "PASS_MT015_CLOUD_CONFIG_SECRETS_HARDENED",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "NOT_RUN"
+      "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a3b979d0af985185b_2_MUSTFIX_2_SHOULDFIX_ADDRESSED_6ebc8c90",
+      "adversarial_findings_status": "APPLIED_Fi_F3_F10_F1F2_FIXED_F6F7F9_DEFERRED_LOW"
     },
     {
       "mt_id": "MT-016",

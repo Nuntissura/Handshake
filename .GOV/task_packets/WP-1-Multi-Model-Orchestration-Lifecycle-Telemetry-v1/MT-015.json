@@ -16,25 +16,25 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-006"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260701-190732",
+    "claimed_at_utc": "2026-07-02T13:20:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
+    "ready_for_validation_at_utc": "2026-07-02T16:35:21Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_RUN",
-    "hbr_status": "PENDING",
-    "pre_implementation_adversarial_review_status": "NOT_RUN",
-    "post_implementation_adversarial_review_status": "NOT_RUN",
-    "adversarial_findings_status": "NOT_RUN"
+    "proof_status": "PASS_MT015_2026-07-02: operator cloud-model access config. Implementation 157b4072 + hardening 6ebc8c90. Proofs all green, independently re-proven on hardened code: cloud_byok_access_config_leak_tests 1/1 (canary BYOK key ABSENT from DialogState/settings-PUT/tracing/FR/EventLedger/cloud_invocations/Debug/enumeration; wired vault = OsKeychainSecretsVault not InMemory; round-trips only via OS keychain); access_config lib 12/12 (enumeration ProviderNotConfigured->unavailable, no-consent-on-save, Gemini excluded by construction, Debug redaction, rotate); secrets_vault lib 19/19 (get->Zeroizing, put->&str); model_access_route_tests 5/5 (HTTP ingress: store 200/no-echo, gemini 404, empty 400, keychain 503, get-providers); test_cloud_models_settings_argus 5/5 (stable author_ids, egui key buffer wiped on close + canary absent from egui memory, static rows render when backend unreachable). CLI-bridge = configured/not-configured + operator-initiated official login, NO credential capture. MT-006 consent boundary untouched. No root TraceLayer body logging.",
+    "hbr_status": "PASS_HBR_VIS_INT_MAN_FOR_MT015_CLOUD_CONFIG_SECRETS_HARDENED",
+    "pre_implementation_adversarial_review_status": "DONE_2026-07-02_task_a0e9015f5c0ee8643",
+    "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a3b979d0af985185b_NO_CRITICAL_LEAK_2_MUSTFIX_2_SHOULDFIX_ALL_ADDRESSED_6ebc8c90",
+    "adversarial_findings_status": "APPLIED_F-i_F3_F10_F1_F2_FIXED_F5_VERIFIED_F6_F7_F9_DEFERRED_LOW"
   },
   "scope": {
     "summary": "Operator-facing cloud-model access configuration surface: (a) CLI-bridge / subscription-plan auth-and-login status + config for the official-CLI providers the operator uses (Claude Code, GPT/Codex), and (b) a BYOK API-key entry (Anthropic, OpenAI) stored in the existing OS-keychain secrets vault for users who bring their own keys. Gemini is explicitly excluded (CLI deprecating).",
