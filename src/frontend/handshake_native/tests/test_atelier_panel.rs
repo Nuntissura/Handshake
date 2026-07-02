@@ -67,6 +67,10 @@ use handshake_native::atelier_panel::{
     ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID, ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
     ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID, ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
     ATELIER_CKC_STORY_EDITOR_AUTHOR_ID, ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
+    ATELIER_CKC_ERROR_AUTHOR_ID, ATELIER_CKC_MOODBOARD_BACKEND_MODE_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_STATUS_AUTHOR_ID, ATELIER_CKC_STORY_BACKEND_MODE_AUTHOR_ID,
+    ATELIER_CKC_STORY_STATUS_AUTHOR_ID, ATELIER_CKC_SHEET_STATUS_AUTHOR_ID,
+    ATELIER_CKC_SHEET_BACKEND_MODE_AUTHOR_ID,
     ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
     ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
     ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID, ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
@@ -4004,6 +4008,499 @@ fn argus_inspects_and_steers_ckc_search_and_tag_notes() {
     assert!(
         status.contains("Saved local CKC tag note for training"),
         "tag-note save status must be visible after Argus click; got {status}"
+    );
+}
+
+/// MT-037: a local status that names a save/persist MUST carry the non-persistence qualifier so a model
+/// never reads a bare "saved"/"persisted" claim on a backend-down local write.
+fn assert_no_bare_persistence_claim(status: &str) {
+    let lower = status.to_lowercase();
+    // A local status that names a mutation (added/attached/created/saved/appended/detached/linked) or
+    // otherwise claims persistence MUST carry the non-persistence qualifier — otherwise a model reads a
+    // bare "Added local ..." / "Attached local ..." as a durable backend write.
+    let mutation_verb = [
+        "added", "attached", "created", "saved", "appended", "detached", "linked",
+    ]
+    .iter()
+    .any(|verb| lower.contains(*verb));
+    let claims_persistence = lower.contains("persist") || lower.contains("saved");
+    if claims_persistence || (lower.contains("local") && mutation_verb) {
+        assert!(
+            lower.contains("not persisted"),
+            "local status claims a mutation/persist without the 'not persisted' qualifier: {status}"
+        );
+    }
+}
+
+/// MT-037 proof: every CKC local (backend-down) fallback path the MT covers — character-create, story, and
+/// moodboard — surfaces an Argus-readable, non-persistent status and a persistence-mode receipt, and never
+/// claims a bare persisted/saved write. `build_panel_harness()` runs the panel with NO ckc_client, so every
+/// mutation takes the local branch. Mirrors `argus_creates_and_links_ckc_media_with_actor_status` (the
+/// MT-032 media proof), which must stay GREEN; this covers the surfaces MT-032 missed.
+#[test]
+fn ckc_local_fallback_is_argus_visible_and_never_claims_persistence() {
+    let mut harness = build_panel_harness();
+    harness.run();
+    harness.run();
+    let mut channel = ActionChannel::new();
+
+    // ── Character-create local branch was previously SILENT — it must now surface a non-persistence status.
+    let before_create = snapshot_harness(&mut harness);
+    let create_name = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
+                "value": "Local Fallback Muse"
+            }),
+        ),
+        &argus_token(),
+        &before_create,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(create_name.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let ready_to_create = snapshot_harness(&mut harness);
+    let create = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &ready_to_create,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(create.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let after_create = snapshot_harness(&mut harness);
+    let create_status = after_create
+        .find_by_author_id(ATELIER_CKC_ERROR_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("character-create local fallback must surface an Argus-readable status node");
+    assert!(
+        create_status.contains("Created local CKC character")
+            && create_status.contains("Backend is unavailable")
+            && create_status.contains("not persisted"),
+        "character-create local status must state non-persistence; got {create_status}"
+    );
+    assert_no_bare_persistence_claim(&create_status);
+
+    // ── F1: the sheet-version local save used to mint a backend-looking sheet_version_ref SILENTLY. It
+    //    must now surface a non-persistent status + a persistence-mode receipt. The freshly-created
+    //    character is selected and the panel is in the default Sheet mode.
+    let sheet_backend_mode_before = after_create
+        .find_by_author_id(ATELIER_CKC_SHEET_BACKEND_MODE_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("sheet persistence-mode receipt must be Argus-visible");
+    assert_eq!(
+        sheet_backend_mode_before, "local-preview:not-persisted",
+        "local sheet backend-mode receipt must read local-preview:not-persisted; got {sheet_backend_mode_before}"
+    );
+    let sheet_save = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_SHEET_SAVE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &after_create,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(sheet_save.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let sheet_saved = snapshot_harness(&mut harness);
+    let sheet_status = sheet_saved
+        .find_by_author_id(ATELIER_CKC_SHEET_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("sheet status node must be Argus-visible after local save");
+    assert!(
+        sheet_status.contains("Saved local CKC sheet version")
+            && sheet_status.contains("Backend is unavailable")
+            && sheet_status.contains("not persisted"),
+        "local sheet-version save status must cite non-persistence; got {sheet_status}"
+    );
+    assert_no_bare_persistence_claim(&sheet_status);
+
+    // ── F2: sheet-artifact attach + detach local branches must carry the non-persistence qualifier. The
+    //    default seeded artifact kind/ref are non-empty and the character now has a saved sheet version.
+    let artifact_attach = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_SHEET_ARTIFACT_ATTACH_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &sheet_saved,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(artifact_attach.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let artifact_attached = snapshot_harness(&mut harness);
+    let attach_status = artifact_attached
+        .find_by_author_id(ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("sheet-artifact status node must be Argus-visible after local attach");
+    assert!(
+        attach_status.contains("Attached local reusable sheet artifact")
+            && attach_status.contains("not persisted"),
+        "local sheet-artifact attach status must cite non-persistence; got {attach_status}"
+    );
+    assert_no_bare_persistence_claim(&attach_status);
+    let artifact_detach = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &artifact_attached,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(artifact_detach.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let artifact_detached = snapshot_harness(&mut harness);
+    let detach_status = artifact_detached
+        .find_by_author_id(ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("sheet-artifact status node must be Argus-visible after local detach");
+    assert!(
+        detach_status.contains("Detached local reusable sheet artifact")
+            && detach_status.contains("not persisted"),
+        "local sheet-artifact detach status must cite non-persistence; got {detach_status}"
+    );
+    assert_no_bare_persistence_claim(&detach_status);
+
+    // ── Story local save: status node exists, reads non-persistent, mode receipt says local-preview.
+    let story_mode = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_MODE_STORY_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &artifact_detached,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(story_mode.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let story_ready = snapshot_harness(&mut harness);
+    let story_mode_value = story_ready
+        .find_by_author_id(ATELIER_CKC_STORY_BACKEND_MODE_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("story persistence-mode receipt must be Argus-visible");
+    assert_eq!(
+        story_mode_value, "local-preview:not-persisted",
+        "local story backend-mode receipt must read local-preview:not-persisted; got {story_mode_value}"
+    );
+    let story_set = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+                "value": "Local fallback story draft"
+            }),
+        ),
+        &argus_token(),
+        &story_ready,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(story_set.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let story_after_set = snapshot_harness(&mut harness);
+    let story_save = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_STORY_SAVE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &story_after_set,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(story_save.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let story_saved = snapshot_harness(&mut harness);
+    let story_status = story_saved
+        .find_by_author_id(ATELIER_CKC_STORY_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("story status node must be Argus-visible after local save");
+    assert!(
+        story_status.contains("Saved local CKC story")
+            && story_status.contains("Backend is unavailable")
+            && story_status.contains("not persisted"),
+        "local story save status must cite non-persistence; got {story_status}"
+    );
+    assert_no_bare_persistence_claim(&story_status);
+
+    // ── F3: story-card add local branch was missing the qualifier its story-save/beat siblings carry.
+    let card_title = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
+                "value": "MT-037 local card"
+            }),
+        ),
+        &argus_token(),
+        &story_saved,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(card_title.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let card_ready = snapshot_harness(&mut harness);
+    let card_save = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &card_ready,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(card_save.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let card_saved = snapshot_harness(&mut harness);
+    let card_status = card_saved
+        .find_by_author_id(ATELIER_CKC_STORY_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("story status node must be Argus-visible after local story-card add");
+    assert!(
+        card_status.contains("Added local CKC story card") && card_status.contains("not persisted"),
+        "local story-card add status must cite non-persistence; got {card_status}"
+    );
+    assert_no_bare_persistence_claim(&card_status);
+
+    // ── story-beat add local branch (sibling that already had the qualifier — asserted for regression).
+    let beat_set = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
+                "value": "MT-037 local beat"
+            }),
+        ),
+        &argus_token(),
+        &card_saved,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(beat_set.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let beat_ready = snapshot_harness(&mut harness);
+    let beat_save = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &beat_ready,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(beat_save.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let beat_saved = snapshot_harness(&mut harness);
+    let beat_status = beat_saved
+        .find_by_author_id(ATELIER_CKC_STORY_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("story status node must be Argus-visible after local story-beat add");
+    assert!(
+        beat_status.contains("Added local CKC story beat") && beat_status.contains("not persisted"),
+        "local story-beat add status must cite non-persistence; got {beat_status}"
+    );
+    assert_no_bare_persistence_claim(&beat_status);
+
+    // ── Moodboard local save: same containment. A valid snapshot payload is required so the save reaches
+    //    the local "Saved" branch (an empty body hits the JSON-parse-blocked branch instead).
+    let moodboard_mode = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &beat_saved,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(moodboard_mode.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let moodboard_ready = snapshot_harness(&mut harness);
+    let moodboard_mode_value = moodboard_ready
+        .find_by_author_id(ATELIER_CKC_MOODBOARD_BACKEND_MODE_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("moodboard persistence-mode receipt must be Argus-visible");
+    assert_eq!(
+        moodboard_mode_value, "local-preview:not-persisted",
+        "local moodboard backend-mode receipt must read local-preview:not-persisted; got {moodboard_mode_value}"
+    );
+    let moodboard_payload = serde_json::json!({
+        "schema_id": "hsk.atelier.moodboard@1",
+        "schema_version": 1,
+        "moodboard_id": "mt037-local-moodboard",
+        "name": "MT-037 local moodboard",
+        "description": "MT-037 local fallback moodboard",
+        "canvas": { "width": 1600.0, "height": 1000.0, "background_color": "#101418" },
+        "layers": [{
+            "layer_id": "mt037-layer-1",
+            "name": "MT-037 layer",
+            "order": 1,
+            "visible": true,
+            "locked": false,
+            "opacity": 1.0,
+            "parent_layer_id": null
+        }],
+        "images": [],
+        "text": [{
+            "element_id": "mt037-note-1",
+            "layer_id": "mt037-layer-1",
+            "content": "MT-037 local note",
+            "font": "Inter",
+            "font_size": 18.0,
+            "color": "#f4f7fb",
+            "position": { "x": 120.0, "y": 140.0 },
+            "rotation": 0.0,
+            "flags": {}
+        }],
+        "shapes": [],
+        "connectors": [],
+        "folders": [],
+        "guides": [],
+        "flags": { "locked": false, "archived": false, "operator_reviewed": false },
+        "style": {
+            "dominant_colors": ["#101418"],
+            "mood_keywords": ["mt037"],
+            "style_description": "MT-037 local",
+            "suggested_presets": []
+        },
+        "history": [{
+            "history_id": "mt037-history-1",
+            "at": "2026-07-01T00:00:00Z",
+            "actor": "mt037-test",
+            "operation": "updated",
+            "summary": "MT-037 local moodboard save proof"
+        }]
+    })
+    .to_string();
+    let moodboard_set = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+                "value": moodboard_payload
+            }),
+        ),
+        &argus_token(),
+        &moodboard_ready,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(moodboard_set.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let moodboard_after_set = snapshot_harness(&mut harness);
+    let moodboard_save = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &moodboard_after_set,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(moodboard_save.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let moodboard_saved = snapshot_harness(&mut harness);
+    let moodboard_status = moodboard_saved
+        .find_by_author_id(ATELIER_CKC_MOODBOARD_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("moodboard status node must be Argus-visible after local save");
+    assert!(
+        moodboard_status.contains("Saved local CKC moodboard")
+            && moodboard_status.contains("Backend is unavailable")
+            && moodboard_status.contains("not persisted"),
+        "local moodboard save status must cite non-persistence; got {moodboard_status}"
+    );
+    assert_no_bare_persistence_claim(&moodboard_status);
+
+    // ── The recovery route is documented: a model reading the manual after a backend-down session learns
+    //    the local preview is NOT canonical authority and how to reload from backend authority.
+    let manual_section = handshake_native::manual_content_editors::editors_manual_section();
+    let recovery_body = manual_section
+        .topic("Recovery Steps")
+        .expect("Recovery Steps manual topic exists")
+        .body
+        .clone();
+    assert!(
+        recovery_body.contains("not persisted")
+            && recovery_body.contains("atelier-ckc-moodboard-open")
+            && (recovery_body.contains("RELOAD") || recovery_body.contains("reload"))
+            && recovery_body.contains("backend authority"),
+        "Recovery Steps manual must name the backend-down local-preview reload route; got {recovery_body}"
     );
 }
 

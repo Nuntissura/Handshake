@@ -690,7 +690,21 @@ accessibility/registry.rs + the live editor/knowledge action registries. Retry p
 typed backend error clears (a save conflict resolves once the newer revision is loaded). Where a step \
 needs a backend capability that does not yet exist — the FEMS read route, the Stage embed-back route, the \
 Calendar activity-span route, or the Locus read route — the editor surfaces a typed blocker and a visible \
-empty-state rather than fabricating behavior; the cross-edge completes once the backend packet lands."
+empty-state rather than fabricating behavior; the cross-edge completes once the backend packet lands.\n\
+\n\
+CKC BACKEND-DOWN / LOCAL FALLBACK RECOVERY: when the CKC backend is unavailable, character create, \
+album/media link, image notes/tags, story, and moodboard edits fall back to a LOCAL preview that is NOT \
+canonical PostgreSQL/EventLedger/CRDT authority. The CKC surfaces mark it as local-preview:not-persisted \
+through atelier-ckc-story-backend-mode, atelier-ckc-moodboard-backend-mode, atelier-ckc-media-backend-mode, \
+and the atelier-ckc-*-status readouts (atelier-ckc-story-status, atelier-ckc-moodboard-status, \
+atelier-ckc-album-status, atelier-ckc-search-status, and the character-create atelier-ckc-error status); the \
+status text says 'Backend is unavailable; this is not persisted.' Do NOT treat a local-preview result as a \
+durable write or keep building on it as if it were saved. To recover after a backend-down session, reconnect \
+to handshake_core and RELOAD character, album, media, story, and moodboard state from backend authority — for \
+example re-open the character to refetch its sheet and linked media, and click atelier-ckc-moodboard-open to \
+reload the persisted moodboard snapshot — so the canonical PostgreSQL/EventLedger/CRDT record replaces the \
+local-preview copy; any local-only edits made while the backend was down must be re-applied against the \
+reloaded authority."
         .to_owned()
 }
 
@@ -920,6 +934,23 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.click",
         description:
             "argus.click{target:'atelier-ckc-sheet-save-version'} appends a new version, preserving the previous one.",
+    });
+    // MT-037 (F1): CKC sheet-version local-fallback containment surfaces (status + persistence-mode receipt).
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read the CKC sheet-version save status",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-sheet-status; a backend-down append says 'Backend is unavailable; this is not persisted.'",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_BACKEND_MODE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read the CKC sheet persistence mode",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-sheet-backend-mode as backend:persistent or local-preview:not-persisted.",
     });
     rows.push(AgentToolRow {
         author_id: crate::atelier_panel::ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
@@ -1474,6 +1505,23 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         description:
             "argus.click{target:'atelier-ckc-story-save'} persists the native story document.",
     });
+    // MT-037: CKC story local-fallback containment surfaces (status + persistence-mode receipt).
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read the CKC story save status",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-story-status; a backend-down save says 'Backend is unavailable; this is not persisted.'",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_BACKEND_MODE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read the CKC story persistence mode",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-story-backend-mode as backend:persistent or local-preview:not-persisted.",
+    });
     rows.push(AgentToolRow {
         author_id: crate::atelier_panel::ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
         surface: ManualSurface::Interop,
@@ -1568,6 +1616,23 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         action_label: "Inspect the CKC moodboard canvas",
         mcp_tool: "argus.inspect",
         description: "argus.inspect reads atelier-ckc-moodboard-canvas for native moodboard state.",
+    });
+    // MT-037: CKC moodboard local-fallback containment surfaces (status + persistence-mode receipt).
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MOODBOARD_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read the CKC moodboard save status",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-moodboard-status; a backend-down save says 'Backend is unavailable; this is not persisted.'",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MOODBOARD_BACKEND_MODE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read the CKC moodboard persistence mode",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-moodboard-backend-mode as backend:persistent or local-preview:not-persisted.",
     });
     for (author_id, action_label, mcp_tool, description) in [
         (

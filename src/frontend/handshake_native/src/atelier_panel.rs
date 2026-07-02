@@ -78,6 +78,10 @@ pub const ATELIER_SETTINGS_INGEST_POLICY_AUTHOR_ID: &str = "atelier-settings-ing
 pub const ATELIER_SETTINGS_SAVE_AUTHOR_ID: &str = "atelier-settings-save";
 pub const ATELIER_SETTINGS_STATUS_AUTHOR_ID: &str = "atelier-settings-status";
 pub const ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID: &str = "atelier-ckc-character-list";
+// MT-037: the CKC backend-error / local-fallback status surface, now Argus-readable. Previously the
+// error label was human-only (red text with no author_id); a parallel model could not read local-only,
+// non-persistent create results. The character-create local branch sets this to a non-persistence status.
+pub const ATELIER_CKC_ERROR_AUTHOR_ID: &str = "atelier-ckc-error";
 pub const ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID: &str = "atelier-ckc-selected-character";
 pub const ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID: &str = "atelier-ckc-character-create-name";
 pub const ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID: &str = "atelier-ckc-character-create";
@@ -85,6 +89,11 @@ pub const ATELIER_CKC_CHARACTER_REF_AUTHOR_ID: &str = "atelier-ckc-character-ref
 pub const ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID: &str = "atelier-ckc-sheet-version-ref";
 pub const ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID: &str = "atelier-ckc-sheet-editor";
 pub const ATELIER_CKC_SHEET_SAVE_AUTHOR_ID: &str = "atelier-ckc-sheet-save-version";
+// MT-037 (F1): CKC sheet-version local-fallback containment. The local "Append sheet version" branch used
+// to SILENTLY mint a backend-looking sheet_version_ref with no status and no receipt (silent data loss).
+// These surface a non-persistent status plus a persistence-mode receipt mirroring the story/moodboard node.
+pub const ATELIER_CKC_SHEET_STATUS_AUTHOR_ID: &str = "atelier-ckc-sheet-status";
+pub const ATELIER_CKC_SHEET_BACKEND_MODE_AUTHOR_ID: &str = "atelier-ckc-sheet-backend-mode";
 pub const ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID: &str = "atelier-ckc-typed-ref-kind";
 pub const ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID: &str = "atelier-ckc-template-status";
 pub const ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID: &str = "atelier-ckc-template-load";
@@ -147,12 +156,22 @@ pub const ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID: &str = "atelier-ckc-story-card-
 pub const ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID: &str = "atelier-ckc-story-card-save";
 pub const ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID: &str = "atelier-ckc-story-beat-editor";
 pub const ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID: &str = "atelier-ckc-story-beat-save";
+// MT-037: CKC story local-fallback containment. A per-surface status readout plus a persistence-mode
+// receipt (backend:persistent vs local-preview:not-persisted) a model reads so a local-only story draft
+// is never mistaken for a persisted backend write. Mirrors the media backend_mode value node.
+pub const ATELIER_CKC_STORY_STATUS_AUTHOR_ID: &str = "atelier-ckc-story-status";
+pub const ATELIER_CKC_STORY_BACKEND_MODE_AUTHOR_ID: &str = "atelier-ckc-story-backend-mode";
 pub const ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID: &str = "atelier-ckc-moodboard-doc-ref";
 pub const ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID: &str = "atelier-ckc-moodboard-latest-ref";
 pub const ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID: &str = "atelier-ckc-moodboard-editor";
 pub const ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID: &str = "atelier-ckc-moodboard-save";
 pub const ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID: &str = "atelier-ckc-moodboard-open";
 pub const ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID: &str = "atelier-ckc-moodboard-canvas";
+// MT-037: CKC moodboard local-fallback containment. Status readout + persistence-mode receipt, matching
+// the media backend_mode value node so a model never treats a local-only moodboard save as persisted.
+pub const ATELIER_CKC_MOODBOARD_STATUS_AUTHOR_ID: &str = "atelier-ckc-moodboard-status";
+pub const ATELIER_CKC_MOODBOARD_BACKEND_MODE_AUTHOR_ID: &str =
+    "atelier-ckc-moodboard-backend-mode";
 pub const ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID: &str = "atelier-ckc-book-layout";
 pub const ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID: &str = "atelier-ckc-book-left-media";
 pub const ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID: &str = "atelier-ckc-book-middle";
@@ -2763,6 +2782,8 @@ struct AtelierPanelState {
     ckc_loading: bool,
     ckc_create_pending: bool,
     ckc_append_pending: bool,
+    // MT-037 (F1): transient status for the sheet-version save surface (local vs backend).
+    ckc_sheet_status: String,
     ckc_template_pending: bool,
     ckc_safe_subset_pending: bool,
     ckc_template_status: String,
@@ -2999,6 +3020,7 @@ impl Default for AtelierPanelState {
             ckc_loading: false,
             ckc_create_pending: false,
             ckc_append_pending: false,
+            ckc_sheet_status: "CKC sheet-version controls ready.".to_owned(),
             ckc_template_pending: false,
             ckc_safe_subset_pending: false,
             ckc_template_status:
@@ -7871,7 +7893,21 @@ impl AtelierPanel {
                     ui.label(egui::RichText::new("Loading CKC database...").color(palette.text_subtle));
                 }
                 if let Some(error) = &state.ckc_error {
-                    ui.label(egui::RichText::new(format!("CKC backend: {error}")).color(palette.error_text));
+                    // MT-037: surface the CKC backend-error / local-fallback status as an Argus-readable
+                    // node. It was previously a human-only red label, so a parallel model could not read
+                    // local-only, non-persistent create/save results. The character-create local branch
+                    // below sets this to an explicit non-persistence status.
+                    let error_label = format!("CKC backend: {error}");
+                    let error_response =
+                        ui.label(egui::RichText::new(&error_label).color(palette.error_text));
+                    emit_node(
+                        ui.ctx(),
+                        error_response.id,
+                        accesskit::Role::Label,
+                        ATELIER_CKC_ERROR_AUTHOR_ID,
+                        &error_label,
+                        false,
+                    );
                 }
                 self.show_ckc_search(ui, palette, &mut state);
                 ui.separator();
@@ -7984,6 +8020,13 @@ impl AtelierPanel {
                                 state.ckc_selected_index = state.ckc_characters.len() - 1;
                                 state.ckc_last_export = None;
                                 state.ckc_new_display_name = "New character".to_owned();
+                                // MT-037: the local (no-backend) create path was previously SILENT — it
+                                // set no status. Surface a non-persistence status through the now
+                                // Argus-readable ckc_error node so a model does not mistake a local-only
+                                // character for a persisted backend write.
+                                state.ckc_error = Some(format!(
+                                    "Created local CKC character {display_name}. Backend is unavailable; this is not persisted."
+                                ));
                             }
                         }
                     }
@@ -8284,6 +8327,10 @@ impl AtelierPanel {
         let append_pending = state.ckc_append_pending;
         let mut pending_append_request: Option<(String, String, Option<String>)> = None;
         let mut clear_last_export = false;
+        // MT-037 (F1): read the current sheet status once (disjoint from the character borrow below); the
+        // local save branch collects a new status into pending_sheet_status and it is applied after.
+        let sheet_status = state.ckc_sheet_status.clone();
+        let mut pending_sheet_status: Option<String> = None;
         if let Some(character) = state.ckc_characters.get_mut(selected_index) {
             let selected_response = ui
                 .vertical(|ui| {
@@ -8350,6 +8397,36 @@ impl AtelierPanel {
                 &sheet_version_ref,
                 false,
             );
+            // MT-037 (F1): sheet-version persistence status + backend-mode receipt. Without a backend the
+            // local "Append sheet version" mints a sheet_version_ref that otherwise looks identical to a
+            // persisted backend version — surface that it is a local-preview, not-persisted write.
+            let sheet_status_response =
+                ui.label(egui::RichText::new(sheet_status.as_str()).color(palette.text_subtle));
+            emit_node(
+                ui.ctx(),
+                sheet_status_response.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_SHEET_STATUS_AUTHOR_ID,
+                sheet_status.as_str(),
+                false,
+            );
+            let sheet_backend_mode = if self.ckc_client.is_some() {
+                "backend:persistent"
+            } else {
+                "local-preview:not-persisted"
+            };
+            let sheet_backend_mode_response = ui.label(
+                egui::RichText::new(format!("sheet mode: {sheet_backend_mode}"))
+                    .color(palette.text_subtle),
+            );
+            emit_value_node(
+                ui.ctx(),
+                sheet_backend_mode_response.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_SHEET_BACKEND_MODE_AUTHOR_ID,
+                "CKC sheet persistence mode",
+                sheet_backend_mode,
+            );
             ui.add_space(8.0);
             let editor = ui.add(
                 egui::TextEdit::multiline(&mut character.sheet_editor_text)
@@ -8392,6 +8469,16 @@ impl AtelierPanel {
                         character.character_internal_id, next_sheet_version_id
                     ));
                     clear_last_export = true;
+                    // MT-037 (F1): the local sheet-version save is NOT a backend write; surface it so the
+                    // minted sheet_version_ref is not mistaken for a persisted backend version.
+                    pending_sheet_status = Some(format!(
+                        "Saved local CKC sheet version seq {} ({}). Backend is unavailable; this is not persisted.",
+                        character.sheet_seq,
+                        character
+                            .sheet_version_ref
+                            .as_deref()
+                            .unwrap_or("pending-first-sheet-version")
+                    ));
                 }
             }
         } else {
@@ -8399,6 +8486,10 @@ impl AtelierPanel {
         }
         if clear_last_export {
             state.ckc_last_export = None;
+        }
+        // MT-037 (F1): apply the local sheet-version save status after the character borrow ends.
+        if let Some(status) = pending_sheet_status {
+            state.ckc_sheet_status = status;
         }
         if let Some((character_internal_id, raw_text, expected_parent_version_id)) =
             pending_append_request
@@ -8640,7 +8731,37 @@ impl AtelierPanel {
 
         if mode == CkcBookMode::Story {
             ui.heading(egui::RichText::new("Story").color(palette.text));
-            ui.label(egui::RichText::new(story_status.as_str()).color(palette.text_subtle));
+            // MT-037: emit the story status as an Argus-readable node (was a plain label with no author_id)
+            // so a model can read local-only, non-persistent story results.
+            let story_status_response =
+                ui.label(egui::RichText::new(story_status.as_str()).color(palette.text_subtle));
+            emit_node(
+                ui.ctx(),
+                story_status_response.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_STORY_STATUS_AUTHOR_ID,
+                story_status.as_str(),
+                false,
+            );
+            // MT-037: per-surface persistence receipt mirroring the media backend_mode value node
+            // (:atelier-ckc-media-backend-mode). Reads backend:persistent vs local-preview:not-persisted.
+            let story_backend_mode = if self.ckc_client.is_some() {
+                "backend:persistent"
+            } else {
+                "local-preview:not-persisted"
+            };
+            let story_backend_mode_response = ui.label(
+                egui::RichText::new(format!("story mode: {story_backend_mode}"))
+                    .color(palette.text_subtle),
+            );
+            emit_value_node(
+                ui.ctx(),
+                story_backend_mode_response.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_STORY_BACKEND_MODE_AUTHOR_ID,
+                "CKC story persistence mode",
+                story_backend_mode,
+            );
 
             let _story_doc_list = ui
                 .vertical(|ui| {
@@ -8752,9 +8873,9 @@ impl AtelierPanel {
                             story.current_version_seq = 1;
                         }
                         *story_status = format!(
-                        "Saved local CKC story document draft {} separate from sheet/image/tag notes",
-                        story.document_ref
-                    );
+                            "Saved local CKC story document draft {} separate from sheet/image/tag notes. Backend is unavailable; this is not persisted.",
+                            story.document_ref
+                        );
                     }
                 }
 
@@ -8894,7 +9015,7 @@ impl AtelierPanel {
                                     tags,
                                 });
                                 *story_status = format!(
-                                    "Added local CKC story card {title} under {}",
+                                    "Added local CKC story card {title} under {}. Backend is unavailable; this is not persisted.",
                                     story.document_ref
                                 );
                             }
@@ -8971,8 +9092,10 @@ impl AtelierPanel {
                                 card_id,
                                 beat_text,
                             });
-                            *story_status =
-                                format!("Added local CKC story beat under {}", story.document_ref);
+                            *story_status = format!(
+                                "Added local CKC story beat under {}. Backend is unavailable; this is not persisted.",
+                                story.document_ref
+                            );
                         }
                     }
                 }
@@ -8982,7 +9105,36 @@ impl AtelierPanel {
         if mode == CkcBookMode::Moodboard {
             ui.separator();
             ui.heading(egui::RichText::new("Moodboard links").color(palette.text));
-            ui.label(egui::RichText::new(moodboard_status.as_str()).color(palette.text_subtle));
+            // MT-037: emit the moodboard status as an Argus-readable node (was a plain label with no
+            // author_id) so a model can read local-only, non-persistent moodboard results.
+            let moodboard_status_response =
+                ui.label(egui::RichText::new(moodboard_status.as_str()).color(palette.text_subtle));
+            emit_node(
+                ui.ctx(),
+                moodboard_status_response.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_MOODBOARD_STATUS_AUTHOR_ID,
+                moodboard_status.as_str(),
+                false,
+            );
+            // MT-037: per-surface persistence receipt mirroring the media backend_mode value node.
+            let moodboard_backend_mode = if self.ckc_client.is_some() {
+                "backend:persistent"
+            } else {
+                "local-preview:not-persisted"
+            };
+            let moodboard_backend_mode_response = ui.label(
+                egui::RichText::new(format!("moodboard mode: {moodboard_backend_mode}"))
+                    .color(palette.text_subtle),
+            );
+            emit_value_node(
+                ui.ctx(),
+                moodboard_backend_mode_response.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_MOODBOARD_BACKEND_MODE_AUTHOR_ID,
+                "CKC moodboard persistence mode",
+                moodboard_backend_mode,
+            );
 
             let _moodboard_doc_list = ui
                 .vertical(|ui| {
@@ -9188,8 +9340,9 @@ impl AtelierPanel {
                             &latest_ref,
                         ) {
                             Ok(()) => {
-                                *moodboard_status =
-                                    format!("Saved local CKC moodboard {latest_ref}");
+                                *moodboard_status = format!(
+                                    "Saved local CKC moodboard {latest_ref}. Backend is unavailable; this is not persisted."
+                                );
                             }
                             Err(err) => {
                                 *moodboard_status =
@@ -9922,8 +10075,10 @@ impl AtelierPanel {
                         note: request.note,
                     };
                     attach_tag_note_to_visible_results(&mut state.ckc_search_results, note);
-                    state.ckc_search_status =
-                        format!("Saved local CKC tag note for {}", request.tag_text);
+                    state.ckc_search_status = format!(
+                        "Saved local CKC tag note for {}. Backend is unavailable; this is not persisted.",
+                        request.tag_text
+                    );
                 }
             }
         }
@@ -10305,8 +10460,10 @@ impl AtelierPanel {
                             pending_selection = Some(link.link_id.clone());
                             pending_reuse_ref = Some(link.typed_ref.clone());
                             character.sheet_artifact_links.push(link);
-                            pending_status =
-                                Some("Attached local reusable sheet artifact".to_owned());
+                            pending_status = Some(
+                                "Attached local reusable sheet artifact. Backend is unavailable; this is not persisted."
+                                    .to_owned(),
+                            );
                         }
                     }
                 }
@@ -10369,7 +10526,10 @@ impl AtelierPanel {
                         pending_selection = Some(link.link_id.clone());
                         pending_reuse_ref = Some(link.typed_ref.clone());
                         character.sheet_artifact_links.push(link);
-                        pending_status = Some("Attached local Posekit OpenPose export".to_owned());
+                        pending_status = Some(
+                            "Attached local Posekit OpenPose export. Backend is unavailable; this is not persisted."
+                                .to_owned(),
+                        );
                     }
                 }
             }
@@ -10408,7 +10568,10 @@ impl AtelierPanel {
                             .sheet_artifact_links
                             .first()
                             .map(|link| link.typed_ref.clone());
-                        pending_status = Some("Detached local reusable sheet artifact".to_owned());
+                        pending_status = Some(
+                            "Detached local reusable sheet artifact. Backend is unavailable; this is not persisted."
+                                .to_owned(),
+                        );
                     }
                 }
             }

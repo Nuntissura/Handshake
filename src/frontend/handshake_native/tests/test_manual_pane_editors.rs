@@ -223,6 +223,10 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
+        // MT-037 (F1): sheet-version local-fallback status + persistence-mode receipt (rendered in the
+        // default Sheet mode, which both id-audits capture).
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_STATUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_BACKEND_MODE_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID,
@@ -295,6 +299,12 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+        // MT-037: CKC local-fallback containment status + persistence-mode receipt ids. Documented as
+        // agent_tool_rows and emitted in Story/Moodboard modes (both id-audits render those modes).
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_STATUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_BACKEND_MODE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_STATUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_BACKEND_MODE_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_RIG_ID_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
