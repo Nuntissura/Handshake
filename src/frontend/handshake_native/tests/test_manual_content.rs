@@ -19,6 +19,7 @@ use handshake_native::manual_content_editors::{
     INFERENCE_LAB_MENU_AUTHOR_ID, INFERENCE_LAB_PALETTE_AUTHOR_ID,
     MODEL_SESSION_LAUNCH_MENU_AUTHOR_ID, MODEL_SESSION_LAUNCH_PALETTE_AUTHOR_ID,
     SETTINGS_DIAGNOSTICS_SECTION_AUTHOR_ID, TERMINAL_MENU_AUTHOR_ID, WP104_PRODUCT_HEADINGS,
+    WP_SURFACE_HEADINGS,
 };
 use handshake_native::manual_pane::{
     manual_topic_author_id, ManualPane, ManualPaneState, ManualRegistry, ManualSection,
@@ -549,6 +550,173 @@ fn mt104_settings_diagnostics_ids_are_live_after_settings_search() {
             ids.iter()
                 .filter(|id| id.contains("diagnostics"))
                 .collect::<Vec<_>>()
+        );
+    }
+}
+
+// ── WP-KERNEL-012 wave-5: full-WP per-surface manual topics ───────────────────────────────────────────
+
+/// A distinctive body-start marker per wave-5 surface topic (renders as a manual body label).
+fn wave5_body_marker(heading: &str) -> &'static str {
+    match heading {
+        "Code Editor" => "VS Code-parity native code pane",
+        "Rich Text Editor" => "Obsidian/Notion-parity native Notes pane",
+        "Knowledge Graph" => "Loom graph view",
+        "Canvas" => "free-form spatial board",
+        "Search" => "three complementary search surfaces",
+        "Wikilinks and Backlinks" => "Wikilinks tie notes together",
+        "Daily Journal" => "date-addressed note surface",
+        "Diff and Merge" => "two-buffer comparison",
+        "Internationalization" => "SINGLE shared Unicode text-mechanics",
+        "Menu Bar and Commands" => "six top-level dropdowns",
+        "Editor Settings" => "Editor preferences live in the Settings dialog",
+        other => panic!("unknown wave-5 surface topic '{other}'"),
+    }
+}
+
+/// Concrete no-context facts (real author_ids / routes) each wave-5 topic must contain.
+fn wave5_needles(heading: &str) -> &'static [&'static str] {
+    match heading {
+        "Code Editor" => &[
+            "editor.code.save",
+            "F12",
+            "status-bar-language-mode",
+            "PostgreSQL/EventLedger",
+        ],
+        "Rich Text Editor" => &[
+            "editor.rich.format-bold",
+            "rich-reading-mode-toggle",
+            "PUT /knowledge/documents/:id/save",
+        ],
+        "Knowledge Graph" => &["graph.open-node", "view.graph", "backlink_depth"],
+        "Canvas" => &["canvas.add-card", "getCanvasBoard"],
+        "Search" => &[
+            "loom-search-v2.query",
+            "menu.edit.find-all",
+            "quick-switcher.dialog",
+            "command-palette.search",
+        ],
+        "Wikilinks and Backlinks" => {
+            &["outgoing.panel", "ShellNavigator", "outgoing.section.resolved"]
+        }
+        "Daily Journal" => &[
+            "daily-journal-panel",
+            "PUT /loom/journals/:date",
+            "NEEDS_MANAGED_RESOURCE_PROOF",
+            "EndpointUnavailable",
+        ],
+        "Diff and Merge" => &["view.diff-merge", "SaveManager", "conflict"],
+        "Internationalization" => &["text_intl", "UAX#29", "grapheme"],
+        "Menu Bar and Commands" => &[
+            "menu-file",
+            "menu.edit.undo",
+            "view.graph",
+            "no lying-enabled",
+        ],
+        "Editor Settings" => &[
+            "settings-editor-font-size",
+            "settings-syntax-palette-mode",
+            "PUT /workspaces/:id/settings",
+            "pending host-wiring",
+        ],
+        other => panic!("unknown wave-5 surface topic '{other}'"),
+    }
+}
+
+#[test]
+fn wave5_surface_topics_exist_and_carry_real_no_context_facts() {
+    let section = editors_manual_section();
+    assert_eq!(
+        WP_SURFACE_HEADINGS.len(),
+        11,
+        "one dedicated topic per native editor surface"
+    );
+    for heading in WP_SURFACE_HEADINGS {
+        let body = topic_body(&section, heading);
+        assert!(
+            body.len() > 220,
+            "wave-5 topic '{heading}' must be substantive no-context guidance (got {} chars)",
+            body.len()
+        );
+        for needle in wave5_needles(heading) {
+            assert!(
+                body.contains(needle),
+                "wave-5 topic '{heading}' must include concrete runtime fact '{needle}'"
+            );
+        }
+    }
+}
+
+#[test]
+fn wave5_editor_settings_topic_is_honest_about_inert_live_effect() {
+    // Item 2 honesty: the manual must NOT claim font-size / syntax palette take live effect on the
+    // running editor (they persist + preview live only), and MUST state which prefs DO apply live.
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Editor Settings");
+    assert!(
+        body.contains("does not yet apply a live font size"),
+        "Editor Settings topic must honestly disclose the font-size live-effect gap"
+    );
+    assert!(
+        body.contains("theme syntax tokens"),
+        "Editor Settings topic must honestly disclose the syntax-palette live-draw gap"
+    );
+    assert!(
+        body.contains("apply LIVE to the mounted code editor"),
+        "Editor Settings topic must state which prefs DO take live effect"
+    );
+    assert!(
+        !body.to_lowercase().contains("sqlite"),
+        "no SQLite in the settings topic"
+    );
+}
+
+#[test]
+fn wave5_surface_topics_are_selectable_in_manual_pane() {
+    let mut reg = ManualRegistry::new();
+    reg.register_section(editors_manual_section());
+    let reg: &'static ManualRegistry = Box::leak(Box::new(reg));
+    let palette: &'static HsPalette = Box::leak(Box::new(HsPalette::dark()));
+    let state = Rc::new(RefCell::new(ManualPaneState::default()));
+    let ui_state = Rc::clone(&state);
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(940.0, 680.0))
+        .build_ui(move |ui| {
+            let mut state = ui_state.borrow_mut();
+            ManualPane::new(reg, &mut state, palette).show(ui);
+        });
+    harness.run();
+
+    for heading in WP_SURFACE_HEADINGS {
+        {
+            let mut state = state.borrow_mut();
+            state.query = (*heading).to_owned();
+            state.selected = None;
+        }
+        harness.run();
+        harness.run();
+
+        let author_id = manual_topic_author_id("native-editors", heading);
+        harness
+            .get_by(|node| node.author_id() == Some(author_id.as_str()))
+            .click();
+        harness.run();
+        harness.run();
+
+        let selected = {
+            let state = state.borrow();
+            state.selected.clone()
+        };
+        assert_eq!(
+            selected,
+            Some(("native-editors".to_owned(), (*heading).to_owned())),
+            "clicking wave-5 topic '{heading}' should update ManualPaneState"
+        );
+        let marker = wave5_body_marker(heading);
+        assert!(
+            harness.query_by_label_contains(marker).is_some(),
+            "selecting topic '{heading}' should render body marker '{marker}'"
         );
     }
 }

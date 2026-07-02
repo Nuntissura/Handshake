@@ -163,6 +163,33 @@ fn editor_controls_expose_stable_accesskit_author_ids() {
     }
 }
 
+// ── WP-KERNEL-012 wave-5 (item 2): inert live-effect controls render an HONEST typed-state note ───────
+#[test]
+fn editor_settings_inert_controls_show_honest_typed_state() {
+    // The editor font-size + Custom syntax palette PERSIST + round-trip but do NOT yet take effect on the
+    // mounted code editor (font: no live font-size slot; palette: the code pane draws theme tokens). Rather
+    // than a silent no-op, each control renders an inline HONEST typed-state note. Prove the note is live in
+    // the AccessKit tree (a no-context operator/model sees the disclosure, not a lying "it works" control).
+    {
+        let harness = open_settings_searched("editor", SyntaxPaletteMode::Standard);
+        assert!(
+            harness
+                .query_by_label_contains("no live font-size slot")
+                .is_some(),
+            "item 2: the font-size control must render an honest typed-state note (declared inert), not a silent no-op"
+        );
+    }
+    {
+        let harness = open_settings_searched("syntax", SyntaxPaletteMode::Custom);
+        assert!(
+            harness
+                .query_by_label_contains("active theme's syntax tokens")
+                .is_some(),
+            "item 2: the syntax palette must render an honest typed-state note about its inert live draw"
+        );
+    }
+}
+
 // ── AC-008: the Editor settings section renders + reflects stored state + saves a screenshot ─────────
 #[test]
 fn editor_settings_section_renders_and_screenshots() {

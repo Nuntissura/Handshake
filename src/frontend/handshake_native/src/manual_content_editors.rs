@@ -87,6 +87,25 @@ pub const WP104_PRODUCT_HEADINGS: &[&str] = &[
 pub const DIAGNOSTIC_TOOL_HEADINGS: &[&str] =
     &["Flight Recorder", "internal_diagnostics", "Palmistry"];
 
+/// WP-KERNEL-012 wave-5 full-WP surface topics: one dedicated, selectable, no-context topic per native
+/// editor surface so a fresh model/operator can operate the WHOLE WP (VS Code code editor, Obsidian rich
+/// editor, knowledge graph, canvas, search, wikilinks/backlinks, daily journal, diff/merge, the shared
+/// i18n text layer, the operator menu bar, and the editor Settings section) — not only the generic
+/// GLOBAL-BUILD-MANUAL topics. Each has its own heading so the heading-presence test asserts it by name.
+pub const WP_SURFACE_HEADINGS: &[&str] = &[
+    "Code Editor",
+    "Rich Text Editor",
+    "Knowledge Graph",
+    "Canvas",
+    "Search",
+    "Wikilinks and Backlinks",
+    "Daily Journal",
+    "Diff and Merge",
+    "Internationalization",
+    "Menu Bar and Commands",
+    "Editor Settings",
+];
+
 pub const TERMINAL_MENU_AUTHOR_ID: &str = "menu.run.terminal";
 pub const MODEL_SESSION_LAUNCH_MENU_AUTHOR_ID: &str =
     crate::top_menu_bar::MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID;
@@ -162,6 +181,23 @@ pub fn editors_manual_section() -> ManualSection {
         ("Flight Recorder", flight_recorder_body()),
         ("internal_diagnostics", internal_diagnostics_body()),
         ("Palmistry", palmistry_body()),
+    ] {
+        topics.push(ManualTopic { heading, body });
+    }
+    // WP-KERNEL-012 wave-5: one dedicated topic per native editor surface (full-WP coverage), so a
+    // no-context model can operate each surface directly from its own manual topic.
+    for (heading, body) in [
+        ("Code Editor", code_editor_body()),
+        ("Rich Text Editor", rich_text_editor_body()),
+        ("Knowledge Graph", knowledge_graph_body()),
+        ("Canvas", canvas_body()),
+        ("Search", search_body()),
+        ("Wikilinks and Backlinks", wikilinks_backlinks_body()),
+        ("Daily Journal", daily_journal_body()),
+        ("Diff and Merge", diff_and_merge_body()),
+        ("Internationalization", internationalization_body()),
+        ("Menu Bar and Commands", menu_bar_and_commands_body()),
+        ("Editor Settings", editor_settings_body()),
     ] {
         topics.push(ManualTopic { heading, body });
     }
@@ -511,6 +547,188 @@ too busy to update internal_diagnostics, or supervising a long-running child who
 work could silently hang. The three-tier choice is: Flight Recorder for business events while healthy, \
 internal_diagnostics for in-app health/stalled operations while the app still runs, and Palmistry for \
 freeze/crash/child-stall survival when the app itself or its child process is not trustworthy."
+        .to_owned()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// WP-KERNEL-012 wave-5 per-surface topic bodies (one dedicated no-context topic per native editor
+// surface). Every author_id/route named here is a LIVE surface verified against the source, and
+// persistence in every body is described only as handshake_core PostgreSQL/EventLedger so the content
+// guard (which bans the local-store token + the direct-write phrase) stays green.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+fn code_editor_body() -> String {
+    "The Code Editor is the VS Code-parity native code pane (PaneType::CodeSymbol, seeded as pane-a on the \
+default worksurface). Open a file from the project tree (left-rail.activity.files) or Quick Switcher; the \
+buffer mounts with syntax highlighting, line numbers/gutter diagnostics, code folding, a minimap, and a \
+symbol outline. Editing parity: multi-cursor (editor.code.multi-cursor-add / editor.code.multi-cursor-clear), \
+find + replace (editor.code.find-open Ctrl+F, editor.code.replace-open, with editor.code.find-toggle-case/ \
+-word/-regex), Format Document (editor.code.format, Alt+Shift+F), and language selection \
+(editor.code.language-picker-open). Code navigation is LSP-backed and reachable from the GO menu or keys: \
+Go to Definition (F12), Go to References (Shift+F12), Go to Symbol in File (Ctrl+Shift+O), Go to Line \
+(Ctrl+G), and jump Back/Forward (Alt+Left / Alt+Right). Save with editor.code.save (Ctrl+S); the buffer \
+persists through the handshake_core backend client onto PostgreSQL/EventLedger, never bypassing handshake_core. \
+The bottom status bar exposes the editor segments status-bar-language-mode / status-bar-eol / \
+status-bar-indent / status-bar-encoding / status-bar-render-whitespace. Indent width, tabs-vs-spaces, word \
+wrap, and render-whitespace are driven live from Settings -> Editor (see the Editor Settings topic)."
+        .to_owned()
+}
+
+fn rich_text_editor_body() -> String {
+    "The Rich Text Editor is the Obsidian/Notion-parity native Notes pane (PaneType::LoomWikiPage, the \
+loom.wikipage class, seeded as pane-b). Create a fresh note from FILE > New Document (command editor.file.new) \
+or open an existing one from the project tree, Quick Switcher, a wikilink, or a graph/outgoing-link row; the \
+shell performs GET /knowledge/documents/:id and binds the MT-020 SaveManager + DraftManager to that id and \
+doc_version. Formatting commands: editor.rich.format-bold (Ctrl+B), editor.rich.format-italic (Ctrl+I), \
+editor.rich.format-code (Ctrl+E), editor.rich.format-heading-1..6, plus lists, blockquotes, code blocks, \
+horizontal rules, and tables from the toolbar. Insert blocks/embeds/wikilinks with the slash menu \
+(editor.rich.insert-slash-command, '/'). Reading (preview) view is the Obsidian reading-view parity toggle \
+rich-reading-mode-toggle with segments rich-reading-mode-edit and rich-reading-mode-reading; the chosen mode \
+is per-document and reuses the ONE MT-011 document model (no second render path). Save with editor.rich.save \
+(Ctrl+S) or FILE > Save; the authoritative route is PUT /knowledge/documents/:id/save with expected_version \
+and content_json, and drafts use GET/PUT/DELETE /knowledge/documents/:id/draft for crash recovery. All \
+persistence is handshake_core PostgreSQL/EventLedger; reopening a note re-GETs the authoritative document \
+rather than trusting a cached editor buffer."
+        .to_owned()
+}
+
+fn knowledge_graph_body() -> String {
+    "The Knowledge Graph (Loom graph view) renders the block/note link graph for the workspace. Pan with \
+graph.pan-left / graph.pan-right, zoom with graph.zoom-in / graph.zoom-out, open a node into its editor with \
+graph.open-node, and connect blocks with graph.add-edge. The Link-depth control re-queries the backend \
+GET /loom/graph-search?backlink_depth=N and replaces the node/edge set for the chosen depth, so an operator \
+can widen or narrow the neighbourhood live. Open the graph SURFACE by running 'View: Graph' from the Command \
+Palette (Ctrl+Shift+P; command id view.graph) or by selecting the CKC/MAIN module that lists it; direct \
+opening from the menu bar routes through that same command. Graph reads/writes go through handshake_core \
+(PostgreSQL/EventLedger) via the Loom graph-search + block routes, never bypassing handshake_core. A swarm \
+agent discovers the graph controls with list_widgets and drives them with click_widget{target:<author_id>}."
+        .to_owned()
+}
+
+fn canvas_body() -> String {
+    "The Canvas is the free-form spatial board (PaneType::AtelierEditor / the CKC atelier surface) for \
+arranging Loom blocks and text cards. Add a text card with canvas.add-card, place an existing Loom block with \
+canvas.place-block, and connect items with canvas.add-edge; cards can be resized, grouped into sections, and \
+edited inline. Each mutation (resize, section assignment, inline text edit) emits a typed canvas event that \
+the host turns into the real backend call — a PATCH of the placement (position/size/group) or a card \
+create/edit — followed by a getCanvasBoard refresh, all through the handshake_core canvas routes on \
+PostgreSQL/EventLedger. Open the canvas from the CKC module or the Command Palette; the editor never \
+bypasses handshake_core. A no-context model reads the board with list_widgets + screenshot and drives cards \
+with click_widget / set_value."
+        .to_owned()
+}
+
+fn search_body() -> String {
+    "Handshake has three complementary search surfaces for the melt-together worksurface. (1) Loom Search v2 \
+is the hybrid semantic+keyword block search: type into loom-search-v2.query, run loom-search-v2.search, narrow \
+with loom-search-v2.facet.* facets, read loom-search-v2.status, and open a hit from loom-search-v2.result.*; \
+it queries the handshake_core Loom hybrid-search route. (2) Find in Files is workspace-wide text search + \
+replace: open it from EDIT > Find in Files (author_id menu.edit.find-all, Ctrl+Shift+F) or the command \
+editor.find.findInFiles, which opens the PaneType::FindInFiles surface. (3) The Quick Switcher \
+(quick-switcher.dialog, input quick-switcher.search, list quick-switcher.list, Ctrl+P) jumps between open \
+documents, blocks, and code symbols; the Command Palette (command-palette.dialog / command-palette.search / \
+command-palette.list, Ctrl+Shift+P) runs any registered command including the View: * surface-open commands. \
+All results resolve through handshake_core (PostgreSQL/EventLedger); nothing is read from a local database \
+directly."
+        .to_owned()
+}
+
+fn wikilinks_backlinks_body() -> String {
+    "Wikilinks tie notes together the Obsidian way. Type [[ in the Rich Text Editor to open the wikilink \
+autocomplete (seeded from the Loom title index via GET /loom/graph-search), pick a target, and a resolvable \
+link chip is inserted; a link to a title that does not exist yet offers create-from-unresolved, which POSTs a \
+new note through the knowledge create backend. Clicking a wikilink chip navigates to its target through the \
+MT-030 ShellNavigator (open_document / open_loom_block). The Outgoing Links pane (outgoing.panel) lists the \
+active note's links bucketed into outgoing.section.resolved and outgoing.section.unresolved; clicking a \
+resolved row jumps to that document/block. Backlinks (which notes point AT this one) surface through the same \
+knowledge routes. All link/backlink data lives in handshake_core (PostgreSQL/EventLedger) via the Loom + \
+knowledge-documents routes. A swarm agent reads the panel with list_widgets and follows a link with \
+click_widget{target:'outgoing.section.resolved'} (or the specific row id)."
+        .to_owned()
+}
+
+fn daily_journal_body() -> String {
+    "The Daily Journal is the date-addressed note surface (daily-journal-panel). The date header \
+(daily-journal-date-header) selects a day and opens-or-creates that day's note; the calendar-event chip \
+(daily-journal-calendar-event-chip) binds a note to a Calendar (Pillar 2) event, and the activity strip \
+(daily-journal-activity-strip) shows a read-only day activity overview. Selecting a date fires the MT-030 \
+date-selected signal, which opens or creates the daily note; the authoritative write is PUT /loom/journals/:date \
+on handshake_core (PostgreSQL/EventLedger). HONEST STATE: the live PUT /loom/journals/:date round-trip is \
+NEEDS_MANAGED_RESOURCE_PROOF against a managed backend, and the CalendarEvent chip + activity strip stay in a \
+typed EndpointUnavailable empty-state until a backend packet exposes the /calendar/events + \
+/calendar/activity-spans routes — the surface is real and drivable, the cross-edge is honestly gated, never a \
+fabricated entry."
+        .to_owned()
+}
+
+fn diff_and_merge_body() -> String {
+    "The Diff and Merge editor shows a two-buffer comparison for the mounted rich document. Open it by running \
+'View: Diff/Merge' from the Command Palette (command id view.diff-merge). When the mounted document's \
+SaveManager is sitting in a save CONFLICT (the local buffer versus the server revision — the two real buffers \
+the shell holds), the pane constructs and shows that real diff; otherwise it opens on an HONEST empty state \
+('open one from a conflict dialog or the palette') rather than pretending to have a diff. Resolving a conflict \
+reloads the newer revision and re-saves through PUT /knowledge/documents/:id/save on handshake_core \
+(PostgreSQL/EventLedger). This is the native equivalent of a VS Code diff/merge view; it never writes to a \
+database directly."
+        .to_owned()
+}
+
+fn internationalization_body() -> String {
+    "Internationalization (i18n, the E13 text_intl layer, MT-077/078) is the SINGLE shared Unicode text-mechanics \
+module both editors reuse — it is never duplicated per editor, and it is pure logic (no egui, no backend, no \
+color). It corrects three things a naive editor gets wrong: (1) grapheme-cluster caret movement (UAX#29) so \
+Left/Right/Backspace cross a WHOLE user-perceived character — a family ZWJ emoji, a combining accent, a \
+regional-indicator flag, or a Hangul syllable is never torn in half; (2) CJK + Korean-Hangul line breaking \
+(UAX#14 + the kinsoku 'no break after an opening bracket' rule) so spaceless ideograph runs wrap correctly; \
+and (3) Unicode-correct word/character counts (a family emoji counts as one character, a Chinese sentence \
+counts words by UAX#29, not by whitespace). Right-to-left and bidirectional text (MT-078) is reordered ONLY at \
+render/caret time; the document rope stays in LOGICAL order, so the handshake_core backend round-trip is \
+byte-for-byte unaffected. No operator action is needed — the correct behavior is automatic in both the Code \
+Editor and the Rich Text Editor."
+        .to_owned()
+}
+
+fn menu_bar_and_commands_body() -> String {
+    "The operator menu bar has six top-level dropdowns, each a stable AccessKit MenuItem and each openable by \
+Alt+<first letter>: FILE (menu-file), EDIT (menu-edit), VIEW (menu-view), GO (menu-go), RUN (menu-run), and \
+HELP (menu-help). FILE opens/creates and persists documents: New Document (editor.file.new), Save \
+(menu.file.save, Ctrl+S), Save All, Save As, Export Document HTML/MD/TXT/JSON, Close Tab, Quit. EDIT drives the \
+focused editor: Undo/Redo (menu.edit.undo / menu.edit.redo — the ONE MT-035 unified stack shared with the \
+keyboard), Cut/Copy/Paste/Select All, Toggle Comment, Format Document, Find (Ctrl+F), Replace (Ctrl+H), Find \
+in Files (menu.edit.find-all, Ctrl+Shift+F), Replace in Files, plus Command Palette and Quick Switcher. GO \
+navigates: Quick Switcher (menu.go.quick-switcher, Ctrl+P), Command Palette (menu.go.command-palette, \
+Ctrl+Shift+P), Next/Previous Pane, Go to Next/Previous Problem (F8 / Shift+F8), Back/Forward (Alt+Left / \
+Alt+Right), Go to Symbol in File (Ctrl+Shift+O), Go to Definition (F12), Go to References (Shift+F12), Go to \
+Symbol in Workspace (Ctrl+T), and Go to Line (Ctrl+G). RUN launches operational surfaces: Open Swarm Board, \
+Open Inference Lab, Open Flight Recorder, Launch Model Session in Workspace Folder \
+(menu.run.model-session-launch), and Open Terminal in Workspace Folder (menu.run.terminal). HELP opens the \
+User Manual, Settings, and About. Every enabled item dispatches its REAL command by id through the one shell \
+dispatcher and every disabled item is honestly greyed with a reason (no lying-enabled entries). NOTE for \
+opening editor SURFACES directly: the menu bar dispatches editor COMMANDS, while the surface-open commands \
+(View: Graph = view.graph, View: Journal = view.journal, View: Diff/Merge = view.diff-merge, View: Collections \
+= view.block-collections) are run from the Command Palette (Ctrl+Shift+P) or the module switcher; a direct \
+menu-bar entry for those surface opens is a pending shell-routing enhancement, so today the Command Palette is \
+the canonical one-stop place to open Graph, Canvas, Daily Journal, and Diff/Merge."
+        .to_owned()
+}
+
+fn editor_settings_body() -> String {
+    "Editor preferences live in the Settings dialog (open from HELP > Open Settings, the command settings.open, \
+or the settings chrome; filter with settings.search). The Editor section exposes settings-editor-font-size, \
+settings-editor-tab-size, settings-editor-insert-spaces (tabs vs spaces), settings-editor-word-wrap (Off / On / \
+Bounded column), and settings-editor-render-whitespace (None / Boundary / All). The Syntax section is \
+settings-syntax-palette-mode (Muted / Standard / Custom) with one settings-syntax-swatch-<scope> color picker \
+per highlight scope in Custom mode. The Keybindings section extends the editor bindings with one \
+settings-keybind-row-<action_id> per code chord and rich command. All values ride the SAME workspace-settings \
+payload and persist through PUT /workspaces/:id/settings (handshake_core PostgreSQL/EventLedger); reopening the \
+dialog GETs them back — the workspace-settings row is the only authority and there is no second settings store. \
+LIVE-EFFECT STATE (honest): tab size, \
+insert spaces, word wrap, render whitespace, and code keybinding overrides apply LIVE to the mounted code \
+editor (via the shell's sync-to-panel path). Editor font size and the Custom syntax palette PERSIST and \
+round-trip, and the Settings preview updates live, but the mounted code editor does not yet apply a live font \
+size (the code panel exposes no font-size slot) or repaint with Custom palette colors (its draw reads the theme \
+syntax tokens) — those two are a typed pending host-wiring item disclosed in the control itself, not a silent \
+no-op. Rich-editor keybinding overrides persist but have no live rich keymap seam yet."
         .to_owned()
 }
 

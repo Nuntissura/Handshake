@@ -78,6 +78,31 @@ pub const EDITOR_KEYBIND_ROW_AUTHOR_ID_PREFIX: &str = "settings-keybind-row-";
 /// Author_id prefix for a per-action editor keybinding Reset button.
 pub const EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX: &str = "settings-keybind-reset-";
 
+// ── Honest live-effect disclosure (WP-KERNEL-012 wave-5, item 2 / the MT-072 open item) ───────────────
+//
+// Two Editor-section controls PERSIST + round-trip through PUT/GET /workspaces/:id/settings but do NOT yet
+// take effect on the LIVE mounted code editor: editor_font_size (the mounted `CodeEditorPanel` exposes no
+// live font-size slot — see `app::HandshakeApp::sync_editor_prefs_to_panel`) and the Custom syntax palette
+// (the code editor's `scope_to_color` draws from the active theme's `HsSyntaxTokens`, not the persisted
+// palette). Wiring the live effect is a code_editor/panel.rs + editor-mount change OUTSIDE this UI lane's
+// scope, so rather than present a silent no-op these controls render an HONEST typed-state note. This is the
+// "render them with an honest 'restart to apply' / typed state" path, with the inert item declared inline.
+
+/// Honest typed-state note shown under the editor font-size control (it persists but does not resize the
+/// running editor yet). Distinct substring `no live font-size slot` is asserted by the section test.
+pub const EDITOR_FONT_SIZE_LIVE_EFFECT_NOTE: &str =
+    "Persisted to workspace settings. The mounted code editor has no live font-size slot yet, so this does \
+     not resize the running editor (pending editor host wiring). Tab size, insert spaces, word wrap, and \
+     render whitespace DO apply live.";
+
+/// Honest typed-state note shown under the syntax palette (Custom colors persist + preview live, but the
+/// running code pane still draws from the theme). Distinct substring `active theme's syntax tokens` is
+/// asserted by the section test.
+pub const SYNTAX_PALETTE_LIVE_EFFECT_NOTE: &str =
+    "Persisted; the preview swatches above update live. The mounted code editor still draws with the active \
+     theme's syntax tokens, so Custom palette colors are not yet applied to the running code pane (pending \
+     editor host wiring).";
+
 /// The stable author_id for a Custom syntax swatch for `scope`.
 pub fn syntax_swatch_author_id(scope: HighlightScope) -> String {
     format!("{SYNTAX_SWATCH_AUTHOR_ID_PREFIX}{}", scope.scope_key())
@@ -335,6 +360,13 @@ impl EditorSettingsSection {
             set_author_id_and_label(ui, dv.id, EDITOR_FONT_SIZE_AUTHOR_ID, "Editor font size");
             changed |= dv.changed();
         });
+        // Honest typed-state: the font size persists but the live editor does not resize yet (declared
+        // inert rather than a silent no-op).
+        ui.label(
+            egui::RichText::new(EDITOR_FONT_SIZE_LIVE_EFFECT_NOTE)
+                .small()
+                .weak(),
+        );
 
         ui.horizontal(|ui| {
             ui.label("Tab size");
@@ -496,6 +528,14 @@ impl EditorSettingsSection {
                 changed = true;
             }
         });
+
+        // Honest typed-state: Custom colors persist + the preview swatches below update live, but the
+        // mounted code editor still draws from the theme tokens (declared inert rather than a silent no-op).
+        ui.label(
+            egui::RichText::new(SYNTAX_PALETTE_LIVE_EFFECT_NOTE)
+                .small()
+                .weak(),
+        );
 
         // One row per scope: a label, the live-resolved preview swatch, and (in Custom mode) an editable
         // swatch button. Every scope is always shown (no gap — AC-004).

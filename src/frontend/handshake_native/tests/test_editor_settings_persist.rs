@@ -109,7 +109,11 @@ fn run_until(
     pred: impl Fn(&HandshakeApp) -> bool,
 ) -> bool {
     for _ in 0..max {
-        harness.run();
+        // Bounded frame pump instead of idle-wait `run()`: when a focused text field / mounted code panel
+        // keeps requesting repaints (egui's blinking-cursor animation, text_selection/visuals), `run()`
+        // exceeds its default max_steps and PANICS. `run_steps` pumps a fixed number of frames without that
+        // panic — the same harness-regression fix the MT-104 handoff applied to test_settings_dialog.
+        harness.run_steps(2);
         if pred(harness.state()) {
             return true;
         }
