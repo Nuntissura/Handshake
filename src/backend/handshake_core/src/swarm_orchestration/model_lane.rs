@@ -8256,13 +8256,20 @@ where
                 "{aggregate_type} {sql_row_id} diagnostics projection row drift: row EventLedger columns do not resolve to kernel_event_ledger"
             )));
         };
-        let row_record: R = serde_json::from_value(record_json.clone())?;
         let ledger_record: I = event_payload_record(&payload, aggregate_type, &aggregate_id)?;
         let row_id = payload
             .get("record")
             .and_then(|record| record.get(id_field))
             .and_then(Value::as_str)
             .unwrap_or(aggregate_id.as_str());
+        // Validate row IDENTITY against the ledger before deserializing/comparing the
+        // mutable record body. A mutable row whose primary-key id was aliased onto
+        // another valid ledger event is an identity tamper and MUST surface as the typed
+        // "SQL row <id> does not match kernel_event_ledger" drift diagnosis -- not as a
+        // raw deserialization error on the aliased (foreign-shaped) body. Identity is
+        // logically prior to body equality: comparing bodies is meaningless once the row
+        // points at the wrong ledger event. Per spec 4.3.9.2.5 recovery diagnostics MUST
+        // be structured, not inferred from prose (a raw serde "missing field" is not).
         if sql_row_id != row_id || sql_row_id != aggregate_id {
             return Err(ModelLaneError::InvalidInput(format!(
                 "{aggregate_type} {sql_row_id} diagnostics projection row drift: SQL row {id_field} does not match kernel_event_ledger aggregate/payload id {row_id}"
@@ -8279,6 +8286,7 @@ where
             &ledger_event_id,
             ledger_event_sequence,
         )?;
+        let row_record: R = serde_json::from_value(record_json.clone())?;
         if row_record.deref() != &ledger_record {
             return Err(ModelLaneError::InvalidInput(format!(
                 "{aggregate_type} {row_id} diagnostics projection row drift: mutable row does not match kernel_event_ledger payload"
