@@ -4728,6 +4728,17 @@ fn ingest_triage_is_per_item_not_global() {
     }
 }
 
+/// Extract the `keypoint_signature=...` token an OpenPose viewport node publishes over its ACTUAL
+/// rendered body coordinates. A changed signature proves the viewport re-rendered from new real
+/// keypoints (MT-014).
+fn posekit_signature_token(node_value: &str) -> String {
+    node_value
+        .split_whitespace()
+        .find_map(|token| token.strip_prefix("keypoint_signature="))
+        .unwrap_or_default()
+        .to_owned()
+}
+
 #[test]
 fn posekit_split_view_rotation_export_is_argus_inspectable() {
     let mut harness = build_panel_harness();
@@ -4777,19 +4788,41 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
     let initial_3d_viewport = initial
         .find_by_author_id(ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID)
         .and_then(|node| node.value.as_deref())
-        .expect("initial Posekit 3D viewport value");
-    assert!(initial_3d_viewport.contains("3D rig/source preview"));
-    assert!(initial_3d_viewport.contains("viewport_mode=native_3d_projection_preview"));
-    assert!(initial_3d_viewport.contains("projection=procedural-posekit-preview"));
-    assert!(initial_3d_viewport.contains("source_fingerprint="));
+        .expect("initial Posekit source viewport value");
+    // Left viewport is the REAL source-image surface (no fabricated tile): with no source bytes it
+    // reports an explicit empty state rather than a hash-derived colour tile.
+    assert!(initial_3d_viewport.contains("Source image preview"));
+    assert!(
+        initial_3d_viewport.contains("source_image=empty"),
+        "left viewport must show an explicit empty source state, not a fake tile: {initial_3d_viewport}"
+    );
+    assert!(
+        !initial_3d_viewport.contains("source_fingerprint="),
+        "left viewport must not expose the removed hash-tile fingerprint scaffold: {initial_3d_viewport}"
+    );
     let initial_openpose_viewport = initial
         .find_by_author_id(ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID)
         .and_then(|node| node.value.as_deref())
         .expect("initial Posekit OpenPose viewport value");
     assert!(initial_openpose_viewport.contains("OpenPose preview"));
+    // Right viewport is bound to the REAL generated keypoints; with no backend export it renders the
+    // live offline-preview keypoints from the SAME generator the export uses.
     assert!(
-        initial_openpose_viewport.contains("viewport_mode=openpose_conditioning_preview"),
-        "Posekit OpenPose viewport must expose its conditioning preview mode: {initial_openpose_viewport}"
+        initial_openpose_viewport.contains("bound_openpose=real_keypoints"),
+        "Posekit OpenPose viewport must be bound to real generated keypoints: {initial_openpose_viewport}"
+    );
+    assert!(
+        initial_openpose_viewport.contains("keypoint_source=live_preview"),
+        "with no backend export the OpenPose viewport must render the live preview keypoints: {initial_openpose_viewport}"
+    );
+    assert!(
+        initial_openpose_viewport.contains("keypoints_body=18"),
+        "the default body layer must render all 18 real body keypoints: {initial_openpose_viewport}"
+    );
+    let initial_signature = posekit_signature_token(initial_openpose_viewport);
+    assert!(
+        !initial_signature.is_empty(),
+        "OpenPose viewport must publish a keypoint signature: {initial_openpose_viewport}"
     );
     let initial_status = initial
         .find_by_author_id(ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID)
@@ -4829,15 +4862,11 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
         .expect("rigged Posekit viewport value");
     assert!(
         rigged_viewport.contains(&format!("rig_id={rig_id}")),
-        "Posekit rig/source viewport must consume the selected rig id: {rigged_viewport}"
+        "Posekit source viewport must consume the selected rig id: {rigged_viewport}"
     );
     assert!(
-        rigged_viewport.contains("viewport_mode=native_3d_projection_preview"),
-        "Posekit rig/source viewport must remain the native 3D projection preview: {rigged_viewport}"
-    );
-    assert!(
-        rigged_viewport.contains("projection=rig-linked-native-preview"),
-        "Posekit rig/source viewport must distinguish rig-linked preview metadata from no-rig procedural preview: {rigged_viewport}"
+        rigged_viewport.contains("Source image preview") && rigged_viewport.contains("source_image="),
+        "Posekit left viewport stays the real source-image surface after rigging: {rigged_viewport}"
     );
 
     let yaw_click = dispatch_request(
@@ -4898,6 +4927,19 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
         set_openpose_viewport.contains("yaw_deg=90"),
         "OpenPose viewport metadata must rerender with Argus-driven yaw changes: {set_openpose_viewport}"
     );
+    // MT-014 (a): the right viewport is bound to the REAL keypoints — driving the real yaw slider to
+    // 90 (via argus.set_value on a Role::Slider node) must MOVE the keypoints, so the signature over
+    // the actual rendered body coordinates must differ from the yaw=0 baseline.
+    assert!(
+        set_openpose_viewport.contains("bound_openpose=real_keypoints"),
+        "rotated OpenPose viewport must stay bound to real keypoints: {set_openpose_viewport}"
+    );
+    let rotated_signature = posekit_signature_token(set_openpose_viewport);
+    assert!(
+        !rotated_signature.is_empty() && rotated_signature != initial_signature,
+        "yaw rotation must re-render the OpenPose viewport from NEW real keypoints \
+         (signature {initial_signature} -> {rotated_signature})"
+    );
 
     let export_click = dispatch_request(
         &argus_req(
@@ -4921,8 +4963,18 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
         .and_then(|node| node.value.as_deref())
         .expect("exported Posekit status value");
     assert!(status.contains("Local Argus preview only"));
+    // MT-014 (c): the offline no-backend export must be explicitly labeled as NOT a real artifact so
+    // it can never be mistaken for the backend `artifact://` export.
+    assert!(
+        status.contains("offline preview, NOT a real artifact"),
+        "offline export status must be explicitly labeled as not a real artifact: {status}"
+    );
     assert!(status.contains("yaw_deg=90"));
     assert!(status.contains("preview://atelier/posekit/openpose/"));
+    assert!(
+        !status.contains("artifact://"),
+        "offline export status must not advertise real artifact refs: {status}"
+    );
     let export_ref = exported
         .find_by_author_id(ATELIER_POSE_EXPORT_REF_AUTHOR_ID)
         .and_then(|node| node.value.as_deref())
@@ -4953,6 +5005,84 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
         &mut harness,
         "wp-ckc-posekit-overhaul-mt-014",
         "posekit_split_export_desktop.png",
+    );
+}
+
+/// MT-014 left viewport: it displays the REAL decoded source image (never a fabricated tile). Proves
+/// the empty -> loaded (real bytes, true dimensions) -> decode-error transitions through the real
+/// `image` decode + `ctx.load_texture` path.
+#[test]
+fn posekit_source_viewport_displays_real_decoded_image() {
+    use image::ImageEncoder as _;
+
+    let mut harness = build_panel_harness();
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    let tab_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_POSEKIT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(tab_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    // No source bytes -> explicit empty state (not a fake tile).
+    let empty = snapshot_harness(&mut harness);
+    let empty_left = empty
+        .find_by_author_id(ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("empty Posekit source viewport value");
+    assert!(
+        empty_left.contains("source_image=empty"),
+        "left viewport must start in an explicit empty state: {empty_left}"
+    );
+
+    // Feed REAL PNG bytes and prove the viewport decodes them + reports the true dimensions.
+    let (w, h) = (37u32, 21u32);
+    let img = image::RgbaImage::from_pixel(w, h, image::Rgba([180, 90, 40, 255]));
+    let mut png = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut png)
+        .write_image(img.as_raw(), w, h, image::ExtendedColorType::Rgba8)
+        .expect("encode source PNG");
+    harness.state().set_pose_source_image_bytes(Some(png));
+    harness.run();
+
+    let loaded = snapshot_harness(&mut harness);
+    let loaded_left = loaded
+        .find_by_author_id(ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("loaded Posekit source viewport value");
+    assert!(
+        loaded_left.contains("source_image=loaded"),
+        "left viewport must display the real decoded source image: {loaded_left}"
+    );
+    assert!(
+        loaded_left.contains("dimensions=37x21"),
+        "left viewport must report the true decoded source dimensions: {loaded_left}"
+    );
+
+    // Invalid bytes -> explicit decode-error state (honest, never a silent fake).
+    harness
+        .state()
+        .set_pose_source_image_bytes(Some(vec![0x00, 0x01, 0x02, 0x03]));
+    harness.run();
+    let errored = snapshot_harness(&mut harness);
+    let errored_left = errored
+        .find_by_author_id(ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("errored Posekit source viewport value");
+    assert!(
+        errored_left.contains("source_image=decode_error"),
+        "a bad source image must surface an explicit decode error, not a fake tile: {errored_left}"
     );
 }
 

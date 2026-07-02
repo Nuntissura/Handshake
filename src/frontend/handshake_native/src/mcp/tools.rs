@@ -7,7 +7,7 @@
 //! |---------------------|---------------------------------------------|---------------------------------------------------|
 //! | `argus.inspect`    | `{}`                                        | the MT-026 [`UiTreeSnapshot`] JSON                 |
 //! | `argus.click`      | `{ "target": "<author_id>" }`               | `{ "queued": true, "action": "Click", "node_id": N }` |
-//! | `argus.set_value`  | `{ "target": "<TextInput author_id>", "value": "…" }` | `{ "queued": true, "action": "Focus", "node_id": N }` (TextInput only; Focus + select-all + text — see [`super::action`]) |
+//! | `argus.set_value`  | `{ "target": "<TextInput|Slider author_id>", "value": "…" }` | `{ "queued": true, "action": "Focus"\|"SetValue", "node_id": N }` (TextInput → Focus + select-all + text; Slider → numeric `Action::SetValue` — see [`super::action`]) |
 //! | `argus.screenshot` | `{}`                                        | `{ png_base64, width, height, captured_at_utc }`  |
 //!
 //! `list_widgets`, `click_widget`, `set_value`, and `screenshot` remain compatibility aliases for older
@@ -426,14 +426,18 @@ pub fn dispatch_request(
             ),
         },
         "set_value" => match parse_target_and_value(&request.params) {
-            Ok((target, value)) => enqueue_response(
-                request,
-                snapshot,
-                channel,
-                &target,
-                UiAction::SetValue { text: value },
-                argus_route,
-            ),
+            Ok((target, value)) => match resolve_set_value_action(snapshot, &target, value) {
+                Ok(action) => {
+                    enqueue_response(request, snapshot, channel, &target, action, argus_route)
+                }
+                Err(e) => McpResponse::err(
+                    request.id.clone(),
+                    McpError {
+                        code: e.code,
+                        message: e.message,
+                    },
+                ),
+            },
             Err(e) => McpResponse::err(
                 request.id.clone(),
                 McpError {
@@ -503,6 +507,36 @@ fn parse_target(params: &serde_json::Value) -> Result<String, McpToolError> {
                 "params.target (author_id string) required",
             )
         })
+}
+
+/// Choose the typed value-set action for a `set_value` request from the target's LIVE role.
+///
+/// A `Slider` target is driven with a real numeric `Action::SetValue` (egui's slider consumes it),
+/// so the model's string `value` is parsed to `f64` here — a non-numeric value for a slider is a
+/// typed [`ERR_INVALID_PARAMS`] error rather than a silently-dropped text event. Every other target
+/// (including a missing target, which [`ActionChannel::enqueue`] then reports as `UnknownTarget`)
+/// uses the TextInput text path unchanged. This keeps the red-team CONTROL intact: a Button/Label is
+/// still rejected by [`super::action::resolve_target`] for both value paths.
+fn resolve_set_value_action(
+    snapshot: &UiTreeSnapshot,
+    target: &str,
+    value: String,
+) -> Result<UiAction, McpToolError> {
+    let is_slider = snapshot
+        .find_by_author_id(target)
+        .map(|node| node.role == "Slider")
+        .unwrap_or(false);
+    if is_slider {
+        let parsed = value.trim().parse::<f64>().map_err(|_| {
+            McpToolError::new(
+                ERR_INVALID_PARAMS,
+                "params.value must be numeric for a slider target",
+            )
+        })?;
+        Ok(UiAction::SetSliderValue { value: parsed })
+    } else {
+        Ok(UiAction::SetValue { text: value })
+    }
 }
 
 /// Parse `target` + `value` for `set_value`.
@@ -743,6 +777,120 @@ mod tests {
                 .contains("SetValue"),
             "set_value rejection must name the unsupported SetValue action: {v}"
         );
+        assert_eq!(chan.pending(), 0);
+    }
+
+    #[test]
+    fn argus_set_value_on_slider_dispatches_numeric_setvalue() {
+        let token = SessionToken::from_hex("secret");
+        let mut chan = ActionChannel::new();
+        // A snapshot with a real Slider node (exposes the SetValue action).
+        let slider = UiTreeNode {
+            id: "yaw".to_owned(),
+            author_id: Some("atelier-pose-yaw-slider".to_owned()),
+            node_id: 21,
+            role: "Slider".to_owned(),
+            label: Some("Posekit yaw degrees".to_owned()),
+            value: Some("0".to_owned()),
+            disabled: false,
+            actions: vec!["SetValue".to_owned(), "Focus".to_owned()],
+            bounds: None,
+            children: Vec::new(),
+        };
+        let root = UiTreeNode {
+            id: "node:1".to_owned(),
+            author_id: None,
+            node_id: 1,
+            role: "Window".to_owned(),
+            label: None,
+            value: None,
+            disabled: false,
+            actions: Vec::new(),
+            bounds: None,
+            children: vec![slider],
+        };
+        let slider_snap = UiTreeSnapshot {
+            root,
+            captured_at_utc: "0Z".to_owned(),
+            widget_count: 2,
+        };
+        let r = dispatch_request(
+            &req(
+                "argus.set_value",
+                serde_json::json!({"target": "atelier-pose-yaw-slider", "value": "90"}),
+                "secret",
+            ),
+            &token,
+            &slider_snap,
+            &mut chan,
+            ok_capture,
+        );
+        let v = r.to_json();
+        assert_eq!(v["result"]["queued"], true);
+        // The reported action is the REAL SetValue (not the TextInput Focus fallback).
+        assert_eq!(v["result"]["action"], "SetValue");
+        assert_eq!(v["result"]["node_id"], 21);
+        assert_eq!(chan.pending(), 1);
+        // The drained event is a single AccessKitActionRequest carrying NumericValue(90) — no text.
+        let events = chan.drain_into_events();
+        assert_eq!(events.len(), 1, "slider steering must not emit text events");
+        match &events[0] {
+            egui::Event::AccessKitActionRequest(request) => {
+                assert_eq!(request.action, accesskit::Action::SetValue);
+                assert!(matches!(
+                    request.data,
+                    Some(accesskit::ActionData::NumericValue(val)) if (val - 90.0).abs() < f64::EPSILON
+                ));
+            }
+            other => panic!("expected a numeric AccessKit SetValue request, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn argus_set_value_on_slider_rejects_non_numeric_value() {
+        let token = SessionToken::from_hex("secret");
+        let mut chan = ActionChannel::new();
+        let slider = UiTreeNode {
+            id: "yaw".to_owned(),
+            author_id: Some("atelier-pose-yaw-slider".to_owned()),
+            node_id: 22,
+            role: "Slider".to_owned(),
+            label: None,
+            value: Some("0".to_owned()),
+            disabled: false,
+            actions: vec!["SetValue".to_owned(), "Focus".to_owned()],
+            bounds: None,
+            children: Vec::new(),
+        };
+        let root = UiTreeNode {
+            id: "node:1".to_owned(),
+            author_id: None,
+            node_id: 1,
+            role: "Window".to_owned(),
+            label: None,
+            value: None,
+            disabled: false,
+            actions: Vec::new(),
+            bounds: None,
+            children: vec![slider],
+        };
+        let slider_snap = UiTreeSnapshot {
+            root,
+            captured_at_utc: "0Z".to_owned(),
+            widget_count: 2,
+        };
+        let r = dispatch_request(
+            &req(
+                "argus.set_value",
+                serde_json::json!({"target": "atelier-pose-yaw-slider", "value": "not-a-number"}),
+                "secret",
+            ),
+            &token,
+            &slider_snap,
+            &mut chan,
+            ok_capture,
+        );
+        assert!(r.is_error_code(ERR_INVALID_PARAMS));
         assert_eq!(chan.pending(), 0);
     }
 

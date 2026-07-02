@@ -367,6 +367,36 @@ impl PosekitExportSnapshot {
     }
 }
 
+/// Panel-owned decode cache for the Posekit source image (left viewport). Holds the raw source
+/// bytes (PNG/JPEG/WebP/GIF) plus the decoded `egui::TextureHandle` so the real image is uploaded to
+/// the GPU once per byte change rather than every frame. Default = no source loaded (empty state).
+///
+/// MT-014 de-scaffold: this replaces the previous hash-derived colour tile. The left viewport now
+/// shows the REAL decoded source image when bytes are present, or an explicit empty state — never a
+/// fabricated tile. The bytes are supplied by [`AtelierPanel::set_pose_source_image_bytes`]; wiring a
+/// DAM/`ckc_client` fetch that populates them from `source_asset_id` is tracked as follow-up (there is
+/// no source-asset byte-fetch route in the frontend client yet).
+#[derive(Default)]
+struct PoseSourceImageCache {
+    bytes: Option<Vec<u8>>,
+    hash: Option<u64>,
+    texture: Option<egui::TextureHandle>,
+    dims: Option<(usize, usize)>,
+    error: Option<String>,
+}
+
+/// What the left (source-image) viewport should paint this frame — a real decoded texture, an
+/// explicit decode error, or an explicit empty state. There is deliberately no "fake tile" variant.
+enum PoseSourceRender {
+    Empty,
+    Loaded {
+        texture: egui::TextureHandle,
+        width: usize,
+        height: usize,
+    },
+    DecodeError(String),
+}
+
 #[derive(Debug, Clone)]
 struct ContactSheetExportSnapshot {
     source_kind: String,
@@ -3041,6 +3071,10 @@ fn posekit_export_snapshot(state: &AtelierPanelState) -> Result<PosekitExportSna
         openpose_json
     );
     let content_hash = stable_posekit_hash(&hash_basis);
+    // OFFLINE-PREVIEW-ONLY refs. The no-backend path deliberately emits `preview://` (never
+    // `artifact://`) and materializes no PNG bytes, so it can never be mistaken for the real backend
+    // export. The real export path (`AtelierClient::export_posekit_openpose`) produces `artifact://`
+    // ArtifactStore refs; the UI status labels this preview explicitly as "not a real artifact".
     let png_artifact_ref = format!("preview://atelier/posekit/openpose/{content_hash}/png/payload");
     let png_manifest_ref =
         format!("preview://atelier/posekit/openpose/{content_hash}/png/manifest");
@@ -3092,6 +3126,17 @@ fn posekit_export_snapshot_from_backend(row: AtelierPosekitExportRow) -> Posekit
     }
 }
 
+/// OFFLINE-PREVIEW-ONLY OpenPose JSON generator.
+///
+/// This is the frontend's local, no-backend preview generator. It intentionally reproduces the
+/// backend `generate_posekit_openpose_export` keypoint layout so the split-view can show a faithful
+/// live preview when no backend is connected, but it is NOT the real export: the produced JSON is
+/// tagged `"preview_only": true`, and the local export path built on it emits `preview://` refs, never
+/// `artifact://`. The backend (`AtelierClient::export_posekit_openpose` →
+/// `handshake_core::atelier::pose`) remains the single source of truth for real exports; when a
+/// backend export result exists the split-view binds to THAT `openpose_json` instead of this preview.
+/// Keep the two in sync deliberately — this duplication exists only because the frontend cannot link
+/// the backend crate's generator directly.
 fn posekit_openpose_json(
     source_ref: &str,
     rig_id: Option<&str>,
@@ -3401,6 +3446,8 @@ fn posekit_json_confidence(value: f32) -> serde_json::Value {
     serde_json::json!((value * 100.0).round() / 100.0)
 }
 
+/// OFFLINE-PREVIEW-ONLY body-keypoint generator (see [`posekit_openpose_json`]). Duplicates the
+/// backend `posekit_body_keypoints` layout for the no-backend live preview; not authoritative.
 fn posekit_body_keypoints(yaw_deg: f32, pitch_deg: f32, zoom: f32, visible: bool) -> Vec<f32> {
     if !visible {
         return zero_keypoints(POSEKIT_BODY_KEYPOINT_COUNT);
@@ -3482,6 +3529,7 @@ fn posekit_body_keypoints(yaw_deg: f32, pitch_deg: f32, zoom: f32, visible: bool
     flatten_keypoints(&points)
 }
 
+/// OFFLINE-PREVIEW-ONLY face-keypoint generator (see [`posekit_openpose_json`]); not authoritative.
 fn posekit_face_keypoints(yaw_deg: f32, pitch_deg: f32, zoom: f32, visible: bool) -> Vec<f32> {
     if !visible {
         return zero_keypoints(POSEKIT_FACE_KEYPOINT_COUNT);
@@ -3502,6 +3550,7 @@ fn posekit_face_keypoints(yaw_deg: f32, pitch_deg: f32, zoom: f32, visible: bool
     flatten_keypoints(&points)
 }
 
+/// OFFLINE-PREVIEW-ONLY hand-keypoint generator (see [`posekit_openpose_json`]); not authoritative.
 fn posekit_hand_keypoints(
     yaw_deg: f32,
     pitch_deg: f32,
@@ -4679,6 +4728,9 @@ pub struct AtelierPanel {
     ckc_search_cell: AtelierCkcSearchCell,
     ckc_tag_note_cell: AtelierCkcTagNoteCell,
     pose_export_cell: AtelierPosekitExportCell,
+    /// Decode cache for the Posekit source image (left viewport). Interior-mutable so the `&self`
+    /// render path can (re)upload the texture when the bytes change.
+    pose_source_image: Mutex<PoseSourceImageCache>,
     ingest_contact_export_cell: AtelierContactSheetExportCell,
     ingest_facial_analysis_cell: AtelierFacialIngestAnalysisCell,
     ingest_classification_cell: AtelierIntakeClassificationCell,
@@ -4734,6 +4786,7 @@ impl AtelierPanel {
             ckc_search_cell: Arc::new(Mutex::new(None)),
             ckc_tag_note_cell: Arc::new(Mutex::new(None)),
             pose_export_cell: Arc::new(Mutex::new(None)),
+            pose_source_image: Mutex::new(PoseSourceImageCache::default()),
             ingest_contact_export_cell: Arc::new(Mutex::new(None)),
             ingest_facial_analysis_cell: Arc::new(Mutex::new(None)),
             ingest_classification_cell: Arc::new(Mutex::new(None)),
@@ -9125,8 +9178,81 @@ impl AtelierPanel {
         }
     }
 
+    /// Supply (or clear) the raw bytes of the Posekit source image shown in the left viewport. Real
+    /// image bytes (PNG/JPEG/WebP/GIF) are decoded and uploaded lazily on the next render. Passing
+    /// `None` clears the image and returns the viewport to its explicit empty state. This is the seam a
+    /// future DAM/`ckc_client` source-asset fetch (or a test) uses to feed real bytes in.
+    pub fn set_pose_source_image_bytes(&self, bytes: Option<Vec<u8>>) {
+        if let Ok(mut cache) = self.pose_source_image.lock() {
+            if cache.bytes != bytes {
+                cache.bytes = bytes;
+                // Force a re-decode/upload next frame.
+                cache.hash = None;
+                cache.texture = None;
+                cache.dims = None;
+                cache.error = None;
+            }
+        }
+    }
+
+    /// Decode + upload the cached source-image bytes into a GPU texture (once per byte change) and
+    /// report what the left viewport should paint. Real bytes → `Loaded`; a decode failure → an
+    /// explicit `DecodeError`; no bytes → `Empty`. Never returns a fabricated placeholder.
+    fn prepare_pose_source_render(&self, ctx: &egui::Context) -> PoseSourceRender {
+        let Ok(mut cache) = self.pose_source_image.lock() else {
+            return PoseSourceRender::Empty;
+        };
+        let Some(bytes) = cache.bytes.clone() else {
+            cache.hash = None;
+            cache.texture = None;
+            cache.dims = None;
+            cache.error = None;
+            return PoseSourceRender::Empty;
+        };
+        let hash = stable_bytes_hash(&bytes);
+        let needs_decode = cache.hash != Some(hash)
+            || (cache.texture.is_none() && cache.error.is_none());
+        if needs_decode {
+            match image::load_from_memory(&bytes) {
+                Ok(dynamic) => {
+                    let rgba = dynamic.to_rgba8();
+                    let (w, h) = (rgba.width() as usize, rgba.height() as usize);
+                    let color =
+                        egui::ColorImage::from_rgba_unmultiplied([w, h], rgba.as_raw());
+                    let handle = ctx.load_texture(
+                        "atelier-pose-source-image",
+                        color,
+                        egui::TextureOptions::LINEAR,
+                    );
+                    cache.texture = Some(handle);
+                    cache.dims = Some((w, h));
+                    cache.error = None;
+                    cache.hash = Some(hash);
+                }
+                Err(err) => {
+                    cache.texture = None;
+                    cache.dims = None;
+                    cache.error = Some(err.to_string());
+                    cache.hash = Some(hash);
+                }
+            }
+        }
+        if let Some(err) = cache.error.clone() {
+            return PoseSourceRender::DecodeError(err);
+        }
+        match (cache.texture.clone(), cache.dims) {
+            (Some(texture), Some((width, height))) => PoseSourceRender::Loaded {
+                texture,
+                width,
+                height,
+            },
+            _ => PoseSourceRender::Empty,
+        }
+    }
+
     fn show_posekit(&self, ui: &mut egui::Ui, palette: &HsPalette) {
         self.drain_posekit_export_backend();
+        let source_render = self.prepare_pose_source_render(ui.ctx());
         let Ok(mut state) = self.state.lock() else {
             return;
         };
@@ -9256,56 +9382,75 @@ impl AtelierPanel {
                 posekit_warn_for_disabled_staged_marker_edits(&mut state);
             }
         });
+        // Real egui sliders (MT-014 de-scaffold: these were text inputs wearing `-slider` author_ids).
+        // Each stays Argus-steerable: `emit_pose_slider_node` publishes a `Role::Slider` node with the
+        // stable author_id plus a numeric value/min/max/step and the `SetValue` action, and egui's
+        // built-in slider consumes the numeric `Action::SetValue` an out-of-process model dispatches
+        // via `argus.set_value` (see `mcp::action::UiAction::SetSliderValue`).
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Yaw").color(palette.text));
-            let mut yaw_text = format!("{:.0}", state.pose_yaw);
-            let yaw = ui.text_edit_singleline(&mut yaw_text);
-            if yaw.changed() {
-                if let Ok(value) = yaw_text.trim().parse::<f32>() {
-                    state.pose_yaw = value.clamp(-180.0, 180.0);
-                }
+            let mut yaw = state.pose_yaw;
+            let yaw_resp = ui.add(
+                egui::Slider::new(&mut yaw, -180.0..=180.0)
+                    .step_by(1.0)
+                    .fixed_decimals(0),
+            );
+            if yaw_resp.changed() {
+                state.pose_yaw = yaw.clamp(-180.0, 180.0);
             }
-            emit_value_node(
+            emit_pose_slider_node(
                 ui.ctx(),
-                yaw.id,
-                accesskit::Role::TextInput,
+                yaw_resp.id,
                 ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
                 "Posekit yaw degrees",
-                &format!("{:.0}", state.pose_yaw),
+                state.pose_yaw as f64,
+                -180.0,
+                180.0,
+                1.0,
             );
-
+        });
+        ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Pitch").color(palette.text));
-            let mut pitch_text = format!("{:.0}", state.pose_pitch);
-            let pitch = ui.text_edit_singleline(&mut pitch_text);
-            if pitch.changed() {
-                if let Ok(value) = pitch_text.trim().parse::<f32>() {
-                    state.pose_pitch = value.clamp(-45.0, 45.0);
-                }
+            let mut pitch = state.pose_pitch;
+            let pitch_resp = ui.add(
+                egui::Slider::new(&mut pitch, -45.0..=45.0)
+                    .step_by(1.0)
+                    .fixed_decimals(0),
+            );
+            if pitch_resp.changed() {
+                state.pose_pitch = pitch.clamp(-45.0, 45.0);
             }
-            emit_value_node(
+            emit_pose_slider_node(
                 ui.ctx(),
-                pitch.id,
-                accesskit::Role::TextInput,
+                pitch_resp.id,
                 ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
                 "Posekit pitch degrees",
-                &format!("{:.0}", state.pose_pitch),
+                state.pose_pitch as f64,
+                -45.0,
+                45.0,
+                1.0,
             );
-
+        });
+        ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Zoom").color(palette.text));
-            let mut zoom_text = format!("{:.2}", state.pose_zoom);
-            let zoom = ui.text_edit_singleline(&mut zoom_text);
-            if zoom.changed() {
-                if let Ok(value) = zoom_text.trim().parse::<f32>() {
-                    state.pose_zoom = value.clamp(0.4, 2.2);
-                }
+            let mut zoom = state.pose_zoom;
+            let zoom_resp = ui.add(
+                egui::Slider::new(&mut zoom, 0.4..=2.2)
+                    .step_by(0.01)
+                    .fixed_decimals(2),
+            );
+            if zoom_resp.changed() {
+                state.pose_zoom = zoom.clamp(0.4, 2.2);
             }
-            emit_value_node(
+            emit_pose_slider_node(
                 ui.ctx(),
-                zoom.id,
-                accesskit::Role::TextInput,
+                zoom_resp.id,
                 ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
                 "Posekit zoom",
-                &format!("{:.2}", state.pose_zoom),
+                state.pose_zoom as f64,
+                0.4,
+                2.2,
+                0.01,
             );
         });
         ui.add_space(4.0);
@@ -9618,40 +9763,58 @@ impl AtelierPanel {
             &framing_readout,
         );
         ui.separator();
+        // Bind the right viewport to the REAL generated OpenPose keypoints (single source of truth):
+        // prefer the backend export's `openpose_json` when one exists; otherwise render the live
+        // offline-preview keypoints produced by the SAME `posekit_openpose_json` the local export path
+        // uses. Either way the viewport paints the genuine keypoints that would be exported, not a
+        // hand-authored schematic.
+        let (openpose_render_json, openpose_bound_source) =
+            if let Some(snapshot) = state.pose_last_export.as_ref() {
+                (snapshot.openpose_json.clone(), "backend_export")
+            } else {
+                let marker_edits = posekit_marker_edits_json(&state.pose_marker_edits);
+                let framing = posekit_framing_json_from_state(&state);
+                let json = posekit_openpose_json(
+                    &state.pose_source_ref,
+                    posekit_optional_rig_id(&state.pose_rig_id).as_deref(),
+                    state.pose_yaw,
+                    state.pose_pitch,
+                    state.pose_zoom,
+                    state.pose_face,
+                    state.pose_body,
+                    state.pose_hands,
+                    &marker_edits,
+                    &framing,
+                );
+                (json, "live_preview")
+            };
         let split = ui
             .scope_builder(
                 egui::UiBuilder::new().id_salt(ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID),
                 |ui| {
                     ui.columns(2, |cols| {
-                        draw_pose_view(
+                        draw_pose_source_view(
                             &mut cols[0],
                             palette,
-                            "3D rig/source preview",
                             ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
-                            state.pose_yaw,
-                            state.pose_pitch,
-                            state.pose_zoom,
-                            state.pose_face,
-                            state.pose_body,
-                            state.pose_hands,
                             &state.pose_source_ref,
                             posekit_optional_rig_id(&state.pose_rig_id).as_deref(),
-                            false,
+                            &source_render,
                         );
-                        draw_pose_view(
+                        draw_pose_openpose_view(
                             &mut cols[1],
                             palette,
-                            "OpenPose preview",
                             ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
+                            &openpose_render_json,
+                            openpose_bound_source,
+                            &state.pose_source_ref,
+                            posekit_optional_rig_id(&state.pose_rig_id).as_deref(),
                             state.pose_yaw,
                             state.pose_pitch,
                             state.pose_zoom,
                             state.pose_face,
                             state.pose_body,
                             state.pose_hands,
-                            &state.pose_source_ref,
-                            posekit_optional_rig_id(&state.pose_rig_id).as_deref(),
-                            true,
                         );
                     });
                 },
@@ -9726,7 +9889,7 @@ impl AtelierPanel {
                 match posekit_export_snapshot(&state) {
                     Ok(snapshot) => {
                         state.pose_export_status = format!(
-                            "Local Argus preview only: yaw_deg={:.0} png_artifact_ref={} json_artifact_ref={} receipt_ref={}",
+                            "Local Argus preview only (offline preview, NOT a real artifact export; refs use the preview:// scheme only — connect a backend to produce real ArtifactStore refs): yaw_deg={:.0} png_artifact_ref={} json_artifact_ref={} receipt_ref={}",
                             snapshot.yaw_deg,
                             snapshot.png_artifact_ref,
                             snapshot.json_artifact_ref,
@@ -10572,231 +10735,190 @@ fn palette_of(cell: &SharedPalette) -> HsPalette {
         .unwrap_or_else(|p| p.into_inner().clone())
 }
 
-fn draw_pose_view(
+/// Left viewport: the REAL Posekit source image, or an explicit empty / decode-error state.
+///
+/// MT-014 de-scaffold: the previous implementation painted a hash-derived colour tile plus a
+/// procedural 3D skeleton, neither bound to the actual source asset. This now displays the decoded
+/// source-image texture when bytes are available and otherwise an honest empty state — it never
+/// fabricates a stand-in. Source bytes arrive via [`AtelierPanel::set_pose_source_image_bytes`].
+fn draw_pose_source_view(
     ui: &mut egui::Ui,
     palette: &HsPalette,
-    label: &str,
     author_id: &str,
+    source_ref: &str,
+    rig_id: Option<&str>,
+    render: &PoseSourceRender,
+) {
+    ui.label(
+        egui::RichText::new("Source image preview")
+            .strong()
+            .color(palette.text),
+    );
+    let height = 260.0;
+    let width = ui.available_width().max(180.0);
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, 4.0, palette.surface);
+    painter.rect_stroke(
+        rect,
+        4.0,
+        egui::Stroke::new(1.0, palette.border),
+        egui::StrokeKind::Inside,
+    );
+
+    let (state_token, detail) = match render {
+        PoseSourceRender::Loaded {
+            texture,
+            width: w,
+            height: h,
+        } => {
+            let image_rect = fit_rect_preserving_aspect(rect.shrink(8.0), *w as f32, *h as f32);
+            let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+            painter.image(texture.id(), image_rect, uv, egui::Color32::WHITE);
+            ("loaded", format!("dimensions={w}x{h}"))
+        }
+        PoseSourceRender::DecodeError(err) => {
+            painter.text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "Source image could not be decoded",
+                egui::FontId::proportional(13.0),
+                palette.text_subtle,
+            );
+            ("decode_error", format!("error={err}"))
+        }
+        PoseSourceRender::Empty => {
+            let message = if source_ref.trim().is_empty() {
+                "No source image — set a source ref or a rig with a source asset"
+            } else {
+                "No decoded source image for this ref yet (awaiting source-asset bytes)"
+            };
+            painter.text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                message,
+                egui::FontId::proportional(13.0),
+                palette.text_subtle,
+            );
+            ("empty", "dimensions=none".to_owned())
+        }
+    };
+
+    let node_label = format!(
+        "Source image preview source_ref={} rig_id={} source_image={} {}",
+        source_ref,
+        rig_id.unwrap_or("<none>"),
+        state_token,
+        detail
+    );
+    emit_value_node(
+        ui.ctx(),
+        response.id,
+        accesskit::Role::Group,
+        author_id,
+        &node_label,
+        &node_label,
+    );
+}
+
+/// Right viewport: paints the REAL OpenPose keypoints carried in `openpose_json` — the SAME structure
+/// the export produces (the backend export result when one exists, else the live offline-preview
+/// keypoints from [`posekit_openpose_json`]). Mirrors the backend `render_posekit_openpose_png`
+/// geometry (COCO-18 bones + amber body/face joints + green hands), so the preview is the genuine
+/// OpenPose that would be exported rather than a hand-authored schematic.
+#[allow(clippy::too_many_arguments)]
+fn draw_pose_openpose_view(
+    ui: &mut egui::Ui,
+    palette: &HsPalette,
+    author_id: &str,
+    openpose_json: &serde_json::Value,
+    bound_source: &str,
+    source_ref: &str,
+    rig_id: Option<&str>,
     yaw: f32,
     pitch: f32,
     zoom: f32,
     face: bool,
     body: bool,
     hands: bool,
-    source_ref: &str,
-    rig_id: Option<&str>,
-    openpose: bool,
 ) {
-    ui.label(egui::RichText::new(label).strong().color(palette.text));
+    ui.label(
+        egui::RichText::new("OpenPose preview")
+            .strong()
+            .color(palette.text),
+    );
     let height = 260.0;
     let width = ui.available_width().max(180.0);
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
     let painter = ui.painter_at(rect);
-    painter.rect_filled(
-        rect,
-        4.0,
-        if openpose {
-            egui::Color32::BLACK
-        } else {
-            palette.surface
-        },
-    );
+    painter.rect_filled(rect, 4.0, egui::Color32::BLACK);
 
-    let center = rect.center() + egui::vec2(yaw / 180.0 * 24.0, pitch / 45.0 * 18.0);
-    let scale = zoom.clamp(0.4, 2.2);
-    let head_r = 22.0 * scale;
-    let torso = 64.0 * scale;
-    let color = if openpose {
-        egui::Color32::from_rgb(70, 220, 255)
-    } else {
-        palette.accent
-    };
-    let muted = if openpose {
-        egui::Color32::from_rgb(255, 190, 80)
-    } else {
-        palette.text_subtle
-    };
-    let faint = if openpose {
-        egui::Color32::from_gray(70)
-    } else {
-        palette.border
-    };
-    let viewport_mode = if openpose {
-        "openpose_conditioning_preview"
-    } else {
-        "native_3d_projection_preview"
-    };
-    let projection_mode = if rig_id.is_some() {
-        "rig-linked-native-preview"
-    } else {
-        "procedural-posekit-preview"
-    };
-    let source_fingerprint =
-        stable_posekit_hash(&format!("{}|{}", source_ref, rig_id.unwrap_or("<none>")));
+    let body_pts = posekit_viewport_points(openpose_json, "pose_keypoints_2d");
+    let face_pts = posekit_viewport_points(openpose_json, "face_keypoints_2d");
+    let left_hand = posekit_viewport_points(openpose_json, "hand_left_keypoints_2d");
+    let right_hand = posekit_viewport_points(openpose_json, "hand_right_keypoints_2d");
 
-    if !openpose {
-        let tint_r = u8::from_str_radix(&source_fingerprint[0..2], 16).unwrap_or(96);
-        let tint_g = u8::from_str_radix(&source_fingerprint[2..4], 16).unwrap_or(128);
-        let tint_b = u8::from_str_radix(&source_fingerprint[4..6], 16).unwrap_or(160);
-        let source_tile = egui::Rect::from_min_size(
-            rect.left_top() + egui::vec2(12.0, 12.0),
-            egui::vec2(74.0, 48.0),
-        );
-        painter.rect_filled(
-            source_tile,
-            3.0,
-            egui::Color32::from_rgb(32 + tint_r / 4, 32 + tint_g / 4, 32 + tint_b / 4),
-        );
-        painter.rect_stroke(
-            source_tile,
-            3.0,
-            egui::Stroke::new(1.0, muted),
-            egui::StrokeKind::Outside,
-        );
-        let floor_y = rect.top() + height * 0.74;
-        for step in 0..4 {
-            let y = floor_y + step as f32 * 12.0 * scale;
-            if y < rect.bottom() - 8.0 {
-                painter.line_segment(
-                    [
-                        egui::pos2(rect.left() + 12.0, y),
-                        egui::pos2(rect.right() - 12.0, y),
-                    ],
-                    egui::Stroke::new(1.0, faint),
-                );
+    let (canvas_w, canvas_h) = posekit_viewport_canvas(openpose_json);
+    let content = rect.shrink(6.0);
+    let scale = (content.width() / canvas_w).min(content.height() / canvas_h);
+    let origin = content.center() - egui::vec2(canvas_w * scale * 0.5, canvas_h * scale * 0.5);
+    let map = |p: &(f32, f32, f32)| origin + egui::vec2(p.0 * scale, p.1 * scale);
+
+    let cyan = egui::Color32::from_rgb(70, 220, 255);
+    let amber = egui::Color32::from_rgb(255, 190, 80);
+    let green = egui::Color32::from_rgb(120, 255, 150);
+
+    // Body bones (COCO-18 connectivity — identical pairs to the backend PNG renderer).
+    if body_pts.len() >= POSEKIT_BODY_KEYPOINT_COUNT {
+        for (a, b) in POSEKIT_VIEWPORT_BODY_BONES {
+            let (from, to) = (body_pts[a], body_pts[b]);
+            if posekit_point_visible(from) && posekit_point_visible(to) {
+                painter.line_segment([map(&from), map(&to)], egui::Stroke::new(2.0, cyan));
             }
         }
-        let yaw_radians = yaw.to_radians();
-        let pelvis = center + egui::vec2(0.0, torso * 0.45);
-        let yaw_tip = pelvis
-            + egui::vec2(
-                yaw_radians.sin() * 54.0 * scale,
-                -yaw_radians.cos() * 20.0 * scale,
-            );
-        painter.circle_stroke(pelvis, 58.0 * scale, egui::Stroke::new(1.0, faint));
-        painter.line_segment([pelvis, yaw_tip], egui::Stroke::new(2.0, muted));
-        painter.circle_filled(yaw_tip, 3.0, muted);
-
-        let yaw_radians = yaw.to_radians();
-        let pitch_radians = pitch.to_radians();
-        let project = |x: f32, y: f32, z: f32| {
-            let yaw_x = x * yaw_radians.cos() + z * yaw_radians.sin();
-            let yaw_z = -x * yaw_radians.sin() + z * yaw_radians.cos();
-            let pitch_y = y * pitch_radians.cos() - yaw_z * pitch_radians.sin();
-            let pitch_z = y * pitch_radians.sin() + yaw_z * pitch_radians.cos();
-            let perspective = 1.0 / (1.0 + (pitch_z + 220.0).max(16.0) / 760.0);
-            center + egui::vec2(yaw_x * perspective * scale, pitch_y * perspective * scale)
-        };
-        let neck = project(0.0, -92.0, 28.0);
-        let pelvis_3d = project(0.0, 28.0, -20.0);
-        let left_shoulder = project(-76.0, -76.0, 8.0);
-        let right_shoulder = project(76.0, -76.0, 8.0);
-        let left_hand = project(-128.0, 8.0, -18.0);
-        let right_hand = project(128.0, 8.0, -18.0);
-        let left_foot = project(-44.0, 164.0, 12.0);
-        let right_foot = project(44.0, 164.0, 12.0);
-        let projection_stroke = egui::Stroke::new(3.0, color);
-        for (from, to) in [
-            (neck, pelvis_3d),
-            (left_shoulder, right_shoulder),
-            (left_shoulder, left_hand),
-            (right_shoulder, right_hand),
-            (pelvis_3d, left_foot),
-            (pelvis_3d, right_foot),
-        ] {
-            painter.line_segment([from, to], projection_stroke);
-        }
-        for joint in [
-            neck,
-            pelvis_3d,
-            left_shoulder,
-            right_shoulder,
-            left_hand,
-            right_hand,
-            left_foot,
-            right_foot,
-        ] {
-            painter.circle_filled(joint, 4.0, muted);
-        }
-    }
-
-    let stroke = egui::Stroke::new(2.0, if body { color } else { faint });
-    if face || !openpose {
-        painter.circle_stroke(center + egui::vec2(0.0, -58.0 * scale), head_r, stroke);
-    }
-    if body || !openpose {
-        painter.line_segment(
-            [
-                center + egui::vec2(0.0, -36.0 * scale),
-                center + egui::vec2(0.0, torso * 0.45),
-            ],
-            stroke,
-        );
-        painter.line_segment(
-            [
-                center + egui::vec2(-42.0 * scale, -8.0 * scale),
-                center + egui::vec2(42.0 * scale, -8.0 * scale),
-            ],
-            stroke,
-        );
-        painter.line_segment(
-            [
-                center + egui::vec2(-28.0 * scale, torso * 0.95),
-                center + egui::vec2(0.0, torso * 0.45),
-            ],
-            stroke,
-        );
-        painter.line_segment(
-            [
-                center + egui::vec2(28.0 * scale, torso * 0.95),
-                center + egui::vec2(0.0, torso * 0.45),
-            ],
-            stroke,
-        );
-    }
-
-    if openpose {
-        if face {
-            for point in [
-                center + egui::vec2(0.0, -58.0 * scale),
-                center + egui::vec2(-10.0 * scale, -62.0 * scale),
-                center + egui::vec2(10.0 * scale, -62.0 * scale),
-                center + egui::vec2(0.0, -50.0 * scale),
-            ] {
-                painter.circle_filled(point, 3.5, muted);
-            }
-        }
-        if body {
-            for point in [
-                center + egui::vec2(-42.0 * scale, -8.0 * scale),
-                center + egui::vec2(42.0 * scale, -8.0 * scale),
-                center + egui::vec2(0.0, torso * 0.45),
-                center + egui::vec2(-28.0 * scale, torso * 0.95),
-                center + egui::vec2(28.0 * scale, torso * 0.95),
-            ] {
-                painter.circle_filled(point, 3.5, muted);
-            }
-        }
-        if hands {
-            for side in [-1.0_f32, 1.0_f32] {
-                for joint in 0..5 {
-                    let point = center
-                        + egui::vec2(
-                            side * (66.0 + joint as f32 * 5.0) * scale,
-                            (18.0 - joint as f32 * 6.0) * scale,
-                        );
-                    painter.circle_filled(point, 2.8, egui::Color32::from_rgb(120, 255, 150));
-                }
+        for point in &body_pts {
+            if posekit_point_visible(*point) {
+                painter.circle_filled(map(point), 3.5, amber);
             }
         }
     }
+    // Face joints.
+    for point in &face_pts {
+        if posekit_point_visible(*point) {
+            painter.circle_filled(map(point), 2.4, amber);
+        }
+    }
+    // Hands (finger bones + joints), mirroring the backend hand connectivity.
+    for hand in [&left_hand, &right_hand] {
+        draw_pose_viewport_hand(&painter, hand, &map, green);
+    }
+
+    let body_visible = body_pts.iter().filter(|p| posekit_point_visible(**p)).count();
+    let face_visible = face_pts.iter().filter(|p| posekit_point_visible(**p)).count();
+    let left_visible = left_hand.iter().filter(|p| posekit_point_visible(**p)).count();
+    let right_visible = right_hand.iter().filter(|p| posekit_point_visible(**p)).count();
+    let rendered = body_visible + face_visible + left_visible + right_visible;
+    // Signature over the ACTUAL rendered body coordinates: it changes whenever the real keypoints move
+    // (e.g. a yaw rotation), which is what proves the viewport is bound to the generated keypoints and
+    // not to a fixed schematic.
+    let signature_source = body_pts
+        .iter()
+        .map(|(x, y, c)| format!("{x:.1},{y:.1},{c:.2}"))
+        .collect::<Vec<_>>()
+        .join(";");
+    let signature = stable_posekit_hash(&signature_source);
+
     let node_label = format!(
-        "{label} viewport_mode={} projection={} source_ref={} rig_id={} source_fingerprint={} yaw_deg={:.0} pitch_deg={:.0} zoom={:.2} markers={}",
-        viewport_mode,
-        projection_mode,
+        "OpenPose preview bound_openpose=real_keypoints keypoint_source={} keypoints_body={} keypoints_face={} keypoints_hand_left={} keypoints_hand_right={} rendered_points={} keypoint_signature={} source_ref={} rig_id={} yaw_deg={:.0} pitch_deg={:.0} zoom={:.2} markers={}",
+        bound_source,
+        body_visible,
+        face_visible,
+        left_visible,
+        right_visible,
+        rendered,
+        &signature[..12],
         source_ref,
         rig_id.unwrap_or("<none>"),
-        &source_fingerprint[..12],
         yaw,
         pitch,
         zoom,
@@ -10810,6 +10932,120 @@ fn draw_pose_view(
         &node_label,
         &node_label,
     );
+}
+
+/// COCO-18 body bone connectivity, identical to the backend `render_posekit_openpose_png` pairs.
+const POSEKIT_VIEWPORT_BODY_BONES: [(usize, usize); 17] = [
+    (0, 1),
+    (1, 2),
+    (2, 3),
+    (3, 4),
+    (1, 5),
+    (5, 6),
+    (6, 7),
+    (1, 8),
+    (8, 9),
+    (9, 10),
+    (1, 11),
+    (11, 12),
+    (12, 13),
+    (0, 14),
+    (14, 16),
+    (0, 15),
+    (15, 17),
+];
+
+/// Read one keypoint array (`people[0][field]`) from an OpenPose JSON as (x, y, confidence) triples.
+/// Tolerant: a missing/short array yields an empty vec (the viewport simply draws nothing for it).
+fn posekit_viewport_points(openpose_json: &serde_json::Value, field: &str) -> Vec<(f32, f32, f32)> {
+    let Some(values) = openpose_json
+        .get("people")
+        .and_then(|people| people.as_array())
+        .and_then(|people| people.first())
+        .and_then(|person| person.get(field))
+        .and_then(|value| value.as_array())
+    else {
+        return Vec::new();
+    };
+    values
+        .chunks_exact(3)
+        .map(|chunk| {
+            (
+                chunk[0].as_f64().unwrap_or(0.0) as f32,
+                chunk[1].as_f64().unwrap_or(0.0) as f32,
+                chunk[2].as_f64().unwrap_or(0.0) as f32,
+            )
+        })
+        .collect()
+}
+
+/// Canvas size from the OpenPose JSON, defaulting to the 768×768 export canvas.
+fn posekit_viewport_canvas(openpose_json: &serde_json::Value) -> (f32, f32) {
+    let canvas = openpose_json.get("canvas");
+    let width = canvas
+        .and_then(|c| c.get("width"))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(POSEKIT_EXPORT_WIDTH as f64) as f32;
+    let height = canvas
+        .and_then(|c| c.get("height"))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(POSEKIT_EXPORT_HEIGHT as f64) as f32;
+    (width.max(1.0), height.max(1.0))
+}
+
+/// An OpenPose point is drawn only when confident and positive (matches the backend visibility rule).
+fn posekit_point_visible(point: (f32, f32, f32)) -> bool {
+    point.2 > 0.0 && point.0 > 0.0 && point.1 > 0.0
+}
+
+/// Draw one hand (21 keypoints) with the backend finger connectivity plus joint discs.
+fn draw_pose_viewport_hand(
+    painter: &egui::Painter,
+    points: &[(f32, f32, f32)],
+    map: &impl Fn(&(f32, f32, f32)) -> egui::Pos2,
+    color: egui::Color32,
+) {
+    if points.len() >= POSEKIT_HAND_KEYPOINT_COUNT {
+        for finger in 0..5 {
+            let base = 1 + finger * 4;
+            let segments = [
+                (0, base),
+                (base, base + 1),
+                (base + 1, base + 2),
+                (base + 2, base + 3),
+            ];
+            for (a, b) in segments {
+                let (from, to) = (points[a], points[b]);
+                if posekit_point_visible(from) && posekit_point_visible(to) {
+                    painter.line_segment([map(&from), map(&to)], egui::Stroke::new(1.5, color));
+                }
+            }
+        }
+    }
+    for point in points {
+        if posekit_point_visible(*point) {
+            painter.circle_filled(map(point), 2.0, color);
+        }
+    }
+}
+
+/// Fit a `w×h` image into `bounds` preserving aspect ratio, centered.
+fn fit_rect_preserving_aspect(bounds: egui::Rect, w: f32, h: f32) -> egui::Rect {
+    if w <= 0.0 || h <= 0.0 {
+        return bounds;
+    }
+    let scale = (bounds.width() / w).min(bounds.height() / h);
+    let size = egui::vec2(w * scale, h * scale);
+    egui::Rect::from_center_size(bounds.center(), size)
+}
+
+/// Stable non-cryptographic hash of raw bytes, used to detect source-image byte changes for the
+/// texture cache.
+fn stable_bytes_hash(bytes: &[u8]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    hasher.finish()
 }
 
 fn emit_node(
@@ -10886,6 +11122,39 @@ fn emit_value_node(
         if matches!(role, accesskit::Role::TextInput | accesskit::Role::Slider) {
             node.add_action(accesskit::Action::Focus);
         }
+    });
+}
+
+/// Publish a `Role::Slider` AccessKit node for a real `egui::Slider`, carrying the stable `author_id`,
+/// a numeric value/min/max/step, and the `SetValue` + `Focus` actions. The explicit `SetValue` action
+/// is what lets [`crate::mcp::action::resolve_target`] accept `argus.set_value` on the slider and what
+/// egui's built-in slider consumes to apply the numeric value out-of-process. Mirrors the
+/// splitter/scrollbar-rail numeric-node pattern (`split_layout.rs`, `rails.rs`).
+fn emit_pose_slider_node(
+    ctx: &egui::Context,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    value: f64,
+    min: f64,
+    max: f64,
+    step: f64,
+) {
+    let author = author_id.to_owned();
+    let label = label.to_owned();
+    ctx.accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Slider);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.set_numeric_value(value);
+        node.set_min_numeric_value(min);
+        node.set_max_numeric_value(max);
+        node.set_numeric_value_step(step);
+        // A string mirror of the numeric value so plain value-readers (and the existing text-oriented
+        // snapshot assertions) still see a stable readout.
+        node.set_value(format!("{value:.2}"));
+        node.add_action(accesskit::Action::SetValue);
+        node.add_action(accesskit::Action::Focus);
     });
 }
 

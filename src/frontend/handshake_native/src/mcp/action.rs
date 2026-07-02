@@ -43,7 +43,7 @@ pub const MAX_ACTIONS_PER_BURST: usize = 16;
 /// JSON-RPC tool layer parses request params into; keeping it a closed enum (rather than a stringly
 /// `op` field threaded through the dispatch) makes an invalid action impossible to represent past the
 /// parse boundary.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UiAction {
     /// Activate the widget (egui `Action::Click` — buttons, toggles, tabs).
     Click,
@@ -54,6 +54,13 @@ pub enum UiAction {
     /// select-all and `egui::Event::Text` events after the field is focused. The `text` is carried
     /// here so the caller has a single typed action to dispatch.
     SetValue { text: String },
+    /// Set a slider's numeric value via a REAL AccessKit `SetValue` action carrying a
+    /// [`accesskit::ActionData::NumericValue`]. Unlike egui 0.33 text inputs (which ignore
+    /// `Action::SetValue` — see the module docs), egui's built-in `Slider` DOES consume
+    /// `Action::SetValue` with numeric data, so this variant dispatches the real action (no Focus +
+    /// text-event fallback). Accepted only for `Slider` nodes. The tool layer parses the model's
+    /// string `value` into `value` here after confirming the target's live role is `Slider`.
+    SetSliderValue { value: f64 },
     /// Scroll the widget (or its scroll container) into view (egui `Action::ScrollIntoView`).
     Scroll,
     /// Select the widget (focus is egui's selection primitive for list/tree rows).
@@ -70,6 +77,8 @@ impl UiAction {
             UiAction::Focus | UiAction::SetValue { .. } | UiAction::Select => {
                 accesskit::Action::Focus
             }
+            // A slider consumes a real `Action::SetValue` (numeric); no Focus + text fallback.
+            UiAction::SetSliderValue { .. } => accesskit::Action::SetValue,
             UiAction::Scroll => accesskit::Action::ScrollIntoView,
         }
     }
@@ -153,7 +162,17 @@ pub fn resolve_target(
         });
     }
 
+    // Value-setting is role-gated (red-team CONTROL: never type into / drive a control the model must
+    // not touch). `SetValue` (text path) is TextInput-only, exactly as MT-026 proved. `SetSliderValue`
+    // (numeric path) is Slider-only. Every other role rejects both, so a Button/Label can never be
+    // value-steered.
     if matches!(action, UiAction::SetValue { .. }) && node.role != "TextInput" {
+        return Err(ActionError::UnsupportedAction {
+            author_id: author_id.to_owned(),
+            action: "SetValue".to_owned(),
+        });
+    }
+    if matches!(action, UiAction::SetSliderValue { .. }) && node.role != "Slider" {
         return Err(ActionError::UnsupportedAction {
             author_id: author_id.to_owned(),
             action: "SetValue".to_owned(),
@@ -177,11 +196,18 @@ pub fn resolve_target(
 /// request targets the STABLE `NodeId`, so it survives frame re-layout and process restarts — exactly
 /// what out-of-process steering needs.
 pub fn build_action_request(target: accesskit::NodeId, action: &UiAction) -> ActionOutcome {
+    // A slider carries its numeric value as real AccessKit action data so egui's built-in Slider
+    // applies it directly; every other action carries no data (text inputs feed characters via
+    // `text_payload` after a Focus request instead).
+    let data = match action {
+        UiAction::SetSliderValue { value } => Some(accesskit::ActionData::NumericValue(*value)),
+        _ => None,
+    };
     ActionOutcome {
         request: accesskit::ActionRequest {
             action: action.accesskit_action(),
             target,
-            data: None,
+            data,
         },
         text_payload: action.text_payload().map(|t| t.to_owned()),
     }
@@ -430,6 +456,72 @@ mod tests {
             err,
             ActionError::UnsupportedAction {
                 author_id: "btn".to_owned(),
+                action: "SetValue".to_owned()
+            }
+        );
+    }
+
+    /// A snapshot carrying a real `Slider` node (exposes the `SetValue` action, like egui's built-in
+    /// slider augmented by `emit_pose_slider_node`).
+    fn slider_snapshot() -> UiTreeSnapshot {
+        let slider = UiTreeNode {
+            id: "yaw".to_owned(),
+            author_id: Some("atelier-pose-yaw-slider".to_owned()),
+            node_id: 20,
+            role: "Slider".to_owned(),
+            label: Some("Posekit yaw degrees".to_owned()),
+            value: Some("0".to_owned()),
+            disabled: false,
+            actions: vec!["SetValue".to_owned(), "Focus".to_owned()],
+            bounds: None,
+            children: Vec::new(),
+        };
+        let root = UiTreeNode {
+            id: "node:1".to_owned(),
+            author_id: None,
+            node_id: 1,
+            role: "Window".to_owned(),
+            label: None,
+            value: None,
+            disabled: false,
+            actions: Vec::new(),
+            bounds: None,
+            children: vec![slider],
+        };
+        UiTreeSnapshot {
+            root,
+            captured_at_utc: "0.000000000Z".to_owned(),
+            widget_count: 2,
+        }
+    }
+
+    #[test]
+    fn slider_set_value_dispatches_real_numeric_setvalue_action() {
+        let snap = slider_snapshot();
+        let action = UiAction::SetSliderValue { value: 90.0 };
+        let id = resolve_target(&snap, "atelier-pose-yaw-slider", &action)
+            .expect("slider resolves via SetValue");
+        assert_eq!(id, accesskit::NodeId(20));
+        let outcome = build_action_request(id, &action);
+        // A real Action::SetValue carrying the numeric value — NOT a Focus + text fallback.
+        assert_eq!(outcome.request.action, accesskit::Action::SetValue);
+        assert!(matches!(
+            outcome.request.data,
+            Some(accesskit::ActionData::NumericValue(v)) if (v - 90.0).abs() < f64::EPSILON
+        ));
+        assert_eq!(outcome.text_payload, None);
+    }
+
+    #[test]
+    fn slider_numeric_set_value_rejects_non_slider_targets() {
+        let snap = fixture_snapshot();
+        // A TextInput must NOT accept the numeric slider path (it has no SetValue action to consume).
+        let err = resolve_target(&snap, "field", &UiAction::SetSliderValue { value: 1.0 })
+            .unwrap_err();
+        assert_eq!(
+            err,
+            ActionError::UnsupportedAction {
+                author_id: "field".to_owned(),
                 action: "SetValue".to_owned()
             }
         );

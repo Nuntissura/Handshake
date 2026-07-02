@@ -116,6 +116,10 @@ pub fn editors_manual_section() -> ManualSection {
         heading: "Atelier Tools",
         body: atelier_tools_body(),
     });
+    topics.push(ManualTopic {
+        heading: "Menu Bar and Atelier Navigation",
+        body: menu_bar_navigation_body(),
+    });
     // The interop topic (its own addressable topic). AC-005/MC-007 assert all four edge names + an
     // author_id + mcp_tool appear in this topic's body.
     topics.push(ManualTopic {
@@ -266,6 +270,44 @@ DEFERRED-with-reason until Argus health/error/action events are exposed as nativ
 Tier 3 Palmistry is DEFERRED-with-reason until the external watcher ingests Argus action/screenshot \
 health. Current recovery is to use typed JSON-RPC errors, the MCP ActionLog, the binding file, and the \
 Argus inspect/steer/screenshot loop."
+        .to_owned()
+}
+
+fn menu_bar_navigation_body() -> String {
+    "The shell's top application menu bar (top_menu_bar.rs) is the FIRST top panel, above the title bar. \
+Its six top-level menus carry stable AccessKit author_ids: menu-file, menu-edit, menu-view, menu-go, \
+menu-run, menu-help (Role::MenuItem). These six buttons are ALWAYS in the live tree. Menu LEAF items \
+(for example menu.file.quit or menu.view.reset-layout) are DYNAMIC: they only enter the AccessKit tree \
+while their parent menu is OPEN, so argus.inspect cannot see a leaf until you open the menu.\n\
+\n\
+OPEN-THEN-STEER (the two-step contract a model must use to drive any menu leaf): (1) argus.click the \
+top-level menu button by its stable id, for example argus.click{target:'menu-go'}; (2) let the shell \
+drain the action and repaint (one frame) so the menu popup opens and its leaves enter the tree — the \
+popup HOLDS open across that action-drain frame (it does not close on the synthesized action); (3) \
+argus.inspect to confirm the leaf is present, then argus.click{target:'<leaf-id>'} to activate it. The \
+menu closes after a leaf click. Alt+<letter> (Alt+F/E/V/G/R/H) also opens a menu from the keyboard.\n\
+\n\
+LEAF-ID DISCOVERY REGISTRY (know the valid leaf targets WITHOUT opening the menu): top_menu_bar.rs \
+exposes menu_leaf_ids(MenuId) -> &[&str] and menu_leaf_catalog() -> Vec<(MenuId, &[&str])>. They \
+enumerate every leaf author_id per menu in render order, so a no-context model reads the whole catalog \
+up front instead of opening each menu to learn its ids. A live drift test opens each menu in the real \
+shell and asserts the rendered leaves match this catalog exactly, so the registry cannot silently drift \
+from the menu.\n\
+\n\
+ATELIER NAVIGATION (GO > Atelier group, WP-CKC MT-041): the GO menu carries an operator-facing Atelier \
+group so you jump to the Atelier work surface without hunting the module switcher. The leaves are \
+menu.go.atelier (open the Atelier at its default Castkit Codex surface), menu.go.atelier.ckc (Castkit \
+Codex), menu.go.atelier.posekit (Posekit), and menu.go.atelier.ingest (Ingest). Each drives the SAME \
+shell set_module + set_active_tab deep-link the module switcher uses: menu.go.atelier / .ckc open \
+module-ckc; .ingest opens module-ingest; .posekit opens the Atelier and selects the Posekit internal \
+tab. After clicking a leaf, re-inspect and confirm the active content region — atelier-content-ckc, \
+atelier-content-posekit, or atelier-content-ingest — before claiming the jump worked.\n\
+\n\
+FAILURE / RECOVERY: if argus.click{target:'<leaf-id>'} returns no live widget, the parent menu is not \
+open — do step 1 first (open the menu button, drain one frame), then retry the leaf. If a leaf is \
+present but disabled (its target surface is a future MT, for example menu.run.terminal), argus.click is \
+rejected rather than fake-activated; that is expected, not a bug. Persistence of the Atelier jump routes \
+through handshake_core (PostgreSQL/EventLedger); the menu bar never writes state directly."
         .to_owned()
 }
 
@@ -428,9 +470,8 @@ native backend routes are POST /atelier/ckc/search and POST /atelier/ckc/tag-not
 require x-hsk-actor-id. \
 Posekit starts from atelier-content-posekit and is the native OpenRepose-style split-view workflow. \
 Set or inspect atelier-pose-source-ref and atelier-pose-rig-id first, then inspect atelier-pose-state-readout and atelier-pose-split-view; the \
-left viewport is atelier-pose-3d-viewport, the native 3D projection preview bound to source_ref plus rig lineage, and the OpenPose output viewport is \
-atelier-pose-openpose-viewport. Drive rotation with atelier-pose-yaw-minus, atelier-pose-yaw-plus, \
-atelier-pose-reset, atelier-pose-yaw-slider, atelier-pose-pitch-slider, and atelier-pose-zoom-slider; \
+left viewport atelier-pose-3d-viewport shows the REAL decoded source image (its node value reports source_image=loaded dimensions=WxH when source bytes are present, source_image=empty with an explicit empty-state message otherwise, and source_image=decode_error on a bad decode) and never paints a fabricated placeholder tile. The right viewport atelier-pose-openpose-viewport renders the REAL generated OpenPose keypoints (node value bound_openpose=real_keypoints with keypoint_source=backend_export when a backend export result exists, else keypoint_source=live_preview for the offline preview): body-18 bones plus face-70 and hand-21 joints, exactly as the exported PNG would draw them, and its keypoint_signature changes whenever the keypoints move so a rotation is provably re-rendered from the real keypoints. Drive rotation with atelier-pose-yaw-minus, atelier-pose-yaw-plus, \
+atelier-pose-reset, and the REAL sliders atelier-pose-yaw-slider (-180..180), atelier-pose-pitch-slider (-45..45), and atelier-pose-zoom-slider (0.4..2.2) — these are egui sliders, steerable out-of-process by argus.set_value which dispatches a numeric AccessKit SetValue the slider consumes; \
 toggle exported marker layers with atelier-pose-face-toggle, atelier-pose-body-toggle, and \
 atelier-pose-hands-toggle. Marker editing is staged before export: set atelier-pose-marker-family \
 (body, face, left_hand, right_hand), atelier-pose-marker-index, atelier-pose-marker-x, \
@@ -453,8 +494,8 @@ parallel-agent recovery can reconstruct the last intended marker operation inste
 Return to atelier-tab-ckc and click atelier-ckc-sheet-artifact-attach-posekit to store the latest Posekit OpenPose PNG on the active CKC sheet as a reusable ComfyUI conditioning artifact. Stored-rig backend exports must show \
 pose_state.source_keypoint_projection.mode=native-rig-to-openpose and rerender OpenPose coordinates plus \
 PNG/hash evidence when yaw, pitch, or zoom changes; procedural or no-rig previews must identify as \
-procedural preview evidence, not source-rig projection. No-backend harnesses expose preview://atelier/posekit/openpose/.../receipt \
-metadata only. Use argus.inspect on viewport/control IDs and \
+procedural preview evidence, not source-rig projection. Real backend exports produce artifact:// ArtifactStore refs (png_artifact_ref/json_artifact_ref plus manifests and receipt_ref); the offline no-backend path is explicitly a preview only — atelier-pose-export-status labels it \"offline preview, NOT a real artifact\" and its refs are preview://atelier/posekit/openpose/.../receipt \
+metadata only, never artifact://. Use argus.inspect on viewport/control IDs and \
 argus.screenshot{} for a full-frame visual proof; screenshot target cropping is not supported yet. Both \
 paths must be headless/non-intrusive: no foreground window, no keyboard capture, no mouse steal. Ingest starts from \
 atelier-content-ingest. Select batches through stable atelier-intake-batch-{stable_batch_id} buttons, \
