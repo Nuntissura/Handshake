@@ -151,7 +151,7 @@
     },
     {
       "mt_id": "MT-008",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-002",
         "MT-004",
@@ -164,8 +164,8 @@
       "blocks": [
         "MT-010"
       ],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT008_2026-07-02_BACKEND_swarm_lane_diagnostics_pg_tests_2_PASS_550s_PLUS_FRONTEND_test_swarm_lane_diagnostics_argus_3_PASS_headless_accesskit_menu_drilldown_projection_matches_eventledger_FR_only_posture_rejected",
+      "hbr_status": "PASS_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "NOT_RUN",
       "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
