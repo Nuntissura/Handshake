@@ -136,7 +136,7 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-013.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "Stale-PENDING corrected 2026-07-02: implementation ALREADY COMMITTED (ad818ca0 book layout), verified by MT-013 review. Mode-gating/notes-separation/no-four-window-grid/Argus ids/manual/panel-tests exist. Residual gaps: media viewer is a placeholder box, not real raster (scaffolding); no live-shell/narrow-width/empty-state capture matrix; 3-panel min-width overflow below ~700px; singleton book-mode (SWARM->MT-022). Sequence after MT-006 commits, then verify -> RFV."
+      "reality": "Book layout committed ad818ca0. MEDIA VIEWER DE-SCAFFOLDED + committed b5a973e2 (2026-07-02): real decoded raster via the MT-043 byte-fetch (ckc_media 3/3 + ckc_linked_media_backend_roundtrip pass) - the scaffolding gap is CLOSED. Remaining MT-013 gaps (deferrable, NOT scaffolding): 3-panel min-width overflow below ~700px (responsive layout); no narrow-width/empty-state Argus capture matrix; singleton book-mode -> MT-022. Cross-cutting deferrals: unbounded CkcMediaImageCache/PoseSourceImageCache (add LRU); mock-server test flakes under heavy load (harden read_http_request)."
     },
     {
       "mt_id": "MT-014",
@@ -424,12 +424,14 @@
     },
     {
       "mt_id": "MT-043",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "9902d7b0",
       "title": "Backend+client byte-fetch endpoints for Posekit source-image and OpenPose artifact display",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-043.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
       "depends_on": ["MT-014"],
+      "reality": "Committed 9902d7b0 (source-asset byte-fetch core). Runtime-proven: backend atelier_media_asset_bytes_route_returns_exact_stored_source_bytes (managed PG, exact bytes + 404 fail-closed); frontend posekit_source_viewport_displays_real_decoded_image + no-spurious-fetch guard + failure-empty-state. Posekit left viewport loads the real image. Follow-up increment: artifact-PNG-fetch so the right viewport shows the literal exported PNG.",
       "origin": "MT-014 de-scaffolding honest follow-up: posekit viewports display real bytes once source-asset + artifact byte-fetch endpoints exist (currently left=empty-state, right=keypoints-not-PNG)."
     }
   ],
