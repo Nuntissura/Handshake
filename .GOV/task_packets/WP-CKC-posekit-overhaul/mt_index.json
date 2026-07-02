@@ -302,11 +302,13 @@
     },
     {
       "mt_id": "MT-030",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "c7a8a6d7",
       "title": "Complete Facial Ingest UI, Argus, debug, and manual parity",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-030.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "reality": "Committed c7a8a6d7 (2026-07-02): Facial review-queue Ingest sub-mode (new IngestMode enum DatasetIntake/PromptFeedback/FacialReview, not a 4th tab; preserves MT-020 prompt-feedback) on the RFV Facial backend MT-025-029. Generic dispatch for the 6 review commands (session/claim/decision/status/montage/export) with verified end-to-end lineage chaining; 32 atelier-ingest-facial-* Argus ids (TextInput settables); capability/identity-provenance/command-receipt+degraded readouts; honest degraded/error via Err path (no fake success, no silent no-op). Manual: review/montage/export rows + modernized proxy tokens (facet_native_metadata_only_v1, imagededup_native_content_hash_exact_v1, identity_source=real) while preserving handshake_proxy_no_model as the no-model degraded label. Post-impl review verdict: solid (regression-clean, dispatcher correct, honest-degraded, proxy-accurate). Proof: test_atelier_panel 33/1 (1=pre-existing MT-016 :2812 = MT-044 D5) incl. facial_ingest_full_backbone_is_argus_steerable; test_manual_pane_editors 14/14. GLOBAL-SCOPE-005 waiver: as the FIRST MT to run test_manual_pane_editors (prior MTs never gated it), MT-030 absorbed pre-existing manual-drift repairs to green it - 9 MT-017/018 ingest + 14 MT-020/010/032 prompt-feedback/ckc-media author_id allowlist reconciliations (all real/documented/emitted) + an MT-042 SQLite reword. Deferred to MT-044: D11 rendered-panel facial-id auto-audit, D12 montage/export content readouts, D13 numeric-input feedback, D14 manual-test gating process gap."
     },
     {
       "mt_id": "MT-031",
