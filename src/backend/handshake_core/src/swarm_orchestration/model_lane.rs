@@ -2077,7 +2077,7 @@ impl ModelLaneStore {
         }
         dedupe_context_handoffs(&mut handoffs);
         let context_run = if let Some(value) = context_bundle_id {
-            select_record_by_column::<ModelLaneRunRecord>(
+            select_record_by_json_field::<ModelLaneRunRecord>(
                 &self.pool,
                 "model_lane_runs",
                 "context_bundle_id",
@@ -2431,7 +2431,9 @@ impl ModelLaneStore {
     }
 
     async fn run_id_by_model_session_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        if let Some(row) = select_record_by_column::<ModelLaneRecord>(
+        // `model_lanes` stores model_session_id only inside record_json; the
+        // recovery tables carry it as physical columns.
+        if let Some(row) = select_record_by_json_field::<ModelLaneRecord>(
             &self.pool,
             "model_lanes",
             "model_session_id",
@@ -2462,7 +2464,9 @@ impl ModelLaneStore {
     }
 
     async fn run_id_by_session_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        if let Some(row) = select_record_by_column::<ModelLaneRecord>(
+        // `model_lanes` stores session_id only inside record_json; the recovery
+        // tables carry it as physical columns.
+        if let Some(row) = select_record_by_json_field::<ModelLaneRecord>(
             &self.pool,
             "model_lanes",
             "session_id",
@@ -2539,8 +2543,10 @@ impl ModelLaneStore {
             // fix; behavior-preserving.
             .map(|row| row.run_id.clone())
             .collect::<Vec<_>>();
+        // `payload_ref` is stored only inside record_json; `payload_sha256` is a
+        // physical column on model_lane_messages.
         run_ids.extend(
-            select_run_ids_by_column(&self.pool, "model_lane_messages", "payload_ref", value)
+            select_run_ids_by_json_field(&self.pool, "model_lane_messages", "payload_ref", value)
                 .await?,
         );
         run_ids.extend(
@@ -2551,8 +2557,10 @@ impl ModelLaneStore {
     }
 
     async fn run_id_by_context_bundle_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
+        // `model_lane_runs` carries context_bundle_id only inside record_json; the
+        // handoff table exposes it as a physical column.
         let mut run_ids =
-            select_run_ids_by_column(&self.pool, "model_lane_runs", "context_bundle_id", value)
+            select_run_ids_by_json_field(&self.pool, "model_lane_runs", "context_bundle_id", value)
                 .await?;
         run_ids.extend(
             select_run_ids_by_column(
@@ -2568,14 +2576,14 @@ impl ModelLaneStore {
 
     async fn run_id_by_memory_pack_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let run_ids =
-            select_run_ids_by_column(&self.pool, "model_lane_runs", "memory_pack_ref", value)
+            select_run_ids_by_json_field(&self.pool, "model_lane_runs", "memory_pack_ref", value)
                 .await?;
         unique_run_id_for_lookup("memory_pack_ref", value, run_ids)
     }
 
     async fn run_id_by_memory_pack_hash(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let run_ids =
-            select_run_ids_by_column(&self.pool, "model_lane_runs", "memory_pack_hash", value)
+            select_run_ids_by_json_field(&self.pool, "model_lane_runs", "memory_pack_hash", value)
                 .await?;
         unique_run_id_for_lookup("memory_pack_hash", value, run_ids)
     }
@@ -2649,6 +2657,8 @@ impl ModelLaneStore {
     }
 
     async fn run_id_by_error_code(&self, value: &str) -> ModelLaneResult<Option<String>> {
+        // `error_code` is a physical column on model_lane_recovery_events, but the
+        // run/lane failstate_code lives only inside record_json.
         let mut run_ids = select_run_ids_by_column(
             &self.pool,
             "model_lane_recovery_events",
@@ -2657,11 +2667,12 @@ impl ModelLaneStore {
         )
         .await?;
         run_ids.extend(
-            select_run_ids_by_column(&self.pool, "model_lane_runs", "failstate_code", value)
+            select_run_ids_by_json_field(&self.pool, "model_lane_runs", "failstate_code", value)
                 .await?,
         );
         run_ids.extend(
-            select_run_ids_by_column(&self.pool, "model_lanes", "failstate_code", value).await?,
+            select_run_ids_by_json_field(&self.pool, "model_lanes", "failstate_code", value)
+                .await?,
         );
         unique_run_id_for_lookup("error_code", value, run_ids)
     }
@@ -2681,7 +2692,7 @@ impl ModelLaneStore {
             SELECT record_json->>'run_id' AS run_id
             FROM model_lane_messages
             WHERE record_json #>> '{locus_binding,locus_binding_ref}' = $1
-               OR diagnostic_payload->>'locus_ref' = $1
+               OR record_json #>> '{diagnostic_payload,locus_ref}' = $1
             LIMIT 1
             "#,
             value,
@@ -2701,11 +2712,11 @@ impl ModelLaneStore {
                     r#"
                     SELECT run_id
                     FROM model_lane_messages
-                    WHERE diagnostic_payload->>'{key}' = $1
+                    WHERE record_json #>> '{{diagnostic_payload,{key}}}' = $1
                     UNION ALL
                     SELECT run_id
                     FROM model_lane_context_bundle_handoffs
-                    WHERE diagnostic_payload->>'{key}' = $1
+                    WHERE record_json #>> '{{diagnostic_payload,{key}}}' = $1
                     LIMIT 1
                     "#
                 ),
@@ -8418,6 +8429,55 @@ where
                 .and_then(|v| serde_json::from_value(v).map_err(Into::into))
         })
         .transpose()
+}
+
+/// Look up a single record by a field that lives inside the `record_json` JSONB
+/// payload rather than as a physical column. Several ModelLane navigation
+/// identifiers (`context_bundle_id`, `model_session_id`, `session_id`,
+/// `memory_pack_ref`, `failstate_code`, ...) are stored only in `record_json`;
+/// querying them as physical columns raises a fail-closed "column does not
+/// exist" database error that surfaces to callers as a 500. Resolving through
+/// the JSONB text accessor keeps a valid query from ever 500-ing.
+async fn select_record_by_json_field<T>(
+    pool: &PgPool,
+    table_name: &'static str,
+    json_field: &'static str,
+    value: &str,
+) -> ModelLaneResult<Option<T>>
+where
+    T: DeserializeOwned,
+{
+    let sql = format!(
+        "SELECT record_json FROM {table_name} WHERE record_json->>'{json_field}' = $1 ORDER BY event_ledger_seq ASC LIMIT 1"
+    );
+    sqlx::query(&sql)
+        .bind(value)
+        .fetch_optional(pool)
+        .await?
+        .map(|row| {
+            row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
+        })
+        .transpose()
+}
+
+/// `run_id` companion to [`select_record_by_json_field`] for aggregate lookups
+/// that resolve a set of run ids by a `record_json`-only field. `run_id` remains
+/// a physical column on every ModelLane table, so only the WHERE predicate moves
+/// into the JSONB payload.
+async fn select_run_ids_by_json_field(
+    pool: &PgPool,
+    table_name: &'static str,
+    json_field: &'static str,
+    value: &str,
+) -> ModelLaneResult<Vec<String>> {
+    let sql = format!(
+        "SELECT DISTINCT run_id FROM {table_name} WHERE record_json->>'{json_field}' = $1 ORDER BY run_id ASC"
+    );
+    sqlx::query_scalar::<_, String>(&sql)
+        .bind(value)
+        .fetch_all(pool)
+        .await
+        .map_err(Into::into)
 }
 
 async fn select_run_ids_by_column(

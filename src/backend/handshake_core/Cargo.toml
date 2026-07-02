@@ -757,6 +757,13 @@ name = "mixed_model_lane_integration_pg_tests"
 path = "tests/mixed_model_lane_integration_pg_tests.rs"
 required-features = ["test-utils"]
 
+# WP-1 MT-010 Dexterity model-lane backend navigation surfaces: real-PostgreSQL
+# proof for the no-context navigation routes plus UserManual registry parity.
+[[test]]
+name = "model_lane_navigation_api_tests"
+path = "tests/model_lane_navigation_api_tests.rs"
+required-features = ["test-utils"]
+
 [[test]]
 name = "user_manual_behavior_coverage_tests"
 path = "tests/user_manual_behavior_coverage_tests.rs"
