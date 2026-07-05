@@ -30,7 +30,8 @@ use handshake_native::mcp::{ActionChannel, UiAction};
 use handshake_native::module_switcher::ModuleId;
 use handshake_native::top_menu_bar::{
     menu_leaf_catalog, menu_leaf_ids, MenuId, MENU_DEFINITIONS, MENU_GO_ATELIER_AUTHOR_ID,
-    MENU_GO_ATELIER_CKC_AUTHOR_ID, MENU_GO_ATELIER_INGEST_AUTHOR_ID, MENU_GO_ATELIER_POSEKIT_AUTHOR_ID,
+    MENU_GO_ATELIER_CKC_AUTHOR_ID, MENU_GO_ATELIER_INGEST_AUTHOR_ID,
+    MENU_GO_ATELIER_POSEKIT_AUTHOR_ID,
 };
 
 /// The four operator-facing Atelier leaf author_ids the MT-041 contract names, in render order.
@@ -98,7 +99,10 @@ fn go_menu_exposes_atelier_group_leaves_when_open() {
     // The static registry lists exactly these four Atelier leaves under GO.
     let go = menu_leaf_ids(MenuId::Go);
     for leaf in ATELIER_LEAVES {
-        assert!(go.contains(&leaf), "static registry GO catalog lists {leaf}");
+        assert!(
+            go.contains(&leaf),
+            "static registry GO catalog lists {leaf}"
+        );
     }
 }
 
@@ -217,6 +221,22 @@ fn atelier_leaves_jump_to_module_and_tab() {
             AtelierPanelTab::Posekit,
             "the Posekit leaf selected the Posekit internal tab (not the CastkitCodex default)"
         );
+
+        h.get_by_label("GO").click();
+        h.run();
+        h.get_by_label("Atelier: Castkit Codex").click();
+        h.run();
+        h.run();
+        assert_eq!(
+            h.state().active_module(),
+            ModuleId::Ckc,
+            "the CKC leaf keeps the shared CKC module active when returning from Posekit"
+        );
+        assert_eq!(
+            h.state().atelier_active_tab(),
+            AtelierPanelTab::CastkitCodex,
+            "the CKC leaf resets the shared Atelier surface from Posekit to Castkit Codex"
+        );
     }
 
     // Ingest leaf -> the Ingest full-window Atelier module, landing on the Ingest internal tab.
@@ -282,7 +302,9 @@ fn argus_click_opens_and_holds_go_menu_then_steers_atelier_leaf() {
         "the menu-go top-level button is present when closed"
     );
     assert!(
-        closed.find_by_author_id(MENU_GO_ATELIER_AUTHOR_ID).is_none(),
+        closed
+            .find_by_author_id(MENU_GO_ATELIER_AUTHOR_ID)
+            .is_none(),
         "the Atelier leaf is ABSENT while the GO menu is closed (a model cannot one-shot a leaf)"
     );
     assert_ne!(
@@ -309,7 +331,9 @@ fn argus_click_opens_and_holds_go_menu_then_steers_atelier_leaf() {
     let _ = run_frame(&ctx, &mut app, open_events);
     let opened = run_frame(&ctx, &mut app, vec![]);
     assert!(
-        opened.find_by_author_id(MENU_GO_ATELIER_AUTHOR_ID).is_some(),
+        opened
+            .find_by_author_id(MENU_GO_ATELIER_AUTHOR_ID)
+            .is_some(),
         "argus.click on menu-go OPENED the GO menu (the Atelier leaf entered the live tree)"
     );
 
@@ -317,9 +341,9 @@ fn argus_click_opens_and_holds_go_menu_then_steers_atelier_leaf() {
     // synthesized pointer event; this proves the AccessKit-driven open HOLDS across the drain/repaint so
     // the two-step open-then-steer contract is race-free.
     let held = run_frame(&ctx, &mut app, vec![]);
-    let leaf = held
-        .find_by_author_id(MENU_GO_ATELIER_AUTHOR_ID)
-        .expect("the Atelier leaf HELD present across the drain/repaint frame (popup did not close)");
+    let leaf = held.find_by_author_id(MENU_GO_ATELIER_AUTHOR_ID).expect(
+        "the Atelier leaf HELD present across the drain/repaint frame (popup did not close)",
+    );
     assert_eq!(leaf.role, "MenuItem", "the held Atelier leaf is a MenuItem");
     assert!(
         !leaf.disabled,

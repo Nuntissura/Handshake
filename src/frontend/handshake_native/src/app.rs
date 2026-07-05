@@ -4463,8 +4463,8 @@ impl HandshakeApp {
     /// the SAME `set_module` + MT-006 internal-tab `set_active_tab` deep-link the module switcher drives, so
     /// the menu path never forks the state machine:
     ///
-    /// - `Module` / `Ckc` -> `set_module(ModuleId::Ckc)` opens the full-window Atelier at its Castkit Codex
-    ///   default (MT-006 already selects the CastkitCodex internal tab on CKC module entry).
+    /// - `Module` / `Ckc` -> `set_module(ModuleId::Ckc)` opens the full-window Atelier, then explicitly
+    ///   selects Castkit Codex so the leaf resets from an already-active CKC/Posekit state too.
     /// - `Ingest` -> `set_module(ModuleId::Ingest)` opens the Atelier and (MT-006) lands on the Ingest tab.
     /// - `Posekit` has no dedicated module, so it opens the Atelier surface (CKC module) and THEN selects
     ///   the Posekit internal tab via the same shared `AtelierPanel` handle, overriding the CastkitCodex
@@ -4475,12 +4475,20 @@ impl HandshakeApp {
     /// the caller repaints + the MT-006/MT-009 layout change-detector schedules the debounced save.
     fn open_atelier_target(&mut self, target: AtelierMenuTarget) -> bool {
         match target {
-            AtelierMenuTarget::Module | AtelierMenuTarget::Ckc => self.set_module(ModuleId::Ckc),
+            AtelierMenuTarget::Module | AtelierMenuTarget::Ckc => {
+                let module_changed = self.set_module(ModuleId::Ckc);
+                let panel = &self.editor_mounts.secondary.atelier_panel;
+                let tab_changed =
+                    panel.active_tab() != crate::atelier_panel::AtelierPanelTab::CastkitCodex;
+                panel.set_active_tab(crate::atelier_panel::AtelierPanelTab::CastkitCodex);
+                module_changed || tab_changed
+            }
             AtelierMenuTarget::Ingest => self.set_module(ModuleId::Ingest),
             AtelierMenuTarget::Posekit => {
                 let module_changed = self.set_module(ModuleId::Ckc);
                 let panel = &self.editor_mounts.secondary.atelier_panel;
-                let tab_changed = panel.active_tab() != crate::atelier_panel::AtelierPanelTab::Posekit;
+                let tab_changed =
+                    panel.active_tab() != crate::atelier_panel::AtelierPanelTab::Posekit;
                 panel.set_active_tab(crate::atelier_panel::AtelierPanelTab::Posekit);
                 module_changed || tab_changed
             }
@@ -7453,8 +7461,8 @@ impl HandshakeApp {
             // only visible tab bar. Gate on BOTH the active module (Ckc/Ingest are full_window) AND the
             // pane's active surface being the AtelierEditor, so the chrome RE-SHOWS the moment a
             // non-Atelier tab (kernel-dcc / code-symbol / source-control) becomes active on this pane.
-            let full_window_module =
-                active_module.definition().full_window && record.pane_type == PaneType::AtelierEditor;
+            let full_window_module = active_module.definition().full_window
+                && record.pane_type == PaneType::AtelierEditor;
             let header_h = if full_window_module {
                 0.0
             } else {
@@ -7806,8 +7814,8 @@ impl HandshakeApp {
             // WP-CKC MT-006: the IDENTICAL full-window suppression the docked render applies — a popped-out
             // full-window Atelier surface also drops its pane header + tab-strip chrome so the panel's own
             // internal tab strip is the only tab bar. Same predicate, same two render-site behavior.
-            let full_window_module =
-                active_module.definition().full_window && record.pane_type == PaneType::AtelierEditor;
+            let full_window_module = active_module.definition().full_window
+                && record.pane_type == PaneType::AtelierEditor;
             let header_h = if full_window_module {
                 0.0
             } else {
