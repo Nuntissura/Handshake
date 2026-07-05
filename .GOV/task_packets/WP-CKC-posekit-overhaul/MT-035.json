@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-035",
   "title": "Define CKC folder and source-ref authority",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-01T13:20:45.027Z",
-  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-04T21:22:06.333Z",
   "product_edit_allowed": true,
   "operator_request": "Capture the folder/source provenance authority gap found during MT-010: CKC folder rows currently behave like generic refs, but models need deterministic folder/source meaning for albums and image mining.",
   "authority_files": {
@@ -21,12 +21,17 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-010"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260704-202642",
+    "claimed_at_utc": "2026-07-04T20:29:02.036Z",
+    "started_at_utc": "2026-07-04T20:29:02.036Z",
+    "ready_for_validation_at_utc": "2026-07-04T21:22:06.333Z",
+    "completed_at_utc": "2026-07-04T21:22:06.333Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -53,7 +58,8 @@
       "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
       "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
-      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/atelier/media.rs",
@@ -61,7 +67,8 @@
       "src/backend/handshake_core/src/api/atelier.rs",
       "src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
       "src/frontend/handshake_native/src/atelier_panel.rs",
-      "src/frontend/handshake_native/src/manual_content_editors.rs"
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
     ],
     "acceptance_criteria": [
       "CKC folder/source refs are backed by documented existing Handshake authority or an explicitly added authority layer.",
@@ -98,7 +105,47 @@
   },
   "manual_requirement": "Required.",
   "handoff": {
-    "status": "PENDING",
-    "note": "Created from MT-010 review finding that folder refs are generic provenance refs without a clear CKC authority contract."
+    "status": "READY_FOR_VALIDATION",
+    "note": "Implemented CKC folder/source-ref authority using source_evidence typed helpers, API validation/redaction, album-link rollback/isolation proof, Argus folder/source structured readouts, manual coverage, and post-review local-path/origin hardening. Lower-level collections.rs direct store enforcement is not claimed because it is outside MT-035 target scope; API/domain proof paths are covered.",
+    "coder_session": "KERNEL_BUILDER-20260704-202642",
+    "claimed_at_utc": "2026-07-04T20:29:02.036Z",
+    "ready_for_validation_at_utc": "2026-07-04T21:22:06.333Z",
+    "verification": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_source_refs_are_validated_and_link_scoped -- --nocapture => PASS (1 passed; 0 failed; 22 filtered out)",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_ckc_folder_and_source_refs_as_structured_values -- --nocapture => PASS (1 passed; 0 failed; 43 filtered out)",
+      "git diff --check => PASS exit 0; line-ending warnings only"
+    ],
+    "post_review": {
+      "agents": [
+        "Euler",
+        "Laplace",
+        "Galileo"
+      ],
+      "outcome": "Post-review findings were addressed where in scope: frontend forbidden local-shape detection now catches embedded drive/authority-less forms; local preview reports origin=none when refs are absent; manual wording now defers URL acceptance to the portable-ref gate. Residual lower-level collection-store validation is recorded as out-of-scope and not claimed."
+    },
+    "scope_waiver_needed": {
+      "reason": "MT-035 proof target requires a frontend Argus test in test_atelier_panel.rs, but the original target_files/allowed_paths omitted that test file.",
+      "files_touched": [
+        "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+      ],
+      "why_touched": "Minimum required executable frontend proof for Argus structured folder/source ref readouts."
+    }
+  },
+  "ready_for_validation_at_utc": "2026-07-04T21:22:06.333Z",
+  "validation_evidence": {
+    "status": "TARGETED_PROOFS_PASS_WAITING_FOR_VALIDATION",
+    "recorded_at_utc": "2026-07-04T21:22:06.333Z",
+    "coder_session": "KERNEL_BUILDER-20260704-202642",
+    "commands": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_source_refs_are_validated_and_link_scoped -- --nocapture => PASS (1 passed; 0 failed; 22 filtered out)",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_ckc_folder_and_source_refs_as_structured_values -- --nocapture => PASS (1 passed; 0 failed; 43 filtered out)",
+      "git diff --check => PASS exit 0; line-ending warnings only"
+    ],
+    "notes": [
+      "Backend source-ref authority proof covers typed validation, invalid-ref rejection before mutation, and cross-album link provenance isolation.",
+      "Frontend Argus proof covers selected folder/source_url refKind readouts and structured per-row draggable metadata.",
+      "Post-review fixes applied for embedded machine-local path shapes, local-preview none origins, and portable-ref gate manual wording.",
+      "Official validator_verdict remains PENDING; no MT is claimed as validated."
+    ]
   }
 }

@@ -28,9 +28,14 @@
       "MT-032",
       "MT-037"
     ],
-    "validator_verdict": "PENDING_VALIDATOR_REVIEW",
+    "validator_verdict": "PENDING",
     "started_at_utc": "2026-07-01T13:59:07.293Z",
-    "ready_for_validation_at_utc": "2026-07-01T15:13:33.154Z"
+    "ready_for_validation_at_utc": "2026-07-01T15:13:33.154Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -144,6 +149,7 @@
   },
   "handoff": {
     "status": "READY_FOR_VALIDATION",
-    "note": "MT-039 is ready for validator review. The backend-authority proof gap from MT-010 is covered by the headless Argus-driven CKC linked-media roundtrip test in src/frontend/handshake_native/tests/test_atelier_panel.rs. Do not treat this as real DB integration proof; it is the focused in-process backend/mock panel proof required by this MT."
+    "note": "MT-039 is ready for validator review. The backend-authority proof gap from MT-010 is covered by the headless Argus-driven CKC linked-media roundtrip test in src/frontend/handshake_native/tests/test_atelier_panel.rs. Do not treat this as real DB integration proof; it is the focused in-process backend/mock panel proof required by this MT.",
+    "ready_for_validation_at_utc": "2026-07-01T15:13:33.154Z"
   }
 }

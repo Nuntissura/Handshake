@@ -36,8 +36,15 @@
       "P2: single coherent CKC/INGEST/PoseKit sub-module tab bar (remove KernelDcc/other sibling pane tabs from the Atelier module surface).",
       "P3: reconcile module-ckc/module-ingest into one coherent Atelier module (preserve stable ids module-ckc/module-ingest)."
     ],
-    "out_of_mt006_scope_new_mts": ["MT-041 operator menu-bar dropdown", "MT-042 settings/options features"],
-    "open_design_decisions": ["D1 KernelDcc in/out of Atelier", "D2 module-ckc/ingest reconcile option", "D3 full-window marker: module-level flag vs pane render mode"],
+    "out_of_mt006_scope_new_mts": [
+      "MT-041 operator menu-bar dropdown",
+      "MT-042 settings/options features"
+    ],
+    "open_design_decisions": [
+      "D1 KernelDcc in/out of Atelier",
+      "D2 module-ckc/ingest reconcile option",
+      "D3 full-window marker: module-level flag vs pane render mode"
+    ],
     "argus_mandate": "Argus is the mandatory visual driver; inspect the full-window Atelier panel/tabs (and menu bar for MT-041) via Argus; expand Argus if it cannot see/steer a surface (ARGUS-009/010/011, HBR-VIS-005, CX-503D1).",
     "review_status": "PRE_IMPLEMENTATION_REVIEW_COMPLETE (4 lenses converged). Implementation dispatched.",
     "finalized_approach": {
@@ -74,15 +81,21 @@
     "generator": "manual-kernel-builder-hotfix-projection"
   },
   "lifecycle": {
-    "status": "IN_PROGRESS",
-    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
     "reopened_at_utc": "2026-07-01T18:34:39.251Z",
     "depends_on": [
       "MT-005"
     ],
     "blocks": [],
     "validator_verdict": "PENDING",
-    "started_at_utc": "2026-06-28T16:56:35.333Z"
+    "started_at_utc": "2026-06-28T16:56:35.333Z",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -271,7 +284,8 @@
   "manual_requirement": "Update the in-product internal UserManual in the same implementation change so operators and models know Atelier is the main filling panel and CKC, Posekit, and Ingest are sibling tabs.",
   "handoff": {
     "status": "READY_FOR_VALIDATION",
-    "summary": "Implemented: Atelier is a single filling panel with CKC, Posekit, and Ingest sibling tabs; Posekit/Ingest controls are model-addressable; real-shell MCP tab switching and manual coverage pass. Awaiting validator."
+    "summary": "Implemented: Atelier is a single filling panel with CKC, Posekit, and Ingest sibling tabs; Posekit/Ingest controls are model-addressable; real-shell MCP tab switching and manual coverage pass. Awaiting validator.",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z"
   },
   "red_team": {
     "required": true,

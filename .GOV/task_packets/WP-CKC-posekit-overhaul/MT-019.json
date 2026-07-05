@@ -137,6 +137,7 @@
     "validation_summary": "Focused backend probe passed 12 tests against product Facial modules after final commit adf132ec. Frontend parser, request-builder, Atelier panel, and manual tests passed with CARGO_INCREMENTAL=0 and shared Handshake_Artifacts target. Cross-target mt019_facial_probe cargo check passed for x86_64-unknown-linux-musl with CARGO_INCREMENTAL=0. Cached diff whitespace check passed. Product branch feat/WP-CKC-posekit-overhaul pushed through adf132ec.",
     "validation_blockers": [
       "Full handshake_core cargo proof remains a validator follow-up: earlier attempts hit external rustc 0xffffffff/process pressure, and this session also hit artifact disk pressure until frontend proofs were rerun with CARGO_INCREMENTAL=0. The operator separately instructed this session to skip the other active heavy Rust run."
-    ]
+    ],
+    "ready_for_validation_at_utc": "2026-07-01T02:31:32.443Z"
   }
 }

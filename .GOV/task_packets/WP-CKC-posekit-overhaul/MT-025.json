@@ -118,6 +118,7 @@
       "git diff --check for touched files",
       "final source-level adversarial re-review PASS from Dirac the 2nd and Euler the 2nd"
     ],
-    "notes": "src/backend/handshake_core/src/api/atelier.rs was added to this MT path set as a necessary scope expansion for native_run artifact recoverability."
+    "notes": "src/backend/handshake_core/src/api/atelier.rs was added to this MT path set as a necessary scope expansion for native_run artifact recoverability.",
+    "ready_for_validation_at_utc": "2026-07-01T03:00:32.155Z"
   }
 }

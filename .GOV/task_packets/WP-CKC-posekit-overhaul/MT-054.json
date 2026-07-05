@@ -1,0 +1,168 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-054",
+  "title": "Expose Facial montage/export content readouts and numeric parse notes",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-07-05T00:47:00.588Z",
+  "updated_at_utc": "2026-07-05T08:30:01.353Z",
+  "started_at_utc": "2026-07-05T07:42:50.990Z",
+  "product_edit_allowed": true,
+  "origin": "MT-044 D12/D13 split: Facial montage/export content details require chained artifact reads, and numeric fields silently coerce invalid input to defaults.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-054.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-054.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-054.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-030",
+      "MT-031"
+    ],
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-044820",
+    "claimed_at_utc": "2026-07-05T07:42:50.990Z",
+    "ready_for_validation_at_utc": "2026-07-05T08:30:01.353Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume MT-054 by reading this contract, limiting edits to allowed_paths, using external CARGO_TARGET_DIR under ../Handshake_Artifacts, and keeping validator_verdict PENDING until an official validator changes it."
+  },
+  "scope": {
+    "summary": "Add dedicated Facial montage/export content readouts and visible numeric parse/coercion notes so models can inspect tile maps, manifests, and invalid-input recovery without guessing.",
+    "base_scope": [
+      "Add dedicated Facial montage/export content readouts and visible numeric parse/coercion notes so models can inspect tile maps, manifests, and invalid-input recovery without guessing."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "Facial montage readouts expose tile-map addresses and key manifest entries without requiring a separate artifact-read chain.",
+      "Facial export readouts expose non-destructive manifest entries without requiring a separate artifact-read chain.",
+      "Invalid numeric fields emit visible parse/coercion notes in status/receipt surfaces instead of silently falling back to defaults.",
+      "Argus can inspect the new readouts and parse notes."
+    ],
+    "risks_and_controls": [
+      "Risk: readouts duplicate stale artifact content instead of reflecting the current command receipt.",
+      "Risk: parse-note wording becomes noisy and hides command status."
+    ],
+    "proof_targets": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-054 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_montage_export_readouts_expose_content_without_extra_artifact_chain -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-054 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_numeric_parse_notes_are_argus_visible -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "verification": [
+      "Focused Argus readout proof.",
+      "Focused invalid numeric input proof.",
+      "Manual coverage proof if agent-tool rows change."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "scope containment versus MT-044 tracker drift",
+      "runtime proof versus code-only proof",
+      "parallel model/operator safety",
+      "artifact and build-output hygiene"
+    ]
+  },
+  "manual_requirement": "Required.",
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Risk: readouts duplicate stale artifact content instead of reflecting the current command receipt.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: parse-note wording becomes noisy and hides command status.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      }
+    ],
+    "minimum_controls": [
+      "Edit only allowed_paths unless the MT contract is explicitly widened first.",
+      "Use external CARGO_TARGET_DIR under ../Handshake_Artifacts for Cargo proofs.",
+      "Do not mark validator_verdict PASS/FAIL; Kernel Builder only moves to READY_FOR_VALIDATION.",
+      "Record residual gaps in handoff instead of implying official validation."
+    ]
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "coder_session": "KERNEL_BUILDER-20260705-044820",
+    "ready_for_validation_at_utc": "2026-07-05T08:30:01.353Z",
+    "validator_verdict": "PENDING",
+    "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-054:rfv-20260705T083001353Z",
+    "summary": "Exposed Facial montage/export content readouts and numeric parse notes so Argus can inspect command-result content and invalid numeric coercions without separate artifact reads.",
+    "implementation_summary": [
+      "Added Facial montage/export/parse-note author IDs, state, and rendered readouts in the Facial review mode.",
+      "Added row.result-based montage/export preview helpers that expose tile map refs, manifest refs, result artifact refs, counts, dimensions, and item mappings without artifact-read chaining.",
+      "Updated Facial command drain to refresh montage/export readouts for matching active command envelopes, including non-object blocked/error results with result_available=false.",
+      "Replaced silent Facial numeric parsing on session, claim, montage, and export command paths with note-producing parse helpers.",
+      "Surfaced numeric parse notes in the dedicated parse-note readout, command receipt, and ingest status, including transport-error status paths; local pre-dispatch blockers reset stale notes to numeric_parse_notes none.",
+      "Updated internal manual prose and agent-tool rows for the three new Argus inspect surfaces."
+    ],
+    "tdd_evidence": [
+      "RED: facial_montage_export_readouts_expose_content_without_extra_artifact_chain failed because atelier-ingest-facial-montage-readout was absent and Argus read an empty value.",
+      "RED: facial_numeric_parse_notes_are_argus_visible failed because atelier-ingest-facial-parse-notes was absent and Argus read an empty value.",
+      "Post-review blocker fix: expanded numeric proof to assert parse notes in parse readout, command receipt, and ingest status, and to cover invalid export repeats coercion.",
+      "GREEN: final proof targets passed after post-review hardening."
+    ],
+    "proof_commands": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-054 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_montage_export_readouts_expose_content_without_extra_artifact_chain -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-054 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_numeric_parse_notes_are_argus_visible -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-054 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors id_audit -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "proof_results": [
+      "facial_montage_export_readouts_expose_content_without_extra_artifact_chain: exit 0, 1 passed, 0 failed, 52 filtered out.",
+      "facial_numeric_parse_notes_are_argus_visible: exit 0, 1 passed, 0 failed, 52 filtered out; covers invalid montage page/columns/rows and invalid export repeats, with notes asserted in parse readout, command receipt, and ingest status.",
+      "test_manual_pane_editors id_audit: exit 0, 3 passed, 0 failed, 15 filtered out.",
+      "git diff --check scoped to MT-054 allowed files: exit 0 with LF-to-CRLF warnings only.",
+      "Cargo target cleaned: ../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-054 exists_after=false.",
+      "Non-blocking warning observed during cargo proofs: parse_atelier_facial_artifact_read_row is unused; this is pre-existing and not introduced by MT-054."
+    ],
+    "subagent_review_notes": [
+      "Popper post-review verdict NONBLOCKING; stale parse notes on local pre-dispatch blockers were flagged and fixed by resetting parse notes on local blocker branches.",
+      "Jason post-review verdict NONBLOCKING; manual rows/prose and validator_verdict PENDING shape were confirmed, with whole-worktree dirty state noted as unrelated residual risk.",
+      "Dewey post-review initially reported BLOCKING test-shape gaps for receipt/status assertions and export repeats coverage; both were implemented, proofs rerun, and Dewey recheck returned NONBLOCKING."
+    ],
+    "residual_gaps": [
+      "No official validator verdict has been issued; validator_verdict remains PENDING.",
+      "Cross-platform CI/non-target cargo check was not run or claimed for MT-054.",
+      "Repo/product worktree contains unrelated pre-existing dirty files outside MT-054; they were not touched or reverted.",
+      "The scoped product diff check reports LF-to-CRLF warnings only."
+    ]
+  },
+  "ready_for_validation_at_utc": "2026-07-05T08:30:01.353Z"
+}

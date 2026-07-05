@@ -1,0 +1,176 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-046",
+  "title": "Make moodboard add/place/connect affordances honest",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-07-05T00:47:00.588Z",
+  "updated_at_utc": "2026-07-05T02:17:30.680Z",
+  "started_at_utc": "2026-07-05T01:11:48.842Z",
+  "product_edit_allowed": true,
+  "origin": "MT-044 D2 split: isolated moodboard canvas affordances silently no-op after FIX-2 isolation.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-046.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-046.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-046.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-012"
+    ],
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-003842",
+    "claimed_at_utc": "2026-07-05T01:11:48.842Z",
+    "ready_for_validation_at_utc": "2026-07-05T02:15:53.623Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/graph/canvas_board.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "recovery_rule": "Resume MT-046 by reading this contract, limiting edits to allowed_paths, using external CARGO_TARGET_DIR under ../Handshake_Artifacts, and keeping validator_verdict PENDING until an official validator changes it."
+  },
+  "scope": {
+    "summary": "Ensure moodboard add/place/connect controls either round-trip into the moodboard snapshot or are hidden/disabled with visible Argus-readable status so no model sees silent no-op affordances.",
+    "base_scope": [
+      "Ensure moodboard add/place/connect controls either round-trip into the moodboard snapshot or are hidden/disabled with visible Argus-readable status so no model sees silent no-op affordances."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/graph/canvas_board.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/graph/canvas_board.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "acceptance_criteria": [
+      "Moodboard add/place/connect affordances do not silently no-op.",
+      "If controls remain visible, their effects persist into the saved moodboard snapshot and reload path.",
+      "If controls are hidden/disabled, the UI and Argus readout explain why.",
+      "Existing moodboard move/geometry round-trip behavior remains intact."
+    ],
+    "risks_and_controls": [
+      "Risk: enabling add/connect reintroduces the shared-canvas leak fixed by MT-012.",
+      "Risk: hiding controls reduces discoverability without clear status text."
+    ],
+    "proof_targets": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-046 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_moodboard_add_connect_affordances_are_not_silent_noops -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-046 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_moodboard_canvas_move_survives_reverse_projection_roundtrip -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/graph/canvas_board.rs src/frontend/handshake_native/tests/test_atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "verification": [
+      "Focused Argus/UI proof for honest affordance behavior.",
+      "Existing moodboard round-trip regression proof."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "scope containment versus MT-044 tracker drift",
+      "runtime proof versus code-only proof",
+      "parallel model/operator safety",
+      "artifact and build-output hygiene"
+    ]
+  },
+  "manual_requirement": "Required if controls or workflow text change.",
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Risk: enabling add/connect reintroduces the shared-canvas leak fixed by MT-012.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: hiding controls reduces discoverability without clear status text.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      }
+    ],
+    "minimum_controls": [
+      "Edit only allowed_paths unless the MT contract is explicitly widened first.",
+      "Use external CARGO_TARGET_DIR under ../Handshake_Artifacts for Cargo proofs.",
+      "Do not mark validator_verdict PASS/FAIL; Kernel Builder only moves to READY_FOR_VALIDATION.",
+      "Record residual gaps in handoff instead of implying official validation."
+    ]
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "note": "MT-046 is ready for validator review. This is not official validation; validator_verdict remains PENDING. Moodboard canvas add/place/connect/group/remove host-backed affordances are hidden in snapshot-projection mode with Argus-readable status, registry host mutations are rejected, existing move round-trip is preserved, and image/shape resize remains supported while text resize is hidden because it does not round-trip.",
+    "coder_session": "KERNEL_BUILDER-20260705-003842",
+    "ready_for_validation_at_utc": "2026-07-05T02:15:53.623Z",
+    "implementation_summary": [
+      "Added CanvasMutationPolicy::SnapshotProjection to distinguish host-backed Loom canvas behavior from CKC moodboard snapshot projection behavior.",
+      "Configured the CKC moodboard board as SnapshotProjection so unsupported add/place/connect/group/remove affordances are hidden and blocked registry actions report an honest status instead of silently no-oping.",
+      "Kept existing moodboard move round-trip behavior and retained image/shape resize only; hid text-card resize because reverse projection persists text position but not text box size.",
+      "Updated the internal UserManual/Argus guidance to describe move-existing plus image/shape-resize-only moodboard persistence."
+    ],
+    "proof_commands": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-046 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_moodboard_add_connect_affordances_are_not_silent_noops -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-046 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_moodboard_canvas_move_survives_reverse_projection_roundtrip -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-046-manual cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib snapshot_projection_rejects_registry_host_mutations -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-046-manual cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_canvas_board canvas_accesskit_placements_and_toolbar -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-046-manual cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors manual_documents_atelier_tabs_and_argus_control_ids -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/graph/canvas_board.rs src/frontend/handshake_native/tests/test_atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "proof_results": [
+      "Final rerun after dead-code cleanup: ckc_moodboard_add_connect_affordances_are_not_silent_noops: 1 passed, 0 failed.",
+      "Final rerun after dead-code cleanup: ckc_moodboard_canvas_move_survives_reverse_projection_roundtrip: 1 passed, 0 failed.",
+      "Final rerun after dead-code cleanup: graph::canvas_board::tests::snapshot_projection_rejects_registry_host_mutations: 1 passed, 0 failed; direct registry attempts for add/place/connect/remove are blocked in SnapshotProjection while zoom-reset remains allowed.",
+      "Final rerun after dead-code cleanup: canvas_accesskit_placements_and_toolbar: 1 passed, 0 failed; host-backed shared canvas toolbar remains exposed.",
+      "Final rerun after dead-code cleanup: manual_documents_atelier_tabs_and_argus_control_ids: 1 passed, 0 failed; manual/Argus ID coverage remains in sync.",
+      "Final scoped git diff --check exit 0 with LF-to-CRLF warnings only on the four allowed files."
+    ],
+    "post_review_resolution": [
+      "Post-review finding: moodboard text-card resize remained visible but did not persist. Resolution: resize handles are hidden for text cards in SnapshotProjection and status/manual text now says image/shape resize only.",
+      "Post-review proof gap: hidden toolbar did not directly prove registry actions were blocked. Resolution: added and passed the library test snapshot_projection_rejects_registry_host_mutations.",
+      "Post-review governance blocker: MT-046 state and handoff were still CLAIMED/PENDING. Resolution: this handoff transitions implementer state to READY_FOR_VALIDATION while leaving validator_verdict PENDING.",
+      "KB checklist cleanup: removed an unused public mutation_policy() getter before final proof rerun; CanvasMutationPolicy and set_mutation_policy are referenced outside the declaring file."
+    ],
+    "artifacts": [
+      "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-046 was created for final proof and removed after proof; cleanup verified with Test-Path=False; removed size 5999574914 bytes.",
+      "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-046-manual was created for final proof and removed after proof; cleanup verified with Test-Path=False; removed size 7635763627 bytes."
+    ],
+    "changed_product_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/graph/canvas_board.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "residual_gaps": [
+      "No official validator verdict yet; validator_verdict remains PENDING.",
+      "Moodboard add/place/connect remains intentionally unsupported in snapshot projection mode rather than newly round-tripped; controls are hidden and registry attempts are blocked with status text."
+    ],
+    "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-046:rfv-20260705T021710416Z",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+    "validator_handoff_files": [
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/THREAD.md",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RECEIPTS.jsonl",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RUNTIME_STATUS.json"
+    ]
+  }
+}

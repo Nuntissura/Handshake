@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-023",
   "title": "Run Argus-driven visual and behavioral overhaul pass for Atelier tools",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-07-04T09:39:46.789Z",
   "product_edit_allowed": true,
   "operator_request": "After native/state work, visually and behaviorally overhaul CKC/Posekit inside Handshake so it mirrors the original app more, with Argus checking panels, tabs, overview, navigation, layout, and style.",
   "authority_files": {
@@ -23,7 +23,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-013",
@@ -32,7 +32,10 @@
       "MT-021",
       "MT-022"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260704-072636",
+    "started_at_utc": "2026-07-04T07:29:50.935Z",
+    "ready_for_validation_at_utc": "2026-07-04T09:39:46.789Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -78,6 +81,119 @@
   },
   "manual_requirement": "Required for any changed behavior or navigation.",
   "handoff": {
-    "status": "PENDING"
+    "status": "READY_FOR_VALIDATION",
+    "coder_session": "KERNEL_BUILDER-20260704-072636",
+    "claimed_at_utc": "2026-07-04T07:29:50.935Z",
+    "ready_for_validation_at_utc": "2026-07-04T09:39:46.789Z",
+    "note": "MT-023 is ready for validator review. This is not official validation; validator_verdict remains PENDING."
+  },
+  "owned_files": [
+    "src/frontend/handshake_native/src/atelier_panel.rs",
+    "src/frontend/handshake_native/src/manual_content_editors.rs",
+    "src/frontend/handshake_native/src/module_switcher.rs",
+    "src/frontend/handshake_native/src/pane_header.rs",
+    "src/frontend/handshake_native/src/pane_registry.rs",
+    "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+    "src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+    "src/frontend/handshake_native/tests/test_module_switcher.rs",
+    "src/frontend/handshake_native/tests/test_pane_header.rs"
+  ],
+  "proof_commands": [
+    "cargo test -j 1 --test test_atelier_panel -- --nocapture",
+    "cargo test -j 1 --test test_manual_pane_editors -- --nocapture",
+    "cargo test -j 1 --test test_module_switcher -- --nocapture",
+    "cargo test -j 1 --test test_pane_header module_label_for_tab_unit_matches_contract -- --exact --nocapture",
+    "cargo test -j 1 --lib pane_header::tests::module_label_for_tab_prefers_active_module_then_home -- --exact --nocapture",
+    "cargo test -j 1 --lib atelier_panel::tests::ckc_book_width_allocator_wraps_sub700_three_panel_at_readable_widths -- --exact --nocapture",
+    "cargo test -j 1 --lib atelier_panel::tests::compact_visual_cell_preserves_tail_for_argus_values -- --exact --nocapture",
+    "just kb-ready-checklist WP-CKC-posekit-overhaul MT-023 --json",
+    "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/src/pane_header.rs src/frontend/handshake_native/src/pane_registry.rs src/frontend/handshake_native/tests/test_atelier_panel.rs src/frontend/handshake_native/tests/test_manual_pane_editors.rs src/frontend/handshake_native/tests/test_module_switcher.rs src/frontend/handshake_native/tests/test_pane_header.rs"
+  ],
+  "validation_evidence": {
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "changed_product_files": [
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/src/module_switcher.rs",
+      "src/frontend/handshake_native/src/pane_header.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+      "src/frontend/handshake_native/tests/test_module_switcher.rs",
+      "src/frontend/handshake_native/tests/test_pane_header.rs"
+    ],
+    "visual_artifacts": [
+      "../Handshake_Artifacts/handshake-test/wp-ckc-posekit-overhaul-mt-023/ckc_book_story_sub700_constrained.png",
+      "../Handshake_Artifacts/handshake-test/wp-ckc-posekit-overhaul-mt-023/posekit_split_constrained.png",
+      "../Handshake_Artifacts/handshake-test/wp-ckc-posekit-overhaul-mt-023/ingest_contact_sheet_constrained_flow.png",
+      "../Handshake_Artifacts/handshake-test/wp-ckc-posekit-overhaul-mt-023/mt-023-argus-evidence.json"
+    ],
+    "proof_summary": "MT-023 Argus-driven visual/behavioral pass corrected Atelier navigation labels to match authority (module-ckc visible Atelier, inner CKC tab label CKC, module-ingest distinct/deep-linked), collapsed Settings/Model Ops by default while keeping Argus-openable controls, improved CKC sub-700 Story layout, Posekit framing/source preview readability, Ingest metadata/readout clipping, updated manual guidance, and recorded ARGUS-012/HBR-VIS-002 evidence.",
+    "commands": [
+      {
+        "command": "cargo test -j 1 --test test_atelier_panel -- --nocapture",
+        "result": "PASS: 41 passed; regenerated MT-023 Argus PNGs"
+      },
+      {
+        "command": "cargo test -j 1 --test test_manual_pane_editors -- --nocapture",
+        "result": "PASS: 16 passed"
+      },
+      {
+        "command": "cargo test -j 1 --test test_module_switcher -- --nocapture",
+        "result": "PASS: 6 passed"
+      },
+      {
+        "command": "cargo test -j 1 --test test_pane_header module_label_for_tab_unit_matches_contract -- --exact --nocapture",
+        "result": "PASS: 1 passed"
+      },
+      {
+        "command": "cargo test -j 1 --lib pane_header::tests::module_label_for_tab_prefers_active_module_then_home -- --exact --nocapture",
+        "result": "PASS: 1 passed"
+      },
+      {
+        "command": "cargo test -j 1 --lib atelier_panel::tests::ckc_book_width_allocator_wraps_sub700_three_panel_at_readable_widths -- --exact --nocapture",
+        "result": "PASS: 1 passed"
+      },
+      {
+        "command": "cargo test -j 1 --lib atelier_panel::tests::compact_visual_cell_preserves_tail_for_argus_values -- --exact --nocapture",
+        "result": "PASS: 1 passed"
+      },
+      {
+        "command": "direct PNG inspection",
+        "result": "PASS for CKC/Ingest; Posekit OpenPose preview extends below first viewport and is recorded as residual gap"
+      },
+      {
+        "command": "final adversarial review",
+        "result": "PASS after correcting mt-023-argus-evidence.json target_author_id to atelier-pose-openpose-viewport"
+      },
+      {
+        "command": "just kb-ready-checklist WP-CKC-posekit-overhaul MT-023 --json",
+        "result": "PASS: overall_verdict PASS, blockers []"
+      },
+      {
+        "command": "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/src/pane_header.rs src/frontend/handshake_native/src/pane_registry.rs src/frontend/handshake_native/tests/test_atelier_panel.rs src/frontend/handshake_native/tests/test_manual_pane_editors.rs src/frontend/handshake_native/tests/test_module_switcher.rs src/frontend/handshake_native/tests/test_pane_header.rs",
+        "result": "PASS: exit 0; Git reported LF-to-CRLF warnings only"
+      }
+    ],
+    "adversarial_reviews": [
+      {
+        "phase": "pre-implementation",
+        "result": "Subagent adversarial review found label drift risk, weak visual proof, Model Ops/settings crowding, stale Posekit manual source_fingerprint wording, and sub-700 CKC overflow risk; remediations applied or recorded."
+      },
+      {
+        "phase": "post-implementation",
+        "result": "Subagent adversarial review found module-ckc label authority conflict, ARGUS evidence package gap, CKC/Posekit/Ingest readability gaps, and false-completion risk; remediations applied and RFV ceiling enforced."
+      },
+      {
+        "phase": "final-readonly",
+        "result": "Poincare found one evidence blocker: stale atelier-pose-openpose-preview id. Corrected to atelier-pose-openpose-viewport before RFV."
+      }
+    ],
+    "residual_risks": [
+      "Posekit OpenPose preview extends below the first 760x640 viewport; header and skeleton are visible, full preview-frame visibility remains a follow-up polish item.",
+      "Full test_pane_header suite still has unrelated live-pane topology failures observed earlier; MT-023 claims only targeted pane-header label proof.",
+      "Product worktree has substantial inherited/unrelated dirty files; MT-023 handoff is path-limited to the changed files listed here.",
+      "No official validation is claimed; validator_verdict remains PENDING."
+    ]
   }
 }

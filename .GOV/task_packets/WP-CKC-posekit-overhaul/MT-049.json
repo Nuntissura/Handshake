@@ -1,0 +1,156 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-049",
+  "title": "Preserve Argus actor on local CKC sheet-artifact attach",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-07-05T00:47:00.588Z",
+  "updated_at_utc": "2026-07-05T03:07:34.621Z",
+  "started_at_utc": "2026-07-05T02:57:44.434Z",
+  "product_edit_allowed": true,
+  "origin": "MT-044 D5 split: MT-016 proof shows local attach-pose does not preserve the model actor in linked_by detail.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-049.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-049.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-049.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-016",
+      "MT-037"
+    ],
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-003842",
+    "claimed_at_utc": "2026-07-05T02:57:44.434Z",
+    "ready_for_validation_at_utc": "2026-07-05T03:06:29.565Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume MT-049 by reading this contract, limiting edits to allowed_paths, using external CARGO_TARGET_DIR under ../Handshake_Artifacts, and keeping validator_verdict PENDING until an official validator changes it."
+  },
+  "scope": {
+    "summary": "Repair the local CKC sheet-artifact attach path so Argus/model actor attribution is preserved on linked_by details when attaching the latest Posekit export.",
+    "base_scope": [
+      "Repair the local CKC sheet-artifact attach path so Argus/model actor attribution is preserved on linked_by details when attaching the latest Posekit export."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "argus_attaches_latest_posekit_export_to_ckc_sheet_artifacts_locally passes without weakening its linked_by assertion.",
+      "Local fallback status remains honest and does not claim backend persistence.",
+      "Existing sheet-artifact attach/detach behavior remains Argus-visible."
+    ],
+    "risks_and_controls": [
+      "Risk: actor propagation fix accidentally claims local fallback persistence.",
+      "Risk: fixing attach-pose breaks manual sheet-artifact attach."
+    ],
+    "proof_targets": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-049 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_attaches_latest_posekit_export_to_ckc_sheet_artifacts_locally -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-049 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_local_fallback_is_argus_visible_and_never_claims_persistence -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "verification": [
+      "Focused actor propagation proof.",
+      "Local fallback truthfulness regression proof."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "scope containment versus MT-044 tracker drift",
+      "runtime proof versus code-only proof",
+      "parallel model/operator safety",
+      "artifact and build-output hygiene"
+    ]
+  },
+  "manual_requirement": "Not required unless implementation changes operator/model-facing workflow text.",
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Risk: actor propagation fix accidentally claims local fallback persistence.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: fixing attach-pose breaks manual sheet-artifact attach.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      }
+    ],
+    "minimum_controls": [
+      "Edit only allowed_paths unless the MT contract is explicitly widened first.",
+      "Use external CARGO_TARGET_DIR under ../Handshake_Artifacts for Cargo proofs.",
+      "Do not mark validator_verdict PASS/FAIL; Kernel Builder only moves to READY_FOR_VALIDATION.",
+      "Record residual gaps in handoff instead of implying official validation."
+    ]
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "note": "MT-049 is ready for validator review as inspected workflow/status drift, not official validation. No MT-049 product edit was needed: current code already routes actor_id_or_default(actor_id) through the local Posekit attach request into CkcSheetArtifactLinkRecord::local, and the required Argus proof passes with linked_by=argus-agent-17. validator_verdict remains PENDING.",
+    "coder_session": "KERNEL_BUILDER-20260705-003842",
+    "ready_for_validation_at_utc": "2026-07-05T03:06:29.565Z",
+    "implementation_summary": [
+      "Inspected the local Posekit attach path in atelier_panel.rs and confirmed request.actor_id flows into CkcSheetArtifactLinkRecord::local, which writes linked_by directly.",
+      "Inspected the existing Argus proof and verified it sets ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID to argus-agent-17 before clicking Attach Posekit export, then asserts linked_by=argus-agent-17 in the rendered detail labels.",
+      "No product files were edited for MT-049; this closure records current runtime proof against the suspected drift."
+    ],
+    "proof_commands": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-049 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_attaches_latest_posekit_export_to_ckc_sheet_artifacts_locally -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-049 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_local_fallback_is_argus_visible_and_never_claims_persistence -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "proof_results": [
+      "argus_attaches_latest_posekit_export_to_ckc_sheet_artifacts_locally: 1 passed, 0 failed; proves local Posekit attach preserves linked_by=argus-agent-17 through Argus steering.",
+      "ckc_local_fallback_is_argus_visible_and_never_claims_persistence: 1 passed, 0 failed; proves local fallback truthfulness and sheet-artifact attach/detach status does not claim backend persistence.",
+      "git diff --check exit 0 with LF-to-CRLF warnings only on atelier_panel.rs and test_atelier_panel.rs."
+    ],
+    "review_resolution": [
+      "Pre-review agent Pauli found the current code already has the intended actor flow and warned not to replace local request actor attribution with Model Ops or backend actor attribution.",
+      "Pre-review agent Hypatia found no blocking implementation gap, and suggested optional test strengthening for Posekit non-persistence wording and detail-label precision; required MT-049 proof targets already pass and no contract widening was needed for closure.",
+      "No post-implementation review was run because no MT-049 product implementation was made; the runtime proofs are the closure evidence for the inspected drift."
+    ],
+    "artifacts": [
+      "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-049 was created for final proof and removed after proof; cleanup verified with Test-Path=False; removed size 5999516793 bytes."
+    ],
+    "changed_product_files": [],
+    "residual_gaps": [
+      "No official validator verdict yet; validator_verdict remains PENDING.",
+      "Optional future hardening: make the Posekit attach proof assert the local not-persisted wording directly and target the newly attached detail label specifically. This was not required to prove the current MT-049 acceptance criteria."
+    ],
+    "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-049:rfv-20260705T030715392Z",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+    "validator_handoff_files": [
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/THREAD.md",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RECEIPTS.jsonl",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RUNTIME_STATUS.json"
+    ]
+  }
+}

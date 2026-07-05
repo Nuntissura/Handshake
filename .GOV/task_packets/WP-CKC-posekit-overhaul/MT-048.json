@@ -1,0 +1,159 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-048",
+  "title": "Harden Atelier panel mock-server tests under load",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-07-05T00:47:00.588Z",
+  "updated_at_utc": "2026-07-05T02:59:26.504Z",
+  "started_at_utc": "2026-07-05T02:40:34.126Z",
+  "product_edit_allowed": true,
+  "origin": "MT-044 D4 split: read_http_request mock-server helpers use tight timeouts and expect paths that can panic under heavy cargo load.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-048.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-048.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-048.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [],
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-003842",
+    "claimed_at_utc": "2026-07-05T02:40:34.126Z",
+    "ready_for_validation_at_utc": "2026-07-05T02:57:44.434Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume MT-048 by reading this contract, limiting edits to allowed_paths, using external CARGO_TARGET_DIR under ../Handshake_Artifacts, and keeping validator_verdict PENDING until an official validator changes it."
+  },
+  "scope": {
+    "summary": "Harden the test_atelier_panel mock-server request readers so expected requests fail with useful diagnostics instead of flaky timeout panics under heavy parallel machine load.",
+    "base_scope": [
+      "Harden the test_atelier_panel mock-server request readers so expected requests fail with useful diagnostics instead of flaky timeout panics under heavy parallel machine load."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "Mock-server request readers avoid brittle 500ms timeout panics under normal heavy-load test execution.",
+      "Expected-route failures produce actionable diagnostics without hiding real product regressions.",
+      "Contact-sheet and Facial backend-export tests can run serially without mock-server flake."
+    ],
+    "risks_and_controls": [
+      "Risk: longer waits make genuinely stuck tests slow.",
+      "Risk: swallowing mock read errors hides backend request regressions."
+    ],
+    "proof_targets": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-048 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ingest_contact_sheet_backend_export_reaches_argus_artifact_refs -- --test-threads=1 --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-048 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_ingest_full_backbone_is_argus_steerable -- --test-threads=1 --nocapture",
+      "git diff --check -- src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "verification": [
+      "Focused serial proofs for previously flaky mock-server consumers.",
+      "No foreground process launch or external process kill."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "scope containment versus MT-044 tracker drift",
+      "runtime proof versus code-only proof",
+      "parallel model/operator safety",
+      "artifact and build-output hygiene"
+    ]
+  },
+  "manual_requirement": "Not required unless implementation changes operator/model-facing workflow text.",
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Risk: longer waits make genuinely stuck tests slow.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: swallowing mock read errors hides backend request regressions.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      }
+    ],
+    "minimum_controls": [
+      "Edit only allowed_paths unless the MT contract is explicitly widened first.",
+      "Use external CARGO_TARGET_DIR under ../Handshake_Artifacts for Cargo proofs.",
+      "Do not mark validator_verdict PASS/FAIL; Kernel Builder only moves to READY_FOR_VALIDATION.",
+      "Record residual gaps in handoff instead of implying official validation."
+    ]
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "note": "MT-048 is ready for validator review. This is not official validation; validator_verdict remains PENDING. Mock-server request readers now distinguish idle sockets from partial requests, expected export routes fail with captured-route diagnostics, CKC byte-fetch routes are served by the CKC mock instead of being allowlisted while returning 404, and the blocked Facial review export test asserts its expected route directly.",
+    "coder_session": "KERNEL_BUILDER-20260705-003842",
+    "ready_for_validation_at_utc": "2026-07-05T02:57:44.434Z",
+    "implementation_summary": [
+      "Raised shared mock read tolerance with MOCK_SERVER_READ_TIMEOUT=5s while retaining bounded accept/read waits for heavy-load execution.",
+      "Hardened read_http_request so partial bytes become an INCOMPLETE_HTTP_REQUEST diagnostic request instead of a swallowed idle connection or a brittle panic.",
+      "Changed spawn_posekit_export_server to require an expected request line, ignore only GET /atelier/preferences, and return a diagnostic 404 for wrong non-preferences routes.",
+      "Moved CKC request capture before handler dispatch so unexpected routes remain visible even when the handler returns an error.",
+      "Closed the post-review CKC drift gap by serving real PNG bytes for GET /atelier/media-assets/*/bytes whenever that route is classified as expected.",
+      "Added a direct route assertion to facial_review_blocked_command_status_line_is_honest_not_succeeded so the blocked review test fails at the route boundary if dispatch drifts."
+    ],
+    "proof_commands": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-048 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ingest_contact_sheet_backend_export_reaches_argus_artifact_refs -- --test-threads=1 --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-048 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_ingest_full_backbone_is_argus_steerable -- --test-threads=1 --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-048 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_linked_media_backend_roundtrip_reaches_argus -- --test-threads=1 --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-048 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_review_blocked_command_status_line_is_honest_not_succeeded -- --test-threads=1 --nocapture",
+      "git diff --check -- src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "proof_results": [
+      "ingest_contact_sheet_backend_export_reaches_argus_artifact_refs: 1 passed, 0 failed.",
+      "facial_ingest_full_backbone_is_argus_steerable: 1 passed, 0 failed.",
+      "ckc_linked_media_backend_roundtrip_reaches_argus: 1 passed, 0 failed; proves the shared CKC mock route allow-list including the byte-fetch route after the post-review fix.",
+      "facial_review_blocked_command_status_line_is_honest_not_succeeded: 1 passed, 0 failed; proves the new direct blocked-review route assertion.",
+      "git diff --check exit 0 with LF-to-CRLF warning only on src/frontend/handshake_native/tests/test_atelier_panel.rs."
+    ],
+    "post_review_resolution": [
+      "Pre/post-review confirmed the Posekit export helper now preserves expected-route diagnostics under preferences noise and partial reads.",
+      "Post-review medium finding: CKC route assertions could classify GET /atelier/media-assets/*/bytes as expected while handle_ckc_roundtrip_request returned 404. Resolution: CKC mock server now detects that request line and writes a real image/png byte response before JSON handler dispatch.",
+      "Post-review low finding: facial_review_blocked_command_status_line_is_honest_not_succeeded discarded its captured request. Resolution: the test now asserts POST /atelier/intake/batches/batch-1/facial/review/session directly."
+    ],
+    "artifacts": [
+      "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-048 was created for final proof and removed after proof; cleanup verified with Test-Path=False; removed size 6047682335 bytes."
+    ],
+    "changed_product_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "residual_gaps": [
+      "No official validator verdict yet; validator_verdict remains PENDING.",
+      "No foreground UI launch was performed; MT-048 is a mock-server test-hardening task and was proven through focused cargo tests plus diff check."
+    ],
+    "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-048:rfv-20260705T025859416Z",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+    "validator_handoff_files": [
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/THREAD.md",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RECEIPTS.jsonl",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RUNTIME_STATUS.json"
+    ]
+  }
+}

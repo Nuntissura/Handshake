@@ -1,0 +1,173 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-052",
+  "title": "Add prompt-stress CSV import adapter",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-07-05T00:47:00.588Z",
+  "updated_at_utc": "2026-07-05T07:17:42.000Z",
+  "started_at_utc": "2026-07-05T06:16:55.567Z",
+  "product_edit_allowed": true,
+  "origin": "MT-044 D10 split: prompt-feedback adapter imports CUIPP JSON rows but not the prompt_stress_manifest.csv fixture path named in handoff.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-052.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-052.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-052.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-020"
+    ],
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-044820",
+    "claimed_at_utc": "2026-07-05T06:16:55.567Z",
+    "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs"
+    ],
+    "recovery_rule": "Resume MT-052 by reading this contract, limiting edits to allowed_paths, using external CARGO_TARGET_DIR under ../Handshake_Artifacts, and keeping validator_verdict PENDING until an official validator changes it."
+  },
+  "scope": {
+    "summary": "Add a CSV prompt-stress reader to the prompt-feedback adapter while preserving the existing CUIPP JSON import path.",
+    "base_scope": [
+      "Add a CSV prompt-stress reader to the prompt-feedback adapter while preserving the existing CUIPP JSON import path."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+      "src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs"
+    ],
+    "acceptance_criteria": [
+      "Adapter imports prompt_stress_manifest.csv rows into PromptCase records with stable IDs and traceable source metadata.",
+      "Existing CUIPP JSON import tests remain green.",
+      "Malformed CSV rows fail with actionable errors instead of partial silent import.",
+      "No LoRA training infrastructure is added in this MT."
+    ],
+    "risks_and_controls": [
+      "Risk: CSV import guesses columns and corrupts prompt identity metadata.",
+      "Risk: CSV path grows into D8 training-infra scope."
+    ],
+    "proof_targets": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-052 cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_prompt_feedback_tests prompt_stress_csv_manifest_imports_cases -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-052 cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_prompt_feedback_tests cuipp_json_import_still_maps_cases -- --nocapture",
+      "git diff --check -- src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs"
+    ],
+    "verification": [
+      "Focused CSV import test.",
+      "Existing JSON adapter regression proof."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "scope containment versus MT-044 tracker drift",
+      "runtime proof versus code-only proof",
+      "parallel model/operator safety",
+      "artifact and build-output hygiene"
+    ]
+  },
+  "manual_requirement": "Not required unless implementation changes operator/model-facing workflow text.",
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Risk: CSV import guesses columns and corrupts prompt identity metadata.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: CSV path grows into D8 training-infra scope.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      }
+    ],
+    "minimum_controls": [
+      "Edit only allowed_paths unless the MT contract is explicitly widened first.",
+      "Use external CARGO_TARGET_DIR under ../Handshake_Artifacts for Cargo proofs.",
+      "Do not mark validator_verdict PASS/FAIL; Kernel Builder only moves to READY_FOR_VALIDATION.",
+      "Record residual gaps in handoff instead of implying official validation."
+    ]
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "coder_session": "KERNEL_BUILDER-20260705-044820",
+    "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z",
+    "validator_verdict": "PENDING",
+    "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-052:rfv-20260705T071742000Z",
+    "summary": "Implemented a pure prompt-stress CSV manifest adapter that maps CSV rows into existing PromptCase/NewPromptCase import records while preserving the CUIPP JSON path.",
+    "implementation_summary": [
+      "Added PromptStressCsvImportRequest and import_prompt_stress_csv_manifest in adapter.rs.",
+      "Implemented strict CSV parsing for quoted commas/newlines, escaped quotes, BOM/CRLF handling, duplicate headers, uneven rows, duplicate case IDs, invalid segments, trailing characters after quoted fields, and all-or-nothing malformed-row errors.",
+      "Mapped prompt-stress CSV rows to prompt_stress cases with identity_judgement_allowed=false, prompt_quality_review_allowed=true, stable source_case_id from CSV case_id, portable image refs, source_manifest_ref validation, row hashes, row numbers, headers, and unmapped columns in hardcore_fields.",
+      "Extended CASE_IMPORTED EventLedger payload with source_system, source_iteration_id, source_recipe_id, and compact CSV lineage fields when CSV metadata is present.",
+      "Updated prompt-feedback module scope comment so CSV import is no longer listed as deferred; LoRA training remains out of scope."
+    ],
+    "files_changed": [
+      "src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+      "src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs"
+    ],
+    "proof_commands": [
+      {
+        "command": "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-052 cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_prompt_feedback_tests prompt_stress_csv_manifest_imports_cases -- --nocapture",
+        "result": "PASS: 1 passed, 0 failed; DB-backed CSV import persisted PromptCases and EventLedger CSV lineage."
+      },
+      {
+        "command": "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-052 cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_prompt_feedback_tests cuipp_json_import_still_maps_cases -- --nocapture",
+        "result": "PASS: 1 passed, 0 failed; CUIPP JSON mapping regression remains green."
+      },
+      {
+        "command": "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-052 cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_prompt_feedback_tests prompt_stress_csv_manifest_rejects_malformed_rows -- --nocapture",
+        "result": "PASS: 1 passed, 0 failed; malformed CSV/ref inputs reject without partial import."
+      },
+      {
+        "command": "git diff --check -- src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs",
+        "result": "PASS: exit 0; LF-to-CRLF warnings only."
+      }
+    ],
+    "cleanup": [
+      "Removed ../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-052 after proofs; target_exists=False."
+    ],
+    "review_resolution": [
+      "Pre-review concerns addressed: no naive CSV split; no Cargo dependency widening; prompt-stress segment is forced/validated; row-order-independent source IDs; malformed rows are all-or-nothing; JSON path remains covered.",
+      "Post-review HIGH fixed: trailing characters after a quoted CSV field now reject with row/column error and test coverage.",
+      "Post-review MEDIUM fixed: image_ref now reuses the portable-ref boundary at adapter time and rejects artifact:// or dataset:// values containing machine-local paths with row/column context.",
+      "Post-review lineage gap fixed: CSV source_manifest_ref and row_hash are persisted in hardcore_fields and mirrored into CASE_IMPORTED payload; test asserts both.",
+      "Post-review source_manifest_ref gap fixed: raw machine path manifest refs reject before persistence and are covered by malformed-input test.",
+      "Scope review broad dirty-worktree and palmistry Cargo findings are pre-existing/unrelated to MT-052; scoped status for MT-052 paths shows only the three allowed files modified."
+    ],
+    "residual_gaps": [
+      "No official validator verdict has been issued; validator_verdict remains PENDING.",
+      "Repo/product worktree contains unrelated pre-existing dirty files outside MT-052; they were not touched or reverted.",
+      "Cross-platform CI/non-target cargo check was not run or claimed for MT-052."
+    ]
+  },
+  "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z"
+}

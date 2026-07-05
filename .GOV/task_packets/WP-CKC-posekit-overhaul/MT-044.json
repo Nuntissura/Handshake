@@ -10,11 +10,11 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-044",
   "title": "Deferred hardening + follow-ups (consolidated tracker)",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-02T08:47:55.759Z",
-  "updated_at_utc": "2026-07-02T08:47:55.759Z",
+  "updated_at_utc": "2026-07-05T10:51:35.782Z",
   "started_at_utc": null,
-  "product_edit_allowed": true,
+  "product_edit_allowed": false,
   "origin": "Honest deferrals surfaced during MT-006/014/041/043/013-010/012 implementation + adversarial reviews (2026-07-02). Consolidated so they are not forgotten; split into dedicated MTs if/when prioritized.",
   "deferred_items": [
     "D1 (backend test): moodboard PG round-trip test (atelier_moodboard_changed_positions_record_distinct_snapshots) is BLOCKED - it lives in atelier_core_data_tests.rs which has a parallel MT-031's broken uncommitted test (metadata_request_id borrow-of-moved at ~:1997) that fails the whole test binary. Move the moodboard test to a clean file (atelier_moodboard_tests.rs) once MT-031 WIP is resolved, and prove record P1/P2 -> distinct content_sha256 + MOODBOARD_SNAPSHOT_RECORDED events on managed PG.",
@@ -33,6 +33,162 @@
     "D14 (process gap, all WPs): test_manual_pane_editors (id_audit + no-sqlite + tab-doc coupled asserts) was NOT run by MT-010/017/018/020/032/042 - manual drift accumulated as RED tests only exposed when MT-030 first touched the manual. Every future MT that edits manual_content_editors.rs MUST run test_manual_pane_editors as a gate. Consider adding it to the build_rules manual-coverage gate.",
     "D15 (MT-031 follow-ups): (a) envelope-wrap the OTHER 5 Facial review commands (claim/decision/status/montage/session) with durable HTTP-200 outcome envelopes + receipts, exactly like export got in MT-031 (MT-031 scoped to export per acceptance 'at least one blocked path'). (b) SPEC DECISION: a fully-decided Facial export that intentionally rejects/holds some images is currently labeled 'degraded' (funnel/problems non-empty) with a recovery_hint implying incompleteness - a plausible false-degraded that could push a model into needless recovery. Operator/spec to decide whether reject/hold-only exports should be 'succeeded'. (c) atelier_panel.rs:7600 doc comment ('surfaces the backend HTTP error text honestly') is now slightly incomplete (blocked/degraded/error arrive as Ok envelopes) - accurate only for genuine transport failures; tidy in a doc pass."
   ],
-  "lifecycle": { "status": "PENDING", "active": false, "validator_verdict": "PENDING" },
-  "handoff": { "status": "PENDING" }
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-003842",
+    "ready_for_validation_at_utc": "2026-07-05T00:47:00.588Z"
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "note": "MT-044 tracker is ready for validator review as a split-resolution artifact only. No deferred product item is officially validated here; child MTs MT-045..MT-055 now carry implementer-side READY_FOR_VALIDATION contracts and remain validator_verdict PENDING. D6 remains RFV/PENDING under MT-023; D8/D14 are future/non-product follow-ups; D15b is blocked on spec/operator decision.",
+    "ready_for_validation_at_utc": "2026-07-05T00:47:00.588Z",
+    "validator_verdict": "PENDING",
+    "child_status_reconciled_at_utc": "2026-07-05T10:51:35.782Z",
+    "child_status_reconciled_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY"
+  },
+  "tracker_resolution": {
+    "status": "SPLIT_INTO_EXECUTABLE_MICROTASKS",
+    "split_at_utc": "2026-07-05T00:47:00.588Z",
+    "split_by": "KERNEL_BUILDER-20260705-003842",
+    "rationale": "MT-044 is a consolidated tracker with disjoint code surfaces and proof gates. Authority requires one operator change per MT and per-MT file/proof ownership, so the tracker cannot be executed as one product microtask.",
+    "authority_evidence": [
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-044.json deferred_items says split into dedicated MTs if/when prioritized",
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json policy.one_operator_change_per_mt=true",
+      ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md says split when one MT mixes unrelated authority boundaries, code surfaces, proof commands, or failure modes",
+      ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md says do not collapse microtasks merely to reduce paperwork"
+    ],
+    "subagent_reviewers": [
+      "Hooke",
+      "Boole",
+      "Ptolemy"
+    ],
+    "child_microtasks": [
+      {
+        "mt_id": "MT-045",
+        "title": "Isolate moodboard PG round-trip proof from broken core-data test binary",
+        "source_deferred_item": "D1",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-046",
+        "title": "Make moodboard add/place/connect affordances honest",
+        "source_deferred_item": "D2",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-047",
+        "title": "Bound decoded CKC media and Posekit image caches",
+        "source_deferred_item": "D3",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-048",
+        "title": "Harden Atelier panel mock-server tests under load",
+        "source_deferred_item": "D4",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-049",
+        "title": "Preserve Argus actor on local CKC sheet-artifact attach",
+        "source_deferred_item": "D5",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-050",
+        "title": "Render literal Posekit exported PNG artifact bytes",
+        "source_deferred_item": "D7",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-051",
+        "title": "Wire prompt-feedback panel to backend round-trip drain loop",
+        "source_deferred_item": "D9",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-052",
+        "title": "Add prompt-stress CSV import adapter",
+        "source_deferred_item": "D10",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-053",
+        "title": "Replace Facial manual ID allowlist with rendered-panel audit",
+        "source_deferred_item": "D11",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-054",
+        "title": "Expose Facial montage/export content readouts and numeric parse notes",
+        "source_deferred_item": "D12/D13",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      },
+      {
+        "mt_id": "MT-055",
+        "title": "Envelope-wrap remaining Facial review commands",
+        "source_deferred_item": "D15a/D15c",
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING",
+        "status_note": "Child MT contract now carries implementer-side READY_FOR_VALIDATION; official validator verdict remains PENDING."
+      }
+    ],
+    "already_addressed_pending_validation": [
+      {
+        "deferred_item": "D6",
+        "carried_by": "MT-023",
+        "note": "Sub-700 responsive/layout proof appears present in RFV evidence; validator_verdict remains PENDING, so this is not official validation."
+      }
+    ],
+    "future_wp_or_non_product_candidates": [
+      {
+        "deferred_item": "D8",
+        "recommendation": "Promote Leeseo LoRA training infrastructure wishlist to a separate future WP; it is outside this Atelier/CKC product-runtime WP."
+      },
+      {
+        "deferred_item": "D14",
+        "recommendation": "Route manual-test-gate process hardening to a governance/build-rule follow-up; it is not product-runtime work and repo governance is otherwise kept minimal for this WP."
+      }
+    ],
+    "blocked_decisions": [
+      {
+        "deferred_item": "D15b",
+        "blocker": "Spec/operator decision needed on whether reject/hold-only Facial exports should be succeeded or degraded. MT-055 excludes that semantics change."
+      }
+    ],
+    "child_status_reconciled_at_utc": "2026-07-05T10:51:35.782Z",
+    "child_status_reconciled_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "child_status_reconciliation_note": "Updated embedded tracker rows to match canonical child MT contract status; this does not issue any validator verdict."
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-044.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-044.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-044.json"
+  }
 }

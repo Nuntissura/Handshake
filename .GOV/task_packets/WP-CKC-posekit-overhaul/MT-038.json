@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-038",
   "title": "Run CKC linked-media runtime Argus and manual proof pass",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-01T13:20:45.027Z",
   "updated_at_utc": "2026-07-01T13:54:29.110Z",
   "product_edit_allowed": true,
@@ -21,7 +21,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-038.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-010",
@@ -30,7 +30,9 @@
       "MT-037",
       "MT-039"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260704-232626",
+    "ready_for_validation_at_utc": "2026-07-05T00:20:03.134Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -98,7 +100,25 @@
   },
   "manual_requirement": "Required.",
   "handoff": {
-    "status": "PENDING",
-    "note": "Created after MT-010 work exposed that code-level UI tests are not enough for the CKC linked-media backbone. Depends on MT-039 so runtime Argus/manual closeout does not claim persistence before the backend roundtrip/reload proof exists."
+    "status": "READY_FOR_VALIDATION",
+    "note": "MT-038 is ready for validator review. This is not official validation; validator_verdict remains PENDING. Argus/manual runtime proof was collected for CKC linked-media inspect/click/set_value/screenshot, load-more, actor, source refs, notes/tags, and bounded screenshot evidence.",
+    "coder_session": "KERNEL_BUILDER-20260704-232626",
+    "ready_for_validation_at_utc": "2026-07-05T00:20:03.134Z",
+    "proof_commands": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-038 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_linked_media_visual_probe -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-038 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_inspects_and_steers_ckc_linked_media_without_touching_sheet_notes -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-038 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_structured_ckc_media_refs_and_actor_surface -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-038 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib manual_content_editors::tests::ckc_linked_media_manual_documents_argus_visual_runtime_flow -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/tests/test_atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/src/atelier_panel.rs"
+    ],
+    "artifacts": [
+      "../Handshake_Artifacts/handshake-test/wp-ckc-posekit-overhaul-mt-038/ckc_linked_media_wide_backend_load_more.png (133954 bytes)",
+      "../Handshake_Artifacts/handshake-test/wp-ckc-posekit-overhaul-mt-038/ckc_linked_media_constrained_local.png (101463 bytes)",
+      "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-038 removed after proof"
+    ],
+    "residual_gaps": [
+      "No official validator verdict yet; validator_verdict remains PENDING.",
+      "Backend persistence remains dependent on validator review of MT-039 RFV evidence; MT-038 does not claim validation."
+    ]
   }
 }

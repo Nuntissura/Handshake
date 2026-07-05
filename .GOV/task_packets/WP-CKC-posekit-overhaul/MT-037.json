@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-037",
   "title": "Contain CKC local fallback state and persistence receipts",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-01T13:20:45.027Z",
   "updated_at_utc": "2026-07-01T13:20:45.027Z",
   "product_edit_allowed": true,
@@ -21,13 +21,19 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-037.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-010",
       "MT-032"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -55,7 +61,8 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/atelier_panel.rs",
       "src/frontend/handshake_native/tests/test_atelier_panel.rs",
-      "src/frontend/handshake_native/src/manual_content_editors.rs"
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
     ],
     "acceptance_criteria": [
       "Every CKC local-only mutation path surfaces local/degraded/non-persistent status through Argus-readable nodes.",
@@ -92,7 +99,8 @@
   },
   "manual_requirement": "Required.",
   "handoff": {
-    "status": "PENDING",
-    "note": "Created from MT-010 review finding that no-backend fallback can mutate local state and look real."
+    "status": "READY_FOR_VALIDATION",
+    "note": "Created from MT-010 review finding that no-backend fallback can mutate local state and look real.",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z"
   }
 }

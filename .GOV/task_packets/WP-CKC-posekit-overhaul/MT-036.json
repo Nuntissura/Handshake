@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-036",
   "title": "Add CKC media row-level attribution and parallel-agent conflict safety",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-01T13:20:45.027Z",
-  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-04T22:44:42.472Z",
   "product_edit_allowed": true,
   "operator_request": "Capture the parallel-agent attribution risk found during MT-010: event headers are not enough if album rows and media links do not show who created, linked, edited, or removed them.",
   "authority_files": {
@@ -21,13 +21,17 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-010",
       "MT-032"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260704-202642",
+    "claimed_at_utc": "2026-07-04T21:25:02.994Z",
+    "started_at_utc": "2026-07-04T21:25:02.994Z",
+    "ready_for_validation_at_utc": "2026-07-04T22:44:42.472Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -35,7 +39,8 @@
       "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/media.rs",
       "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
-      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs"
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/collections.rs"
     ],
     "recovery_rule": "Resume by adding persisted row-level attribution where missing. Do not treat HTTP headers alone as sufficient for later no-context model recovery."
   },
@@ -55,7 +60,10 @@
       "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
-      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/collections.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/atelier/media.rs",
@@ -64,7 +72,10 @@
       "src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
       "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/src/atelier_panel.rs",
-      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "src/backend/handshake_core/src/atelier/collections.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
     ],
     "acceptance_criteria": [
       "Album create responses include persisted creator attribution.",
@@ -101,7 +112,23 @@
   },
   "manual_requirement": "Required if attribution becomes operator/model visible.",
   "handoff": {
-    "status": "PENDING",
-    "note": "Created from MT-010 review finding that event/header attribution alone is insufficient for row-level media recovery."
-  }
+    "status": "READY_FOR_VALIDATION",
+    "note": "MT-036 is ready for validator review. This is not official validation; validator_verdict remains PENDING.",
+    "coder_session": "KERNEL_BUILDER-20260704-202642",
+    "ready_for_validation_at_utc": "2026-07-04T22:44:42.472Z"
+  },
+  "target_file_corrections": [
+    {
+      "recorded_at_utc": "2026-07-04T21:29:03.630Z",
+      "reason": "Inspection found CKC album persistence is owned by atelier/collections.rs, and attribution is model-visible so the manual/manual-id audit surface is in scope.",
+      "added_paths": [
+        "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/collections.rs",
+        "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+        "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+        "src/backend/handshake_core/src/atelier/collections.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+      ]
+    }
+  ]
 }

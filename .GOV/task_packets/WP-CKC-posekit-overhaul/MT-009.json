@@ -30,7 +30,12 @@
     "validator_verdict": "PENDING",
     "started_at_utc": "2026-06-28T23:28:00.301Z",
     "ready_for_validation_at_utc": "2026-06-29T12:03:20.530Z",
-    "product_commit": "6dd3c169"
+    "product_commit": "6dd3c169",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -93,7 +98,8 @@
       "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/ckc-mt009-backend/debug/deps/atelier_stealth_window_tests-111be32f3a45d7a4.exe atelier_ckc_media_album_api_links_assets_notes_tags_and_refs --exact --nocapture",
       "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/ckc-mt009-backend/debug/deps/atelier_stealth_window_tests-111be32f3a45d7a4.exe atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes --exact --nocapture",
       "git diff --cached --check"
-    ]
+    ],
+    "ready_for_validation_at_utc": "2026-06-29T12:03:20.530Z"
   },
   "started_at_utc": "2026-06-28T23:28:00.301Z",
   "ready_for_validation_at_utc": "2026-06-29T12:03:20.530Z",

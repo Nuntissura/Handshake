@@ -28,7 +28,13 @@
       "MT-007"
     ],
     "validator_verdict": "PENDING",
-    "started_at_utc": "2026-06-28T23:26:05.618Z"
+    "started_at_utc": "2026-06-28T23:26:05.618Z",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -77,7 +83,8 @@
   "manual_requirement": "Required in this MT.",
   "handoff": {
     "status": "READY_FOR_VALIDATION",
-    "summary": "Implemented: Argus wire/protocol/manual hardening. TCP and Windows named-pipe Argus coverage pass; unauthorized wire auth now returns before snapshot lock; protocol/startup/HBR references name argus.* as canonical. Awaiting validator."
+    "summary": "Implemented: Argus wire/protocol/manual hardening. TCP and Windows named-pipe Argus coverage pass; unauthorized wire auth now returns before snapshot lock; protocol/startup/HBR references name argus.* as canonical. Awaiting validator.",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z"
   },
   "started_at_utc": "2026-06-28T23:26:05.618Z",
   "execution": {

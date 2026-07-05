@@ -30,11 +30,18 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001.json"
   },
   "lifecycle": {
-    "status": "COMPLETED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "started_at_utc": "2026-06-28T12:39:33.432Z",
-    "completed_at_utc": "2026-06-28T12:49:12.999Z"
+    "completed_at_utc": "2026-06-28T12:49:12.999Z",
+    "validator_verdict": "PENDING",
+    "ready_for_validation_at_utc": "2026-06-28T12:49:12.999Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "scope": {
     "title": "Inventory CKC/PoseKit/Atelier non-Rust surfaces before migration",
@@ -170,7 +177,9 @@
     ]
   },
   "handoff": {
-    "status": "COMPLETED",
-    "summary": "Inventory completed. Non-Rust current-product surfaces are recorded in MT-001-inventory.json. Original legacy app files were not found locally; preserved Rust source anchors are the current parity evidence unless MT-002 locates the original app."
-  }
+    "status": "READY_FOR_VALIDATION",
+    "summary": "Inventory completed. Non-Rust current-product surfaces are recorded in MT-001-inventory.json. Original legacy app files were not found locally; preserved Rust source anchors are the current parity evidence unless MT-002 locates the original app.",
+    "ready_for_validation_at_utc": "2026-06-28T12:49:12.999Z"
+  },
+  "status": "READY_FOR_VALIDATION"
 }

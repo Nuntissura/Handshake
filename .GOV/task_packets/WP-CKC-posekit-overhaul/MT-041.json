@@ -13,9 +13,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-041",
   "title": "Add operator-facing dropdown menu-bar item for Atelier + required Argus menu-leaf expansion",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-01T18:58:35.486Z",
-  "updated_at_utc": "2026-07-01T18:58:35.486Z",
+  "updated_at_utc": "2026-07-05T10:51:35.782Z",
   "started_at_utc": null,
   "product_edit_allowed": true,
   "origin": "MT-040 audit P4 (out of MT-006 scope) + operator goal directive 'make sure there is an operator facing drop down menu bar item for this wp'.",
@@ -37,6 +37,70 @@
     ]
   },
   "hbr_obligations_note": "HBR-VIS (Argus menu inspect/steer), HBR-QUIET (headless, no focus/input steal), HBR-MAN (UserManual), HBR-SWARM (parallel-agent addressability of menu + leaves).",
-  "lifecycle": { "status": "PENDING", "active": false, "depends_on": [], "validator_verdict": "PENDING" },
-  "handoff": { "status": "PENDING" }
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [],
+    "validator_verdict": "PENDING",
+    "ready_for_validation_at_utc": "2026-07-05T10:51:35.782Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "ready_for_validation_at_utc": "2026-07-05T10:51:35.782Z",
+    "validator_verdict": "PENDING",
+    "implementation_drift_fix": {
+      "fixed_at_utc": "2026-07-05T10:51:35.782Z",
+      "fixed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "issue": "GO > Atelier Castkit Codex/parent leaves previously relied on set_module(ModuleId::Ckc), so an already-active CKC/Posekit state could short-circuit and leave the internal tab on Posekit.",
+      "resolution": "open_atelier_target now explicitly selects AtelierPanelTab::CastkitCodex for Module/Ckc leaves, mirroring the Posekit explicit tab select.",
+      "changed_product_files": [
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/tests/test_atelier_menu.rs"
+      ],
+      "proof_result": {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_menu atelier_leaves_jump_to_module_and_tab -- --exact --nocapture",
+        "exit_code": 0,
+        "result": "1 passed; 0 failed; 0 ignored; 3 filtered out",
+        "cargo_target_dir": "../Handshake_Artifacts/cargo-target/wtc-ckc-posekit-overhaul-mt041",
+        "note": "Fresh implementer-side regression proof only; official validator verdict remains PENDING."
+      }
+    }
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-041.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-041.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-041.json"
+  },
+  "proof_commands": [
+    "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_menu atelier_leaves_jump_to_module_and_tab -- --exact --nocapture"
+  ],
+  "validation_evidence": {
+    "latest_implementation_proof": {
+      "fixed_at_utc": "2026-07-05T10:51:35.782Z",
+      "fixed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "issue": "GO > Atelier Castkit Codex/parent leaves previously relied on set_module(ModuleId::Ckc), so an already-active CKC/Posekit state could short-circuit and leave the internal tab on Posekit.",
+      "resolution": "open_atelier_target now explicitly selects AtelierPanelTab::CastkitCodex for Module/Ckc leaves, mirroring the Posekit explicit tab select.",
+      "changed_product_files": [
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/tests/test_atelier_menu.rs"
+      ],
+      "proof_result": {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_menu atelier_leaves_jump_to_module_and_tab -- --exact --nocapture",
+        "exit_code": 0,
+        "result": "1 passed; 0 failed; 0 ignored; 3 filtered out",
+        "cargo_target_dir": "../Handshake_Artifacts/cargo-target/wtc-ckc-posekit-overhaul-mt041",
+        "note": "Fresh implementer-side regression proof only; official validator verdict remains PENDING."
+      }
+    }
+  }
 }

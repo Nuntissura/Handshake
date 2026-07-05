@@ -1,0 +1,155 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-053",
+  "title": "Replace Facial manual ID allowlist with rendered-panel audit",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-07-05T00:47:00.588Z",
+  "updated_at_utc": "2026-07-05T07:40:21.667Z",
+  "started_at_utc": "2026-07-05T07:20:27.760Z",
+  "product_edit_allowed": true,
+  "origin": "MT-044 D11 split: test_manual_pane_editors uses a hand-maintained allowlist that cannot catch allowlisted-but-not-emitted Facial IDs.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-053.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-053.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-053.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-030"
+    ],
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-044820",
+    "claimed_at_utc": "2026-07-05T07:20:27.760Z",
+    "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "recovery_rule": "Resume MT-053 by reading this contract, limiting edits to allowed_paths, using external CARGO_TARGET_DIR under ../Handshake_Artifacts, and keeping validator_verdict PENDING until an official validator changes it."
+  },
+  "scope": {
+    "summary": "Replace Facial manual author-id audit allowlists with rendered-panel evidence mirroring the CKC rendered ID audit pattern so manual/live ID drift is caught both directions.",
+    "base_scope": [
+      "Replace Facial manual author-id audit allowlists with rendered-panel evidence mirroring the CKC rendered ID audit pattern so manual/live ID drift is caught both directions."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "acceptance_criteria": [
+      "Facial manual ID audit derives live rendered Facial author IDs from the panel instead of trusting only a hand-maintained allowlist.",
+      "The audit fails for documented-but-not-rendered and rendered-but-not-documented Facial IDs.",
+      "Existing CKC rendered ID audit remains intact.",
+      "No unrelated manual prose is rewritten."
+    ],
+    "risks_and_controls": [
+      "Risk: rendered-panel audit becomes brittle because a mode is not selected before collecting IDs.",
+      "Risk: test fixes manual drift by deleting useful documented IDs instead of exposing live rows."
+    ],
+    "proof_targets": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-053 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors id_audit -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/tests/test_manual_pane_editors.rs src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "verification": [
+      "Focused manual ID audit proof.",
+      "Diff review confirms manual changes only address audited IDs if needed."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "scope containment versus MT-044 tracker drift",
+      "runtime proof versus code-only proof",
+      "parallel model/operator safety",
+      "artifact and build-output hygiene"
+    ]
+  },
+  "manual_requirement": "Not required unless implementation changes operator/model-facing workflow text.",
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Risk: rendered-panel audit becomes brittle because a mode is not selected before collecting IDs.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: test fixes manual drift by deleting useful documented IDs instead of exposing live rows.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      }
+    ],
+    "minimum_controls": [
+      "Edit only allowed_paths unless the MT contract is explicitly widened first.",
+      "Use external CARGO_TARGET_DIR under ../Handshake_Artifacts for Cargo proofs.",
+      "Do not mark validator_verdict PASS/FAIL; Kernel Builder only moves to READY_FOR_VALIDATION.",
+      "Record residual gaps in handoff instead of implying official validation."
+    ]
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "coder_session": "KERNEL_BUILDER-20260705-044820",
+    "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z",
+    "validator_verdict": "PENDING",
+    "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-053:rfv-20260705T074021000Z",
+    "summary": "Replaced the Facial manual ID allowlist path with rendered Atelier panel evidence and added a bidirectional Facial documented/rendered ID audit.",
+    "implementation_summary": [
+      "Added rendered_facial_panel_author_id_set() to build a real AtelierPanel harness, click the Ingest tab, collect Dataset Intake Facial IDs, click Facial review mode, and collect review-mode Facial IDs.",
+      "Removed Facial constants from live_author_id_set() so the generic no-orphan audit now extends from rendered Facial panel evidence instead of a hand-maintained Facial allowlist.",
+      "Added id_audit_facial_author_ids_match_rendered_live_atelier_panel() to fail for both documented-but-not-rendered and rendered-but-not-documented Facial author IDs.",
+      "Preserved the existing CKC rendered-panel audit; no manual prose rewrite was made for MT-053."
+    ],
+    "tdd_evidence": [
+      "RED: id_audit_facial_author_ids_match_rendered_live_atelier_panel failed against the initial empty Facial rendered collector, proving the old path did not derive rendered Facial IDs.",
+      "GREEN: id_audit proof passed with 3 tests passed/0 failed after the rendered Facial collector and allowlist removal."
+    ],
+    "proof_commands": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-053 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors id_audit -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/tests/test_manual_pane_editors.rs src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "proof_results": [
+      "cargo test id_audit: exit 0, 3 passed, 0 failed, 15 filtered out; warning parse_atelier_facial_artifact_read_row unused is pre-existing/non-blocking.",
+      "git diff --check scoped to MT-053 allowed files: exit 0 with LF-to-CRLF warnings only.",
+      "Cargo target cleaned: ../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-053 exists_after=false."
+    ],
+    "subagent_review_notes": [
+      "Ohm/Raman findings implemented: select Ingest before collection, collect both Dataset Intake and Facial Review IDs, and remove the old Facial constant allowlist.",
+      "Anscombe broad dirty-tree findings are tracked as residual environment risk; off-allowlist dirty files were pre-existing and were not touched for MT-053."
+    ],
+    "residual_gaps": [
+      "No official validator verdict has been issued; validator_verdict remains PENDING.",
+      "Repo/product worktree contains unrelated pre-existing dirty files outside MT-053; they were not touched or reverted.",
+      "manual_content_editors.rs and atelier_panel.rs are dirty from prior MTs in the shared product worktree, but MT-053 implementation edits were limited to test_manual_pane_editors.rs.",
+      "Cross-platform CI/non-target cargo check was not run or claimed for MT-053."
+    ]
+  },
+  "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z"
+}

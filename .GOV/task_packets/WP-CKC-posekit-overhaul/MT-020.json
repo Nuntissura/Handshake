@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-020",
   "title": "Integrate prompt feedback kernel and Leeseo wishlist into Handshake workflows",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
   "updated_at_utc": "2026-06-28T21:53:53.761Z",
   "product_edit_allowed": true,
@@ -21,13 +21,19 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-020.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-016",
       "MT-017"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -64,6 +70,22 @@
       "Requirement-map review against the external files.",
       "Backend tests for receipt/verdict persistence.",
       "Native UI/Argus evidence for review workflow."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/migrations/0342_atelier_prompt_feedback.sql",
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/src/atelier/mod.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/engine.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/model.rs",
+      "src/backend/handshake_core/src/model_manual/content.rs",
+      "src/backend/handshake_core/src/model_manual/mod.rs",
+      "src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
     ]
   },
   "review_policy": {
@@ -78,6 +100,20 @@
   },
   "manual_requirement": "Required in this MT.",
   "handoff": {
-    "status": "PENDING"
+    "status": "READY_FOR_VALIDATION",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "validator_verdict": "PENDING",
+    "status_recovery_updated_at_utc": "2026-07-05T10:51:35.782Z"
+  },
+  "validation_evidence": {
+    "legacy_rfv_evidence": {
+      "recorded_from": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+      "recorded_product_commit": "964db28d",
+      "summary": "Committed 964db28d (2026-07-02): deterministic prompt-feedback kernel first slice. NEW self-contained atelier/prompt_feedback/ module (model/engine/adapter/mod) on PG+EventLedger+ArtifactStore (no SQLite). Leeseo CUIPP/prompt-stress import -> PromptCases; operator/model/subagent/validator/script verdicts; PURE engine (normalize->validate->evaluate_rules->rewrite->trace) with 5 seed rules + hash pool selection; every rewrite carries a trace (no freeform); JSONL export = hashed ArtifactStore artifact. Migration 0342 (5 tables). 6 API routes; frontend prompt-feedback sub-mode nested under Ingest (not a 4th tab); atelier-promptfeedback-* Argus ids; both manuals. Pre+post adversarial review found+fixed: F1 non-overridable prompt-stress->identity invariant (import + verdict paths), F2 unimplemented-rule-pack rejection, F3 feedback-distinct rewrite row, F6 export content-hash reuse, deadlock-retry (40P01/40001) for multi-writer safety, and a real render-stack mapping bug (no_detail->FaceDetailer). Proof: engine/adapter 13/13 unit; backend atelier_prompt_feedback_tests 7/7 managed PG; frontend test_atelier_panel 31/1 (1=pre-existing MT-016 :2812 = MT-044 D5). Deferred to MT-044: D8 LoRA wishlist (separate future scope), D9 panel live backend round-trip (panel is honest WIP), D10 CSV import.",
+      "validator_verdict": "PENDING",
+      "recovered_at_utc": "2026-07-05T10:51:35.782Z",
+      "recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "note": "Evidence summary copied into the MT contract for implementer-side checklist recovery only; this is not an official validator verdict."
+    }
   }
 }

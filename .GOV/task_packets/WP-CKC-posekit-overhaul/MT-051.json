@@ -1,0 +1,179 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-051",
+  "title": "Wire prompt-feedback panel to backend round-trip drain loop",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-07-05T00:47:00.588Z",
+  "updated_at_utc": "2026-07-05T06:12:43.245Z",
+  "started_at_utc": "2026-07-05T04:37:33.943Z",
+  "product_edit_allowed": true,
+  "origin": "MT-044 D9 split: prompt-feedback native panel is steerable but still local-preview/WIP instead of live backend round-trip.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-051.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-051.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-051.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-020"
+    ],
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-044820",
+    "claimed_at_utc": "2026-07-05T05:00:05.147Z",
+    "ready_for_validation_at_utc": "2026-07-05T06:12:43.245Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume MT-051 by reading this contract, limiting edits to allowed_paths, using external CARGO_TARGET_DIR under ../Handshake_Artifacts, and keeping validator_verdict PENDING until an official validator changes it."
+  },
+  "scope": {
+    "summary": "Connect the prompt-feedback Ingest sub-mode panel to the backend prompt-feedback client builders and drain results into visible/Argus-readable panel state.",
+    "base_scope": [
+      "Connect the prompt-feedback Ingest sub-mode panel to the backend prompt-feedback client builders and drain results into visible/Argus-readable panel state."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "Prompt-feedback import/rewrite/export panel actions call backend client request builders when backend is configured.",
+      "Backend results drain into case rows/status/readouts instead of only local preview strings.",
+      "No-backend path remains explicitly local preview and never claims persistence.",
+      "Argus can inspect the backend-mode/result state after the round trip."
+    ],
+    "risks_and_controls": [
+      "Risk: backend drain loop overwrites unsaved local prompt edits.",
+      "Risk: local preview and backend result states become indistinguishable to models."
+    ],
+    "proof_targets": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-051 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel prompt_feedback_panel_roundtrips_backend_results_into_argus_state -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-051 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel prompt_feedback_request_builders_target_verified_routes -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/backend_client.rs src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "verification": [
+      "Focused backend-drain Argus proof.",
+      "Request-builder route proof.",
+      "Manual update proof if workflow text changes."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "scope containment versus MT-044 tracker drift",
+      "runtime proof versus code-only proof",
+      "parallel model/operator safety",
+      "artifact and build-output hygiene"
+    ]
+  },
+  "manual_requirement": "Required if panel workflow text changes.",
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Risk: backend drain loop overwrites unsaved local prompt edits.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: local preview and backend result states become indistinguishable to models.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      }
+    ],
+    "minimum_controls": [
+      "Edit only allowed_paths unless the MT contract is explicitly widened first.",
+      "Use external CARGO_TARGET_DIR under ../Handshake_Artifacts for Cargo proofs.",
+      "Do not mark validator_verdict PASS/FAIL; Kernel Builder only moves to READY_FOR_VALIDATION.",
+      "Record residual gaps in handoff instead of implying official validation."
+    ]
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "note": "MT-051 is ready for validator review, not officially validated. Prompt-feedback import/rewrite/export panel actions now dispatch backend client request builders when ckc_client is configured, drain backend responses into Argus-visible case/status/readout state, preserve no-backend local preview behavior, and keep validator_verdict PENDING.",
+    "coder_session": "KERNEL_BUILDER-20260705-044820",
+    "ready_for_validation_at_utc": "2026-07-05T06:12:43.245Z",
+    "implementation_summary": [
+      "Added typed prompt-feedback backend client rows, cells, parsers, request builders, and dispatch methods for import, case fetch, rewrite, and export.",
+      "Changed prompt-feedback panel import/rewrite/export actions to use backend calls when a backend client exists, while leaving the no-backend path explicitly local preview.",
+      "Drained backend import/rewrite/export responses into Argus-readable case rows, statuses, rewrite traces, export artifacts, case_id metadata, source metadata, and persistence-source readouts.",
+      "Keyed backend case selection and mutation bodies by persisted backend case_id while keeping source_case_id as display/value metadata.",
+      "Added request-id plus input-fingerprint stale-response guards for import, rewrite, and export so old backend responses cannot overwrite changed local state.",
+      "Updated prompt-feedback manual prose and AgentToolRows so future operators/models see conditional backend/no-backend behavior instead of local-preview-only wording."
+    ],
+    "changed_product_files": [
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "proof_commands": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-051 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel prompt_feedback_panel_roundtrips_backend_results_into_argus_state -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-051 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel prompt_feedback_request_builders_target_verified_routes -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-051 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors manual_documents_prompt_feedback_kernel -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/backend_client.rs src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "proof_results": [
+      "prompt_feedback_panel_roundtrips_backend_results_into_argus_state: 1 passed, 0 failed; proves UI action -> backend request -> mock HTTP response -> parser -> drain -> Argus-visible state for import/rewrite/export.",
+      "prompt_feedback_request_builders_target_verified_routes: 1 passed, 0 failed; proves verified prompt-feedback routes, scoped query parameters, and request bodies.",
+      "manual_documents_prompt_feedback_kernel: 1 passed, 0 failed; proves updated prompt-feedback manual/tool wording.",
+      "git diff --check exited 0 with LF-to-CRLF warnings only on the four MT-051 touched files.",
+      "Existing warning observed during cargo tests: parse_atelier_facial_artifact_read_row is dead code; it is outside MT-051 and was not changed."
+    ],
+    "review_resolution": [
+      "Pre-review Lagrange finding addressed: proof captures actual prompt-feedback HTTP route dispatch and drains into Argus-readable state.",
+      "Pre-review Copernicus finding addressed: backend rows carry persisted case_id, source_case_id, project_id, failure tags, import metadata, and Model Ops headers are asserted in live request proof.",
+      "Pre-review Peirce finding addressed: stale response handling now checks request id and input fingerprint before applying backend results.",
+      "Post-review Newton findings addressed: duplicate POSTs are counted, live import/rewrite/export headers and bodies are asserted, and valid UUID lease IDs are used in tests.",
+      "Post-review Descartes findings addressed: pending response fingerprints, backend UUID row selection, and manual AgentToolRows were corrected.",
+      "Post-review McClintock findings addressed: invalid lease fixture IDs were replaced with valid UUIDs and actor/session/lease assertions cover import, rewrite, and export."
+    ],
+    "artifacts": [
+      "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-051 was created for final proof reruns and removed after proof; cleanup verified exists_after=False."
+    ],
+    "residual_gaps": [
+      "No official validator verdict yet; validator_verdict remains PENDING.",
+      "Roundtrip proof still sets the Model Ops lease thread through the harness helper before driving prompt-feedback UI actions; this proves prompt-feedback backend roundtrip behavior but not the separate Model Ops claim/read path.",
+      "Argus values are structured key-value strings rather than JSON envelopes for every prompt-feedback result. They are model-readable and tested, but a future hardening pass could make those values strict JSON envelopes."
+    ],
+    "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-051:rfv-20260705T061243245Z",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+    "validator_handoff_files": [
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/THREAD.md",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RECEIPTS.jsonl",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RUNTIME_STATUS.json"
+    ]
+  },
+  "ready_for_validation_at_utc": "2026-07-05T06:12:43.245Z"
+}

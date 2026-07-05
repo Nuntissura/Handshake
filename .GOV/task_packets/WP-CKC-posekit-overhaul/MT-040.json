@@ -17,7 +17,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-040",
   "title": "Audit Atelier full-window module vs workbench-pane mounting and specify CKC/PoseKit/Ingest full-size sub-module rewiring",
-  "status": "COMPLETED",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-01T18:01:26.824Z",
   "updated_at_utc": "2026-07-01T18:26:04.591Z",
   "started_at_utc": "2026-07-01T18:18:07.813Z",
@@ -47,7 +47,7 @@
     "reason": "JSON contract is authority; no .md projection created by default per packet artifact_policy and operator no-default-md directive. Generate on explicit operator request only."
   },
   "lifecycle": {
-    "status": "COMPLETED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "completed_at_utc": "2026-07-01T18:26:04.591Z",
     "depends_on": [],
@@ -57,7 +57,13 @@
       "MT-004",
       "MT-006"
     ],
-    "audit_relationship_note": "Inspects the outputs of MT-004 (COMPLETED, renamed CKC shell to Atelier) and MT-006 (READY_FOR_VALIDATION, promoted Atelier to a filling PaneType::AtelierEditor with CKC/PoseKit/Ingest sibling tabs). This MT does NOT depend on those MTs being validator-confirmed; it inspects their current code state. MT-006 is the primary audit target because it implemented Atelier as PaneType::AtelierEditor (the workbench pane mechanism also used by notes/terminals), which is the operator's suspected root cause."
+    "audit_relationship_note": "Inspects the outputs of MT-004 (COMPLETED, renamed CKC shell to Atelier) and MT-006 (READY_FOR_VALIDATION, promoted Atelier to a filling PaneType::AtelierEditor with CKC/PoseKit/Ingest sibling tabs). This MT does NOT depend on those MTs being validator-confirmed; it inspects their current code state. MT-006 is the primary audit target because it implemented Atelier as PaneType::AtelierEditor (the workbench pane mechanism also used by notes/terminals), which is the operator's suspected root cause.",
+    "ready_for_validation_at_utc": "2026-07-01T18:26:04.591Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -132,12 +138,13 @@
   "hbr_int_009_tier_obligations": [],
   "hbr_followup_note": "This inspection MT carries no runtime/VIS/QUIET/MAN/SWARM evidence obligations (consistent with the WP's READ_ONLY inspection MTs MT-001/MT-003). The implementation MT(s) recommended by AC8 MUST carry HBR-VIS (Argus), HBR-QUIET (no focus/input steal), HBR-MAN (UserManual), and HBR-SWARM (parallel-agent addressability of the module and its sub-module tabs).",
   "handoff": {
-    "status": "COMPLETED",
+    "status": "READY_FOR_VALIDATION",
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "expected_output": "MT-040-atelier-window-audit.json plus a disposition that DEFAULTS to MT-006 remediation-in-parts (link change-plan parts back to MT-006 per operator directive 2026-07-01), with a new MT proposed only for a finding truly out of MT-006 scope. This is a scoping/diagnosis MT; it produces analysis and a change plan, not product runtime behavior, so it does not claim the windowing is fixed."
+    "expected_output": "MT-040-atelier-window-audit.json plus a disposition that DEFAULTS to MT-006 remediation-in-parts (link change-plan parts back to MT-006 per operator directive 2026-07-01), with a new MT proposed only for a finding truly out of MT-006 scope. This is a scoping/diagnosis MT; it produces analysis and a change plan, not product runtime behavior, so it does not claim the windowing is fixed.",
+    "ready_for_validation_at_utc": "2026-07-01T18:26:04.591Z"
   },
   "red_team": {
     "required": true,

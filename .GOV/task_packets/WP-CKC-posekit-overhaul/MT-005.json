@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-005",
   "title": "Make native GUI cargo build launch deterministic without test-feature unification",
-  "status": "COMPLETED",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-28T16:49:48.833Z",
   "updated_at_utc": "2026-06-28T16:56:35.333Z",
   "started_at_utc": "2026-06-28T16:49:48.833Z",
@@ -38,7 +38,7 @@
     "generator": "manual-kernel-builder-hotfix-projection"
   },
   "lifecycle": {
-    "status": "COMPLETED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-004"
@@ -48,7 +48,13 @@
     ],
     "validator_verdict": "PENDING",
     "started_at_utc": "2026-06-28T16:49:48.833Z",
-    "completed_at_utc": "2026-06-28T16:56:35.333Z"
+    "completed_at_utc": "2026-06-28T16:56:35.333Z",
+    "ready_for_validation_at_utc": "2026-06-28T16:56:35.333Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -149,8 +155,9 @@
     }
   ],
   "handoff": {
-    "status": "COMPLETED",
-    "summary": "Native GUI build hotfix completed. The Windows wgpu backend is explicit in runtime Cargo features, and a fresh non-test build launches from the MT-owned target without the previous wgpu backend panic."
+    "status": "READY_FOR_VALIDATION",
+    "summary": "Native GUI build hotfix completed. The Windows wgpu backend is explicit in runtime Cargo features, and a fresh non-test build launches from the MT-owned target without the previous wgpu backend panic.",
+    "ready_for_validation_at_utc": "2026-06-28T16:56:35.333Z"
   },
   "red_team": {
     "required": true,

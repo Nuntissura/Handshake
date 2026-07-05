@@ -28,7 +28,13 @@
       "MT-009",
       "MT-014"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -91,6 +97,7 @@
     ],
     "validation_blockers": [
       "Focused cargo test commands for backend and frontend timed out during rustc compilation with no verdict; runtime PostgreSQL and Argus test pass is not claimed."
-    ]
+    ],
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z"
   }
 }

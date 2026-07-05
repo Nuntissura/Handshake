@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-02T08:47:55.759Z",
+  "updated_at_utc": "2026-07-05T10:29:13.4708984Z",
   "active_mt_id": null,
-  "next_mt_id": "MT-045",
+  "next_mt_id": null,
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -17,51 +17,76 @@
   "microtasks": [
     {
       "mt_id": "MT-001",
-      "status": "COMPLETED",
+      "status": "READY_FOR_VALIDATION",
       "title": "Inventory CKC/PoseKit/Atelier non-Rust surfaces before migration",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001.json",
       "product_edit_allowed": false,
       "started_at_utc": "2026-06-28T12:39:33.432Z",
       "completed_at_utc": "2026-06-28T12:49:12.999Z",
-      "inventory_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json"
+      "inventory_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-002",
-      "status": "COMPLETED",
+      "status": "READY_FOR_VALIDATION",
       "title": "Add native CKC/PoseKit operator and model quickstart coverage",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-002.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-06-28T13:06:35.842Z",
-      "completed_at_utc": "2026-06-28T13:57:27.986Z"
+      "completed_at_utc": "2026-06-28T13:57:27.986Z",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-003",
-      "status": "COMPLETED",
+      "status": "READY_FOR_VALIDATION",
       "title": "Map CKC/PoseKit original intent to current Handshake Atelier native surfaces",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003.json",
       "product_edit_allowed": false,
       "started_at_utc": "2026-06-28T15:20:55.051Z",
       "completed_at_utc": "2026-06-28T15:29:06.058Z",
-      "parity_map_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+      "parity_map_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-004",
-      "status": "COMPLETED",
+      "status": "READY_FOR_VALIDATION",
       "title": "Rename visible CKC module shell to Atelier and make CKC the default Atelier tab label",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-004.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-06-28T15:39:03.402Z",
       "completed_at_utc": "2026-06-28T16:02:40.053Z",
-      "product_commit": "e2f0d557"
+      "product_commit": "e2f0d557",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-005",
-      "status": "COMPLETED",
+      "status": "READY_FOR_VALIDATION",
       "title": "Make native GUI cargo build launch deterministic without test-feature unification",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-06-28T16:49:48.833Z",
-      "completed_at_utc": "2026-06-28T16:56:35.333Z"
+      "completed_at_utc": "2026-06-28T16:56:35.333Z",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-006",
@@ -73,7 +98,12 @@
       "reopened_at_utc": "2026-07-01T18:34:39.251Z",
       "ready_for_validation_at_utc": "2026-07-01T23:16:41.315Z",
       "product_commit": "565c6102",
-      "reopen_reason": "MT-040 audit remediation. P1 chrome-suppression at both render sites, P2 single CKC/PoseKit/Ingest tab bar (no MODULE_DEFINITIONS trim), P3 set_module->internal-tab deep-link. RUNTIME PROVEN: test_ckc_embed 17/17 (ac6 Argus steer of full-window Atelier; negative-chrome; R1 chrome-reappears; R2 MAIN keeps chrome; module-ingest->Ingest landing). Pre-existing baseline failures NOT caused/included: test_accesskit_ids (KERNEL-011 4-pane), test_module_switcher switcher_paints (pre-existing dual-Atelier label), test_atelier_panel posekit preview:// local (MT-014 scaffolding)."
+      "reopen_reason": "MT-040 audit remediation. P1 chrome-suppression at both render sites, P2 single CKC/PoseKit/Ingest tab bar (no MODULE_DEFINITIONS trim), P3 set_module->internal-tab deep-link. RUNTIME PROVEN: test_ckc_embed 17/17 (ac6 Argus steer of full-window Atelier; negative-chrome; R1 chrome-reappears; R2 MAIN keeps chrome; module-ingest->Ingest landing). Pre-existing baseline failures NOT caused/included: test_accesskit_ids (KERNEL-011 4-pane), test_module_switcher switcher_paints (pre-existing dual-Atelier label), test_atelier_panel posekit preview:// local (MT-014 scaffolding).",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-007",
@@ -81,7 +111,12 @@
       "title": "Implement native Argus MCP facade for headless visual inspection and steering",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-007.json",
       "product_edit_allowed": true,
-      "started_at_utc": "2026-06-28T21:24:05.577Z"
+      "started_at_utc": "2026-06-28T21:24:05.577Z",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-008",
@@ -89,7 +124,12 @@
       "title": "Harden Argus wire transport, protocol references, and manual coverage",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-008.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-009",
@@ -98,8 +138,13 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-009.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-06-28T23:28:00.301Z",
-      "ready_for_validation_at_utc": "2026-06-29T12:03:20.530Z",
-      "product_commit": "6dd3c169"
+      "ready_for_validation_at_utc": "2026-06-29T12:03:20.53Z",
+      "product_commit": "6dd3c169",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-010",
@@ -109,7 +154,12 @@
       "product_edit_allowed": true,
       "started_at_utc": "2026-06-29T12:04:21.384Z",
       "ready_for_validation_at_utc": "2026-07-01T13:59:07.293Z",
-      "parallel_lane_note": "Focused ckc_media tests passed. Backend reload/refetch persistence proof was added in MT-039 and is ready for validation; real DB integration is not claimed by MT-039."
+      "parallel_lane_note": "Focused ckc_media tests passed. Backend reload/refetch persistence proof was added in MT-039 and is ready for validation; real DB integration is not claimed by MT-039.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-011",
@@ -118,7 +168,12 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-011.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-06-29T09:27:30.976Z",
-      "product_commit": "91a12ce0"
+      "product_commit": "91a12ce0",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-012",
@@ -129,7 +184,12 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-012.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "SPLIT-BRAIN FIXED + committed fb6ecf39 (2026-07-02): board->snapshot reverse projection so Save serializes the LIVE canvas; moodboard isolated to its own LoomCanvasBoard (no leak to default-canvas). Adversarial review found+fixed 2 HIGH bugs (F1 infinite conflict loop, F2 sub-clamp silent-growth corruption) + F3/F4/F5. Runtime-proven: ckc_moodboard_canvas_move_survives_reverse_projection_roundtrip + sub-min-size test PASS. Deferred -> MT-044: backend PG round-trip test (blocked by MT-031 WIP), canvas add/connect round-trip. Shared-canvas-singleton -> MT-022; story-to-sheet-version separate."
+      "reality": "SPLIT-BRAIN FIXED + committed fb6ecf39 (2026-07-02): board->snapshot reverse projection so Save serializes the LIVE canvas; moodboard isolated to its own LoomCanvasBoard (no leak to default-canvas). Adversarial review found+fixed 2 HIGH bugs (F1 infinite conflict loop, F2 sub-clamp silent-growth corruption) + F3/F4/F5. Runtime-proven: ckc_moodboard_canvas_move_survives_reverse_projection_roundtrip + sub-min-size test PASS. Deferred -> MT-044: backend PG round-trip test (blocked by MT-031 WIP), canvas add/connect round-trip. Shared-canvas-singleton -> MT-022; story-to-sheet-version separate.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-013",
@@ -139,7 +199,12 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-013.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "DONE-BUT-DRIFTED (validated 2026-07-03, same pattern as MT-032). Full contract satisfied by committed CLEAN code: book layout ad818ca0 (media-left/sheet-right default, middle panel only for story/notes/moodboard, image-notes separate from sheet-notes, no four-window layout via assert_no_four_window_artifacts) + media viewer de-scaffolded b5a973e2 (real decoded raster via MT-043 byte-fetch). All 4 acceptance_criteria + base_scope CONFIRMED-PRESENT (atelier_panel.rs CkcBookMode :494-543, book groups emit_node :8147-8248). Validated at HEAD post-MT-031: proof tests ckc_book_layout_modes_gate_middle_panel_surfaces + argus_inspects_and_steers_ckc_character_sheet_surface pass within test_atelier_panel 34/1 (1=pre-existing MT-016 :2812=D5); manual/id-audit test_manual_pane_editors 14/14. No product build needed - status flip only. D6 (sub-700px 3-panel overflow + narrow/empty-state capture matrix) is EXTRA hardening beyond the contract acceptance (no pixel threshold in-contract) - correctly deferred to MT-044 (also D3 cache LRU, D4 mock flakes)."
+      "reality": "IMPLEMENTED-BUT-STATE-DRIFTED (implementation review 2026-07-03, same pattern as MT-032). Full contract evidence present in committed CLEAN code: book layout ad818ca0 (media-left/sheet-right default, middle panel only for story/notes/moodboard, image-notes separate from sheet-notes, no four-window layout via assert_no_four_window_artifacts) + media viewer de-scaffolded b5a973e2 (real decoded raster via MT-043 byte-fetch). All 4 acceptance_criteria + base_scope CONFIRMED-PRESENT (atelier_panel.rs CkcBookMode :494-543, book groups emit_node :8147-8248). Proof-observed at HEAD post-MT-031: proof tests ckc_book_layout_modes_gate_middle_panel_surfaces + argus_inspects_and_steers_ckc_character_sheet_surface pass within test_atelier_panel 34/1 (1=pre-existing MT-016 :2812=D5); manual/id-audit test_manual_pane_editors 14/14. No product build needed for RFV state correction. D6 (sub-700px 3-panel overflow + narrow/empty-state capture matrix) is EXTRA hardening beyond the contract acceptance (no pixel threshold in-contract) - correctly deferred to MT-044 (also D3 cache LRU, D4 mock flakes). No official validation is claimed; validator_verdict remains PENDING.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-014",
@@ -151,7 +216,12 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-014.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "Stale-PENDING corrected 2026-07-02: split-view/controls/backend-export ALREADY COMMITTED (7e76a087 + 6357a741 OpenPose), verified by MT-014 review; backend generate/export to ArtifactStore is real. SCAFFOLDING gaps (violate no-scaffolding rule): left '3D' viewport paints a hash-tile not the source image; right OpenPose viewport paints a schematic NOT bound to render_posekit_openpose_png output; -slider ids are text inputs; no-backend path emits preview:// with no PNG; frontend duplicates backend keypoint generator. Close these + prove rotation->rerender->real-artifact after MT-006 commits. Note: MT-015 marker pieces largely coded too (27efcfcc)."
+      "reality": "Stale-PENDING corrected 2026-07-02: split-view/controls/backend-export ALREADY COMMITTED (7e76a087 + 6357a741 OpenPose), verified by MT-014 review; backend generate/export to ArtifactStore is real. SCAFFOLDING gaps (violate no-scaffolding rule): left '3D' viewport paints a hash-tile not the source image; right OpenPose viewport paints a schematic NOT bound to render_posekit_openpose_png output; -slider ids are text inputs; no-backend path emits preview:// with no PNG; frontend duplicates backend keypoint generator. Close these + prove rotation->rerender->real-artifact after MT-006 commits. Note: MT-015 marker pieces largely coded too (27efcfcc).",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-015",
@@ -162,7 +232,12 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-015.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "VERIFIED RFV 2026-07-02 (read-only review): marker validate/stage/nudge + framing + failure-containment committed (b1eca87a, 27efcfcc) and tested. The audit's 'rides the schematic viewport' concern is RESOLVED - markers mutate the shared openpose_json that MT-014 (ac641827) turned into the REAL viewport source of truth (draw_pose_openpose_view); controls are now real sliders. All AC met: Argus-steerable (21 ids), facial edits persist to export, zoom/lens affect pixels, bad marker fails closed. Proof: posekit_marker_editing_and_framing_controls_are_argus_steerable + posekit_split_view_rotation_export_is_argus_inspectable PASS. Optional add (defer): isolated body-marker->viewport-signature assertion."
+      "reality": "VERIFIED RFV 2026-07-02 (read-only review): marker validate/stage/nudge + framing + failure-containment committed (b1eca87a, 27efcfcc) and tested. The audit's 'rides the schematic viewport' concern is RESOLVED - markers mutate the shared openpose_json that MT-014 (ac641827) turned into the REAL viewport source of truth (draw_pose_openpose_view); controls are now real sliders. All AC met: Argus-steerable (21 ids), facial edits persist to export, zoom/lens affect pixels, bad marker fails closed. Proof: posekit_marker_editing_and_framing_controls_are_argus_steerable + posekit_split_view_rotation_export_is_argus_inspectable PASS. Optional add (defer): isolated body-marker->viewport-signature assertion.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-016",
@@ -172,7 +247,12 @@
       "product_edit_allowed": true,
       "started_at_utc": "2026-06-30T21:03:12.941Z",
       "ready_for_validation_at_utc": "2026-06-30T21:03:12.941Z",
-      "validation_blocker": "Focused cargo tests timed out during rustc compilation; source-level backend/frontend adversarial reviews passed."
+      "validation_blocker": "Focused cargo tests timed out during rustc compilation; source-level backend/frontend adversarial reviews passed.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-017",
@@ -181,7 +261,12 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-017.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "Stale-PENDING corrected 2026-07-01 (WP-state audit): ALREADY COMMITTED (97a87db0 intake pipeline + migration 0341; plus commits mislabeled 'MT-013' 5fdf5845/40686b7b are actually this MT's Ingest work). Backend atelier/intake.rs (2971 lines) + tests; frontend show_ingest. Needs validator sign-off (verify frontend Ingest surface vs review-pipeline acceptance)."
+      "reality": "Stale-PENDING corrected 2026-07-01 (WP-state audit): ALREADY COMMITTED (97a87db0 intake pipeline + migration 0341; plus commits mislabeled 'MT-013' 5fdf5845/40686b7b are actually this MT's Ingest work). Backend atelier/intake.rs (2971 lines) + tests; frontend show_ingest. Needs validator sign-off (verify frontend Ingest surface vs review-pipeline acceptance).",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-018",
@@ -190,7 +275,12 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "Stale-PENDING corrected 2026-07-01 (WP-state audit): ALREADY COMMITTED (ff2d19cb). Backend atelier/contact_sheet.rs (468 lines, 5 inline tests) + api; frontend ContactSheetExportSnapshot. Verify contact-sheet artifact refs emit real SVG bytes (not just preview://); consider a dedicated backend test file. Needs validator sign-off."
+      "reality": "Stale-PENDING corrected 2026-07-01 (WP-state audit): ALREADY COMMITTED (ff2d19cb). Backend atelier/contact_sheet.rs (468 lines, 5 inline tests) + api; frontend ContactSheetExportSnapshot. Verify contact-sheet artifact refs emit real SVG bytes (not just preview://); consider a dedicated backend test file. Needs validator sign-off.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-019",
@@ -201,7 +291,8 @@
       "started_at_utc": "2026-06-30T23:12:47.496Z",
       "ready_for_validation_at_utc": "2026-07-01T02:31:32.443Z",
       "product_commit": "adf132ec",
-      "validation_blocker": "Full handshake_core cargo proof remains a validator follow-up after earlier rustc 0xffffffff/process pressure and session-level instruction to skip the other active heavy Rust run; focused backend probe and frontend parser/panel/manual proofs passed."
+      "validation_blocker": "Full handshake_core cargo proof remains a validator follow-up after earlier rustc 0xffffffff/process pressure and session-level instruction to skip the other active heavy Rust run; focused backend probe and frontend parser/panel/manual proofs passed.",
+      "validator_verdict": "PENDING"
     },
     {
       "mt_id": "MT-020",
@@ -211,7 +302,12 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-020.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "Committed 964db28d (2026-07-02): deterministic prompt-feedback kernel first slice. NEW self-contained atelier/prompt_feedback/ module (model/engine/adapter/mod) on PG+EventLedger+ArtifactStore (no SQLite). Leeseo CUIPP/prompt-stress import -> PromptCases; operator/model/subagent/validator/script verdicts; PURE engine (normalize->validate->evaluate_rules->rewrite->trace) with 5 seed rules + hash pool selection; every rewrite carries a trace (no freeform); JSONL export = hashed ArtifactStore artifact. Migration 0342 (5 tables). 6 API routes; frontend prompt-feedback sub-mode nested under Ingest (not a 4th tab); atelier-promptfeedback-* Argus ids; both manuals. Pre+post adversarial review found+fixed: F1 non-overridable prompt-stress->identity invariant (import + verdict paths), F2 unimplemented-rule-pack rejection, F3 feedback-distinct rewrite row, F6 export content-hash reuse, deadlock-retry (40P01/40001) for multi-writer safety, and a real render-stack mapping bug (no_detail->FaceDetailer). Proof: engine/adapter 13/13 unit; backend atelier_prompt_feedback_tests 7/7 managed PG; frontend test_atelier_panel 31/1 (1=pre-existing MT-016 :2812 = MT-044 D5). Deferred to MT-044: D8 LoRA wishlist (separate future scope), D9 panel live backend round-trip (panel is honest WIP), D10 CSV import."
+      "reality": "Committed 964db28d (2026-07-02): deterministic prompt-feedback kernel first slice. NEW self-contained atelier/prompt_feedback/ module (model/engine/adapter/mod) on PG+EventLedger+ArtifactStore (no SQLite). Leeseo CUIPP/prompt-stress import -> PromptCases; operator/model/subagent/validator/script verdicts; PURE engine (normalize->validate->evaluate_rules->rewrite->trace) with 5 seed rules + hash pool selection; every rewrite carries a trace (no freeform); JSONL export = hashed ArtifactStore artifact. Migration 0342 (5 tables). 6 API routes; frontend prompt-feedback sub-mode nested under Ingest (not a 4th tab); atelier-promptfeedback-* Argus ids; both manuals. Pre+post adversarial review found+fixed: F1 non-overridable prompt-stress->identity invariant (import + verdict paths), F2 unimplemented-rule-pack rejection, F3 feedback-distinct rewrite row, F6 export content-hash reuse, deadlock-retry (40P01/40001) for multi-writer safety, and a real render-stack mapping bug (no_detail->FaceDetailer). Proof: engine/adapter 13/13 unit; backend atelier_prompt_feedback_tests 7/7 managed PG; frontend test_atelier_panel 31/1 (1=pre-existing MT-016 :2812 = MT-044 D5). Deferred to MT-044: D8 LoRA wishlist (separate future scope), D9 panel live backend round-trip (panel is honest WIP), D10 CSV import.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-021",
@@ -221,31 +317,46 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-021.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "DONE-BUT-DRIFTED + one parity enhancement committed 64ae19db (2026-07-03). Pre-review confirmed all 7 pillars (Atelier/CKC/Posekit/Ingest/Facial/Argus/prompt-feedback) already had manual coverage and all 4 acceptance criteria pass - fed incrementally by MT-042 (settings), MT-020/030/031 (Facial+prompt-feedback rows), earlier CKC/Posekit/Ingest/Argus prose+rows. The ONE thin spot (prompt-feedback had agent-tool rows but no dedicated prose topic like the other pillars) is now at parity via a new 'Prompt Feedback Kernel' topic (purpose, determinism guarantee, sub-mode-not-4th-tab, workflow+routes, prompt-stress-not-identity invariant, recovery). No new author_ids; MC-006-safe. Proof: test_manual_pane_editors 15/15 (new manual_documents_prompt_feedback_kernel + id-audit no-orphan/rendered + no-sqlite + 8-heading + tab-doc all green)."
+      "reality": "IMPLEMENTED-BUT-STATE-DRIFTED + one parity enhancement committed 64ae19db (2026-07-03). Pre-review evidence covered all 7 pillars (Atelier/CKC/Posekit/Ingest/Facial/Argus/prompt-feedback) and all 4 acceptance criteria - fed incrementally by MT-042 (settings), MT-020/030/031 (Facial+prompt-feedback rows), earlier CKC/Posekit/Ingest/Argus prose+rows. The ONE thin spot (prompt-feedback had agent-tool rows but no dedicated prose topic like the other pillars) is now at parity via a new 'Prompt Feedback Kernel' topic (purpose, determinism guarantee, sub-mode-not-4th-tab, workflow+routes, prompt-stress-not-identity invariant, recovery). No new author_ids; MC-006-safe. Proof: test_manual_pane_editors 15/15 (new manual_documents_prompt_feedback_kernel + id-audit no-orphan/rendered + no-sqlite + 8-heading + tab-doc all green). No official validation is claimed; validator_verdict remains PENDING.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-022",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Make all Atelier tool surfaces parallel-agent safe and Argus steerable",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-022.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-07-04T06:04:24Z",
+      "ready_for_validation_at_utc": "2026-07-04T07:12:24.322Z",
+      "validator_verdict": "PENDING"
     },
     {
       "mt_id": "MT-023",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Run Argus-driven visual and behavioral overhaul pass for Atelier tools",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-07-04T07:29:50.935Z",
+      "claimed_by": "KERNEL_BUILDER-20260704-072636",
+      "ready_for_validation_at_utc": "2026-07-04T09:39:46.789Z",
+      "validator_verdict": "PENDING"
     },
     {
       "mt_id": "MT-024",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Retire or contain legacy non-Rust CKC/Posekit surfaces after native parity",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-07-04T09:46:36.35Z",
+      "claimed_by": "KERNEL_BUILDER-20260704-072636",
+      "validator_verdict": "PENDING",
+      "ready_for_validation_at_utc": "2026-07-04T10:21:26.547Z",
+      "disposition_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024-legacy-surface-disposition.json",
+      "review_correlation_id": "review:WP-CKC-posekit-overhaul:review_request:mr67pp56:acc855"
     },
     {
       "mt_id": "MT-025",
@@ -253,9 +364,10 @@
       "title": "Create Facial native feature registry and run backbone",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
       "product_edit_allowed": true,
-      "started_at_utc": "2026-07-01T00:25:00.000Z",
+      "started_at_utc": "2026-07-01T00:25:00Z",
       "ready_for_validation_at_utc": "2026-07-01T03:00:32.155Z",
-      "product_commit": "97646510"
+      "product_commit": "97646510",
+      "validator_verdict": "PENDING"
     },
     {
       "mt_id": "MT-026",
@@ -263,10 +375,15 @@
       "title": "Port Facial quality, IQ, and dedupe plugin parity",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json",
       "product_edit_allowed": true,
-      "started_at_utc": "2026-07-01T03:10:00.000Z",
+      "started_at_utc": "2026-07-01T03:10:00Z",
       "ready_for_validation_at_utc": "2026-07-01T04:59:46.762Z",
       "product_commit": "8eabf0d6",
-      "validation_note": "Targeted lib/runtime proofs passed after post-review fixes; final full integration/manual reruns were inconclusive under concurrent Cargo compile/link load, with critical checks mirrored into passing lib tests."
+      "validation_note": "Targeted lib/runtime proofs passed after post-review fixes; final full integration/manual reruns were inconclusive under concurrent Cargo compile/link load, with critical checks mirrored into passing lib tests.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-027",
@@ -277,7 +394,12 @@
       "started_at_utc": "2026-07-01T10:46:59.884Z",
       "ready_for_validation_at_utc": "2026-07-01T10:46:59.884Z",
       "product_commit": "22ce409b",
-      "validation_note": "Targeted backend, real ArcFace smoke, quality/dedupe, formatting, path-leak, and static route scans passed; broad cargo check/manual cargo reruns were inconclusive and are not claimed as passing."
+      "validation_note": "Targeted backend, real ArcFace smoke, quality/dedupe, formatting, path-leak, and static route scans passed; broad cargo check/manual cargo reruns were inconclusive and are not claimed as passing.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-028",
@@ -289,7 +411,12 @@
       "ready_for_validation_at_utc": "2026-07-01T11:41:57.603Z",
       "product_commit": "25af5486",
       "validation_note": "Backend artifact core passed targeted tests and static scans; command/API persistence and UI/Argus runtime parity remain MT-029/MT-030 follow-up before full operator-usable queue completion.",
-      "parallel_lane_note": "Backend-first Facial review queue/montage/export lineage lane; active_mt_id intentionally remains MT-010."
+      "parallel_lane_note": "Backend-first Facial review queue/montage/export lineage lane; active_mt_id intentionally remains MT-010.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-029",
@@ -301,7 +428,12 @@
       "ready_for_validation_at_utc": "2026-07-01T12:51:36.562Z",
       "product_commit": "10c40240",
       "validation_note": "Targeted backend API and frontend client/parser proofs passed after post-review hardening. Durable degraded/error command envelopes are not claimed and are carried by MT-031.",
-      "parallel_lane_note": "Facial command/API/receipt parity lane; active_mt_id intentionally remains MT-010."
+      "parallel_lane_note": "Facial command/API/receipt parity lane; active_mt_id intentionally remains MT-010.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-030",
@@ -311,7 +443,12 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-030.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "Committed c7a8a6d7 (2026-07-02): Facial review-queue Ingest sub-mode (new IngestMode enum DatasetIntake/PromptFeedback/FacialReview, not a 4th tab; preserves MT-020 prompt-feedback) on the RFV Facial backend MT-025-029. Generic dispatch for the 6 review commands (session/claim/decision/status/montage/export) with verified end-to-end lineage chaining; 32 atelier-ingest-facial-* Argus ids (TextInput settables); capability/identity-provenance/command-receipt+degraded readouts; honest degraded/error via Err path (no fake success, no silent no-op). Manual: review/montage/export rows + modernized proxy tokens (facet_native_metadata_only_v1, imagededup_native_content_hash_exact_v1, identity_source=real) while preserving handshake_proxy_no_model as the no-model degraded label. Post-impl review verdict: solid (regression-clean, dispatcher correct, honest-degraded, proxy-accurate). Proof: test_atelier_panel 33/1 (1=pre-existing MT-016 :2812 = MT-044 D5) incl. facial_ingest_full_backbone_is_argus_steerable; test_manual_pane_editors 14/14. GLOBAL-SCOPE-005 waiver: as the FIRST MT to run test_manual_pane_editors (prior MTs never gated it), MT-030 absorbed pre-existing manual-drift repairs to green it - 9 MT-017/018 ingest + 14 MT-020/010/032 prompt-feedback/ckc-media author_id allowlist reconciliations (all real/documented/emitted) + an MT-042 SQLite reword. Deferred to MT-044: D11 rendered-panel facial-id auto-audit, D12 montage/export content readouts, D13 numeric-input feedback, D14 manual-test gating process gap."
+      "reality": "Committed c7a8a6d7 (2026-07-02): Facial review-queue Ingest sub-mode (new IngestMode enum DatasetIntake/PromptFeedback/FacialReview, not a 4th tab; preserves MT-020 prompt-feedback) on the RFV Facial backend MT-025-029. Generic dispatch for the 6 review commands (session/claim/decision/status/montage/export) with verified end-to-end lineage chaining; 32 atelier-ingest-facial-* Argus ids (TextInput settables); capability/identity-provenance/command-receipt+degraded readouts; honest degraded/error via Err path (no fake success, no silent no-op). Manual: review/montage/export rows + modernized proxy tokens (facet_native_metadata_only_v1, imagededup_native_content_hash_exact_v1, identity_source=real) while preserving handshake_proxy_no_model as the no-model degraded label. Post-impl review verdict: solid (regression-clean, dispatcher correct, honest-degraded, proxy-accurate). Proof: test_atelier_panel 33/1 (1=pre-existing MT-016 :2812 = MT-044 D5) incl. facial_ingest_full_backbone_is_argus_steerable; test_manual_pane_editors 14/14. GLOBAL-SCOPE-005 waiver: as the FIRST MT to run test_manual_pane_editors (prior MTs never gated it), MT-030 absorbed pre-existing manual-drift repairs to green it - 9 MT-017/018 ingest + 14 MT-020/010/032 prompt-feedback/ckc-media author_id allowlist reconciliations (all real/documented/emitted) + an MT-042 SQLite reword. Deferred to MT-044: D11 rendered-panel facial-id auto-audit, D12 montage/export content readouts, D13 numeric-input feedback, D14 manual-test gating process gap.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-031",
@@ -322,7 +459,12 @@
       "product_edit_allowed": true,
       "started_at_utc": null,
       "parallel_lane_note": "Follow-up from MT-029 post-review; backend must produce degraded/blocked/error command envelopes before frontend accepts them.",
-      "reality": "Committed 2c40f35f (2026-07-03): durable Facial EXPORT command envelopes. New FacialCommandOutcomeResponse returned at HTTP 200 for blocked/degraded/error/succeeded, each with a read-backable ArtifactStore receipt (reused FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID, content-hash validated, no SQLite/table/EventLedger). blocked=deterministic undecided-items pre-check + stable code + recovery_hint (no domain call); degraded=strict funnel-undecided||problems; error=stable code only (no raw domain string) + recovery_hint; succeeded byte-identical top-level. Frontend parser flipped to accept the 4 statuses (was succeeded-only). Post-review found+fixed 1 regression: MT-030's drain Ok-arm hardcoded 'succeeded' - now branches on row.status so non-succeeded renders an honest failure line. Manual updated. Proof: backend atelier_facial_api_tests 2/2 managed PG; parser 1/1; test_atelier_panel 34/1 (1=pre-existing MT-016 :2812=D5) incl. facial_review_blocked_command_status_line_is_honest_not_succeeded (locks the regression) + MT-030/MT-020 regressions clean; test_manual_pane_editors 14/14. GLOBAL-SCOPE-005 waiver: atelier_panel.rs (the drain fix this MT's parser flip caused) + manual (operator manual-update goal) beyond the contract allowed_paths. Deferred to MT-044 (D15): envelope-wrap the other 5 review commands + reject/hold-vs-degraded spec decision."
+      "reality": "Committed 2c40f35f (2026-07-03): durable Facial EXPORT command envelopes. New FacialCommandOutcomeResponse returned at HTTP 200 for blocked/degraded/error/succeeded, each with a read-backable ArtifactStore receipt (reused FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID, content-hash validated, no SQLite/table/EventLedger). blocked=deterministic undecided-items pre-check + stable code + recovery_hint (no domain call); degraded=strict funnel-undecided||problems; error=stable code only (no raw domain string) + recovery_hint; succeeded byte-identical top-level. Frontend parser flipped to accept the 4 statuses (was succeeded-only). Post-review found+fixed 1 regression: MT-030's drain Ok-arm hardcoded 'succeeded' - now branches on row.status so non-succeeded renders an honest failure line. Manual updated. Proof: backend atelier_facial_api_tests 2/2 managed PG; parser 1/1; test_atelier_panel 34/1 (1=pre-existing MT-016 :2812=D5) incl. facial_review_blocked_command_status_line_is_honest_not_succeeded (locks the regression) + MT-030/MT-020 regressions clean; test_manual_pane_editors 14/14. GLOBAL-SCOPE-005 waiver: atelier_panel.rs (the drain fix this MT's parser flip caused) + manual (operator manual-update goal) beyond the contract allowed_paths. Deferred to MT-044 (D15): envelope-wrap the other 5 review commands + reject/hold-vs-degraded spec decision.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-032",
@@ -332,44 +474,61 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-032.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "reality": "ALREADY IMPLEMENTED + committed dba73d95 (2026-07-01, ancestor of HEAD) 'Finish CKC linked media Argus hardening'; the contract status had drifted to PENDING (workflow-state drift, NOT a build task). Pre-impl scout + validation confirmed all base_scope present in clean/committed files: stable atelier-ckc-media-* + atelier-ckc-selected-*-ref author_ids (atelier_panel.rs:130-137), value-bearing emit_value_node readouts (not painted text), steerable actor TextInput threaded into album-create/link/notes-save + local-fallback status, empty-input/missing-album/degraded status text, manual rows (manual_content_editors.rs:519-529) + id-audit allowlist. Validated at HEAD post-MT-031: the 3 contract proof tests (argus_reads_structured_ckc_media_refs_and_actor_surface, argus_creates_and_links_ckc_media_with_actor_status, ckc_media_backend_requests_are_actor_attributed_and_persistence_routes) pass within test_atelier_panel 34/1 (only failure = pre-existing MT-016 :2812=D5); manual/id-audit via test_manual_pane_editors 14/14. No product build needed - status flip only. MT-032/MT-036 boundary: MT-032 owns selection-scoped singleton readouts + the global writer actor; per-row provenance is MT-036. Deferred to MT-044: server-side actor anti-spoof (backend).",
-      "parallel_lane_note": "Follow-up from MT-010 review; captures selected media readouts, actor controls, and local fallback status hardening."
+      "reality": "ALREADY IMPLEMENTED + committed dba73d95 (2026-07-01, ancestor of HEAD) 'Finish CKC linked media Argus hardening'; the contract status had drifted to PENDING (workflow-state drift, NOT a build task). Pre-impl scout + implementation review confirmed all base_scope present in clean/committed files: stable atelier-ckc-media-* + atelier-ckc-selected-*-ref author_ids (atelier_panel.rs:130-137), value-bearing emit_value_node readouts (not painted text), steerable actor TextInput threaded into album-create/link/notes-save + local-fallback status, empty-input/missing-album/degraded status text, manual rows (manual_content_editors.rs:519-529) + id-audit allowlist. Proof-observed at HEAD post-MT-031: the 3 contract proof tests (argus_reads_structured_ckc_media_refs_and_actor_surface, argus_creates_and_links_ckc_media_with_actor_status, ckc_media_backend_requests_are_actor_attributed_and_persistence_routes) pass within test_atelier_panel 34/1 (only failure = pre-existing MT-016 :2812=D5); manual/id-audit via test_manual_pane_editors 14/14. No product build needed for RFV state correction. MT-032/MT-036 boundary: MT-032 owns selection-scoped singleton readouts + the global writer actor; per-row provenance is MT-036. Deferred to MT-044: server-side actor anti-spoof (backend). No official validation is claimed; validator_verdict remains PENDING.",
+      "parallel_lane_note": "Follow-up from MT-010 review; captures selected media readouts, actor controls, and local fallback status hardening.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-033",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Scale CKC media albums for large libraries and pagination",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
       "product_edit_allowed": true,
-      "started_at_utc": null,
-      "parallel_lane_note": "Follow-up from MT-010 review; captures album/member pagination and large-library merge safety."
+      "started_at_utc": "2026-07-04T10:35:30.748Z",
+      "ready_for_validation_at_utc": "2026-07-04T12:11:32.578Z",
+      "parallel_lane_note": "Follow-up from MT-010 review; captures album/member pagination and large-library merge safety.",
+      "claimed_by": "KERNEL_BUILDER-20260704-072636",
+      "validator_verdict": "PENDING"
     },
     {
       "mt_id": "MT-034",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Add CKC media album unlink, reorder, and link-edit APIs",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-034.json",
       "product_edit_allowed": true,
-      "started_at_utc": null,
-      "parallel_lane_note": "Follow-up from MT-010 review; captures album mutation API gaps beyond add/list."
+      "started_at_utc": "2026-07-04T18:46:51.688Z",
+      "ready_for_validation_at_utc": "2026-07-04T20:16:21.068Z",
+      "parallel_lane_note": "Follow-up from MT-010 review; captures album mutation API gaps beyond add/list.",
+      "claimed_by": "KERNEL_BUILDER-20260704-184131",
+      "validator_verdict": "PENDING"
     },
     {
       "mt_id": "MT-035",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Define CKC folder and source-ref authority",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
       "product_edit_allowed": true,
-      "started_at_utc": null,
-      "parallel_lane_note": "Follow-up from MT-010 review; captures folder/source provenance authority and validation."
+      "started_at_utc": "2026-07-04T20:29:02.036Z",
+      "claimed_by": "KERNEL_BUILDER-20260704-202642",
+      "validator_verdict": "PENDING",
+      "parallel_lane_note": "Follow-up from MT-010 review; captures folder/source provenance authority and validation.",
+      "ready_for_validation_at_utc": "2026-07-04T21:22:06.333Z"
     },
     {
       "mt_id": "MT-036",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Add CKC media row-level attribution and parallel-agent conflict safety",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json",
       "product_edit_allowed": true,
-      "started_at_utc": null,
-      "parallel_lane_note": "Follow-up from MT-010 review; captures row-level attribution and parallel-agent recovery."
+      "started_at_utc": "2026-07-04T21:25:02.994Z",
+      "parallel_lane_note": "Follow-up from MT-010 review; captures row-level attribution and parallel-agent recovery.",
+      "claimed_by": "KERNEL_BUILDER-20260704-202642",
+      "validator_verdict": "PENDING",
+      "ready_for_validation_at_utc": "2026-07-04T22:44:42.472Z"
     },
     {
       "mt_id": "MT-037",
@@ -380,16 +539,24 @@
       "product_edit_allowed": true,
       "started_at_utc": null,
       "parallel_lane_note": "Follow-up from MT-010 review; captures local-only state and false-persistence risk.",
-      "reality": "Committed 9f3e524f (2026-07-03): EVERY CKC local-only mutation path now surfaces an Argus-readable status carrying 'Backend is unavailable; this is not persisted.' + a persistence-mode receipt node (backend:persistent vs local-preview:not-persisted). Contained: story save/beat/card, moodboard save, tag-note, character-create (was SILENT->atelier-ckc-error made Argus-readable), sheet-version save (was SILENT + minted a backend-looking atelier://sheet ref->now labeled + new atelier-ckc-sheet-status/-backend-mode receipt), sheet-artifact attach/detach. Manual recovery text (local-preview NOT canonical PG/EventLedger/CRDT; reload from backend). MT-032 album/media untouched. Pre-impl scout: MT-032 (dba73d95) already did album/media - this covers the surfaces it missed. Post-impl review found+fixed AC-1 'every path' gaps: F1 sheet-version silent fabricated ref (most dangerous), F2 sheet-artifact, F3 story-card, F5 the guard only caught persist/saved (now flags local+mutation-verb w/o 'not persisted'). Proof: test_atelier_panel 35/1 (1=pre-existing MT-016 :2816=D5) incl. the extended ckc_local_fallback_is_argus_visible_and_never_claims_persistence + MT-032/MT-013 regressions clean; test_manual_pane_editors 14/14. Scope waiver: test_manual_pane_editors.rs (id-audit atomicity) beyond contract allowed_paths. Deferred to MT-044: F4 character-create success on error channel, per-record origin schema, durable receipt log, local-state eviction."
+      "reality": "Committed 9f3e524f (2026-07-03): EVERY CKC local-only mutation path now surfaces an Argus-readable status carrying 'Backend is unavailable; this is not persisted.' + a persistence-mode receipt node (backend:persistent vs local-preview:not-persisted). Contained: story save/beat/card, moodboard save, tag-note, character-create (was SILENT->atelier-ckc-error made Argus-readable), sheet-version save (was SILENT + minted a backend-looking atelier://sheet ref->now labeled + new atelier-ckc-sheet-status/-backend-mode receipt), sheet-artifact attach/detach. Manual recovery text (local-preview NOT canonical PG/EventLedger/CRDT; reload from backend). MT-032 album/media untouched. Pre-impl scout: MT-032 (dba73d95) already did album/media - this covers the surfaces it missed. Post-impl review found+fixed AC-1 'every path' gaps: F1 sheet-version silent fabricated ref (most dangerous), F2 sheet-artifact, F3 story-card, F5 the guard only caught persist/saved (now flags local+mutation-verb w/o 'not persisted'). Proof: test_atelier_panel 35/1 (1=pre-existing MT-016 :2816=D5) incl. the extended ckc_local_fallback_is_argus_visible_and_never_claims_persistence + MT-032/MT-013 regressions clean; test_manual_pane_editors 14/14. Scope waiver: test_manual_pane_editors.rs (id-audit atomicity) beyond contract allowed_paths. Deferred to MT-044: F4 character-create success on error channel, per-record origin schema, durable receipt log, local-state eviction.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-038",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Run CKC linked-media runtime Argus and manual proof pass",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-038.json",
       "product_edit_allowed": true,
-      "started_at_utc": null,
-      "parallel_lane_note": "Follow-up from MT-010 review; captures runtime Argus/manual proof and artifact-size control."
+      "started_at_utc": "2026-07-05T00:20:03.134Z",
+      "parallel_lane_note": "Follow-up from MT-010 review; captures runtime Argus/manual proof and artifact-size control.",
+      "claimed_by": "KERNEL_BUILDER-20260704-232626",
+      "validator_verdict": "PENDING",
+      "ready_for_validation_at_utc": "2026-07-05T00:20:03.134Z"
     },
     {
       "mt_id": "MT-039",
@@ -400,11 +567,16 @@
       "started_at_utc": "2026-07-01T13:59:07.293Z",
       "ready_for_validation_at_utc": "2026-07-01T15:13:33.154Z",
       "product_commit": "7c0c31cf",
-      "parallel_lane_note": "Ready for validation. Captures full panel/backend mock roundtrip plus reload/refetch proof beyond local fallback and request-spec tests. No next MT was activated."
+      "parallel_lane_note": "Ready for validation. Captures full panel/backend mock roundtrip plus reload/refetch proof beyond local fallback and request-spec tests. No next MT was activated.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-040",
-      "status": "COMPLETED",
+      "status": "READY_FOR_VALIDATION",
       "title": "Audit Atelier full-window module vs workbench-pane mounting and specify CKC/PoseKit/Ingest full-size sub-module rewiring",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-040.json",
       "product_edit_allowed": false,
@@ -416,19 +588,46 @@
         "MT-004",
         "MT-006"
       ],
-      "note": "Read-only inspection MT. Created 2026-07-01 at operator request to determine whether Atelier is mounted as a full-window module vs a workbench PaneType (compartmentalized sub-window). Not activated; awaiting operator session goal."
+      "note": "Read-only inspection MT. Created 2026-07-01 at operator request to determine whether Atelier is mounted as a full-window module vs a workbench PaneType (compartmentalized sub-window). Not activated; awaiting operator session goal.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-041",
       "status": "READY_FOR_VALIDATION",
       "product_commit": "7f94ef25",
-      "ready_for_validation_at_utc": "2026-07-02T00:24:26.826Z",
+      "ready_for_validation_at_utc": "2026-07-05T10:51:35.782Z",
       "title": "Add operator-facing dropdown menu-bar item for Atelier + required Argus menu-leaf expansion",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-041.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "proof_note": "Committed 7f94ef25 (2026-07-02): GO>Atelier menu group (menu.go.atelier/.ckc/.posekit/.ingest) + static leaf-discovery registry (menu_leaf_ids/menu_leaf_catalog) + open_atelier_target reusing MT-006 set_module/set_active_tab. Runtime proof: test_atelier_menu 4/4 (argus.click open-and-HOLD-across-drain-then-steer via real MCP ActionChannel; registry<->render drift gate; module/tab jump) + test_top_menu_bar 13/0. Honest follow-up (not blocking): no dedicated list_menu_leaves MCP RPC (registry exposed as pub fns + documented in manual).",
-      "origin": "MT-040 audit P4 + operator goal (operator menu-bar item)."
+      "proof_note": "Committed 7f94ef25 (2026-07-02): GO>Atelier menu group (menu.go.atelier/.ckc/.posekit/.ingest) + static leaf-discovery registry (menu_leaf_ids/menu_leaf_catalog) + open_atelier_target reusing MT-006 set_module/set_active_tab. Runtime proof: test_atelier_menu 4/4 (argus.click open-and-HOLD-across-drain-then-steer via real MCP ActionChannel; registry<->render drift gate; module/tab jump) + test_top_menu_bar 13/0. Honest follow-up (not blocking): no dedicated list_menu_leaves MCP RPC (registry exposed as pub fns + documented in manual). Status recovery 2026-07-05T10:51:35.782Z: fixed same-module CKC/Posekit menu drift; targeted regression cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_menu atelier_leaves_jump_to_module_and_tab -- --exact --nocapture returned exit 0 (1 passed). Validator verdict remains PENDING.",
+      "origin": "MT-040 audit P4 + operator goal (operator menu-bar item).",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+      "latest_implementation_update": {
+        "fixed_at_utc": "2026-07-05T10:51:35.782Z",
+        "fixed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+        "issue": "GO > Atelier Castkit Codex/parent leaves previously relied on set_module(ModuleId::Ckc), so an already-active CKC/Posekit state could short-circuit and leave the internal tab on Posekit.",
+        "resolution": "open_atelier_target now explicitly selects AtelierPanelTab::CastkitCodex for Module/Ckc leaves, mirroring the Posekit explicit tab select.",
+        "changed_product_files": [
+          "src/frontend/handshake_native/src/app.rs",
+          "src/frontend/handshake_native/tests/test_atelier_menu.rs"
+        ],
+        "proof_result": {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_menu atelier_leaves_jump_to_module_and_tab -- --exact --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed; 0 ignored; 3 filtered out",
+          "cargo_target_dir": "../Handshake_Artifacts/cargo-target/wtc-ckc-posekit-overhaul-mt041",
+          "note": "Fresh implementer-side regression proof only; official validator verdict remains PENDING."
+        }
+      }
     },
     {
       "mt_id": "MT-042",
@@ -439,7 +638,12 @@
       "product_edit_allowed": true,
       "started_at_utc": null,
       "origin": "MT-040 audit P5 + operator goal (settings/options features).",
-      "reality": "Committed 22a4ec8f (2026-07-02): 13 operator-default preferences on the existing atelier PG+EventLedger preference store (landing-tab, ckc.book-mode, posekit framing/lens/padding/markers, ingest tags/policy); routes GET/PUT/POST /atelier/preferences(+reset); backend_client; collapsing Settings/Defaults region in atelier_panel.rs (not a 4th tab, avoids editor-WIP settings_dialog.rs); Argus atelier-settings-*; UserManual. Adversarial review found+fixed: mock-consuming load-on-open regression, F1 non-atomic save, F2 tab-yank, F3 dead padding, F4 actor attribution, F5-F8. Runtime-proven: test_atelier_panel 29/1 (1=pre-existing MT-016) + 4 unit tests; backend atelier_settings_preference_tests 3/3 on managed PG. Security finding: EventLedger redacts preference values to sha256 refs. F6 note: enum fields kept as steerable TextInputs + client validation (combos would break argus.set_value TextInput-only)."
+      "reality": "Committed 22a4ec8f (2026-07-02): 13 operator-default preferences on the existing atelier PG+EventLedger preference store (landing-tab, ckc.book-mode, posekit framing/lens/padding/markers, ingest tags/policy); routes GET/PUT/POST /atelier/preferences(+reset); backend_client; collapsing Settings/Defaults region in atelier_panel.rs (not a 4th tab, avoids editor-WIP settings_dialog.rs); Argus atelier-settings-*; UserManual. Candidate reconciliation: CKC media backend mode/actor stayed as operational CKC media controls/readouts (`atelier-ckc-media-backend-mode`, `atelier-ckc-media-actor`) because mode is derived from live persistence availability and actor is per-write attribution, not a global default; Ingest event/date/location defaults are represented by ingest.batch-tags; prompt-feedback defaults are outside MT-042 and covered by MT-020/051/052 workflow surfaces. Adversarial review found+fixed: mock-consuming load-on-open regression, F1 non-atomic save, F2 tab-yank, F3 dead padding, F4 actor attribution, F5-F8. Runtime-proven: test_atelier_panel 29/1 (1=pre-existing MT-016) + 4 unit tests; backend atelier_settings_preference_tests 3/3 on managed PG. Security finding: EventLedger redacts preference values to sha256 refs. F6 note: enum fields kept as steerable TextInputs + client validation (combos would break argus.set_value TextInput-only). No official validation is claimed; validator_verdict remains PENDING.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-043",
@@ -449,18 +653,190 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-043.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "depends_on": ["MT-014"],
+      "depends_on": [
+        "MT-014"
+      ],
       "reality": "Committed 9902d7b0 (source-asset byte-fetch core). Runtime-proven: backend atelier_media_asset_bytes_route_returns_exact_stored_source_bytes (managed PG, exact bytes + 404 fail-closed); frontend posekit_source_viewport_displays_real_decoded_image + no-spurious-fetch guard + failure-empty-state. Posekit left viewport loads the real image. Follow-up increment: artifact-PNG-fetch so the right viewport shows the literal exported PNG.",
-      "origin": "MT-014 de-scaffolding honest follow-up: posekit viewports display real bytes once source-asset + artifact byte-fetch endpoints exist (currently left=empty-state, right=keypoints-not-PNG)."
+      "origin": "MT-014 de-scaffolding honest follow-up: posekit viewports display real bytes once source-asset + artifact byte-fetch endpoints exist (currently left=empty-state, right=keypoints-not-PNG).",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+      "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
     },
     {
       "mt_id": "MT-044",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Deferred hardening + follow-ups (consolidated tracker)",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-044.json",
-      "product_edit_allowed": true,
+      "product_edit_allowed": false,
       "started_at_utc": null,
-      "origin": "Consolidated honest deferrals from MT-006/014/041/043/013-010/012: D1 moodboard backend PG test (blocked by MT-031 broken WIP); D2 moodboard add/connect round-trip; D3 unbounded image caches LRU; D4 mock-server test flakes; D5 MT-016 sheet-artifact-attach actor gap; D6 MT-013 3-panel overflow <700px; D7 MT-043 posekit right-viewport artifact-PNG-fetch. See MT-044.json."
+      "origin": "Tracker split complete: executable remaining product work moved to MT-045..MT-055; D6 remains MT-023 RFV/PENDING; D8/D14 are future/non-product follow-ups; D15b needs spec/operator decision.",
+      "ready_for_validation_at_utc": "2026-07-05T00:47:00.588Z",
+      "validator_verdict": "PENDING",
+      "split_child_mts": [
+        "MT-045",
+        "MT-046",
+        "MT-047",
+        "MT-048",
+        "MT-049",
+        "MT-050",
+        "MT-051",
+        "MT-052",
+        "MT-053",
+        "MT-054",
+        "MT-055"
+      ],
+      "tracker_child_status_reconciled_at_utc": "2026-07-05T10:51:35.782Z",
+      "tracker_child_status_reconciliation_note": "Embedded MT-044 child rows updated to READY_FOR_VALIDATION/PENDING to match canonical MT-045..MT-055 contracts; no official validation claimed."
+    },
+    {
+      "mt_id": "MT-045",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Isolate moodboard PG round-trip proof from broken core-data test binary",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-045.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T00:47:00.588Z",
+      "origin": "MT-044 D1 split: moodboard PG round-trip test is blocked by unrelated broken atelier_core_data_tests.rs WIP; move/prove it in a clean test binary.",
+      "claimed_by": "KERNEL_BUILDER-20260705-003842",
+      "validator_verdict": "PENDING",
+      "ready_for_validation_at_utc": "2026-07-05T01:10:09.319Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-046",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Make moodboard add/place/connect affordances honest",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-046.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T01:11:48.842Z",
+      "origin": "MT-044 D2 split: isolated moodboard canvas affordances silently no-op after FIX-2 isolation.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-003842",
+      "ready_for_validation_at_utc": "2026-07-05T02:15:53.623Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-047",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Bound decoded CKC media and Posekit image caches",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-047.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T02:07:40.828Z",
+      "origin": "MT-044 D3 split: decoded texture caches can grow without an explicit cap while browsing many linked images.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-003842",
+      "ready_for_validation_at_utc": "2026-07-05T02:40:34.126Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-048",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Harden Atelier panel mock-server tests under load",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-048.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T02:40:34.126Z",
+      "origin": "MT-044 D4 split: read_http_request mock-server helpers use tight timeouts and expect paths that can panic under heavy cargo load.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-003842",
+      "ready_for_validation_at_utc": "2026-07-05T02:57:44.434Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-049",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Preserve Argus actor on local CKC sheet-artifact attach",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-049.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T02:57:44.434Z",
+      "origin": "MT-044 D5 split: MT-016 proof shows local attach-pose does not preserve the model actor in linked_by detail.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-003842",
+      "ready_for_validation_at_utc": "2026-07-05T03:06:29.565Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-050",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Render literal Posekit exported PNG artifact bytes",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-050.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T03:06:29.565Z",
+      "origin": "MT-044 D7 split: MT-043 fetched source-image bytes but the right viewport still renders keypoints rather than the literal exported PNG artifact payload.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-003842",
+      "ready_for_validation_at_utc": "2026-07-05T04:37:33.943Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-051",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Wire prompt-feedback panel to backend round-trip drain loop",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-051.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T04:37:33.943Z",
+      "origin": "MT-044 D9 split: prompt-feedback native panel is steerable but still local-preview/WIP instead of live backend round-trip.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-044820",
+      "claimed_at_utc": "2026-07-05T05:00:05.147Z",
+      "ready_for_validation_at_utc": "2026-07-05T06:12:43.245Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-052",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Add prompt-stress CSV import adapter",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-052.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T06:16:55.567Z",
+      "origin": "MT-044 D10 split: prompt-feedback adapter imports CUIPP JSON rows but not the prompt_stress_manifest.csv fixture path named in handoff.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-044820",
+      "claimed_at_utc": "2026-07-05T06:16:55.567Z",
+      "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-053",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Replace Facial manual ID allowlist with rendered-panel audit",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-053.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T07:20:27.760Z",
+      "origin": "MT-044 D11 split: test_manual_pane_editors uses a hand-maintained allowlist that cannot catch allowlisted-but-not-emitted Facial IDs.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-044820",
+      "claimed_at_utc": "2026-07-05T07:20:27.760Z",
+      "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-054",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Expose Facial montage/export content readouts and numeric parse notes",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-054.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T07:42:50.990Z",
+      "origin": "MT-044 D12/D13 split: Facial montage/export content details require chained artifact reads, and numeric fields silently coerce invalid input to defaults.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-044820",
+      "claimed_at_utc": "2026-07-05T07:42:50.990Z",
+      "ready_for_validation_at_utc": "2026-07-05T08:30:01.353Z",
+      "handoff_status": "READY_FOR_VALIDATION"
+    },
+    {
+      "mt_id": "MT-055",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Envelope-wrap remaining Facial review commands",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-055.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-05T08:39:17.822Z",
+      "origin": "MT-044 D15a/D15c split: MT-031 envelope-wrapped export only; the other Facial review commands still need durable blocked/degraded/error/succeeded envelopes. D15b reject/hold semantics remains a separate spec/operator decision and is excluded here.",
+      "validator_verdict": "PENDING",
+      "claimed_by": "KERNEL_BUILDER-20260705-044820",
+      "claimed_at_utc": "2026-07-05T08:39:17.822Z",
+      "ready_for_validation_at_utc": "2026-07-05T09:52:14.692Z",
+      "handoff_status": "READY_FOR_VALIDATION"
     }
   ],
   "baseline": {
@@ -470,5 +846,10 @@
     "source_branch": "feat/WP-KERNEL-012",
     "source_head": "6bb8cfb4f81a06c4718403826f3b30433f74a426",
     "dirty_state_matches_source": true
+  },
+  "updated_at": "2026-07-05T10:29:13.4708984Z",
+  "last_state_update": {
+    "updated_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "summary": "Status recovery: filled missing lifecycle.claimed_by fields for legacy READY_FOR_VALIDATION MT contracts; validator verdicts remain PENDING and no official validation is claimed."
   }
 }

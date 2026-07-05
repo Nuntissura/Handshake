@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-033",
   "title": "Scale CKC media albums for large libraries and pagination",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-01T13:20:45.027Z",
-  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-04T12:11:32.578Z",
   "product_edit_allowed": true,
   "operator_request": "Capture the large-library risk found during MT-010: CKC albums and members must not load or collapse huge image sets in a way that breaks LoRA mining and album review.",
   "authority_files": {
@@ -21,12 +21,16 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-010"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260704-072636",
+    "started_at_utc": "2026-07-04T10:35:30.748Z",
+    "completed_at_utc": "2026-07-04T12:11:32.578Z",
+    "ready_for_validation_at_utc": "2026-07-04T12:11:32.578Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -99,7 +103,35 @@
   },
   "manual_requirement": "Required if user/model workflow or endpoint/query shape changes.",
   "handoff": {
-    "status": "PENDING",
-    "note": "Created from MT-010 backend/frontend review finding that album expansion and add-items replacement are unsafe for large libraries."
+    "status": "READY_FOR_VALIDATION",
+    "coder_session": "KERNEL_BUILDER-20260704-072636",
+    "claimed_at_utc": "2026-07-04T10:35:30.748Z",
+    "ready_for_validation_at_utc": "2026-07-04T12:11:32.578Z",
+    "summary": "Implemented bounded CKC media album-list pagination, bounded member previews/pages, deterministic album/member ordering, frontend album-list and member load-more controls, Argus-readable album-list and per-album page states, and overlap-safe merge behavior that preserves the effective selected media row even when local notes/status are empty or unreviewed.",
+    "verification": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 1 --test atelier_stealth_window_tests atelier_ckc_media_album_large_library_pagination -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -j 1 --test test_atelier_panel argus_loads_more_ckc_media_without_collapsing_loaded_members -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -j 1 --test test_atelier_panel ckc_linked_media_backend_roundtrip_reaches_argus -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -j 1 --test test_manual_pane_editors manual_documents_atelier_tabs_and_argus_control_ids -- --exact --nocapture",
+      "rustfmt --edition 2021 --check on touched MT-033 product/manual files",
+      "git diff --check on touched MT-033 product/manual files"
+    ],
+    "post_review": {
+      "agents": [
+        "Ampere",
+        "Kierkegaard",
+        "Sartre"
+      ],
+      "outcome": "Post-implementation findings were addressed: restored compatibility album ordering with a stable tie-breaker, added member tie-breaker, carried album-list next-offset state into native UI, added album-list load-more, made per-album pending state target the fetched collection, tightened exact query assertions, and hardened selected-row overlap tests."
+    },
+    "scope_waiver_needed": {
+      "reason": "Manual requirement was triggered by endpoint/query shape and model workflow changes, but manual_content_editors.rs and test_manual_pane_editors.rs are outside MT-033 allowed_paths.",
+      "files_touched": [
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+      ],
+      "why_touched": "Minimum required manual and manual-test update so no-context models can use the new album-list and member pagination controls safely."
+    },
+    "note": "MT-033 is ready for validator review. This is not official validation; validator_verdict remains PENDING."
   }
 }

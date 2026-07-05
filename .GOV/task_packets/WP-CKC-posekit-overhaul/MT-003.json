@@ -4,7 +4,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-003",
   "title": "Map CKC/PoseKit original intent to current Handshake Atelier native surfaces",
-  "status": "COMPLETED",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-28T15:20:55.051Z",
   "updated_at_utc": "2026-06-28T15:29:06.058Z",
   "started_at_utc": "2026-06-28T15:20:55.051Z",
@@ -98,9 +98,30 @@
     "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
   },
   "closeout": {
-    "result": "COMPLETED",
+    "result": "READY_FOR_VALIDATION",
     "product_code_changed": false,
     "summary": "Produced a machine-readable CKC/PoseKit parity map that separates current Handshake native facts, original CKC/PoseKit parity evidence, Facial ingest reuse, Leeseo prompt-feedback adjacency, and a recommended MT queue. The recommended next microtask is MT-004: visible Atelier/CKC label inversion while preserving internal CKC IDs and /atelier routes.",
     "next_recommended_mt": "MT-004"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "validator_verdict": "PENDING",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003.json"
   }
 }

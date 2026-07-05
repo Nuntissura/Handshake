@@ -5,9 +5,10 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-034",
   "title": "Add CKC media album unlink, reorder, and link-edit APIs",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-01T13:20:45.027Z",
-  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-04T20:16:21.068Z",
+  "ready_for_validation_at_utc": "2026-07-04T20:16:21.068Z",
   "product_edit_allowed": true,
   "operator_request": "Capture the CKC album mutation gap found during MT-010: albums can link images, but production album management also needs unlink, ordering, and per-link provenance edits.",
   "authority_files": {
@@ -21,12 +22,15 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-034.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-010"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260704-184131",
+    "started_at_utc": "2026-07-04T18:46:51.688Z",
+    "ready_for_validation_at_utc": "2026-07-04T20:16:21.068Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -99,7 +103,8 @@
   },
   "manual_requirement": "Required.",
   "handoff": {
-    "status": "PENDING",
-    "note": "Created from MT-010 review finding that current album routes support add/list only."
+    "status": "READY_FOR_VALIDATION",
+    "note": "Implemented CKC album unlink, dense reorder, and link-local provenance edit APIs plus Argus controls, manual rows, locked mutation snapshots, non-member unlink 404, redacted invalid provenance status, full-set reorder guard, and Model Ops session/lease proofs. Targeted backend/frontend/manual proofs pass; official validator_verdict remains PENDING.",
+    "coder_session": "KERNEL_BUILDER-20260704-184131"
   }
 }

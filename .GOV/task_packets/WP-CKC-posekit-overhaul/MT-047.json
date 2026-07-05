@@ -1,0 +1,166 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-047",
+  "title": "Bound decoded CKC media and Posekit image caches",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-07-05T00:47:00.588Z",
+  "updated_at_utc": "2026-07-05T02:41:44.740Z",
+  "started_at_utc": "2026-07-05T02:07:40.828Z",
+  "product_edit_allowed": true,
+  "origin": "MT-044 D3 split: decoded texture caches can grow without an explicit cap while browsing many linked images.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-047.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-047.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-047.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-038"
+    ],
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-003842",
+    "claimed_at_utc": "2026-07-05T02:07:40.828Z",
+    "ready_for_validation_at_utc": "2026-07-05T02:40:34.126Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume MT-047 by reading this contract, limiting edits to allowed_paths, using external CARGO_TARGET_DIR under ../Handshake_Artifacts, and keeping validator_verdict PENDING until an official validator changes it."
+  },
+  "scope": {
+    "summary": "Add deterministic size/LRU bounds for decoded image cache state used by CKC linked-media and Posekit source images, or prove a singleton cache is already bounded and document that boundary in code/tests.",
+    "base_scope": [
+      "Add deterministic size/LRU bounds for decoded image cache state used by CKC linked-media and Posekit source images, or prove a singleton cache is already bounded and document that boundary in code/tests."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "CKC media image cache cannot grow unbounded as many assets are browsed.",
+      "Posekit source image cache is either explicitly bounded or proven singleton by focused tests.",
+      "Eviction preserves the currently selected image and does not show stale textures.",
+      "Cache limits are deterministic and testable without foreground UI."
+    ],
+    "risks_and_controls": [
+      "Risk: eviction drops the selected media image and creates blank previews.",
+      "Risk: cache metadata grows while texture entries shrink."
+    ],
+    "proof_targets": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-047 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_media_image_cache_eviction_bounds_decoded_textures -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "verification": [
+      "Focused cache eviction test.",
+      "Code inspection confirms no unbounded map remains for decoded CKC media textures."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "scope containment versus MT-044 tracker drift",
+      "runtime proof versus code-only proof",
+      "parallel model/operator safety",
+      "artifact and build-output hygiene"
+    ]
+  },
+  "manual_requirement": "Not required unless implementation changes operator/model-facing workflow text.",
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Risk: eviction drops the selected media image and creates blank previews.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: cache metadata grows while texture entries shrink.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      }
+    ],
+    "minimum_controls": [
+      "Edit only allowed_paths unless the MT contract is explicitly widened first.",
+      "Use external CARGO_TARGET_DIR under ../Handshake_Artifacts for Cargo proofs.",
+      "Do not mark validator_verdict PASS/FAIL; Kernel Builder only moves to READY_FOR_VALIDATION.",
+      "Record residual gaps in handoff instead of implying official validation."
+    ]
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "note": "MT-047 is ready for validator review. This is not official validation; validator_verdict remains PENDING. CKC linked-media decoded image cache is now capped by deterministic LRU, Posekit source image cache is explicitly single-slot/proven by render-path checks, selected CKC media survives cache overflow, byte replacement invalidates stale dimensions, and default CKC selection still does not issue startup media-byte fetches.",
+    "coder_session": "KERNEL_BUILDER-20260705-003842",
+    "ready_for_validation_at_utc": "2026-07-05T02:40:34.126Z",
+    "implementation_summary": [
+      "Added CKC_MEDIA_IMAGE_CACHE_ENTRY_LIMIT=32 with access-counter LRU eviction inside the CKC per-asset decoded image cache.",
+      "Touched CKC cache recency on insert, cache-hit checks, and render preparation; overflow evicts oldest non-protected asset by deterministic last_access then asset-id order.",
+      "Added AtelierImageCacheDebugSnapshot plus image_cache_debug_snapshot so tests can verify CKC cache count and Posekit singleton state without foreground UI.",
+      "Kept Posekit source image as a one-slot cache and moved source-ref sync before source render preparation to avoid a stale one-frame source texture after ref changes.",
+      "Narrowed same-ref CKC refetch so it does not break the no-startup-fetch invariant; refetch only falls through when status indicates bytes had previously loaded/cached but the cache entry is now absent."
+    ],
+    "proof_commands": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-047 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_media_image_cache_eviction_bounds_decoded_textures -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-047 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib ckc_media_viewer_default_selection_never_fetches_user_change_does -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-047 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib ckc_media_viewer_displays_real_decoded_image -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-047 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib posekit_source_viewport_displays_real_decoded_image -- --nocapture",
+      "git diff --check -- src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "proof_results": [
+      "ckc_media_image_cache_eviction_bounds_decoded_textures: 1 passed, 0 failed; proves Posekit render-path singleton replacement dimensions, CKC limit fill/overflow, selected image survives overflow, and CKC selected byte replacement invalidates stale dimensions.",
+      "ckc_media_viewer_default_selection_never_fetches_user_change_does: 1 passed, 0 failed; includes second-render assertion so default CKC selection still emits no startup media-byte fetch.",
+      "ckc_media_viewer_displays_real_decoded_image: 1 passed, 0 failed.",
+      "posekit_source_viewport_displays_real_decoded_image: 1 passed, 0 failed.",
+      "git diff --check exit 0 with LF-to-CRLF warnings only on the two allowed files."
+    ],
+    "post_review_resolution": [
+      "Pre-review finding: CKC BTreeMap per-asset cache was the unbounded cache; Posekit was already single-slot. Resolution: CKC LRU cap added; Posekit singleton verified through render-path assertions.",
+      "Post-review finding: initial proof did not force Posekit decode/upload. Resolution: test now runs the Posekit render path and asserts source viewport dimensions 17x11 then 9x13 plus pose_source_has_texture.",
+      "Post-review finding: CKC stale texture after byte replacement was not proven. Resolution: test replaces selected CKC bytes after an existing texture and asserts dimensions change to 29x17 before overflow.",
+      "Post-review finding: same-ref cache miss could break default no-fetch invariant. Resolution: same-ref refetch only proceeds after previous loaded/cache status; regression now syncs default selection twice and passes.",
+      "Post-review finding: Posekit source-ref sync could render previous texture for one frame. Resolution: source-ref sync now runs before prepare_pose_source_render."
+    ],
+    "artifacts": [
+      "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-047 was created for final proof and removed after proof; cleanup verified with Test-Path=False; removed size 7292382164 bytes."
+    ],
+    "changed_product_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "residual_gaps": [
+      "No official validator verdict yet; validator_verdict remains PENDING.",
+      "Pre-existing same-frame CKC media row-click ordering can briefly render the prior preview while selected-media state updates after the list click; this is outside the cache-bound acceptance path and should be handled by a dedicated UI render-order MT if the validator wants it closed."
+    ],
+    "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-047:rfv-20260705T024126973Z",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+    "validator_handoff_files": [
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/THREAD.md",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RECEIPTS.jsonl",
+      "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RUNTIME_STATUS.json"
+    ]
+  }
+}

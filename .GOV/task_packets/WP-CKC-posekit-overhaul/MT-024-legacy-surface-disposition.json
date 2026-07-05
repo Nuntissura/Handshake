@@ -1,0 +1,346 @@
+{
+  "schema_id": "hsk.ckc_posekit_legacy_surface_disposition@1",
+  "schema_version": "legacy_surface_disposition_v1",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-024",
+  "updated_at_utc": "2026-07-04T09:55:17.310Z",
+  "source_inventory": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json",
+  "source_reviews": [
+    {
+      "agent_id": "019f2c87-3cb6-78c3-8262-29bb427aabba",
+      "review_focus": "MT-001 inventory and behavior-loss risk",
+      "result_used": "Contain/reroute only; do not delete React/TypeScript surfaces while MT-023 and MT-030 are only READY_FOR_VALIDATION/PENDING."
+    },
+    {
+      "agent_id": "019f2c87-575b-7bd1-906a-a296c3b63001",
+      "review_focus": "Runtime navigation and native parity proof",
+      "result_used": "Native routing exists in handshake-native by static path, but the React/Tauri app route remains reachable through current repo entrypoints."
+    },
+    {
+      "agent_id": "019f2c87-8f2b-7da2-bcd1-2877772eda35",
+      "review_focus": "Repo/product split, deletion safety, test blast radius",
+      "result_used": "Use path-limited attribution; do not stage root authority dirt, inherited baseline files, or broad branch dirt into MT-024."
+    }
+  ],
+  "decision_basis": {
+    "operator_request": "Address the non-Rust language things first, but do not delete useful behavior before native Handshake parity exists.",
+    "validation_boundary": "MT-023 and MT-030 are READY_FOR_VALIDATION with validator_verdict=PENDING at this MT-024 update; they are not official validation.",
+    "deletion_policy": "No MT-001 non-Rust CKC/Posekit surface is deleted in MT-024. Deletion requires matching native behavior, targeted tests, Argus evidence where GUI-visible, and validator-accepted disposition.",
+    "runtime_authority": "Native Handshake route module-ckc -> atelier-main-panel -> atelier-tab-ckc / atelier-tab-posekit / atelier-tab-ingest is the WP runtime route. module-ingest is retained as an Ingest deep link into the native Atelier panel.",
+    "legacy_reachability": "The React/Tauri app remains reachable through current repo entrypoints, so legacy React CKC/Atelier surfaces are contained as reference/test surfaces rather than treated as unreachable."
+  },
+  "summary": {
+    "total_mt001_surfaces": 27,
+    "deleted_in_mt024": 0,
+    "contained_legacy_reference": 8,
+    "native_replacement_present_pending_validation": 5,
+    "retained_unique_behavior_risk": 3,
+    "kept_non_legacy_or_native_support": 11
+  },
+  "surface_dispositions": [
+    {
+      "path": "app/src/App.tsx",
+      "mt001_classification": "MIGRATE",
+      "mt024_disposition": "CONTAINED_LEGACY_REFERENCE",
+      "live_status": "Launchable React/Tauri shell still contains CKC module routing and mounts app/src/components/AtelierPanel.tsx.",
+      "native_replacement": "src/frontend/handshake_native/src/module_switcher.rs plus src/frontend/handshake_native/src/atelier_panel.rs route module-ckc to the native full-window Atelier panel.",
+      "action": "Do not delete or route away in MT-024. Treat as legacy reference unless a later MT explicitly owns React shell retirement.",
+      "verification_needed_before_removal": [
+        "Native module switcher and pane-header tests remain green.",
+        "Argus evidence proves module-ckc and module-ingest reach the intended native internal tabs.",
+        "Validator accepts native replacement for React module routing."
+      ]
+    },
+    {
+      "path": "app/src/components/AtelierPanel.tsx",
+      "mt001_classification": "REPLACE",
+      "mt024_disposition": "CONTAINED_LEGACY_REFERENCE",
+      "live_status": "Legacy React overview/intake/command-corpus/stealth panel remains callable from app/src/App.tsx.",
+      "native_replacement": "Native Atelier panel exposes CKC, Posekit, Ingest, Model Ops, settings/defaults, Argus IDs, and backend client routes.",
+      "action": "Retain until the validator accepts native parity for overview, intake, command corpus, and stealth/developer workflows.",
+      "verification_needed_before_removal": [
+        "Native targeted tests cover each useful behavior or record an accepted non-goal.",
+        "Manual and Argus rows point to native controls.",
+        "No shipped command still imports the React panel as the active WP surface."
+      ]
+    },
+    {
+      "path": "app/src/components/AtelierCollaborationPanel.tsx",
+      "mt001_classification": "INVESTIGATE",
+      "mt024_disposition": "RETAINED_UNIQUE_BEHAVIOR_RISK",
+      "live_status": "May be the only React UI for document role suggestions and Atelier patchset application.",
+      "native_replacement": "No fully verified native equivalent was proven during MT-024.",
+      "action": "Retain and mark as blocked for deletion until a native document-collaboration parity MT proves or replaces the workflow.",
+      "verification_needed_before_removal": [
+        "Find native role-suggestion and patchset-apply route or build it.",
+        "Targeted tests prove the document workflow still works after containment/removal.",
+        "Operator or validator accepts any behavior intentionally dropped."
+      ]
+    },
+    {
+      "path": "app/src/components/DocumentView.tsx",
+      "mt001_classification": "MIGRATE",
+      "mt024_disposition": "RETAINED_UNIQUE_BEHAVIOR_RISK",
+      "live_status": "Imports and renders AtelierCollaborationPanel.",
+      "native_replacement": "No fully verified native document-view replacement for the Atelier collaboration integration was proven during MT-024.",
+      "action": "Retain because removing it could delete useful document collaboration behavior.",
+      "verification_needed_before_removal": [
+        "Native editor/document surface owns equivalent collaboration affordances.",
+        "Tests prove patchset application and role suggestions remain available or accepted as non-goals."
+      ]
+    },
+    {
+      "path": "app/src/lib/api.ts",
+      "mt001_classification": "MIGRATE",
+      "mt024_disposition": "CONTAINED_LEGACY_REFERENCE",
+      "live_status": "Legacy TypeScript API wrapper still contains /atelier route helpers used by React tests and panels.",
+      "native_replacement": "src/frontend/handshake_native/src/backend_client.rs and src/backend/handshake_core/src/api/atelier.rs own the native client/server route contract.",
+      "action": "Retain until every useful wrapper is either covered by native backend-client tests or accepted as React-only legacy.",
+      "verification_needed_before_removal": [
+        "Inventory each exported Atelier helper and map to a native Rust client method or non-goal.",
+        "Run targeted native client route tests and any remaining React tests if React app remains launchable."
+      ]
+    },
+    {
+      "path": "app/src/App.css",
+      "mt001_classification": "MIGRATE",
+      "mt024_disposition": "CONTAINED_LEGACY_REFERENCE",
+      "live_status": "Styles legacy Atelier collaboration and CKC embed UI.",
+      "native_replacement": "Native egui styling lives in src/frontend/handshake_native and does not consume App.css.",
+      "action": "Retain with the React shell while any React surface remains launchable.",
+      "verification_needed_before_removal": [
+        "React CKC/Atelier panels are retired or explicitly removed from launch paths.",
+        "No retained React test depends on the CSS selectors."
+      ]
+    },
+    {
+      "path": "app/src/App.test.tsx",
+      "mt001_classification": "MIGRATE",
+      "mt024_disposition": "CONTAINED_LEGACY_REFERENCE",
+      "live_status": "Covers legacy React routing, CKC module defaults, and Atelier tab behavior.",
+      "native_replacement": "Native tests test_module_switcher.rs, test_pane_header.rs, test_ckc_embed.rs, and test_atelier_panel.rs cover native module/tab behavior.",
+      "action": "Retain until React shell retirement is explicitly accepted; do not use React test pass as native proof.",
+      "verification_needed_before_removal": [
+        "Native tests cover every assertion that still matters.",
+        "Validator accepts the React routing proof as superseded."
+      ]
+    },
+    {
+      "path": "app/src/lib/api.test.ts",
+      "mt001_classification": "MIGRATE",
+      "mt024_disposition": "CONTAINED_LEGACY_REFERENCE",
+      "live_status": "Covers legacy TypeScript /atelier helper URLs and activeModule CKC payloads.",
+      "native_replacement": "Native backend-client and backend atelier API tests cover the route contract for current runtime.",
+      "action": "Retain until per-helper native coverage is mapped.",
+      "verification_needed_before_removal": [
+        "Route-by-route diff against native backend_client.rs.",
+        "Targeted native client tests for routes currently covered only by TypeScript."
+      ]
+    },
+    {
+      "path": "app/tests/atelier/atelier_nav.spec.ts",
+      "mt001_classification": "REPLACE",
+      "mt024_disposition": "NATIVE_REPLACEMENT_PRESENT_PENDING_VALIDATION",
+      "live_status": "Legacy Playwright proof for CKC > Atelier navigation remains present.",
+      "native_replacement": "Argus/native tests now prove module-ckc, full-window Atelier, CKC/Posekit/Ingest internal tabs, and no pane-chrome regression.",
+      "action": "Retain as legacy proof until validator accepts native Argus proof; do not run it as authoritative WP proof.",
+      "verification_needed_before_removal": [
+        "Validator accepts native Argus evidence package for final entry points.",
+        "React Playwright config is no longer part of any required test command."
+      ]
+    },
+    {
+      "path": "app/playwright.atelier.config.ts",
+      "mt001_classification": "DELETE",
+      "mt024_disposition": "NATIVE_REPLACEMENT_PRESENT_PENDING_VALIDATION",
+      "live_status": "Config targets only the legacy Atelier Playwright spec.",
+      "native_replacement": "Native GUI/Argus proof path exists but is pending validator acceptance.",
+      "action": "Do not delete in MT-024 because the dependent spec is retained pending validation.",
+      "verification_needed_before_removal": [
+        "app/tests/atelier/atelier_nav.spec.ts is retired or superseded.",
+        "No package script or CI path references the config."
+      ]
+    },
+    {
+      "path": "app/src/harness/rich_editor_embeds_harness.tsx",
+      "mt001_classification": "REPLACE",
+      "mt024_disposition": "NATIVE_REPLACEMENT_PRESENT_PENDING_VALIDATION",
+      "live_status": "Legacy React harness proves CKC embed/export/find behavior.",
+      "native_replacement": "src/frontend/handshake_native/tests/test_ckc_embed.rs and native rich_editor/embeds cover CKC hsLink insert and routing behavior.",
+      "action": "Retain until native embed proof is accepted and any React harness users are retired.",
+      "verification_needed_before_removal": [
+        "Native embed tests cover insert, export/find, route-to-Stage, and refKind separation.",
+        "No visual harness command still uses the React harness."
+      ]
+    },
+    {
+      "path": "app/src/lib/editor/embed_assets.ts",
+      "mt001_classification": "REPLACE",
+      "mt024_disposition": "NATIVE_REPLACEMENT_PRESENT_PENDING_VALIDATION",
+      "live_status": "Legacy TypeScript CKC embed asset resolver remains present.",
+      "native_replacement": "src/frontend/handshake_native/src/rich_editor/embeds/asset_resolver.rs and related embed renderers own native behavior.",
+      "action": "Retain until native asset resolver proof is accepted and TypeScript consumers are retired.",
+      "verification_needed_before_removal": [
+        "Native asset resolver tests prove fail-closed resolution.",
+        "No retained React component imports embed_assets.ts."
+      ]
+    },
+    {
+      "path": "app/src/components/HsLinkView.test.tsx",
+      "mt001_classification": "REPLACE",
+      "mt024_disposition": "NATIVE_REPLACEMENT_PRESENT_PENDING_VALIDATION",
+      "live_status": "Legacy React NodeView tests remain present.",
+      "native_replacement": "Native rich editor tests and test_ckc_embed.rs prove hsLink/CKC embed round-trip behavior.",
+      "action": "Retain until native replacement proof is accepted.",
+      "verification_needed_before_removal": [
+        "Native round-trip test covers each refKind still needed by CKC.",
+        "React NodeView is no longer part of launchable behavior."
+      ]
+    },
+    {
+      "path": "app/scripts/handshake-screenshot-capture.mjs",
+      "mt001_classification": "INVESTIGATE",
+      "mt024_disposition": "RETAINED_UNIQUE_BEHAVIOR_RISK",
+      "live_status": "Screenshot helper still has CKC or Kernel DCC fallback behavior.",
+      "native_replacement": "Argus screenshot/inspect paths are native-first but target cropping remains documented as unsupported.",
+      "action": "Retain until Argus/native screenshot workflow fully covers the helper's useful behavior.",
+      "verification_needed_before_removal": [
+        "Argus can capture required native entry points without foreground interruption.",
+        "No CI or operator screenshot command uses the helper."
+      ]
+    },
+    {
+      "path": "app/vite.config.ts",
+      "mt001_classification": "KEEP",
+      "mt024_disposition": "KEPT_NON_LEGACY_TOOLING_REFERENCE",
+      "live_status": "Incidental tooling reference, not a CKC implementation surface.",
+      "native_replacement": "Not applicable.",
+      "action": "Keep; no MT-024 cleanup."
+    },
+    {
+      "path": "tests/visual/quick-switcher.spec.ts",
+      "mt001_classification": "MIGRATE",
+      "mt024_disposition": "CONTAINED_LEGACY_REFERENCE",
+      "live_status": "Visual test mocks /atelier routes and may encode React-era assumptions.",
+      "native_replacement": "Native quick-switcher and Atelier Argus tests cover current runtime surfaces.",
+      "action": "Retain until visual-test ownership is clarified; update or retire in a visual test migration MT.",
+      "verification_needed_before_removal": [
+        "Prove whether this top-level visual test still runs in the product validation path.",
+        "Replace /atelier mocks with native expectations or mark them legacy-only."
+      ]
+    },
+    {
+      "path": "tests/visual/workbench-split-editors.spec.ts",
+      "mt001_classification": "MIGRATE",
+      "mt024_disposition": "CONTAINED_LEGACY_REFERENCE",
+      "live_status": "Visual test mocks every /atelier path through a React-era handler.",
+      "native_replacement": "Native split/editor tests and Atelier tests cover current runtime surfaces.",
+      "action": "Retain until visual-test ownership is clarified; update or retire in a visual test migration MT.",
+      "verification_needed_before_removal": [
+        "Prove whether this top-level visual test still runs in the product validation path.",
+        "Replace broad /atelier mocks with native expectations or mark them legacy-only."
+      ]
+    },
+    {
+      "path": "app/src/lib/dependency_policy/no_sqlite_regression.test.ts",
+      "mt001_classification": "KEEP",
+      "mt024_disposition": "KEPT_NON_LEGACY_GUARD",
+      "live_status": "Useful policy guard against SQLite-shaped storage regressions.",
+      "native_replacement": "Not a legacy UI surface.",
+      "action": "Keep."
+    },
+    {
+      "path": "app/src/lib/dependency_policy/runtime_dependency_allowlist.json",
+      "mt001_classification": "KEEP",
+      "mt024_disposition": "KEPT_NON_LEGACY_GUARD",
+      "live_status": "Allowlist supports negative validation.",
+      "native_replacement": "Not a legacy UI surface.",
+      "action": "Keep."
+    },
+    {
+      "path": "assets/atelier_rolepack_digital_production_studio_v1.json",
+      "mt001_classification": "KEEP",
+      "mt024_disposition": "KEPT_PRODUCT_DATA",
+      "live_status": "Atelier rolepack data asset.",
+      "native_replacement": "Not a code rewrite target.",
+      "action": "Keep."
+    },
+    {
+      "path": "src/backend/handshake_core/migrations/*atelier*.sql",
+      "mt001_classification": "KEEP",
+      "mt024_disposition": "KEPT_NATIVE_DATA_CONTRACT",
+      "live_status": "PostgreSQL/EventLedger native data contracts.",
+      "native_replacement": "Already native support.",
+      "action": "Keep."
+    },
+    {
+      "path": "src/backend/handshake_core/tests/fixtures/atelier_pose/*.json",
+      "mt001_classification": "KEEP",
+      "mt024_disposition": "KEPT_NATIVE_FIXTURE_CORPUS",
+      "live_status": "Pose/OpenPose native fixture corpus.",
+      "native_replacement": "Already native support.",
+      "action": "Keep."
+    },
+    {
+      "path": "src/backend/handshake_core/tests/fixtures/atelier_core_data/*.json",
+      "mt001_classification": "KEEP",
+      "mt024_disposition": "KEPT_NATIVE_FIXTURE_CORPUS",
+      "live_status": "CKC/CastKit namespace regression fixtures.",
+      "native_replacement": "Already native support.",
+      "action": "Keep."
+    },
+    {
+      "path": "src/frontend/handshake_native/tests/test_interconnect_manifest.json",
+      "mt001_classification": "INVESTIGATE",
+      "mt024_disposition": "KEPT_NATIVE_BLOCKER_TRACKING",
+      "live_status": "Native interconnect manifest tracks CKC blocker state.",
+      "native_replacement": "Not a legacy React surface.",
+      "action": "Keep and handle blocker state in the appropriate native interconnect MT."
+    },
+    {
+      "path": "wp-kernel-005-ready-for-validation-v2.json",
+      "mt001_classification": "INVESTIGATE",
+      "mt024_disposition": "KEPT_AUTHORITY_DECISION_REQUIRED",
+      "live_status": "Root validation marker outside .GOV.",
+      "native_replacement": "Not a product UI replacement.",
+      "action": "Do not move or delete without authority decision."
+    },
+    {
+      "path": "wp-kernel-005-revalidation-ready.json",
+      "mt001_classification": "INVESTIGATE",
+      "mt024_disposition": "KEPT_AUTHORITY_DECISION_REQUIRED",
+      "live_status": "Superseded-looking root validation marker retained for compatibility.",
+      "native_replacement": "Not a product UI replacement.",
+      "action": "Do not move or delete without authority decision."
+    },
+    {
+      "path": "app/src-tauri/Cargo.lock and src/backend/handshake_core/Cargo.lock",
+      "mt001_classification": "KEEP",
+      "mt024_disposition": "KEPT_GENERATED_LOCKFILES",
+      "live_status": "Generated lockfiles with incidental comfy-table hits.",
+      "native_replacement": "Not CKC/Posekit source surfaces.",
+      "action": "Keep."
+    }
+  ],
+  "risks": [
+    {
+      "risk": "Deleting React files now could remove launchable or uniquely implemented behavior.",
+      "mitigation": "MT-024 performs containment only and requires per-surface native proof plus validator acceptance before removal."
+    },
+    {
+      "risk": "A later agent may treat READY_FOR_VALIDATION as official validation and delete too early.",
+      "mitigation": "This artifact records the validator_verdict=PENDING boundary for MT-023 and MT-030 at the time of disposition."
+    },
+    {
+      "risk": "Tests may keep passing against stale React mocks while native runtime behavior drifts.",
+      "mitigation": "React tests are marked legacy/reference; native Argus and Rust tests are the WP runtime proof path."
+    }
+  ],
+  "verification_plan": [
+    "JSON parse this disposition artifact.",
+    "Diff MT-001 inventory paths against this artifact's surface_dispositions paths.",
+    "Run targeted native manual and route tests touched by MT-024.",
+    "Run path-limited diff checks to prove no legacy files were deleted in MT-024.",
+    "Use Argus/native screenshots already produced by MT-023 only as pending evidence, not official validation."
+  ]
+}

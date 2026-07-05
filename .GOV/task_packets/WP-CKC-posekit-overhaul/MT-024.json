@@ -5,16 +5,17 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-024",
   "title": "Retire or contain legacy non-Rust CKC/Posekit surfaces after native parity",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-07-04T10:31:32.269Z",
   "product_edit_allowed": true,
   "operator_request": "Address the non-Rust language things first, but do not delete useful behavior before native Handshake parity exists.",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.json",
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "inventory": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json"
+    "inventory": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json",
+    "disposition": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024-legacy-surface-disposition.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.md",
@@ -22,13 +23,16 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-023",
       "MT-030"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260704-072636",
+    "started_at_utc": "2026-07-04T09:46:36.350Z",
+    "ready_for_validation_at_utc": "2026-07-04T10:21:26.547Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -74,6 +78,122 @@
   },
   "manual_requirement": "Required in this MT.",
   "handoff": {
-    "status": "PENDING"
+    "status": "READY_FOR_VALIDATION",
+    "coder_session": "KERNEL_BUILDER-20260704-072636",
+    "claimed_at_utc": "2026-07-04T09:46:36.350Z",
+    "ready_for_validation_at_utc": "2026-07-04T10:21:26.547Z",
+    "review_correlation_id": "review:WP-CKC-posekit-overhaul:review_request:mr67pp56:acc855",
+    "note": "MT-024 is ready for validator review. This is not official validation; validator_verdict remains PENDING."
+  },
+  "owned_files": [
+    "src/frontend/handshake_native/src/manual_content_editors.rs",
+    "src/frontend/handshake_native/src/module_switcher.rs",
+    "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+  ],
+  "proof_commands": [
+    "cargo test -j 1 --test test_manual_pane_editors manual_documents_atelier_tabs_and_argus_control_ids -- --exact --nocapture",
+    "cargo test -j 1 --test test_module_switcher -- --nocapture",
+    "cargo test -j 1 --test test_ckc_embed ac6_atelier_side_panel_mounted_in_live_shell -- --exact --nocapture",
+    "cargo test -j 1 --test test_ckc_embed ac6_posekit_and_ingest_tabs_switch_in_live_shell -- --exact --nocapture",
+    "cargo test -j 1 --test test_ckc_embed module_entry_selects_matching_internal_atelier_tab_in_live_shell -- --exact --nocapture",
+    "node -e \"const fs=require('fs'); const inv=JSON.parse(fs.readFileSync('.GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json','utf8')); const disp=JSON.parse(fs.readFileSync('.GOV/task_packets/WP-CKC-posekit-overhaul/MT-024-legacy-surface-disposition.json','utf8')); const invPaths=inv.non_rust_surfaces.map(s=>s.path).sort(); const dispPaths=disp.surface_dispositions.map(s=>s.path).sort(); if(JSON.stringify(invPaths)!==JSON.stringify(dispPaths)) throw new Error('MT-024 disposition coverage mismatch'); if(disp.summary.deleted_in_mt024!==0) throw new Error('MT-024 deleted legacy surfaces'); console.log('surfaces=' + invPaths.length + ' deleted=' + disp.summary.deleted_in_mt024);\"",
+    "git diff --diff-filter=D --name-status -- app tests/visual src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+    "git diff --check -- src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+  ],
+  "validation_evidence": {
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "changed_product_files": [
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/src/module_switcher.rs",
+      "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+    ],
+    "changed_governance_files": [
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024-legacy-surface-disposition.json"
+    ],
+    "disposition_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024-legacy-surface-disposition.json",
+    "review_correlation_id": "review:WP-CKC-posekit-overhaul:review_request:mr67pp56:acc855",
+    "proof_summary": "MT-024 contained the legacy non-Rust CKC/Posekit surface set instead of deleting behavior: 27/27 MT-001 non-Rust surfaces have a disposition, deleted_in_mt024=0, native runtime guidance points to module-ckc/module-ingest through AtelierEditor, and React CKC/Atelier remains retained as legacy reference/test behavior until validator-accepted native parity exists.",
+    "commands": [
+      {
+        "command": "cargo test -j 1 --test test_manual_pane_editors manual_documents_atelier_tabs_and_argus_control_ids -- --exact --nocapture",
+        "result": "PASS: 1 passed, 15 filtered out; known parse_atelier_facial_artifact_read_row dead_code warning only"
+      },
+      {
+        "command": "cargo test -j 1 --test test_module_switcher -- --nocapture",
+        "result": "PASS: 6 passed after stale React-parity wording fix; known parse_atelier_facial_artifact_read_row dead_code warning only"
+      },
+      {
+        "command": "cargo test -j 1 --test test_ckc_embed ac6_atelier_side_panel_mounted_in_live_shell -- --exact --nocapture",
+        "result": "PASS: 1 passed"
+      },
+      {
+        "command": "cargo test -j 1 --test test_ckc_embed ac6_posekit_and_ingest_tabs_switch_in_live_shell -- --exact --nocapture",
+        "result": "PASS: 1 passed"
+      },
+      {
+        "command": "cargo test -j 1 --test test_ckc_embed module_entry_selects_matching_internal_atelier_tab_in_live_shell -- --exact --nocapture",
+        "result": "PASS: 1 passed"
+      },
+      {
+        "command": "node -e \"const fs=require('fs'); const inv=JSON.parse(fs.readFileSync('.GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json','utf8')); const disp=JSON.parse(fs.readFileSync('.GOV/task_packets/WP-CKC-posekit-overhaul/MT-024-legacy-surface-disposition.json','utf8')); const invPaths=inv.non_rust_surfaces.map(s=>s.path).sort(); const dispPaths=disp.surface_dispositions.map(s=>s.path).sort(); if(JSON.stringify(invPaths)!==JSON.stringify(dispPaths)) throw new Error('MT-024 disposition coverage mismatch'); if(disp.summary.deleted_in_mt024!==0) throw new Error('MT-024 deleted legacy surfaces'); console.log('surfaces=' + invPaths.length + ' deleted=' + disp.summary.deleted_in_mt024);\"",
+        "result": "PASS: surfaces=27 deleted=0; MT-001 inventory and MT-024 dispositions match exactly"
+      },
+      {
+        "command": "git diff --diff-filter=D --name-status -- app tests/visual src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+        "result": "PASS: no app/**, tests/visual/**, or owned native product deletions reported; LF-to-CRLF warnings only"
+      },
+      {
+        "command": "git diff --check -- src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+        "result": "PASS: exit 0; LF-to-CRLF warnings only"
+      },
+      {
+        "command": "post-implementation adversarial review: Goodall, Meitner, Halley",
+        "result": "PASS for RFV lenses after fixing stale React-exact-parity wording; no official validation/pass claim"
+      },
+      {
+        "command": "node .GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs WP-CKC-posekit-overhaul MT-024 --json --emit",
+        "result": "PASS: KB_READY_CHECKLIST_RECEIPT emitted with overall_verdict=PASS and blockers=[]"
+      },
+      {
+        "command": "just wp-communication-health-check WP-CKC-posekit-overhaul STATUS",
+        "result": "PASS: STATUS ok after repairing WP-local receipt verb drift on existing MT-023/MT-024 claim receipts"
+      },
+      {
+        "command": "node .GOV/roles_shared/checks/kb-ready-checklist-coverage-check.mjs --wp WP-CKC-posekit-overhaul --json",
+        "result": "FAIL scoped to legacy WP drift: 36 older READY_FOR_VALIDATION MTs lack KB-ready receipts; MT-024 is absent from concerns because its receipt is present and PASS"
+      }
+    ],
+    "adversarial_reviews": [
+      {
+        "phase": "pre-implementation",
+        "reviewers": [
+          "Dalton",
+          "Pasteur",
+          "Mencius"
+        ],
+        "result": "Containment-only approach selected; reviewers identified React/Tauri reachability, high-risk collaboration behavior, and dirty-state attribution risks."
+      },
+      {
+        "phase": "post-implementation",
+        "reviewers": [
+          "Goodall",
+          "Meitner",
+          "Halley"
+        ],
+        "result": "Goodall and Halley found no RFV blockers for their lenses. Meitner found stale React-exact-parity wording in module_switcher.rs; wording was corrected and Meitner rechecked with no findings."
+      }
+    ],
+    "residual_risks": [
+      "MT-023 and MT-030 remain READY_FOR_VALIDATION with validator_verdict=PENDING; MT-024 did not treat them as official validation.",
+      "Legacy React/Tauri CKC/Atelier route remains reachable through app/README/justfile and is retained as reference/test behavior, not deleted.",
+      "AtelierCollaborationPanel and DocumentView retain unique document collaboration behavior with no proven native replacement in MT-024.",
+      "MT-024 did not run a new Argus PNG pass because it did not change rendered GUI behavior; native entry route proof is via existing live-shell/Argus-oriented tests and pending MT-023 evidence.",
+      "No official validation is claimed; validator_verdict remains PENDING."
+    ],
+    "governance_repairs": [
+      "Removed schema-invalid top-level RUNTIME_STATUS.checkpoints projection; canonical checkpoint lineage remains under execution_state.checkpoint_lineage.",
+      "Completed missing requires_ack/opened_at/updated_at fields on the existing MT-023 open_review_items entry.",
+      "Cleared invalid inter-role verb fields on two pre-existing WP receipt lines (MT-023 READY_FOR_VALIDATION receipt and MT-024 CLAIM thread receipt) so current receipt schema validates."
+    ]
   }
 }

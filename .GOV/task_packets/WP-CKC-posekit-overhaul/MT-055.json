@@ -1,0 +1,181 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-055",
+  "title": "Envelope-wrap remaining Facial review commands",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-07-05T00:47:00.588Z",
+  "updated_at_utc": "2026-07-05T09:52:14.692Z",
+  "started_at_utc": "2026-07-05T08:39:17.822Z",
+  "product_edit_allowed": true,
+  "origin": "MT-044 D15a/D15c split: MT-031 envelope-wrapped export only; the other Facial review commands still need durable blocked/degraded/error/succeeded envelopes. D15b reject/hold semantics remains a separate spec/operator decision and is excluded here.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-055.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-055.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-055.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-031"
+    ],
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260705-044820",
+    "claimed_at_utc": "2026-07-05T08:39:17.822Z",
+    "ready_for_validation_at_utc": "2026-07-05T09:52:14.692Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/facial.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/atelier_facial_api_tests.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume MT-055 by reading this contract, limiting edits to allowed_paths, using external CARGO_TARGET_DIR under ../Handshake_Artifacts, and keeping validator_verdict PENDING until an official validator changes it."
+  },
+  "scope": {
+    "summary": "Extend durable Facial command outcome envelopes from export to session, claim, decision, status, and montage commands, and tidy now-inaccurate docs/comments touched by that same path without changing reject/hold degraded semantics.",
+    "base_scope": [
+      "Extend durable Facial command outcome envelopes from export to session, claim, decision, status, and montage commands, and tidy now-inaccurate docs/comments touched by that same path without changing reject/hold degraded semantics."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/facial.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/atelier_facial_api_tests.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/src/atelier/facial.rs",
+      "src/backend/handshake_core/tests/atelier_facial_api_tests.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "Facial session, claim, decision, status, and montage commands return durable outcome envelopes matching the export command shape for blocked/degraded/error/succeeded outcomes.",
+      "Each non-succeeded outcome has a stable code, recovery hint, and read-backable receipt where applicable.",
+      "Frontend parser/drain logic renders non-succeeded statuses honestly and never hardcodes succeeded.",
+      "D15b reject/hold-only success-vs-degraded semantics is not changed in this MT without an explicit spec/operator decision.",
+      "Touched docs/comments accurately describe Ok envelopes versus transport failures."
+    ],
+    "risks_and_controls": [
+      "Risk: envelope normalization changes command semantics instead of only wrapping outcomes.",
+      "Risk: frontend accepts malformed envelopes as success.",
+      "Risk: D15b spec decision is accidentally implemented without authority."
+    ],
+    "proof_targets": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-055 cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_facial_api_tests facial_review_non_export_commands_return_durable_outcome_envelopes -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-055 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_review_non_export_command_status_lines_are_honest -- --nocapture",
+      "git diff --check -- src/backend/handshake_core/src/api/atelier.rs src/backend/handshake_core/src/atelier/facial.rs src/backend/handshake_core/tests/atelier_facial_api_tests.rs src/frontend/handshake_native/src/backend_client.rs src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "verification": [
+      "Backend envelope proof for all five non-export commands.",
+      "Frontend honest-status proof.",
+      "Manual/comment accuracy review for touched docs."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "scope containment versus MT-044 tracker drift",
+      "runtime proof versus code-only proof",
+      "parallel model/operator safety",
+      "artifact and build-output hygiene"
+    ]
+  },
+  "manual_requirement": "Required.",
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Risk: envelope normalization changes command semantics instead of only wrapping outcomes.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: frontend accepts malformed envelopes as success.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      },
+      {
+        "risk": "Risk: D15b spec decision is accidentally implemented without authority.",
+        "mitigation": "Use scoped proof targets and do not widen files without updating this contract first."
+      }
+    ],
+    "minimum_controls": [
+      "Edit only allowed_paths unless the MT contract is explicitly widened first.",
+      "Use external CARGO_TARGET_DIR under ../Handshake_Artifacts for Cargo proofs.",
+      "Do not mark validator_verdict PASS/FAIL; Kernel Builder only moves to READY_FOR_VALIDATION.",
+      "Record residual gaps in handoff instead of implying official validation."
+    ]
+  },
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "coder_session": "KERNEL_BUILDER-20260705-044820",
+    "ready_for_validation_at_utc": "2026-07-05T09:52:14.692Z",
+    "validator_verdict": "PENDING",
+    "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-055:rfv-20260705T095214692Z",
+    "summary": "Envelope-wrapped remaining Facial review commands with durable HTTP-200 outcome envelopes after request context is established, while preserving pre-context transport failures and D15b export degraded semantics.",
+    "implementation_summary": [
+      "Changed session, claim, decision, status, and montage API routes to return the shared Facial command outcome envelope shape used by export for succeeded, degraded, blocked, and error outcomes.",
+      "Added stable non-success error codes, recovery hints, durable command receipts, and receipt readback coverage for post-context non-export command failures.",
+      "Kept missing actor, invalid artifact refs, invalid model-operation context, and unknown session batch IDs on the transport-error path before command-envelope wrapping.",
+      "Hardened the frontend parser so non-success envelopes require durable receipts, stable error or degraded reason codes, and nonblank recovery hints; whitespace-only degraded reasons are rejected.",
+      "Updated the Facial command drain and status/montage readouts to render non-success statuses honestly without fabricating success or queue/result content.",
+      "Updated internal manual/comment text touched by MT-055 to describe HTTP-200 command outcome envelopes versus transport/pre-context failures."
+    ],
+    "tdd_evidence": [
+      "RED: backend MT-055 proof initially failed because session post-context command failure returned transport 400 instead of a durable command outcome envelope.",
+      "RED: frontend panel proof initially failed because a blocked session Ok envelope cleared existing session refs and status rendering did not cover all backend-shaped non-success paths.",
+      "RED: frontend parser unit initially accepted an error envelope without recovery_hint; post-review hardening also rejected whitespace-only degraded_reasons."
+    ],
+    "proof_commands": [
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-055 cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_facial_api_tests facial_review_non_export_commands_return_durable_outcome_envelopes -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-055 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_review_non_export_command_status_lines_are_honest -- --nocapture",
+      "CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-055 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib atelier_facial_command_response_parser_accepts_backend_outcome_envelopes -- --nocapture",
+      "git diff --check -- src/backend/handshake_core/src/api/atelier.rs src/backend/handshake_core/src/atelier/facial.rs src/backend/handshake_core/tests/atelier_facial_api_tests.rs src/frontend/handshake_native/src/backend_client.rs src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "proof_results": [
+      "facial_review_non_export_commands_return_durable_outcome_envelopes: exit 0, 1 passed, 0 failed, 2 filtered out; includes unknown batch transport 4xx and existing empty batch HTTP-200 session_command_failed envelope.",
+      "facial_review_non_export_command_status_lines_are_honest: exit 0, 1 passed, 0 failed, 53 filtered out; covers error outcomes for session, decision, status, montage and blocked outcome for claim.",
+      "atelier_facial_command_response_parser_accepts_backend_outcome_envelopes: exit 0, 1 passed, 0 failed, 1677 filtered out; includes missing/blank recovery_hint and whitespace-only degraded_reasons negatives.",
+      "Scoped git diff --check: exit 0 with LF-to-CRLF warnings only.",
+      "Cargo target cleaned: ../Handshake_Artifacts/handshake-cargo-target/wp-ckc-posekit-overhaul-mt-055 exists_after=false."
+    ],
+    "subagent_review_notes": [
+      "Franklin final backend review: no blocking MT-055 backend findings after unknown-batch transport fix.",
+      "Russell final frontend review: no blocking MT-055 frontend findings after parser hardening and comment accuracy fixes.",
+      "Lagrange final adversarial scope review: no remaining fixable MT-055 blockers; inherited dirty-worktree drift remains a staging/review caveat outside MT-055 product fix scope."
+    ],
+    "residual_risks": [
+      "Product worktree contains many inherited dirty paths outside MT-055; stage/review by MT-055 scoped hunks rather than the whole dirty worktree.",
+      "Allowed files also contain inherited hunks from earlier MTs; do not interpret the full file-level diff as exclusively MT-055.",
+      "Validator verdict remains PENDING until an official validator reviews the work."
+    ]
+  }
+}

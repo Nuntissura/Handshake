@@ -45,7 +45,13 @@
       "MT-006 visual proof closeout"
     ],
     "validator_verdict": "PENDING",
-    "started_at_utc": "2026-06-28T21:24:05.577Z"
+    "started_at_utc": "2026-06-28T21:24:05.577Z",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
+    "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -252,7 +258,8 @@
   ],
   "handoff": {
     "status": "READY_FOR_VALIDATION",
-    "summary": "Implemented: Rust-native Argus MCP facade with canonical argus.* methods, metadata stamping, same-token agent_label attribution, quiet/headless wire tests, and internal UserManual diagnostics posture. Awaiting validator."
+    "summary": "Implemented: Rust-native Argus MCP facade with canonical argus.* methods, metadata stamping, same-token agent_label attribution, quiet/headless wire tests, and internal UserManual diagnostics posture. Awaiting validator.",
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z"
   },
   "red_team": {
     "required": true,
