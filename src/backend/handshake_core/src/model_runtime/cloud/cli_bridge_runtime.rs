@@ -342,6 +342,13 @@ pub struct CliBridgeModelRuntime {
     /// leakier than the raw terminal capture. Defaults to [`PatternRedactor`]
     /// (the same default the capture lane uses).
     redactor: Arc<dyn SecretRedactor>,
+    /// Whether JSON-stream output should also be converted into structured
+    /// `FR-EVT-AGENT-*` events by this runtime. Defaults to true for direct
+    /// CLI-lane usage. Operator Chat disables this because it already replays
+    /// the same stdout into canonical lane messages and emits its own
+    /// `FR-EVT-AGENT-*` evidence there; infer telemetry remains separately
+    /// controlled by `lane_obs`.
+    emit_agent_activity_events: bool,
 }
 
 impl std::fmt::Debug for CliBridgeModelRuntime {
@@ -368,6 +375,7 @@ impl CliBridgeModelRuntime {
             lane_obs: None,
             session_instance_id: None,
             redactor: Arc::new(PatternRedactor),
+            emit_agent_activity_events: true,
         }
     }
 
@@ -399,6 +407,15 @@ impl CliBridgeModelRuntime {
     /// [`PatternRedactor`], the same default the terminal capture lane uses).
     pub fn with_redactor(mut self, redactor: Arc<dyn SecretRedactor>) -> Self {
         self.redactor = redactor;
+        self
+    }
+
+    /// Suppress runtime-level structured `FR-EVT-AGENT-*` emission while
+    /// leaving raw token streaming and `FR-EVT-LLM-INFER-*` observability
+    /// unchanged. Used by replay-captured lanes such as Operator Chat to avoid
+    /// duplicate agent evidence for the same official-CLI JSONL stream.
+    pub fn without_agent_activity_events(mut self) -> Self {
+        self.emit_agent_activity_events = false;
         self
     }
 
@@ -523,7 +540,9 @@ impl CliBridgeModelRuntime {
         // Structured agent-activity capture is built ONLY in a JSON-stream output
         // mode. In RawText mode the line buffer is never constructed and there is
         // zero behaviour change (the raw GeneratedToken text streams as before).
-        let agent_capture = if is_json_stream_mode(self.config_template.output_format) {
+        let agent_capture = if self.emit_agent_activity_events
+            && is_json_stream_mode(self.config_template.output_format)
+        {
             Some(AgentCaptureState {
                 cli_kind: self.config_template.cli_kind,
                 instance_id: self.session_instance_id.clone(),
@@ -1414,6 +1433,51 @@ mod tests {
         );
     }
 
+    /// Operator Chat replays launched stdout into ModelLaneMessage rows and emits
+    /// its own FR-EVT-AGENT-* evidence there. The runtime can keep infer
+    /// observability while suppressing its duplicate agent-activity producer.
+    #[tokio::test]
+    async fn json_stream_mode_can_suppress_agent_events_without_suppressing_infer_events() {
+        use crate::flight_recorder::events_llm_infer::{
+            FR_EVT_LLM_INFER_END, FR_EVT_LLM_INFER_START,
+        };
+
+        let recorder = Arc::new(CollectingRecorder::default());
+        let line = serde_json::json!({
+            "type":"assistant",
+            "message":{"content":[{"type":"text","text":"hi"}]}
+        })
+        .to_string();
+        let chunks: Vec<Vec<u8>> = vec![format!("{line}\n").into_bytes()];
+
+        let mut rt =
+            CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config_json())
+                .with_lane_observability(obs_with(recorder.clone()))
+                .without_agent_activity_events();
+        let id = rt.load(cli_spec()).await.expect("load");
+
+        let _ = drain_text(rt.generate(gen_req(id))).await;
+
+        let payloads = recorder.payloads.lock().unwrap().clone();
+        let ids: Vec<String> = payloads
+            .iter()
+            .filter_map(|p| p.get("event_id").and_then(|v| v.as_str()).map(String::from))
+            .collect();
+        assert!(
+            ids.contains(&FR_EVT_LLM_INFER_START.to_string())
+                && ids.contains(&FR_EVT_LLM_INFER_END.to_string()),
+            "infer observability remains wired: {ids:?}"
+        );
+        let agent_ids: Vec<String> = ids
+            .into_iter()
+            .filter(|id| id.starts_with("FR-EVT-AGENT-"))
+            .collect();
+        assert!(
+            agent_ids.is_empty(),
+            "runtime-level FR-EVT-AGENT-* events are suppressed for replay-captured lanes: {agent_ids:?}"
+        );
+    }
+
     /// RawText mode: NO agent events, and byte-identical token output (the
     /// honesty / no-regression gate).
     #[tokio::test]
@@ -1636,7 +1700,7 @@ mod tests {
         const INSTANCE: u32 = 3;
         let coordinator_session = format!("{}#{INSTANCE}", ModelId::new_v7());
         let live = builder
-            .build_loaded("claude-sonnet", Some(coordinator_session.clone()))
+            .build_loaded("claude-sonnet", Some(coordinator_session.clone()), None)
             .await
             .expect("production builder build_loaded");
         let model_id = live.model_id;

@@ -189,6 +189,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_model_lane_navigation(),
         page_model_lane_validation_harness(),
         page_embedded_model_lifecycle_ledger(),
+        page_dedicated_embedding_model_routing(),
         page_operator_chat_launch(),
         page_usermanual_surface(),
         page_failure_modes_and_recovery(),
@@ -226,6 +227,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "model-lane-navigation",
         "model-lane-validation-harness",
         "embedded-model-lifecycle-ledger",
+        "dedicated-embedding-model-routing",
         "operator-chat-launch",
         "usermanual-surface",
         "failure-modes-and-recovery",
@@ -691,10 +693,49 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  - 503 `keychain_unavailable` — the OS keychain feature is disabled; Handshake REFUSES \
                  to persist a cloud key rather than fall back to any plaintext store.",
             ),
+            section(
+                "run_commands",
+                "Behavior matrix + proof targets",
+                "MT-015 cloud model access coverage is tracked by \
+                 `cloud_model_access_behavior_coverage_matrix()` and verified by \
+                 `cloud_model_access_behaviors_have_manual_coverage`. The behavior matrix rows are \
+                 `wp1.cloud_access.providers_enumeration`, `wp1.cloud_access.byok_store`, \
+                 `wp1.cloud_access.byok_delete`, `wp1.cloud_access.secret_leak_guard`, \
+                 `wp1.cloud_access.settings_argus`, and `wp1.cloud_access.cli_bridge_login`. \
+                 These rows are `NOT_APPLICABLE-with-reason` for internal_diagnostics and Palmistry \
+                 because Settings/keychain configuration is not a ModelLane runtime tier; the \
+                 authority is the model-access HTTP route, the OS keychain leak proof, and the native \
+                 Argus AccessKit tree.\n\n\
+                 Exact backend route proof targets: `model_access_route_tests::put_store_returns_200_and_never_echoes_the_key`; \
+                 `model_access_route_tests::delete_byok_key_is_idempotent_and_updates_status`; \
+                 `model_access_route_tests::get_providers_reflects_configured_and_excludes_gemini`; \
+                 `model_access_route_tests::put_empty_key_is_400`; \
+                 `model_access_route_tests::put_gemini_is_404_excluded`; \
+                 `model_access_route_tests::keychain_unavailable_is_503`. These cover \
+                 `GET /model-access/providers`, `PUT /model-access/byok/{provider}/key`, \
+                 and `DELETE /model-access/byok/{provider}/key` without touching the host keychain.\n\n\
+                 Exact backend leak proof target: \
+                 `cloud_byok_access_config_leak_tests::byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain`. \
+                 It uses a real `OsKeychainSecretsVault`, proves the key round-trips only for provider \
+                 use, and checks logs / Flight Recorder-adjacent tracing / audit rows / Debug output / \
+                 HTTP bodies for the canary.\n\n\
+                 Exact native Argus proof targets: \
+                 `test_cloud_models_settings_argus::cloud_models_controls_are_addressable_and_gemini_is_never_offered`; \
+                 `test_cloud_models_settings_argus::typing_and_saving_a_byok_key_clears_the_ui_buffer`; \
+                 `test_cloud_models_settings_argus::cloud_models_key_entry_renders_when_backend_unreachable`; \
+                 `test_cloud_models_settings_argus::typed_byok_key_is_wiped_from_egui_memory_after_close`; \
+                 `test_cloud_models_settings_argus::cli_bridge_login_records_the_official_command_without_stealing_focus`. \
+                 These prove stable AccessKit IDs, no Gemini row, static BYOK fallback when the backend \
+                 is unreachable, UI key-buffer wiping, and provider-owned CLI login commands without \
+                 stealing focus.",
+            ),
         ],
         anchors: vec![
             page_link("model-lane-cloud-projection-consent"),
             page_link("permissions-and-safety"),
+            route_anchor("GET", "/model-access/providers"),
+            route_anchor("PUT", "/model-access/byok/:provider/key"),
+            route_anchor("DELETE", "/model-access/byok/:provider/key"),
             spec_anchor("2.3.13.11"),
             spec_anchor("10.15.8"),
         ],
@@ -1232,13 +1273,22 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                 "Proof commands",
                 "Exact Rust proof targets: \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests` \
-                 (embedded load emits pid-less START keyed on the minted UUIDv7; the graceful- \
-                 shutdown sequence flushes the STOP through the background writer; the hard-crash \
-                 orphan-reconcile sweep closes a stale pid-less embedded START); \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests` \
-                 (fail-closed and embedding Flight Recorder events on every call path, including \
-                 DisabledLlmClient::embedding). These exercise real PostgreSQL/EventLedger for the \
-                 orphan-reconcile leg; there is no SQLite or mock fallback.",
+                  (embedded load emits pid-less START keyed on the minted UUIDv7; the graceful- \
+                  shutdown sequence flushes the STOP through the background writer; the hard-crash \
+                  orphan-reconcile sweep closes a stale pid-less embedded START; both the primary \
+                  chat model and optional dedicated embedding model get START/STOP rows; supplied \
+                  ledger START failure fails closed instead of leaving an active unledgered client); \
+                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests` \
+                  (fail-closed and embedding Flight Recorder events on every call path, including \
+                  DisabledLlmClient::embedding, with `data_embedding_computed` using the validated \
+                  Flight Recorder payload shape). These are supporting deterministic proofs; MT-013 \
+                  READY_FOR_VALIDATION additionally requires the live real-load proof command \
+                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture` \
+                  with `HANDSHAKE_TEST_CANDLE_MODEL_DIR` pointing at real Candle weights and output \
+                  containing `[MT-013_REAL_CANDLE_LEDGER_DUMP]` with matching START/STOP rows. The \
+                  deterministic suite exercises real PostgreSQL/EventLedger for the orphan-reconcile \
+                  leg; the live Candle command fails loudly when the real model directory is absent; \
+                  there is no SQLite or mock fallback.",
             ),
         ],
         anchors: vec![
@@ -1254,6 +1304,60 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
             NewManualAnchor {
                 anchor_kind: "test",
                 anchor_value: "llm_client_local_routing_tests".into(),
+                http_method: "",
+            },
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "candle_e2e_smoke::mt013_real_candle_default_load_emits_process_ledger_start_stop".into(),
+                http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_dedicated_embedding_model_routing() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "dedicated-embedding-model-routing".into(),
+        title: "Dedicated Embedding Model Routing".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.2.3.2".into(), "4.6.3".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What this surface is",
+                "LoomSearchV2 semantic indexing/search uses a dedicated local embedding model when one is configured. The default chat/completion model remains the LlmClient profile identity, but embedding calls are routed through `ModelCatalog::embedding_model_for_dim(768)` and require a READY local registration with `supports_embedding=true` and `embedding_dimension=768`. A chat-only model is never used as an embedding fallback.",
+            ),
+            section(
+                "startup",
+                "Configure the second local model",
+                "The primary chat model uses `HANDSHAKE_LOCAL_MODEL_PATH`, `HANDSHAKE_LOCAL_MODEL_SHA256`, `HANDSHAKE_LOCAL_MODEL_BINDING`, and `HANDSHAKE_LOCAL_MODEL_NAME`. The optional embedding model uses the parallel `HANDSHAKE_LOCAL_EMBEDDING_MODEL_PATH`, `HANDSHAKE_LOCAL_EMBEDDING_MODEL_SHA256`, `HANDSHAKE_LOCAL_EMBEDDING_MODEL_BINDING`, `HANDSHAKE_LOCAL_EMBEDDING_MODEL_NAME`, and `HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION` variables. The embedding dimension defaults to 768, matching `LOOM_SEARCH_EMBEDDING_DIM` and the `loom_block_search_index.embedding vector(768)` contract.",
+            ),
+            section(
+                "workflows",
+                "Reindex and search",
+                "On reindex, LoomSearchV2 resolves the READY 768-dimensional embedding registration and calls `LlmClient::embedding` with that registration's per-boot UUIDv7. The durable search row stores a stable embedding-space key in `loom_block_search_index.embedding_model` (`embedspace:<artifact_sha256>:dim:<dimension>`), not the per-boot routing UUID. On search, the query vector carries the same `query_embedding_model` embedding-space key; PostgreSQL computes vector similarity only against rows whose stored `embedding_model` matches, preventing cross-model vector-space contamination while preserving same-model scoring across restart.",
+            ),
+            section(
+                "failure_modes",
+                "Fallback and recovery",
+                "If no READY 768-dimensional embedding-capable registration exists, LoomSearchV2 degrades to keyword/trigram search with `semantic_available=false` and `SemanticUnavailableReason::NoModel`; it does not call the chat model as an embedding fallback. If a selected embedding runtime returns a vector whose length is not 768, LoomSearchV2 emits `FR-EVT-LOOM-SEMANTIC-DEGRADED`, returns keyword/trigram results, and surfaces `SemanticUnavailableReason::DimMismatch`. Repair by configuring a model whose declared and actual embedding dimension are both 768, then reindex affected blocks.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact Rust proof targets: `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_tests mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency -- --exact`; `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat -- --exact`; `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact`; `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model -- --exact`; `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call -- --exact`; `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests dedicated_embedding_model_behaviors_have_manual_coverage -- --exact`.",
+            ),
+        ],
+        anchors: vec![
+            page_link("manual-toc"),
+            page_link("notes-loom-surface"),
+            page_link("embedded-model-lifecycle-ledger"),
+            spec_anchor("4.2.3.2"),
+            spec_anchor("4.6.3"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "dedicated_embedding_model_tests".into(),
                 http_method: "",
             },
         ],
@@ -1273,8 +1377,14 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                 "What this surface is",
                 "The operator chat/launch pane (native egui, PaneType::OperatorChatLaunch, opened \
                  from the RUN menu leaf `menu.run.operator-chat`) lets the operator pick a model \
-                 lane (LOCAL / CLOUD / official CLI), pick a folder/worktree as the session's \
-                 working directory, type a prompt, and launch an interactive CLI-wrapper session. \
+                 lane (LOCAL / BYOK cloud / official CLI / SUBAGENT), pick a folder/worktree as the session's \
+                 working directory, type a prompt, and launch an interactive lane session. \
+                 The surface is also available as a persisted Settings > Swarm default via \
+                 `settings.swarm-operator-chat-default-open`. The selected lane is structured as \
+                 `lane_kind` + `model_id`, with \
+                 `cloud_provider` or `cli_provider` attached when the selected row needs a provider. \
+                 SUBAGENT rows are no-OS Dexterity lanes owned by the SubagentManager; they carry \
+                 no process id and use `no_os_process_reason_ref` instead. \
                  The launched conversation, the model's exposed reasoning/thought, and its tool \
                  calls are captured as typed ModelLaneMessage records under a live ModelLaneRun \
                  and mirrored to the Flight Recorder.",
@@ -1282,43 +1392,71 @@ fn page_operator_chat_launch() -> NewUserManualPage {
             section(
                 "workflows",
                 "Pick a model + folder, launch, and watch the transcript",
-                "1. The picker enumerates LOCAL models via the MT-014 `ModelCatalog::list()` and \
-                 CLOUD providers via the MT-015 cloud enumeration API (`enumerate_cloud_access`); \
-                 an unconfigured cloud provider degrades to `unavailable`, never a mock. \
+                "1. The picker enumerates LOCAL models via the MT-014 `ModelCatalog::list()`, \
+                 BYOK cloud providers via the live cloud access registry, official CLI rows \
+                 from provider-specific CLI bridge configs that are enabled only when the provider \
+                 executable is found on PATH, and a SUBAGENT row for SubagentManager-owned lanes. \
+                 An unconfigured cloud or CLI provider degrades to \
+                 `unavailable`, never a mock. \
                  2. Selecting a model records an auditable selection decision \
-                 (`ModelCatalog::record_selection_decision` -> `FR-EVT-MODEL-SELECTION-RECORDED`), \
+                 (`ModelCatalog::record_selection_decision_with_context` -> \
+                 `FR-EVT-MODEL-SELECTION-RECORDED`) with typed `selection_context` fields for \
+                 `lane_kind`, `model_id`, `cloud_provider`, `cli_provider`, and the selected \
+                 working directory when available, \
                  distinct from launch (spec 4.3.9.4.4). \
-                 3. The operator selects a folder/worktree; that path is plumbed \
+                 3. The Settings Swarm section has a persisted Operator Chat default-open checkbox; \
+                 when enabled, startup navigation opens the Operator Chat pane through the same \
+                 runtime tab path as the RUN menu. \
+                 4. The operator selects a folder/worktree; that path is plumbed \
                  `SpawnRequest.working_dir -> CliBridgeConfig.working_dir` so the CLI subprocess \
                  truly runs in that directory. \
-                 4. Launch resolves ONLY through `SwarmCoordinator::spawn_session` (never a \
-                 frontend/app-src/direct-endpoint/terminal authority) and persists \
-                 ModelLaneRun/ModelLane; a missing ModelLaneStore fails closed. \
+                 5. Process-backed launch resolves ONLY through `SwarmCoordinator::spawn_session` \
+                 (never a frontend/app-src/direct-endpoint/terminal authority). SUBAGENT launch \
+                 resolves through `SwarmCoordinator::launch_operator_subagent_model_lane`, \
+                 normalizes via the Dexterity registry, and persists a no-OS ModelLaneRun/ModelLane; \
+                 a missing ModelLaneStore fails closed. \
                  The operator's own prompt is persisted as a HUMAN_OPERATOR ModelLane message \
                  (launch_authority=Operator, runtime_binding=HUMAN).",
             ),
             section(
                 "inputs_outputs",
                 "Where the transcript, thought, and tool calls land",
-                "The CLI is forced into `--output-format stream-json` so activities are TYPED. Each \
+                "The official CLI bridge is forced into stream JSON output so activities are TYPED. Each \
                  COMPLETED activity block from `parse_agent_activity_line` becomes ONE \
                  ModelLaneMessage via `ModelLaneStore::record_message`: a ToolCall -> ToolRequest, \
                  a rendered tool_result -> ToolResult, and the operator prompt / model answer / \
                  exposed thought -> Status messages discriminated by \
                  `diagnostic_payload.activity_kind` (`tool_call|thinking|text|other`). A Flight \
-                 Recorder `FR-EVT-AGENT-*` event is emitted alongside each message. The transcript \
-                 view in the pane renders these rows; each control carries a stable AccessKit \
-                 author_id (`operator-chat.picker.model`, `operator-chat.picker.folder`, \
-                 `operator-chat.input.prompt`, `operator-chat.action.launch`, \
-                 `operator-chat.transcript`).",
+                 Recorder `FR-EVT-AGENT-*` event is emitted alongside each message. `launch()` DRIVES \
+                 the launched runtime (`SwarmCoordinator::session_runtime`) and re-homes its REAL \
+                 stdout through `capture_cli_stream`, so the persisted messages originate from the \
+                 launched session's output. The pane then fetches those rows via \
+                 `GET /operator-chat/transcript/:run_id` and RENDERS them. SUBAGENT launches persist \
+                 the operator prompt and a ready subagent lane, but do not fabricate model stdout. \
+                 Each control carries a \
+                 stable AccessKit author_id (`operator-chat.model.<lane>.<provider>.<model>`, \
+                 `operator-chat.picker.folder`, `operator-chat.input.prompt`, \
+                 `operator-chat.action.launch`, `operator-chat.launch.status`, \
+                 `operator-chat.transcript`, `operator-chat.transcript.message.<message_id>`, \
+                 with `operator-chat.transcript.row.<n>` only as an index fallback). Launch status \
+                 is rendered outside the transcript so it cannot masquerade as a fetched message.",
             ),
             section(
                 "recovery",
                 "Fail-closed and HBR-INT-009 posture",
                 "If the coordinator has no ModelLaneStore/PostgreSQL authority the launch is torn \
                  down and returns a LedgerFailed error (the route surfaces `launch_failed_closed`); \
-                 no partial lane authority is created. A launch route with no wired coordinator \
-                 returns `503 launch_not_wired`. HBR-INT-009 posture: Tier-1 Flight Recorder / \
+                 no partial lane authority is created. The SHIPPED route is wired to a live \
+                 `SwarmCoordinator` + `ModelLaneStore` from `AppState` (via \
+                 `build_operator_chat_launch_service`), so a real launch runs; a deployment with no \
+                 launch service wired returns `503 launch_not_wired` (and the transcript route \
+                 `503 transcript_not_wired`). The official-CLI lane selects a provider-specific \
+                 `CliBridgeConfig` from `cli_provider` and fails closed with `ProviderNotConfigured` \
+                 until the matching provider executable/config is available; Local lanes resolve the \
+                 selected `ModelCatalog` entry to its artifact path/hash and launch through the real \
+                 candle/llama path. SUBAGENT lanes must record `RuntimeBinding::Subagent`, \
+                 `LaunchAuthority::SubagentManager`, and no `process_ownership_ref`; routing them \
+                 through a process factory is a failure. HBR-INT-009 posture: Tier-1 Flight Recorder / \
                  EventLedger is WIRED (agent-activity events + ModelLaneMessage authority + the \
                  selection-decision event); Tier-2 internal_diagnostics and Tier-3 Palmistry are \
                  DEFERRED-with-reason (integrated from the WP-KERNEL-012/016 worktrees; they \
@@ -1327,15 +1465,29 @@ fn page_operator_chat_launch() -> NewUserManualPage {
             section(
                 "run_commands",
                 "Proof commands",
-                "Exact Rust proof targets: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests` \
-                 (a non-mocked lane launch persists ModelLaneRun/ModelLane; a realistic multi-line \
-                 stream-json turn yields exactly one ModelLaneMessage per completed activity block \
-                 with the correct kind + activity_kind + Flight Recorder evidence; the operator \
-                 prompt is a HUMAN_OPERATOR message; the selection-decision event is emitted; a \
-                 launch without a ModelLaneStore fails closed; the operator working_dir is the real \
-                 CLI subprocess cwd). The pane itself is driven headlessly by Argus \
-                 (`cargo test -p handshake-native --test test_operator_chat_launch_argus`).",
+                "Exact Rust proof targets use \
+                 `CARGO_TARGET_DIR=..\\Handshake_Artifacts\\handshake-cargo-target`. Backend: \
+                 `operator_chat_launch_drives_runtime_and_captures_one_message_per_completed_block` \
+                 proves launch drives the loopback CLI runtime, persists the HUMAN_OPERATOR prompt, \
+                 binds every non-status payload to artifact records, and re-homes REAL stdout into \
+                 one ModelLaneMessage per completed activity block; \
+                 `operator_chat_launch_stream_error_preserves_partial_capture_and_reclaims_session` \
+                 proves partial stdout survives runtime failure and the session is reclaimed; \
+                 `operator_chat_subagent_selection_launches_no_os_subagent_lane` proves SUBAGENT \
+                 selection persists a no-OS SubagentManager lane and does not call the runtime factory; \
+                 `operator_chat_route_tests` proves the launch/models/selection routes; \
+                 `build_spawn_request_local_*` proves local catalog/artifact resolution; \
+                 `official_cli_provider_selection_honors_requested_provider` proves provider-specific \
+                 official CLI dispatch; `mt014_catalog_enumerates_and_labels_configured_model` proves \
+                 catalog artifact path exposure. Native: `operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript` \
+                 proves structured selection audit, fetched transcript rows, message-id author_ids, \
+                 and launch status outside transcript; `operator_chat_launch_argus_opens_picks_types_and_launches` \
+                 proves the pane opens, stable controls are addressable, and the launch button fails \
+                 closed on the offline backend; `run_menu_opens_operator_chat_launch` proves RUN > \
+                 Open Operator Chat opens the native tab; `swarm_accessible_actions_listed` \
+                 proves `menu.run.operator-chat` is swarm-accessible; `operator_chat_swarm_setting_persists` \
+                 and `persisted_swarm_defaults_open_runtime_tabs` prove the Settings Swarm default \
+                 is addressable, persisted, and opens the runtime pane.",
             ),
         ],
         anchors: vec![
@@ -1351,6 +1503,16 @@ fn page_operator_chat_launch() -> NewUserManualPage {
             NewManualAnchor {
                 anchor_kind: "http_route",
                 anchor_value: "/operator-chat/launch".into(),
+                http_method: "POST",
+            },
+            NewManualAnchor {
+                anchor_kind: "http_route",
+                anchor_value: "/operator-chat/transcript/:run_id".into(),
+                http_method: "GET",
+            },
+            NewManualAnchor {
+                anchor_kind: "http_route",
+                anchor_value: "/operator-chat/selection".into(),
                 http_method: "POST",
             },
         ],
@@ -1965,9 +2127,18 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
             section(
                 "workflows",
                 "Launch workflow",
-                "Create or replay the redacted cloud payload through ArtifactStore/ContextBundle \
-                 first, then record a ProjectionPlan, record a matching ConsentReceipt, attach \
-                 their refs to the cloud lane, and call `SwarmCoordinator::spawn_session`. The \
+                "Use durable ArtifactStore/ContextBundle refs for redacted cloud payload \
+                 authority. When the run already exists, create or replay the redacted cloud \
+                 payload through ArtifactStore/ContextBundle first, then record a ProjectionPlan, \
+                 record a matching ConsentReceipt, attach their refs to the cloud lane, and call \
+                 `SwarmCoordinator::spawn_session`. operator-chat cloud launches precompute \
+                 deterministic ArtifactStore refs (`cloud-input.json` and \
+                 `cloud-projection-payload.json`) in the ProjectionPlan before cloud consent \
+                 preflight; after `spawn_session` records the ModelLaneRun, \
+                 `OperatorChatLaunchService` records both refs with \
+                 `ModelLaneStore::record_context_bundle_artifact_binding` before output capture. \
+                 If that post-run binding fails, the spawned session is cancelled instead of \
+                 continuing with partial cloud authority. The \
                  coordinator invokes `ModelLaneStore::preflight_cloud_spawn_request` before \
                  `factory.create`, so missing, expired, mismatched, or revoked consent returns \
                  `CX-MM-007` with EventLedger evidence and no provider call. Consent binding \
@@ -2398,7 +2569,12 @@ fn page_model_lane_navigation() -> NewUserManualPage {
                 http_method: "",
             },
         ],
-        vec!["4.3.9.2.5".into(), "5.8".into(), "6.13".into(), "10.15.8".into()],
+        vec![
+            "4.3.9.2.5".into(),
+            "5.8".into(),
+            "6.13".into(),
+            "10.15.8".into(),
+        ],
     )
 }
 
@@ -2429,13 +2605,14 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  machine-readable coverage matrix for this WP. It is keyed by behavior_id and \
                  carries schema/event family, runtime surface id, UserManual page/tool id, \
                  EventLedger/FlightRecorder evidence path, internal_diagnostics posture, \
-                 Palmistry posture, deferred reason, and follow-up ref. Keyword grep is only \
-                 supporting evidence; the proof queries compiled product registries and \
-                 PostgreSQL UserManual rows.",
+                 Palmistry posture, self-consistency result, deferred reason, and follow-up \
+                 ref. Keyword grep is only supporting evidence; the proof queries compiled \
+                 product registries and PostgreSQL UserManual rows.",
                 json!({
                     "schema_id": "hsk.user_manual_behavior_coverage@1",
                     "matrix_function": "user_manual::model_lane_behavior_coverage_matrix",
                     "verification_function": "user_manual::verify_model_lane_behavior_coverage",
+                    "self_consistency_result": "BehaviorCoverageRow::self_consistency_result",
                     "required_tiers": ["flight_recorder", "internal_diagnostics", "palmistry"],
                     "palmistry_policy": "DEFERRED-with-reason plus follow_up_ref until the separate watcher worktree is merged",
                     "authority_inputs": [
@@ -2477,6 +2654,8 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact`.",
             ),
             section(
@@ -3111,6 +3290,20 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "403 HSK-403-SILENT-EDIT (unattributed write refused)".into(),
             "500 HSK-500-LOOM".into(),
         ],
+        SurfaceGroup::ModelAccess => vec![
+            "400 empty_api_key (BYOK key body is empty)".into(),
+            "404 provider_not_offered (provider is excluded or unknown)".into(),
+            "503 keychain_unavailable (fail-closed when no OS keychain vault is wired)".into(),
+            "500 vault_error (vault refused the write/delete without exposing key material)".into(),
+        ],
+        SurfaceGroup::OperatorChat => vec![
+            "400 bad_request (invalid operator chat launch selection)".into(),
+            "503 launch_not_wired / transcript_not_wired (live coordinator or ModelLaneStore absent)"
+                .into(),
+            "500 launch_failed_closed / model_lane_error / recorder_error (fail-closed authority path)"
+                .into(),
+            "500 selection_audit_failed (model catalog selection receipt failed)".into(),
+        ],
         SurfaceGroup::ModelLaneNavigation => vec![
             "400 bad_request / invalid input (empty lookup token or missing artifact/context query)"
                 .into(),
@@ -3155,6 +3348,16 @@ fn group_recovery_steps(group: SurfaceGroup) -> Vec<String> {
         SurfaceGroup::NotesLoom => vec![
             "Regenerate stale wiki projections (POST .../regenerate)".into(),
             "Recompute metrics (POST .../loom/metrics/recompute)".into(),
+        ],
+        SurfaceGroup::ModelAccess => vec![
+            "GET /model-access/providers to confirm non-secret provider status before retrying a launch.".into(),
+            "DELETE /model-access/byok/:provider/key, then PUT a fresh key if the operator rotates credentials.".into(),
+            "If keychain_unavailable persists, keep the provider unavailable rather than writing secrets to a fallback store.".into(),
+        ],
+        SurfaceGroup::OperatorChat => vec![
+            "If launch_not_wired appears, wire a live OperatorChatLaunchService before retrying POST /operator-chat/launch.".into(),
+            "If transcript_not_wired appears, use ModelLane navigation/EventLedger refs until the ModelLaneStore-backed transcript route is wired.".into(),
+            "If selection audit fails, inspect the ModelCatalog recorder path before trusting the picker state.".into(),
         ],
         SurfaceGroup::ModelLaneNavigation => vec![
             "Use the narrowest known id first, then follow event_ledger_refs to kernel_event_ledger authority.".into(),
@@ -3267,6 +3470,175 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             manual_version: USER_MANUAL_VERSION.into(),
         });
     }
+
+    let model_access_route_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "model_access_route_tests",
+            "name": "MT-015 model-access route behavior proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_access_route_tests",
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("model access route tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "model_access_route_tests".into(),
+        page_id: None,
+        name: "MT-015 model-access route behavior proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_access_route_tests".into(),
+        ),
+        http_route: Some("/model-access/providers".into()),
+        http_method: String::new(),
+        description:
+            "Exact Rust proof targets for MT-015 model-access HTTP behavior: non-secret provider enumeration, BYOK store without echoing the key, idempotent delete/rotate, Gemini exclusion, empty-key rejection, and keychain-unavailable fail-closed 503."
+                .into(),
+        expected_input:
+            "test-utils feature enabled; injected InMemorySecretsVault provider for 200/400/404/delete paths; injected KeychainUnavailableProvider for 503 path; loopback Axum model-access router."
+                .into(),
+        expected_output:
+            "GET /model-access/providers returns non-secret configured/unavailable rows and excluded=[gemini]; PUT stores only in the injected vault and never echoes the key; DELETE removes the vault key idempotently; invalid providers and empty keys return stable errors."
+                .into(),
+        schema_fields: vec![
+            "GET /model-access/providers".into(),
+            "PUT /model-access/byok/{provider}/key".into(),
+            "DELETE /model-access/byok/{provider}/key".into(),
+            "put_store_returns_200_and_never_echoes_the_key".into(),
+            "delete_byok_key_is_idempotent_and_updates_status".into(),
+            "get_providers_reflects_configured_and_excludes_gemini".into(),
+            "put_empty_key_is_400".into(),
+            "put_gemini_is_404_excluded".into(),
+            "keychain_unavailable_is_503".into(),
+        ],
+        common_errors: vec![
+            "key_echoed_in_response".into(),
+            "gemini_offered".into(),
+            "delete_not_idempotent".into(),
+            "plaintext_fallback_on_keychain_unavailable".into(),
+        ],
+        recovery_steps: vec![
+            "If the key appears in any HTTP response, inspect StoreKeyBody handling and response JSON before touching the vault.".into(),
+            "If Gemini appears, inspect ByokProvider::all and the excluded provider list.".into(),
+            "If delete fails or leaves configured status, inspect CloudModelAccess::remove_byok_key and the enumeration registry status.".into(),
+        ],
+        origin: "wp1_mt015_cloud_model_access".into(),
+        content_hash: model_access_route_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let cloud_byok_leak_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "cloud_byok_access_config_leak_tests",
+            "name": "MT-015 BYOK OS-keychain leak guard proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,os-keychain\" --test cloud_byok_access_config_leak_tests byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain -- --exact",
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("cloud BYOK leak tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "cloud_byok_access_config_leak_tests".into(),
+        page_id: None,
+        name: "MT-015 BYOK OS-keychain leak guard proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,os-keychain\" --test cloud_byok_access_config_leak_tests byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain -- --exact".into(),
+        ),
+        http_route: Some("/model-access/byok/:provider/key".into()),
+        http_method: "PUT".into(),
+        description:
+            "Security-critical MT-015 canary proof that BYOK keys are stored only in OsKeychainSecretsVault, round-trip only for provider Authorization use, create no consent approval, and never leak into logs, Flight Recorder-adjacent tracing, cloud invocation audit rows, Debug output, enumeration JSON, or HTTP bodies."
+                .into(),
+        expected_input:
+            "Windows target with os-keychain feature enabled; unique test keychain namespace; wiremock OpenAI-compatible endpoint; canary BYOK key."
+                .into(),
+        expected_output:
+            "The canary appears only in the required provider Authorization header and the OS keychain round-trip; every non-keychain surface is canary-free and the keychain entry is deleted before assertions."
+                .into(),
+        schema_fields: vec![
+            "CloudModelAccess::production".into(),
+            "OsKeychainSecretsVault".into(),
+            "VaultApiKeyProvider".into(),
+            "cloud_invocations".into(),
+            "byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain".into(),
+        ],
+        common_errors: vec![
+            "in_memory_vault_used_in_production".into(),
+            "canary_leaked_to_debug_or_logs".into(),
+            "consent_preapproved_on_key_save".into(),
+        ],
+        recovery_steps: vec![
+            "If the production service is not OsKeychainSecretsVault, inspect CloudModelAccess::production wiring.".into(),
+            "If the canary leaks, inspect the failing sink first and remove key formatting or body echoing before rerunning.".into(),
+            "If consent is preapproved by key save, separate CloudModelAccess from ConsentGate state.".into(),
+        ],
+        origin: "wp1_mt015_cloud_model_access".into(),
+        content_hash: cloud_byok_leak_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let cloud_models_argus_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "test_cloud_models_settings_argus",
+            "name": "MT-015 Cloud Models Settings Argus proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_settings_argus",
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("cloud models Argus tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "test_cloud_models_settings_argus".into(),
+        page_id: None,
+        name: "MT-015 Cloud Models Settings Argus proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_settings_argus".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Native Argus/AccessKit proof for Settings > Cloud Models: stable provider author IDs, no Gemini controls, static BYOK key-entry fallback when the backend is unreachable, UI key-buffer clearing on save/close, and provider-owned official CLI login commands without focus-stealing terminal launch during headless tests."
+                .into(),
+        expected_input:
+            "egui_kittest harness with AccessKit enabled; seeded CloudAccessSnapshot for positive rows and empty snapshot/no client for backend-unreachable fallback."
+                .into(),
+        expected_output:
+            "Addressable settings.cloud.* author IDs for Anthropic/OpenAI BYOK and Claude Code/Codex CLI rows; no gemini author IDs; typed BYOK drafts are wiped; provider CLI login command is recorded while terminal launch remains suppressed in the test shell."
+                .into(),
+        schema_fields: vec![
+            "settings.cloud.byok.anthropic.key".into(),
+            "settings.cloud.byok.openai.key".into(),
+            "settings.cloud.cli.claude_code.login".into(),
+            "settings.cloud.cli.codex.login".into(),
+            "cloud_models_controls_are_addressable_and_gemini_is_never_offered".into(),
+            "typing_and_saving_a_byok_key_clears_the_ui_buffer".into(),
+            "cloud_models_key_entry_renders_when_backend_unreachable".into(),
+            "typed_byok_key_is_wiped_from_egui_memory_after_close".into(),
+            "cli_bridge_login_records_the_official_command_without_stealing_focus".into(),
+        ],
+        common_errors: vec![
+            "missing_accesskit_author_id".into(),
+            "gemini_control_rendered".into(),
+            "key_buffer_lingers_after_save_or_close".into(),
+            "login_command_not_provider_owned".into(),
+        ],
+        recovery_steps: vec![
+            "If a provider control is missing, inspect render_cloud_models_body and cloud_byok_*_author_id helpers.".into(),
+            "If a typed key remains in UI memory, inspect CloudModelsSettingsState::clear_key_drafts and reset_cloud_key_edit_memory.".into(),
+            "If login launches the wrong command, inspect CloudCliRow login_program/login_args plumbing.".into(),
+        ],
+        origin: "wp1_mt015_cloud_model_access".into(),
+        content_hash: cloud_models_argus_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
 
     let model_lane_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
@@ -3900,6 +4272,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "model_lane_diagnostic_tier_statuses".into(),
             "model_lane_mt_runtime_statuses".into(),
             "kernel_event_ledger".into(),
+            "EventLedger".into(),
+            "Flight Recorder".into(),
             "model_lane_context_bundle_artifacts".into(),
             "CX-MM-006".into(),
             "CX-MM-009".into(),
@@ -3989,9 +4363,11 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "GET /swarm/model-lanes/diagnostics/latest".into(),
             "GET /swarm/model-lanes/diagnostics/{run_id}".into(),
             "kernel_event_ledger".into(),
+            "EventLedger".into(),
             "model_lane_diagnostic_tier_statuses".into(),
             "model_lane_mt_runtime_statuses".into(),
             "FlightRecorder".into(),
+            "Flight Recorder".into(),
             "internal_diagnostics".into(),
             "Palmistry".into(),
             "Locus".into(),
@@ -4141,6 +4517,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact"
             ],
             "manual_version": USER_MANUAL_VERSION,
@@ -4176,6 +4554,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "model_lane_behavior_coverage_matrix".into(),
             "verify_model_lane_behavior_coverage".into(),
             "kernel_event_ledger".into(),
+            "EventLedger".into(),
+            "Flight Recorder".into(),
             "native_swarm_lane_diagnostics".into(),
             "ProcessOwnershipLedger".into(),
             "ContextBundle".into(),
@@ -4259,6 +4639,63 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ],
         origin: "wp1_mt013_embedded_model".into(),
         content_hash: embedded_model_ledger_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let candle_real_load_ledger_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "candle_e2e_smoke::mt013_real_candle_default_load_emits_process_ledger_start_stop",
+            "name": "MT-013 real Candle default-load ProcessOwnershipLedger START/STOP proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("real Candle ledger tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id:
+            "candle_e2e_smoke::mt013_real_candle_default_load_emits_process_ledger_start_stop"
+                .into(),
+        page_id: None,
+        name: "MT-013 real Candle default-load ProcessOwnershipLedger START/STOP proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Non-skipping MT-013 managed-resource proof for the default embedded LlmClient path: it loads real Candle weights through build_default_local_client, drains the ProcessOwnershipLedger, calls LlmClient::shutdown, drains again, and prints [MT-013_REAL_CANDLE_LEDGER_DUMP] containing the matching pid-less START/STOP rows."
+                .into(),
+        expected_input:
+            "Features test-utils,candle-runtime-engine enabled; HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a directory containing real model.safetensors and tokenizer.json; external CARGO_TARGET_DIR under ..\\Handshake_Artifacts\\handshake-cargo-target."
+                .into(),
+        expected_output:
+            "Exactly one real Candle START row keyed on the LlmClient profile UUIDv7, os_pid=NULL with os_pid_absent_reason=in_process_library_load_no_os_process, model_artifact_sha256 matching the real artifact, then exactly one STOP row with stop_reason=llm-client-shutdown; missing model env fails loudly, not skipped."
+                .into(),
+        schema_fields: vec![
+            "build_default_local_client".into(),
+            "CandleRuntime::load".into(),
+            "EmbeddedModelProcess::record_load".into(),
+            "LlmClient::shutdown".into(),
+            "MT-013_REAL_CANDLE_LEDGER_DUMP".into(),
+        ],
+        common_errors: vec![
+            "HANDSHAKE_TEST_CANDLE_MODEL_DIR_unset".into(),
+            "missing_model_safetensors".into(),
+            "missing_tokenizer_json".into(),
+            "missing_real_start_row".into(),
+            "missing_real_stop_row".into(),
+        ],
+        recovery_steps: vec![
+            "Set HANDSHAKE_TEST_CANDLE_MODEL_DIR to a real Candle model directory and rerun the exact ignored test command.".into(),
+            "If START is missing after load, inspect EmbeddedModelProcess::record_load and the supplied LedgerBatcher; the default path must fail closed rather than continue unledgered.".into(),
+            "If STOP is missing after shutdown, inspect LocalModelRuntimeLlmClient::shutdown and the manual/spawned ledger drain before moving MT-013 to READY_FOR_VALIDATION.".into(),
+        ],
+        origin: "wp1_mt013_embedded_model".into(),
+        content_hash: candle_real_load_ledger_tool_hash,
         manual_version: USER_MANUAL_VERSION.into(),
     });
 
@@ -4368,6 +4805,72 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ],
         origin: "wp1_mt013_embedded_model".into(),
         content_hash: llm_local_routing_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let dedicated_embedding_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "dedicated_embedding_model_tests",
+            "name": "Dedicated embedding model routing proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model -- --exact",
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("dedicated embedding model tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "dedicated_embedding_model_tests".into(),
+        page_id: None,
+        name: "Dedicated embedding model routing proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model -- --exact".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Representative Rust proof target plus machine-readable references for the full MT-016 proof suite: ModelCapabilities consistency, ready catalog selection by embedding dimension, shared boot registry with distinct chat and embedding registrations, LoomSearchV2 reindex/search using the stable embedding-space id, no chat embedding fallback, and UserManual behavior coverage."
+                .into(),
+        expected_input:
+            "test-utils feature enabled; in-process fake ModelRuntime for boot proof; real Handshake-managed PostgreSQL or POSTGRES_TEST_URL isolated schema for LoomSearchV2 storage proof; model catalog fixtures with chat-only and embedding-capable registrations."
+                .into(),
+        expected_output:
+            "The chat/completion model remains profile().model_id; ModelCatalog selects the READY supports_embedding=true embedding_dimension=768 registration; LocalRouter rejects chat UUIDv7 embedding calls before runtime dispatch; LoomSearchV2 routes calls with the dedicated embedding model UUID but stores and queries with the stable embedding-space id; PostgreSQL vector scoring ignores rows from another embedding space; no-model fallback does not call the chat model."
+                .into(),
+        schema_fields: vec![
+            "ModelCapabilities::supports_embedding".into(),
+            "ModelCapabilities::embedding_dimension".into(),
+            "ModelCatalogEntry::embedding_space_id".into(),
+            "ModelCatalog::embedding_model_for_dim".into(),
+            "LocalRouter::require_embedding_model".into(),
+            "LoomSearchV2Request::query_embedding_model".into(),
+            "loom_block_search_index.embedding_model".into(),
+            "SemanticUnavailableReason::NoModel".into(),
+            "FR-EVT-LOOM-SEMANTIC-DEGRADED".into(),
+            "proof:model_registry_tests::mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency".into(),
+            "proof:model_catalog_tests::mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat".into(),
+            "proof:llm_default_boot_resolution_tests::mt016_default_boot_registers_distinct_embedding_model_when_configured".into(),
+            "proof:loom_search_v2_tests::mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model".into(),
+            "proof:loom_search_v2_tests::mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call".into(),
+            "proof:user_manual_behavior_coverage_tests::dedicated_embedding_model_behaviors_have_manual_coverage".into(),
+        ],
+        common_errors: vec![
+            "chat_model_used_for_embedding".into(),
+            "missing_embedding_dimension".into(),
+            "wrong_embedding_dimension".into(),
+            "cross_model_vector_space_scored".into(),
+            "semantic_degrade_silent".into(),
+        ],
+        recovery_steps: vec![
+            "Configure HANDSHAKE_LOCAL_EMBEDDING_MODEL_PATH and HANDSHAKE_LOCAL_EMBEDDING_MODEL_SHA256 for the dedicated embedding artifact.".into(),
+            "Set HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION to 768 or leave it unset for the 768 default.".into(),
+            "Reindex Loom blocks after changing the embedding model so loom_block_search_index.embedding_model matches the active model.".into(),
+            "If semantic search is unavailable, inspect the catalog for a READY supports_embedding=true embedding_dimension=768 row before debugging PostgreSQL.".into(),
+        ],
+        origin: "wp1_mt016_dedicated_embedding_model".into(),
+        content_hash: dedicated_embedding_tool_hash,
         manual_version: USER_MANUAL_VERSION.into(),
     });
 
@@ -4754,6 +5257,35 @@ mod tests {
     #[test]
     fn corpus_hash_is_deterministic() {
         assert_eq!(corpus_hash(&seed_corpus()), corpus_hash(&seed_corpus()));
+    }
+
+    #[test]
+    fn cloud_projection_consent_page_documents_operator_chat_artifact_binding_order() {
+        let corpus = seed_corpus();
+        let page = corpus
+            .pages
+            .iter()
+            .find(|page| page.slug == "model-lane-cloud-projection-consent")
+            .expect("cloud ProjectionPlan/ConsentReceipt page is seeded");
+        let body = page
+            .sections
+            .iter()
+            .map(|section| section.body_md.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for required in [
+            "operator-chat cloud launches precompute deterministic ArtifactStore refs",
+            "cloud-input.json",
+            "cloud-projection-payload.json",
+            "after `spawn_session` records the ModelLaneRun",
+            "before output capture",
+            "ModelLaneStore::record_context_bundle_artifact_binding",
+        ] {
+            assert!(
+                body.contains(required),
+                "cloud ProjectionPlan/ConsentReceipt page must document {required}"
+            );
+        }
     }
 
     #[test]

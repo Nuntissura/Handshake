@@ -35,6 +35,8 @@ pub enum SurfaceGroup {
     MemoryClaims,
     CrdtCollaboration,
     NotesLoom,
+    ModelAccess,
+    OperatorChat,
     ModelLaneNavigation,
     UserManual,
 }
@@ -49,6 +51,8 @@ impl SurfaceGroup {
             Self::MemoryClaims => "memory_claims",
             Self::CrdtCollaboration => "crdt_collaboration",
             Self::NotesLoom => "notes_loom",
+            Self::ModelAccess => "model_access",
+            Self::OperatorChat => "operator_chat",
             Self::ModelLaneNavigation => "model_lane_navigation",
             Self::UserManual => "user_manual",
         }
@@ -63,6 +67,8 @@ impl SurfaceGroup {
             Self::MemoryClaims => "memory-and-claims-surface",
             Self::CrdtCollaboration => "crdt-collaboration-surface",
             Self::NotesLoom => "notes-loom-surface",
+            Self::ModelAccess => "cloud-model-access",
+            Self::OperatorChat => "operator-chat-launch",
             Self::ModelLaneNavigation => "model-lane-navigation",
             Self::UserManual => "usermanual-surface",
         }
@@ -79,7 +85,11 @@ impl SurfaceGroup {
             | Self::Retrieval
             | Self::MemoryClaims
             | Self::CrdtCollaboration => true,
-            Self::NotesLoom | Self::ModelLaneNavigation | Self::UserManual => false,
+            Self::NotesLoom
+            | Self::ModelAccess
+            | Self::OperatorChat
+            | Self::ModelLaneNavigation
+            | Self::UserManual => false,
         }
     }
 }
@@ -937,6 +947,62 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "Search across Loom blocks, ProjectKnowledgeIndex entities, and UserManual pages with explainable Loom retrieval-bias metadata.",
         "q + filter query params including source_kinds.",
         "JSON heterogeneous graph-search hits; Loom block hits include hsk.loom_retrieval_bias@1 metadata."
+    ),
+    // -- Model access configuration (api/model_access.rs) -----------------
+    surface!(
+        "model_access.providers.list",
+        SurfaceGroup::ModelAccess,
+        "GET",
+        "/model-access/providers",
+        "List non-secret cloud provider access status for the operator model picker.",
+        "None.",
+        "JSON cloud access enumeration with byok, cli_bridge, and excluded provider rows; never key material."
+    ),
+    surface!(
+        "model_access.byok_key.store",
+        SurfaceGroup::ModelAccess,
+        "PUT",
+        "/model-access/byok/:provider/key",
+        "Store or rotate a BYOK API key in the injected cloud access vault.",
+        "provider path param; JSON {api_key}; key material is accepted only at the transport boundary.",
+        "JSON non-secret provider status; 400 empty_api_key, 404 provider_not_offered, 503 keychain_unavailable."
+    ),
+    surface!(
+        "model_access.byok_key.delete",
+        SurfaceGroup::ModelAccess,
+        "DELETE",
+        "/model-access/byok/:provider/key",
+        "Delete a BYOK key idempotently through the cloud access vault.",
+        "provider path param.",
+        "JSON non-secret provider unavailable status; 404 provider_not_offered, 503 keychain_unavailable."
+    ),
+    // -- Operator chat launch surface (api/operator_chat.rs) ---------------
+    surface!(
+        "operator_chat.selection.record",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/selection",
+        "Record an operator chat model selection decision through the model catalog audit path.",
+        "JSON selection decision with selected_model_id and optional lane/model/provider context.",
+        "JSON {status: recorded, selected_model_id} or selection_audit_failed envelope."
+    ),
+    surface!(
+        "operator_chat.launch",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/launch",
+        "Launch an operator chat lane through the sanctioned OperatorChatLaunchService.",
+        "JSON OperatorChatSelection for local, BYOK/CLI cloud, or subagent lane launch.",
+        "JSON launched run/lane payload; 503 launch_not_wired or fail-closed launch error envelope."
+    ),
+    surface!(
+        "operator_chat.transcript.get",
+        SurfaceGroup::OperatorChat,
+        "GET",
+        "/operator-chat/transcript/:run_id",
+        "Fetch captured ModelLane transcript rows for an operator chat run.",
+        "run_id path param.",
+        "JSON {run_id, rows}; 503 transcript_not_wired when the ModelLaneStore is unavailable."
     ),
     // -- Dexterity ModelLane navigation (api/model_lane_navigation.rs) -----
     surface!(

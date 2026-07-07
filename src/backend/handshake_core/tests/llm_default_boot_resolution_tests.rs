@@ -20,7 +20,8 @@ use handshake_core::{
     flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError},
     llm::{
         boot::{
-            assemble_local_runtime_client, build_default_local_client, build_openai_compat_client,
+            assemble_local_runtime_client, assemble_local_runtime_client_with_registrations,
+            build_default_local_client, build_openai_compat_client,
         },
         registry::{ProviderKind, ResolvedProvider},
         CompletionRequest, CompletionResponse, EmbeddingRequest, LlmClient, LlmError, ModelProfile,
@@ -28,12 +29,35 @@ use handshake_core::{
     },
     model_runtime::{
         BaseModelTag, CancellationToken, Embedding, FinishReason, GenerateRequest, GeneratedToken,
-        KvCacheHandle, LoraStackHandle, ModelCapabilities, ModelId, ModelRegistration, ModelRuntime,
-        ModelRuntimeError, OperatorId, ProviderKind as RuntimeProviderKind, RuntimeBinding, Score,
-        SteeringHookHandle, TokenStream,
+        KvCacheHandle, LoraStackHandle, ModelCapabilities, ModelId, ModelRegistration,
+        ModelRuntime, ModelRuntimeError, OperatorId, ProviderKind as RuntimeProviderKind,
+        RuntimeBinding, Score, SteeringHookHandle, TokenStream,
     },
 };
 use uuid::Uuid;
+
+#[test]
+fn mt003_ollama_adapter_source_file_and_public_export_are_removed() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let ollama_source = manifest_dir.join("src").join("llm").join("ollama.rs");
+    assert!(
+        !ollama_source.exists(),
+        "WP-1 MT-003 requires src/backend/handshake_core/src/llm/ollama.rs to be removed"
+    );
+
+    let llm_mod = std::fs::read_to_string(manifest_dir.join("src").join("llm").join("mod.rs"))
+        .expect("read llm/mod.rs");
+    for forbidden in [
+        "pub mod ollama",
+        "pub use ollama::OllamaAdapter",
+        "OllamaAdapter",
+    ] {
+        assert!(
+            !llm_mod.contains(forbidden),
+            "WP-1 MT-003 requires removing the public Ollama adapter export; found {forbidden:?}"
+        );
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -240,6 +264,7 @@ async fn default_boot_with_no_local_model_returns_disabled_never_ollama_daemon()
         model_id: "embedded-local-unconfigured".to_string(),
         api_key_env: None,
         local_model: None,
+        local_embedding_model: None,
     };
 
     let recorder = Arc::new(CapturingRecorder::default());
@@ -289,7 +314,11 @@ async fn default_local_runtime_client_profile_model_id_is_minted_uuid_v7_and_rou
     // HIGH regression guard 1: profile().model_id IS the minted UUIDv7.
     let profile_model_id = client.profile().model_id.clone();
     let parsed = Uuid::parse_str(&profile_model_id).expect("profile model_id is a UUID");
-    assert_eq!(parsed.get_version_num(), 7, "profile model_id must be UUIDv7");
+    assert_eq!(
+        parsed.get_version_num(),
+        7,
+        "profile model_id must be UUIDv7"
+    );
     assert_eq!(profile_model_id, model_id.to_string());
 
     // Completion with that id routes to the embedded runtime, not the fallback.
@@ -323,8 +352,15 @@ async fn default_local_runtime_client_embedding_is_supported_via_model_runtime_e
     let fallback = Arc::new(RecordingFallback::new());
     let recorder = Arc::new(CapturingRecorder::default());
 
+    let mut registration = local_registration(model_id, RuntimeBinding::Candle);
+    registration.declared_capabilities = ModelCapabilities {
+        supports_embedding: true,
+        embedding_dimension: Some(embed_vector.len()),
+        ..Default::default()
+    };
+
     let client = assemble_local_runtime_client(
-        local_registration(model_id, RuntimeBinding::Candle),
+        registration,
         llama.clone(),
         candle.clone(),
         fallback.clone(),
@@ -339,10 +375,9 @@ async fn default_local_runtime_client_embedding_is_supported_via_model_runtime_e
         "embed me".to_string(),
         client.profile().model_id.clone(),
     );
-    let response = client
-        .embedding(req)
-        .await
-        .expect("embedding() must be supported via ModelRuntime::embed(), not EmbeddingUnsupported");
+    let response = client.embedding(req).await.expect(
+        "embedding() must be supported via ModelRuntime::embed(), not EmbeddingUnsupported",
+    );
 
     assert_eq!(response.vector, embed_vector);
     assert_eq!(candle.embed_count(), 1, "must route to embedded embed()");
@@ -355,6 +390,130 @@ async fn default_local_runtime_client_embedding_is_supported_via_model_runtime_e
         !response.vector.is_empty(),
         "embedding must not be the empty/unsupported degradation"
     );
+}
+
+#[tokio::test]
+async fn mt016_default_boot_registers_distinct_embedding_model_when_configured() {
+    let chat_model_id = ModelId::new_v7();
+    let embedding_model_id = ModelId::new_v7();
+    let embed_vector = vec![0.25_f32; 768];
+    let candle = Arc::new(FakeRuntime::new("candle", &["chat"], embed_vector.clone()));
+    let llama = Arc::new(FakeRuntime::new("llama", &["wrong"], vec![9.0]));
+    let fallback = Arc::new(RecordingFallback::new());
+    let recorder = Arc::new(CapturingRecorder::default());
+
+    let mut embedding_registration = local_registration(embedding_model_id, RuntimeBinding::Candle);
+    embedding_registration.base_model_tag = BaseModelTag::new("boot-embedding-768");
+    embedding_registration.declared_capabilities = ModelCapabilities {
+        supports_embedding: true,
+        embedding_dimension: Some(768),
+        ..Default::default()
+    };
+
+    let client = assemble_local_runtime_client_with_registrations(
+        local_registration(chat_model_id, RuntimeBinding::Candle),
+        vec![embedding_registration],
+        llama.clone(),
+        candle.clone(),
+        fallback.clone(),
+        recorder,
+        8192,
+        None,
+    )
+    .expect("assemble local runtime client with dedicated embedding model");
+
+    assert_eq!(
+        client.profile().model_id,
+        chat_model_id.to_string(),
+        "chat/completion model remains the LlmClient profile identity"
+    );
+    let catalog = client.model_catalog().expect("catalog present");
+    assert_eq!(catalog.len(), 2, "chat + embedding registrations enumerate");
+    let selected = catalog
+        .embedding_model_for_dim(768)
+        .expect("ready dedicated embedding model selected");
+    assert_eq!(selected.model_id, embedding_model_id.to_string());
+
+    let chat_embedding_err = client
+        .embedding(EmbeddingRequest::new(
+            Uuid::now_v7(),
+            "must not embed through chat".to_string(),
+            chat_model_id.to_string(),
+        ))
+        .await
+        .expect_err("chat model must not be accepted as embedding-capable");
+    assert!(
+        matches!(&chat_embedding_err, LlmError::EmbeddingUnsupported),
+        "chat embedding must fail with EmbeddingUnsupported, got {chat_embedding_err}"
+    );
+    assert_eq!(
+        candle.embed_count(),
+        0,
+        "capability guard must reject chat embedding before runtime dispatch"
+    );
+
+    let response = client
+        .embedding(EmbeddingRequest::new(
+            Uuid::now_v7(),
+            "embed through dedicated model".to_string(),
+            embedding_model_id.to_string(),
+        ))
+        .await
+        .expect("dedicated embedding model routes to runtime");
+    assert_eq!(response.vector, embed_vector);
+    assert_eq!(candle.embed_count(), 1);
+    assert_eq!(fallback.embedding_count(), 0);
+
+    let wrong_dim_chat_id = ModelId::new_v7();
+    let wrong_dim_embedding_id = ModelId::new_v7();
+    let wrong_dim_candle = Arc::new(FakeRuntime::new("candle", &["chat"], vec![0.5_f32; 896]));
+    let wrong_dim_llama = Arc::new(FakeRuntime::new("llama", &["wrong"], vec![9.0]));
+    let wrong_dim_fallback = Arc::new(RecordingFallback::new());
+    let wrong_dim_recorder = Arc::new(CapturingRecorder::default());
+    let mut wrong_dim_registration =
+        local_registration(wrong_dim_embedding_id, RuntimeBinding::Candle);
+    wrong_dim_registration.base_model_tag = BaseModelTag::new("boot-embedding-wrong-dim");
+    wrong_dim_registration.declared_capabilities = ModelCapabilities {
+        supports_embedding: true,
+        embedding_dimension: Some(768),
+        ..Default::default()
+    };
+
+    let wrong_dim_client = assemble_local_runtime_client_with_registrations(
+        local_registration(wrong_dim_chat_id, RuntimeBinding::Candle),
+        vec![wrong_dim_registration],
+        wrong_dim_llama,
+        wrong_dim_candle.clone(),
+        wrong_dim_fallback.clone(),
+        wrong_dim_recorder,
+        8192,
+        None,
+    )
+    .expect("assemble wrong-dimension embedding client");
+    let wrong_dim_err = wrong_dim_client
+        .embedding(EmbeddingRequest::new(
+            Uuid::now_v7(),
+            "wrong dimension".to_string(),
+            wrong_dim_embedding_id.to_string(),
+        ))
+        .await
+        .expect_err("runtime vector length must be checked against declared dimension");
+    assert!(
+        matches!(
+            wrong_dim_err,
+            LlmError::EmbeddingDimensionMismatch {
+                expected: 768,
+                actual: 896
+            }
+        ),
+        "declared/actual embedding dimension mismatch must be typed, got {wrong_dim_err}"
+    );
+    assert_eq!(
+        wrong_dim_candle.embed_count(),
+        1,
+        "dimension guard runs after the selected embedding runtime returns"
+    );
+    assert_eq!(wrong_dim_fallback.embedding_count(), 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -371,6 +530,7 @@ async fn external_compat_openai_lane_is_retained_and_non_authoritative() {
         model_id: "gpt-4o-mini".to_string(),
         api_key_env: None,
         local_model: None,
+        local_embedding_model: None,
     };
     let recorder = Arc::new(CapturingRecorder::default());
 

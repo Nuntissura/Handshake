@@ -1932,6 +1932,7 @@ impl ModelLaneStore {
                 .map(|tier| ModelLaneDiagnosticsTier {
                     tier: tier.tier.as_str().to_owned(),
                     state: tier.state.as_str().to_owned(),
+                    reason: tier.reason.clone(),
                     evidence_ref: tier.evidence_ref.clone(),
                     follow_up_ref: tier.follow_up_ref.clone(),
                 })
@@ -2377,10 +2378,14 @@ impl ModelLaneStore {
                 .run_id_by_locus_ref(&lookup_ref)
                 .await?
                 .ok_or_else(|| ModelLaneError::NotFound(format!("locus_ref {lookup_ref}")))?,
-            "loom_ref" | "loom_block_id" => self
+            "loom_ref" => self
                 .run_id_by_diagnostic_payload_ref(&lookup_ref, &["loom_ref", "loom_block_id"])
                 .await?
                 .ok_or_else(|| ModelLaneError::NotFound(format!("loom_ref {lookup_ref}")))?,
+            "loom_block_id" => self
+                .run_id_by_loom_block_id(&lookup_ref)
+                .await?
+                .ok_or_else(|| ModelLaneError::NotFound(format!("loom_block_id {lookup_ref}")))?,
             "fems_ref" => self
                 .run_id_by_diagnostic_payload_ref(&lookup_ref, &["fems_ref", "memory_pack_ref"])
                 .await?
@@ -2698,6 +2703,45 @@ impl ModelLaneStore {
             value,
         )
         .await
+    }
+
+    async fn run_id_by_loom_block_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
+        let mut run_ids = sqlx::query_scalar::<_, String>(
+            r#"
+            SELECT DISTINCT run_id
+            FROM model_lane_context_bundle_handoffs
+            WHERE EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(COALESCE(record_json->'loom_refs', '[]'::jsonb)) AS loom_ref
+                WHERE loom_ref->>'block_id' = $1
+            )
+            ORDER BY run_id ASC
+            "#,
+        )
+        .bind(value)
+        .fetch_all(&self.pool)
+        .await?;
+        run_ids.extend(
+            sqlx::query_scalar::<_, String>(
+                r#"
+                SELECT DISTINCT run_id
+                FROM (
+                    SELECT run_id
+                    FROM model_lane_messages
+                    WHERE record_json #>> '{diagnostic_payload,loom_block_id}' = $1
+                    UNION ALL
+                    SELECT run_id
+                    FROM model_lane_context_bundle_handoffs
+                    WHERE record_json #>> '{diagnostic_payload,loom_block_id}' = $1
+                ) legacy_refs
+                ORDER BY run_id ASC
+                "#,
+            )
+            .bind(value)
+            .fetch_all(&self.pool)
+            .await?,
+        );
+        unique_run_id_for_lookup("loom_block_id", value, run_ids)
     }
 
     async fn run_id_by_diagnostic_payload_ref(
@@ -3382,20 +3426,6 @@ impl ModelLaneStore {
         if !have_internal || !have_palmistry {
             return Err(ModelLaneError::InvalidInput(format!(
                 "HBR-INT-009 diagnostic posture for {behavior_id} requires internal_diagnostics and palmistry tier records"
-            )));
-        }
-        let internal = posture
-            .tiers
-            .iter()
-            .find(|tier| tier.tier == ModelLaneDiagnosticTier::InternalDiagnostics)
-            .ok_or_else(|| {
-                ModelLaneError::InvalidInput(format!(
-                    "HBR-INT-009 diagnostic posture for {behavior_id} requires internal_diagnostics"
-                ))
-            })?;
-        if internal.state != ModelLaneDiagnosticTierState::Wired {
-            return Err(ModelLaneError::InvalidInput(format!(
-                "HBR-INT-009 internal_diagnostics tier for {behavior_id} must be wired"
             )));
         }
         for tier in &posture.tiers {
@@ -5043,6 +5073,7 @@ impl ModelLaneDiagnosticTier {
 #[serde(rename_all = "snake_case")]
 pub enum ModelLaneDiagnosticTierState {
     Wired,
+    NotApplicableWithReason,
     DeferredWithReason,
     Missing,
 }
@@ -5051,6 +5082,7 @@ impl ModelLaneDiagnosticTierState {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Wired => "wired",
+            Self::NotApplicableWithReason => "not_applicable_with_reason",
             Self::DeferredWithReason => "deferred_with_reason",
             Self::Missing => "missing",
         }
@@ -5559,7 +5591,7 @@ impl DexterityLaunchContract {
             memory_pack_hash: self.memory_pack_hash.clone(),
             determinism_mode: self.determinism_mode.clone(),
             budget_summary_ref: self.budget_summary_ref.clone(),
-            selected_model_id: Some(live.model_id.to_string()),
+            selected_model_id: Some(self.persisted_model_id(request, live)),
             candidate_model_ids: self.candidate_model_ids.clone(),
             procedural_review_status: self.procedural_review_status.clone(),
             truncation_warning_ref: self.truncation_warning_ref.clone(),
@@ -5649,9 +5681,9 @@ impl DexterityLaunchContract {
             kind: mapped.kind,
             role: self.role.clone(),
             backend: self.backend.clone(),
-            model_id: Some(live.model_id.to_string()),
+            model_id: Some(self.persisted_model_id(request, live)),
             session_id: runtime_session_id(request),
-            model_session_id: live.model_id.to_string(),
+            model_session_id: dexterity_spawn_model_session_id(request),
             adapter_id: self.adapter_id.clone(),
             runtime_binding: mapped.runtime_binding,
             launch_authority: mapped.launch_authority,
@@ -5781,7 +5813,7 @@ impl DexterityLaunchContract {
     fn locus(
         &self,
         request: &SpawnRequest,
-        live: &LiveSession,
+        _live: &LiveSession,
     ) -> ModelLaneResult<ModelLaneLocusBinding> {
         Ok(ModelLaneLocusBinding {
             work_packet_id: required_request_field("wp_id", request.wp_id.as_deref())?,
@@ -5789,7 +5821,7 @@ impl DexterityLaunchContract {
             task_board_id: Some(self.task_board_id.clone()),
             coordinator_session_id: request.parent_session_id.clone(),
             session_id: runtime_session_id(request),
-            model_session_id: live.model_id.to_string(),
+            model_session_id: dexterity_spawn_model_session_id(request),
             owner_session: request.owner_role.clone(),
             locus_binding_ref: self.locus_binding_ref.clone(),
         })
@@ -5818,6 +5850,17 @@ impl DexterityLaunchContract {
         } else {
             self.candidate_model_ids.clone()
         }
+    }
+
+    fn persisted_model_id(&self, request: &SpawnRequest, live: &LiveSession) -> String {
+        if request.provider == Some(ProviderKind::ByokCloud) {
+            return self
+                .candidate_model_ids(request)
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| live.model_id.to_string());
+        }
+        live.model_id.to_string()
     }
 }
 
@@ -6401,6 +6444,7 @@ pub struct ModelLaneDiagnosticsMessage {
 pub struct ModelLaneDiagnosticsTier {
     pub tier: String,
     pub state: String,
+    pub reason: String,
     pub evidence_ref: String,
     pub follow_up_ref: Option<String>,
 }
@@ -7284,8 +7328,12 @@ fn dexterity_sha256_hex(input: impl AsRef<[u8]>) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn runtime_session_id(request: &SpawnRequest) -> String {
+pub fn dexterity_spawn_model_session_id(request: &SpawnRequest) -> String {
     format!("swarm-session:{}", request.instance_id)
+}
+
+fn runtime_session_id(request: &SpawnRequest) -> String {
+    dexterity_spawn_model_session_id(request)
 }
 
 fn failed_model_session_id(request: &SpawnRequest) -> String {
@@ -8455,7 +8503,8 @@ where
         .fetch_optional(pool)
         .await?
         .map(|row| {
-            row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
+            row_to_json(row, "record_json")
+                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
         })
         .transpose()
 }

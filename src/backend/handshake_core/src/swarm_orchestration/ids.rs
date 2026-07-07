@@ -77,6 +77,11 @@ pub struct SpawnRequest {
     /// passes to the cloud adapter's allowlisted `load`. Required for cloud
     /// providers; ignored for local.
     pub cloud_model_name: Option<String>,
+    /// Exact official CLI provider selected under `ProviderKind::OfficialCli`
+    /// (`claude_code` | `codex`). Without this, legacy callers fall back to the
+    /// single configured CLI bridge, but operator-chat launches must preserve
+    /// the row the operator clicked.
+    pub official_cli_provider: Option<String>,
     /// Optional provider flavor for `ProviderKind::ByokCloud`. Without this the
     /// production factory uses its legacy configured-lane fallback; with it, the
     /// requested Anthropic/OpenAI lane must be configured and is honored exactly.
@@ -173,6 +178,7 @@ impl SpawnRequest {
             runtime_binding,
             provider: None,
             cloud_model_name: None,
+            official_cli_provider: None,
             byok_cloud_provider: None,
             owner_role: owner_role.into(),
             owner_wp: None,
@@ -220,6 +226,13 @@ impl SpawnRequest {
     ) -> Self {
         self.provider = Some(provider);
         self.cloud_model_name = Some(model_name.into());
+        self
+    }
+
+    /// Select the exact official CLI bridge provider under
+    /// `ProviderKind::OfficialCli`.
+    pub fn with_official_cli_provider(mut self, provider: impl Into<String>) -> Self {
+        self.official_cli_provider = Some(provider.into());
         self
     }
 

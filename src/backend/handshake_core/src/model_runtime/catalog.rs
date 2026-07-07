@@ -34,11 +34,12 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::flight_recorder::{
-    FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
+    FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+    RecorderError,
 };
 
 use super::{ModelId, ModelRegistration, ModelRegistry};
@@ -72,11 +73,33 @@ pub struct ModelCatalogEntry {
     /// restarts even though `model_id` is re-minted, so diagnostics/pickers can
     /// correlate "the same artifact" across boots.
     pub artifact_sha256: String,
+    /// Filesystem path to the registered local model artifact. This lets launch
+    /// surfaces resolve an operator-selected `model_id` into the exact artifact
+    /// the local runtime integrity gate needs, without inventing a second
+    /// catalog lookup path.
+    pub artifact_path: String,
     /// Which runtime adapter hosts the model (`llama_cpp` | `candle`).
     pub runtime_binding: String,
+    /// Whether this model is explicitly declared safe for embedding calls.
+    pub supports_embedding: bool,
+    /// Declared embedding dimensionality when `supports_embedding=true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embedding_dimension: Option<usize>,
     /// READY state (master-spec §4.3.9.4.4): the model is loaded and routable
     /// this run. Derived from the registry's loaded-model marker.
     pub ready: bool,
+}
+
+impl ModelCatalogEntry {
+    /// Stable vector-space key for persisted semantic indexes.
+    ///
+    /// `model_id` is a per-boot routing UUID and must not be used as the durable
+    /// identity for rows that survive restart. The artifact hash plus declared
+    /// dimension names the embedding space that is safe to compare in pgvector.
+    pub fn embedding_space_id(&self) -> Option<String> {
+        self.embedding_dimension
+            .map(|dim| format!("embedspace:{}:dim:{dim}", self.artifact_sha256))
+    }
 }
 
 /// Shared, enumerable, labeled view over the boot [`ModelRegistry`].
@@ -146,6 +169,15 @@ impl ModelCatalog {
         self.lookup(model_id).map(|reg| self.to_entry(reg))
     }
 
+    /// Select a READY embedding-capable model for a required vector dimension.
+    /// Returns `None` when no loaded local registration explicitly declares both
+    /// embedding support and the exact requested dimensionality.
+    pub fn embedding_model_for_dim(&self, dim: usize) -> Option<ModelCatalogEntry> {
+        self.list().into_iter().find(|entry| {
+            entry.ready && entry.supports_embedding && entry.embedding_dimension == Some(dim)
+        })
+    }
+
     /// Record a model-selection decision as an auditable EventLedger (Tier-1
     /// Flight Recorder business-event) event, per master-spec §4.3.9.4.4. This
     /// is DISTINCT from a launch/inference event: it captures the decision to
@@ -161,23 +193,53 @@ impl ModelCatalog {
         actor: &str,
         reason: &str,
     ) -> Result<(), RecorderError> {
+        self.record_selection_decision_with_context(
+            recorder,
+            selected_model_id,
+            actor,
+            reason,
+            Value::Object(serde_json::Map::new()),
+        )
+        .await
+    }
+
+    /// Record a model-selection decision with machine-readable route/UI context.
+    /// This keeps lane/provider/worktree fields queryable in the Flight Recorder
+    /// payload instead of flattening them into prose.
+    pub async fn record_selection_decision_with_context(
+        &self,
+        recorder: &dyn FlightRecorder,
+        selected_model_id: &str,
+        actor: &str,
+        reason: &str,
+        selection_context: Value,
+    ) -> Result<(), RecorderError> {
         let anchor = self
             .stable_anchor(selected_model_id)
             .unwrap_or_else(|| "unknown".to_string());
         let label = self.label_for(selected_model_id);
+        let mut payload = json!({
+            "fr_event": MODEL_SELECTION_FR_EVENT,
+            "type": "model_selection_recorded",
+            "selected_model_id": selected_model_id,
+            "stable_anchor_sha256": anchor,
+            "display_name": label,
+            "actor": actor,
+            "reason": reason,
+        });
+        if let Value::Object(payload_map) = &mut payload {
+            if selection_context
+                .as_object()
+                .is_some_and(|map| !map.is_empty())
+            {
+                payload_map.insert("selection_context".to_string(), selection_context);
+            }
+        }
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
             FlightRecorderActor::System,
             Uuid::now_v7(),
-            json!({
-                "fr_event": MODEL_SELECTION_FR_EVENT,
-                "type": "model_selection_recorded",
-                "selected_model_id": selected_model_id,
-                "stable_anchor_sha256": anchor,
-                "display_name": label,
-                "actor": actor,
-                "reason": reason,
-            }),
+            payload,
         )
         .with_model_id(selected_model_id);
         recorder.record_event(event).await
@@ -195,7 +257,10 @@ impl ModelCatalog {
             display_name: tag.clone(),
             base_model_tag: tag,
             artifact_sha256: hex::encode(reg.sha256),
+            artifact_path: reg.artifact_path.to_string_lossy().into_owned(),
             runtime_binding: reg.runtime_binding.adapter_id().to_string(),
+            supports_embedding: reg.declared_capabilities.supports_embedding,
+            embedding_dimension: reg.declared_capabilities.embedding_dimension,
             ready: self.registry.is_loaded(reg.model_id),
         }
     }

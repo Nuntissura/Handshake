@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 pub use batcher::{
     drain_and_join_ledger_writer, LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome,
-    NoopOverflowSink,
+    NoopOverflowSink, RetainedLedgerBatcher,
 };
 pub use idempotency::{
     ApplyOutcome, IdempotencyKey, IdempotencyLedger, IdempotencyLedgerError, IdempotentApply,

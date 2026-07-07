@@ -264,6 +264,17 @@ fn registration(model_id: ModelId, binding: RuntimeBinding) -> ModelRegistration
     }
 }
 
+fn embedding_registration(
+    model_id: ModelId,
+    binding: RuntimeBinding,
+    embedding_dimension: usize,
+) -> ModelRegistration {
+    let mut registration = registration(model_id, binding);
+    registration.declared_capabilities.supports_embedding = true;
+    registration.declared_capabilities.embedding_dimension = Some(embedding_dimension);
+    registration
+}
+
 fn client_for_registry(
     registry: ModelRegistry,
     llama: Arc<RecordingRuntime>,
@@ -582,22 +593,31 @@ impl ConfigurableRuntime {
     }
 
     fn embedding(vector: Vec<f32>) -> Self {
+        let dimension = vector.len();
         Self {
             tokens: Vec::new(),
             fail_generate: false,
             embed_vector: vector,
             fail_embed: false,
-            capabilities: ModelCapabilities::default(),
+            capabilities: ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: Some(dimension),
+                ..Default::default()
+            },
         }
     }
 
-    fn embed_error() -> Self {
+    fn embed_error(embedding_dimension: usize) -> Self {
         Self {
             tokens: Vec::new(),
             fail_generate: false,
             embed_vector: Vec::new(),
             fail_embed: true,
-            capabilities: ModelCapabilities::default(),
+            capabilities: ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: Some(embedding_dimension),
+                ..Default::default()
+            },
         }
     }
 }
@@ -684,6 +704,32 @@ fn candle_client(
     )
 }
 
+fn candle_embedding_client(
+    model_id: ModelId,
+    embedding_dimension: usize,
+    candle: Arc<dyn ModelRuntime>,
+    recorder: Arc<CapturingRecorder>,
+    max_context_tokens: u32,
+) -> LocalModelRuntimeLlmClient {
+    let mut registry = ModelRegistry::default();
+    registry
+        .register(embedding_registration(
+            model_id,
+            RuntimeBinding::Candle,
+            embedding_dimension,
+        ))
+        .expect("register embedding-capable candle model");
+    let llama: Arc<dyn ModelRuntime> = Arc::new(RecordingRuntime::new("llama", &["x"]));
+    let router = LocalRouter::new(Arc::new(registry), llama, candle);
+    let fallback = Arc::new(RecordingFallbackClient::new("fallback"));
+    LocalModelRuntimeLlmClient::new(
+        router,
+        fallback,
+        recorder,
+        ModelProfile::new("local-router".to_string(), max_context_tokens).with_streaming(true),
+    )
+}
+
 #[tokio::test]
 async fn disabled_client_completion_emits_fr_event_at_call_time_each_call() {
     let recorder = Arc::new(CapturingRecorder::default());
@@ -727,6 +773,7 @@ async fn disabled_client_completion_emits_fr_event_at_call_time_each_call() {
         assert_eq!(event.payload["error_kind"], "llm_disabled");
         assert_eq!(event.payload["token_usage"]["total_tokens"], 0);
         assert!(event.payload["reason"].is_string());
+        assert!(event.validate().is_ok());
     }
     assert_eq!(events[0].trace_id, trace_a);
     assert_eq!(events[1].trace_id, trace_b);
@@ -763,6 +810,7 @@ async fn local_completion_stream_error_emits_fr_error_event() {
     assert_eq!(events[0].payload["error_kind"], "llm_error");
     assert_eq!(events[0].payload["token_usage"]["total_tokens"], 0);
     assert_eq!(events[0].trace_id, trace_id);
+    assert!(events[0].validate().is_ok());
 }
 
 #[tokio::test]
@@ -795,6 +843,7 @@ async fn local_completion_budget_exceeded_emits_fr_error_event() {
         FlightRecorderEventType::LlmInference
     ));
     assert_eq!(events[0].payload["error_kind"], "llm_error");
+    assert!(events[0].validate().is_ok());
 }
 
 #[tokio::test]
@@ -834,6 +883,7 @@ async fn local_completion_unregistered_model_emits_fr_error_event() {
     );
     assert_eq!(events[0].payload["error_kind"], "llm_error");
     assert_eq!(events[0].trace_id, trace_id);
+    assert!(events[0].validate().is_ok());
 }
 
 #[tokio::test]
@@ -842,7 +892,7 @@ async fn local_embedding_success_emits_data_embedding_computed_event() {
     let recorder = Arc::new(CapturingRecorder::default());
     let candle: Arc<dyn ModelRuntime> =
         Arc::new(ConfigurableRuntime::embedding(vec![0.1, 0.2, 0.3]));
-    let client = candle_client(model_id, candle, recorder.clone(), 8192);
+    let client = candle_embedding_client(model_id, 3, candle, recorder.clone(), 8192);
 
     let trace_id = uuid::Uuid::now_v7();
     let response = client
@@ -870,20 +920,29 @@ async fn local_embedding_success_emits_data_embedding_computed_event() {
         events[0].event_type
     );
     assert_eq!(events[0].trace_id, trace_id);
-    assert_eq!(events[0].payload["embedding_dim"], 3);
+    assert_eq!(
+        events[0].payload["silver_id"],
+        format!("embedding-call-{}", trace_id.simple())
+    );
+    assert_eq!(events[0].payload["model_id"], model_id.to_string());
+    assert_eq!(events[0].payload["model_version"], "local-runtime");
+    assert_eq!(events[0].payload["dimensions"], 3);
+    assert_eq!(events[0].payload["compute_latency_ms"], response.latency_ms);
+    assert_eq!(events[0].payload["was_truncated"], false);
     // Embeddings carry NO TokenUsage (product-extension FR shape).
     assert!(
         events[0].payload.get("token_usage").is_none(),
         "embedding FR event must not carry a token_usage field"
     );
+    assert!(events[0].validate().is_ok());
 }
 
 #[tokio::test]
 async fn local_embedding_error_emits_fr_error_event() {
     let model_id = ModelId::new_v7();
     let recorder = Arc::new(CapturingRecorder::default());
-    let candle: Arc<dyn ModelRuntime> = Arc::new(ConfigurableRuntime::embed_error());
-    let client = candle_client(model_id, candle, recorder.clone(), 8192);
+    let candle: Arc<dyn ModelRuntime> = Arc::new(ConfigurableRuntime::embed_error(3));
+    let client = candle_embedding_client(model_id, 3, candle, recorder.clone(), 8192);
 
     let trace_id = uuid::Uuid::now_v7();
     let err = client
@@ -908,6 +967,7 @@ async fn local_embedding_error_emits_fr_error_event() {
     ));
     assert_eq!(events[0].payload["error_kind"], "embedding_error");
     assert_eq!(events[0].trace_id, trace_id);
+    assert!(events[0].validate().is_ok());
 }
 
 #[tokio::test]
@@ -958,6 +1018,7 @@ async fn disabled_client_embedding_emits_fr_event_at_call_time() {
     assert_eq!(events[0].payload["token_usage"]["total_tokens"], 0);
     assert!(events[0].payload["reason"].is_string());
     assert_eq!(events[0].trace_id, trace_id);
+    assert!(events[0].validate().is_ok());
 }
 
 #[test]

@@ -269,6 +269,7 @@ impl OfficialCliBridgeRuntime {
             supports_subquadratic: false,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            ..Default::default()
         }
     }
 

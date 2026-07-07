@@ -609,6 +609,7 @@ pub async fn load_local_candle_model(
         supports_subquadratic: false,
         supports_speculative_draft: false,
         supports_eagle3: false,
+        ..Default::default()
     };
 
     let spec = LoadSpec {
@@ -675,6 +676,7 @@ pub fn candle_transformer_capabilities(declared: &ModelCapabilities) -> ModelCap
         supports_subquadratic: false,
         supports_speculative_draft: false,
         supports_eagle3: false,
+        ..Default::default()
     }
 }
 
@@ -698,6 +700,7 @@ pub fn candle_mamba2_capabilities(_declared: &ModelCapabilities) -> ModelCapabil
         supports_subquadratic: true,
         supports_speculative_draft: false,
         supports_eagle3: false,
+        ..Default::default()
     }
 }
 
@@ -716,6 +719,7 @@ pub fn candle_rwkv_capabilities(_declared: &ModelCapabilities) -> ModelCapabilit
         supports_subquadratic: true,
         supports_speculative_draft: false,
         supports_eagle3: false,
+        ..Default::default()
     }
 }
 

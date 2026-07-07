@@ -417,6 +417,7 @@ impl OpenAiByokRuntime {
             supports_subquadratic: false,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            ..Default::default()
         }
     }
 
@@ -968,6 +969,7 @@ impl ModelRuntime for OpenAiByokRuntime {
             supports_subquadratic: false,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            ..Default::default()
         };
         self.declared_capabilities = normalised;
         Ok(handle.model_id)

@@ -83,6 +83,25 @@ fn registered_catalog() -> (Arc<ModelCatalog>, String) {
     (catalog, model_id.to_string())
 }
 
+fn registration_with_capabilities(
+    model_id: ModelId,
+    tag: &str,
+    sha_byte: u8,
+    capabilities: ModelCapabilities,
+) -> ModelRegistration {
+    ModelRegistration {
+        model_id,
+        artifact_path: PathBuf::from(format!("fixtures/models/{tag}.gguf")),
+        sha256: [sha_byte; 32],
+        runtime_binding: RuntimeBinding::Candle,
+        declared_capabilities: capabilities,
+        base_model_tag: BaseModelTag::new(tag),
+        registered_at_utc: Utc::now(),
+        registered_by: OperatorId::new("test-operator"),
+        provider: ProviderKind::Local,
+    }
+}
+
 #[test]
 fn mt014_catalog_enumerates_and_labels_configured_model() {
     let (catalog, model_id) = registered_catalog();
@@ -98,6 +117,10 @@ fn mt014_catalog_enumerates_and_labels_configured_model() {
     );
     assert_eq!(entry.base_model_tag, TEST_BASE_MODEL_TAG);
     assert_eq!(entry.runtime_binding, "llama_cpp");
+    assert_eq!(
+        entry.artifact_path, "/models/qwen2.5-coder-7b.gguf",
+        "catalog entry exposes the local artifact path needed by launch routing"
+    );
     assert!(entry.ready, "loaded boot model enumerates as READY");
 
     // STABLE cross-session anchor is present ALONGSIDE the per-boot UUIDv7, and
@@ -189,4 +212,93 @@ async fn mt014_catalog_records_selection_decision_event() {
     );
     // The event carries the selected model id for correlation.
     assert_eq!(event.model_id.as_deref(), Some(model_id.as_str()));
+}
+
+#[test]
+fn mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat() {
+    let chat_id = ModelId::new_v7();
+    let wrong_dim_id = ModelId::new_v7();
+    let unloaded_embed_id = ModelId::new_v7();
+    let embed_id = ModelId::new_v7();
+
+    let mut registry = ModelRegistry::default();
+    registry
+        .register(registration_with_capabilities(
+            chat_id,
+            "chat-model",
+            1,
+            ModelCapabilities::default(),
+        ))
+        .expect("chat registration");
+    registry.mark_loaded(chat_id).expect("chat ready");
+    registry
+        .register(registration_with_capabilities(
+            wrong_dim_id,
+            "embedding-896",
+            2,
+            ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: Some(896),
+                ..Default::default()
+            },
+        ))
+        .expect("wrong-dim registration");
+    registry.mark_loaded(wrong_dim_id).expect("wrong dim ready");
+    registry
+        .register(registration_with_capabilities(
+            unloaded_embed_id,
+            "embedding-unloaded",
+            3,
+            ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: Some(768),
+                ..Default::default()
+            },
+        ))
+        .expect("unloaded embedding registration");
+    registry
+        .register(registration_with_capabilities(
+            embed_id,
+            "embedding-768",
+            4,
+            ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: Some(768),
+                ..Default::default()
+            },
+        ))
+        .expect("embedding registration");
+    registry.mark_loaded(embed_id).expect("embedding ready");
+
+    let catalog = ModelCatalog::from_registry(Arc::new(registry));
+    let selected = catalog
+        .embedding_model_for_dim(768)
+        .expect("ready 768-dim embedding model selected");
+
+    assert_eq!(selected.model_id, embed_id.to_string());
+    assert_ne!(
+        selected.model_id,
+        chat_id.to_string(),
+        "chat model must not be selected as an embedding model"
+    );
+    let selected_space = selected
+        .embedding_space_id()
+        .expect("embedding-capable entry exposes stable vector-space id");
+    assert_eq!(
+        selected_space,
+        format!("embedspace:{}:dim:768", selected.artifact_sha256),
+        "embedding-space id is stable artifact sha256 + dimension, not per-boot uuid"
+    );
+    assert_ne!(
+        selected_space, selected.model_id,
+        "durable vector-space id must be distinct from per-boot routing model id"
+    );
+    assert!(selected.supports_embedding);
+    assert_eq!(selected.embedding_dimension, Some(768));
+    assert!(selected.ready);
+    assert_eq!(
+        catalog.embedding_model_for_dim(1024),
+        None,
+        "wrong requested dimension must not select a model"
+    );
 }

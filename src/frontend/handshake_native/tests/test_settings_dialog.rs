@@ -353,6 +353,56 @@ fn swarm_lane_diagnostics_setting_persists() {
     );
 }
 
+#[test]
+fn operator_chat_swarm_setting_persists() {
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport.clone());
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+    harness.run();
+
+    let nodes: Vec<String> = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+        .collect();
+    assert!(
+        nodes
+            .iter()
+            .any(|id| id == "settings.swarm-operator-chat-default-open"),
+        "operator chat checkbox is addressable in the live settings tree: {nodes:?}"
+    );
+
+    harness.state_mut().apply_settings_outcome_for_test(
+        handshake_native::settings_dialog::SettingsOutcome::OperatorChatDefaultOpenChanged(true),
+    );
+    harness.run();
+    assert!(
+        harness
+            .state()
+            .workspace_settings()
+            .operator_chat_default_open,
+        "settings state flips the operator chat default flag"
+    );
+    assert!(
+        run_until(&mut harness, 60, |_| transport.save_calls() >= 1),
+        "operator chat setting persisted through PUT /workspaces/{{id}}/settings"
+    );
+    let blob = transport.saved().expect("a settings_state blob was PUT");
+    assert_eq!(
+        blob.pointer("/settings/operator_chat_default_open")
+            .and_then(serde_json::Value::as_bool),
+        Some(true),
+        "persisted blob carries operator chat default flag"
+    );
+}
+
 // ── View-mode wiring (AC4) ──────────────────────────────────────────────────────────────────────────
 #[test]
 fn changing_view_mode_updates_app_flag_and_persists() {
@@ -615,7 +665,7 @@ fn opening_settings_loads_persisted_theme_from_backend() {
         "theme": "dark",
         "custom_theme_tokens": {},
         "keybindings": { "app.quick_switcher.open": "Mod-p", "app.command_palette.open": "Mod-Shift-p" },
-        "settings": { "view_mode": "NSFW", "swarm_board_default_open": false, "swarm_lane_diagnostics_default_open": false }
+        "settings": { "view_mode": "NSFW", "swarm_board_default_open": false, "swarm_lane_diagnostics_default_open": false, "operator_chat_default_open": false }
     });
     let transport = StubSettingsTransport::with_loaded(Some(stored));
     let handle = leak_runtime_handle();
@@ -642,13 +692,13 @@ fn opening_settings_loads_persisted_theme_from_backend() {
 }
 
 #[test]
-fn persisted_swarm_diagnostics_default_opens_runtime_tabs() {
+fn persisted_swarm_defaults_open_runtime_tabs() {
     let stored = serde_json::json!({
         "schema_id": "hsk.workspace_settings_state@1",
         "theme": "dark",
         "custom_theme_tokens": {},
         "keybindings": { "app.quick_switcher.open": "Mod-p", "app.command_palette.open": "Mod-Shift-p" },
-        "settings": { "view_mode": "NSFW", "swarm_board_default_open": true, "swarm_lane_diagnostics_default_open": true }
+        "settings": { "view_mode": "NSFW", "swarm_board_default_open": true, "swarm_lane_diagnostics_default_open": true, "operator_chat_default_open": true }
     });
     let transport = StubSettingsTransport::with_loaded(Some(stored));
     let handle = leak_runtime_handle();
@@ -668,10 +718,15 @@ fn persisted_swarm_diagnostics_default_opens_runtime_tabs() {
             .tab_bar_states()
             .values()
             .any(|bar| bar.tabs.iter().any(|tab| tab.pane_type == PaneType::Swarm))
+            && app.tab_bar_states().values().any(|bar| {
+                bar.tabs
+                    .iter()
+                    .any(|tab| tab.pane_type == PaneType::OperatorChatLaunch)
+            })
     });
     assert!(
         loaded,
-        "stored Swarm defaults open both Swarm and Lane Diagnostics runtime tabs"
+        "stored Swarm defaults open Swarm, Lane Diagnostics, and Operator Chat runtime tabs"
     );
 }
 

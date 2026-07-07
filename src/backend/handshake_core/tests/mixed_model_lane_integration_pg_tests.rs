@@ -7,24 +7,33 @@
 
 mod knowledge_pg_support;
 
+use handshake_core::process_ledger::{
+    LedgerBatcher, LedgerBatcherConfig, LedgerEventKind, LedgerOverflowEvent,
+    PostgresProcessLedgerStore, ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink,
+    ProcessStart, ProcessStop,
+};
 use handshake_core::swarm_orchestration::model_lane::{
     LaunchAuthority, ModelLaneAuthority, ModelLaneCloudConsentReceiptStatus,
     ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanStatus,
     ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
-    ModelLaneKind, ModelLaneLeaseScope, ModelLaneLeaseState, ModelLaneLocusBinding,
-    ModelLaneMessageKind, ModelLaneMessageRecord, ModelLaneMtRuntimeStatus, ModelLaneProviderKind,
-    ModelLaneRecoveryEventKind, ModelLaneRecoveryFailureKind, ModelLaneRecoveryState,
-    ModelLaneRecoveryStatus, ModelLaneRoutingMetadata, ModelLaneStatus, ModelLaneStore,
-    ModelLaneTarget, NewModelLane, NewModelLaneCloudConsentReceipt,
-    NewModelLaneCloudProjectionPlan, NewModelLaneContextBundleArtifactBinding,
-    NewModelLaneDiagnosticTierStatus, NewModelLaneLease, NewModelLaneMessage,
-    NewModelLaneMtRuntimeStatus, NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent,
-    NewModelLaneRun, RuntimeBinding,
+    ModelLaneDiagnosticsLane, ModelLaneKind, ModelLaneLeaseScope, ModelLaneLeaseState,
+    ModelLaneLocusBinding, ModelLaneMessageKind, ModelLaneMessageRecord, ModelLaneMtRuntimeStatus,
+    ModelLaneProviderKind, ModelLaneRecord, ModelLaneRecoveryEventKind,
+    ModelLaneRecoveryFailureKind, ModelLaneRecoveryState, ModelLaneRecoveryStatus,
+    ModelLaneRoutingMetadata, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
+    NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
+    NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus, NewModelLaneLease,
+    NewModelLaneMessage, NewModelLaneMtRuntimeStatus, NewModelLaneRecoveryCheckpoint,
+    NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::PgPool;
-use std::collections::{BTreeMap, BTreeSet};
+use sqlx::{PgPool, Row};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 const WP_ID: &str = "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
 const MT_ID: &str = "MT-009";
@@ -191,6 +200,21 @@ async fn mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects()
         .messages
         .iter()
         .all(|message| message.event_ledger_event_id.starts_with("KE-")));
+    assert_process_backed_lane_runtime_contract(
+        replay_lane(&replay.lanes, LOCAL_LANE_ID),
+        "local-runtime",
+        RuntimeBinding::Local,
+        LaunchAuthority::ModelRuntime,
+        ModelLaneProviderKind::LocalRuntime,
+    );
+    assert_process_backed_lane_runtime_contract(
+        replay_lane(&replay.lanes, CLOUD_LANE_ID),
+        "openai-byok",
+        RuntimeBinding::Cloud,
+        LaunchAuthority::CloudLane,
+        ModelLaneProviderKind::OpenAi,
+    );
+    assert_no_os_lane_runtime_contract(replay_lane(&replay.lanes, SUBAGENT_LANE_ID));
 
     let recovered = store
         .recover_run_after_restart(RUN_ID)
@@ -297,6 +321,293 @@ async fn mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects()
         .any(|tier| tier.tier == "palmistry"
             && tier.state == "deferred_with_reason"
             && tier.follow_up_ref.is_some()));
+
+    let overflow_events = record_mixed_runtime_process_ledger_evidence(&pool).await;
+    assert_process_ledger_linked(
+        &pool,
+        projection_lane(&projection.lanes, LOCAL_LANE_ID),
+        ProcessEngineKind::LlamaCpp,
+        "local-runtime",
+    )
+    .await;
+    assert_process_ledger_linked(
+        &pool,
+        projection_lane(&projection.lanes, CLOUD_LANE_ID),
+        ProcessEngineKind::HelperSubprocess,
+        "openai-byok",
+    )
+    .await;
+    assert_eq!(
+        overflow_events.len(),
+        1,
+        "MT-009 bounded ProcessOwnershipLedger writer must emit overflow evidence"
+    );
+    assert_eq!(overflow_events[0].event_type, "FR_EVT_LEDGER_OVERFLOW");
+    assert_eq!(overflow_events[0].capacity, 4);
+    assert_eq!(
+        overflow_events[0].dropped_event_kind,
+        LedgerEventKind::Start
+    );
+    assert_eq!(
+        overflow_events[0].sampled_event_payload["metadata_jsonb"]["mt_id"],
+        MT_ID
+    );
+}
+
+fn replay_lane<'a>(lanes: &'a [ModelLaneRecord], lane_id: &str) -> &'a ModelLaneRecord {
+    lanes
+        .iter()
+        .find(|lane| lane.lane_id == lane_id)
+        .unwrap_or_else(|| panic!("expected replay lane {lane_id}"))
+}
+
+fn projection_lane<'a>(
+    lanes: &'a [ModelLaneDiagnosticsLane],
+    lane_id: &str,
+) -> &'a ModelLaneDiagnosticsLane {
+    lanes
+        .iter()
+        .find(|lane| lane.lane_id == lane_id)
+        .unwrap_or_else(|| panic!("expected projection lane {lane_id}"))
+}
+
+fn assert_process_backed_lane_runtime_contract(
+    lane: &ModelLaneRecord,
+    expected_adapter_id: &str,
+    expected_runtime_binding: RuntimeBinding,
+    expected_launch_authority: LaunchAuthority,
+    expected_provider_kind: ModelLaneProviderKind,
+) {
+    assert_eq!(lane.adapter_id, expected_adapter_id);
+    assert_eq!(lane.runtime_binding, expected_runtime_binding);
+    assert_eq!(lane.launch_authority, expected_launch_authority);
+    assert_eq!(lane.provider_kind, expected_provider_kind);
+    assert!(
+        lane.process_ownership_ref.is_some(),
+        "process-backed lane must carry ProcessOwnershipLedger ref"
+    );
+    assert!(
+        lane.no_os_process_reason_ref.is_none(),
+        "process-backed lane must not carry a no-OS-process reason"
+    );
+    assert!(
+        lane.cancellation_ref
+            .as_deref()
+            .is_some_and(|value| value.starts_with("cancel-token://mt009/")),
+        "lane must expose cooperative cancellation token"
+    );
+    assert_eq!(
+        lane.terminal_status_mapping_ref.as_deref(),
+        Some("terminal-status://mt009/mixed-runtime")
+    );
+    assert_eq!(
+        lane.loop_counter_ref.as_deref(),
+        Some("loop-counter://mt009/mixed-runtime"),
+        "lane must expose bounded retry loop counter evidence"
+    );
+}
+
+fn assert_no_os_lane_runtime_contract(lane: &ModelLaneRecord) {
+    assert_eq!(lane.runtime_binding, RuntimeBinding::Subagent);
+    assert_eq!(lane.launch_authority, LaunchAuthority::SubagentManager);
+    assert_eq!(lane.provider_kind, ModelLaneProviderKind::Subagent);
+    assert!(lane.process_ownership_ref.is_none());
+    assert!(
+        lane.no_os_process_reason_ref
+            .as_deref()
+            .is_some_and(|value| value.contains("subagent_manager")),
+        "subagent lane must explain why no OS process exists"
+    );
+}
+
+async fn record_mixed_runtime_process_ledger_evidence(pool: &PgPool) -> Vec<LedgerOverflowEvent> {
+    let overflow = RecordingOverflowSink::default();
+    let (batcher, drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 4,
+            batch_size: 4,
+            flush_interval: Duration::from_millis(250),
+        },
+        Arc::new(overflow.clone()),
+    )
+    .expect("manual MT-009 ProcessOwnershipLedger writer");
+
+    for (lane_id, engine_kind, adapter_id, os_pid) in [
+        (
+            LOCAL_LANE_ID,
+            ProcessEngineKind::LlamaCpp,
+            "local-runtime",
+            59001,
+        ),
+        (
+            CLOUD_LANE_ID,
+            ProcessEngineKind::HelperSubprocess,
+            "openai-byok",
+            59002,
+        ),
+    ] {
+        let start = process_start_for_lane(lane_id, engine_kind, adapter_id, os_pid);
+        let stop = ProcessStop::from_start(&start, Some(0)).with_stop_reason("completed");
+        batcher
+            .record_start(start)
+            .expect("enqueue MT-009 START evidence");
+        batcher
+            .record_stop(stop)
+            .expect("enqueue MT-009 STOP evidence");
+    }
+
+    batcher
+        .record_start(process_start_for_lane(
+            "lane-mt009-overflow",
+            ProcessEngineKind::HelperSubprocess,
+            "overflow-proof",
+            59009,
+        ))
+        .expect("bounded writer emits overflow without blocking spawn path");
+
+    let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    ledger_store
+        .apply_migration()
+        .await
+        .expect("process ledger migration applies");
+    drain
+        .drain_available_to(ledger_store)
+        .await
+        .expect("MT-009 process ledger rows drain to PostgreSQL");
+    overflow.events()
+}
+
+fn process_start_for_lane(
+    lane_id: &str,
+    engine_kind: ProcessEngineKind,
+    adapter_id: &str,
+    os_pid: u32,
+) -> ProcessStart {
+    ProcessStart::new(engine_kind, OWNER, Some(WP_ID.to_owned()))
+        .with_process_uuid(process_uuid_for_lane(lane_id))
+        .with_os_pid(os_pid)
+        .with_parent_session_id(RUN_ID)
+        .with_sandbox_adapter_id(adapter_id)
+        .with_model_artifact_sha256(sample_sha256())
+        .with_work_profile_id(format!("work-profile://mt009/{lane_id}"))
+        .with_wp_id(WP_ID)
+        .with_mt_id(MT_ID)
+        .with_metadata_jsonb(json!({
+            "adapter_id": adapter_id,
+            "authority_path": "model_lane_store",
+            "cancellation_boundary": "stream_chunk_or_tool_call",
+            "direct_endpoint_bypass": false,
+            "lane_id": lane_id,
+            "mt_id": MT_ID,
+            "retry_policy": "bounded_no_direct_endpoint",
+            "run_id": RUN_ID,
+        }))
+}
+
+fn process_uuid_for_lane(lane_id: &str) -> uuid::Uuid {
+    let digest = Sha256::digest(format!("process-ledger://mt009/{lane_id}").as_bytes());
+    let mut bytes = [0_u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    bytes[6] = (bytes[6] & 0x0f) | 0x70;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    uuid::Uuid::from_bytes(bytes)
+}
+
+async fn assert_process_ledger_linked(
+    pool: &PgPool,
+    lane: &ModelLaneDiagnosticsLane,
+    expected_engine_kind: ProcessEngineKind,
+    expected_adapter_id: &str,
+) {
+    let process_uuid = lane_process_uuid(lane);
+    let row = sqlx::query(
+        r#"
+        SELECT
+            engine_kind,
+            stopped_at IS NOT NULL AS has_stop,
+            stop_reason,
+            os_pid,
+            parent_session_id,
+            sandbox_adapter_id,
+            wp_id,
+            mt_id,
+            metadata_jsonb
+        FROM kernel_process_lifecycle
+        WHERE process_uuid = $1::uuid
+        "#,
+    )
+    .bind(process_uuid.to_string())
+    .fetch_one(pool)
+    .await
+    .expect("lane ProcessOwnershipLedger ref resolves to durable row");
+
+    let engine_kind: String = row.get("engine_kind");
+    let has_stop: bool = row.get("has_stop");
+    let stop_reason: Option<String> = row.get("stop_reason");
+    let os_pid: Option<i64> = row.get("os_pid");
+    let parent_session_id: Option<String> = row.get("parent_session_id");
+    let sandbox_adapter_id: Option<String> = row.get("sandbox_adapter_id");
+    let wp_id: Option<String> = row.get("wp_id");
+    let mt_id: Option<String> = row.get("mt_id");
+    let metadata_jsonb: Value = row.get("metadata_jsonb");
+
+    assert_eq!(engine_kind, expected_engine_kind.as_str());
+    assert!(has_stop, "START row must be paired with STOP evidence");
+    assert_eq!(stop_reason.as_deref(), Some("completed"));
+    assert!(
+        os_pid.is_some(),
+        "process-backed lane must carry OS pid evidence"
+    );
+    assert_eq!(parent_session_id.as_deref(), Some(RUN_ID));
+    assert_eq!(sandbox_adapter_id.as_deref(), Some(expected_adapter_id));
+    assert_eq!(wp_id.as_deref(), Some(WP_ID));
+    assert_eq!(mt_id.as_deref(), Some(MT_ID));
+    assert_eq!(metadata_jsonb["lane_id"], lane.lane_id);
+    assert_eq!(metadata_jsonb["adapter_id"], expected_adapter_id);
+    assert_eq!(
+        metadata_jsonb["cancellation_boundary"],
+        "stream_chunk_or_tool_call"
+    );
+    assert_eq!(metadata_jsonb["retry_policy"], "bounded_no_direct_endpoint");
+    assert_eq!(metadata_jsonb["direct_endpoint_bypass"], json!(false));
+    assert_eq!(metadata_jsonb["authority_path"], "model_lane_store");
+}
+
+fn lane_process_uuid(lane: &ModelLaneDiagnosticsLane) -> uuid::Uuid {
+    let raw = lane
+        .process_ownership_ref
+        .as_deref()
+        .and_then(|value| value.strip_prefix("process-ledger://"))
+        .unwrap_or_else(|| {
+            panic!(
+                "lane {} must carry process-ledger://<uuid> ownership ref",
+                lane.lane_id
+            )
+        });
+    uuid::Uuid::parse_str(raw).unwrap_or_else(|error| {
+        panic!(
+            "lane {} ProcessOwnershipLedger ref must contain a UUID, got {raw}: {error}",
+            lane.lane_id
+        )
+    })
+}
+
+#[derive(Clone, Default)]
+struct RecordingOverflowSink {
+    events: Arc<Mutex<Vec<LedgerOverflowEvent>>>,
+}
+
+impl RecordingOverflowSink {
+    fn events(&self) -> Vec<LedgerOverflowEvent> {
+        self.events.lock().expect("overflow sink lock").clone()
+    }
+}
+
+impl ProcessLedgerOverflowSink for RecordingOverflowSink {
+    fn emit_overflow(&self, event: LedgerOverflowEvent) -> Result<(), ProcessLedgerError> {
+        self.events.lock().expect("overflow sink lock").push(event);
+        Ok(())
+    }
 }
 
 #[tokio::test]
@@ -1786,7 +2097,8 @@ fn sample_lane(
         cancellation_ref: Some(format!("cancel-token://mt009/{lane_id}")),
         reclaim_policy_ref: Some("reclaim-policy://mt009/mixed-runtime".into()),
         terminal_status_mapping_ref: Some("terminal-status://mt009/mixed-runtime".into()),
-        process_ownership_ref: process_backed.then(|| format!("process-ledger://mt009/{lane_id}")),
+        process_ownership_ref: process_backed
+            .then(|| format!("process-ledger://{}", process_uuid_for_lane(lane_id))),
         no_os_process_reason_ref: (!process_backed)
             .then(|| format!("no-os-process://subagent_manager/{lane_id}")),
         backpressure_ref: None,

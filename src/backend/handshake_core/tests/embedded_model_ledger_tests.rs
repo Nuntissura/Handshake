@@ -16,13 +16,20 @@
 //! obligation itself (START on load with pid-less `os_pid=None` keyed on the
 //! minted UUIDv7, STOP via the shutdown seam) is proven deterministically here.
 
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::BTreeSet,
+    sync::{Arc, Mutex},
+};
 
 use async_trait::async_trait;
 use chrono::Utc;
 use handshake_core::{
     flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError},
-    llm::{boot::assemble_local_runtime_client, DisabledLlmClient, LlmClient},
+    llm::{
+        boot::{assemble_local_runtime_client, assemble_local_runtime_client_with_registrations},
+        embedded_ledger::EmbeddedModelProcess,
+        DisabledLlmClient, LlmClient,
+    },
     model_runtime::{
         BaseModelTag, CancellationToken, Embedding, GenerateRequest, KvCacheHandle, LoadSpec,
         LoraStackHandle, ModelCapabilities, ModelId, ModelRegistration, ModelRuntime,
@@ -31,8 +38,9 @@ use handshake_core::{
     },
     process_ledger::{
         drain_and_join_ledger_writer, reclaim_pidless_embedded_orphans, LedgerBatcher,
-        LedgerBatcherConfig, LedgerDrainJoinOutcome, LedgerEvent, NoopOverflowSink,
-        ProcessEngineKind, ProcessLedgerError, ProcessLedgerStore, ProcessStart, ProcessStop,
+        LedgerBatcherConfig, LedgerDrainJoinOutcome, LedgerEvent, LedgerOverflowEvent,
+        NoopOverflowSink, ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink,
+        ProcessLedgerStore, ProcessStart, ProcessStop,
     },
 };
 use sqlx::Connection;
@@ -58,6 +66,16 @@ impl FlightRecorder for NoopRecorder {
         _filter: EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
         Ok(Vec::new())
+    }
+}
+
+struct FailingOverflowSink;
+
+impl ProcessLedgerOverflowSink for FailingOverflowSink {
+    fn emit_overflow(&self, _event: LedgerOverflowEvent) -> Result<(), ProcessLedgerError> {
+        Err(ProcessLedgerError::OverflowEmit(
+            "forced overflow sink failure".to_string(),
+        ))
     }
 }
 
@@ -157,7 +175,10 @@ impl InMemoryLedgerStore {
 #[async_trait]
 impl ProcessLedgerStore for InMemoryLedgerStore {
     async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
-        self.events.lock().expect("ledger store lock").extend(events);
+        self.events
+            .lock()
+            .expect("ledger store lock")
+            .extend(events);
         Ok(())
     }
 }
@@ -174,6 +195,18 @@ fn embedded_registration(model_id: ModelId) -> ModelRegistration {
         registered_by: OperatorId::new("handshake-embedded-default"),
         provider: ProviderKind::Local,
     }
+}
+
+fn embedded_embedding_registration(model_id: ModelId) -> ModelRegistration {
+    let mut registration = embedded_registration(model_id);
+    registration.artifact_path =
+        std::path::PathBuf::from("fixtures/models/embedded-embedding.safetensors");
+    registration.sha256 = [8; 32];
+    registration.declared_capabilities.supports_embedding = true;
+    registration.declared_capabilities.embedding_dimension = Some(3);
+    registration.base_model_tag = BaseModelTag::new("test-embedded-embedding-model");
+    registration.registered_by = OperatorId::new("handshake-embedded-embedding");
+    registration
 }
 
 #[tokio::test]
@@ -275,6 +308,206 @@ async fn embedded_model_load_emits_ledger_start_and_shutdown_seam_emits_stop() {
     assert!(
         stop.stop_reason.is_some(),
         "STOP row must carry a stop_reason from the shutdown seam"
+    );
+}
+
+#[tokio::test]
+async fn optional_embedding_model_load_emits_matching_ledger_start_stop() {
+    let (ledger, drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("manual ledger batcher");
+    let store = Arc::new(InMemoryLedgerStore::default());
+
+    let chat_model_id = ModelId::new_v7();
+    let embedding_model_id = ModelId::new_v7();
+    let llama: Arc<dyn ModelRuntime> = Arc::new(NoopRuntime::new());
+    let candle: Arc<dyn ModelRuntime> = Arc::new(NoopRuntime::new());
+    let fallback: Arc<dyn LlmClient> = Arc::new(DisabledLlmClient::new(
+        "embedded-fallback".to_string(),
+        "no external fallback".to_string(),
+    ));
+    let recorder: Arc<dyn FlightRecorder> = Arc::new(NoopRecorder);
+
+    let client = assemble_local_runtime_client_with_registrations(
+        embedded_registration(chat_model_id),
+        vec![embedded_embedding_registration(embedding_model_id)],
+        llama,
+        candle,
+        fallback,
+        recorder,
+        8192,
+        Some(ledger),
+    )
+    .expect("assemble embedded local runtime client with chat + embedding ledger handles");
+
+    drain
+        .drain_available_to(store.clone())
+        .await
+        .expect("drain START rows");
+    let start_ids = store
+        .starts()
+        .into_iter()
+        .map(|start| {
+            assert_eq!(start.os_pid, None);
+            assert_eq!(start.engine_kind, ProcessEngineKind::Candle);
+            start.process_uuid
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        start_ids,
+        BTreeSet::from([chat_model_id.as_uuid(), embedding_model_id.as_uuid()]),
+        "both default chat and optional embedding model loads must emit START rows"
+    );
+
+    client.shutdown();
+    drain
+        .drain_available_to(store.clone())
+        .await
+        .expect("drain STOP rows");
+    let stop_ids = store
+        .stops()
+        .into_iter()
+        .map(|stop| {
+            assert_eq!(stop.os_pid, None);
+            assert_eq!(stop.stop_reason.as_deref(), Some("llm-client-shutdown"));
+            stop.process_uuid
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        stop_ids, start_ids,
+        "every embedded START row must have a matching STOP row on shutdown"
+    );
+}
+
+#[tokio::test]
+async fn supplied_ledger_start_failure_fails_local_client_assembly_closed() {
+    let (ledger, _drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 1,
+            ..LedgerBatcherConfig::default()
+        },
+        Arc::new(FailingOverflowSink),
+    )
+    .expect("manual ledger batcher");
+    ledger
+        .record_start(ProcessStart::new(
+            ProcessEngineKind::Candle,
+            "pre-filled-ledger",
+            None,
+        ))
+        .expect("fill single-slot ledger channel");
+
+    let model_id = ModelId::new_v7();
+    let llama: Arc<dyn ModelRuntime> = Arc::new(NoopRuntime::new());
+    let candle: Arc<dyn ModelRuntime> = Arc::new(NoopRuntime::new());
+    let fallback: Arc<dyn LlmClient> = Arc::new(DisabledLlmClient::new(
+        "embedded-fallback".to_string(),
+        "no external fallback".to_string(),
+    ));
+    let recorder: Arc<dyn FlightRecorder> = Arc::new(NoopRecorder);
+
+    let err = match assemble_local_runtime_client(
+        embedded_registration(model_id),
+        llama,
+        candle,
+        fallback,
+        recorder,
+        8192,
+        Some(ledger),
+    ) {
+        Ok(_) => panic!("supplied ledger START failure must fail local client assembly closed"),
+        Err(err) => err,
+    };
+
+    assert!(
+        err.to_string()
+            .contains("embedded ProcessOwnershipLedger START emit failed"),
+        "{err}"
+    );
+}
+
+#[tokio::test]
+async fn supplied_ledger_start_overflow_fails_local_client_assembly_closed() {
+    let (ledger, _drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 1,
+            ..LedgerBatcherConfig::default()
+        },
+        Arc::new(NoopOverflowSink),
+    )
+    .expect("manual ledger batcher");
+    ledger
+        .record_start(ProcessStart::new(
+            ProcessEngineKind::Candle,
+            "pre-filled-ledger",
+            None,
+        ))
+        .expect("fill single-slot ledger channel");
+
+    let model_id = ModelId::new_v7();
+    let llama: Arc<dyn ModelRuntime> = Arc::new(NoopRuntime::new());
+    let candle: Arc<dyn ModelRuntime> = Arc::new(NoopRuntime::new());
+    let fallback: Arc<dyn LlmClient> = Arc::new(DisabledLlmClient::new(
+        "embedded-fallback".to_string(),
+        "no external fallback".to_string(),
+    ));
+    let recorder: Arc<dyn FlightRecorder> = Arc::new(NoopRecorder);
+
+    let err = match assemble_local_runtime_client(
+        embedded_registration(model_id),
+        llama,
+        candle,
+        fallback,
+        recorder,
+        8192,
+        Some(ledger),
+    ) {
+        Ok(_) => panic!("supplied ledger START overflow must fail local client assembly closed"),
+        Err(err) => err,
+    };
+
+    assert!(
+        err.to_string()
+            .contains("embedded ProcessOwnershipLedger START emit failed"),
+        "{err}"
+    );
+}
+
+#[tokio::test]
+async fn embedded_model_stop_overflow_returns_error_for_retry() {
+    let (ledger, _drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 2,
+            ..LedgerBatcherConfig::default()
+        },
+        Arc::new(NoopOverflowSink),
+    )
+    .expect("manual ledger batcher");
+
+    let model_id = ModelId::new_v7();
+    let embedded_process = EmbeddedModelProcess::record_load(
+        ledger.clone(),
+        RuntimeBinding::Candle,
+        model_id,
+        "overflow-stop-model",
+        Some("sha256-overflow-stop".to_string()),
+    )
+    .expect("initial embedded START row fits");
+    ledger
+        .record_start(ProcessStart::new(
+            ProcessEngineKind::Candle,
+            "pre-filled-ledger",
+            None,
+        ))
+        .expect("fill second ledger slot");
+
+    let err = embedded_process
+        .shutdown("overflow-stop-test")
+        .expect_err("STOP overflow must return an error so it can be retried");
+
+    assert!(
+        err.to_string().contains("PROCESS_LEDGER_ENQUEUE_DROPPED"),
+        "{err}"
     );
 }
 
@@ -409,9 +642,8 @@ async fn graceful_shutdown_sequence_flushes_stop_through_background_writer() {
 // connect.
 // ===========================================================================
 
-static MANAGED_PG: OnceCell<
-    handshake_core::managed_postgres::ManagedPostgres,
-> = OnceCell::const_new();
+static MANAGED_PG: OnceCell<handshake_core::managed_postgres::ManagedPostgres> =
+    OnceCell::const_new();
 
 async fn managed_pg_base_url() -> String {
     let managed = MANAGED_PG
@@ -497,10 +729,28 @@ async fn hard_crash_pidless_embedded_orphan_is_reconciled_on_boot() {
     insert_lifecycle_row(&pool, pidful, Some(4321), None, "candle", past, None).await;
     // (b) session-scoped — reclaimable by the existing session sweep.
     let session_scoped = uuid::Uuid::now_v7();
-    insert_lifecycle_row(&pool, session_scoped, None, Some("SR-abc"), "candle", past, None).await;
+    insert_lifecycle_row(
+        &pool,
+        session_scoped,
+        None,
+        Some("SR-abc"),
+        "candle",
+        past,
+        None,
+    )
+    .await;
     // (c) non-embedded engine — not a regular-model runtime engine.
     let non_embedded = uuid::Uuid::now_v7();
-    insert_lifecycle_row(&pool, non_embedded, None, None, "mechanical_job", past, None).await;
+    insert_lifecycle_row(
+        &pool,
+        non_embedded,
+        None,
+        None,
+        "mechanical_job",
+        past,
+        None,
+    )
+    .await;
     // (d) already stopped — excluded by `stopped_at IS NULL`.
     let already_stopped = uuid::Uuid::now_v7();
     insert_lifecycle_row(

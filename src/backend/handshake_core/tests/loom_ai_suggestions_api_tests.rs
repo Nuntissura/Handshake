@@ -18,7 +18,7 @@
 //! (the real startup path when no provider is configured).
 
 use handshake_core::kernel::crdt::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
-use handshake_core::llm::ollama::InMemoryLlmClient;
+use handshake_core::llm::InMemoryLlmClient;
 use handshake_core::llm::DisabledLlmClient;
 use handshake_core::loom_ai::promotion::{
     accept_all_loom_ai_suggestions, accept_loom_ai_suggestion, reject_loom_ai_suggestion,

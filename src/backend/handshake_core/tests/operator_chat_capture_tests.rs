@@ -13,34 +13,38 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+use chrono::Utc;
 use futures::stream;
 use serde_json::json;
 use uuid::Uuid;
 
+use handshake_core::api::operator_chat::{routes as operator_chat_http_routes, OperatorChatState};
 use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
 };
 use handshake_core::model_runtime::catalog::ModelCatalog;
 use handshake_core::model_runtime::cloud::{
-    CliBridgeConfig, CliKind, CliOutputFormat, LiveCliSpawner,
+    CliBridgeConfig, CliBridgeModelRuntime, CliInvocationReceipt, CliKind, CliOutputFormat,
+    CliSubprocessSpawner, LiveCliSpawner, OfficialCliBridgeError,
 };
 use handshake_core::model_runtime::registry::RuntimeBinding as RuntimeAdapterBinding;
 use handshake_core::model_runtime::{
-    CancellationToken, Embedding, GenerateRequest, GeneratedToken, KvCacheHandle, KvCachePolicy,
-    LoadSpec, LoraStackHandle, ModelCapabilities, ModelId, ModelRuntime, ModelRuntimeError,
-    ProviderKind, RuntimeKind, SamplingParams, Score, SteeringHookHandle, TokenStream,
+    BaseModelTag, CancellationToken, Embedding, GenerateRequest, GeneratedToken, KvCacheHandle,
+    KvCachePolicy, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId, ModelRegistration,
+    ModelRegistry, ModelRuntime, ModelRuntimeError, OperatorId, ProviderKind, RuntimeKind,
+    SamplingParams, Score, SteeringHookHandle, TokenStream,
 };
 use handshake_core::process_ledger::{
-    LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, ProcessEngineKind,
-    ProcessOwnershipRecordId, ProcessStart,
+    LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, PostgresProcessLedgerStore,
+    ProcessEngineKind, ProcessLedgerDrain, ProcessOwnershipRecordId, ProcessStart,
 };
 use handshake_core::swarm_orchestration::model_lane::{
-    DexterityLaunchAdapterKind, DexterityLaunchAdapterRequest, ModelLaneMessageKind,
-    ModelLaneStatus, ModelLaneStore,
+    DexterityLaunchAdapterKind, DexterityLaunchAdapterRequest, LaunchAuthority, ModelLaneKind,
+    ModelLaneMessageKind, ModelLaneProviderKind, ModelLaneStatus, ModelLaneStore, RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::operator_chat::{
     build_spawn_request, ModelLaneCaptureRecorder, OperatorChatLaneKind, OperatorChatLaunchService,
-    OperatorChatSelection,
+    OperatorChatLaunched, OperatorChatSelection,
 };
 use handshake_core::swarm_orchestration::{
     LiveSession, ModelSessionFactory, RecordingSwarmSink, RunBudget, SessionTeardown, SpawnRequest,
@@ -275,8 +279,10 @@ async fn pg_store() -> (sqlx::PgPool, ModelLaneStore) {
     (pool, store)
 }
 
-fn store_backed_coordinator(store: ModelLaneStore) -> (Arc<SwarmCoordinator>, Arc<AtomicUsize>) {
-    let (ledger, _drain) =
+fn store_backed_coordinator(
+    store: ModelLaneStore,
+) -> (Arc<SwarmCoordinator>, Arc<AtomicUsize>, ProcessLedgerDrain) {
+    let (ledger, drain) =
         LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
             .expect("manual process ledger");
     let loads = Arc::new(AtomicUsize::new(0));
@@ -291,7 +297,303 @@ fn store_backed_coordinator(store: ModelLaneStore) -> (Arc<SwarmCoordinator>, Ar
         ledger,
         store,
     );
-    (Arc::new(coordinator), loads)
+    (Arc::new(coordinator), loads, drain)
+}
+
+fn registered_local_catalog() -> (Arc<ModelCatalog>, String) {
+    let model_id = ModelId::new_v7();
+    let mut registry = ModelRegistry::default();
+    registry
+        .register(ModelRegistration {
+            model_id,
+            artifact_path: "D:/models/operator-chat-local-proof.gguf".into(),
+            sha256: [42u8; 32],
+            runtime_binding: RuntimeAdapterBinding::Candle,
+            declared_capabilities: ModelCapabilities::default(),
+            base_model_tag: BaseModelTag::new("Operator Chat Local Proof"),
+            registered_at_utc: Utc::now(),
+            registered_by: OperatorId::new("operator-chat-test"),
+            provider: ProviderKind::Local,
+        })
+        .expect("register local operator-chat proof model");
+    registry.mark_loaded(model_id).expect("mark model ready");
+    (
+        ModelCatalog::from_registry(Arc::new(registry)),
+        model_id.to_string(),
+    )
+}
+
+// ---------------------------------------------------------------------------
+// F1/F2 live loopback: a real `CliBridgeModelRuntime` backed by a mock CLI
+// spawner that emits stream-json, so `launch()` drives the ACTUAL runtime and its
+// real stdout becomes ModelLaneMessage rows (not a separately-authored vec).
+// ---------------------------------------------------------------------------
+
+/// A mock CLI subprocess spawner: emits a fixed set of stdout chunks LIVE through
+/// `spawn_streaming` (each codex stream-json line, newline-terminated). No real
+/// subprocess — the loopback proves the launch->capture wiring end to end.
+struct LoopbackCliSpawner {
+    chunks: Vec<Vec<u8>>,
+}
+
+impl LoopbackCliSpawner {
+    fn from_lines(lines: &[String]) -> Self {
+        Self {
+            chunks: lines
+                .iter()
+                .map(|l| format!("{l}\n").into_bytes())
+                .collect(),
+        }
+    }
+}
+
+struct FailingAfterChunkCliSpawner {
+    chunks: Vec<Vec<u8>>,
+}
+
+impl FailingAfterChunkCliSpawner {
+    fn from_lines(lines: &[String]) -> Self {
+        Self {
+            chunks: lines
+                .iter()
+                .map(|l| format!("{l}\n").into_bytes())
+                .collect(),
+        }
+    }
+}
+
+impl CliSubprocessSpawner for FailingAfterChunkCliSpawner {
+    fn spawn(
+        &self,
+        _config: &CliBridgeConfig,
+        _model_name: &str,
+        _prompt: &str,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        Err(OfficialCliBridgeError::SpawnFailed {
+            reason: "operator-chat test stream failure".to_string(),
+            exit_code: Some(23),
+        })
+    }
+
+    fn spawn_streaming(
+        &self,
+        _config: &CliBridgeConfig,
+        _model_name: &str,
+        _prompt: &str,
+        on_chunk: &mut dyn FnMut(&[u8]),
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        for chunk in &self.chunks {
+            on_chunk(chunk);
+        }
+        Err(OfficialCliBridgeError::SpawnFailed {
+            reason: "operator-chat test stream failure".to_string(),
+            exit_code: Some(23),
+        })
+    }
+}
+
+impl CliSubprocessSpawner for LoopbackCliSpawner {
+    fn spawn(
+        &self,
+        _config: &CliBridgeConfig,
+        _model_name: &str,
+        _prompt: &str,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        let stdout = self
+            .chunks
+            .iter()
+            .map(|c| String::from_utf8_lossy(c).into_owned())
+            .collect::<String>();
+        Ok(CliInvocationReceipt {
+            model_id: ModelId::new_v7(),
+            stdout,
+            pid: Some(4242),
+            exit_code: Some(0),
+            cancelled: false,
+        })
+    }
+
+    fn spawn_streaming(
+        &self,
+        _config: &CliBridgeConfig,
+        _model_name: &str,
+        _prompt: &str,
+        on_chunk: &mut dyn FnMut(&[u8]),
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        let mut full = Vec::new();
+        for chunk in &self.chunks {
+            on_chunk(chunk);
+            full.extend_from_slice(chunk);
+        }
+        Ok(CliInvocationReceipt {
+            model_id: ModelId::new_v7(),
+            stdout: String::from_utf8_lossy(&full).into_owned(),
+            pid: Some(4242),
+            exit_code: Some(0),
+            cancelled: false,
+        })
+    }
+}
+
+/// A CLI-bridge exe path that exists (register_bridge validates exe-exists). The
+/// crate's own Cargo.toml is a stable always-present file.
+fn loopback_cli_exe() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")
+}
+
+fn loopback_cli_config() -> CliBridgeConfig {
+    CliBridgeConfig {
+        cli_kind: CliKind::CodexCli,
+        executable_path: loopback_cli_exe(),
+        args_template: vec!["-p".into(), "{prompt}".into()],
+        // JSON-stream so the launched runtime's stdout is TYPED codex activity.
+        output_format: CliOutputFormat::JsonStream,
+        env_vars: std::collections::HashMap::new(),
+        working_dir: None,
+        timeout_seconds: 60,
+    }
+}
+
+fn loopback_cli_load_spec(model_name: &str) -> LoadSpec {
+    LoadSpec {
+        artifact_path: std::path::PathBuf::new(),
+        sha256_expected: String::new(),
+        runtime_kind: RuntimeKind::Candle,
+        sampling_defaults: SamplingParams::default(),
+        kv_cache_policy: KvCachePolicy::default(),
+        declared_capabilities: ModelCapabilities::default(),
+        provider: ProviderKind::OfficialCli,
+        engine_origin: Some(model_name.to_string()),
+        external_engine_import: None,
+    }
+}
+
+/// A factory that builds a REAL [`CliBridgeModelRuntime`] backed by the loopback
+/// spawner, so `SwarmCoordinator::session_runtime` hands `launch()` back a runtime
+/// whose `generate()` streams the mock CLI's stream-json stdout.
+struct CliLoopbackFactory {
+    ledger: LedgerBatcher,
+    lines: Vec<String>,
+    fail_after_chunks: bool,
+}
+
+#[async_trait]
+impl ModelSessionFactory for CliLoopbackFactory {
+    async fn create(&self, request: &SpawnRequest) -> Result<LiveSession, SwarmError> {
+        let record_id = ProcessOwnershipRecordId::new_v7();
+        let os_pid = 58000 + request.instance_id.instance;
+        let start = ProcessStart::new(
+            ProcessEngineKind::OfficialCliBridge,
+            request.owner_role.clone(),
+            request.owner_wp.clone(),
+        )
+        .with_process_uuid(record_id.as_uuid())
+        .with_os_pid(os_pid)
+        .with_parent_session_id(request.parent_session_id.clone())
+        .with_wp_id(request.wp_id.clone().unwrap_or_default())
+        .with_mt_id(request.mt_id.clone().unwrap_or_default());
+        self.ledger
+            .record_start(start)
+            .map_err(|err| SwarmError::LedgerFailed(err.to_string()))?;
+
+        let model_name = request
+            .cloud_model_name
+            .clone()
+            .unwrap_or_else(|| "gpt-5-codex".to_string());
+        let spawner: Arc<dyn CliSubprocessSpawner> = if self.fail_after_chunks {
+            Arc::new(FailingAfterChunkCliSpawner::from_lines(&self.lines))
+        } else {
+            Arc::new(LoopbackCliSpawner::from_lines(&self.lines))
+        };
+
+        // Shared runtime handed to the coordinator (its generate() is driven by
+        // launch); loaded so handle_for(model_id) resolves.
+        let mut shared = CliBridgeModelRuntime::new(spawner.clone(), loopback_cli_config());
+        let shared_model_id = shared
+            .load(loopback_cli_load_spec(&model_name))
+            .await
+            .map_err(|err| SwarmError::FactoryFailed(err.to_string()))?;
+
+        // Owned runtime for the teardown free (mirrors the proof factory shape).
+        let mut owned = CliBridgeModelRuntime::new(spawner, loopback_cli_config());
+        let owned_model_id = owned
+            .load(loopback_cli_load_spec(&model_name))
+            .await
+            .map_err(|err| SwarmError::FactoryFailed(err.to_string()))?;
+        let teardown: SessionTeardown = Box::new(move || {
+            Box::pin(async move {
+                owned
+                    .unload(owned_model_id)
+                    .await
+                    .map_err(|err| SwarmError::Internal(err.to_string()))
+            })
+        });
+
+        Ok(LiveSession::new(
+            Arc::new(shared),
+            shared_model_id,
+            CancellationToken::new(),
+            teardown,
+            record_id,
+            os_pid,
+        ))
+    }
+}
+
+fn cli_loopback_coordinator(store: ModelLaneStore, lines: Vec<String>) -> Arc<SwarmCoordinator> {
+    cli_loopback_coordinator_with_ledger(store, lines).0
+}
+
+fn cli_loopback_coordinator_with_ledger(
+    store: ModelLaneStore,
+    lines: Vec<String>,
+) -> (Arc<SwarmCoordinator>, ProcessLedgerDrain) {
+    let (ledger, drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("manual process ledger");
+    let coordinator = SwarmCoordinator::new_with_model_lane_store(
+        SwarmConfig::new(RunBudget::defaulted(8)),
+        Arc::new(CliLoopbackFactory {
+            ledger: ledger.clone(),
+            lines,
+            fail_after_chunks: false,
+        }),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+        store,
+    );
+    (Arc::new(coordinator), drain)
+}
+
+fn cli_failing_after_chunk_coordinator(
+    store: ModelLaneStore,
+    lines: Vec<String>,
+) -> Arc<SwarmCoordinator> {
+    let (ledger, _drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("manual process ledger");
+    let coordinator = SwarmCoordinator::new_with_model_lane_store(
+        SwarmConfig::new(RunBudget::defaulted(8)),
+        Arc::new(CliLoopbackFactory {
+            ledger: ledger.clone(),
+            lines,
+            fail_after_chunks: true,
+        }),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+        store,
+    );
+    Arc::new(coordinator)
+}
+
+/// The codex model id the loopback uses so `cli_kind_for_model` -> `CodexCli`
+/// matches the emitted codex stream-json dialect.
+fn codex_cli_selection(working_dir: &str, prompt: &str, owner: &str) -> OperatorChatSelection {
+    OperatorChatSelection {
+        model_id: "gpt-5-codex".into(),
+        cli_provider: Some("codex".into()),
+        ..cli_selection(working_dir, prompt, owner)
+    }
 }
 
 fn cli_selection(working_dir: &str, prompt: &str, owner: &str) -> OperatorChatSelection {
@@ -299,6 +601,60 @@ fn cli_selection(working_dir: &str, prompt: &str, owner: &str) -> OperatorChatSe
         lane_kind: OperatorChatLaneKind::Cli,
         model_id: "claude-sonnet-4".into(),
         cloud_provider: None,
+        cli_provider: Some("claude_code".into()),
+        working_dir: working_dir.into(),
+        worktree_id: Some("wt-operator-chat".into()),
+        prompt: prompt.into(),
+        owner_session: owner.into(),
+        parent_session_id: "operator-chat-parent".into(),
+        work_packet_id: Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into()),
+        micro_task_id: Some("MT-012".into()),
+    }
+}
+
+fn local_selection(
+    model_id: &str,
+    working_dir: &str,
+    prompt: &str,
+    owner: &str,
+) -> OperatorChatSelection {
+    OperatorChatSelection {
+        lane_kind: OperatorChatLaneKind::Local,
+        model_id: model_id.into(),
+        cloud_provider: None,
+        cli_provider: None,
+        working_dir: working_dir.into(),
+        worktree_id: Some("wt-operator-chat".into()),
+        prompt: prompt.into(),
+        owner_session: owner.into(),
+        parent_session_id: "operator-chat-parent".into(),
+        work_packet_id: Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into()),
+        micro_task_id: Some("MT-012".into()),
+    }
+}
+
+fn cloud_selection(working_dir: &str, prompt: &str, owner: &str) -> OperatorChatSelection {
+    OperatorChatSelection {
+        lane_kind: OperatorChatLaneKind::Cloud,
+        model_id: "claude-sonnet-4-byok".into(),
+        cloud_provider: Some("anthropic".into()),
+        cli_provider: None,
+        working_dir: working_dir.into(),
+        worktree_id: Some("wt-operator-chat".into()),
+        prompt: prompt.into(),
+        owner_session: owner.into(),
+        parent_session_id: "operator-chat-parent".into(),
+        work_packet_id: Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into()),
+        micro_task_id: Some("MT-012".into()),
+    }
+}
+
+fn subagent_selection(working_dir: &str, prompt: &str, owner: &str) -> OperatorChatSelection {
+    OperatorChatSelection {
+        lane_kind: OperatorChatLaneKind::Subagent,
+        model_id: "subagent://operator-chat/coder".into(),
+        cloud_provider: None,
+        cli_provider: None,
         working_dir: working_dir.into(),
         worktree_id: Some("wt-operator-chat".into()),
         prompt: prompt.into(),
@@ -327,10 +683,224 @@ fn codex_stream_lines() -> Vec<String> {
     ]
 }
 
-fn no_os_operator_launch_request(
-    idx: usize,
-    owner_session: &str,
-) -> DexterityLaunchAdapterRequest {
+#[allow(clippy::too_many_arguments)]
+async fn assert_process_backed_launch_evidence(
+    pool: &sqlx::PgPool,
+    store: &ModelLaneStore,
+    drain: &ProcessLedgerDrain,
+    recorder: &CapturingRecorder,
+    launched: &OperatorChatLaunched,
+    expected_lane_kind: ModelLaneKind,
+    expected_runtime_binding: RuntimeBinding,
+    expected_launch_authority: LaunchAuthority,
+    expected_provider_kind: ModelLaneProviderKind,
+    expected_engine_kind: &str,
+    expected_model_messages: usize,
+    expected_additional_artifact_bindings: usize,
+) {
+    assert_eq!(
+        launched.captured_message_count, expected_model_messages,
+        "launch() must drive the selected runtime and capture model output"
+    );
+
+    let replay = store
+        .replay_run(&launched.run_id)
+        .await
+        .expect("operator-chat process-backed run replays");
+    assert!(
+        replay
+            .lanes
+            .iter()
+            .any(|lane| lane.kind == ModelLaneKind::HumanOperator),
+        "operator prompt lane is persisted for {}",
+        launched.run_id
+    );
+    let observed_lane_kinds = replay
+        .lanes
+        .iter()
+        .map(|lane| lane.kind.as_str())
+        .collect::<Vec<_>>();
+    let model_lane = replay
+        .lanes
+        .iter()
+        .find(|lane| lane.kind == expected_lane_kind)
+        .unwrap_or_else(|| {
+            panic!(
+                "expected {expected_lane_kind:?} lane in replay for {}; lane_kinds={observed_lane_kinds:?}",
+                launched.run_id
+            )
+        });
+    assert_eq!(model_lane.runtime_binding, expected_runtime_binding);
+    assert_eq!(model_lane.launch_authority, expected_launch_authority);
+    assert_eq!(model_lane.provider_kind, expected_provider_kind);
+    assert!(
+        model_lane.no_os_process_reason_ref.is_none(),
+        "process-backed operator-chat lanes must not carry no-OS reasons"
+    );
+    let process_uuid = model_lane
+        .process_ownership_ref
+        .as_deref()
+        .and_then(|value| value.strip_prefix("process-ledger://"))
+        .expect("process-backed operator-chat lane carries process_ownership_ref")
+        .to_string();
+    let model_lane_id = model_lane.lane_id.clone();
+
+    let messages = replay.messages;
+    assert_eq!(
+        messages.len(),
+        expected_model_messages + 1,
+        "operator prompt plus captured model messages are durable"
+    );
+    assert!(
+        messages.iter().any(|msg| {
+            msg.diagnostic_payload["turn_role"] == json!("operator")
+                && msg.from_lane_id != model_lane_id
+        }),
+        "operator prompt is stored on a distinct HUMAN_OPERATOR lane"
+    );
+    let model_messages = messages
+        .iter()
+        .filter(|msg| msg.from_lane_id == model_lane_id)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        model_messages.len(),
+        expected_model_messages,
+        "captured output is attributed to the selected model lane"
+    );
+
+    let agent_events = recorder
+        .event_markers()
+        .iter()
+        .filter(|marker| marker.starts_with("FR-EVT-AGENT-"))
+        .count();
+    assert!(
+        agent_events >= expected_model_messages + 1,
+        "Flight Recorder evidence covers operator prompt and captured output"
+    );
+
+    let message_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE session_run_id = $1 AND aggregate_type = 'model_lane_message'",
+    )
+    .bind(&replay.run.event_ledger_stream_id)
+    .fetch_one(pool)
+    .await
+    .expect("count model_lane_message EventLedger rows");
+    assert_eq!(
+        message_rows,
+        (expected_model_messages + 1) as i64,
+        "operator/model messages append EventLedger authority rows"
+    );
+
+    let artifact_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE run_id = $1",
+    )
+    .bind(&launched.run_id)
+    .fetch_one(pool)
+    .await
+    .expect("count payload artifact bindings");
+    assert_eq!(
+        artifact_rows,
+        (expected_model_messages + 1 + expected_additional_artifact_bindings) as i64,
+        "operator/model messages plus launch authority keep ArtifactStore payload bindings"
+    );
+
+    for (tier, state) in [
+        ("flight_recorder", "wired"),
+        ("internal_diagnostics", "deferred_with_reason"),
+        ("palmistry", "deferred_with_reason"),
+    ] {
+        let rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM model_lane_diagnostic_tier_statuses \
+             WHERE run_id = $1 AND behavior_id = 'HBR-INT-009' AND tier = $2 AND state = $3",
+        )
+        .bind(&launched.run_id)
+        .bind(tier)
+        .bind(state)
+        .fetch_one(pool)
+        .await
+        .expect("count HBR-INT-009 tier rows");
+        assert_eq!(rows, 1, "HBR-INT-009 tier row {tier}/{state} is recorded");
+    }
+
+    let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    ledger_store
+        .apply_migration()
+        .await
+        .expect("process ledger migration applies");
+    drain
+        .drain_available_to(ledger_store)
+        .await
+        .expect("process ledger rows drain to PostgreSQL");
+    let process_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_process_lifecycle \
+         WHERE process_uuid = $1::uuid \
+           AND engine_kind = $2 \
+           AND stopped_at IS NOT NULL \
+           AND os_pid IS NOT NULL \
+           AND stop_reason = 'completed' \
+           AND wp_id = 'WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1' \
+           AND mt_id = 'MT-012'",
+    )
+    .bind(&process_uuid)
+    .bind(expected_engine_kind)
+    .fetch_one(pool)
+    .await
+    .expect("count linked process-ledger START/STOP row");
+    assert_eq!(
+        process_rows, 1,
+        "lane process_ownership_ref must resolve to a durable START/STOP ledger row"
+    );
+}
+
+async fn assert_cloud_projection_artifact_bindings(
+    pool: &sqlx::PgPool,
+    launched: &OperatorChatLaunched,
+) {
+    let plan: serde_json::Value = sqlx::query_scalar(
+        "SELECT record_json FROM model_lane_cloud_projection_plans WHERE run_id = $1",
+    )
+    .bind(&launched.run_id)
+    .fetch_one(pool)
+    .await
+    .expect("fetch cloud ProjectionPlan record");
+    let source_refs = plan["source_artifact_refs"]
+        .as_array()
+        .expect("ProjectionPlan source_artifact_refs is an array");
+    let payload_ref = plan["payload_artifact_ref"]
+        .as_str()
+        .expect("ProjectionPlan payload_artifact_ref is a string");
+
+    let cloud_refs = source_refs
+        .iter()
+        .filter_map(|reference| reference.as_str())
+        .filter(|reference| reference.starts_with("artifact-store://operator-chat/"))
+        .chain(std::iter::once(payload_ref))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        cloud_refs.len(),
+        2,
+        "cloud ProjectionPlan must expose one cloud input ref and one projected payload ref"
+    );
+
+    for artifact_ref in cloud_refs {
+        let rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts \
+             WHERE run_id = $1 AND artifact_ref = $2 AND artifact_payload_ref = $2",
+        )
+        .bind(&launched.run_id)
+        .bind(artifact_ref)
+        .fetch_one(pool)
+        .await
+        .expect("count cloud ProjectionPlan artifact binding rows");
+        assert_eq!(
+            rows, 1,
+            "ProjectionPlan artifact ref {artifact_ref} must resolve to exactly one ArtifactStore binding"
+        );
+    }
+}
+
+fn no_os_operator_launch_request(idx: usize, owner_session: &str) -> DexterityLaunchAdapterRequest {
     DexterityLaunchAdapterRequest {
         adapter_kind: DexterityLaunchAdapterKind::HumanOperator,
         run_id: format!("operator-run-{idx}"),
@@ -399,120 +969,396 @@ fn no_os_operator_launch_request(
 // Proofs.
 // ---------------------------------------------------------------------------
 
-/// AC: launch resolves through `SwarmCoordinator::spawn_session` and persists
-/// ModelLaneRun + ModelLane; the CLI-capture becomes ONE ModelLaneMessage per
-/// completed activity block with the correct kind + activity_kind + FR evidence.
+/// F1/F2 LIVE LOOP: `launch()` resolves through `SwarmCoordinator::spawn_session`,
+/// then DRIVES the launched `CliBridgeModelRuntime` and re-homes its REAL stdout
+/// (mock CLI stream-json) into ONE ModelLaneMessage per completed activity block
+/// with the correct kind + activity_kind + FR evidence — end to end through
+/// `launch()`, not a separately-bound hand-authored vec.
 #[tokio::test]
-async fn operator_chat_launch_and_capture_persist_one_message_per_completed_block_with_fr() {
+async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_completed_block() {
     let (pool, store) = pg_store().await;
-    let (coordinator, _loads) = store_backed_coordinator(store.clone());
+    let (coordinator, drain) =
+        cli_loopback_coordinator_with_ledger(store.clone(), codex_stream_lines());
     let recorder = Arc::new(CapturingRecorder::default());
-    let service = OperatorChatLaunchService::new(
-        coordinator,
-        ModelCatalog::empty(),
-        recorder.clone(),
+    let service =
+        OperatorChatLaunchService::new(coordinator, ModelCatalog::empty(), recorder.clone());
+
+    // launch() spawns through spawn_session AND drives the launched runtime,
+    // capturing its real stdout in ONE call.
+    let launched = service
+        .launch(&codex_cli_selection(
+            "D:/work/repo",
+            "audit the repo",
+            "operator-1",
+        ))
+        .await
+        .expect("operator-chat CLI lane launches + captures through spawn_session");
+
+    // F1/F2: launch() itself persisted one message per completed block (F5).
+    assert_eq!(
+        launched.captured_message_count, 3,
+        "launch() captured one ModelLaneMessage per completed activity block"
     );
 
-    // Launch through spawn_session (real persistence).
-    let launched = service
-        .launch(&cli_selection("D:/work/repo", "audit the repo", "operator-1"))
-        .await
-        .expect("operator-chat CLI lane launches through spawn_session");
-
-    // The run + lane are persisted and replayable.
+    // Persisted under the run and replayable.
     let replay = store
         .replay_run(&launched.run_id)
         .await
         .expect("launched run is replayable");
-    assert_eq!(replay.lanes.len(), 1, "one CLI lane persisted");
-    let run = replay.run;
-    let lane = replay.lanes.into_iter().next().unwrap();
-
-    // Capture the realistic multi-line codex stream.
-    let capture = ModelLaneCaptureRecorder::new(store.clone(), recorder.clone());
-    let messages = capture
-        .capture_cli_stream(
-            &run,
-            &lane,
-            ModelId::new_v7(),
-            Uuid::new_v4(),
-            CliKind::CodexCli,
-            0,
-            codex_stream_lines(),
-        )
-        .await
-        .expect("codex stream capture records messages");
-
-    // F5: exactly ONE message per completed block; the 3 item.updated deltas +
-    // 2 envelopes emit nothing.
+    assert_eq!(
+        replay.lanes.len(),
+        2,
+        "the launched run persists the CLI lane plus the HUMAN_OPERATOR prompt lane"
+    );
+    assert!(
+        replay
+            .lanes
+            .iter()
+            .any(|lane| lane.kind == ModelLaneKind::HumanOperator),
+        "the launched run carries a HUMAN_OPERATOR lane"
+    );
+    let stream_id = replay.run.event_ledger_stream_id.clone();
+    let messages = replay.messages;
     assert_eq!(
         messages.len(),
+        4,
+        "one durable operator prompt plus one ModelLaneMessage per completed activity block"
+    );
+    let operator_messages = messages
+        .iter()
+        .filter(|msg| msg.diagnostic_payload["turn_role"] == json!("operator"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        operator_messages.len(),
+        1,
+        "launch() persists the operator prompt as a HUMAN_OPERATOR message"
+    );
+
+    // F1 message-kind mapping + activity_kind discriminator (order preserved).
+    let model_messages = messages
+        .iter()
+        .filter(|msg| msg.diagnostic_payload["turn_role"] != json!("operator"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        model_messages.len(),
         3,
         "one ModelLaneMessage per completed activity block, not per delta line"
     );
-
-    // F1 message-kind mapping + activity_kind discriminator.
-    assert_eq!(messages[0].kind, ModelLaneMessageKind::Status);
+    assert_eq!(model_messages[0].kind, ModelLaneMessageKind::Status);
     assert_eq!(
-        messages[0].diagnostic_payload["activity_kind"],
+        model_messages[0].diagnostic_payload["activity_kind"],
         json!("thinking"),
         "exposed thought is a labelled Status, never an unlabelled one"
     );
-    assert_eq!(messages[1].kind, ModelLaneMessageKind::ToolRequest);
+    assert_eq!(model_messages[1].kind, ModelLaneMessageKind::ToolRequest);
     assert_eq!(
-        messages[1].diagnostic_payload["activity_kind"],
+        model_messages[1].diagnostic_payload["activity_kind"],
         json!("tool_call")
     );
     assert!(
-        !messages[1].tool_gate_decision_refs.is_empty(),
+        !model_messages[1].tool_gate_decision_refs.is_empty(),
         "tool messages carry a tool-gate decision ref"
     );
-    assert_eq!(messages[2].kind, ModelLaneMessageKind::Status);
+    assert_eq!(model_messages[2].kind, ModelLaneMessageKind::Status);
     assert_eq!(
-        messages[2].diagnostic_payload["activity_kind"],
+        model_messages[2].diagnostic_payload["activity_kind"],
         json!("text")
     );
 
-    // Persisted under the run and replayable.
-    let after = store
-        .replay_run(&launched.run_id)
-        .await
-        .expect("run replays after capture");
-    assert_eq!(after.messages.len(), 3, "messages persisted under the run");
-
-    // Flight Recorder evidence: one FR-EVT-AGENT-* per captured activity.
+    // Flight Recorder evidence: one FR-EVT-AGENT-* for the operator prompt plus
+    // one per captured model activity, so Flight Recorder and EventLedger can
+    // prove the full conversation timeline.
     let markers = recorder.event_markers();
     let agent_events = markers
         .iter()
         .filter(|m| m.starts_with("FR-EVT-AGENT-"))
         .count();
-    assert_eq!(agent_events, 3, "one FR-EVT-AGENT-* per captured activity");
+    assert_eq!(
+        agent_events, 4,
+        "operator prompt plus each captured model activity emits FR-EVT-AGENT-* evidence"
+    );
 
     // EventLedger authority rows exist for the messages.
     let message_rows: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM kernel_event_ledger \
          WHERE session_run_id = $1 AND aggregate_type = 'model_lane_message'",
     )
-    .bind(&run.event_ledger_stream_id)
+    .bind(&stream_id)
     .fetch_one(&pool)
     .await
     .expect("count model_lane_message EventLedger rows");
-    assert_eq!(message_rows, 3, "each captured message appends EventLedger authority");
+    assert_eq!(
+        message_rows, 4,
+        "operator prompt + each captured message appends EventLedger authority"
+    );
+
+    let artifact_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE run_id = $1",
+    )
+    .bind(&launched.run_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count payload artifact bindings");
+    assert_eq!(
+        artifact_rows, 4,
+        "every operator/model message gets an ArtifactStore payload binding"
+    );
+    let artifact_records: Vec<serde_json::Value> = sqlx::query_scalar(
+        "SELECT record_json FROM model_lane_context_bundle_artifacts WHERE run_id = $1",
+    )
+    .bind(&launched.run_id)
+    .fetch_all(&pool)
+    .await
+    .expect("fetch ArtifactStore binding records");
+    for msg in &messages {
+        let matches = artifact_records
+            .iter()
+            .filter(|artifact| {
+                artifact["diagnostic_payload"]["message_id"] == json!(msg.message_id)
+                    && (artifact["artifact_ref"] == json!(msg.payload_ref)
+                        || artifact["artifact_payload_ref"] == json!(msg.payload_ref))
+                    && artifact["artifact_sha256"] == json!(msg.payload_sha256)
+                    && artifact["content_hash"] == json!(msg.payload_sha256)
+            })
+            .count();
+        assert_eq!(
+            matches, 1,
+            "message {} payload_ref {} / sha {} must have exactly one matching ArtifactStore binding; artifacts={artifact_records:?}",
+            msg.message_id, msg.payload_ref, msg.payload_sha256
+        );
+    }
+
+    for (tier, state) in [
+        ("flight_recorder", "wired"),
+        ("internal_diagnostics", "deferred_with_reason"),
+        ("palmistry", "deferred_with_reason"),
+    ] {
+        let rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM model_lane_diagnostic_tier_statuses \
+             WHERE run_id = $1 AND behavior_id = 'HBR-INT-009' AND tier = $2 AND state = $3",
+        )
+        .bind(&launched.run_id)
+        .bind(tier)
+        .bind(state)
+        .fetch_one(&pool)
+        .await
+        .expect("count HBR-INT-009 tier rows");
+        assert_eq!(rows, 1, "HBR-INT-009 tier row {tier}/{state} is recorded");
+    }
+
+    assert_process_backed_launch_evidence(
+        &pool,
+        &store,
+        &drain,
+        recorder.as_ref(),
+        &launched,
+        ModelLaneKind::CliModel,
+        RuntimeBinding::CliBridge,
+        LaunchAuthority::CliBridge,
+        ModelLaneProviderKind::OfficialCli,
+        "official_cli_bridge",
+        3,
+        0,
+    )
+    .await;
+}
+
+/// AC: LOCAL and BYOK CLOUD selections use the same operator-chat launch/capture
+/// authority as CLI. This proves they are not just picker rows: both go through
+/// `OperatorChatLaunchService::launch`, persist ModelLane messages + HBR-INT-009
+/// posture, and link the process-backed lane to a durable ProcessOwnershipLedger
+/// START/STOP row.
+#[tokio::test]
+async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_ledger() {
+    let (pool, store) = pg_store().await;
+    let (catalog, local_model_id) = registered_local_catalog();
+    let (coordinator, loads, drain) = store_backed_coordinator(store.clone());
+    let recorder = Arc::new(CapturingRecorder::default());
+    let service = OperatorChatLaunchService::new(coordinator, catalog, recorder.clone());
+
+    let local = service
+        .launch(&local_selection(
+            &local_model_id,
+            "D:/work/repo",
+            "run the local model",
+            "operator-local",
+        ))
+        .await
+        .expect("local operator-chat lane launches + captures");
+    assert_process_backed_launch_evidence(
+        &pool,
+        &store,
+        &drain,
+        recorder.as_ref(),
+        &local,
+        ModelLaneKind::LocalModel,
+        RuntimeBinding::Local,
+        LaunchAuthority::ModelRuntime,
+        ModelLaneProviderKind::LocalRuntime,
+        "candle",
+        1,
+        0,
+    )
+    .await;
+
+    let cloud = service
+        .launch(&cloud_selection(
+            "D:/work/repo",
+            "run the cloud model",
+            "operator-cloud",
+        ))
+        .await
+        .expect("BYOK cloud operator-chat lane launches + captures");
+    assert_cloud_projection_artifact_bindings(&pool, &cloud).await;
+    assert_process_backed_launch_evidence(
+        &pool,
+        &store,
+        &drain,
+        recorder.as_ref(),
+        &cloud,
+        ModelLaneKind::CloudModel,
+        RuntimeBinding::Cloud,
+        LaunchAuthority::CloudLane,
+        ModelLaneProviderKind::Anthropic,
+        "helper_subprocess",
+        1,
+        2,
+    )
+    .await;
+
+    assert_eq!(
+        loads.load(Ordering::SeqCst),
+        2,
+        "local and cloud selections both reached the runtime factory"
+    );
+}
+
+/// Failure path: if the launched runtime emits stdout and then returns a stream
+/// error, `launch()` still records the partial stdout, records HBR posture, and
+/// reclaims the spawned session instead of leaking it.
+#[tokio::test]
+async fn operator_chat_launch_stream_error_preserves_partial_capture_and_reclaims_session() {
+    let (pool, store) = pg_store().await;
+    let marker = "partial-before-stream-error-9fd31";
+    let lines = vec![
+        json!({"type":"item.completed","item":{"id":"r1","type":"reasoning","text": marker}})
+            .to_string(),
+    ];
+    let coordinator = cli_failing_after_chunk_coordinator(store, lines);
+    let recorder = Arc::new(CapturingRecorder::default());
+    let service =
+        OperatorChatLaunchService::new(coordinator.clone(), ModelCatalog::empty(), recorder);
+
+    let err = service
+        .launch(&codex_cli_selection(
+            "D:/work/repo",
+            "audit",
+            "operator-fail",
+        ))
+        .await
+        .expect_err("stream error after partial stdout must fail the launch");
+    assert!(
+        err.to_string()
+            .contains("operator-chat runtime stream failed"),
+        "stream error must be surfaced honestly: {err}"
+    );
+    assert_eq!(
+        coordinator.live_session_count(),
+        0,
+        "post-spawn capture failure must reclaim the spawned session"
+    );
+
+    let messages: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_messages")
+        .fetch_one(&pool)
+        .await
+        .expect("count partial messages");
+    assert_eq!(
+        messages, 2,
+        "operator prompt plus one partial stdout message are persisted before surfacing failure"
+    );
+    let partial_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_messages \
+         WHERE record_json->'diagnostic_payload'->'capture'->>'text' = $1",
+    )
+    .bind(marker)
+    .fetch_one(&pool)
+    .await
+    .expect("count partial captured stdout row");
+    assert_eq!(partial_rows, 1, "partial stdout is still captured");
+
+    let artifact_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_context_bundle_artifacts")
+            .fetch_one(&pool)
+            .await
+            .expect("count partial artifact bindings");
+    assert_eq!(
+        artifact_rows, 2,
+        "operator prompt and partial stdout keep ArtifactStore payload bindings"
+    );
+    let hbr_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_diagnostic_tier_statuses \
+         WHERE behavior_id = 'HBR-INT-009'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count HBR-INT-009 rows");
+    assert_eq!(
+        hbr_rows, 3,
+        "failure path still records all HBR-INT-009 tier statuses"
+    );
+}
+
+/// F1/F2 PROVENANCE: the captured messages carry the DISTINCTIVE text the mock CLI
+/// emitted, proving they originate from the LAUNCHED runtime's stdout (not a
+/// separately-authored vec). Also exercises the transcript projection end to end.
+#[tokio::test]
+async fn operator_chat_launch_captured_messages_originate_from_launched_runtime_stdout() {
+    let (_pool, store) = pg_store().await;
+    let marker_thought = "provenance-thought-8f3a2b";
+    let marker_answer = "provenance-answer-7c1d9e";
+    let lines = vec![
+        json!({"type":"item.completed","item":{"id":"r1","type":"reasoning","text": marker_thought}}).to_string(),
+        json!({"type":"item.completed","item":{"id":"m1","type":"agent_message","text": marker_answer}}).to_string(),
+    ];
+    let coordinator = cli_loopback_coordinator(store.clone(), lines);
+    let recorder = Arc::new(CapturingRecorder::default());
+    let service =
+        OperatorChatLaunchService::new(coordinator, ModelCatalog::empty(), recorder.clone());
+
+    let launched = service
+        .launch(&codex_cli_selection("D:/work/repo", "audit", "operator-2"))
+        .await
+        .expect("launch + capture");
+    assert_eq!(launched.captured_message_count, 2);
+
+    // The transcript projection returns the captured turns; their text is the
+    // exact stdout the launched runtime emitted.
+    let rows = service
+        .fetch_transcript(&launched.run_id)
+        .await
+        .expect("transcript replays captured messages");
+    let texts: Vec<String> = rows.iter().map(|r| r.text.clone()).collect();
+    assert!(
+        texts.iter().any(|t| t.contains(marker_thought)),
+        "captured thought originates from the launched runtime stdout: {texts:?}"
+    );
+    assert!(
+        texts.iter().any(|t| t.contains(marker_answer)),
+        "captured answer originates from the launched runtime stdout: {texts:?}"
+    );
 }
 
 /// AC: the operator turn is persisted as a HUMAN_OPERATOR ModelLane message.
 #[tokio::test]
 async fn operator_chat_persists_operator_prompt_as_human_operator_message() {
     let (_pool, store) = pg_store().await;
-    let (coordinator, _loads) = store_backed_coordinator(store.clone());
+    let (coordinator, _loads, _drain) = store_backed_coordinator(store.clone());
     let recorder = Arc::new(CapturingRecorder::default());
 
     // Spawn the CLI authority session so it can authorize the no-OS operator lane.
-    let cli_request = build_spawn_request(
-        &cli_selection("D:/work/repo", "hello", "operator-77"),
-        1,
-    )
-    .expect("cli spawn request builds");
+    let cli_request =
+        build_spawn_request(&cli_selection("D:/work/repo", "hello", "operator-77"), 1)
+            .expect("cli spawn request builds");
     let authority = cli_request.instance_id;
     coordinator
         .spawn_session(cli_request)
@@ -547,6 +1393,69 @@ async fn operator_chat_persists_operator_prompt_as_human_operator_message() {
     assert_eq!(message.from_lane_id, op_lane.lane_id);
     assert_eq!(message.diagnostic_payload["activity_kind"], json!("text"));
     assert_eq!(message.diagnostic_payload["turn_role"], json!("operator"));
+}
+
+/// AC: selecting the SUBAGENT row launches a real no-OS ModelLane through the
+/// coordinator-owned Dexterity normalization path; it must not touch the runtime
+/// factory or claim a fake subprocess transcript.
+#[tokio::test]
+async fn operator_chat_subagent_selection_launches_no_os_subagent_lane() {
+    let (_pool, store) = pg_store().await;
+    let (coordinator, loads, _drain) = store_backed_coordinator(store.clone());
+    let recorder = Arc::new(CapturingRecorder::default());
+    let service =
+        OperatorChatLaunchService::new(coordinator, ModelCatalog::empty(), recorder.clone());
+
+    let launched = service
+        .launch(&subagent_selection(
+            "D:/work/repo",
+            "assign a review subtask",
+            "operator-subagent",
+        ))
+        .await
+        .expect("subagent no-OS lane launches");
+    assert_eq!(launched.lane_kind, OperatorChatLaneKind::Subagent);
+    assert_eq!(launched.captured_message_count, 0);
+    assert!(
+        launched.instance_id.starts_with("no-os:"),
+        "subagent launch must not fabricate a process-backed instance id: {launched:?}"
+    );
+    assert_eq!(
+        loads.load(Ordering::SeqCst),
+        0,
+        "subagent no-OS launch must not call the runtime factory"
+    );
+
+    let replay = store
+        .replay_run(&launched.run_id)
+        .await
+        .expect("subagent run replays from PostgreSQL");
+    let subagent_lane = replay
+        .lanes
+        .iter()
+        .find(|lane| lane.kind == ModelLaneKind::Subagent)
+        .expect("subagent lane persisted");
+    assert_eq!(subagent_lane.runtime_binding, RuntimeBinding::Subagent);
+    assert_eq!(
+        subagent_lane.launch_authority,
+        LaunchAuthority::SubagentManager
+    );
+    assert!(subagent_lane.process_ownership_ref.is_none());
+    assert!(
+        subagent_lane
+            .no_os_process_reason_ref
+            .as_deref()
+            .is_some_and(|reason| reason.contains("subagent")),
+        "subagent lane carries no-OS ownership reason: {subagent_lane:?}"
+    );
+    assert!(
+        replay.messages.iter().any(|message| {
+            message.kind == ModelLaneMessageKind::Status
+                && message.diagnostic_payload["turn_role"] == json!("operator")
+                && message.summary.contains("assign a review subtask")
+        }),
+        "operator prompt is persisted alongside the subagent launch"
+    );
 }
 
 /// Negative: a launch whose coordinator has NO ModelLaneStore fails closed and
@@ -593,20 +1502,123 @@ async fn operator_chat_launch_without_model_lane_store_fails_closed() {
 #[tokio::test]
 async fn operator_chat_selection_emits_auditable_decision_event() {
     let (_pool, store) = pg_store().await;
-    let (coordinator, _loads) = store_backed_coordinator(store);
+    let (coordinator, _loads, _drain) = store_backed_coordinator(store);
     let recorder = Arc::new(CapturingRecorder::default());
     let service =
         OperatorChatLaunchService::new(coordinator, ModelCatalog::empty(), recorder.clone());
 
     service
-        .record_selection("claude-sonnet-4", "operator", "operator picked the CLI lane")
+        .record_selection(
+            "claude-sonnet-4",
+            "operator",
+            "operator picked the CLI lane",
+        )
         .await
         .expect("selection decision records");
 
     let markers = recorder.event_markers();
     assert!(
-        markers.iter().any(|m| m == "FR-EVT-MODEL-SELECTION-RECORDED"),
+        markers
+            .iter()
+            .any(|m| m == "FR-EVT-MODEL-SELECTION-RECORDED"),
         "selection emits the auditable FR-EVT-MODEL-SELECTION-RECORDED event; got {markers:?}"
+    );
+}
+
+/// F3: with a live launch service wired, `POST /operator-chat/launch` performs a
+/// REAL launch (HTTP 200 + captured messages), never the inert `503
+/// launch_not_wired`; and `GET /operator-chat/transcript/:run_id` returns the
+/// captured ModelLaneMessage rows.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn operator_chat_launch_route_performs_real_launch_when_wired() {
+    let (_pool, store) = pg_store().await;
+    let coordinator = cli_loopback_coordinator(store.clone(), codex_stream_lines());
+    let recorder = Arc::new(CapturingRecorder::default());
+    let service = Arc::new(OperatorChatLaunchService::new(
+        coordinator,
+        ModelCatalog::empty(),
+        recorder,
+    ));
+    let state = OperatorChatState::production().with_launch_service(service);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind loopback");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        axum::serve(listener, operator_chat_http_routes(state))
+            .await
+            .expect("operator-chat server");
+    });
+    let base = format!("http://{addr}");
+
+    let body = json!({
+        "lane_kind": "cli",
+        "model_id": "gpt-5-codex",
+        "cli_provider": "codex",
+        "working_dir": "D:/work/repo",
+        "prompt": "audit the repo",
+        "owner_session": "operator-route",
+        "parent_session_id": "parent-route"
+    });
+    let resp = reqwest::Client::new()
+        .post(format!("{base}/operator-chat/launch"))
+        .json(&body)
+        .send()
+        .await
+        .expect("launch request");
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "a wired launch route performs a REAL launch, never 503 launch_not_wired"
+    );
+    let launched: serde_json::Value = resp.json().await.expect("launch json");
+    let run_id = launched["run_id"].as_str().expect("run_id").to_string();
+    assert_eq!(
+        launched["captured_message_count"].as_u64(),
+        Some(3),
+        "the real launch drove the runtime and captured its stdout: {launched:?}"
+    );
+
+    // Transcript route returns the captured rows (F8 backend half).
+    let tr = reqwest::Client::new()
+        .get(format!("{base}/operator-chat/transcript/{run_id}"))
+        .send()
+        .await
+        .expect("transcript request");
+    assert_eq!(tr.status().as_u16(), 200);
+    let tr_body: serde_json::Value = tr.json().await.expect("transcript json");
+    let rows = tr_body["rows"].as_array().expect("rows array");
+    assert_eq!(
+        rows.len(),
+        4,
+        "transcript route returns the durable operator row plus captured ModelLaneMessage rows"
+    );
+    server.abort();
+}
+
+/// F4: the operator-chat CLI launch config is forced into `--output-format
+/// stream-json` so a launched CLI lane's activities are TYPED, not `Other{raw}`.
+/// This is the exact transform the live wiring
+/// (`build_operator_chat_launch_service`) applies to the CLI template.
+#[test]
+fn operator_chat_launch_config_forces_stream_json() {
+    use handshake_core::swarm_orchestration::operator_chat::force_json_stream_output;
+    let raw = CliBridgeConfig {
+        output_format: CliOutputFormat::RawText,
+        args_template: vec!["-p".into(), "{prompt}".into()],
+        ..loopback_cli_config()
+    };
+    let forced = force_json_stream_output(raw);
+    assert_eq!(
+        forced.output_format,
+        CliOutputFormat::JsonStream,
+        "the launch config forces JSON-stream output"
+    );
+    assert!(
+        forced.args_template.iter().any(|a| a == "stream-json"),
+        "the launch config carries the --output-format stream-json flag: {:?}",
+        forced.args_template
     );
 }
 

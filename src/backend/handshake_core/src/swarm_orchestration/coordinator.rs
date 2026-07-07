@@ -782,6 +782,54 @@ impl SwarmCoordinator {
         })
     }
 
+    /// Launch an operator-requested subagent lane that is owned by a Handshake
+    /// manager and has no OS process to spawn. This is intentionally narrower
+    /// than [`Self::launch_no_os_model_lane`]: it only accepts the subagent
+    /// adapter and still normalizes through the Dexterity registry before the
+    /// PostgreSQL ModelLane/EventLedger authority write.
+    pub async fn launch_operator_subagent_model_lane(
+        &self,
+        request: DexterityLaunchAdapterRequest,
+    ) -> SwarmResult<(ModelLaneRunRecord, ModelLaneRecord)> {
+        if request.adapter_kind != DexterityLaunchAdapterKind::Subagent {
+            return Err(SwarmError::LedgerFailed(format!(
+                "operator subagent launch requires subagent adapter; got {}",
+                request.adapter_kind.as_str()
+            )));
+        }
+        let registry = DexterityLaunchAdapterRegistry::standard();
+        let descriptor = registry
+            .descriptor(&request.adapter_kind)
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!("Dexterity subagent descriptor failed: {err}"))
+            })?
+            .clone();
+        let launch = registry.normalize(request).map_err(|err| {
+            SwarmError::LedgerFailed(format!("Dexterity subagent preflight failed: {err}"))
+        })?;
+        if descriptor.runtime_binding != ModelLaneRuntimeBinding::Subagent
+            || launch.process_ownership_ref.is_some()
+            || launch.no_os_process_reason_ref.is_none()
+        {
+            return Err(SwarmError::LedgerFailed(
+                "operator subagent launch normalized to an invalid no-OS contract".into(),
+            ));
+        }
+        let Some(store) = self.inner.model_lane_store.as_ref() else {
+            return Err(SwarmError::LedgerFailed(
+                "operator subagent launch requires ModelLaneStore".into(),
+            ));
+        };
+        let records = launch.to_records().map_err(|err| {
+            SwarmError::LedgerFailed(format!(
+                "Dexterity subagent record preparation failed: {err}"
+            ))
+        })?;
+        store.record_prepared_launch(records).await.map_err(|err| {
+            SwarmError::LedgerFailed(format!("Dexterity subagent launch record failed: {err}"))
+        })
+    }
+
     pub fn authorize_no_os_model_lane(
         &self,
         request: &DexterityLaunchAdapterRequest,
@@ -1065,6 +1113,15 @@ impl SwarmCoordinator {
                 )
             })
             .map(|h| h.model_id)
+    }
+
+    /// The coordinator's wired [`ModelLaneStore`] (a cheap `PgPool`-backed clone),
+    /// or `None` when the coordinator was built without one. WP-1 MT-012: the
+    /// operator-chat launch service uses this to replay the just-spawned run/lane
+    /// so it can persist the launched CLI runtime's real stdout as
+    /// ModelLaneMessage rows, and the transcript route uses it to read them back.
+    pub fn model_lane_store(&self) -> Option<ModelLaneStore> {
+        self.inner.model_lane_store.clone()
     }
 
     /// Materialize a Dexterity ContextBundle for the named downstream lane from

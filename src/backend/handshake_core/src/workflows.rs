@@ -28300,7 +28300,7 @@ mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
-    use crate::llm::ollama::InMemoryLlmClient;
+    use crate::llm::InMemoryLlmClient;
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
         tests::{

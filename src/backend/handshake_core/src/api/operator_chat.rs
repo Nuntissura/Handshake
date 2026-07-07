@@ -1,10 +1,12 @@
 //! WP-1 MT-012: Operator chat/launch work-surface HTTP routes.
 //!
 //! This is the NEW backend launch seam the MT-012 pre-implementation review (F9)
-//! requires: no prior `api/*` route reached [`SwarmCoordinator::spawn_session`]
-//! (only read routes + the forbidden legacy Tauri IPC). The launch route resolves
-//! ONLY through the sanctioned [`OperatorChatLaunchService`] (which calls
-//! `spawn_session`) and fails closed when the coordinator has no `ModelLaneStore`.
+//! requires: no prior `api/*` route reached the sanctioned coordinator launch
+//! authority (only read routes + the forbidden legacy Tauri IPC). The launch route
+//! resolves ONLY through [`OperatorChatLaunchService`]: process-backed lanes call
+//! `SwarmCoordinator::spawn_session`, and SUBAGENT calls the coordinator no-OS
+//! subagent lane helper. Both fail closed when the coordinator has no
+//! `ModelLaneStore`.
 //!
 //! Like `model_access`, this router owns a dedicated state (not `AppState`) so it
 //! is route-testable without a full `AppState`. The launch service (which needs a
@@ -12,10 +14,11 @@
 //! when absent the launch route reports `503 launch_not_wired` (production wires
 //! the live coordinator singleton — a follow-on to this MT).
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
@@ -30,7 +33,7 @@ use crate::model_runtime::cloud::{
 };
 use crate::swarm_orchestration::operator_chat::{
     OperatorChatCloudRow, OperatorChatError, OperatorChatLaunchService, OperatorChatModelInventory,
-    OperatorChatModelRow, OperatorChatSelection,
+    OperatorChatModelRow, OperatorChatSelection, OperatorChatSubagentRow,
 };
 
 type ApiError = (StatusCode, Json<Value>);
@@ -41,6 +44,7 @@ pub struct OperatorChatState {
     launch_service: Option<Arc<OperatorChatLaunchService>>,
     catalog: Arc<ModelCatalog>,
     cloud_registry: Arc<dyn ProviderAccessRegistry>,
+    cli_bridge_statuses: BTreeMap<String, ProviderAccessStatus>,
     recorder: Arc<dyn FlightRecorder>,
 }
 
@@ -54,6 +58,7 @@ impl OperatorChatState {
             launch_service: None,
             catalog: ModelCatalog::empty(),
             cloud_registry: Arc::new(InMemoryAccessRegistry::new()),
+            cli_bridge_statuses: BTreeMap::new(),
             recorder: Arc::new(NoopOperatorChatRecorder),
         }
     }
@@ -73,6 +78,15 @@ impl OperatorChatState {
         self
     }
 
+    pub fn with_cli_bridge_provider_status(
+        mut self,
+        provider: impl Into<String>,
+        status: ProviderAccessStatus,
+    ) -> Self {
+        self.cli_bridge_statuses.insert(provider.into(), status);
+        self
+    }
+
     pub fn with_recorder(mut self, recorder: Arc<dyn FlightRecorder>) -> Self {
         self.recorder = recorder;
         self
@@ -83,6 +97,18 @@ impl OperatorChatState {
 #[derive(Debug, Deserialize)]
 pub struct SelectionDecisionRequest {
     pub selected_model_id: String,
+    #[serde(default)]
+    pub lane_kind: Option<String>,
+    #[serde(default)]
+    pub model_id: Option<String>,
+    #[serde(default)]
+    pub cloud_provider: Option<String>,
+    #[serde(default)]
+    pub cli_provider: Option<String>,
+    #[serde(default)]
+    pub working_dir: Option<String>,
+    #[serde(default)]
+    pub worktree_id: Option<String>,
     #[serde(default = "default_actor")]
     pub actor: String,
     #[serde(default = "default_reason")]
@@ -102,6 +128,7 @@ pub fn routes(state: OperatorChatState) -> Router {
         .route("/operator-chat/models", get(enumerate_models))
         .route("/operator-chat/selection", post(record_selection))
         .route("/operator-chat/launch", post(launch_session))
+        .route("/operator-chat/transcript/:run_id", get(fetch_transcript))
         .with_state(state)
 }
 
@@ -136,6 +163,12 @@ fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInventory 
             .into_iter()
             .map(|row| OperatorChatCloudRow {
                 provider: row.provider.to_string(),
+                model_id: match row.provider {
+                    "anthropic" => "claude-sonnet-4",
+                    "openai" => "gpt-4o",
+                    _ => "cloud-model",
+                }
+                .to_string(),
                 label: row.label.to_string(),
                 status: status_label(row.status),
             })
@@ -145,10 +178,28 @@ fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInventory 
             .into_iter()
             .map(|row| OperatorChatCloudRow {
                 provider: row.provider.to_string(),
+                model_id: match row.provider {
+                    "claude_code" => "claude-sonnet-4",
+                    "codex" => "gpt-5-codex",
+                    _ => "official-cli-model",
+                }
+                .to_string(),
                 label: row.label.to_string(),
-                status: "offered".to_string(),
+                status: status_label(
+                    state
+                        .cli_bridge_statuses
+                        .get(row.provider)
+                        .copied()
+                        .unwrap_or(ProviderAccessStatus::Unavailable),
+                ),
             })
             .collect(),
+        subagents: vec![OperatorChatSubagentRow {
+            role: "subagent_coder".to_string(),
+            model_id: "subagent://operator-chat/coder".to_string(),
+            label: "Subagent Manager / Coder".to_string(),
+            status: "available".to_string(),
+        }],
         excluded: cloud.excluded.into_iter().map(|s| s.to_string()).collect(),
     }
 }
@@ -160,11 +211,12 @@ async fn record_selection(
 ) -> Result<Json<Value>, ApiError> {
     state
         .catalog
-        .record_selection_decision(
+        .record_selection_decision_with_context(
             state.recorder.as_ref(),
             &req.selected_model_id,
             &req.actor,
             &req.reason,
+            selection_context(&req),
         )
         .await
         .map_err(|err| {
@@ -177,6 +229,31 @@ async fn record_selection(
         "status": "recorded",
         "selected_model_id": req.selected_model_id,
     })))
+}
+
+fn selection_context(req: &SelectionDecisionRequest) -> Value {
+    let mut context = serde_json::Map::new();
+    push_selection_context(&mut context, "lane_kind", req.lane_kind.as_deref());
+    push_selection_context(&mut context, "model_id", req.model_id.as_deref());
+    push_selection_context(
+        &mut context,
+        "cloud_provider",
+        req.cloud_provider.as_deref(),
+    );
+    push_selection_context(&mut context, "cli_provider", req.cli_provider.as_deref());
+    push_selection_context(&mut context, "working_dir", req.working_dir.as_deref());
+    push_selection_context(&mut context, "worktree_id", req.worktree_id.as_deref());
+    Value::Object(context)
+}
+
+fn push_selection_context(
+    context: &mut serde_json::Map<String, Value>,
+    key: &str,
+    value: Option<&str>,
+) {
+    if let Some(value) = value.filter(|v| !v.trim().is_empty()) {
+        context.insert(key.to_string(), Value::String(value.to_string()));
+    }
 }
 
 /// POST an operator launch. Resolves ONLY through the sanctioned launch service
@@ -196,7 +273,36 @@ async fn launch_session(
         ));
     };
     let launched = service.launch(&selection).await.map_err(launch_api_error)?;
-    Ok(Json(serde_json::to_value(launched).unwrap_or_else(|_| json!({}))))
+    Ok(Json(
+        serde_json::to_value(launched).unwrap_or_else(|_| json!({})),
+    ))
+}
+
+/// GET the captured transcript (ModelLaneMessage rows) for a launched run so the
+/// pane can render the conversation/thought/tool-call turns (F8). Reuses the
+/// launch service's `ModelLaneStore` (EventLedger authority); reports `503` when
+/// the launch service (and therefore the store) is not wired.
+async fn fetch_transcript(
+    State(state): State<OperatorChatState>,
+    Path(run_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let Some(service) = state.launch_service.clone() else {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "transcript_not_wired",
+                "detail": "operator-chat transcript requires a live ModelLaneStore; not wired in this deployment",
+            })),
+        ));
+    };
+    let rows = service
+        .fetch_transcript(&run_id)
+        .await
+        .map_err(launch_api_error)?;
+    Ok(Json(json!({
+        "run_id": run_id,
+        "rows": serde_json::to_value(rows).unwrap_or_else(|_| json!([])),
+    })))
 }
 
 fn launch_api_error(err: OperatorChatError) -> ApiError {

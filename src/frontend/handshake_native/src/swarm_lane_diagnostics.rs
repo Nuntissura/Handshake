@@ -199,6 +199,7 @@ pub struct SwarmLaneDiagnosticsMessage {
 pub struct SwarmLaneDiagnosticsTier {
     pub tier: String,
     pub state: String,
+    pub reason: String,
     pub evidence_ref: String,
     pub follow_up_ref: Option<String>,
 }
@@ -625,9 +626,10 @@ fn render_projection(
             ctx.egui_id.with(("tier", &tier.tier)),
             &tier_author_id(&tier.tier),
             &format!(
-                "{} | {} | evidence {} | follow-up {}",
+                "{} | {} | reason {} | evidence {} | follow-up {}",
                 tier.tier,
                 tier.state,
+                tier.reason,
                 tier.evidence_ref,
                 tier.follow_up_ref.as_deref().unwrap_or("none")
             ),
@@ -1212,6 +1214,9 @@ pub fn validate_projection_for_native_surface(
             &tier.tier,
             tier_author_id(&tier.tier),
         )?;
+        if tier.reason.trim().is_empty() {
+            return Err(format!("diagnostic tier {} reason missing", tier.tier));
+        }
         if tier.evidence_ref.trim().is_empty() {
             return Err(format!("diagnostic tier {} evidence missing", tier.tier));
         }
@@ -1221,14 +1226,14 @@ pub fn validate_projection_for_native_surface(
                 tier.tier
             ));
         }
-        if tier.state != "wired" && tier.state != "deferred_with_reason" {
+        if tier.state != "wired"
+            && tier.state != "not_applicable_with_reason"
+            && tier.state != "deferred_with_reason"
+        {
             return Err(format!(
                 "diagnostic tier {} state unsupported: {}",
                 tier.tier, tier.state
             ));
-        }
-        if tier.tier == "internal_diagnostics" && tier.state != "wired" {
-            return Err("internal_diagnostics tier must be wired".to_owned());
         }
         if tier.state == "deferred_with_reason" {
             if tier

@@ -12,11 +12,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use handshake_core::{
     process_ledger::{
-        cap_metadata_jsonb, flush_failed_row_count, LedgerBatcher, LedgerBatcherConfig, LedgerEvent,
-        LedgerEventKind, LedgerOverflowEvent, ProcessEngineKind, ProcessLedgerError,
-        ProcessLedgerOverflowSink, ProcessLedgerStore, ProcessStart, ProcessStop,
-        PROCESS_LEDGER_BATCH_SIZE, PROCESS_LEDGER_FLUSH_INTERVAL_MS,
-        PROCESS_LEDGER_METADATA_CAP_BYTES, PROCESS_LEDGER_RING_CAPACITY,
+        cap_metadata_jsonb, flush_failed_row_count, LedgerBatcher, LedgerBatcherConfig,
+        LedgerDrainJoinOutcome, LedgerEvent, LedgerEventKind, LedgerOverflowEvent,
+        ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore,
+        ProcessStart, ProcessStop, RetainedLedgerBatcher, PROCESS_LEDGER_BATCH_SIZE,
+        PROCESS_LEDGER_FLUSH_INTERVAL_MS, PROCESS_LEDGER_METADATA_CAP_BYTES,
+        PROCESS_LEDGER_RING_CAPACITY,
     },
     sandbox::{
         build_registry_from_adapters_with_ledger, default_no_op_capabilities, AdapterCapabilities,
@@ -313,17 +314,15 @@ async fn drain_flush_store_failure_is_observable_and_counted() {
         )
         .expect("enqueue start");
     batcher
-        .record_stop(
-            ProcessStop::from_start(
-                &ProcessStart::new(
-                    ProcessEngineKind::SandboxContainer,
-                    "KERNEL_BUILDER",
-                    Some("WP-KERNEL-004".to_string()),
-                )
-                .with_process_uuid(uuid::Uuid::nil()),
-                Some(0),
-            ),
-        )
+        .record_stop(ProcessStop::from_start(
+            &ProcessStart::new(
+                ProcessEngineKind::SandboxContainer,
+                "KERNEL_BUILDER",
+                Some("WP-KERNEL-004".to_string()),
+            )
+            .with_process_uuid(uuid::Uuid::nil()),
+            Some(0),
+        ))
         .expect("enqueue stop");
 
     // The drain path propagates the store error (manual-drain contract) AND
@@ -402,6 +401,46 @@ async fn background_writer_flush_failure_is_counted_not_silently_dropped() {
     let _ = tokio::time::timeout(std::time::Duration::from_secs(2), join).await;
 }
 
+#[tokio::test]
+async fn retained_ledger_batcher_drains_spawned_writer_once() {
+    let store = Arc::new(InMemoryProcessLedgerStore::default());
+    let retained = RetainedLedgerBatcher::spawn(
+        store.clone(),
+        Arc::new(InMemoryOverflowSink::default()),
+        LedgerBatcherConfig {
+            capacity: 16,
+            batch_size: 1,
+            flush_interval: std::time::Duration::from_millis(10),
+        },
+    );
+    let ledger = retained.ledger();
+
+    ledger
+        .record_start(ProcessStart::new(
+            ProcessEngineKind::OfficialCliBridge,
+            "OFFICIAL_CLI_BRIDGE",
+            Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".to_string()),
+        ))
+        .expect("enqueue retained writer start");
+
+    let outcome = retained
+        .drain_and_join(std::time::Duration::from_secs(2))
+        .await;
+    assert!(
+        matches!(outcome, LedgerDrainJoinOutcome::Flushed),
+        "retained writer must flush and join cleanly, got {outcome:?}"
+    );
+    assert_eq!(store.events().len(), 1);
+
+    let second = retained
+        .drain_and_join(std::time::Duration::from_secs(2))
+        .await;
+    assert!(
+        matches!(second, LedgerDrainJoinOutcome::AlreadyDrained),
+        "retained writer drain must be single-consumer, got {second:?}"
+    );
+}
+
 #[test]
 fn no_direct_lifecycle_insert_outside_process_ledger_module() {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -413,6 +452,50 @@ fn no_direct_lifecycle_insert_outside_process_ledger_module() {
     assert!(
         offenders.is_empty(),
         "kernel_process_lifecycle INSERT must stay inside process_ledger: {offenders:?}"
+    );
+}
+
+#[test]
+fn production_process_ledger_writers_are_retained_until_shutdown() {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let production_sources = [
+        "src/api/mod.rs",
+        "src/swarm_orchestration/production_factory.rs",
+    ];
+    let mut detached_spawns = Vec::new();
+
+    for relative_path in production_sources {
+        let path = manifest_dir.join(relative_path);
+        let source = std::fs::read_to_string(&path).expect("read production source");
+        for forbidden in [
+            "let (ledger, _writer) = LedgerBatcher::spawn(",
+            "let (ledger, _writer) = crate::process_ledger::LedgerBatcher::spawn(",
+            "let (process_ledger, _writer) = LedgerBatcher::spawn(",
+            "let (process_ledger, _writer) = crate::process_ledger::LedgerBatcher::spawn(",
+        ] {
+            if source.contains(forbidden) {
+                detached_spawns.push(format!("{relative_path}: {forbidden}"));
+            }
+        }
+    }
+
+    let api_source = std::fs::read_to_string(manifest_dir.join("src/api/mod.rs"))
+        .expect("read api routes source");
+    assert!(
+        api_source.contains("RetainedLedgerBatcher::spawn("),
+        "production API routes must create a retained process-ledger writer for operator-chat lanes"
+    );
+    assert!(
+        !api_source.contains("routes_with_runtime(state).router"),
+        "api::routes(state) must not discard ApiRouteRuntime after extracting the router"
+    );
+    assert!(
+        api_source.contains("Extension(runtime)"),
+        "api::routes(state) must retain ApiRouteRuntime on the returned router for fixture/server callers"
+    );
+    assert!(
+        detached_spawns.is_empty(),
+        "production process-ledger writers must retain and drain their JoinHandle at shutdown: {detached_spawns:?}"
     );
 }
 

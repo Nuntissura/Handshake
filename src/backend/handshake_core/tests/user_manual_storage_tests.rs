@@ -409,6 +409,101 @@ async fn mt194_sections_ordered_and_tampered_children_heal() {
     assert_eq!(healed_sections.len(), sections.len(), "sections restored");
 }
 
+#[tokio::test]
+async fn model_lane_user_manual_entries_persist_in_postgres() {
+    let kpg = skip_if_no_pg!(
+        knowledge_pg_support::knowledge_pg().await,
+        "model_lane_user_manual_entries_persist_in_postgres"
+    );
+    ensure_seeded(&kpg.db).await.expect("seed");
+    let store = UserManualStore::new(&kpg.db);
+
+    for slug in [
+        "model-lane-schema",
+        "model-lane-launch-adapters",
+        "model-lane-promotion",
+        "model-lane-context-bundle-handoff",
+        "model-lane-cloud-projection-consent",
+        "model-lane-recovery",
+        "model-lane-diagnostics",
+        "model-lane-navigation",
+        "model-lane-validation-harness",
+    ] {
+        let (page, sections, anchors) = store
+            .get_page_by_slug(slug)
+            .await
+            .expect("model-lane page query")
+            .unwrap_or_else(|| panic!("model-lane UserManual page {slug} is persisted"));
+        assert_eq!(page.manual_version, USER_MANUAL_VERSION);
+        assert_eq!(page.source_kind, "builtin_seed");
+        assert!(
+            page.ledger_event_id.is_some(),
+            "{slug} must carry EventLedger seed receipt"
+        );
+        assert!(!sections.is_empty(), "{slug} must persist ordered sections");
+        assert!(
+            !anchors.is_empty(),
+            "{slug} must persist navigation anchors"
+        );
+    }
+
+    for tool_id in [
+        "model_lane_schema_pg_tests",
+        "model_lane_launch_tests",
+        "model_lane_promotion_pg_tests",
+        "model_lane_context_bundle_pg_tests",
+        "cloud_model_lane_policy_pg_tests",
+        "model_lane_recovery_pg_tests",
+        "swarm_lane_diagnostics_runtime_proof",
+        "model_lane_navigation_api_tests",
+        "mixed_model_lane_integration_pg_tests",
+    ] {
+        let tool = store
+            .get_tool_entry(tool_id)
+            .await
+            .expect("model-lane tool query")
+            .unwrap_or_else(|| panic!("model-lane UserManual tool {tool_id} is persisted"));
+        assert_eq!(tool.origin, "wp1_model_lane");
+        assert_eq!(tool.manual_version, USER_MANUAL_VERSION);
+        assert!(
+            tool.schema_fields
+                .iter()
+                .any(|field| field.contains("Flight Recorder") || field.contains("EventLedger")),
+            "{tool_id} must persist Flight Recorder/EventLedger proof fields"
+        );
+    }
+
+    let mixed_tool = store
+        .get_tool_entry("mixed_model_lane_integration_pg_tests")
+        .await
+        .expect("mixed tool query")
+        .expect("mixed model-lane validation tool is persisted");
+    assert!(
+        mixed_tool
+            .schema_fields
+            .iter()
+            .any(|field| field == "hsk.user_manual_behavior_coverage@1"),
+        "mixed validation tool must persist hsk.user_manual_behavior_coverage@1 schema"
+    );
+    assert!(
+        mixed_tool
+            .expected_output
+            .contains("hsk.user_manual_behavior_coverage@1"),
+        "mixed validation tool output must cite the behavior coverage matrix"
+    );
+
+    let version = store
+        .get_version(USER_MANUAL_VERSION)
+        .await
+        .expect("version query")
+        .expect("UserManual version row exists");
+    assert_eq!(version.seed_content_hash, corpus_hash(&seed_corpus()));
+    assert!(
+        version.ledger_event_id.is_some(),
+        "UserManual version row must carry EventLedger receipt"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // MT-195: the build-update rule.
 // ---------------------------------------------------------------------------

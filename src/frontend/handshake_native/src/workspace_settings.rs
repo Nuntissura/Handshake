@@ -174,6 +174,8 @@ pub struct WorkspaceSettingsState {
     pub swarm_board_default_open: bool,
     /// Whether the Swarm lane diagnostics pane is part of the operator's default Swarm toolset.
     pub swarm_lane_diagnostics_default_open: bool,
+    /// Whether the Operator Chat launch pane is part of the operator's default Swarm toolset.
+    pub operator_chat_default_open: bool,
 }
 
 impl WorkspaceSettingsState {
@@ -221,6 +223,7 @@ impl WorkspaceSettingsState {
                 "view_mode": self.view_mode.as_str(),
                 "swarm_board_default_open": self.swarm_board_default_open,
                 "swarm_lane_diagnostics_default_open": self.swarm_lane_diagnostics_default_open,
+                "operator_chat_default_open": self.operator_chat_default_open,
             },
         })
     }
@@ -243,6 +246,7 @@ pub fn default_workspace_settings_state() -> WorkspaceSettingsState {
         view_mode: SettingsViewMode::Nsfw,
         swarm_board_default_open: false,
         swarm_lane_diagnostics_default_open: false,
+        operator_chat_default_open: false,
     }
 }
 
@@ -369,7 +373,7 @@ pub fn setting_matches_query(query: &str, terms: &[&str]) -> bool {
 /// - a non-object, or a `schema_id` mismatch, returns the fallback wholesale (red-team R6 / MC6);
 /// - each keybinding is taken from the blob only when it normalizes to a non-empty chord, else the
 ///   fallback's chord for that action is kept;
-/// - theme / view_mode / swarm_board_default_open fall back per-field on an invalid value.
+/// - theme / view_mode / swarm default-open flags fall back per-field on an invalid value.
 pub fn normalize_workspace_settings_state(
     value: &Value,
     fallback: &WorkspaceSettingsState,
@@ -420,6 +424,10 @@ pub fn normalize_workspace_settings_state(
         .and_then(|m| m.get("swarm_lane_diagnostics_default_open"))
         .and_then(Value::as_bool)
         .unwrap_or(fallback.swarm_lane_diagnostics_default_open);
+    let operator_chat_default_open = raw_settings
+        .and_then(|m| m.get("operator_chat_default_open"))
+        .and_then(Value::as_bool)
+        .unwrap_or(fallback.operator_chat_default_open);
 
     WorkspaceSettingsState {
         theme,
@@ -427,6 +435,7 @@ pub fn normalize_workspace_settings_state(
         view_mode,
         swarm_board_default_open,
         swarm_lane_diagnostics_default_open,
+        operator_chat_default_open,
     }
 }
 
@@ -756,6 +765,7 @@ mod tests {
         settings.theme = WorkspaceTheme::Light;
         settings.view_mode = SettingsViewMode::Sfw;
         settings.swarm_board_default_open = true;
+        settings.operator_chat_default_open = true;
         settings.set_chord("app.quick_switcher.open", "Mod-Alt-q".to_owned());
 
         let json = settings.to_settings_state();

@@ -19,8 +19,8 @@
 use sqlx::Row;
 
 use super::store::sha256_hex;
-use crate::storage::StorageResult;
 use crate::storage::postgres::PostgresDatabase;
+use crate::storage::StorageResult;
 
 /// Tamper a stored page's content hash (simulates seed/code drift or row
 /// tampering). Returns the previous hash so the test can restore it.

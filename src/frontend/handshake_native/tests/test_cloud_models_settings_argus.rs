@@ -92,10 +92,8 @@ fn open_with_snapshot() -> Harness<'static, HandshakeApp> {
     app.set_settings_transport(Arc::new(StubSettingsTransport));
     app.set_cloud_snapshot_for_test(seeded_snapshot());
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
     harness.run();
@@ -110,10 +108,8 @@ fn open_without_snapshot() -> Harness<'static, HandshakeApp> {
     app.set_settings_transport(Arc::new(StubSettingsTransport));
     // Deliberately NO set_cloud_snapshot_for_test: the snapshot stays empty and no client can fetch one.
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
     harness.run();
@@ -185,15 +181,19 @@ fn typing_and_saving_a_byok_key_clears_the_ui_buffer() {
         "openai save button is addressable"
     );
 
-    // Dispatch Save through the same outcome path the live button produces (the existing settings tests
-    // drive scroll/popup-fragile controls this way). The shell takes + clears the buffer immediately —
-    // the security invariant is that the key never lingers in the UI. (No backend in this headless shell,
-    // so the store itself reports unreachable, but the buffer is cleared regardless.)
-    harness.state_mut().apply_settings_outcome_for_test(
-        handshake_native::settings_dialog::SettingsOutcome::CloudByokKeySaveRequested {
-            provider: "openai".to_owned(),
-        },
-    );
+    // Click the LIVE Save button by its stable author_id through AccessKit so the proof exercises
+    // `save.clicked()` inside `render_cloud_models_body`, then `drive_settings_dialog` applies the
+    // emitted outcome. The shell takes + clears the buffer immediately — the security invariant is that
+    // the key never lingers in the UI. (No backend in this headless shell, so the store itself reports
+    // unreachable, but the buffer is cleared regardless.)
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.byok.openai.save")
+        })
+        .next()
+        .expect("openai save button addressable")
+        .click_accesskit();
+    harness.run();
     harness.run();
 
     assert!(
@@ -209,25 +209,29 @@ fn typing_and_saving_a_byok_key_clears_the_ui_buffer() {
 
 // ── A CLI-bridge Log-in records the provider's OWN official login command (operator-initiated). ──────
 //
-// The button's addressability in the live tree is proven above; here we exercise the click -> outcome ->
-// launch wiring through the same outcome path the live button produces (the existing settings tests use
-// `apply_settings_outcome_for_test` for controls that scroll below the fold / live inside popups). The
-// terminal spawn stays suppressed (with_health default) so no console steals focus.
+// This exercises the live button's click -> outcome -> launch wiring through `login.clicked()` and
+// `drive_settings_dialog`. The terminal spawn stays suppressed (with_health default) so no console
+// steals focus.
 #[test]
 fn cli_bridge_login_records_the_official_command_without_stealing_focus() {
     let mut harness = open_with_snapshot();
     // The login button IS addressable in the live tree (Argus can find + click it out-of-process).
     let ids = all_author_ids(&harness);
-    assert!(ids.iter().any(|id| id == "settings.cloud.cli.claude_code.login"));
+    assert!(ids
+        .iter()
+        .any(|id| id == "settings.cloud.cli.claude_code.login"));
 
     // No launch recorded before the click; the terminal spawn is suppressed in the headless shell.
     assert!(harness.state().last_cli_login_launch().is_none());
 
-    harness.state_mut().apply_settings_outcome_for_test(
-        handshake_native::settings_dialog::SettingsOutcome::CliBridgeLoginRequested {
-            provider: "claude_code".to_owned(),
-        },
-    );
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.claude_code.login")
+        })
+        .next()
+        .expect("Claude Code login button addressable")
+        .click_accesskit();
+    harness.run();
     harness.run();
 
     let launch = harness
@@ -235,7 +239,10 @@ fn cli_bridge_login_records_the_official_command_without_stealing_focus() {
         .last_cli_login_launch()
         .cloned()
         .expect("a CLI login launch was recorded");
-    assert_eq!(launch.0, "claude", "launched the provider's OWN official CLI");
+    assert_eq!(
+        launch.0, "claude",
+        "launched the provider's OWN official CLI"
+    );
     assert_eq!(launch.1, vec!["/login".to_string()]);
 }
 

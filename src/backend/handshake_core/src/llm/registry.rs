@@ -11,6 +11,8 @@ use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::path::PathBuf;
 
+const DEFAULT_LOCAL_EMBEDDING_DIMENSION: usize = 768;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProviderKind {
     /// MT-003 (WP-1) Ollama-kill: the default provider. Local inference resolves
@@ -38,6 +40,10 @@ pub struct LocalModelConfig {
     pub runtime_binding: RuntimeBinding,
     /// Operator-facing display name / base-model tag for the registration.
     pub display_name: String,
+    /// Declared embedding dimensionality for a dedicated embedding model.
+    /// `None` means this config is a chat/completion model, not an embedding
+    /// registration.
+    pub embedding_dimension: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -60,6 +66,10 @@ pub struct ProviderRecord {
     /// configured. `None` means "no local model configured" and the boot path
     /// fails closed to `DisabledLlmClient` (no daemon fallback).
     pub local_model: Option<LocalModelConfig>,
+    /// Optional second local model dedicated to embeddings. It is registered in
+    /// the same boot registry/catalog as `local_model`, but it does not replace
+    /// the chat/completion `profile().model_id`.
+    pub local_embedding_model: Option<LocalModelConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -79,6 +89,8 @@ pub struct ResolvedProvider {
     pub api_key_env: Option<String>,
     /// See [`ProviderRecord::local_model`].
     pub local_model: Option<LocalModelConfig>,
+    /// See [`ProviderRecord::local_embedding_model`].
+    pub local_embedding_model: Option<LocalModelConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -119,6 +131,7 @@ impl ProviderRegistry {
         match provider.as_str() {
             "local_runtime" | "local" => {
                 let local_model = local_model_config_from_env()?;
+                let local_embedding_model = local_embedding_model_config_from_env()?;
                 // The role-level `model_id` is the display name when a local
                 // model is configured; otherwise a stable placeholder used only
                 // for the DisabledLlmClient identity when the boot path fails
@@ -136,6 +149,7 @@ impl ProviderRegistry {
                     default_model_id: model_id.clone(),
                     api_key_env: None,
                     local_model,
+                    local_embedding_model,
                 };
 
                 let mut providers = BTreeMap::new();
@@ -199,6 +213,7 @@ impl ProviderRegistry {
                     default_model_id: model_id.clone(),
                     api_key_env,
                     local_model: None,
+                    local_embedding_model: None,
                 };
 
                 let mut providers = BTreeMap::new();
@@ -247,6 +262,7 @@ impl ProviderRegistry {
             model_id: assignment.model_id.clone(),
             api_key_env: record.api_key_env.clone(),
             local_model: record.local_model.clone(),
+            local_embedding_model: record.local_embedding_model.clone(),
         })
     }
 }
@@ -258,7 +274,31 @@ impl ProviderRegistry {
 /// is required and validated so the downstream `ModelRegistry::register`
 /// invariants (non-empty artifact_path, non-zero sha256) cannot be violated.
 fn local_model_config_from_env() -> Result<Option<LocalModelConfig>, LlmError> {
-    let Some(path) = std::env::var("HANDSHAKE_LOCAL_MODEL_PATH")
+    local_model_config_from_env_prefix("HANDSHAKE_LOCAL_MODEL", None)
+}
+
+/// Decodes the optional dedicated embedding model config from
+/// `HANDSHAKE_LOCAL_EMBEDDING_MODEL_*` env vars. When a path is supplied, the
+/// dimensionality defaults to LoomSearchV2's 768-vector contract and may be
+/// overridden by `HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION`.
+fn local_embedding_model_config_from_env() -> Result<Option<LocalModelConfig>, LlmError> {
+    local_model_config_from_env_prefix(
+        "HANDSHAKE_LOCAL_EMBEDDING_MODEL",
+        Some(DEFAULT_LOCAL_EMBEDDING_DIMENSION),
+    )
+}
+
+fn local_model_config_from_env_prefix(
+    prefix: &str,
+    default_embedding_dimension: Option<usize>,
+) -> Result<Option<LocalModelConfig>, LlmError> {
+    let path_var = format!("{prefix}_PATH");
+    let sha_var = format!("{prefix}_SHA256");
+    let binding_var = format!("{prefix}_BINDING");
+    let name_var = format!("{prefix}_NAME");
+    let dimension_var = format!("{prefix}_DIMENSION");
+
+    let Some(path) = std::env::var(&path_var)
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
@@ -266,20 +306,18 @@ fn local_model_config_from_env() -> Result<Option<LocalModelConfig>, LlmError> {
         return Ok(None);
     };
 
-    let sha_hex = std::env::var("HANDSHAKE_LOCAL_MODEL_SHA256")
+    let sha_hex = std::env::var(&sha_var)
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .ok_or_else(|| {
-            LlmError::ProviderError(
-                "HSK-400-INVALID-CONFIG: HANDSHAKE_LOCAL_MODEL_SHA256 is required when \
-                 HANDSHAKE_LOCAL_MODEL_PATH is set"
-                    .to_string(),
-            )
+            LlmError::ProviderError(format!(
+                "HSK-400-INVALID-CONFIG: {sha_var} is required when {path_var} is set"
+            ))
         })?;
-    let sha256 = decode_sha256(&sha_hex)?;
+    let sha256 = decode_sha256(&sha_hex, &sha_var)?;
 
-    let runtime_binding = match std::env::var("HANDSHAKE_LOCAL_MODEL_BINDING")
+    let runtime_binding = match std::env::var(&binding_var)
         .ok()
         .map(|v| v.trim().to_lowercase())
         .as_deref()
@@ -288,45 +326,69 @@ fn local_model_config_from_env() -> Result<Option<LocalModelConfig>, LlmError> {
         Some("candle") | None => RuntimeBinding::Candle,
         Some(other) => {
             return Err(LlmError::ProviderError(format!(
-                "HSK-400-INVALID-CONFIG: unknown HANDSHAKE_LOCAL_MODEL_BINDING={other} \
+                "HSK-400-INVALID-CONFIG: unknown {binding_var}={other} \
                  (expected candle|llama_cpp)"
             )));
         }
     };
 
-    let display_name = std::env::var("HANDSHAKE_LOCAL_MODEL_NAME")
+    let display_name = std::env::var(&name_var)
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| default_local_display_name(&path));
+
+    let embedding_dimension = match default_embedding_dimension {
+        Some(default_dim) => Some(
+            std::env::var(&dimension_var)
+                .ok()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .map(|value| {
+                    value.parse::<usize>().map_err(|err| {
+                        LlmError::ProviderError(format!(
+                            "HSK-400-INVALID-CONFIG: {dimension_var} must be a positive integer: {err}"
+                        ))
+                    })
+                })
+                .transpose()?
+                .unwrap_or(default_dim),
+        ),
+        None => None,
+    };
+    if matches!(embedding_dimension, Some(0)) {
+        return Err(LlmError::ProviderError(format!(
+            "HSK-400-INVALID-CONFIG: {dimension_var} must be greater than zero"
+        )));
+    }
 
     Ok(Some(LocalModelConfig {
         artifact_path: PathBuf::from(path),
         sha256,
         runtime_binding,
         display_name,
+        embedding_dimension,
     }))
 }
 
 /// Parses a 64-char hex SHA-256 into a non-zero `[u8; 32]`.
-fn decode_sha256(hex_str: &str) -> Result<[u8; 32], LlmError> {
+fn decode_sha256(hex_str: &str, var_name: &str) -> Result<[u8; 32], LlmError> {
     let bytes = hex::decode(hex_str.trim()).map_err(|err| {
         LlmError::ProviderError(format!(
-            "HSK-400-INVALID-CONFIG: HANDSHAKE_LOCAL_MODEL_SHA256 is not valid hex: {err}"
+            "HSK-400-INVALID-CONFIG: {var_name} is not valid hex: {err}"
         ))
     })?;
     let arr: [u8; 32] = bytes.as_slice().try_into().map_err(|_| {
         LlmError::ProviderError(format!(
-            "HSK-400-INVALID-CONFIG: HANDSHAKE_LOCAL_MODEL_SHA256 must be 32 bytes \
+            "HSK-400-INVALID-CONFIG: {var_name} must be 32 bytes \
              (64 hex chars), got {} bytes",
             bytes.len()
         ))
     })?;
     if arr == [0u8; 32] {
-        return Err(LlmError::ProviderError(
-            "HSK-400-INVALID-CONFIG: HANDSHAKE_LOCAL_MODEL_SHA256 must not be all zeroes"
-                .to_string(),
-        ));
+        return Err(LlmError::ProviderError(format!(
+            "HSK-400-INVALID-CONFIG: {var_name} must not be all zeroes"
+        )));
     }
     Ok(arr)
 }

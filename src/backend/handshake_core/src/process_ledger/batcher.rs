@@ -1,4 +1,7 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use tokio::task::JoinHandle;
 
@@ -77,6 +80,14 @@ impl LedgerBatcher {
         self.writer.append_stop(event)
     }
 
+    pub fn record_start_lossless(&self, event: ProcessStart) -> Result<(), ProcessLedgerError> {
+        self.writer.append_start_lossless(event)
+    }
+
+    pub fn record_stop_lossless(&self, event: ProcessStop) -> Result<(), ProcessLedgerError> {
+        self.writer.append_stop_lossless(event)
+    }
+
     /// WP-1 MT-013 (F1 graceful shutdown): signal the spawned background writer
     /// to stop accepting new rows, flush everything already queued, and
     /// terminate so its `JoinHandle` resolves. Callable from any clone. Pair with
@@ -84,6 +95,55 @@ impl LedgerBatcher {
     /// bound the flush.
     pub fn begin_close(&self) {
         self.writer.begin_close();
+    }
+}
+
+#[derive(Clone)]
+pub struct RetainedLedgerBatcher {
+    inner: Arc<RetainedLedgerBatcherInner>,
+}
+
+struct RetainedLedgerBatcherInner {
+    ledger: LedgerBatcher,
+    writer_join: Mutex<Option<JoinHandle<Result<(), ProcessLedgerError>>>>,
+}
+
+impl RetainedLedgerBatcher {
+    pub fn spawn(
+        store: Arc<dyn ProcessLedgerStore>,
+        overflow_sink: Arc<dyn ProcessLedgerOverflowSink>,
+        config: LedgerBatcherConfig,
+    ) -> Self {
+        let (ledger, writer_join) = LedgerBatcher::spawn(store, overflow_sink, config);
+        Self {
+            inner: Arc::new(RetainedLedgerBatcherInner {
+                ledger,
+                writer_join: Mutex::new(Some(writer_join)),
+            }),
+        }
+    }
+
+    pub fn ledger(&self) -> LedgerBatcher {
+        self.inner.ledger.clone()
+    }
+
+    pub async fn drain_and_join(&self, timeout: Duration) -> LedgerDrainJoinOutcome {
+        let writer_join = self
+            .inner
+            .writer_join
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take();
+        let Some(writer_join) = writer_join else {
+            return LedgerDrainJoinOutcome::AlreadyDrained;
+        };
+        drain_and_join_ledger_writer(&self.inner.ledger, writer_join, timeout).await
+    }
+}
+
+impl Drop for RetainedLedgerBatcherInner {
+    fn drop(&mut self) {
+        self.ledger.begin_close();
     }
 }
 
@@ -102,6 +162,9 @@ pub enum LedgerDrainJoinOutcome {
     /// The writer did not terminate within the timeout (rows may be recovered by
     /// the boot-time reclaim sweep on next start).
     TimedOut,
+    /// The retained writer handle was already consumed by an earlier bounded
+    /// drain call.
+    AlreadyDrained,
 }
 
 /// WP-1 MT-013 (F1 graceful shutdown): close `ledger`'s writer channel and await

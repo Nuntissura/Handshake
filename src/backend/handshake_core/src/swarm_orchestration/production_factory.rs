@@ -33,6 +33,7 @@
 //! runtime's async `unload(model_id)` first so the model map entry is removed
 //! deterministically before the drop, matching the single-load contract.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[cfg(test)]
@@ -44,7 +45,8 @@ use crate::model_runtime::candle::{load_local_candle_model, LoadedCandleModel};
 use crate::model_runtime::registry::RuntimeBinding;
 use crate::model_runtime::{CancellationToken, ModelId, ModelRuntime, ProviderKind};
 use crate::process_ledger::{
-    record_spawn, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, SpawnMeta,
+    record_spawn, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId,
+    RetainedLedgerBatcher, SpawnMeta,
 };
 use crate::sandbox::{
     validate_warm_agent_package_candidate_with_runtime_probe, BindMode, BindSpec,
@@ -205,6 +207,51 @@ where
     SwarmCoordinator::new_with_model_lane_store(config, factory, sink, ledger, model_lane_store)
 }
 
+/// WP-1 MT-012 (F3/F4): build the live [`OperatorChatLaunchService`] the shipped
+/// `POST /operator-chat/launch` + `GET /operator-chat/transcript/:run_id` routes
+/// resolve through, from the app's shared PostgreSQL pool + Flight Recorder. This
+/// is what makes the launch route NON-`503` — wired to a real
+/// [`SwarmCoordinator`] + [`ModelLaneStore`] rather than left inert.
+///
+/// `cloud` carries the configured BYOK and official-CLI builders. Unconfigured
+/// providers remain absent and fail closed with `ProviderNotConfigured`; Local
+/// lanes still launch through the real candle/llama path.
+pub fn build_operator_chat_launch_service(
+    pool: sqlx::PgPool,
+    recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
+    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
+    process_ledger_runtime: RetainedLedgerBatcher,
+    cloud: CloudLaneFactoryConfig,
+    trace_id: uuid::Uuid,
+) -> Arc<super::operator_chat::OperatorChatLaunchService> {
+    let model_lane_store = ModelLaneStore::new(pool.clone());
+    let ledger = process_ledger_runtime.ledger();
+    let recorder_sink = recorder.clone();
+    let coordinator = build_production_swarm_coordinator(
+        ledger,
+        cloud,
+        model_lane_store,
+        None,
+        trace_id,
+        move |event| {
+            // Forward each swarm event to the Flight Recorder off the hot path;
+            // requires the serving tokio runtime (always present on the route).
+            let rec = recorder_sink.clone();
+            tokio::spawn(async move {
+                let _ = rec.record_event(event).await;
+            });
+        },
+    );
+    Arc::new(
+        super::operator_chat::OperatorChatLaunchService::new_with_process_ledger_runtime(
+            Arc::new(coordinator),
+            catalog,
+            recorder,
+            process_ledger_runtime,
+        ),
+    )
+}
+
 /// Optional cloud-lane configuration the production factory needs to dispatch
 /// cloud spawns. When absent, a cloud spawn returns
 /// [`SwarmError::ProviderNotConfigured`] (the lane is not wired by the
@@ -223,6 +270,10 @@ pub struct CloudLaneFactoryConfig {
     /// OfficialCli spawn returns [`SwarmError::ProviderNotConfigured`] until the
     /// operator configures the CLI bridge.
     pub official_cli: Option<Arc<dyn CloudRuntimeBuilder>>,
+    /// Provider-specific official CLI builders keyed by the picker provider id
+    /// (`claude_code`, `codex`). Operator Chat uses this so selecting one CLI
+    /// row does not accidentally launch through another configured template.
+    pub official_cli_by_provider: HashMap<String, Arc<dyn CloudRuntimeBuilder>>,
 }
 
 impl CloudLaneFactoryConfig {
@@ -234,6 +285,7 @@ impl CloudLaneFactoryConfig {
             anthropic: None,
             openai: None,
             official_cli: None,
+            official_cli_by_provider: HashMap::new(),
         }
     }
 
@@ -274,6 +326,7 @@ impl CloudLaneFactoryConfig {
             anthropic,
             openai,
             official_cli: None,
+            official_cli_by_provider: HashMap::new(),
         }
     }
 
@@ -308,6 +361,50 @@ impl CloudLaneFactoryConfig {
             builder = builder.with_observability(obs);
         }
         self.official_cli = Some(Arc::new(builder) as Arc<dyn CloudRuntimeBuilder>);
+        self
+    }
+
+    /// Configure one exact official CLI provider. This is the Operator Chat path:
+    /// each provider row (`claude_code`, `codex`) gets its own template so the
+    /// spawn request's selected provider is load-bearing.
+    pub fn with_official_cli_provider_observed(
+        mut self,
+        provider_id: impl Into<String>,
+        spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner>,
+        config_template: crate::model_runtime::cloud::CliBridgeConfig,
+        observability: Option<Arc<crate::model_runtime::cloud::CloudLaneObservability>>,
+    ) -> Self {
+        let mut builder = CliBridgeCloudRuntimeBuilder::new(spawner, config_template);
+        if let Some(obs) = observability {
+            builder = builder.with_observability(obs);
+        }
+        self.official_cli_by_provider.insert(
+            provider_id.into(),
+            Arc::new(builder) as Arc<dyn CloudRuntimeBuilder>,
+        );
+        self
+    }
+
+    /// Operator Chat variant for exact official CLI providers. The launch
+    /// service replays the same JSONL stdout into canonical lane messages and
+    /// emits `FR-EVT-AGENT-*` evidence there, so this builder keeps LLM infer
+    /// telemetry but disables the runtime's duplicate agent-activity producer.
+    pub fn with_official_cli_provider_replay_captured(
+        mut self,
+        provider_id: impl Into<String>,
+        spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner>,
+        config_template: crate::model_runtime::cloud::CliBridgeConfig,
+        observability: Option<Arc<crate::model_runtime::cloud::CloudLaneObservability>>,
+    ) -> Self {
+        let mut builder = CliBridgeCloudRuntimeBuilder::new(spawner, config_template)
+            .without_agent_activity_events();
+        if let Some(obs) = observability {
+            builder = builder.with_observability(obs);
+        }
+        self.official_cli_by_provider.insert(
+            provider_id.into(),
+            Arc::new(builder) as Arc<dyn CloudRuntimeBuilder>,
+        );
         self
     }
 
@@ -370,6 +467,11 @@ pub struct CliBridgeCloudRuntimeBuilder {
     /// emits `FR-EVT-LLM-INFER-{START,TOKEN,END}`. `None` => no FR-INFER events
     /// (e.g. a recorder-less wiring); generation is identical either way.
     lane_obs: Option<Arc<crate::model_runtime::cloud::CloudLaneObservability>>,
+    /// Whether JSON-stream CLI output should be converted into runtime-level
+    /// structured `FR-EVT-AGENT-*` evidence. Defaults to true; replay-captured
+    /// callers disable it and emit agent evidence from their canonical capture
+    /// path instead.
+    emit_agent_activity_events: bool,
 }
 
 impl CliBridgeCloudRuntimeBuilder {
@@ -381,6 +483,7 @@ impl CliBridgeCloudRuntimeBuilder {
             spawner,
             config_template,
             lane_obs: None,
+            emit_agent_activity_events: true,
         }
     }
 
@@ -391,6 +494,11 @@ impl CliBridgeCloudRuntimeBuilder {
         lane_obs: Arc<crate::model_runtime::cloud::CloudLaneObservability>,
     ) -> Self {
         self.lane_obs = Some(lane_obs);
+        self
+    }
+
+    pub fn without_agent_activity_events(mut self) -> Self {
+        self.emit_agent_activity_events = false;
         self
     }
 
@@ -450,6 +558,9 @@ impl CloudRuntimeBuilder for CliBridgeCloudRuntimeBuilder {
             self.spawner.clone(),
             session_config,
         );
+        if !self.emit_agent_activity_events {
+            rt = rt.without_agent_activity_events();
+        }
         // Thread the cloud-lane observability so the CLI lane emits
         // FR-EVT-LLM-INFER-{START,TOKEN,END} like the BYOK siblings, when a
         // recorder was wired (production_with_*_recorder).
@@ -1380,7 +1491,11 @@ impl ProductionModelSessionFactory {
                 Some(super::ids::ByokCloudProvider::OpenAi) => self.cloud.openai.as_ref(),
                 None => self.cloud.openai.as_ref().or(self.cloud.anthropic.as_ref()),
             },
-            ProviderKind::OfficialCli => self.cloud.official_cli.as_ref(),
+            ProviderKind::OfficialCli => request
+                .official_cli_provider
+                .as_deref()
+                .and_then(|provider| self.cloud.official_cli_by_provider.get(provider))
+                .or(self.cloud.official_cli.as_ref()),
             _ => None,
         };
         let Some(builder) = builder else {
@@ -1388,6 +1503,13 @@ impl ProductionModelSessionFactory {
                 (ProviderKind::ByokCloud, Some(flavor)) => {
                     format!("requested BYOK provider {flavor:?} is not configured")
                 }
+                (ProviderKind::OfficialCli, _) => match request.official_cli_provider.as_deref() {
+                    Some(cli_provider) => format!(
+                        "requested official CLI provider {cli_provider} is not configured"
+                    ),
+                    None => "no official CLI provider was selected and no fallback CLI bridge is configured"
+                        .to_string(),
+                },
                 _ => "no cloud-lane builder configured for this provider (operator has not \
                          set up BYOK credentials / CLI)"
                     .to_string(),
@@ -1485,6 +1607,7 @@ fn llama_base_capabilities() -> crate::model_runtime::ModelCapabilities {
         supports_subquadratic: false,
         supports_speculative_draft: false,
         supports_eagle3: false,
+        ..Default::default()
     }
 }
 
@@ -1953,6 +2076,7 @@ mod tests {
             openai: Some(Arc::new(UnconfiguredOpenAi)),
             anthropic: None,
             official_cli: None,
+            official_cli_by_provider: HashMap::new(),
         };
         let factory = ProductionModelSessionFactory::new(ledger, cloud, None);
         let req = SpawnRequest::new(
@@ -2101,6 +2225,7 @@ mod tests {
             })),
             anthropic: None,
             official_cli: None,
+            official_cli_by_provider: HashMap::new(),
         };
         let sink = Arc::new(RecordingSwarmSink::new());
         let factory = Arc::new(ProductionModelSessionFactory::new(
@@ -2188,6 +2313,7 @@ mod tests {
                 built: built.clone(),
             })),
             official_cli: None,
+            official_cli_by_provider: HashMap::new(),
         };
         let factory = ProductionModelSessionFactory::new(ledger, cloud, None);
         let req = SpawnRequest::new(
@@ -2207,6 +2333,82 @@ mod tests {
             built.lock().expect("built lock").as_slice(),
             ["anthropic"],
             "explicit provider flavor must select Anthropic, not legacy OpenAI-first fallback"
+        );
+        (live.teardown)().await.expect("teardown");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn official_cli_provider_selection_honors_requested_provider() {
+        struct RecordingCliBuilder {
+            label: &'static str,
+            built: Arc<Mutex<Vec<&'static str>>>,
+        }
+
+        #[async_trait]
+        impl CloudRuntimeBuilder for RecordingCliBuilder {
+            fn provider(&self) -> ProviderKind {
+                ProviderKind::OfficialCli
+            }
+
+            async fn build_loaded(
+                &self,
+                _model: &str,
+                _session_id: Option<String>,
+                _working_dir: Option<&str>,
+            ) -> Result<CloudLiveRuntime, String> {
+                self.built.lock().expect("built lock").push(self.label);
+                let model_id = ModelId::new_v7();
+                Ok(CloudLiveRuntime {
+                    runtime: Arc::new(super::tests::CountingRuntime {
+                        unloaded: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+                    }),
+                    model_id,
+                })
+            }
+        }
+
+        let (ledger, _drain) = ledger_pair();
+        let built = Arc::new(Mutex::new(Vec::new()));
+        let mut official_cli_by_provider: HashMap<String, Arc<dyn CloudRuntimeBuilder>> =
+            HashMap::new();
+        official_cli_by_provider.insert(
+            "claude_code".to_string(),
+            Arc::new(RecordingCliBuilder {
+                label: "claude_code",
+                built: built.clone(),
+            }),
+        );
+        official_cli_by_provider.insert(
+            "codex".to_string(),
+            Arc::new(RecordingCliBuilder {
+                label: "codex",
+                built: built.clone(),
+            }),
+        );
+        let cloud = CloudLaneFactoryConfig {
+            anthropic: None,
+            openai: None,
+            official_cli: None,
+            official_cli_by_provider,
+        };
+        let factory = ProductionModelSessionFactory::new(ledger, cloud, None);
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::Candle,
+            "swarm_prod_test",
+            "parent-1",
+        )
+        .with_cloud_provider(ProviderKind::OfficialCli, "gpt-5-codex")
+        .with_official_cli_provider("codex");
+
+        let live = factory
+            .create(&req)
+            .await
+            .expect("explicit codex official-CLI spawn succeeds");
+        assert_eq!(
+            built.lock().expect("built lock").as_slice(),
+            ["codex"],
+            "explicit CLI provider must select Codex, not a fallback Claude builder"
         );
         (live.teardown)().await.expect("teardown");
     }
@@ -2403,9 +2605,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn from_vault_factory_cloud_spawn_records_start_and_stop() {
         let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
-        vault
-            .put("openai", "sk-test-openai")
-            .expect("store key");
+        vault.put("openai", "sk-test-openai").expect("store key");
         let cloud = CloudLaneFactoryConfig::from_vault(vault, None, Some("openai".to_string()));
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
@@ -2632,7 +2832,10 @@ mod tests {
         absent.executable_path =
             std::path::PathBuf::from("D:/__handshake_no_such_cli__/claude.exe");
         let builder_absent = CliBridgeCloudRuntimeBuilder::new(Arc::new(MockCliSpawner), absent);
-        let err = match builder_absent.build_loaded("claude-sonnet", None, None).await {
+        let err = match builder_absent
+            .build_loaded("claude-sonnet", None, None)
+            .await
+        {
             Ok(_) => panic!("expected not-configured for an absent CLI"),
             Err(e) => e,
         };
@@ -2709,6 +2912,7 @@ mod tests {
                 Arc::new(MockCliSpawner),
                 cli_config_present(),
             ))),
+            official_cli_by_provider: HashMap::new(),
         };
         let sink = Arc::new(RecordingSwarmSink::new());
         let factory = Arc::new(ProductionModelSessionFactory::new(

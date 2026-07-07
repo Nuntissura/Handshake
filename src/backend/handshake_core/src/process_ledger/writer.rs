@@ -62,6 +62,8 @@ pub fn flush_failed_row_count() -> u64 {
 pub enum ProcessLedgerError {
     #[error("PROCESS_LEDGER_INVALID_CONFIG: {0}")]
     InvalidConfig(String),
+    #[error("PROCESS_LEDGER_ENQUEUE_DROPPED: {0}")]
+    EnqueueDropped(String),
     #[error("PROCESS_LEDGER_OVERFLOW_EMIT: {0}")]
     OverflowEmit(String),
     #[error("PROCESS_LEDGER_STORE: {0}")]
@@ -298,6 +300,14 @@ impl ProcessLedgerWriter {
         self.enqueue(LedgerEvent::Stop(event))
     }
 
+    pub fn append_start_lossless(&self, event: ProcessStart) -> Result<(), ProcessLedgerError> {
+        self.enqueue_lossless(LedgerEvent::Start(event))
+    }
+
+    pub fn append_stop_lossless(&self, event: ProcessStop) -> Result<(), ProcessLedgerError> {
+        self.enqueue_lossless(LedgerEvent::Stop(event))
+    }
+
     /// WP-1 MT-013 (F1 graceful shutdown): signal the spawned writer loop to
     /// close. The loop closes its receiving half (no more rows accepted), drains
     /// everything already buffered to the store, then returns so its `JoinHandle`
@@ -332,6 +342,28 @@ impl ProcessLedgerWriter {
                     event,
                 )?;
                 Ok(())
+            }
+        }
+    }
+
+    fn enqueue_lossless(&self, event: LedgerEvent) -> Result<(), ProcessLedgerError> {
+        let event_kind = event.kind();
+        let process_uuid = event.process_uuid();
+        match self.sender.try_send(event) {
+            Ok(()) => Ok(()),
+            Err(TrySendError::Full(event)) | Err(TrySendError::Closed(event)) => {
+                mark_degraded(&self.degraded);
+                emit_overflow(
+                    self.overflow_sink.as_ref(),
+                    &self.overflow_count,
+                    self.capacity,
+                    event,
+                )?;
+                Err(ProcessLedgerError::EnqueueDropped(format!(
+                    "{} row for process_uuid {process_uuid} was not accepted by ledger writer capacity {}",
+                    event_kind.as_str(),
+                    self.capacity
+                )))
             }
         }
     }

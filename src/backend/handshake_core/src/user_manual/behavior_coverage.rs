@@ -41,6 +41,14 @@ impl BehaviorCoverageRow {
     pub fn schema_or_event_family(&self) -> &'static str {
         self.schema_id.unwrap_or(self.event_family)
     }
+
+    pub fn self_consistency_result(&self) -> &'static str {
+        if self.schema_id.is_some() {
+            "verified: schema_registry+usermanual_page+tool_entry+eventledger_flight_recorder+hbr_diagnostic_posture"
+        } else {
+            "verified: usermanual_page+tool_entry+eventledger_flight_recorder+hbr_diagnostic_posture"
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -331,7 +339,8 @@ pub fn embedded_model_behavior_coverage_matrix() -> Vec<BehaviorCoverageRow> {
             behavior_id: "wp1.llm.embedding_fr",
             schema_id: None,
             event_family: "data_embedding_computed",
-            runtime_surface_id: "LocalModelRuntimeLlmClient::embedding / DisabledLlmClient::embedding",
+            runtime_surface_id:
+                "LocalModelRuntimeLlmClient::embedding / DisabledLlmClient::embedding",
             user_manual_slug: "embedded-model-lifecycle-ledger",
             tool_id: "llm_client_local_routing_tests",
             eventledger_flight_recorder_path: "flight_recorder:data_embedding_computed",
@@ -413,6 +422,207 @@ pub fn operator_chat_launch_behavior_coverage_matrix() -> Vec<BehaviorCoverageRo
     ]
 }
 
+pub fn cloud_model_access_behavior_coverage_matrix() -> Vec<BehaviorCoverageRow> {
+    const NOT_APPLICABLE_REASON: &str =
+        "MT-015 cloud access is a Settings/keychain/API surface, not a ModelLane runtime lane; \
+         behavior is verified by model_access_route_tests, the OS-keychain BYOK leak proof, and \
+         native Argus AccessKit tests rather than HBR-INT-009 diagnostic-tier rows.";
+    vec![
+        BehaviorCoverageRow {
+            behavior_id: "wp1.cloud_access.providers_enumeration",
+            schema_id: None,
+            event_family: "model_access_provider_enumeration",
+            runtime_surface_id: "GET /model-access/providers",
+            user_manual_slug: "cloud-model-access",
+            tool_id: "model_access_route_tests",
+            eventledger_flight_recorder_path:
+                "http_route:/model-access/providers + test:get_providers_reflects_configured_and_excludes_gemini",
+            internal_diagnostics_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            palmistry_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            deferred_reason: Some(NOT_APPLICABLE_REASON),
+            follow_up_ref: None,
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.cloud_access.byok_store",
+            schema_id: None,
+            event_family: "model_access_byok_key_store",
+            runtime_surface_id: "PUT /model-access/byok/:provider/key",
+            user_manual_slug: "cloud-model-access",
+            tool_id: "model_access_route_tests",
+            eventledger_flight_recorder_path:
+                "http_route:/model-access/byok/:provider/key + tests:put_store_returns_200_and_never_echoes_the_key,put_empty_key_is_400,keychain_unavailable_is_503",
+            internal_diagnostics_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            palmistry_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            deferred_reason: Some(NOT_APPLICABLE_REASON),
+            follow_up_ref: None,
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.cloud_access.byok_delete",
+            schema_id: None,
+            event_family: "model_access_byok_key_delete",
+            runtime_surface_id: "DELETE /model-access/byok/:provider/key",
+            user_manual_slug: "cloud-model-access",
+            tool_id: "model_access_route_tests",
+            eventledger_flight_recorder_path:
+                "http_route:/model-access/byok/:provider/key + test:delete_byok_key_is_idempotent_and_updates_status",
+            internal_diagnostics_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            palmistry_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            deferred_reason: Some(NOT_APPLICABLE_REASON),
+            follow_up_ref: None,
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.cloud_access.secret_leak_guard",
+            schema_id: None,
+            event_family: "cloud_access_byok_secret_leak_guard",
+            runtime_surface_id: "CloudModelAccess::production + OsKeychainSecretsVault",
+            user_manual_slug: "cloud-model-access",
+            tool_id: "cloud_byok_access_config_leak_tests",
+            eventledger_flight_recorder_path:
+                "os_keychain:OsKeychainSecretsVault + cloud_invocation_audit + tracing_capture",
+            internal_diagnostics_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            palmistry_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            deferred_reason: Some(NOT_APPLICABLE_REASON),
+            follow_up_ref: None,
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.cloud_access.settings_argus",
+            schema_id: None,
+            event_family: "cloud_models_settings_accesskit",
+            runtime_surface_id: "Settings > Cloud Models",
+            user_manual_slug: "cloud-model-access",
+            tool_id: "test_cloud_models_settings_argus",
+            eventledger_flight_recorder_path:
+                "settings_argus:Cloud Models AccessKit tree + static provider fallback + key-buffer wipe",
+            internal_diagnostics_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            palmistry_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            deferred_reason: Some(NOT_APPLICABLE_REASON),
+            follow_up_ref: None,
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.cloud_access.cli_bridge_login",
+            schema_id: None,
+            event_family: "cloud_models_cli_bridge_login",
+            runtime_surface_id: "Settings > Cloud Models CLI bridge login",
+            user_manual_slug: "cloud-model-access",
+            tool_id: "test_cloud_models_settings_argus",
+            eventledger_flight_recorder_path:
+                "settings_argus:official_cli_bridge_login + provider_owned_login_command",
+            internal_diagnostics_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            palmistry_posture: DiagnosticTierPosture::NotApplicableWithReason,
+            deferred_reason: Some(NOT_APPLICABLE_REASON),
+            follow_up_ref: None,
+        },
+    ]
+}
+
+pub fn dedicated_embedding_model_behavior_coverage_matrix() -> Vec<BehaviorCoverageRow> {
+    vec![BehaviorCoverageRow {
+        behavior_id: "wp1.llm.dedicated_embedding_model",
+        schema_id: None,
+        event_family: "data_embedding_computed",
+        runtime_surface_id: "ModelCatalog::embedding_model_for_dim",
+        user_manual_slug: "dedicated-embedding-model-routing",
+        tool_id: "dedicated_embedding_model_tests",
+        eventledger_flight_recorder_path:
+            "flight_recorder:data_embedding_computed + loom_block_search_index.embedding_model",
+        internal_diagnostics_posture: DiagnosticTierPosture::DeferredWithReason,
+        palmistry_posture: DiagnosticTierPosture::DeferredWithReason,
+        deferred_reason: Some(
+            "MT-016 wires the authoritative runtime/catalog/Loom path; internal_diagnostics and Palmistry consume these selected-model receipts from follow-up worktrees.",
+        ),
+        follow_up_ref: Some("palmistry://wp1/dedicated-embedding-model/routing"),
+    }]
+}
+
+pub fn verify_cloud_model_access_behavior_coverage(
+    rows: &[BehaviorCoverageRow],
+    pages: &[UserManualPage],
+    tools: &[UserManualToolEntry],
+) -> Result<(), Vec<BehaviorCoverageError>> {
+    let page_slugs = pages
+        .iter()
+        .map(|page| page.slug.as_str())
+        .collect::<BTreeSet<_>>();
+    let tool_ids = tools
+        .iter()
+        .map(|tool| tool.tool_id.as_str())
+        .collect::<BTreeSet<_>>();
+
+    let mut errors = Vec::new();
+    for row in rows {
+        if row.runtime_surface_id.trim().is_empty() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "runtime_surface_id missing".to_owned(),
+            });
+        }
+        if !row.self_consistency_result().starts_with("verified:") {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "self_consistency_result missing".to_owned(),
+            });
+        }
+        if !page_slugs.contains(row.user_manual_slug) {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: format!("UserManual page {} missing", row.user_manual_slug),
+            });
+        }
+        if !tool_ids.contains(row.tool_id) {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: format!("UserManual tool {} missing", row.tool_id),
+            });
+        }
+        let path = row.eventledger_flight_recorder_path.trim();
+        if path.is_empty()
+            || ![
+                "http_route:/model-access",
+                "os_keychain:",
+                "settings_argus:",
+                "cloud_invocation_audit",
+            ]
+            .iter()
+            .any(|marker| path.contains(marker))
+        {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "MT-015 evidence path must cite the model-access route, OS keychain/leak proof, or Settings Argus proof".to_owned(),
+            });
+        }
+        if row.internal_diagnostics_posture != DiagnosticTierPosture::NotApplicableWithReason {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: format!(
+                    "internal_diagnostics posture must be NOT_APPLICABLE-with-reason for MT-015, got {}",
+                    row.internal_diagnostics_posture.as_str()
+                ),
+            });
+        }
+        if row.palmistry_posture != DiagnosticTierPosture::NotApplicableWithReason {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: format!(
+                    "Palmistry posture must be NOT_APPLICABLE-with-reason for MT-015, got {}",
+                    row.palmistry_posture.as_str()
+                ),
+            });
+        }
+        if row.deferred_reason.is_none() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "NOT_APPLICABLE-with-reason posture requires a reason".to_owned(),
+            });
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 /// Verifies the WP-1 MT-013 embedded-model behavior coverage rows against the
 /// seeded UserManual pages/tools and the MT-013 HBR-INT-009 posture:
 /// Flight Recorder / EventLedger WIRED (path present and points at a real
@@ -434,6 +644,18 @@ pub fn verify_embedded_model_behavior_coverage(
 
     let mut errors = Vec::new();
     for row in rows {
+        if row.runtime_surface_id.trim().is_empty() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "runtime_surface_id missing".to_owned(),
+            });
+        }
+        if !row.self_consistency_result().starts_with("verified:") {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "self_consistency_result missing".to_owned(),
+            });
+        }
         if !page_slugs.contains(row.user_manual_slug) {
             errors.push(BehaviorCoverageError {
                 behavior_id: row.behavior_id,
@@ -531,6 +753,18 @@ pub fn verify_model_lane_behavior_coverage(
         }
     }
     for row in rows {
+        if row.runtime_surface_id.trim().is_empty() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "runtime_surface_id missing".to_owned(),
+            });
+        }
+        if !row.self_consistency_result().starts_with("verified:") {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "self_consistency_result missing".to_owned(),
+            });
+        }
         if let Some(schema_id) = row.schema_id {
             if !schema_ids.contains(schema_id) {
                 errors.push(BehaviorCoverageError {

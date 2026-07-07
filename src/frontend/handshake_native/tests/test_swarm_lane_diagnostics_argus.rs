@@ -231,6 +231,26 @@ fn swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch() {
     assert!(err.contains("state cannot be missing"), "got {err}");
 
     let mut projection = fixture_projection();
+    projection.diagnostic_tiers[1].state = "deferred_with_reason".into();
+    projection.diagnostic_tiers[1].reason =
+        "WP-KERNEL-012 internal diagnostics integration is not shipped in this worktree".into();
+    projection.diagnostic_tiers[1].follow_up_ref =
+        Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011".into());
+    projection.diagnostic_tiers[2].state = "not_applicable_with_reason".into();
+    projection.diagnostic_tiers[2].reason =
+        "Palmistry is not applicable to this settings-only behavior".into();
+    projection.diagnostic_tiers[2].follow_up_ref = None;
+    validate_projection_for_native_surface(&projection)
+        .expect("HBR-INT-009 accepts explicit deferred and not-applicable reason states");
+
+    let mut projection = fixture_projection();
+    projection.diagnostic_tiers[2].state = "not_applicable_with_reason".into();
+    projection.diagnostic_tiers[2].reason.clear();
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("not-applicable HBR tier requires a visible reason");
+    assert!(err.contains("reason missing"), "got {err}");
+
+    let mut projection = fixture_projection();
     projection.diagnostic_tiers[2].follow_up_ref = None;
     let err = validate_projection_for_native_surface(&projection)
         .expect_err("deferred HBR tier requires a follow-up ref");
@@ -550,18 +570,21 @@ fn fixture_projection() -> SwarmLaneDiagnosticsProjection {
             SwarmLaneDiagnosticsTier {
                 tier: "flight_recorder".into(),
                 state: "wired".into(),
+                reason: "MT-008 diagnostics projection emits EventLedger evidence".into(),
                 evidence_ref: "eventledger://kernel/model-lane/diagnostics".into(),
                 follow_up_ref: None,
             },
             SwarmLaneDiagnosticsTier {
                 tier: "internal_diagnostics".into(),
                 state: "wired".into(),
+                reason: "MT-008 backend projection validates internal diagnostics rows".into(),
                 evidence_ref: "hbr-int-009://dexterity/diagnostics".into(),
                 follow_up_ref: None,
             },
             SwarmLaneDiagnosticsTier {
                 tier: "palmistry".into(),
                 state: "deferred_with_reason".into(),
+                reason: "Palmistry watcher integration is tracked by a follow-up worktree".into(),
                 evidence_ref: "palmistry://external-worktree/in-progress".into(),
                 follow_up_ref: Some("palmistry://follow-up".into()),
             },
@@ -699,18 +722,21 @@ fn mixed_fixture_projection() -> SwarmLaneDiagnosticsProjection {
             SwarmLaneDiagnosticsTier {
                 tier: "flight_recorder".into(),
                 state: "wired".into(),
+                reason: "MT-009 mixed runtime emits EventLedger evidence".into(),
                 evidence_ref: "eventledger://kernel/model-lane/mt009".into(),
                 follow_up_ref: None,
             },
             SwarmLaneDiagnosticsTier {
                 tier: "internal_diagnostics".into(),
                 state: "wired".into(),
+                reason: "MT-009 mixed runtime exposes internal diagnostic rows".into(),
                 evidence_ref: "hbr-int-009://dexterity/mixed-runtime".into(),
                 follow_up_ref: None,
             },
             SwarmLaneDiagnosticsTier {
                 tier: "palmistry".into(),
                 state: "deferred_with_reason".into(),
+                reason: "Palmistry external watcher is deferred to the watcher worktree".into(),
                 evidence_ref: "palmistry://wp1/model-lane/mt009/external-worktree".into(),
                 follow_up_ref: Some("palmistry://wp1/model-lane/mt009".into()),
             },

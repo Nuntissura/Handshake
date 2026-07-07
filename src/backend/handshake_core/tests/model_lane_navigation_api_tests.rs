@@ -9,12 +9,14 @@ mod user_manual_support;
 
 use handshake_core::api;
 use handshake_core::swarm_orchestration::model_lane::{
-    LaunchAuthority, ModelLaneAuthority, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
-    ModelLaneKind, ModelLaneLeaseScope, ModelLaneLeaseState, ModelLaneLocusBinding,
-    ModelLaneMessageKind, ModelLaneMtRuntimeStatus, ModelLaneNavigationProjection,
-    ModelLaneProviderKind, ModelLaneRecoveryEventKind, ModelLaneRecoveryState,
-    ModelLaneRecoveryStatus, ModelLaneRoutingMetadata, ModelLaneStatus, ModelLaneStore,
-    ModelLaneTarget, NewModelLane, NewModelLaneContextBundleArtifactBinding,
+    model_lane_context_bundle_id_for_handoff, LaunchAuthority, ModelLaneAuthority,
+    ModelLaneCrdtHandoffMetadata, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
+    ModelLaneHandoffSelectionState, ModelLaneHandoffSourceKind, ModelLaneKind, ModelLaneLeaseScope,
+    ModelLaneLeaseState, ModelLaneLocusBinding, ModelLaneLoomHandoffRef, ModelLaneMessageKind,
+    ModelLaneMtRuntimeStatus, ModelLaneNavigationProjection, ModelLaneProviderKind,
+    ModelLaneRecoveryEventKind, ModelLaneRecoveryState, ModelLaneRecoveryStatus,
+    ModelLaneRoutingMetadata, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
+    NewModelLaneContextBundleArtifactBinding, NewModelLaneContextBundleHandoff,
     NewModelLaneDiagnosticTierStatus, NewModelLaneLease, NewModelLaneMessage,
     NewModelLaneMtRuntimeStatus, NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent,
     NewModelLaneRun, RuntimeBinding,
@@ -34,6 +36,7 @@ const OWNER: &str = "KERNEL_BUILDER-MT010";
 const RUN_ID: &str = "run-mt010-navigation";
 const LANE_ID: &str = "lane-mt010-local";
 const MESSAGE_ID: &str = "msg-mt010-local";
+const LOOM_BLOCK_ID: &str = "loom-block-mt010-navigation-handoff";
 
 struct NavigationFixture {
     base: String,
@@ -262,6 +265,7 @@ async fn model_lane_navigation_routes_return_run_lane_message_artifact_trace_and
             format!("loom://mt010/{RUN_ID}/{MESSAGE_ID}"),
             "loom_ref",
         ),
+        ("loom_block_id", LOOM_BLOCK_ID.to_string(), "loom_block_id"),
         (
             "fems_ref",
             format!("fems://mt010/{RUN_ID}/{MESSAGE_ID}"),
@@ -494,6 +498,10 @@ async fn seed_navigation_run(pool: &PgPool, store: &ModelLaneStore) {
         .record_context_bundle_artifact_binding(sample_artifact_binding_for_message(&message))
         .await
         .expect("record navigation artifact binding");
+    store
+        .record_context_bundle_handoff(sample_context_bundle_handoff_for_message(&message))
+        .await
+        .expect("record navigation context bundle handoff");
     store
         .record_recovery_event(sample_recovery_event(
             "recovery-event-mt010-001",
@@ -982,6 +990,103 @@ fn sample_artifact_binding_for_message(
             "internal_diagnostics": "hbr-int-009",
             "palmistry": "palmistry://wp1/model-lane/mt010"
         }),
+    }
+}
+
+fn sample_context_bundle_handoff_for_message(
+    message: &NewModelLaneMessage,
+) -> NewModelLaneContextBundleHandoff {
+    let mut handoff = NewModelLaneContextBundleHandoff {
+        handoff_id: "handoff-mt010-navigation-loom".into(),
+        context_bundle_id: "CTX-placeholder".into(),
+        run_id: message.run_id.clone(),
+        trace_id: message.trace_id.clone(),
+        handoff_span_id: "span-handoff-mt010-navigation-loom".into(),
+        parent_span_id: Some(message.message_span_id.clone()),
+        linked_span_contexts: vec![message.message_span_id.clone()],
+        downstream_lane_id: message.from_lane_id.clone(),
+        source_lane_id: message.from_lane_id.clone(),
+        source_message_id: message.message_id.clone(),
+        artifact_ref: message.payload_ref.clone(),
+        artifact_sha256: message.payload_sha256.clone(),
+        content_hash: message.payload_sha256.clone(),
+        source_kind: ModelLaneHandoffSourceKind::Proposal,
+        authority_state: ModelLaneAuthority::PromotionCandidate,
+        selection_state: ModelLaneHandoffSelectionState::Selected,
+        reason_code: "reason://mt010/navigation/loom-block".into(),
+        decision_ref: Some("context-decision://mt010/navigation/select-loom-block".into()),
+        reviewer_ref: Some("validator://mt010/navigation/loom-block".into()),
+        replay_hint: "replay://mt010/navigation/loom-block".into(),
+        crdt_payload: Some(sample_crdt_handoff_metadata_for_message(message)),
+        loom_refs: vec![ModelLaneLoomHandoffRef {
+            workspace_id: "workspace-mt010-navigation".into(),
+            block_id: LOOM_BLOCK_ID.into(),
+            source_block_id: Some("loom-block-mt010-source".into()),
+            target_block_id: Some("loom-block-mt010-target".into()),
+            artifact_ref: Some(message.payload_ref.clone()),
+            content_hash: sample_sha256(),
+            version: "1".into(),
+            event_ledger_evidence_ref: format!("eventledger://mt010/loom/{LOOM_BLOCK_ID}"),
+            flight_recorder_evidence_ref: format!("flight-recorder://mt010/loom/{LOOM_BLOCK_ID}"),
+        }],
+        memory_pack_refs: Vec::new(),
+        event_ledger_stream_id: message.event_ledger_stream_id.clone(),
+        work_packet_id: WP_ID.into(),
+        micro_task_id: MT_ID.into(),
+        task_board_id: TASK_BOARD_ID.into(),
+        owner_session: OWNER.into(),
+        idempotency_key: "idem-handoff-mt010-navigation-loom".into(),
+        replay_order_key: "00000050/handoff-mt010-navigation-loom".into(),
+        created_at_utc: "2026-07-01T00:00:03Z".into(),
+        diagnostic_payload: json!({
+            "flight_recorder": "ContextBundle handoff EventLedger receipt required",
+            "internal_diagnostics": "hbr-int-009",
+            "palmistry": "palmistry://wp1/model-lane/mt010"
+        }),
+    };
+    handoff.context_bundle_id =
+        model_lane_context_bundle_id_for_handoff(&handoff).expect("derive ContextBundle id");
+    handoff
+}
+
+fn sample_crdt_handoff_metadata_for_message(
+    message: &NewModelLaneMessage,
+) -> ModelLaneCrdtHandoffMetadata {
+    ModelLaneCrdtHandoffMetadata {
+        schema_id: "hsk.model_lane_crdt_payload@1".into(),
+        document_id: "doc-mt010-navigation".into(),
+        workspace_id: "workspace-mt010-navigation".into(),
+        actor_id: "actor-lane-mt010-local".into(),
+        actor_kind: "local_model".into(),
+        lane_id: message.from_lane_id.clone(),
+        crdt_site_id: "site-lane-mt010-local".into(),
+        update_seq: 1,
+        update_bytes_ref: message
+            .crdt_update_ref
+            .clone()
+            .expect("sample message has CRDT update ref"),
+        update_sha256: sample_sha256(),
+        state_vector: message
+            .crdt_state_vector
+            .clone()
+            .expect("sample message has CRDT state vector"),
+        base_snapshot_ref: message
+            .crdt_base_snapshot_ref
+            .clone()
+            .expect("sample message has CRDT base snapshot"),
+        materialized_projection_hash: sample_sha256(),
+        replay_metadata: json!({
+            "format": "yjs_update_v1",
+            "yjs_compatible": true,
+            "flight_recorder": "eventledger://mt010/crdt/msg-mt010-local"
+        }),
+        promotion_gate_ref: message
+            .promotion_gate_ref
+            .clone()
+            .expect("sample message has promotion gate ref"),
+        promotion_receipt_ref: message.promotion_receipt_ref.clone(),
+        validation_runner_ref: "validation-runner://mt010/navigation/crdt".into(),
+        authority_effect: "advisory_only".into(),
     }
 }
 

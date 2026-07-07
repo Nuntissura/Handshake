@@ -25,10 +25,11 @@ use std::sync::Arc;
 use chrono::Utc;
 
 use crate::flight_recorder::FlightRecorder;
+use crate::loom_search::LOOM_SEARCH_EMBEDDING_DIM;
 use crate::model_runtime::{
-    candle::CandleRuntime, llama_cpp::LlamaCppRuntime, BaseModelTag, KvCachePolicy,
-    LoadSpec, ModelCapabilities, ModelCatalog, ModelRegistration, ModelRegistry, ModelRuntime,
-    OperatorId, ProviderKind as RuntimeProviderKind, RuntimeBinding, SamplingParams,
+    candle::CandleRuntime, llama_cpp::LlamaCppRuntime, BaseModelTag, KvCachePolicy, LoadSpec,
+    ModelCapabilities, ModelCatalog, ModelRegistration, ModelRegistry, ModelRuntime, OperatorId,
+    ProviderKind as RuntimeProviderKind, RuntimeBinding, SamplingParams,
 };
 use crate::process_ledger::LedgerBatcher;
 
@@ -210,6 +211,59 @@ pub async fn build_default_local_client(
         provider: RuntimeProviderKind::Local,
     };
 
+    let mut additional_registrations = Vec::new();
+    if let Some(embedding_model) = resolved.local_embedding_model.as_ref() {
+        let embedding_dim = embedding_model
+            .embedding_dimension
+            .unwrap_or(LOOM_SEARCH_EMBEDDING_DIM);
+        let embedding_capabilities = dedicated_embedding_capabilities(embedding_dim);
+        let embedding_load_spec = LoadSpec {
+            artifact_path: embedding_model.artifact_path.clone(),
+            sha256_expected: hex::encode(embedding_model.sha256),
+            runtime_kind: embedding_model.runtime_binding.runtime_kind(),
+            sampling_defaults: SamplingParams::default(),
+            kv_cache_policy: KvCachePolicy::default(),
+            declared_capabilities: embedding_capabilities.clone(),
+            provider: RuntimeProviderKind::Local,
+            engine_origin: Some(embedding_model.runtime_binding.adapter_id().to_string()),
+            external_engine_import: None,
+        };
+        let embedding_load_result = match embedding_model.runtime_binding {
+            RuntimeBinding::LlamaCpp => llama_runtime.load(embedding_load_spec).await,
+            RuntimeBinding::Candle => candle_runtime.load(embedding_load_spec).await,
+        };
+        let embedding_model_id = match embedding_load_result {
+            Ok(model_id) => model_id,
+            Err(err) => {
+                let reason = format!(
+                    "HSK-LOCAL-DISABLED: embedded embedding ModelRuntime load failed: {err}"
+                );
+                tracing::warn!(
+                    target: "handshake_core::llm",
+                    error = %reason,
+                    binding = %embedding_model.runtime_binding.adapter_id(),
+                    "LLM disabled (dedicated embedding model load failed; no daemon fallback)"
+                );
+                return Arc::new(DisabledLlmClient::new_recorded(
+                    resolved.model_id.clone(),
+                    reason,
+                    flight_recorder,
+                ));
+            }
+        };
+        additional_registrations.push(ModelRegistration {
+            model_id: embedding_model_id,
+            artifact_path: embedding_model.artifact_path.clone(),
+            sha256: embedding_model.sha256,
+            runtime_binding: embedding_model.runtime_binding,
+            declared_capabilities: embedding_capabilities,
+            base_model_tag: BaseModelTag::new(embedding_model.display_name.clone()),
+            registered_at_utc: Utc::now(),
+            registered_by: OperatorId::new("handshake-embedded-embedding"),
+            provider: RuntimeProviderKind::Local,
+        });
+    }
+
     // Fail-closed fallback: an embedded local model has no external fallback
     // provider, so a non-UUIDv7 model_id (which should never reach here for the
     // default lane) degrades to a typed DisabledLlmClient error rather than a
@@ -221,8 +275,9 @@ pub async fn build_default_local_client(
         Arc::clone(&flight_recorder),
     ));
 
-    match assemble_local_runtime_client(
+    match assemble_local_runtime_client_with_registrations(
         registration,
+        additional_registrations,
         Arc::new(llama_runtime),
         Arc::new(candle_runtime),
         fallback,
@@ -265,12 +320,48 @@ pub fn assemble_local_runtime_client(
     max_context_tokens: u32,
     ledger: Option<LedgerBatcher>,
 ) -> Result<LocalModelRuntimeLlmClient, LlmError> {
-    let model_id = registration.model_id;
+    assemble_local_runtime_client_with_registrations(
+        registration,
+        Vec::new(),
+        llama_runtime,
+        candle_runtime,
+        fallback,
+        flight_recorder,
+        max_context_tokens,
+        ledger,
+    )
+}
+
+/// Assembles a local runtime client with one primary chat/completion model plus
+/// optional additional local registrations such as a dedicated embedding model.
+/// The primary registration remains the client's `profile().model_id`; all
+/// registrations share the same registry/catalog/router and are marked READY.
+pub fn assemble_local_runtime_client_with_registrations(
+    registration: ModelRegistration,
+    additional_registrations: Vec<ModelRegistration>,
+    llama_runtime: Arc<dyn ModelRuntime>,
+    candle_runtime: Arc<dyn ModelRuntime>,
+    fallback: Arc<dyn LlmClient>,
+    flight_recorder: Arc<dyn FlightRecorder>,
+    max_context_tokens: u32,
+    ledger: Option<LedgerBatcher>,
+) -> Result<LocalModelRuntimeLlmClient, LlmError> {
     // WP-1 MT-013: capture the ProcessOwnershipLedger START-row inputs BEFORE
-    // `registration` is moved into the registry.
-    let runtime_binding = registration.runtime_binding;
-    let display_name = registration.base_model_tag.as_str().to_string();
-    let artifact_sha256 = hex::encode(registration.sha256);
+    // the registrations are moved into the registry. This covers the primary
+    // chat/completion model and any optional dedicated embedding model loaded
+    // in the same default local-runtime boot path.
+    let ledger_registrations = std::iter::once(&registration)
+        .chain(additional_registrations.iter())
+        .map(|registration| {
+            (
+                registration.runtime_binding,
+                registration.model_id,
+                registration.base_model_tag.as_str().to_string(),
+                hex::encode(registration.sha256),
+            )
+        })
+        .collect::<Vec<_>>();
+    let model_id = registration.model_id;
 
     let mut registry = ModelRegistry::default();
     registry.register(registration).map_err(|err| {
@@ -283,6 +374,15 @@ pub fn assemble_local_runtime_client(
     registry.mark_loaded(model_id).map_err(|err| {
         LlmError::ProviderError(format!("local model load-marking failed: {err}"))
     })?;
+    for additional in additional_registrations {
+        let additional_model_id = additional.model_id;
+        registry.register(additional).map_err(|err| {
+            LlmError::ProviderError(format!("local model registration failed: {err}"))
+        })?;
+        registry.mark_loaded(additional_model_id).map_err(|err| {
+            LlmError::ProviderError(format!("local model load-marking failed: {err}"))
+        })?;
+    }
 
     // MT-014: share ONE `Arc<ModelRegistry>` between the router (dispatch) and
     // the catalog (enumeration/label). This makes the single boot registry
@@ -291,38 +391,41 @@ pub fn assemble_local_runtime_client(
     let catalog = ModelCatalog::from_registry(Arc::clone(&registry));
 
     let router = LocalRouter::new(registry, llama_runtime, candle_runtime);
-    let profile =
-        ModelProfile::new(model_id.to_string(), max_context_tokens).with_streaming(true);
+    let profile = ModelProfile::new(model_id.to_string(), max_context_tokens).with_streaming(true);
 
-    let mut client =
-        LocalModelRuntimeLlmClient::new(router, fallback, flight_recorder, profile)
-            .with_catalog(catalog);
+    let mut client = LocalModelRuntimeLlmClient::new(router, fallback, flight_recorder, profile)
+        .with_catalog(catalog);
 
-    // WP-1 MT-013: emit the ProcessOwnershipLedger START row for the just-loaded
-    // in-process embedded model (master-spec §3.6.2 clause 2 / §4.6.1) and attach
-    // the ownership handle so the client owns the STOP-on-shutdown obligation.
-    // The row is pid-less (`os_pid = None`) because the in-process library load
-    // spawns no OS process. A ledger-emit failure is logged but does NOT fail
-    // client assembly — the model is already loaded and usable; the ownership
-    // record is auxiliary attribution, not a load prerequisite.
+    // WP-1 MT-013: emit ProcessOwnershipLedger START rows for the just-loaded
+    // in-process embedded models (master-spec §3.6.2 clause 2 / §4.6.1) and
+    // attach ownership handles so the client owns the STOP-on-shutdown
+    // obligation. Rows are pid-less (`os_pid = None`) because the in-process
+    // library loads spawn no OS process. If a ledger handle is supplied, START
+    // emit failure is fail-closed: an active unledgered default embedded model
+    // violates MT-013's HARD attribution/reclaim requirement.
     if let Some(ledger) = ledger {
-        match EmbeddedModelProcess::record_load(
-            ledger,
-            runtime_binding,
-            model_id,
-            &display_name,
-            Some(artifact_sha256),
-        ) {
-            Ok(embedded_process) => {
-                client = client.with_embedded_process(embedded_process);
-            }
-            Err(err) => {
-                tracing::warn!(
-                    target: "handshake_core::llm",
-                    error = %err,
-                    model_id = %model_id,
-                    "embedded model ProcessOwnershipLedger START emit failed; proceeding without ownership handle"
-                );
+        for (runtime_binding, model_id, display_name, artifact_sha256) in ledger_registrations {
+            match EmbeddedModelProcess::record_load(
+                ledger.clone(),
+                runtime_binding,
+                model_id,
+                &display_name,
+                Some(artifact_sha256),
+            ) {
+                Ok(embedded_process) => {
+                    client = client.with_embedded_process(embedded_process);
+                }
+                Err(err) => {
+                    tracing::error!(
+                        target: "handshake_core::llm",
+                        error = %err,
+                        model_id = %model_id,
+                        "embedded model ProcessOwnershipLedger START emit failed; failing closed"
+                    );
+                    return Err(LlmError::ProviderError(format!(
+                        "HSK-LOCAL-DISABLED: embedded ProcessOwnershipLedger START emit failed: {err}"
+                    )));
+                }
             }
         }
     }
@@ -359,6 +462,14 @@ fn default_local_capabilities(binding: RuntimeBinding) -> ModelCapabilities {
         supports_lora: true,
         supports_kv_prefix_cache: true,
         supports_activation_steering: binding == RuntimeBinding::Candle,
+        ..Default::default()
+    }
+}
+
+fn dedicated_embedding_capabilities(embedding_dimension: usize) -> ModelCapabilities {
+    ModelCapabilities {
+        supports_embedding: true,
+        embedding_dimension: Some(embedding_dimension),
         ..Default::default()
     }
 }

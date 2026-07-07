@@ -8,6 +8,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use async_trait::async_trait;
 
@@ -25,11 +26,20 @@ use handshake_core::swarm_orchestration::{
 };
 
 #[derive(Default)]
-struct NoopRecorder;
+struct RecordingRecorder {
+    events: Mutex<Vec<FlightRecorderEvent>>,
+}
+
+impl RecordingRecorder {
+    fn events(&self) -> Vec<FlightRecorderEvent> {
+        self.events.lock().expect("recorder lock").clone()
+    }
+}
 
 #[async_trait]
-impl FlightRecorder for NoopRecorder {
-    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+impl FlightRecorder for RecordingRecorder {
+    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        self.events.lock().expect("recorder lock").push(event);
         Ok(())
     }
     async fn enforce_retention(&self) -> Result<u64, RecorderError> {
@@ -39,7 +49,7 @@ impl FlightRecorder for NoopRecorder {
         &self,
         _filter: EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
-        Ok(Vec::new())
+        Ok(self.events())
     }
 }
 
@@ -62,7 +72,9 @@ async fn start_server(state: OperatorChatState) -> (String, tokio::task::JoinHan
     let addr = listener.local_addr().expect("local addr");
     let app = routes(state);
     let handle = tokio::spawn(async move {
-        axum::serve(listener, app).await.expect("operator-chat server");
+        axum::serve(listener, app)
+            .await
+            .expect("operator-chat server");
     });
     (format!("http://{addr}"), handle)
 }
@@ -71,6 +83,7 @@ fn launch_body() -> serde_json::Value {
     serde_json::json!({
         "lane_kind": "cli",
         "model_id": "claude-sonnet-4",
+        "cli_provider": "claude_code",
         "working_dir": "D:/work/repo",
         "prompt": "audit the repo",
         "owner_session": "operator-1",
@@ -102,13 +115,27 @@ async fn operator_chat_models_route_lists_local_and_cloud_with_degrade() {
         .find(|r| r["provider"] == "anthropic")
         .expect("anthropic row");
     assert_eq!(anthropic["status"], "configured");
+    assert_eq!(anthropic["model_id"], "claude-sonnet-4");
     let openai = byok
         .iter()
         .find(|r| r["provider"] == "openai")
         .expect("openai row");
+    assert_eq!(openai["model_id"], "gpt-4o");
     assert_eq!(
         openai["status"], "unavailable",
         "an unconfigured cloud provider degrades to unavailable, never mocked"
+    );
+    let cli = body["cloud_cli_bridge"]
+        .as_array()
+        .expect("cloud_cli_bridge array");
+    let codex = cli
+        .iter()
+        .find(|r| r["provider"] == "codex")
+        .expect("codex CLI row");
+    assert_eq!(codex["model_id"], "gpt-5-codex");
+    assert_eq!(
+        codex["status"], "unavailable",
+        "CLI picker rows must reflect launch-service PATH wiring; absent wiring degrades to unavailable"
     );
 
     server.abort();
@@ -150,7 +177,7 @@ async fn operator_chat_launch_route_fails_closed_without_model_lane_store() {
     let service = Arc::new(OperatorChatLaunchService::new(
         Arc::new(coordinator),
         ModelCatalog::empty(),
-        Arc::new(NoopRecorder),
+        Arc::new(RecordingRecorder::default()),
     ));
     let state = OperatorChatState::production().with_launch_service(service);
     let (base, server) = start_server(state).await;
@@ -178,13 +205,20 @@ async fn operator_chat_launch_route_fails_closed_without_model_lane_store() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn operator_chat_selection_route_records_ok() {
-    let state = OperatorChatState::production().with_catalog(ModelCatalog::empty());
+    let recorder = Arc::new(RecordingRecorder::default());
+    let state = OperatorChatState::production()
+        .with_catalog(ModelCatalog::empty())
+        .with_recorder(recorder.clone());
     let (base, server) = start_server(state).await;
 
     let resp = reqwest::Client::new()
         .post(format!("{base}/operator-chat/selection"))
         .json(&serde_json::json!({
             "selected_model_id": "claude-sonnet-4",
+            "lane_kind": "cli",
+            "model_id": "claude-sonnet-4",
+            "cli_provider": "claude_code",
+            "working_dir": "D:/work/repo",
             "actor": "operator",
             "reason": "operator picked the CLI lane"
         }))
@@ -194,5 +228,13 @@ async fn operator_chat_selection_route_records_ok() {
     assert_eq!(resp.status().as_u16(), 200);
     let body: serde_json::Value = resp.json().await.expect("selection json");
     assert_eq!(body["status"], "recorded");
+    let events = recorder.events();
+    assert_eq!(events.len(), 1, "selection route emits one audit event");
+    let payload = &events[0].payload;
+    assert_eq!(payload["fr_event"], "FR-EVT-MODEL-SELECTION-RECORDED");
+    assert_eq!(payload["selection_context"]["lane_kind"], "cli");
+    assert_eq!(payload["selection_context"]["model_id"], "claude-sonnet-4");
+    assert_eq!(payload["selection_context"]["cli_provider"], "claude_code");
+    assert_eq!(payload["selection_context"]["working_dir"], "D:/work/repo");
     server.abort();
 }

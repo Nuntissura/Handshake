@@ -214,6 +214,24 @@ impl ModelRegistry {
             )));
         }
 
+        match (
+            capabilities.supports_embedding,
+            capabilities.embedding_dimension,
+        ) {
+            (true, Some(dim)) if dim > 0 => {}
+            (true, _) => {
+                return Err(ModelRuntimeError::LoadError(
+                    "supports_embedding=true requires a non-zero embedding_dimension".to_string(),
+                ));
+            }
+            (false, Some(_)) => {
+                return Err(ModelRuntimeError::LoadError(
+                    "embedding_dimension requires supports_embedding=true".to_string(),
+                ));
+            }
+            (false, None) => {}
+        }
+
         Ok(())
     }
 }

@@ -397,6 +397,13 @@ impl CloudModelAccess {
         VaultBackedAccessRegistry::new(self.vault.clone())
     }
 
+    /// Crate-internal access to the same vault for runtime factory wiring. This
+    /// does not expose key material; cloud builders still fetch provider secrets
+    /// only at launch time and return fail-closed when absent.
+    pub(crate) fn vault(&self) -> Arc<dyn SecretsVault> {
+        self.vault.clone()
+    }
+
     /// Store a BYOK API key for `provider` ONLY in the OS-keychain vault.
     ///
     /// The key is exposed exactly once, at the `vault.put` boundary; no copy is

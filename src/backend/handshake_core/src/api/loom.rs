@@ -2693,6 +2693,7 @@ async fn loom_search_v2(
         content_type: payload.content_type,
         tag_ids: payload.tag_ids,
         query_embedding: None,
+        query_embedding_model: None,
         graph_boost: payload.graph_boost,
         limit: payload.limit,
         offset: payload.offset,
@@ -4136,7 +4137,7 @@ mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter};
-    use crate::llm::ollama::InMemoryLlmClient;
+    use crate::llm::InMemoryLlmClient;
     use crate::storage::{
         tests::optional_postgres_backend_with_pool_from_env, Database, NewWorkspace,
     };

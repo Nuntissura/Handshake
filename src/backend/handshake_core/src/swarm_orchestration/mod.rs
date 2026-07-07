@@ -78,8 +78,8 @@ pub use operator_chat::{
     build_spawn_request as build_operator_chat_spawn_request, force_json_stream_output,
     ModelLaneCaptureRecorder, OperatorChatCloudRow, OperatorChatError, OperatorChatLaneKind,
     OperatorChatLaunchService, OperatorChatLaunched, OperatorChatModelInventory,
-    OperatorChatModelRow, OperatorChatSelection, OPERATOR_CHAT_CLI_ADAPTER,
-    OPERATOR_CHAT_SURFACE_ID,
+    OperatorChatModelRow, OperatorChatSelection, OperatorChatSubagentRow,
+    OPERATOR_CHAT_CLI_ADAPTER, OPERATOR_CHAT_SURFACE_ID,
 };
 pub use production_factory::{
     build_production_swarm_coordinator, default_swarm_concurrency, CloudLaneFactoryConfig,

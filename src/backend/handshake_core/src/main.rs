@@ -1,10 +1,10 @@
-use axum::{Json, Router, extract::State, routing::get};
+use axum::{extract::State, routing::get, Json, Router};
 use handshake_core::{
-    AppState, api,
+    api,
     capabilities::CapabilityRegistry,
     diagnostics::DiagnosticsStore,
-    flight_recorder::{FlightRecorder, duckdb::DuckDbFlightRecorder},
-    llm::{LlmClient, boot::resolve_default_llm_client},
+    flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
+    llm::{boot::resolve_default_llm_client, LlmClient},
     logging,
     models::HealthResponse,
     process_ledger::{
@@ -15,7 +15,7 @@ use handshake_core::{
         self,
         retention::{Janitor, JanitorConfig},
     },
-    workflows,
+    workflows, AppState,
 };
 use std::{
     net::SocketAddr,
@@ -250,7 +250,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     ));
     let _janitor_handle = janitor.spawn_background();
 
-    let api_routes = api::routes(state.clone());
+    let api::ApiRoutes {
+        router: api_routes,
+        runtime: api_runtime,
+    } = api::routes_with_runtime(state.clone());
 
     let app = Router::new()
         .route("/health", get(health))
@@ -293,6 +296,15 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         target: "handshake_core::process_ledger",
         outcome = ?drain_outcome,
         "embedded-model ledger drain-and-join at shutdown"
+    );
+
+    let api_drain_report = api_runtime
+        .drain_and_join(std::time::Duration::from_secs(5))
+        .await;
+    tracing::info!(
+        target: "handshake_core::process_ledger",
+        outcome = ?api_drain_report.operator_chat_process_ledger,
+        "operator-chat process ledger drain-and-join at shutdown"
     );
 
     // 3) Best-effort teardown: stop the cluster only if Handshake started it

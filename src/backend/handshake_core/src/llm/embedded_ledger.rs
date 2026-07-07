@@ -91,7 +91,7 @@ impl EmbeddedModelProcess {
             start = start.with_model_artifact_sha256(sha);
         }
 
-        ledger.record_start(start.clone())?;
+        ledger.record_start_lossless(start.clone())?;
 
         Ok(Self {
             ledger,
@@ -110,11 +110,19 @@ impl EmbeddedModelProcess {
     /// default client never calls because it holds `Arc<dyn ModelRuntime>`).
     /// Idempotent — a second call (including the `Drop` safety net) is a no-op.
     pub fn shutdown(&self, reason: &str) -> Result<(), ProcessLedgerError> {
-        if self.stopped.swap(true, Ordering::SeqCst) {
+        if self
+            .stopped
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
             return Ok(());
         }
         let stop = ProcessStop::from_start(&self.start, Some(0)).with_stop_reason(reason);
-        self.ledger.record_stop(stop)
+        if let Err(err) = self.ledger.record_stop_lossless(stop) {
+            self.stopped.store(false, Ordering::SeqCst);
+            return Err(err);
+        }
+        Ok(())
     }
 }
 

@@ -546,6 +546,62 @@ async fn diagnostic_tier_record_rejects_flight_recorder_only_evidence() {
 }
 
 #[tokio::test]
+async fn diagnostic_tier_posture_accepts_deferred_and_not_applicable_reason_states() {
+    let (_pool, store) = recovery_store().await;
+    seed_run_lane_message(
+        &store,
+        "run-mt007-diagnostics-reason-states",
+        "lane-mt007-diagnostics-reason-states",
+        "msg-mt007-diagnostics-reason-states",
+    )
+    .await;
+    for (tier, state, evidence) in [
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTierState::Wired,
+            "eventledger://kernel/model-lane/recovery",
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTierState::DeferredWithReason,
+            "hbr-int-009://dexterity/recovery/deferred-internal",
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            ModelLaneDiagnosticTierState::NotApplicableWithReason,
+            "hbr-int-009://dexterity/recovery/palmistry-not-applicable",
+        ),
+    ] {
+        store
+            .record_diagnostic_tier_status(sample_tier(
+                "run-mt007-diagnostics-reason-states",
+                tier,
+                state,
+                evidence,
+            ))
+            .await
+            .expect("record reason-bearing diagnostic tier");
+    }
+
+    let posture = store
+        .validate_diagnostic_tier_posture("run-mt007-diagnostics-reason-states", "HBR-INT-009")
+        .await
+        .expect("HBR-INT-009 accepts all explicit reason-bearing tier outcomes");
+    assert_eq!(posture.tiers.len(), 3);
+    assert!(posture.tiers.iter().any(|tier| {
+        tier.tier == ModelLaneDiagnosticTier::InternalDiagnostics
+            && tier.state == ModelLaneDiagnosticTierState::DeferredWithReason
+            && !tier.reason.trim().is_empty()
+            && tier.follow_up_ref.is_some()
+    }));
+    assert!(posture.tiers.iter().any(|tier| {
+        tier.tier == ModelLaneDiagnosticTier::Palmistry
+            && tier.state == ModelLaneDiagnosticTierState::NotApplicableWithReason
+            && !tier.reason.trim().is_empty()
+    }));
+}
+
+#[tokio::test]
 async fn model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_idempotency() {
     let (_pool, store) = recovery_store().await;
 

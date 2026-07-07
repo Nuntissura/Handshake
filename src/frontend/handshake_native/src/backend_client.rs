@@ -139,13 +139,20 @@ impl OperatorChatClient {
         }
     }
 
-    pub fn launch_request(&self, model_id: &str, working_dir: &str, prompt: &str) -> RequestSpec {
+    pub fn launch_request(
+        &self,
+        selection: &crate::operator_chat_pane::OperatorChatLaunchSelection,
+        working_dir: &str,
+        prompt: &str,
+    ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Post,
             url: format!("{}/operator-chat/launch", self.base_url),
             body: Some(serde_json::json!({
-                "lane_kind": "cli",
-                "model_id": model_id,
+                "lane_kind": &selection.lane_kind,
+                "model_id": &selection.model_id,
+                "cloud_provider": &selection.cloud_provider,
+                "cli_provider": &selection.cli_provider,
                 "working_dir": working_dir,
                 "prompt": prompt,
                 "owner_session": "operator-chat-native",
@@ -154,19 +161,58 @@ impl OperatorChatClient {
         }
     }
 
-    pub fn selection_request(&self, model_id: &str) -> RequestSpec {
+    pub fn selection_request(
+        &self,
+        selection: &crate::operator_chat_pane::OperatorChatLaunchSelection,
+        working_dir: Option<&str>,
+    ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Post,
             url: format!("{}/operator-chat/selection", self.base_url),
-            body: Some(serde_json::json!({ "selected_model_id": model_id })),
+            body: Some(serde_json::json!({
+                "selected_model_id": &selection.model_id,
+                "lane_kind": &selection.lane_kind,
+                "model_id": &selection.model_id,
+                "cloud_provider": &selection.cloud_provider,
+                "cli_provider": &selection.cli_provider,
+                "working_dir": working_dir,
+                "actor": "operator",
+                "reason": "operator_chat_launch_selection",
+            })),
         }
     }
 
+    pub fn transcript_request(&self, run_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/operator-chat/transcript/{}", self.base_url, run_id),
+            body: None,
+        }
+    }
+}
+
+/// One captured transcript row as returned by `GET /operator-chat/transcript/:id`.
+#[derive(Debug, Clone, serde::Deserialize, Default)]
+struct OperatorChatTranscriptRowDto {
+    #[serde(default)]
+    role: String,
+    #[serde(default)]
+    text: String,
+    #[serde(default)]
+    message_id: Option<String>,
+    #[serde(default)]
+    ordered_index: Option<u64>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, Default)]
+struct OperatorChatTranscriptResponse {
+    #[serde(default)]
+    rows: Vec<OperatorChatTranscriptRowDto>,
+}
+
+impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
     /// Fetch the picker inventory into `cell`.
-    pub fn fetch_models(
-        &self,
-        cell: crate::operator_chat_pane::ModelsCell,
-    ) {
+    fn fetch_models(&self, cell: crate::operator_chat_pane::ModelsCell) {
         let spec = self.models_request();
         let client = self.client.clone();
         self.runtime.spawn(async move {
@@ -185,16 +231,32 @@ impl OperatorChatClient {
         });
     }
 
+    /// Record an operator model selection as an auditable decision (F6). Wires the
+    /// previously-dead `POST /operator-chat/selection` builder; the response is
+    /// fire-and-forget (the audit is the FR-EVT-MODEL-SELECTION-RECORDED event).
+    fn record_selection(
+        &self,
+        selection: &crate::operator_chat_pane::OperatorChatLaunchSelection,
+        working_dir: Option<&str>,
+    ) {
+        let spec = self.selection_request(selection, working_dir);
+        let client = self.client.clone();
+        let body = spec.body.unwrap_or_default();
+        self.runtime.spawn(async move {
+            let _ = post_json(&client, &spec.url, &body).await;
+        });
+    }
+
     /// Launch a CLI session for the operator selection; deliver the launched ids
     /// (or the fail-closed error) into `cell`.
-    pub fn launch(
+    fn launch(
         &self,
-        model_id: &str,
+        selection: crate::operator_chat_pane::OperatorChatLaunchSelection,
         working_dir: &str,
         prompt: &str,
         cell: crate::operator_chat_pane::LaunchCell,
     ) {
-        let spec = self.launch_request(model_id, working_dir, prompt);
+        let spec = self.launch_request(&selection, working_dir, prompt);
         let client = self.client.clone();
         let body = spec.body.unwrap_or_default();
         self.runtime.spawn(async move {
@@ -203,6 +265,35 @@ impl OperatorChatClient {
                 .and_then(|v| {
                     serde_json::from_value::<crate::operator_chat_pane::OperatorChatLaunched>(v)
                         .map_err(|e| AppError::Parse(e.to_string()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Fetch the captured transcript rows for a launched run into `cell` (F8).
+    fn fetch_transcript(&self, run_id: &str, cell: crate::operator_chat_pane::TranscriptCell) {
+        let spec = self.transcript_request(run_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|v| {
+                    serde_json::from_value::<OperatorChatTranscriptResponse>(v)
+                        .map_err(|e| AppError::Parse(e.to_string()))
+                })
+                .map(|resp| {
+                    resp.rows
+                        .into_iter()
+                        .map(|r| crate::operator_chat_pane::TranscriptRow {
+                            role: r.role,
+                            text: r.text,
+                            message_id: r.message_id,
+                            ordered_index: r.ordered_index,
+                        })
+                        .collect::<Vec<_>>()
                 })
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {

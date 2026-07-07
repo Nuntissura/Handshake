@@ -69,7 +69,10 @@ pub fn block_search_text(block: &LoomBlock) -> String {
 /// Typed result of attempting to embed text through the configured model.
 enum EmbedOutcome {
     /// A real embedding of the canonical dimensionality.
-    Embedded(Vec<f32>),
+    Embedded {
+        vector: Vec<f32>,
+        embedding_space_id: String,
+    },
     /// No embedding model configured (typed decline) — caller must degrade to
     /// keyword/trigram, never fabricate.
     NoModel,
@@ -83,8 +86,16 @@ enum EmbedOutcome {
 /// [`EmbedOutcome::NoModel`]; a wrong-dimensionality response to a DISTINCT
 /// [`EmbedOutcome::DimMismatch`] (degrade, not error).
 async fn embed_text(llm: &dyn LlmClient, text: &str) -> EmbedOutcome {
-    let model_id = llm.profile().model_id.clone();
-    let req = EmbeddingRequest::new(Uuid::now_v7(), text.to_string(), model_id);
+    let Some(entry) = llm
+        .model_catalog()
+        .and_then(|catalog| catalog.embedding_model_for_dim(LOOM_SEARCH_EMBEDDING_DIM))
+    else {
+        return EmbedOutcome::NoModel;
+    };
+    let Some(embedding_space_id) = entry.embedding_space_id() else {
+        return EmbedOutcome::NoModel;
+    };
+    let req = EmbeddingRequest::new(Uuid::now_v7(), text.to_string(), entry.model_id);
     match llm.embedding(req).await {
         Ok(resp) => {
             if resp.vector.len() != LOOM_SEARCH_EMBEDDING_DIM {
@@ -93,11 +104,17 @@ async fn embed_text(llm: &dyn LlmClient, text: &str) -> EmbedOutcome {
                     actual: resp.vector.len(),
                 }
             } else {
-                EmbedOutcome::Embedded(resp.vector)
+                EmbedOutcome::Embedded {
+                    vector: resp.vector,
+                    embedding_space_id,
+                }
             }
         }
-        // Any typed LLM error => no embedding model available. Degrade, do not
-        // fabricate. (Covers EmbeddingUnsupported + provider/transport errors.)
+        Err(LlmError::EmbeddingDimensionMismatch { expected, actual }) => {
+            EmbedOutcome::DimMismatch { expected, actual }
+        }
+        // Any other typed LLM error => no embedding model available. Degrade,
+        // do not fabricate. (Covers EmbeddingUnsupported + provider/transport.)
         Err(LlmError::EmbeddingUnsupported) | Err(_) => EmbedOutcome::NoModel,
     }
 }
@@ -154,8 +171,15 @@ pub async fn reindex_block(
     block: &LoomBlock,
 ) -> StorageResult<bool> {
     let text = block_search_text(block);
+    let mut embedding_model: Option<String> = None;
     let embedding: Option<Vec<f32>> = match embed_text(llm, &text).await {
-        EmbedOutcome::Embedded(vector) => Some(vector),
+        EmbedOutcome::Embedded {
+            vector,
+            embedding_space_id,
+        } => {
+            embedding_model = Some(embedding_space_id);
+            Some(vector)
+        }
         EmbedOutcome::NoModel => None,
         EmbedOutcome::DimMismatch { expected, actual } => {
             emit_dim_mismatch_event(recorder, "reindex", &block.workspace_id, expected, actual)
@@ -163,16 +187,13 @@ pub async fn reindex_block(
             None
         }
     };
-    let model: Option<String> = embedding
-        .as_ref()
-        .map(|_| llm.profile().model_id.clone());
     db.reindex_loom_block_search(
         ctx,
         &block.workspace_id,
         &block.block_id,
         &text,
         embedding.as_deref(),
-        model.as_deref(),
+        embedding_model.as_deref(),
     )
     .await?;
     Ok(embedding.is_some())
@@ -194,8 +215,12 @@ pub async fn search(
     let mut degrade_reason: Option<SemanticUnavailableReason> = None;
     if request.query_embedding.is_none() && !request.query.trim().is_empty() {
         match embed_text(llm, &request.query).await {
-            EmbedOutcome::Embedded(vector) => {
+            EmbedOutcome::Embedded {
+                vector,
+                embedding_space_id,
+            } => {
                 request.query_embedding = Some(vector);
+                request.query_embedding_model = Some(embedding_space_id);
             }
             EmbedOutcome::NoModel => {
                 degrade_reason = Some(SemanticUnavailableReason::NoModel);

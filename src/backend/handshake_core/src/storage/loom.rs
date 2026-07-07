@@ -648,6 +648,12 @@ pub struct LoomSearchV2Request {
     /// `semantic_available` flag on the response is false). NEVER fabricated.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub query_embedding: Option<Vec<f32>>,
+    /// Stable embedding-space id that produced `query_embedding`. Required for
+    /// semantic scoring: vectors from different embedding spaces must never be
+    /// compared. This is not the per-boot routing UUID; it is durable across
+    /// restart for the same artifact hash and declared dimension.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_embedding_model: Option<String>,
     /// Graph blend: extra weight applied to a hit per inbound/outbound loom_edge
     /// (link-aware ranking). 0.0 disables the boost.
     #[serde(default)]

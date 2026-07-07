@@ -13,6 +13,68 @@ use handshake_core::user_manual::store::UserManualStore;
 use sqlx::Connection;
 
 #[tokio::test]
+async fn model_lane_user_manual_freshness_detects_stale_code_truth() {
+    let kpg = skip_if_no_pg!(
+        knowledge_pg_support::knowledge_pg().await,
+        "model_lane_user_manual_freshness_detects_stale_code_truth"
+    );
+    ensure_seeded(&kpg.db).await.expect("seed");
+    let store = UserManualStore::new(&kpg.db);
+    let clean = check_freshness(&kpg.db)
+        .await
+        .expect("freshness before model-lane tamper");
+    assert!(clean.fresh, "seeded manual must start fresh: {:?}", clean);
+
+    let (page, sections, _) = store
+        .get_page_by_slug("model-lane-validation-harness")
+        .await
+        .expect("model-lane validation harness query")
+        .expect("model-lane validation harness seeded");
+    let section = sections
+        .iter()
+        .find(|section| section.title == "Behavior coverage matrix")
+        .expect("model-lane validation harness has behavior matrix section");
+
+    let mut conn = kpg.raw_connection().await;
+    sqlx::query(
+        r#"
+        UPDATE user_manual_sections
+        SET body_md = 'tampered MT-011 self-consistency proof text'
+        WHERE section_id = $1
+        "#,
+    )
+    .bind(&section.section_id)
+    .execute(&mut conn)
+    .await
+    .expect("tamper model-lane behavior matrix section");
+    conn.close().await.ok();
+
+    let stale = check_freshness(&kpg.db)
+        .await
+        .expect("freshness after model-lane behavior matrix tamper");
+    assert!(
+        !stale.fresh,
+        "model-lane manual tampering must not report fresh: {:?}",
+        stale
+    );
+    assert!(
+        stale
+            .verdicts
+            .iter()
+            .any(|v| { v.kind == FreshnessVerdictKind::StaleContent && v.subject == page.slug }),
+        "model-lane manual tampering must yield stale_content for {}; got {:?}",
+        page.slug,
+        stale.verdicts
+    );
+
+    let healed = ensure_seeded(&kpg.db).await.expect("healing reseed");
+    assert!(
+        healed.pages_changed >= 1,
+        "reseed must heal model-lane UserManual drift"
+    );
+}
+
+#[tokio::test]
 async fn mt239_freshness_detects_same_count_page_child_tampering() {
     let kpg = skip_if_no_pg!(
         knowledge_pg_support::knowledge_pg().await,

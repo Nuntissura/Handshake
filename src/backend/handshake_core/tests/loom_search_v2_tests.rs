@@ -22,20 +22,28 @@
 
 mod knowledge_pg_support;
 
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use async_trait::async_trait;
 
+use chrono::Utc;
 use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
 };
-use handshake_core::llm::ollama::InMemoryLlmClient;
-use handshake_core::llm::DisabledLlmClient;
+use handshake_core::llm::InMemoryLlmClient;
+use handshake_core::llm::{
+    CompletionRequest, CompletionResponse, DisabledLlmClient, EmbeddingRequest, EmbeddingResponse,
+    LlmClient, LlmError, ModelProfile, TokenUsage,
+};
 use handshake_core::loom_search;
+use handshake_core::model_runtime::{
+    BaseModelTag, ModelCapabilities, ModelCatalog, ModelId, ModelRegistration, ModelRegistry,
+    OperatorId, ProviderKind, RuntimeBinding,
+};
 use handshake_core::storage::{
-    Database, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomEdgeCreatedBy,
-    LoomEdgeType, LoomSearchV2Request, NewLoomBlock, NewLoomEdge, SemanticUnavailableReason,
-    WriteContext,
+    Database, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate,
+    LoomEdgeCreatedBy, LoomEdgeType, LoomSearchV2Request, NewLoomBlock, NewLoomEdge,
+    SemanticUnavailableReason, WriteContext,
 };
 use knowledge_pg_support::knowledge_pg;
 
@@ -79,6 +87,14 @@ impl FlightRecorder for CapturingRecorder {
 fn rec() -> &'static CapturingRecorder {
     static REC: OnceLock<CapturingRecorder> = OnceLock::new();
     REC.get_or_init(CapturingRecorder::default)
+}
+
+async fn pg_required(name: &str) -> knowledge_pg_support::KnowledgePg {
+    knowledge_pg().await.unwrap_or_else(|| {
+        panic!(
+            "PostgreSQL unavailable for {name}: MT-016 proof requires live PostgreSQL/EventLedger"
+        )
+    })
 }
 
 macro_rules! pg_or_skip {
@@ -132,6 +148,101 @@ fn req(query: &str) -> LoomSearchV2Request {
     }
 }
 
+fn catalog_registration(
+    model_id: ModelId,
+    tag: &str,
+    capabilities: ModelCapabilities,
+) -> ModelRegistration {
+    ModelRegistration {
+        model_id,
+        artifact_path: std::path::PathBuf::from(format!("fixtures/models/{tag}.gguf")),
+        sha256: [11; 32],
+        runtime_binding: RuntimeBinding::Candle,
+        declared_capabilities: capabilities,
+        base_model_tag: BaseModelTag::new(tag),
+        registered_at_utc: Utc::now(),
+        registered_by: OperatorId::new("loom-search-test"),
+        provider: ProviderKind::Local,
+    }
+}
+
+fn model_catalog(entries: Vec<(ModelId, &'static str, ModelCapabilities)>) -> Arc<ModelCatalog> {
+    let mut registry = ModelRegistry::default();
+    for (model_id, tag, capabilities) in entries {
+        registry
+            .register(catalog_registration(model_id, tag, capabilities))
+            .expect("register test model");
+        registry.mark_loaded(model_id).expect("mark model loaded");
+    }
+    ModelCatalog::from_registry(Arc::new(registry))
+}
+
+struct CatalogEmbeddingClient {
+    profile: ModelProfile,
+    catalog: Arc<ModelCatalog>,
+    embedding_dim: usize,
+    panic_on_embedding: bool,
+    requested_model_ids: Mutex<Vec<String>>,
+}
+
+impl CatalogEmbeddingClient {
+    fn new(profile_model_id: String, catalog: Arc<ModelCatalog>, embedding_dim: usize) -> Self {
+        Self {
+            profile: ModelProfile::new(profile_model_id, 4096),
+            catalog,
+            embedding_dim,
+            panic_on_embedding: false,
+            requested_model_ids: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn panics_on_embedding(mut self) -> Self {
+        self.panic_on_embedding = true;
+        self
+    }
+
+    fn requested_model_ids(&self) -> Vec<String> {
+        self.requested_model_ids
+            .lock()
+            .expect("requested ids lock")
+            .clone()
+    }
+}
+
+#[async_trait]
+impl LlmClient for CatalogEmbeddingClient {
+    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        Ok(CompletionResponse {
+            text: String::new(),
+            usage: TokenUsage::default(),
+            latency_ms: 0,
+        })
+    }
+
+    async fn embedding(&self, req: EmbeddingRequest) -> Result<EmbeddingResponse, LlmError> {
+        if self.panic_on_embedding {
+            panic!("embedding should not be called when no embedding-capable catalog row exists");
+        }
+        self.requested_model_ids
+            .lock()
+            .expect("requested ids lock")
+            .push(req.model_id.clone());
+        Ok(EmbeddingResponse {
+            vector: InMemoryLlmClient::deterministic_embedding(&req.input, self.embedding_dim),
+            model_id: req.model_id,
+            latency_ms: 1,
+        })
+    }
+
+    fn profile(&self) -> &ModelProfile {
+        &self.profile
+    }
+
+    fn model_catalog(&self) -> Option<Arc<ModelCatalog>> {
+        Some(Arc::clone(&self.catalog))
+    }
+}
+
 /// FTS: ts_rank-ordered, ts_headline-highlighted results over real content.
 #[tokio::test]
 async fn mt264_fulltext_rank_and_highlight() {
@@ -175,7 +286,10 @@ async fn mt264_fulltext_rank_and_highlight() {
         "expected ts_headline highlight markers, got {:?}",
         resp.hits[0].highlight
     );
-    assert!(!resp.semantic_available, "no embedding model -> not available");
+    assert!(
+        !resp.semantic_available,
+        "no embedding model -> not available"
+    );
 }
 
 /// Fuzzy/substring: a misspelled query returns the near-match via pg_trgm.
@@ -242,7 +356,10 @@ async fn mt264_pgvector_semantic_and_hybrid() {
         let wrote = loom_search::reindex_block(&pg.db, &llm, rec(), &ctx, block)
             .await
             .expect("reindex with embedding");
-        assert!(wrote, "an embedding model is configured -> embedding written");
+        assert!(
+            wrote,
+            "an embedding model is configured -> embedding written"
+        );
     }
 
     // Query embedding overlaps the canine block's tokens => closest neighbour.
@@ -255,7 +372,10 @@ async fn mt264_pgvector_semantic_and_hybrid() {
     )
     .await
     .expect("search");
-    assert!(resp.semantic_available, "embedding model -> semantic available");
+    assert!(
+        resp.semantic_available,
+        "embedding model -> semantic available"
+    );
     assert_eq!(
         resp.hits[0].block.block_id, canine.block_id,
         "pgvector kNN should rank the semantically-closest block first"
@@ -433,11 +553,237 @@ async fn mt264_no_model_typed_fallback_no_fabrication() {
     let resp = loom_search::search(&pg.db, &disabled, rec(), &ws, req("searchable keyword"))
         .await
         .expect("search");
-    assert!(!resp.semantic_available, "no model -> semantic not available");
+    assert!(
+        !resp.semantic_available,
+        "no model -> semantic not available"
+    );
     assert_eq!(resp.hits.len(), 1, "keyword fallback still finds the block");
     assert_eq!(
         resp.hits[0].vector_sim, 0.0,
         "no fabricated vector similarity when no model is configured"
+    );
+}
+
+#[tokio::test]
+async fn mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model() {
+    let pg = pg_required("mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model")
+        .await;
+    let ws = pg.create_workspace().await;
+    let ctx = WriteContext::human(None);
+    let chat_model_id = ModelId::new_v7();
+    let embedding_model_id = ModelId::new_v7();
+    let chat_model_id_string = chat_model_id.to_string();
+    let embedding_model_id_string = embedding_model_id.to_string();
+    let catalog = model_catalog(vec![
+        (chat_model_id, "chat-model", ModelCapabilities::default()),
+        (
+            embedding_model_id,
+            "embedding-768",
+            ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: Some(loom_search::LOOM_SEARCH_EMBEDDING_DIM),
+                ..Default::default()
+            },
+        ),
+    ]);
+    let embedding_space_id = catalog
+        .embedding_model_for_dim(loom_search::LOOM_SEARCH_EMBEDDING_DIM)
+        .expect("embedding entry selected")
+        .embedding_space_id()
+        .expect("embedding entry has stable vector-space id");
+    let llm = CatalogEmbeddingClient::new(chat_model_id_string.clone(), catalog, 768);
+
+    let correct = make_block(
+        &pg.db,
+        &ctx,
+        &ws,
+        "Correct vector-space note",
+        "dedicated embedding alpha beta",
+    )
+    .await;
+    let wrong_space = make_block(
+        &pg.db,
+        &ctx,
+        &ws,
+        "Wrong vector-space note",
+        "dedicated embedding alpha beta",
+    )
+    .await;
+
+    for block in [&correct, &wrong_space] {
+        let wrote = loom_search::reindex_block(&pg.db, &llm, rec(), &ctx, block)
+            .await
+            .expect("reindex with selected embedding model");
+        assert!(wrote, "catalog-selected embedding model writes vectors");
+    }
+
+    let mut conn = pg.raw_connection().await;
+    let stored_model: Option<String> = sqlx::query_scalar(
+        "SELECT embedding_model FROM loom_block_search_index WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&correct.block_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("read stored embedding model");
+    assert_eq!(
+        stored_model.as_deref(),
+        Some(embedding_space_id.as_str()),
+        "reindex stores the stable embedding-space id, not a per-boot routing id"
+    );
+
+    sqlx::query(
+        "UPDATE loom_block_search_index SET embedding_model = $1 WHERE workspace_id = $2 AND block_id = $3",
+    )
+    .bind("embedspace:different-artifact:dim:768")
+    .bind(&ws)
+    .bind(&wrong_space.block_id)
+    .execute(&mut conn)
+    .await
+    .expect("force wrong vector-space marker");
+
+    let resp = loom_search::search(
+        &pg.db,
+        &llm,
+        rec(),
+        &ws,
+        req("dedicated embedding alpha beta"),
+    )
+    .await
+    .expect("search with selected embedding model");
+    assert!(
+        resp.semantic_available,
+        "matching embedding model -> semantic available"
+    );
+
+    let correct_hit = resp
+        .hits
+        .iter()
+        .find(|hit| hit.block.block_id == correct.block_id)
+        .expect("correct vector-space hit present");
+    assert!(
+        correct_hit.vector_sim > 0.0,
+        "row with matching embedding space can receive vector score"
+    );
+    let wrong_hit = resp
+        .hits
+        .iter()
+        .find(|hit| hit.block.block_id == wrong_space.block_id)
+        .expect("wrong vector-space hit still keyword-matches");
+    assert_eq!(
+        wrong_hit.vector_sim, 0.0,
+        "row with different embedding space must not receive vector score"
+    );
+
+    let restarted_embedding_model_id = ModelId::new_v7();
+    let restarted_embedding_model_id_string = restarted_embedding_model_id.to_string();
+    let restarted_catalog = model_catalog(vec![
+        (
+            ModelId::new_v7(),
+            "chat-model",
+            ModelCapabilities::default(),
+        ),
+        (
+            restarted_embedding_model_id,
+            "embedding-768",
+            ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: Some(loom_search::LOOM_SEARCH_EMBEDDING_DIM),
+                ..Default::default()
+            },
+        ),
+    ]);
+    let restarted_space = restarted_catalog
+        .embedding_model_for_dim(loom_search::LOOM_SEARCH_EMBEDDING_DIM)
+        .expect("restarted embedding entry selected")
+        .embedding_space_id()
+        .expect("restarted entry has stable vector-space id");
+    assert_eq!(
+        restarted_space, embedding_space_id,
+        "same artifact hash + dimension must keep the same vector-space key across routing UUIDs"
+    );
+    let restarted_llm =
+        CatalogEmbeddingClient::new(ModelId::new_v7().to_string(), restarted_catalog, 768);
+    let restarted_resp = loom_search::search(
+        &pg.db,
+        &restarted_llm,
+        rec(),
+        &ws,
+        req("dedicated embedding alpha beta"),
+    )
+    .await
+    .expect("search with restarted routing id");
+    let restarted_hit = restarted_resp
+        .hits
+        .iter()
+        .find(|hit| hit.block.block_id == correct.block_id)
+        .expect("same embedding-space hit remains searchable after routing id changes");
+    assert!(
+        restarted_hit.vector_sim > 0.0,
+        "stable embedding-space id must preserve semantic scoring across boot UUID changes"
+    );
+    assert_eq!(
+        restarted_llm.requested_model_ids(),
+        vec![restarted_embedding_model_id_string],
+        "new boot still routes the embedding call through the new per-boot model id"
+    );
+
+    assert_eq!(
+        llm.requested_model_ids(),
+        vec![
+            embedding_model_id_string.clone(),
+            embedding_model_id_string.clone(),
+            embedding_model_id_string,
+        ],
+        "reindex twice + search must all request the dedicated embedding model"
+    );
+}
+
+#[tokio::test]
+async fn mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call() {
+    let pg =
+        pg_required("mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call")
+            .await;
+    let ws = pg.create_workspace().await;
+    let ctx = WriteContext::human(None);
+    let chat_model_id = ModelId::new_v7();
+    let catalog = model_catalog(vec![(
+        chat_model_id,
+        "chat-model",
+        ModelCapabilities::default(),
+    )]);
+    let llm =
+        CatalogEmbeddingClient::new(chat_model_id.to_string(), catalog, 768).panics_on_embedding();
+
+    let block = make_block(
+        &pg.db,
+        &ctx,
+        &ws,
+        "Keyword fallback note",
+        "keyword fallback remains searchable without embeddings",
+    )
+    .await;
+
+    let wrote = loom_search::reindex_block(&pg.db, &llm, rec(), &ctx, &block)
+        .await
+        .expect("reindex degrades without embedding-capable model");
+    assert!(
+        !wrote,
+        "no embedding-capable catalog row -> no vector is written"
+    );
+
+    let resp = loom_search::search(&pg.db, &llm, rec(), &ws, req("keyword fallback"))
+        .await
+        .expect("search degrades without embedding-capable model");
+    assert!(!resp.semantic_available);
+    assert_eq!(
+        resp.semantic_unavailable_reason,
+        Some(SemanticUnavailableReason::NoModel)
+    );
+    assert_eq!(resp.hits.len(), 1, "keyword fallback still finds the block");
+    assert!(
+        llm.requested_model_ids().is_empty(),
+        "chat model must not be called as an embedding fallback"
     );
 }
 
@@ -453,7 +799,9 @@ async fn mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search() {
     let ws = pg.create_workspace().await;
     let ctx = WriteContext::human(None);
     // 896-dim model vs the index's 768 -> dimensionality mismatch.
-    let llm = InMemoryLlmClient::new(String::new()).with_embedding_dim(896);
+    let llm = InMemoryLlmClient::new(String::new())
+        .with_embedding_dim(896)
+        .with_declared_embedding_dim(768);
     let recorder = CapturingRecorder::default();
 
     let block = make_block(

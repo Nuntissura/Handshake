@@ -7,7 +7,7 @@
 //! test/agent setting `app_state.settings_open = true`. It is a port of
 //! `app/src/components/SettingsMenu.tsx` over the [`crate::workspace_settings`] schema + helpers, with
 //! these sections in order: Appearance (theme + view mode — both WIRED), Keybindings (editable, with
-//! live conflict detection), Swarm (a wired board-default-open checkbox + not-yet-wired interval rows),
+//! live conflict detection), Swarm (wired default-open checkboxes + not-yet-wired interval rows),
 //! Terminal (not-yet-wired rows), Layout (a wired Reset panes & drawers button), and About (app name +
 //! the real Cargo version).
 //!
@@ -90,6 +90,9 @@ pub const SWARM_BOARD_CHECKBOX_AUTHOR_ID: &str = "settings.swarm-board-default-o
 /// Stable author_id for the Swarm lane diagnostics default-open checkbox.
 pub const SWARM_LANE_DIAGNOSTICS_CHECKBOX_AUTHOR_ID: &str =
     "settings.swarm-lane-diagnostics-default-open";
+/// Stable author_id for the Operator Chat default-open checkbox.
+pub const SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID: &str =
+    "settings.swarm-operator-chat-default-open";
 /// Stable author_id for the Reset panes & drawers button.
 pub const RESET_LAYOUT_AUTHOR_ID: &str = "settings.reset-layout";
 /// Stable author_id for the Close button.
@@ -135,8 +138,10 @@ pub fn cloud_byok_key_egui_id(provider: &str) -> egui::Id {
 /// has not answered), so they render as not-configured with a "status unknown"
 /// note — but the key field + Save ALWAYS render so BYOK entry never depends on
 /// the backend being reachable.
-pub const STATIC_BYOK_PROVIDERS: [(&str, &str); 2] =
-    [("anthropic", "Anthropic (Claude)"), ("openai", "OpenAI (GPT)")];
+pub const STATIC_BYOK_PROVIDERS: [(&str, &str); 2] = [
+    ("anthropic", "Anthropic (Claude)"),
+    ("openai", "OpenAI (GPT)"),
+];
 /// Author_id for a BYOK provider's Save button: `settings.cloud.byok.{provider}.save`.
 pub fn cloud_byok_save_author_id(provider: &str) -> String {
     format!("settings.cloud.byok.{provider}.save")
@@ -237,7 +242,10 @@ impl CloudModelsSettingsState {
     /// the UI slot empty. The moved buffer zeroizes when the caller drops it; the UI buffer is cleared.
     pub fn take_key_draft(&mut self, provider: &str) -> zeroize::Zeroizing<String> {
         if let Some(idx) = self.key_drafts.iter().position(|(p, _)| p == provider) {
-            std::mem::replace(&mut self.key_drafts[idx].1, zeroize::Zeroizing::new(String::new()))
+            std::mem::replace(
+                &mut self.key_drafts[idx].1,
+                zeroize::Zeroizing::new(String::new()),
+            )
         } else {
             zeroize::Zeroizing::new(String::new())
         }
@@ -347,6 +355,8 @@ pub enum SettingsOutcome {
     SwarmBoardDefaultOpenChanged(bool),
     /// The Swarm lane diagnostics default-open checkbox was toggled. WIRED.
     SwarmLaneDiagnosticsDefaultOpenChanged(bool),
+    /// The Operator Chat default-open checkbox was toggled. WIRED.
+    OperatorChatDefaultOpenChanged(bool),
     /// The Reset panes & drawers button was clicked (same action as VIEW > Reset Layout). WIRED.
     ResetLayout,
     /// MT-015: Save clicked for a BYOK provider. The shell reads the key buffer, sends it to the vault
@@ -441,6 +451,7 @@ impl DialogState {
             view_mode: live.view_mode,
             swarm_board_default_open: live.swarm_board_default_open,
             swarm_lane_diagnostics_default_open: live.swarm_lane_diagnostics_default_open,
+            operator_chat_default_open: live.operator_chat_default_open,
         }
     }
 }
@@ -856,9 +867,20 @@ fn render_sections(
         );
     }
 
-    // ── [3] Swarm (wired checkbox + not-yet-wired interval rows) ───────────────────────────────────
-    let show_swarm =
-        setting_matches_query(query, &["swarm", "board", "reconcile", "resource", "poll"]);
+    // ── [3] Swarm (wired default checkboxes + not-yet-wired interval rows) ─────────────────────────
+    let show_swarm = setting_matches_query(
+        query,
+        &[
+            "swarm",
+            "board",
+            "diagnostics",
+            "operator",
+            "chat",
+            "reconcile",
+            "resource",
+            "poll",
+        ],
+    );
     if show_swarm {
         let swarm_header = egui::CollapsingHeader::new("Swarm")
             .default_open(true)
@@ -902,6 +924,25 @@ fn render_sections(
                     if cb.changed() && outcome == SettingsOutcome::None {
                         outcome =
                             SettingsOutcome::SwarmLaneDiagnosticsDefaultOpenChanged(checked);
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label("Open Operator Chat from Swarm defaults");
+                        ui.label(
+                            egui::RichText::new(
+                                "Persisted. Keeps the Operator Chat / Launch work-surface in the Swarm operator toolset.",
+                            )
+                            .small()
+                            .weak(),
+                        );
+                    });
+                    let mut checked = settings.operator_chat_default_open;
+                    let cb_label = if checked { "Included" } else { "Hidden" };
+                    let cb = ui.checkbox(&mut checked, cb_label);
+                    set_author_id(ui, cb.id, SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID);
+                    if cb.changed() && outcome == SettingsOutcome::None {
+                        outcome = SettingsOutcome::OperatorChatDefaultOpenChanged(checked);
                     }
                 });
             });
@@ -1045,7 +1086,11 @@ fn render_cloud_models_body(
 
     // ---- BYOK: per-provider password key entry stored only in the OS keychain. ----
     ui.add_space(6.0);
-    ui.label(egui::RichText::new("Bring your own API key").small().strong());
+    ui.label(
+        egui::RichText::new("Bring your own API key")
+            .small()
+            .strong(),
+    );
     // F10: render the STATIC provider rows client-side when the backend enumeration has not arrived, so
     // the key field + Save ALWAYS render (key entry never depends on the backend being reachable). Only
     // the `configured` badge needs the backend; a seed row shows "status unknown" instead.
@@ -1053,9 +1098,11 @@ fn render_cloud_models_body(
     let byok_static_seed = cloud.byok_rows_are_static_seed();
     if byok_static_seed {
         ui.label(
-            egui::RichText::new("Provider status unknown until the backend responds — you can still enter a key.")
-                .small()
-                .weak(),
+            egui::RichText::new(
+                "Provider status unknown until the backend responds — you can still enter a key.",
+            )
+            .small()
+            .weak(),
         );
     }
     for row in &byok_rows {
@@ -1272,9 +1319,18 @@ mod tests {
     /// deterministically. Gemini is never an offered provider id here.
     #[test]
     fn cloud_models_author_ids_are_stable_per_provider() {
-        assert_eq!(cloud_byok_key_author_id("openai"), "settings.cloud.byok.openai.key");
-        assert_eq!(cloud_byok_key_author_id("anthropic"), "settings.cloud.byok.anthropic.key");
-        assert_eq!(cloud_byok_save_author_id("openai"), "settings.cloud.byok.openai.save");
+        assert_eq!(
+            cloud_byok_key_author_id("openai"),
+            "settings.cloud.byok.openai.key"
+        );
+        assert_eq!(
+            cloud_byok_key_author_id("anthropic"),
+            "settings.cloud.byok.anthropic.key"
+        );
+        assert_eq!(
+            cloud_byok_save_author_id("openai"),
+            "settings.cloud.byok.openai.save"
+        );
         assert_eq!(
             cloud_byok_remove_author_id("anthropic"),
             "settings.cloud.byok.anthropic.remove"

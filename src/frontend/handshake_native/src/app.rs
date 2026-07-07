@@ -7,27 +7,27 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::accessibility::{self, ChromeWidget};
-use crate::backend_client::{self, HEALTH_URL, HealthInfo, WorkbenchLayoutClient};
+use crate::backend_client::{self, HealthInfo, WorkbenchLayoutClient, HEALTH_URL};
 use crate::error::AppError;
-use crate::event_bus::{ShellEvent, ShellEventReceiver, ShellEventSender, new_shell_event_bus};
+use crate::event_bus::{new_shell_event_bus, ShellEvent, ShellEventReceiver, ShellEventSender};
 use crate::layout_persistence::{
     DrawersState, LayoutPersistenceManager, LayoutPersistenceStatus, LayoutSnapshot,
     LayoutTransport, PopOutSnapshot,
 };
 use crate::left_rail::{LeftRail, LeftRailColors, LeftRailEvent};
 use crate::module_switcher::{ModuleId, ModuleSwitcher, ModuleSwitcherColors};
-use crate::pane_header::{PANE_HEADER_HEIGHT, PaneHeader, PaneHeaderColors};
+use crate::pane_header::{PaneHeader, PaneHeaderColors, PANE_HEADER_HEIGHT};
 use crate::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRegistry,
     PaneRenderContext, PaneType, PlaceholderPaneFactory,
 };
-use crate::popout_window::{PopOutGeometry, PopOutManager, popout_title_for};
+use crate::popout_window::{popout_title_for, PopOutGeometry, PopOutManager};
 use crate::project_tabs::{
-    PROJECT_TAB_BAR_HEIGHT, ProjectItem, ProjectTabBar, ProjectTabColors, fetch_workspaces,
+    fetch_workspaces, ProjectItem, ProjectTabBar, ProjectTabColors, PROJECT_TAB_BAR_HEIGHT,
 };
-use crate::rails::{RailColors, RailDimensions, apply_rail_scrollbar_style};
+use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
-use crate::tab_bar::{TAB_BAR_HEIGHT, TabBar, TabBarColors, TabBarState, TabState};
+use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
 use crate::theme::{self, HsTheme};
 use crate::top_menu_bar::{MenuBar, MenuBarAction, MenuBarState};
 
@@ -1176,6 +1176,18 @@ impl HandshakeApp {
         &self.tab_bar_states
     }
 
+    /// Test seam (WP-1 MT-012 F6/F8): replace the factory registered for a pane
+    /// type. Used by Argus proofs to inject a recording operator-chat backend so
+    /// the selection-audit + transcript-render wiring is provable without a live
+    /// backend. Not used by production wiring.
+    pub fn set_pane_factory(
+        &mut self,
+        pane_type: PaneType,
+        factory: Box<dyn crate::pane_registry::PaneFactory>,
+    ) {
+        self.factories.insert(pane_type, factory);
+    }
+
     /// Mutable view of the per-pane tab-bar state (for tests that seed a multi-tab pane before
     /// driving a frame, and for future agent/operator tab mutation).
     pub fn tab_bar_states_mut(&mut self) -> &mut HashMap<PaneId, TabBarState> {
@@ -1533,7 +1545,7 @@ impl HandshakeApp {
             PaneType::OperatorChatLaunch,
             Box::new(
                 crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(Arc::new(
-                    crate::backend_client::OperatorChatClient::production(handle.clone()),
+                    crate::backend_client::OperatorChatClient::new(base_url, handle.clone()),
                 )),
             ),
         );
@@ -2619,6 +2631,9 @@ impl HandshakeApp {
         if self.workspace_settings.swarm_lane_diagnostics_default_open {
             changed |= self.navigate_to_tab("swarm-lane-diagnostics");
         }
+        if self.workspace_settings.operator_chat_default_open {
+            changed |= self.navigate_to_tab("operator-chat");
+        }
         if changed {
             self.signal_layout_changed();
         }
@@ -2755,6 +2770,11 @@ impl HandshakeApp {
                 self.schedule_settings_save();
                 true
             }
+            O::OperatorChatDefaultOpenChanged(value) => {
+                self.workspace_settings.operator_chat_default_open = value;
+                self.schedule_settings_save();
+                true
+            }
             O::ResetLayout => {
                 // Same action as VIEW > Reset Layout: arm the confirmation (red-team MC7), do not wipe
                 // here. A future confirmation overlay / agent path triggers `confirm_reset_layout`.
@@ -2790,7 +2810,10 @@ impl HandshakeApp {
         // Take the key OUT of the UI buffer (the buffer is cleared here; the moved value zeroizes when
         // the async task drops it).
         let key = self.cloud_models.take_key_draft(provider);
-        match (self.cloud_access_client.clone(), self.runtime_handle.clone()) {
+        match (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) {
             (Some(client), Some(handle)) => {
                 self.cloud_models.set_message(provider, "Saving…");
                 let cell = self.cloud_access_cell.clone();
@@ -2826,7 +2849,10 @@ impl HandshakeApp {
     /// MT-015: dispatch a BYOK key REMOVE/ROTATE via `DELETE /model-access/byok/{provider}/key`
     /// (idempotent), then re-fetch the enumeration.
     fn dispatch_cloud_byok_remove(&mut self, provider: &str) {
-        match (self.cloud_access_client.clone(), self.runtime_handle.clone()) {
+        match (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) {
             (Some(client), Some(handle)) => {
                 self.cloud_models.set_message(provider, "Removing…");
                 let cell = self.cloud_access_cell.clone();
@@ -2982,14 +3008,17 @@ impl HandshakeApp {
         }
         if self.cloud_access_refresh_pending {
             self.cloud_access_refresh_pending = false;
-            if let (Some(client), Some(handle)) =
-                (self.cloud_access_client.clone(), self.runtime_handle.clone())
-            {
+            if let (Some(client), Some(handle)) = (
+                self.cloud_access_client.clone(),
+                self.runtime_handle.clone(),
+            ) {
                 let cell = self.cloud_access_cell.clone();
                 handle.spawn(async move {
                     if let Ok(snapshot) = client.enumerate().await {
                         if let Ok(mut slot) = cell.lock() {
-                            slot.push(crate::backend_client::CloudAccessDelivery::Snapshot(snapshot));
+                            slot.push(crate::backend_client::CloudAccessDelivery::Snapshot(
+                                snapshot,
+                            ));
                         }
                     }
                 });
@@ -4375,7 +4404,7 @@ impl HandshakeApp {
         text: &str,
     ) -> Option<crate::context_menu_surfaces::StatusBarMenuAction> {
         use crate::context_menu_surfaces::{
-            StatusBarSegmentState, status_bar_action_for_id, status_bar_context_items,
+            status_bar_action_for_id, status_bar_context_items, StatusBarSegmentState,
         };
         let chrome = ChromeWidget::StatusBar;
         let id = chrome.egui_id();

@@ -69,6 +69,19 @@ impl LocalRouter {
             RuntimeBinding::Candle => Arc::clone(&self.candle_runtime),
         })
     }
+
+    pub fn require_embedding_model(&self, model_id: ModelId) -> Result<usize, LlmError> {
+        let registration = self.registry.lookup(model_id).ok_or_else(|| {
+            LlmError::ProviderError(format!("local model is not registered: {model_id}"))
+        })?;
+        if !registration.declared_capabilities.supports_embedding {
+            return Err(LlmError::EmbeddingUnsupported);
+        }
+        registration
+            .declared_capabilities
+            .embedding_dimension
+            .ok_or(LlmError::EmbeddingUnsupported)
+    }
 }
 
 pub struct LocalModelRuntimeLlmClient {
@@ -105,7 +118,7 @@ pub struct LocalModelRuntimeLlmClient {
     // [`Self::shutdown`] seam (and a `Drop` safety net inside the handle) — the
     // runtime is held behind `Arc<dyn ModelRuntime>` and never has
     // `unload(&mut self)` called on it, so we do NOT route STOP through unload.
-    embedded_process: Option<EmbeddedModelProcess>,
+    embedded_processes: Vec<EmbeddedModelProcess>,
 }
 
 impl LocalModelRuntimeLlmClient {
@@ -124,7 +137,7 @@ impl LocalModelRuntimeLlmClient {
             capsule_injector: None,
             capsule_context_source: None,
             catalog: None,
-            embedded_process: None,
+            embedded_processes: Vec::new(),
         }
     }
 
@@ -135,7 +148,7 @@ impl LocalModelRuntimeLlmClient {
     /// row), so the client owns the STOP-on-shutdown obligation for the loaded
     /// model. Clients constructed without a ledger handle keep `None`.
     pub fn with_embedded_process(mut self, embedded_process: EmbeddedModelProcess) -> Self {
-        self.embedded_process = Some(embedded_process);
+        self.embedded_processes.push(embedded_process);
         self
     }
 
@@ -341,10 +354,12 @@ impl LocalModelRuntimeLlmClient {
     ) {
         let payload = json!({
             "type": "data_embedding_computed",
-            "trace_id": req.trace_id,
+            "silver_id": format!("embedding-call-{}", req.trace_id.simple()),
             "model_id": req.model_id,
-            "embedding_dim": embedding_dim,
-            "latency_ms": latency_ms,
+            "model_version": "local-runtime",
+            "dimensions": embedding_dim,
+            "compute_latency_ms": latency_ms,
+            "was_truncated": false,
         });
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::DataEmbeddingComputed,
@@ -441,6 +456,7 @@ impl LocalModelRuntimeLlmClient {
         model_id: ModelId,
     ) -> Result<EmbeddingResponse, LlmError> {
         let started = Instant::now();
+        let expected_dim = self.router.require_embedding_model(model_id)?;
         let runtime = self.router.resolve(model_id)?;
         let embedding = runtime
             .embed(model_id, &req.input)
@@ -451,6 +467,12 @@ impl LocalModelRuntimeLlmClient {
             return Err(LlmError::ProviderError(format!(
                 "local ModelRuntime returned an empty embedding vector for {model_id}"
             )));
+        }
+        if embedding.vector.len() != expected_dim {
+            return Err(LlmError::EmbeddingDimensionMismatch {
+                expected: expected_dim,
+                actual: embedding.vector.len(),
+            });
         }
 
         Ok(EmbeddingResponse {
@@ -571,11 +593,12 @@ impl LlmClient for LocalModelRuntimeLlmClient {
     /// Idempotent: a no-op when no embedded process is owned, and the ownership
     /// handle also emits STOP on `Drop` as a safety net.
     fn shutdown(&self) {
-        if let Some(embedded_process) = &self.embedded_process {
+        for embedded_process in &self.embedded_processes {
             if let Err(err) = embedded_process.shutdown("llm-client-shutdown") {
                 tracing::warn!(
                     target: "handshake_core::llm",
                     error = %err,
+                    process_uuid = %embedded_process.process_uuid(),
                     "embedded model ProcessOwnershipLedger STOP on client shutdown failed"
                 );
             }

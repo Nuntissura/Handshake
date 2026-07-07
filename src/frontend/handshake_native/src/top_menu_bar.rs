@@ -261,6 +261,7 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     "menu.run.swarm-lane-diagnostics",
     "menu.run.inference-lab",
     "menu.run.flight-recorder",
+    "menu.run.operator-chat",
     "menu.help.user-manual",
     "menu.help.settings",
 ];
@@ -927,9 +928,10 @@ mod tests {
     fn swarm_accessible_actions_listed() {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.operator-chat"));
         assert_eq!(
             SWARM_ACCESSIBLE_ACTIONS.len(),
-            7,
+            9,
             "all overlay/navigation actions listed"
         );
         // Destructive/document actions are NOT swarm-exposed.

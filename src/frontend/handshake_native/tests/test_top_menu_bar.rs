@@ -430,6 +430,32 @@ fn run_menu_opens_swarm_lane_diagnostics() {
     );
 }
 
+#[test]
+fn run_menu_opens_operator_chat_launch() {
+    let mut harness = shell_harness();
+    harness.run();
+    harness.get_by_label("RUN").click();
+    harness.run();
+    let nodes = live_author_nodes(&harness);
+    assert!(
+        nodes
+            .iter()
+            .any(|(a, role, _)| a == "menu.run.operator-chat" && role == "MenuItem"),
+        "Run menu exposes operator chat leaf with stable author_id: {nodes:?}"
+    );
+
+    harness.get_by_label("Open Operator Chat").click();
+    harness.run();
+    assert!(
+        harness.state().tab_bar_states().values().any(|bar| {
+            bar.tabs.iter().any(|tab| {
+                tab.pane_type == handshake_native::pane_registry::PaneType::OperatorChatLaunch
+            })
+        }),
+        "Run > Open Operator Chat opens the native operator chat launch tab"
+    );
+}
+
 // ── ViewMode toggle is observable through the public accessor ────────────────────────────────────────
 
 #[test]

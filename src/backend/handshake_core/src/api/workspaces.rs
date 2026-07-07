@@ -1447,7 +1447,7 @@ mod tests {
     use crate::flight_recorder::{
         duckdb::DuckDbFlightRecorder, EventFilter, FlightRecorderEventType,
     };
-    use crate::llm::ollama::InMemoryLlmClient;
+    use crate::llm::InMemoryLlmClient;
     use crate::storage::{
         tests::optional_postgres_backend_with_pool_from_env, AccessMode, Database, EntityRef,
         JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation, SafetyMode,

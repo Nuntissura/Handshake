@@ -72,7 +72,9 @@ async fn start_server(state: ModelAccessState) -> (String, tokio::task::JoinHand
     let addr = listener.local_addr().expect("local addr");
     let app = routes(state);
     let handle = tokio::spawn(async move {
-        axum::serve(listener, app).await.expect("model-access server");
+        axum::serve(listener, app)
+            .await
+            .expect("model-access server");
     });
     (format!("http://{addr}"), handle)
 }
@@ -216,12 +218,18 @@ async fn get_providers_reflects_configured_and_excludes_gemini() {
         .iter()
         .find(|r| r["provider"] == "openai")
         .expect("openai row");
-    assert_eq!(openai["status"], "configured", "the stored key shows configured");
+    assert_eq!(
+        openai["status"], "configured",
+        "the stored key shows configured"
+    );
     let anthropic = byok
         .iter()
         .find(|r| r["provider"] == "anthropic")
         .expect("anthropic row");
-    assert_eq!(anthropic["status"], "unavailable", "un-keyed provider is unavailable");
+    assert_eq!(
+        anthropic["status"], "unavailable",
+        "un-keyed provider is unavailable"
+    );
     assert!(
         byok.iter().all(|r| r["provider"] != "gemini"),
         "Gemini is never an offered BYOK row"
@@ -233,6 +241,81 @@ async fn get_providers_reflects_configured_and_excludes_gemini() {
             .iter()
             .any(|e| e == "gemini"),
         "Gemini is surfaced only as an explicit exclusion"
+    );
+
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn delete_byok_key_is_idempotent_and_updates_status() {
+    const CANARY: &str = "sk-delete-canary-NEVER-OVER-HTTP";
+    let (state, vault) = in_memory_state();
+    let (base, server) = start_server(state).await;
+
+    let client = reqwest::Client::new();
+    let store = client
+        .put(format!("{base}/model-access/byok/openai/key"))
+        .json(&serde_json::json!({ "api_key": CANARY }))
+        .send()
+        .await
+        .expect("store");
+    assert_eq!(store.status().as_u16(), 200);
+    assert!(
+        vault
+            .get(ByokProvider::OpenAi.vault_lane())
+            .expect("stored key")
+            .as_str()
+            == CANARY,
+        "precondition: the key was stored in the vault"
+    );
+
+    for attempt in 1..=2 {
+        let resp = client
+            .delete(format!("{base}/model-access/byok/openai/key"))
+            .send()
+            .await
+            .unwrap_or_else(|err| panic!("delete attempt {attempt}: {err}"));
+        assert_eq!(
+            resp.status().as_u16(),
+            200,
+            "delete attempt {attempt} must be idempotent"
+        );
+        let body = resp.text().await.expect("read delete body");
+        assert!(
+            !body.contains(CANARY),
+            "delete response must NEVER echo the key: {body}"
+        );
+        assert!(
+            body.contains("\"status\":\"unavailable\""),
+            "delete returns non-secret unavailable status: {body}"
+        );
+    }
+
+    assert!(
+        vault.get(ByokProvider::OpenAi.vault_lane()).is_err(),
+        "delete removes the key from the vault"
+    );
+
+    let providers = client
+        .get(format!("{base}/model-access/providers"))
+        .send()
+        .await
+        .expect("enumerate after delete");
+    assert_eq!(providers.status().as_u16(), 200);
+    let body = providers.text().await.expect("provider body");
+    assert!(
+        !body.contains(CANARY),
+        "enumeration after delete must not expose the old key: {body}"
+    );
+    let v: Value = serde_json::from_str(&body).expect("json");
+    let byok = v["byok"].as_array().expect("byok array");
+    let openai = byok
+        .iter()
+        .find(|r| r["provider"] == "openai")
+        .expect("openai row");
+    assert_eq!(
+        openai["status"], "unavailable",
+        "deleted key must show unavailable"
     );
 
     server.abort();

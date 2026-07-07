@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, sync::Mutex};
 
 use chrono::Utc;
 use handshake_core::{
@@ -11,12 +11,40 @@ use handshake_core::{
             WriteBoxTargetRef, WriteBoxValidationState, WriteBoxValidationStatus,
         },
     },
+    llm::registry::{ProviderRegistry, RuntimeRole},
     model_runtime::{
         BaseModelTag, ModelCapabilities, ModelId, ModelRegistration, ModelRegistry, OperatorId,
         ProviderKind, RuntimeBinding,
     },
 };
 use uuid::Uuid;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+struct EnvSnapshot {
+    values: Vec<(&'static str, Option<String>)>,
+}
+
+impl EnvSnapshot {
+    fn capture(keys: &[&'static str]) -> Self {
+        let values = keys
+            .iter()
+            .map(|key| (*key, std::env::var(key).ok()))
+            .collect();
+        Self { values }
+    }
+}
+
+impl Drop for EnvSnapshot {
+    fn drop(&mut self) {
+        for (key, value) in self.values.iter().rev() {
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
+        }
+    }
+}
 
 fn capabilities_with_activation_steering(enabled: bool) -> ModelCapabilities {
     ModelCapabilities {
@@ -131,6 +159,147 @@ fn model_registry_tests_rejects_capability_binding_mismatch() {
     let message = err.to_string();
     assert!(message.contains("activation_steering"), "{message}");
     assert!(message.contains("llama_cpp"), "{message}");
+}
+
+#[test]
+fn mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency() {
+    let mut registry = ModelRegistry::default();
+    registry
+        .register(registration(
+            ModelId::new_v7(),
+            RuntimeBinding::Candle,
+            ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: Some(768),
+                ..Default::default()
+            },
+        ))
+        .expect("embedding-capable model with dimension is valid");
+
+    let err = registry
+        .register(registration(
+            ModelId::new_v7(),
+            RuntimeBinding::Candle,
+            ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: None,
+                ..Default::default()
+            },
+        ))
+        .expect_err("supports_embedding requires an embedding dimension");
+    assert!(
+        err.to_string().contains("embedding_dimension"),
+        "error should name missing dimension: {err}"
+    );
+
+    let err = registry
+        .register(registration(
+            ModelId::new_v7(),
+            RuntimeBinding::Candle,
+            ModelCapabilities {
+                supports_embedding: false,
+                embedding_dimension: Some(768),
+                ..Default::default()
+            },
+        ))
+        .expect_err("dimension without supports_embedding must fail");
+    assert!(
+        err.to_string().contains("supports_embedding"),
+        "error should name inconsistent embedding capability: {err}"
+    );
+
+    let err = registry
+        .register(registration(
+            ModelId::new_v7(),
+            RuntimeBinding::Candle,
+            ModelCapabilities {
+                supports_embedding: true,
+                embedding_dimension: Some(0),
+                ..Default::default()
+            },
+        ))
+        .expect_err("zero-dimensional embedding model must fail");
+    assert!(
+        err.to_string().contains("non-zero"),
+        "error should reject zero dimension: {err}"
+    );
+
+    let _env_lock = match ENV_LOCK.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let _snapshot = EnvSnapshot::capture(&[
+        "HANDSHAKE_LLM_PROVIDER",
+        "HANDSHAKE_LOCAL_MODEL_PATH",
+        "HANDSHAKE_LOCAL_MODEL_SHA256",
+        "HANDSHAKE_LOCAL_MODEL_BINDING",
+        "HANDSHAKE_LOCAL_MODEL_NAME",
+        "HANDSHAKE_LOCAL_EMBEDDING_MODEL_PATH",
+        "HANDSHAKE_LOCAL_EMBEDDING_MODEL_SHA256",
+        "HANDSHAKE_LOCAL_EMBEDDING_MODEL_BINDING",
+        "HANDSHAKE_LOCAL_EMBEDDING_MODEL_NAME",
+        "HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION",
+    ]);
+    const CHAT_SHA: &str = "9b871512327c09ce91dd649b3f96a63b7408ef267c8cc5710114e629730cb61f";
+    const EMBED_SHA: &str = "ad871512327c09ce91dd649b3f96a63b7408ef267c8cc5710114e629730cb61f";
+
+    std::env::set_var("HANDSHAKE_LLM_PROVIDER", "local_runtime");
+    std::env::set_var("HANDSHAKE_LOCAL_MODEL_PATH", "/models/chat.gguf");
+    std::env::set_var("HANDSHAKE_LOCAL_MODEL_SHA256", CHAT_SHA);
+    std::env::set_var("HANDSHAKE_LOCAL_MODEL_BINDING", "candle");
+    std::env::set_var("HANDSHAKE_LOCAL_MODEL_NAME", "chat-local");
+    std::env::set_var("HANDSHAKE_LOCAL_EMBEDDING_MODEL_PATH", "/models/embed.gguf");
+    std::env::set_var("HANDSHAKE_LOCAL_EMBEDDING_MODEL_SHA256", EMBED_SHA);
+    std::env::set_var("HANDSHAKE_LOCAL_EMBEDDING_MODEL_BINDING", "candle");
+    std::env::set_var("HANDSHAKE_LOCAL_EMBEDDING_MODEL_NAME", "embed-local");
+    std::env::remove_var("HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION");
+
+    let resolved = ProviderRegistry::from_env()
+        .expect("local runtime env with embedding model")
+        .resolve(RuntimeRole::Orchestrator)
+        .expect("orchestrator resolves");
+    let embedding = resolved
+        .local_embedding_model
+        .expect("embedding config from env");
+    assert_eq!(embedding.artifact_path, PathBuf::from("/models/embed.gguf"));
+    assert_eq!(embedding.runtime_binding, RuntimeBinding::Candle);
+    assert_eq!(embedding.display_name, "embed-local");
+    assert_eq!(
+        embedding.embedding_dimension,
+        Some(768),
+        "embedding dimension defaults to LoomSearchV2's 768-vector contract"
+    );
+
+    std::env::set_var("HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION", "1024");
+    let resolved = ProviderRegistry::from_env()
+        .expect("local runtime env with dimension override")
+        .resolve(RuntimeRole::Orchestrator)
+        .expect("orchestrator resolves");
+    assert_eq!(
+        resolved
+            .local_embedding_model
+            .expect("embedding config from env")
+            .embedding_dimension,
+        Some(1024),
+        "dimension override must propagate into ResolvedProvider"
+    );
+
+    std::env::set_var("HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION", "0");
+    let err = ProviderRegistry::from_env().expect_err("zero embedding dimension must fail");
+    assert!(
+        err.to_string()
+            .contains("HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION"),
+        "zero-dimension error should name the env var: {err}"
+    );
+
+    std::env::remove_var("HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION");
+    std::env::remove_var("HANDSHAKE_LOCAL_EMBEDDING_MODEL_SHA256");
+    let err = ProviderRegistry::from_env().expect_err("embedding model path requires SHA");
+    assert!(
+        err.to_string()
+            .contains("HANDSHAKE_LOCAL_EMBEDDING_MODEL_SHA256"),
+        "missing-SHA error should name the embedding SHA env var: {err}"
+    );
 }
 
 #[test]

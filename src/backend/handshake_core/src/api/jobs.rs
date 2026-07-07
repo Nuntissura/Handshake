@@ -377,7 +377,7 @@ mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
-    use crate::llm::ollama::InMemoryLlmClient;
+    use crate::llm::InMemoryLlmClient;
     use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database, JobState};
     use axum::extract::State;
     use serde_json::json;

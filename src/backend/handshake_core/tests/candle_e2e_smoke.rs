@@ -145,6 +145,249 @@ async fn candle_e2e_smoke_reports_every_family_as_passed_or_skipped() {
     }
 }
 
+#[cfg(not(feature = "candle-runtime-engine"))]
+#[tokio::test]
+#[ignore = "MT-013 real Candle default-load ledger proof is run explicitly with candle-runtime-engine"]
+async fn mt013_real_candle_default_load_emits_process_ledger_start_stop() {
+    panic!(
+        "MT-013 real Candle default-load ledger proof requires --features candle-runtime-engine"
+    );
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+#[tokio::test]
+#[ignore = "MT-013 real Candle default-load ledger proof requires real model weights"]
+async fn mt013_real_candle_default_load_emits_process_ledger_start_stop() {
+    mt013_real_candle_ledger::run_real_candle_default_load_ledger_proof().await;
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+mod mt013_real_candle_ledger {
+    use std::{
+        env,
+        path::{Path, PathBuf},
+        sync::{Arc, Mutex},
+    };
+
+    use async_trait::async_trait;
+    use handshake_core::{
+        flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError},
+        llm::{
+            boot::build_default_local_client,
+            registry::{LocalModelConfig, ProviderKind, ResolvedProvider},
+            ModelTier,
+        },
+        model_runtime::{candle::adapter::sha256_file, RuntimeBinding},
+        process_ledger::{
+            LedgerBatcher, LedgerBatcherConfig, LedgerEvent, NoopOverflowSink, ProcessEngineKind,
+            ProcessLedgerError, ProcessLedgerStore, ProcessStart, ProcessStop,
+        },
+    };
+
+    const MT013_REAL_CANDLE_MODEL_DIR_ENV: &str = "HANDSHAKE_TEST_CANDLE_MODEL_DIR";
+
+    struct NoopRecorder;
+
+    #[async_trait]
+    impl FlightRecorder for NoopRecorder {
+        async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+            Ok(())
+        }
+
+        async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+            Ok(0)
+        }
+
+        async fn list_events(
+            &self,
+            _filter: EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[derive(Default)]
+    struct CapturingLedgerStore {
+        events: Mutex<Vec<LedgerEvent>>,
+    }
+
+    impl CapturingLedgerStore {
+        fn snapshot(&self) -> Vec<LedgerEvent> {
+            self.events.lock().expect("ledger store lock").clone()
+        }
+
+        fn starts(&self) -> Vec<ProcessStart> {
+            self.snapshot()
+                .into_iter()
+                .filter_map(|event| match event {
+                    LedgerEvent::Start(start) => Some(start),
+                    LedgerEvent::Stop(_) => None,
+                })
+                .collect()
+        }
+
+        fn stops(&self) -> Vec<ProcessStop> {
+            self.snapshot()
+                .into_iter()
+                .filter_map(|event| match event {
+                    LedgerEvent::Stop(stop) => Some(stop),
+                    LedgerEvent::Start(_) => None,
+                })
+                .collect()
+        }
+    }
+
+    #[async_trait]
+    impl ProcessLedgerStore for CapturingLedgerStore {
+        async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
+            self.events
+                .lock()
+                .expect("ledger store lock")
+                .extend(events);
+            Ok(())
+        }
+    }
+
+    pub async fn run_real_candle_default_load_ledger_proof() {
+        let model_dir = required_real_candle_model_dir();
+        let artifact_path = model_dir.join("model.safetensors");
+        let sha_hex = sha256_file(&artifact_path).expect("hash real Candle model artifact");
+        let sha256 = decode_sha256(&sha_hex);
+        let resolved = ResolvedProvider {
+            provider_id: "local_runtime".to_string(),
+            kind: ProviderKind::LocalRuntime,
+            tier: ModelTier::Local,
+            base_url: "local://embedded-candle".to_string(),
+            model_id: "mt013-real-candle-default".to_string(),
+            api_key_env: None,
+            local_model: Some(LocalModelConfig {
+                artifact_path: artifact_path.clone(),
+                sha256,
+                runtime_binding: RuntimeBinding::Candle,
+                display_name: "mt013-real-candle-default".to_string(),
+                embedding_dimension: None,
+            }),
+            local_embedding_model: None,
+        };
+
+        let (ledger, drain) = LedgerBatcher::manual_for_tests(
+            LedgerBatcherConfig::default(),
+            Arc::new(NoopOverflowSink),
+        )
+        .expect("manual ProcessOwnershipLedger for MT-013 proof");
+        let store = Arc::new(CapturingLedgerStore::default());
+        let recorder: Arc<dyn FlightRecorder> = Arc::new(NoopRecorder);
+
+        let client = build_default_local_client(&resolved, recorder, Some(ledger)).await;
+        let profile_model_id = client.profile().model_id.clone();
+
+        drain
+            .drain_available_to(store.clone())
+            .await
+            .expect("drain MT-013 real Candle START row");
+
+        let starts = store.starts();
+        assert_eq!(
+            starts.len(),
+            1,
+            "real Candle default load must emit exactly one ProcessOwnershipLedger START row; profile_model_id={profile_model_id}"
+        );
+        let start = &starts[0];
+        assert_eq!(
+            start.engine_kind,
+            ProcessEngineKind::Candle,
+            "START row must identify the real Candle runtime"
+        );
+        assert_eq!(
+            start.os_pid, None,
+            "in-process Candle default load must stay pid-less; no synthetic pid or bare child process"
+        );
+        assert_eq!(
+            start.process_uuid.to_string(),
+            profile_model_id,
+            "START process_uuid must equal the real model UUIDv7 exposed by LlmClient::profile"
+        );
+        assert_eq!(
+            start.model_artifact_sha256.as_deref(),
+            Some(sha_hex.as_str()),
+            "START row must carry the real model artifact SHA-256"
+        );
+        assert_eq!(
+            start.metadata_jsonb["source"].as_str(),
+            Some("wp1_mt013_embedded_model_load"),
+            "START metadata must identify the MT-013 embedded-model load seam"
+        );
+        assert_eq!(
+            start.metadata_jsonb["os_pid_absent_reason"].as_str(),
+            Some("in_process_library_load_no_os_process"),
+            "START metadata must explain why os_pid is absent"
+        );
+        assert!(
+            store.stops().is_empty(),
+            "STOP row must not exist before LlmClient::shutdown is exercised"
+        );
+
+        client.shutdown();
+        drain
+            .drain_available_to(store.clone())
+            .await
+            .expect("drain MT-013 real Candle STOP row");
+
+        let stops = store.stops();
+        assert_eq!(
+            stops.len(),
+            1,
+            "real Candle default load shutdown must emit exactly one STOP row"
+        );
+        let stop = &stops[0];
+        assert_eq!(
+            stop.process_uuid, start.process_uuid,
+            "STOP row must correlate to the START row"
+        );
+        assert_eq!(
+            stop.os_pid, None,
+            "STOP row must remain pid-less for the in-process Candle load"
+        );
+        assert_eq!(
+            stop.stop_reason.as_deref(),
+            Some("llm-client-shutdown"),
+            "STOP row must be emitted through the default LlmClient shutdown seam"
+        );
+
+        eprintln!(
+            "[MT-013_REAL_CANDLE_LEDGER_DUMP] {}",
+            serde_json::to_string_pretty(&store.snapshot()).expect("serialize ledger dump")
+        );
+    }
+
+    fn required_real_candle_model_dir() -> PathBuf {
+        let raw = env::var_os(MT013_REAL_CANDLE_MODEL_DIR_ENV).unwrap_or_else(|| {
+            panic!(
+                "MT-013 real Candle proof requires {MT013_REAL_CANDLE_MODEL_DIR_ENV} pointing at a directory containing model.safetensors and tokenizer.json"
+            )
+        });
+        let model_dir = PathBuf::from(raw);
+        require_file(&model_dir.join("model.safetensors"));
+        require_file(&model_dir.join("tokenizer.json"));
+        model_dir
+    }
+
+    fn require_file(path: &Path) {
+        assert!(
+            path.is_file(),
+            "MT-013 real Candle proof requires existing file {}",
+            path.display()
+        );
+    }
+
+    fn decode_sha256(hex_value: &str) -> [u8; 32] {
+        let bytes = hex::decode(hex_value).expect("sha256_file returns valid hex");
+        bytes
+            .try_into()
+            .expect("sha256_file returns exactly 32 bytes")
+    }
+}
+
 async fn run_family_smoke(spec: FamilySpec) -> SmokeOutcome {
     let Some(model_dir) = model_dir_from_env(spec) else {
         return skipped(spec, format!("{} unset", spec.env_var));
@@ -546,6 +789,8 @@ mod live {
                 supports_kv_prefix_cache: true,
                 supports_kv_quantization: KvQuantSupport::Q8,
                 supports_activation_steering: true,
+                supports_embedding: false,
+                embedding_dimension: None,
                 supports_subquadratic: false,
                 supports_speculative_draft: true,
                 supports_eagle3: true,

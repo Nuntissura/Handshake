@@ -7,8 +7,9 @@
 pub mod boot;
 pub mod embedded_ledger;
 pub mod guard;
+#[cfg(any(test, feature = "test-utils"))]
+pub mod in_memory;
 pub mod local_router;
-pub mod ollama;
 pub mod openai_compat;
 pub mod registry;
 
@@ -30,8 +31,8 @@ use crate::model_runtime::{CancellationToken, ModelCatalog};
 use crate::workflows::ModelSwapRequestV0_4;
 use guard::CloudEscalationBundleV0_4;
 
-// Re-export primary types for convenient access
-pub use ollama::OllamaAdapter;
+#[cfg(any(test, feature = "test-utils"))]
+pub use in_memory::InMemoryLlmClient;
 
 /// HSK-TRAIT-004: LLM Client Adapter
 ///
@@ -53,9 +54,9 @@ pub trait LlmClient: Send + Sync {
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError>;
 
     /// Produces a real embedding vector for the given text via the configured
-    /// model runtime (e.g. Ollama `/api/embeddings`). This is the model-runtime
-    /// surface LoomSearchV2 (WP-KERNEL-009 MT-264) uses to embed block text and
-    /// search queries for the semantic (pgvector kNN) modality.
+    /// model runtime. This is the model-runtime surface LoomSearchV2
+    /// (WP-KERNEL-009 MT-264) uses to embed block text and search queries for
+    /// the semantic (pgvector kNN) modality.
     ///
     /// The default implementation returns a typed `ProviderError` so providers
     /// that do not expose an embedding endpoint compile unchanged. Callers MUST
@@ -77,7 +78,8 @@ pub trait LlmClient: Send + Sync {
     /// honoring the Model Swap Protocol budgets and timeout.
     ///
     /// Default implementation returns an "unsupported" provider error so that
-    /// non-Ollama clients can compile without implementing swap semantics.
+    /// clients without runtime swap support can compile without implementing
+    /// swap semantics.
     async fn swap_model(&self, _req: ModelSwapRequestV0_4) -> Result<(), LlmError> {
         Err(LlmError::ProviderError(
             "HSK-501-UNSUPPORTED: model swap unsupported".to_string(),
@@ -339,6 +341,13 @@ pub enum LlmError {
     /// MUST degrade to keyword/trigram modalities — NEVER fabricate a vector.
     #[error("HSK-501-EMBEDDING-UNSUPPORTED: no embedding model configured")]
     EmbeddingUnsupported,
+
+    /// HSK-409-EMBEDDING-DIMENSION-MISMATCH: The selected embedding model was
+    /// declared for one vector dimension but returned another. Callers that can
+    /// degrade should surface a typed semantic-degrade result instead of
+    /// comparing incompatible vectors.
+    #[error("HSK-409-EMBEDDING-DIMENSION-MISMATCH: expected {expected} dimensions, got {actual}")]
+    EmbeddingDimensionMismatch { expected: usize, actual: usize },
 }
 
 /// A Flight Recorder sink that discards events.
