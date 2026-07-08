@@ -530,6 +530,64 @@ async fn cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidenc
     assert_eq!(revocation_events, 1);
 }
 
+/// WP-1 MT-006: cloud authority is LANE-BOUND. A ProjectionPlan + ConsentReceipt
+/// issued for `lane-cloud-a` must not authorize a different lane in the same run.
+/// Preflight (`ensure_cloud_launch_authority_tx`) requires the plan/receipt
+/// `lane_id` to equal the launching lane, so cross-lane reuse of cloud consent
+/// fails closed BEFORE any provider call: no `model_lanes` row is created and a
+/// durable CX-MM-007 denial event is appended for the rejected lane.
+///
+/// This closes the untested half of the consent boundary: the suite proved
+/// missing/expired/mismatched/revoked receipts, but never that an otherwise
+/// VALID, APPROVED receipt cannot be borrowed by a sibling lane.
+#[tokio::test]
+async fn cloud_consent_receipt_bound_to_other_lane_fails_closed() {
+    let (pool, store) = model_lane_store().await;
+
+    // Durable, approved, in-window cloud authority exists ONLY for lane-cloud-a.
+    seed_cloud_authority(
+        &store,
+        "run-cloud-crosslane",
+        "lane-cloud-a",
+        "openai",
+        ModelLaneCloudConsentReceiptStatus::Approved,
+        "2026-06-29T00:00:00Z",
+        "2027-06-29T00:00:00Z",
+    )
+    .await;
+
+    // lane-cloud-b attempts to launch by borrowing lane-cloud-a's plan + receipt.
+    let (mut run, mut lane) = sample_cloud_run_lane(
+        "run-cloud-crosslane",
+        "lane-cloud-b",
+        ModelLaneStatus::Running,
+    );
+    let borrowed_plan = projection_plan_id("run-cloud-crosslane", "lane-cloud-a");
+    let borrowed_receipt = consent_receipt_id("run-cloud-crosslane", "lane-cloud-a");
+    run.projection_plan_ref = Some(borrowed_plan.clone());
+    run.consent_receipt_ref = Some(borrowed_receipt.clone());
+    lane.projection_plan_ref = Some(borrowed_plan);
+    lane.consent_receipt_ref = Some(borrowed_receipt);
+
+    let err = store
+        .record_prepared_launch((run, lane))
+        .await
+        .expect_err("cloud authority bound to another lane must not authorize this lane");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("CX-MM-007"),
+        "cross-lane cloud authority reuse must be denied with CX-MM-007, got: {msg}"
+    );
+    assert!(
+        msg.contains("lane_id"),
+        "denial must name the lane_id mismatch, got: {msg}"
+    );
+
+    // Fail-closed: no partial authority state, and the denial is durable evidence.
+    assert_no_lane_row(&pool, "lane-cloud-b").await;
+    assert_denial_event(&pool, "run-cloud-crosslane", "lane-cloud-b").await;
+}
+
 async fn model_lane_store() -> (sqlx::PgPool, ModelLaneStore) {
     let kpg = knowledge_pg_support::knowledge_pg()
         .await
