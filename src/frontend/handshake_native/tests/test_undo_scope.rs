@@ -44,6 +44,7 @@ use egui_kittest::Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::code_editor::keymap::CodeEditorAction;
 use handshake_native::code_editor::panel::CodeEditorPanel;
 use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
 use handshake_native::interop::interaction_bus::InteractionBus;
@@ -1122,4 +1123,193 @@ fn canvas_placement_undo_round_trip_live_pg() {
     // A real harness re-fetches the board and asserts `placement_id` is gone. Documented as the gated
     // assertion; the request-shape proof above (`canvas_compensating_undo_uses_verified_delete_route`)
     // proves the binding without a live backend.
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// FIX A (data-safety) — undo-history corruption: a `type -> line-op -> type` burst inside the 500ms
+// coalesce window must KEEP the non-typing (line-op) entry. Before the fix the code-pane typing
+// coalescer's `last_edit_at` was never reset when a NON-typing entry (format / line-op / cut / paste)
+// was pushed, so the 2nd type's `replace_tail=true` clobbered the line-op entry via
+// `replace_undo_local_tail`, silently dropping it from history. The fix: every non-typing code-edit
+// entry routes through `interop_adapter::push_code_edit_undo`, which now calls
+// `CodeEditorPanel::reset_text_edit_undo_batch_timing()` so the NEXT keystroke starts a FRESH entry
+// instead of `replace_tail`-ing over the non-typing tail.
+//
+// Driven END-TO-END through the mounted shell + real bus — NO manual `push_code_edit_undo` seeding; the
+// LIVE producer stages every entry, the pane factory drains each through the real bus boundary. The
+// non-typing (line-op) step is driven DETERMINISTICALLY via `CodeEditorPanel::dispatch_action` (the EXACT
+// arm the Ctrl+/ keybind resolves to — see `keymap.rs` `A::ToggleComment`), NOT a raw `Ctrl+/` chord
+// through `Harness`: egui_kittest did not reliably deliver a modified `Slash` key event to the panel's
+// keymap, but the undo-corruption defect lives at the coalescer/undo-stack boundary, not in key
+// delivery — so we exercise the real production push+reset path without the flaky keymap layer.
+//
+// GUARD (regression teeth): if `push_code_edit_undo`'s `reset_text_edit_undo_batch_timing()` call is
+// removed, the 2nd type coalesces (`replace_tail`) over the line-op entry E2 -> the ring holds only TWO
+// entries and undo #2 reverts the typing burst instead of the line op -> this test FAILS. Verified by
+// deleting the reset and observing `depth == 2`.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn undo_scope_type_around_line_op_keeps_all_three_entries_live() {
+    let (app, _rt) = mt035_editor_shell();
+    let code_panel = app.mounted_code_panel();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+
+    let pane_id = PaneId::from("pane-a");
+    // A multi-line Rust doc (the mounted code pane is ext "rs" -> the line-comment token is "//", so
+    // Toggle Comment mutates the buffer). `s0` is the original document.
+    let s0 = "alpha\nbeta\ngamma\n";
+    code_panel.set_text(s0);
+    // Caret at the start of line 1 ("beta"): "alpha\n" is 6 bytes, so byte offset 6 is that line start.
+    code_panel.set_single_cursor(6);
+    focus_code_text_surface(&harness);
+    harness.run_steps(1);
+
+    // (1) TYPE — the live producer stages + drains a FRESH typing undo entry E1 (no manual seeding).
+    harness.event(egui::Event::Text("X".to_owned()));
+    harness.run_steps(2);
+    let s1 = code_panel.buffer().to_string();
+    assert_ne!(s1, s0, "the first typed char mutated the mounted code buffer");
+
+    // (2) TOGGLE COMMENT — a NON-typing line-op entry E2. Driven DETERMINISTICALLY through the panel's
+    // real action handler `CodeEditorPanel::dispatch_action(CodeEditorAction::ToggleComment)` — the EXACT
+    // arm the Ctrl+/ keybind resolves to (`keymap.rs` binds `Ctrl+Slash -> A::ToggleComment`; `app.rs`
+    // routes that action into `dispatch_action`). This stages `pending_line_op_undo`, and the factory
+    // render on the next `run_steps` drains it through `interop_adapter::push_code_edit_undo` — the SINGLE
+    // boundary FIX A resets the typing coalescer at — so the reset path is exercised for real. We call the
+    // action directly (not a raw `Ctrl+/` chord) only because egui_kittest did not reliably deliver the
+    // modified `Slash` key event to the panel keymap; the undo-corruption defect is unaffected by key
+    // delivery, so this loses no coverage of the production push+reset boundary.
+    code_panel.dispatch_action(CodeEditorAction::ToggleComment);
+    harness.run_steps(2);
+    let s2 = code_panel.buffer().to_string();
+    assert_ne!(
+        s2, s1,
+        "ToggleComment commented the caret line (the non-typing undo entry E2); got {s2:?}"
+    );
+
+    // (3) TYPE again, still WITHIN the 500ms window of the first type (test frames are microseconds
+    // apart). Before the fix this 2nd type coalesced (`replace_tail`) over E2 and DROPPED the line-op
+    // entry; with the fix E2's push reset the coalescer, so this is a fresh entry E3.
+    harness.event(egui::Event::Text("Y".to_owned()));
+    harness.run_steps(2);
+    let s3 = code_panel.buffer().to_string();
+    assert_ne!(s3, s2, "the second typed char mutated the mounted code buffer");
+
+    // PROOF (FIX A): all THREE entries survive — the line-op entry was NOT clobbered by the coalescer.
+    let depth = InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |b| {
+        b.local_undo_count(&pane_id)
+    })
+    .expect("bus lock");
+    assert_eq!(
+        depth, 3,
+        "FIX A: type -> line-op -> type records THREE undo entries; the non-typing line-op entry is not \
+         silently dropped by the typing coalescer (got {depth})"
+    );
+
+    // And undoing reverts in correct reverse order s3 -> s2 -> s1 -> s0 (the line-op step is recovered).
+    code_panel.request_undo_for_test();
+    harness.run_steps(2);
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        s2,
+        "FIX A: undo #1 reverts the 2nd typing edit (back to the commented line)"
+    );
+    code_panel.request_undo_for_test();
+    harness.run_steps(2);
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        s1,
+        "FIX A: undo #2 reverts the LINE-OP — the entry the old coalescer silently dropped from history"
+    );
+    code_panel.request_undo_for_test();
+    harness.run_steps(2);
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        s0,
+        "FIX A: undo #3 reverts the 1st typing edit, back to the original document"
+    );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// FIX B (perf) — a focused-IDLE rich pane pays NO per-frame doc serialization. Before the fix the widget
+// serialized the WHOLE doc tree TWICE (doc_before + doc_after) on every focused frame, including
+// caret-blink repaints with ZERO input events. The `doc_snapshot_count` seam advances ONLY on frames
+// that carry input events; a real edit still records exactly one unified-undo entry.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn undo_scope_rich_focused_idle_frames_take_no_doc_snapshot() {
+    use handshake_native::rich_editor::document_model::node::BlockNode;
+    use handshake_native::rich_editor::renderer::rich_editor_widget::{
+        RichEditorState, RichEditorWidget,
+    };
+
+    let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
+        BlockNode::paragraph("Hello"),
+    ]))));
+    let rich_pane = pane("pane-rich-idle");
+    state.lock().unwrap().undo_pane_id = Some(rich_pane.clone());
+
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(600.0, 300.0))
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    harness.step();
+
+    // Focus the editor surface, let focus settle, then run several focused-IDLE frames (no input
+    // events). A focused rich editor blink-repaints every frame — these ARE the caret-blink repaints
+    // FIX B targets, so `harness.step()` (single frame) is used, never `harness.run()` (would never
+    // settle on the caret animation).
+    focus_rich_surface(&harness);
+    harness.step();
+    let snapshots_before_idle = state.lock().unwrap().doc_snapshot_count();
+    for _ in 0..8 {
+        harness.step();
+    }
+    let snapshots_after_idle = state.lock().unwrap().doc_snapshot_count();
+    assert_eq!(
+        snapshots_after_idle, snapshots_before_idle,
+        "FIX B: 8 focused-idle frames took {} doc snapshot(s); an empty-events frame must skip the O(n) \
+         doc_before/doc_after serialization entirely",
+        snapshots_after_idle - snapshots_before_idle
+    );
+
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let idle_undo =
+        InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
+    assert_eq!(
+        idle_undo, 0,
+        "FIX B: focused-idle frames record NO undo entry (got {idle_undo})"
+    );
+
+    // A REAL edit still snapshots + records exactly one entry (undo behavior unchanged when events occur).
+    harness.event(egui::Event::Text("Z".to_owned()));
+    harness.step();
+    let edited = state
+        .lock()
+        .unwrap()
+        .block_plain_text(0)
+        .unwrap_or_default();
+    assert_ne!(edited, "Hello", "the typed char mutated the doc (got {edited:?})");
+
+    let snapshots_after_edit = state.lock().unwrap().doc_snapshot_count();
+    assert_eq!(
+        snapshots_after_edit,
+        snapshots_after_idle + 1,
+        "FIX B: exactly ONE snapshot pass on the single input-carrying frame (got {})",
+        snapshots_after_edit - snapshots_after_idle
+    );
+    let edit_undo =
+        InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
+    assert_eq!(
+        edit_undo, 1,
+        "FIX B: a real edit still records exactly ONE unified-undo entry (got {edit_undo})"
+    );
 }

@@ -184,6 +184,12 @@ pub struct RichEditorState {
     /// block-id typed blocker ([`crate::rich_editor::inline_tags::TAG_EDGE_DISPATCH_BLOCKER`]) — the
     /// intent is queued, never silently POSTed.
     pub pending_tag_edge_intent: Option<crate::rich_editor::inline_tags::TagEdgeIntent>,
+    /// WP-KERNEL-012 MT-035 FIX B (perf): count of frames on which `apply_frame_input` actually performed
+    /// the O(n) `doc_before`/`doc_after` content_json undo snapshot. A focused-idle caret-blink repaint has
+    /// ZERO input events and now skips the snapshot entirely, so this counter does NOT advance on idle
+    /// frames — only on frames that carry input events. Observability seam for the perf proof
+    /// (`doc_snapshot_count`), not undo authority.
+    pub doc_snapshot_count: u64,
 }
 
 impl RichEditorState {
@@ -264,7 +270,16 @@ impl RichEditorState {
             pending_scroll_block: None,
             pending_bus_undo: Vec::new(),
             pending_tag_edge_intent: None,
+            doc_snapshot_count: 0,
         }
+    }
+
+    /// WP-KERNEL-012 MT-035 FIX B (perf proof): the number of frames on which `apply_frame_input` ran the
+    /// O(n) `doc_before`/`doc_after` undo snapshot. Stays flat across focused-idle repaints (empty input
+    /// events skip the snapshot) and advances by one per input-carrying frame. Read by the perf test to
+    /// prove a focused-idle large doc pays no per-frame serialization.
+    pub fn doc_snapshot_count(&self) -> u64 {
+        self.doc_snapshot_count
     }
 
     /// Apply the operator editor-font preference to rich document layout.
@@ -1346,10 +1361,21 @@ impl RichEditorWidget {
         }
 
         // MT-035: snapshot the doc BEFORE this frame's edits so a recorded undo entry can restore the
-        // pre-edit content_json (the batcher coalesces a burst into ONE entry). Cheap relative to the
-        // edit itself; only used when the frame actually mutates the doc.
-        let doc_before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        // pre-edit content_json (the batcher coalesces a burst into ONE entry).
+        //
+        // WP-KERNEL-012 MT-035 FIX B (perf): this content_json serialization is O(n) in the doc size and
+        // was previously computed on EVERY focused frame — including focused-idle caret-blink repaints that
+        // carry ZERO input events and therefore cannot mutate the doc. Guard it (and the matching
+        // `doc_after` below) on `!events.is_empty()`: an empty-events frame skips BOTH O(n) passes and
+        // records nothing, so a focused-idle large doc pays no per-frame snapshot. `events` here is already
+        // post-popup-claim + post-undo-chord-strip, so "empty" means there is nothing left to apply. Undo
+        // behavior on frames that DO carry events is unchanged (`Some(before)` -> full decode/apply/record).
+        let doc_before = if events.is_empty() {
+            None
+        } else {
+            state.doc_snapshot_count = state.doc_snapshot_count.wrapping_add(1);
+            Some(crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc))
+        };
 
         // Split events into IME vs key/text in ARRIVAL order so a Preedit->Commit sequence
         // interleaved with typing applies in the right order. We process each event in
@@ -1433,10 +1459,14 @@ impl RichEditorWidget {
         // `doc_after != doc_before` content_json diff is the real mutation signal (so an IME-only commit,
         // which is not in `actions`/`fmt_cmds`, is still captured). A no-op without a mounted pane id.
         // (`any_edit` is still used below for the MT-020 dirty-mark; here we use the snapshot diff.)
-        let doc_after =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
-        if doc_after != doc_before {
-            Self::record_rich_edit_undo(state, bus, state_arc, doc_before, doc_after);
+        // FIX B (perf): only take the second O(n) `doc_after` serialization + diff when a `doc_before` was
+        // captured this frame (i.e. the frame carried input events). An empty-events frame skips both passes.
+        if let Some(doc_before) = doc_before {
+            let doc_after =
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            if doc_after != doc_before {
+                Self::record_rich_edit_undo(state, bus, state_arc, doc_before, doc_after);
+            }
         }
 
         // MT-015: after applying input, re-detect the `[[` autocomplete trigger from the caret's

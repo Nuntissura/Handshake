@@ -4600,6 +4600,20 @@ impl CodeEditorPanel {
             .unwrap_or_else(|e| e.into_inner()) = None;
     }
 
+    /// WP-KERNEL-012 MT-035 FIX A (undo-history corruption): clear ONLY the typing-coalescer timing so the
+    /// NEXT live keystroke starts a FRESH undo entry instead of `replace_tail`-ing over a NON-typing tail
+    /// (format / line-op / cut / paste). Unlike [`reset_text_edit_undo_batch`], this deliberately does NOT
+    /// clear `pending_text_edit_undo`: a typing entry staged this frame but not yet drained (bus contended)
+    /// must survive so a non-typing push in the SAME frame cannot silently drop it. Called from
+    /// `interop_adapter::push_code_edit_undo` — the single boundary EVERY non-typing code-edit undo entry is
+    /// pushed through — so a `type -> format -> type` burst inside the 500ms window keeps all three entries.
+    pub fn reset_text_edit_undo_batch_timing(&self) {
+        self.text_edit_undo_batcher
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .reset();
+    }
+
     // ── MT-051 line-edit buffer transforms — settings + dispatch + single-undo ─────────────────────────
 
     /// MT-051: set the operator's indent settings (`editor.tabSize` + `editor.insertSpaces`) so the

@@ -591,6 +591,13 @@ pub mod interop_adapter {
             pane_id,
             code_edit_undo_action(panel, before, after, description),
         );
+        // WP-KERNEL-012 MT-035 FIX A (undo-history corruption): a NON-typing code-edit undo entry (format /
+        // line-op / cut / paste ALL route through this function) just became the pane's local undo tail.
+        // Clear the typing coalescer's timing so the next live keystroke does NOT `replace_tail` over this
+        // entry — without this, a `type -> format -> type` sequence inside the 500ms window silently drops
+        // the format entry from history (the coalesced 2nd type replaces it). Timing-only reset: a typing
+        // entry still staged this frame is preserved (see `reset_text_edit_undo_batch_timing`).
+        panel.reset_text_edit_undo_batch_timing();
     }
 
     /// MT-035 live typing coalescing: push a fresh code-edit undo action, or replace the focused pane's
