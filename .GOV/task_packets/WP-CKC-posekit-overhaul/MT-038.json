@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-038",
   "title": "Run CKC linked-media runtime Argus and manual proof pass",
-  "status": "READY_FOR_VALIDATION",
+  "status": "FAIL_V1",
   "created_at_utc": "2026-07-01T13:20:45.027Z",
   "updated_at_utc": "2026-07-01T13:54:29.110Z",
   "product_edit_allowed": true,
@@ -21,7 +21,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-038.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-010",
@@ -30,9 +30,10 @@
       "MT-037",
       "MT-039"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260704-232626",
-    "ready_for_validation_at_utc": "2026-07-05T00:20:03.134Z"
+    "ready_for_validation_at_utc": "2026-07-05T00:20:03.134Z",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -119,6 +120,25 @@
     "residual_gaps": [
       "No official validator verdict yet; validator_verdict remains PENDING.",
       "Backend persistence remains dependent on validator review of MT-039 RFV evidence; MT-038 does not claim validation."
-    ]
-  }
+    ],
+    "validator_verdict": "FAIL_V1"
+  },
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": false,
+    "implementing_commits": [
+      "dba73d95 (partial - 2 of 4 proof tests only)"
+    ],
+    "basis": "Runtime Argus + manual proof pass only partially committed.",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION",
+    "fail_report": "Two required proof tests are committed (via unlabeled dba73d95) but the two establishing AC#3 (ckc_linked_media_visual_probe headless screenshot) and AC#4 (ckc_linked_media_manual_documents_argus_visual_runtime_flow) exist only in the uncommitted working tree, so the cited screenshots + manual documentation cannot be reproduced from committed HEAD. No commit is labeled MT-038.",
+    "remediation_plan": "1) git add + commit ckc_linked_media_visual_probe (test_atelier_panel.rs) and ckc_linked_media_manual_documents_argus_visual_runtime_flow (manual_content_editors.rs) plus any atelier_panel.rs support, within the MT-038 allowed_paths. 2) Label the commit MT-038 on feat/WP-CKC-posekit-overhaul. 3) Ensure the committed visual_probe regenerates bounded constrained+wide screenshots and self-cleans its target dir. 4) Re-submit."
+  },
+  "status_v1": "FAIL_V1",
+  "validator_verdict": "FAIL_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

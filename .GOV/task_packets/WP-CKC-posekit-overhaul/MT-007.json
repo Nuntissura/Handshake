@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-007",
   "title": "Implement native Argus MCP facade for headless visual inspection and steering",
-  "status": "READY_FOR_VALIDATION",
+  "status": "PASS_V1",
   "created_at_utc": "2026-06-28T21:24:05.577Z",
   "updated_at_utc": "2026-06-28T23:26:05.618Z",
   "started_at_utc": "2026-06-28T21:24:05.577Z",
@@ -38,20 +38,21 @@
     "generator": "manual-kernel-builder-hotfix-projection"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-006 visual proof closeout"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "started_at_utc": "2026-06-28T21:24:05.577Z",
     "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
     "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
     "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -259,7 +260,8 @@
   "handoff": {
     "status": "READY_FOR_VALIDATION",
     "summary": "Implemented: Rust-native Argus MCP facade with canonical argus.* methods, metadata stamping, same-token agent_label attribution, quiet/headless wire tests, and internal UserManual diagnostics posture. Awaiting validator.",
-    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z"
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "validator_verdict": "PASS_V1"
   },
   "red_team": {
     "required": true,
@@ -278,5 +280,22 @@
     "latest_status": "PASS_AFTER_REMEDIATION",
     "reviewed_at_utc": "2026-06-28T23:26:05.618Z",
     "summary": "Initial reviews found same-token attribution and manual diagnostics gaps; both remediated and re-reviewed PASS."
-  }
+  },
+  "validation_v1": {
+    "verdict": "PASS_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": true,
+    "implementing_commits": [
+      "794b81d5",
+      "d37d707a"
+    ],
+    "basis": "Argus MCP facade routes argus.* to the real ActionChannel + returns real UiTreeSnapshot; leased/attributed like primitives; committed wire tests drive real MCP server over TCP + Windows named pipe asserting live state change; SR2 real IPC transport.",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION"
+  },
+  "status_v1": "PASS_V1",
+  "validator_verdict": "PASS_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

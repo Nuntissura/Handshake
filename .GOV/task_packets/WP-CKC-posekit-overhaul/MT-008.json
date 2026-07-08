@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-008",
   "title": "Harden Argus wire transport, protocol references, and manual coverage",
-  "status": "READY_FOR_VALIDATION",
+  "status": "PASS_V1",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
   "updated_at_utc": "2026-06-28T23:26:05.618Z",
   "product_edit_allowed": true,
@@ -22,19 +22,20 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-008.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-007"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "started_at_utc": "2026-06-28T23:26:05.618Z",
     "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
     "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
     "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -84,7 +85,8 @@
   "handoff": {
     "status": "READY_FOR_VALIDATION",
     "summary": "Implemented: Argus wire/protocol/manual hardening. TCP and Windows named-pipe Argus coverage pass; unauthorized wire auth now returns before snapshot lock; protocol/startup/HBR references name argus.* as canonical. Awaiting validator.",
-    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z"
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "validator_verdict": "PASS_V1"
   },
   "started_at_utc": "2026-06-28T23:26:05.618Z",
   "execution": {
@@ -173,5 +175,22 @@
     "reviewed_at_utc": "2026-06-28T23:26:05.618Z",
     "reviewer": "subagent:019f1083-5ff7-7063-b28d-0a4f8fd7de09",
     "summary": "Initial FAIL on auth-before-snapshot and named-pipe Argus coverage; both remediated and re-reviewed PASS."
-  }
+  },
+  "validation_v1": {
+    "verdict": "PASS_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": true,
+    "implementing_commits": [
+      "794b81d5",
+      "d37d707a"
+    ],
+    "basis": "Wire hardening committed despite stale map: auth-before-snapshot in server.rs, 813-line test_uia_steer_proof.rs over real TCP + named pipe, manual coverage; ARGUS protocol (ARGUS-009/010/011) present in live kernel (committed on gov_kernel per CX-212F).",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION"
+  },
+  "status_v1": "PASS_V1",
+  "validator_verdict": "PASS_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

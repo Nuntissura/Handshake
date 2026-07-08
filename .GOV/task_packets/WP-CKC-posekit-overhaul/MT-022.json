@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-022",
   "title": "Make all Atelier tool surfaces parallel-agent safe and Argus steerable",
-  "status": "READY_FOR_VALIDATION",
+  "status": "FAIL_V1",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
   "updated_at_utc": "2026-07-04T07:12:24.322Z",
   "product_edit_allowed": true,
@@ -22,18 +22,19 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-022.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-008",
       "MT-013",
       "MT-017"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260704-060424",
     "prior_claimed_by": "KERNEL_BUILDER-20260703-204252",
     "started_at_utc": "2026-07-04T06:04:24.000Z",
-    "ready_for_validation_at_utc": "2026-07-04T07:12:24.322Z"
+    "ready_for_validation_at_utc": "2026-07-04T07:12:24.322Z",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -197,6 +198,23 @@
     "coder_session": "KERNEL_BUILDER-20260704-060424",
     "prior_coder_session": "KERNEL_BUILDER-20260703-204252",
     "ready_for_validation_at_utc": "2026-07-04T07:12:24.322Z",
-    "note": "MT-022 is ready for validator review. This is not official validation; validator_verdict remains PENDING."
-  }
+    "note": "MT-022 is ready for validator review. This is not official validation; validator_verdict remains PENDING.",
+    "validator_verdict": "FAIL_V1"
+  },
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": false,
+    "implementing_commits": [],
+    "basis": "Entire parallel-agent-safety deliverable uncommitted.",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION",
+    "fail_report": "No commit in 6bb8cfb4..HEAD references MT-022. The primary proof test tests/atelier_model_ops_api_tests.rs and migration 0343_atelier_action_receipt_model_ops_lineage.sql are UNTRACKED; the model-ops lease API (api/atelier.rs), receipt lineage (atelier/action_receipt.rs), and receipt tests carry only uncommitted -w diffs. The concurrency/managed-PG design is substantive and SR1-clean, but none of it is a reproducible handoff.",
+    "remediation_plan": "1) In wtc-ckc-posekit-overhaul on feat/WP-CKC-posekit-overhaul, git add -p the MT-022 hunks: untracked 0343 migration + atelier_model_ops_api_tests.rs, plus the model-ops lease/exclusive-lease/spoof-rejection slices of api/atelier.rs, atelier/action_receipt.rs, atelier/mod.rs, atelier_action_receipt_tests.rs — excluding inherited WP-KERNEL-012 (code_editor/rich_editor/graph/palmistry) dirt, CRLF-only churn, and MT-023/024 hunks. 2) Commit as 'feat: MT-022 parallel-agent-safe Atelier + Argus steerable'. 3) Run the proof suite against a real (non-checksum-drift) managed PostgreSQL capturing non-SKIP output. 4) Re-submit as a committed diff."
+  },
+  "status_v1": "FAIL_V1",
+  "validator_verdict": "FAIL_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

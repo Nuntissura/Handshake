@@ -10,7 +10,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-044",
   "title": "Deferred hardening + follow-ups (consolidated tracker)",
-  "status": "READY_FOR_VALIDATION",
+  "status": "PASS_V1",
   "created_at_utc": "2026-07-02T08:47:55.759Z",
   "updated_at_utc": "2026-07-05T10:51:35.782Z",
   "started_at_utc": null,
@@ -34,17 +34,18 @@
     "D15 (MT-031 follow-ups): (a) envelope-wrap the OTHER 5 Facial review commands (claim/decision/status/montage/session) with durable HTTP-200 outcome envelopes + receipts, exactly like export got in MT-031 (MT-031 scoped to export per acceptance 'at least one blocked path'). (b) SPEC DECISION: a fully-decided Facial export that intentionally rejects/holds some images is currently labeled 'degraded' (funnel/problems non-empty) with a recovery_hint implying incompleteness - a plausible false-degraded that could push a model into needless recovery. Operator/spec to decide whether reject/hold-only exports should be 'succeeded'. (c) atelier_panel.rs:7600 doc comment ('surfaces the backend HTTP error text honestly') is now slightly incomplete (blocked/degraded/error arrive as Ok envelopes) - accurate only for genuine transport failures; tidy in a doc pass."
   ],
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "claimed_by": "KERNEL_BUILDER-20260705-003842",
-    "ready_for_validation_at_utc": "2026-07-05T00:47:00.588Z"
+    "ready_for_validation_at_utc": "2026-07-05T00:47:00.588Z",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "handoff": {
     "status": "READY_FOR_VALIDATION",
     "note": "MT-044 tracker is ready for validator review as a split-resolution artifact only. No deferred product item is officially validated here; child MTs MT-045..MT-055 now carry implementer-side READY_FOR_VALIDATION contracts and remain validator_verdict PENDING. D6 remains RFV/PENDING under MT-023; D8/D14 are future/non-product follow-ups; D15b is blocked on spec/operator decision.",
     "ready_for_validation_at_utc": "2026-07-05T00:47:00.588Z",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "child_status_reconciled_at_utc": "2026-07-05T10:51:35.782Z",
     "child_status_reconciled_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY"
   },
@@ -190,5 +191,21 @@
     "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-044.md",
     "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-044.json"
-  }
+  },
+  "validation_v1": {
+    "verdict": "PASS_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": true,
+    "implementing_commits": [
+      "gov_kernel:mt_index + child contracts MT-045..055"
+    ],
+    "basis": "Tracker/bookkeeping MT (product_edit_allowed=false); its acceptance is split-correctness and it holds: all 15 deferred items D1-D15 dispositioned, all 11 child contracts (MT-045..055) exist and are RFV in mt_index, no product work dropped. NOTE: PASS_V1 certifies the split only, NOT the child implementations (which are separately FAIL_V1 pending commit).",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION"
+  },
+  "status_v1": "PASS_V1",
+  "validator_verdict": "PASS_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

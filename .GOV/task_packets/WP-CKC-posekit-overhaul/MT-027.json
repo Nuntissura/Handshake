@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-027",
   "title": "Implement real Facial identity gate and model provenance",
-  "status": "READY_FOR_VALIDATION",
+  "status": "PASS_V1",
   "created_at_utc": "2026-06-30T23:20:00.000Z",
   "updated_at_utc": "2026-07-01T10:46:59.884Z",
   "product_edit_allowed": true,
@@ -21,18 +21,19 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-025"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "ready_for_validation_at_utc": "2026-07-01T10:46:59.884Z",
     "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
     "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -115,7 +116,8 @@
     "pushed_to_origin": true,
     "next_actor": "WP_VALIDATOR",
     "validation_note": "MT-027 product commit pushed. Targeted backend, real ArcFace smoke, quality/dedupe, formatting, path-leak, and static route scans passed. Broad cargo check/manual cargo reruns had process-level inconclusive exits and are not claimed as passing.",
-    "ready_for_validation_at_utc": "2026-07-01T10:46:59.884Z"
+    "ready_for_validation_at_utc": "2026-07-01T10:46:59.884Z",
+    "validator_verdict": "PASS_V1"
   },
   "implementation": {
     "status": "READY_FOR_VALIDATION",
@@ -174,5 +176,21 @@
       "Source-ref-only local image rows bypassed the real ArcFace runtime. Fixed identity path resolution to use local_path_hint first and source_ref local filesystem paths second; real ONNX smoke covers both paths.",
       "ArcFace registry/run summary still advertised static unavailable routing after runtime implementation. Fixed registry/run/model summary wording and added assertions for runtime-gated model-backed ArcFace routing."
     ]
-  }
+  },
+  "validation_v1": {
+    "verdict": "PASS_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": true,
+    "implementing_commits": [
+      "22ce409b"
+    ],
+    "basis": "Real Facial identity gate + provenance; committed atelier_facial_identity_tests independently recompute SHA-256 (sha2 crate) and assert product recorded that exact model hash; no-model + invalid-path rejection gates; no hardcoded machine-local paths; real ArcFace tract-onnx code (live embedding env-gated #[ignore] smoke per AC#5). SR2 touches the real owned model/provenance contract, not mocks. (PIPNet landmarks honestly unwired.)",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION"
+  },
+  "status_v1": "PASS_V1",
+  "validator_verdict": "PASS_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

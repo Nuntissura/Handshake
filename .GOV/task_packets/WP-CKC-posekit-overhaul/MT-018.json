@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-018",
   "title": "Add native contact sheet generator for image mining and LoRA review",
-  "status": "READY_FOR_VALIDATION",
+  "status": "FAIL_V1",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
   "updated_at_utc": "2026-06-30T21:46:23.936Z",
   "product_edit_allowed": true,
@@ -21,18 +21,19 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-017"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
     "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
     "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -101,6 +102,25 @@
   "manual_requirement": "Required in this MT.",
   "handoff": {
     "status": "READY_FOR_VALIDATION",
-    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z"
-  }
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "validator_verdict": "FAIL_V1"
+  },
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": true,
+    "implementing_commits": [
+      "ff2d19cb"
+    ],
+    "basis": "Backend emits real bytes (SR1 clean) but no committed test exercises the ArtifactStore/PG path.",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION",
+    "fail_report": "MT-018 is committed (ff2d19cb) and generate/export_contact_sheet build real SVG + sha256 receipt bytes and persist via write_file_artifact (real artifact:// refs) — so SR1 is clean. But the only committed backend test is the pure-function generator (no store, no PG) and the frontend 'backend export' test uses a mock HTTP server returning canned artifact:// refs. Acceptance criterion #3 (persisted receipt linking to source image IDs) is therefore proven mock-only where a managed resource is required -> SR2 gap.",
+    "remediation_plan": "1) Add a committed managed-PG integration test (e.g. in atelier_core_data_tests.rs or a new atelier_contact_sheet_tests.rs) that seeds a real intake batch, calls export_contact_sheet, and asserts the real SVG + JSON receipt artifacts land in the ArtifactStore with content-hash validation and lineage back to the intake item IDs. 2) Run it against managed PG; record the pass + product_commit."
+  },
+  "status_v1": "FAIL_V1",
+  "validator_verdict": "FAIL_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

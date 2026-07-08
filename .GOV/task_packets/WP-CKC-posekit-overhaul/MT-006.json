@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-006",
   "title": "Promote Atelier to the main filling panel with CKC, Posekit, and Ingest sibling tabs",
-  "status": "READY_FOR_VALIDATION",
+  "status": "PASS_V1",
   "created_at_utc": "2026-06-28T16:49:48.833Z",
   "updated_at_utc": "2026-07-01T23:16:41.315Z",
   "started_at_utc": "2026-06-28T16:56:35.333Z",
@@ -81,21 +81,22 @@
     "generator": "manual-kernel-builder-hotfix-projection"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "reopened_at_utc": "2026-07-01T18:34:39.251Z",
     "depends_on": [
       "MT-005"
     ],
     "blocks": [],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "started_at_utc": "2026-06-28T16:56:35.333Z",
     "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
     "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
     "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+    "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -285,7 +286,8 @@
   "handoff": {
     "status": "READY_FOR_VALIDATION",
     "summary": "Implemented: Atelier is a single filling panel with CKC, Posekit, and Ingest sibling tabs; Posekit/Ingest controls are model-addressable; real-shell MCP tab switching and manual coverage pass. Awaiting validator.",
-    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z"
+    "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
+    "validator_verdict": "PASS_V1"
   },
   "red_team": {
     "required": true,
@@ -315,5 +317,22 @@
       "Add a real-shell test beside the CKC live-shell proof for Posekit/Ingest tab switching."
     ],
     "summary": "Post-review remediation added stable Posekit/Ingest controls and live-shell tab switching proof; targeted tests passed."
-  }
+  },
+  "validation_v1": {
+    "verdict": "PASS_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": true,
+    "implementing_commits": [
+      "4e44e82a",
+      "565c6102"
+    ],
+    "basis": "full_window ModuleDefinition flag + PaneHeader/TabBar chrome suppression at both docked+popout render sites; set_module->internal tab; stable atelier-tab-*/atelier-content-* ids; committed negative-chrome + R1/R2 regressions + MCP tab-switch (test_ckc_embed 17/17).",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION"
+  },
+  "status_v1": "PASS_V1",
+  "validator_verdict": "PASS_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

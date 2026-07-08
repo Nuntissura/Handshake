@@ -13,7 +13,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-052",
   "title": "Add prompt-stress CSV import adapter",
-  "status": "READY_FOR_VALIDATION",
+  "status": "FAIL_V1",
   "created_at_utc": "2026-07-05T00:47:00.588Z",
   "updated_at_utc": "2026-07-05T07:17:42.000Z",
   "started_at_utc": "2026-07-05T06:16:55.567Z",
@@ -30,15 +30,16 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-052.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-020"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260705-044820",
     "claimed_at_utc": "2026-07-05T06:16:55.567Z",
-    "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z"
+    "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -119,7 +120,7 @@
     "status": "READY_FOR_VALIDATION",
     "coder_session": "KERNEL_BUILDER-20260705-044820",
     "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-052:rfv-20260705T071742000Z",
     "summary": "Implemented a pure prompt-stress CSV manifest adapter that maps CSV rows into existing PromptCase/NewPromptCase import records while preserving the CUIPP JSON path.",
     "implementation_summary": [
@@ -169,5 +170,21 @@
       "Cross-platform CI/non-target cargo check was not run or claimed for MT-052."
     ]
   },
-  "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z"
+  "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z",
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": false,
+    "implementing_commits": [],
+    "basis": "CSV import adapter deliverable uncommitted.",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION",
+    "fail_report": "No MT-052 commit exists in 6bb8cfb4..HEAD; the only commit touching its three target files is 964db28d (MT-020). All three (atelier/prompt_feedback/adapter.rs, atelier/prompt_feedback/mod.rs, tests/atelier_prompt_feedback_tests.rs) are unstaged; the cited DB-backed proof tests live only in the uncommitted test file.",
+    "remediation_plan": "1) Commit ONLY the MT-052 target files as 'feat: MT-052 prompt-stress CSV import adapter', committing only the new CSV-test hunks on top of MT-020's committed baseline in the shared test file, and excluding MT-051's frontend files + inherited dirt. 2) Re-run the three cited proof tests under external CARGO_TARGET_DIR against managed PG. 3) Re-submit committed."
+  },
+  "status_v1": "FAIL_V1",
+  "validator_verdict": "FAIL_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

@@ -13,7 +13,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-053",
   "title": "Replace Facial manual ID allowlist with rendered-panel audit",
-  "status": "READY_FOR_VALIDATION",
+  "status": "FAIL_V1",
   "created_at_utc": "2026-07-05T00:47:00.588Z",
   "updated_at_utc": "2026-07-05T07:40:21.667Z",
   "started_at_utc": "2026-07-05T07:20:27.760Z",
@@ -30,15 +30,16 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-053.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-030"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260705-044820",
     "claimed_at_utc": "2026-07-05T07:20:27.760Z",
-    "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z"
+    "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -118,7 +119,7 @@
     "status": "READY_FOR_VALIDATION",
     "coder_session": "KERNEL_BUILDER-20260705-044820",
     "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "validator_handoff_correlation_id": "review:WP-CKC-posekit-overhaul:MT-053:rfv-20260705T074021000Z",
     "summary": "Replaced the Facial manual ID allowlist path with rendered Atelier panel evidence and added a bidirectional Facial documented/rendered ID audit.",
     "implementation_summary": [
@@ -151,5 +152,21 @@
       "Cross-platform CI/non-target cargo check was not run or claimed for MT-053."
     ]
   },
-  "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z"
+  "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z",
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": false,
+    "implementing_commits": [],
+    "basis": "Rendered-panel Facial ID audit deliverable uncommitted.",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION",
+    "fail_report": "MT-053's signature symbol (rendered_facial_panel_author_id_set) returns zero matches at committed HEAD and exists only in the working tree; owned files are modified/uncommitted. The rendered-panel audit that replaces the hand-maintained Facial ID allowlist is not in a reproducible handoff.",
+    "remediation_plan": "1) git add -p the MT-053 hunks (rendered-panel Facial author_id audit replacing the allowlist in test_manual_pane_editors.rs + any supporting emit sites), excluding inherited dirt. 2) Commit 'feat: MT-053 rendered-panel Facial ID audit'. 3) Re-run test_manual_pane_editors to prove the audit catches allowlisted-but-not-emitted ids; record product_commit; re-submit."
+  },
+  "status_v1": "FAIL_V1",
+  "validator_verdict": "FAIL_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }

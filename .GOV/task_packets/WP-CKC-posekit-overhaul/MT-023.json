@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-023",
   "title": "Run Argus-driven visual and behavioral overhaul pass for Atelier tools",
-  "status": "READY_FOR_VALIDATION",
+  "status": "FAIL_V1",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
   "updated_at_utc": "2026-07-04T09:39:46.789Z",
   "product_edit_allowed": true,
@@ -23,7 +23,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-013",
@@ -32,10 +32,11 @@
       "MT-021",
       "MT-022"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260704-072636",
     "started_at_utc": "2026-07-04T07:29:50.935Z",
-    "ready_for_validation_at_utc": "2026-07-04T09:39:46.789Z"
+    "ready_for_validation_at_utc": "2026-07-04T09:39:46.789Z",
+    "status_before_v1": "READY_FOR_VALIDATION"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -85,7 +86,8 @@
     "coder_session": "KERNEL_BUILDER-20260704-072636",
     "claimed_at_utc": "2026-07-04T07:29:50.935Z",
     "ready_for_validation_at_utc": "2026-07-04T09:39:46.789Z",
-    "note": "MT-023 is ready for validator review. This is not official validation; validator_verdict remains PENDING."
+    "note": "MT-023 is ready for validator review. This is not official validation; validator_verdict remains PENDING.",
+    "validator_verdict": "FAIL_V1"
   },
   "owned_files": [
     "src/frontend/handshake_native/src/atelier_panel.rs",
@@ -195,5 +197,21 @@
       "Product worktree has substantial inherited/unrelated dirty files; MT-023 handoff is path-limited to the changed files listed here.",
       "No official validation is claimed; validator_verdict remains PENDING."
     ]
-  }
+  },
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive)",
+    "validated_at_utc": "2026-07-07T23:23:06Z",
+    "session": "INTEGRATION_VALIDATOR-20260707-ckc-v1",
+    "method": "Committed-source review (git base 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 14 read-only sub-agents that each read Codex v1.4 + WP_VALIDATOR_PROTOCOL. Adjudicated against independently-verified git ground truth. Fresh runtime re-execution was ENVIRONMENT_BLOCKED_HOST_OOM at validation time (backend later recompiled clean after Operator freed memory).",
+    "committed": false,
+    "implementing_commits": [],
+    "basis": "Entire Argus visual/behavioral overhaul uncommitted; residual Posekit overflow unresolved.",
+    "runtime_reexec": "ENVIRONMENT_BLOCKED_HOST_OOM_AT_VALIDATION",
+    "fail_report": "No commit in 6bb8cfb4..HEAD references MT-023; all owned frontend edits (atelier_panel.rs, module_switcher.rs, pane_header.rs, tests) are uncommitted with large -w diffs, and the visual PNG proof lives outside git under ../Handshake_Artifacts/. The contract itself records an unresolved Posekit-preview-below-viewport overflow that fails a readability AC.",
+    "remediation_plan": "1) git add -p to isolate the MT-023 frontend layout/label/manual hunks from tangled MT-022/024 and inherited dirt; skip test_pane_header.rs unrelated topology failures. 2) Resolve OR explicitly defer (with a tracked follow-up) the Posekit-preview overflow at sub-760x640. 3) Commit 'feat: MT-023 Argus visual/behavioral overhaul', regenerate the proof PNGs into ../Handshake_Artifacts/, re-run targeted tests, and re-submit."
+  },
+  "status_v1": "FAIL_V1",
+  "validator_verdict": "FAIL_V1",
+  "status_before_v1": "READY_FOR_VALIDATION"
 }
