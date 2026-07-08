@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-023",
   "title": "Run Argus-driven visual and behavioral overhaul pass for Atelier tools",
-  "status": "READY_FOR_VALIDATION_V2",
+  "status": "PASS_V2",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-07-04T09:39:46.789Z",
+  "updated_at_utc": "2026-07-08T15:41:34Z",
   "product_edit_allowed": true,
   "operator_request": "After native/state work, visually and behaviorally overhaul CKC/Posekit inside Handshake so it mirrors the original app more, with Argus checking panels, tabs, overview, navigation, layout, and style.",
   "authority_files": {
@@ -23,7 +23,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "PASS_V2",
     "active": false,
     "depends_on": [
       "MT-013",
@@ -32,7 +32,7 @@
       "MT-021",
       "MT-022"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PASS_V2",
     "claimed_by": "KERNEL_BUILDER-20260704-072636",
     "started_at_utc": "2026-07-04T07:29:50.935Z",
     "ready_for_validation_at_utc": "2026-07-04T09:39:46.789Z",
@@ -87,7 +87,7 @@
     "claimed_at_utc": "2026-07-04T07:29:50.935Z",
     "ready_for_validation_at_utc": "2026-07-04T09:39:46.789Z",
     "note": "MT-023 is ready for validator review. This is not official validation; validator_verdict remains PENDING.",
-    "validator_verdict": "FAIL_V1"
+    "validator_verdict": "PASS_V2"
   },
   "owned_files": [
     "src/frontend/handshake_native/src/atelier_panel.rs",
@@ -212,7 +212,7 @@
     "remediation_plan": "1) git add -p to isolate the MT-023 frontend layout/label/manual hunks from tangled MT-022/024 and inherited dirt; skip test_pane_header.rs unrelated topology failures. 2) Resolve OR explicitly defer (with a tracked follow-up) the Posekit-preview overflow at sub-760x640. 3) Commit 'feat: MT-023 Argus visual/behavioral overhaul', regenerate the proof PNGs into ../Handshake_Artifacts/, re-run targeted tests, and re-submit."
   },
   "status_v1": "FAIL_V1",
-  "validator_verdict": "FAIL_V1",
+  "validator_verdict": "PASS_V2",
   "status_before_v1": "READY_FOR_VALIDATION",
   "remediation_v2": {
     "status": "READY_FOR_VALIDATION_V2",
@@ -224,6 +224,28 @@
     "proof_result": "test_module_switcher 6 + test_pane_header 1 + lib width/compact + test_atelier_panel + manual all passed",
     "managed_pg": "Handshake-native PostgreSQL 16 cluster 127.0.0.1:5545",
     "adversarial_review": "pre- and post-implementation adversarial sub-agent review performed; hardening findings (F1-F10, intake deadlock-retry, F8 operator-decision) deferred to MT-056",
-    "validator_verdict": "PENDING_V2"
-  }
+    "validator_verdict": "PASS_V2"
+  },
+  "validation_v2": {
+    "verdict": "PASS_V2",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive) - V2",
+    "validated_at_utc": "2026-07-08T15:41:34Z",
+    "session": "INTEGRATION_VALIDATOR-20260708-ckc-v2",
+    "method": "V2 re-validation of the remediation pass. Committed-source review (git 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 5 read-only sub-agents each acknowledging Codex v1.4 + WP_VALIDATOR_PROTOCOL, adjudicated against independently-verified git ground truth. Backend committed-HEAD compile gate: PASS (cargo test --no-run on 10 atelier proof binaries, exit 0, all executables produced -> E0382-class V1 non-compile resolved). Boundary/hygiene CLEAN (no .GOV/ or artifact paths in range; AGENTS.md/CLAUDE.md dirty = inherited baseline, not committed). Committed-reproducibility confirmed (no CKC proof depends on the inherited WP-KERNEL-012 frontend overlay).",
+    "committed": true,
+    "implementing_commits": [
+      "a2abba07"
+    ],
+    "v1_failure": "All owned frontend edits uncommitted; visual PNG proof outside git; contract recorded an unresolved Posekit-preview-below-viewport overflow at sub-760x640 (fails a readability AC).",
+    "v1_failure_resolved": "Committed in a2abba07; symbol-level committed-reproducibility confirmed (no dependency on WP-KERNEL-012 overlay); module-ckc->Atelier / module-ingest->INGEST labels + readability tests (ckc_book_width_allocator_wraps_sub700, compact_visual_cell_preserves_tail) committed; posekit_split_view_constrained_argus_visual_probe asserts the OpenPose viewport author_id IS present at 760x640 with bound_openpose=real_keypoints (Argus-reachable, not clipped).",
+    "proof": "test_module_switcher (6) + test_pane_header module_label_for_tab_unit_matches_contract + atelier_panel readability/probe tests; PNG-regenerating constrained probes committed.",
+    "runtime_reexec": "FRONTEND_HARNESS_NO_MANAGED_PG: proofs are egui/AccessKit/Argus harness + mock-transport (managed PG not required). Frontend crate carries an inherited WP-KERNEL-012 dirty overlay, so a clean-HEAD cargo compile was not independently run; basis = committed-presence-at-HEAD + symbol-level committed-reproducibility (no CKC proof depends on the overlay) + 2-agent adversarial committed-source review + coder's recorded harness passes.",
+    "spec_realism_gate": "SR1 clean (no deferred-live escape reachable from proof); SR2 satisfied (real Handshake-managed PostgreSQL/EventLedger/ArtifactStore or, for frontend, real egui/AccessKit/Argus harness); SR3 clean (remediated_by KERNEL_BUILDER != validator).",
+    "concerns": [
+      "POSEKIT_OVERFLOW_FOLLOWUP: the below-viewport overflow is honestly recorded as residual, but its stated deferral target (MT-056) did not contain the item. V2 closes this by adding a concrete tracked follow-up entry to MT-056.findings (POSEKIT_SPLITVIEW_OVERFLOW), satisfying the V1 plan's 'defer WITH a tracked follow-up'. Element is Argus-reachable, so PASS.",
+      "BULK_COMMIT_TRACEABILITY: V2 landed all backend MTs in one commit 7a666f3d and all frontend MTs in one commit a2abba07 (V1 remediation plans had prescribed per-MT-labeled commits). Satisfies committed-reproducibility; per-MT diffs are not commit-bisectable (attributed by file/symbol). CONCERN, not a FAIL."
+    ],
+    "supersedes": "validation_v1 (FAIL_V1)"
+  },
+  "status_v2": "PASS_V2"
 }

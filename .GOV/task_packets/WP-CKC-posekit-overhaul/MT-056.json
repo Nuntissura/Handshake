@@ -42,7 +42,10 @@
       "title": "Album unlink/link-edit/reorder record their EventLedger event AFTER tx.commit() in a separate tx",
       "evidence": "api/atelier.rs: unlink commit ~3405 then record_event ~3408; link-edit commit ~3515 then event ~3518; reorder commit ~3649 then event ~3662. A crash between commit and event-record persists the membership change with no ledger record, violating the EventLedger-is-authority invariant. Sibling handlers already use record_event_in_tx (e.g. ~3817, ~3995).",
       "remediation": "Move the three album-membership events inside the mutation tx via record_event_in_tx(&mut *tx, ...). Add a negative test proving the event and the membership change are atomic (both or neither).",
-      "correlates_with": ["MT-034", "MT-036"]
+      "correlates_with": [
+        "MT-034",
+        "MT-036"
+      ]
     },
     {
       "id": "F1_F2_F3",
@@ -51,7 +54,10 @@
       "title": "Album-list + member pagination order by mutable columns; no DB unique-order guard",
       "evidence": "list_character_collections_page orders by mutable updated_at_utc (api/atelier.rs ~2044) which every membership mutation bumps -> skip/duplicate under concurrent agents. Member pagination uses two-statement COUNT+LIMIT/OFFSET (~2078-2101) that drifts under concurrent unlink/reorder. Dense sort_order is app-enforced only (validate_reorder ~2490-2530); no UNIQUE(collection_id, sort_order) at DB (migrations/0031 ~51). Loom sibling already has uq_loom_collection_members_order (migrations/0332 ~73) to reuse.",
       "remediation": "Keyset/seek pagination ordered by an immutable key (created_at_utc, collection_id) and (sort_order, asset_id); add a partial/deferrable UNIQUE(collection_id, sort_order) or reuse the Loom ordered-membership pattern. Prove with a concurrent-writer pagination test.",
-      "correlates_with": ["MT-033", "MT-034"]
+      "correlates_with": [
+        "MT-033",
+        "MT-034"
+      ]
     },
     {
       "id": "F5_F9",
@@ -60,7 +66,10 @@
       "title": "Swarm-safety asserted but never raced; large-library test is tiny (3x3)",
       "evidence": "atelier_ckc_media_rows_preserve_actor_attribution uses six SEQUENTIAL actors, never two overlapping writes. atelier_ckc_media_album_large_library_pagination seeds only 3 albums / 3 assets, never crosses LIST_CAP=200, never fills a page. FOR UPDATE row locks (api/atelier.rs ~3338,3461,3571) are correct but untested under contention.",
       "remediation": "Add a real concurrent-writer race test (tokio::join! two reorders/link-edits on one album; assert serialized + true last-writer attribution) and a true >LIST_CAP large-library pagination test (full-page bound, clamp, stable multi-page traversal).",
-      "correlates_with": ["MT-033", "MT-036"]
+      "correlates_with": [
+        "MT-033",
+        "MT-036"
+      ]
     },
     {
       "id": "F6",
@@ -69,7 +78,10 @@
       "title": "Mutation responses hydrate N+1 (3 sub-queries per member, up to LIST_CAP=200) while holding the FOR UPDATE lock",
       "evidence": "media_album_members_from_rows (api/atelier.rs ~2155-2169) runs get_media_review_metadata + list_media_asset_tags + get_media_source_provenance_refs per member, inside the serialization tx (~2388). Up to ~600 round-trips under lock throttles parallel agents.",
       "remediation": "Batch the three lookups with ANY($1); hydrate the response AFTER commit.",
-      "correlates_with": ["MT-034", "MT-036"]
+      "correlates_with": [
+        "MT-034",
+        "MT-036"
+      ]
     },
     {
       "id": "F4",
@@ -78,7 +90,9 @@
       "title": "Two store methods hardcode SYSTEM_COLLECTION_ACTOR",
       "evidence": "collections.rs update_collection updated_by = SYSTEM_COLLECTION_ACTOR (~630) and remove_images_from_collection unlinked_by = SYSTEM_COLLECTION_ACTOR (~871). CKC API routes thread the real actor and do NOT call these, so MT-036 is satisfied; but a future album-rename/notes route calling update_collection would regress attribution to 'system'.",
       "remediation": "Thread the real actor through update_collection and remove_images_from_collection for consistency.",
-      "correlates_with": ["MT-036"]
+      "correlates_with": [
+        "MT-036"
+      ]
     },
     {
       "id": "INTAKE_DEADLOCK_RETRY",
@@ -87,7 +101,10 @@
       "title": "Intake batch-apply EventLedger append can deadlock under concurrent writers (no retry)",
       "evidence": "During MT-017 proof, atelier_intake_batch_classification_applies_canonical_items_and_links_passed_media failed with PostgreSQL 'deadlock detected' at 'append sheet for batch apply' (atelier_core_data_tests.rs ~2226) when run concurrently with sibling tests; it passes in isolation. MT-020 already added deadlock-retry (40P01/40001) for the prompt-feedback path; the intake batch-apply EventLedger append path lacks it.",
       "remediation": "Add MT-020-style deadlock-retry (serialization/deadlock SQLSTATE 40001/40P01) around the intake batch-apply EventLedger append, so concurrent swarm agents doing batch classification do not fail on transient deadlocks. Prove with a concurrent-batch-apply test.",
-      "correlates_with": ["MT-017", "MT-020"]
+      "correlates_with": [
+        "MT-017",
+        "MT-020"
+      ]
     },
     {
       "id": "F8",
@@ -96,7 +113,23 @@
       "title": "Actor attribution trusts unauthenticated x-hsk-actor-id; operator-kind bypasses the model-ops lease entirely",
       "evidence": "calling_actor trusts x-hsk-actor-id verbatim (api/atelier.rs ~750-757); validate_model_operation_lease_if_present grants a lease-free pass for x-hsk-actor-kind=operator + x-hsk-actor-id=operator (~7929-7930). FOR UPDATE prevents corruption, but persisted attribution is only as trustworthy as an unauthenticated header, and the lease serialization is optional for a self-declared operator.",
       "remediation": "Consistent with the reset brief's LOCAL-FIRST, cooperative-swarm threat model (agents are not adversarial; the Operator owns the host), this is acceptable as-is. If remote/untrusted agents ever come into scope, attribution needs signing and the operator escape hatch needs gating. AWAITING OPERATOR THREAT-MODEL DECISION before any change.",
-      "correlates_with": ["MT-022", "MT-036"]
+      "correlates_with": [
+        "MT-022",
+        "MT-036"
+      ]
+    },
+    {
+      "id": "POSEKIT_SPLITVIEW_OVERFLOW",
+      "severity": "MINOR",
+      "class": "FRONTEND_READABILITY",
+      "title": "Posekit OpenPose split-view preview extends below the 760x640 first viewport",
+      "evidence": "MT-023 V1 recorded an unresolved Posekit-preview-below-viewport overflow at sub-760x640 that failed a readability AC. V2 committed the deliverable and posekit_split_view_constrained_argus_visual_probe confirms the OpenPose viewport author_id IS Argus-reachable at 760x640 with bound_openpose=real_keypoints (the element is NOT clipped out of existence); the full frame still extends below the first viewport, a readability-polish gap. MT-023's V2 deferral originally pointed at MT-056 but MT-056 had no matching entry; added here by INTEGRATION_VALIDATOR V2 to give the deferral a concrete tracked owner so it is not forgotten.",
+      "remediation": "Constrain or make scrollable the Posekit OpenPose split-view preview so the full frame fits within the first viewport at sub-760x640, or add an explicit in-panel 'scroll for full preview' affordance. Re-run posekit_split_view_constrained_argus_visual_probe (test_atelier_panel.rs) to confirm the full frame is within-viewport at 760x640.",
+      "correlates_with": [
+        "MT-023"
+      ],
+      "added_by": "INTEGRATION_VALIDATOR V2",
+      "added_at_utc": "2026-07-08T15:42:54Z"
     }
   ],
   "review_policy": {
@@ -107,5 +140,6 @@
     "status": "DEFERRED",
     "note": "Tracker only. No implementation claimed. Activate per-finding when the Operator schedules hardening; each finding is independently provable on managed PostgreSQL. Source MTs remain proven at their V1 acceptance; do not reopen them for these hardening items."
   },
-  "validator_verdict": "NOT_APPLICABLE_DEFERRED"
+  "validator_verdict": "NOT_APPLICABLE_DEFERRED",
+  "updated_at_utc": "2026-07-08T15:42:54Z"
 }

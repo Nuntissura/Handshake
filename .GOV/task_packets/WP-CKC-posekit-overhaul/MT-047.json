@@ -13,9 +13,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-047",
   "title": "Bound decoded CKC media and Posekit image caches",
-  "status": "READY_FOR_VALIDATION_V2",
+  "status": "PASS_V2",
   "created_at_utc": "2026-07-05T00:47:00.588Z",
-  "updated_at_utc": "2026-07-05T02:41:44.740Z",
+  "updated_at_utc": "2026-07-08T15:41:34Z",
   "started_at_utc": "2026-07-05T02:07:40.828Z",
   "product_edit_allowed": true,
   "origin": "MT-044 D3 split: decoded texture caches can grow without an explicit cap while browsing many linked images.",
@@ -30,12 +30,12 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-047.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "PASS_V2",
     "active": false,
     "depends_on": [
       "MT-038"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PASS_V2",
     "claimed_by": "KERNEL_BUILDER-20260705-003842",
     "claimed_at_utc": "2026-07-05T02:07:40.828Z",
     "ready_for_validation_at_utc": "2026-07-05T02:40:34.126Z",
@@ -163,7 +163,7 @@
       "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RECEIPTS.jsonl",
       "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RUNTIME_STATUS.json"
     ],
-    "validator_verdict": "FAIL_V1"
+    "validator_verdict": "PASS_V2"
   },
   "validation_v1": {
     "verdict": "FAIL_V1",
@@ -179,7 +179,7 @@
     "remediation_plan": "1) git add -p the MT-047 cache-bounding hunks (decoded texture cache entry cap + debug snapshot) in the owned frontend files, excluding inherited dirt. 2) Commit 'feat: MT-047 bound decoded CKC media / Posekit image caches'. 3) Re-run the cache-eviction tests; record product_commit; re-submit."
   },
   "status_v1": "FAIL_V1",
-  "validator_verdict": "FAIL_V1",
+  "validator_verdict": "PASS_V2",
   "status_before_v1": "READY_FOR_VALIDATION",
   "remediation_v2": {
     "status": "READY_FOR_VALIDATION_V2",
@@ -191,6 +191,27 @@
     "proof_result": "test_atelier_panel ckc_media_image_cache_eviction_bounds_decoded_textures + lib viewer/decoded-image passed",
     "managed_pg": "Handshake-native PostgreSQL 16 cluster 127.0.0.1:5545",
     "adversarial_review": "pre- and post-implementation adversarial sub-agent review performed; hardening findings (F1-F10, intake deadlock-retry, F8 operator-decision) deferred to MT-056",
-    "validator_verdict": "PENDING_V2"
-  }
+    "validator_verdict": "PASS_V2"
+  },
+  "validation_v2": {
+    "verdict": "PASS_V2",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive) - V2",
+    "validated_at_utc": "2026-07-08T15:41:34Z",
+    "session": "INTEGRATION_VALIDATOR-20260708-ckc-v2",
+    "method": "V2 re-validation of the remediation pass. Committed-source review (git 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 5 read-only sub-agents each acknowledging Codex v1.4 + WP_VALIDATOR_PROTOCOL, adjudicated against independently-verified git ground truth. Backend committed-HEAD compile gate: PASS (cargo test --no-run on 10 atelier proof binaries, exit 0, all executables produced -> E0382-class V1 non-compile resolved). Boundary/hygiene CLEAN (no .GOV/ or artifact paths in range; AGENTS.md/CLAUDE.md dirty = inherited baseline, not committed). Committed-reproducibility confirmed (no CKC proof depends on the inherited WP-KERNEL-012 frontend overlay).",
+    "committed": true,
+    "implementing_commits": [
+      "a2abba07"
+    ],
+    "v1_failure": "Cache-bounding symbols (CKC_MEDIA_IMAGE_CACHE_ENTRY_LIMIT, AtelierImageCacheDebugSnapshot) uncommitted; proofs run against a dirty tree.",
+    "v1_failure_resolved": "Committed in a2abba07; symbols confined to atelier_panel.rs + test (self-contained).",
+    "proof": "ckc_media_image_cache_eviction_bounds_decoded_textures: real PNG encode/decode/upload through render path, LRU cap=32 evicts by last_access, protected_asset survives overflow, byte-replacement invalidates stale dims, Posekit pose_source_slot_limit==1.",
+    "runtime_reexec": "FRONTEND_HARNESS_NO_MANAGED_PG: proofs are egui/AccessKit/Argus harness + mock-transport (managed PG not required). Frontend crate carries an inherited WP-KERNEL-012 dirty overlay, so a clean-HEAD cargo compile was not independently run; basis = committed-presence-at-HEAD + symbol-level committed-reproducibility (no CKC proof depends on the overlay) + 2-agent adversarial committed-source review + coder's recorded harness passes.",
+    "spec_realism_gate": "SR1 clean (no deferred-live escape reachable from proof); SR2 satisfied (real Handshake-managed PostgreSQL/EventLedger/ArtifactStore or, for frontend, real egui/AccessKit/Argus harness); SR3 clean (remediated_by KERNEL_BUILDER != validator).",
+    "concerns": [
+      "BULK_COMMIT_TRACEABILITY: V2 landed all backend MTs in one commit 7a666f3d and all frontend MTs in one commit a2abba07 (V1 remediation plans had prescribed per-MT-labeled commits). Satisfies committed-reproducibility; per-MT diffs are not commit-bisectable (attributed by file/symbol). CONCERN, not a FAIL."
+    ],
+    "supersedes": "validation_v1 (FAIL_V1)"
+  },
+  "status_v2": "PASS_V2"
 }

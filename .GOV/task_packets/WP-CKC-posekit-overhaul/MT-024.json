@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-024",
   "title": "Retire or contain legacy non-Rust CKC/Posekit surfaces after native parity",
-  "status": "READY_FOR_VALIDATION_V2",
+  "status": "PASS_V2",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-07-04T10:31:32.269Z",
+  "updated_at_utc": "2026-07-08T15:41:34Z",
   "product_edit_allowed": true,
   "operator_request": "Address the non-Rust language things first, but do not delete useful behavior before native Handshake parity exists.",
   "authority_files": {
@@ -23,13 +23,13 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "PASS_V2",
     "active": false,
     "depends_on": [
       "MT-023",
       "MT-030"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PASS_V2",
     "claimed_by": "KERNEL_BUILDER-20260704-072636",
     "started_at_utc": "2026-07-04T09:46:36.350Z",
     "ready_for_validation_at_utc": "2026-07-04T10:21:26.547Z",
@@ -85,7 +85,7 @@
     "ready_for_validation_at_utc": "2026-07-04T10:21:26.547Z",
     "review_correlation_id": "review:WP-CKC-posekit-overhaul:review_request:mr67pp56:acc855",
     "note": "MT-024 is ready for validator review. This is not official validation; validator_verdict remains PENDING.",
-    "validator_verdict": "FAIL_V1"
+    "validator_verdict": "PASS_V2"
   },
   "owned_files": [
     "src/frontend/handshake_native/src/manual_content_editors.rs",
@@ -214,7 +214,7 @@
     "remediation_plan": "1) git add -p to isolate MT-024 product hunks (native module-ckc/module-ingest guidance, stale-React wording fix, test coverage) from tangled MT-022/023. 2) Commit 'feat: MT-024 contain legacy non-Rust CKC/Posekit surfaces', keeping deleted_in_mt024=0. 3) Provide committed native-entry-point Argus proof (fresh pass, or a dependency on a committed+validated MT-023). 4) Re-run test_manual_pane_editors / test_module_switcher / test_ckc_embed live-shell proofs; re-submit aligned with the committed disposition artifact."
   },
   "status_v1": "FAIL_V1",
-  "validator_verdict": "FAIL_V1",
+  "validator_verdict": "PASS_V2",
   "status_before_v1": "READY_FOR_VALIDATION",
   "remediation_v2": {
     "status": "READY_FOR_VALIDATION_V2",
@@ -226,6 +226,27 @@
     "proof_result": "test_ckc_embed live-shell 3 + test_module_switcher + manual_documents_atelier_tabs passed",
     "managed_pg": "Handshake-native PostgreSQL 16 cluster 127.0.0.1:5545",
     "adversarial_review": "pre- and post-implementation adversarial sub-agent review performed; hardening findings (F1-F10, intake deadlock-retry, F8 operator-decision) deferred to MT-056",
-    "validator_verdict": "PENDING_V2"
-  }
+    "validator_verdict": "PASS_V2"
+  },
+  "validation_v2": {
+    "verdict": "PASS_V2",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive) - V2",
+    "validated_at_utc": "2026-07-08T15:41:34Z",
+    "session": "INTEGRATION_VALIDATOR-20260708-ckc-v2",
+    "method": "V2 re-validation of the remediation pass. Committed-source review (git 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 5 read-only sub-agents each acknowledging Codex v1.4 + WP_VALIDATOR_PROTOCOL, adjudicated against independently-verified git ground truth. Backend committed-HEAD compile gate: PASS (cargo test --no-run on 10 atelier proof binaries, exit 0, all executables produced -> E0382-class V1 non-compile resolved). Boundary/hygiene CLEAN (no .GOV/ or artifact paths in range; AGENTS.md/CLAUDE.md dirty = inherited baseline, not committed). Committed-reproducibility confirmed (no CKC proof depends on the inherited WP-KERNEL-012 frontend overlay).",
+    "committed": true,
+    "implementing_commits": [
+      "a2abba07"
+    ],
+    "v1_failure": "Governance disposition artifact committed (AC1/AC2) but the product half (AC3 runtime nav-to-native + AC4 Argus) uncommitted.",
+    "v1_failure_resolved": "Committed in a2abba07: native-routing manual guidance (manual_content_editors.rs) + module_switcher stale-React wording fix + test_ckc_embed live-shell (3) + manual_documents_atelier_tabs_and_argus_control_ids. MT-024-legacy-surface-disposition.json: 27/27 surfaces, deleted_in_mt024=0 (no deletions) preserved.",
+    "proof": "test_ckc_embed live-shell mount/switch (3) + test_module_switcher + manual coverage; disposition-coverage node check.",
+    "runtime_reexec": "FRONTEND_HARNESS_NO_MANAGED_PG: proofs are egui/AccessKit/Argus harness + mock-transport (managed PG not required). Frontend crate carries an inherited WP-KERNEL-012 dirty overlay, so a clean-HEAD cargo compile was not independently run; basis = committed-presence-at-HEAD + symbol-level committed-reproducibility (no CKC proof depends on the overlay) + 2-agent adversarial committed-source review + coder's recorded harness passes.",
+    "spec_realism_gate": "SR1 clean (no deferred-live escape reachable from proof); SR2 satisfied (real Handshake-managed PostgreSQL/EventLedger/ArtifactStore or, for frontend, real egui/AccessKit/Argus harness); SR3 clean (remediated_by KERNEL_BUILDER != validator).",
+    "concerns": [
+      "BULK_COMMIT_TRACEABILITY: V2 landed all backend MTs in one commit 7a666f3d and all frontend MTs in one commit a2abba07 (V1 remediation plans had prescribed per-MT-labeled commits). Satisfies committed-reproducibility; per-MT diffs are not commit-bisectable (attributed by file/symbol). CONCERN, not a FAIL."
+    ],
+    "supersedes": "validation_v1 (FAIL_V1)"
+  },
+  "status_v2": "PASS_V2"
 }

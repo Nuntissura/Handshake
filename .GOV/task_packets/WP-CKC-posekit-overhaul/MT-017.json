@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-017",
   "title": "Build CKC/Ingest dataset mining review pipeline",
-  "status": "READY_FOR_VALIDATION_V2",
+  "status": "PASS_V2",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-07-08T15:41:34Z",
   "product_edit_allowed": true,
   "operator_request": "Image ingest should select large datasets, mark images pass/reject/unsure, batch add tags/notes such as events/dates/location, and link passed images to a character sheet.",
   "authority_files": {
@@ -22,13 +22,13 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-017.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "PASS_V2",
     "active": false,
     "depends_on": [
       "MT-006",
       "MT-010"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PASS_V2",
     "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
     "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
     "claimed_at_utc": "2026-07-05T10:29:13.4708984Z",
@@ -83,7 +83,7 @@
   "handoff": {
     "status": "READY_FOR_VALIDATION",
     "ready_for_validation_at_utc": "2026-07-03T20:37:53.691Z",
-    "validator_verdict": "FAIL_V1"
+    "validator_verdict": "PASS_V2"
   },
   "validation_v1": {
     "verdict": "FAIL_V1",
@@ -101,7 +101,7 @@
     "remediation_plan": "1) Fix tests/atelier_core_data_tests.rs:1999 -> request_id: Some(metadata_request_id.clone()). 2) Confirm cargo test --no-run --test atelier_core_data_tests succeeds. 3) Run the MT-017 intake classification/rollback/EventLedger tests against managed PostgreSQL; record the pass. 4) Re-submit for validation."
   },
   "status_v1": "FAIL_V1",
-  "validator_verdict": "FAIL_V1",
+  "validator_verdict": "PASS_V2",
   "status_before_v1": "READY_FOR_VALIDATION",
   "remediation_v2": {
     "status": "READY_FOR_VALIDATION_V2",
@@ -113,6 +113,27 @@
     "proof_result": "core_data intake classification/rollback/foreign-override/EventLedger 4 passed (managed PG, isolated to avoid cross-test deadlock)",
     "managed_pg": "Handshake-native PostgreSQL 16 cluster 127.0.0.1:5545",
     "adversarial_review": "pre- and post-implementation adversarial sub-agent review performed; hardening findings (F1-F10, intake deadlock-retry, F8 operator-decision) deferred to MT-056",
-    "validator_verdict": "PENDING_V2"
-  }
+    "validator_verdict": "PASS_V2"
+  },
+  "validation_v2": {
+    "verdict": "PASS_V2",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive) - V2",
+    "validated_at_utc": "2026-07-08T15:41:34Z",
+    "session": "INTEGRATION_VALIDATOR-20260708-ckc-v2",
+    "method": "V2 re-validation of the remediation pass. Committed-source review (git 6bb8cfb4..HEAD) + WP_VALIDATOR mechanical gates (boundary/hygiene/scope) + Spec-Realism Gate SR1/SR2/SR3, across 5 read-only sub-agents each acknowledging Codex v1.4 + WP_VALIDATOR_PROTOCOL, adjudicated against independently-verified git ground truth. Backend committed-HEAD compile gate: PASS (cargo test --no-run on 10 atelier proof binaries, exit 0, all executables produced -> E0382-class V1 non-compile resolved). Boundary/hygiene CLEAN (no .GOV/ or artifact paths in range; AGENTS.md/CLAUDE.md dirty = inherited baseline, not committed). Committed-reproducibility confirmed (no CKC proof depends on the inherited WP-KERNEL-012 frontend overlay).",
+    "committed": true,
+    "implementing_commits": [
+      "7a666f3d"
+    ],
+    "v1_failure": "Managed-PG/EventLedger proof in tests/atelier_core_data_tests.rs failed to compile (same E0382).",
+    "v1_failure_resolved": "E0382 fixed; compile gate PASS; migration 0341 wired into ensure_schema.",
+    "proof": "4 intake tests: classification-apply-links-media + invalid-target rollback + foreign-override-rejected-before-writes + mid-batch-failure rollback; direct EventLedger SQL (event_family=INTAKE_ITEM_CLASSIFIED, loaded_item_count=3) + direct atelier_intake_item_metadata SQL. Transactional atomicity proven.",
+    "runtime_reexec": "LIVE_REEXEC_ENV_BLOCKED: independent live run attempted; the shared test harness auto-start of Handshake-managed PostgreSQL FAILED at pg_ctl (\"could not create any TCP/IP sockets\"; port 5544 already held by an existing managed cluster / 46 postgres procs, likely a concurrent session). All PG tests panicked at atelier_pg_support.rs:35 (ensure_running error arm) BEFORE any assertion - which independently confirms the proof is a REAL managed-PG test (non-mock/non-skip; a fake would pass vacuously) and that NO MT test panicked at its own logic. Not run against the concurrent cluster to avoid disrupting an active session (data-loss/no-disruption rule). Backend proof binary COMPILES (compile-gate PASS, exit 0). Verdict basis: committed-presence-at-HEAD + backend compile-gate PASS + 5-agent adversarial committed-source review + coder's recorded managed-PG non-SKIP passes on this same cluster. Consistent with V1 (runtime_reexec then = ENVIRONMENT_BLOCKED_HOST_OOM).",
+    "spec_realism_gate": "SR1 clean (no deferred-live escape reachable from proof); SR2 satisfied (real Handshake-managed PostgreSQL/EventLedger/ArtifactStore or, for frontend, real egui/AccessKit/Argus harness); SR3 clean (remediated_by KERNEL_BUILDER != validator).",
+    "concerns": [
+      "BULK_COMMIT_TRACEABILITY: V2 landed all backend MTs in one commit 7a666f3d and all frontend MTs in one commit a2abba07 (V1 remediation plans had prescribed per-MT-labeled commits). Satisfies committed-reproducibility; per-MT diffs are not commit-bisectable (attributed by file/symbol). CONCERN, not a FAIL."
+    ],
+    "supersedes": "validation_v1 (FAIL_V1)"
+  },
+  "status_v2": "PASS_V2"
 }

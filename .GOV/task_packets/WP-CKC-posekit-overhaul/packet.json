@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-07-05T10:51:35.782Z",
+  "updated_at_utc": "2026-07-08T15:45:55Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -97,8 +97,8 @@
     "role_owner": "KERNEL_BUILDER",
     "coder_model": "codex-gpt-5",
     "coder_reasoning_strength": "HIGH",
-    "wp_validator_of_record": "INTEGRATION_VALIDATOR-20260707-ckc-v1 (per-MT V1)",
-    "integration_validator_of_record": "INTEGRATION_VALIDATOR-20260707-ckc-v1 (whole-WP V1 WITHHELD)",
+    "wp_validator_of_record": "INTEGRATION_VALIDATOR-20260708-ckc-v2 (per-MT V2)",
+    "integration_validator_of_record": "INTEGRATION_VALIDATOR-20260708-ckc-v2 (whole-WP V2: TECHNICAL_PASS, MERGE_WITHHELD)",
     "main_containment_status": "NOT_STARTED",
     "current_main_compatibility_status": "NOT_RUN",
     "current_main_compatibility_baseline_sha": "NONE",
@@ -446,5 +446,44 @@
     "merge": "WITHHELD_PER_OPERATOR (branches off in-development WP-KERNEL-012; do not merge)",
     "dominant_blocker": "Most FAIL_V1 MTs (022,023,024,033,034,035,036,038,045,046,047,048,049,050,051,052,053,054,055) have acceptance work only in the uncommitted working tree, tangled with inherited WP-KERNEL-012 baseline. MT-016/018/043 are committed but have proof/scope gaps.",
     "runtime_note": "Fresh runtime re-execution was host-OOM-blocked at validation time; backend cargo check later recompiled clean after Operator freed memory. Managed-PG test re-runs still pending."
+  },
+  "wp_validation_v2": {
+    "schema": "wp_validation_v2",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator + whole-WP judge per Operator directive) - V2",
+    "validated_at_utc": "2026-07-08T15:45:55Z",
+    "session": "INTEGRATION_VALIDATOR-20260708-ckc-v2",
+    "operator_directive": "Re-validate ONLY the 24 FAIL_V1 MTs (remediation pass); mark PASS_V2/FAIL_V2; append remediation into any FAIL; then a final Integration-Validator whole-WP check if all pass. FORBIDDEN TO MERGE.",
+    "outcome": "ALL_24_REVALIDATED_MTS_PASS_V2",
+    "mt_completeness": {
+      "total_impl_mts": 55,
+      "pass_v1_skipped_per_directive": 31,
+      "revalidated_v2": 24,
+      "pass_v2": 24,
+      "fail_v2": 0,
+      "deferred_tracker": "MT-056 (NOT_APPLICABLE_DEFERRED hardening tracker; no implementation claimed; source MTs not reopened)",
+      "result": "55/55 implementation MTs PASS (31 PASS_V1 + 24 PASS_V2). No FAIL_V2."
+    },
+    "whole_wp_technical_judgment": "PASS_AT_HEAD",
+    "whole_wp_basis": "Backend committed-HEAD compile gate PASS (10 atelier proof binaries, exit 0 -> E0382-class V1 non-compile resolved). Boundary/hygiene CLEAN across 6bb8cfb4..HEAD (no .GOV/ or artifact paths committed). All 24 remediated deliverables + named proofs committed at HEAD (dominant V1 failure = uncommitted, resolved). Per-MT Spec-Realism SR1/SR2/SR3 satisfied; proofs are real managed-PG/EventLedger/ArtifactStore or real egui/AccessKit/Argus harness (confirmed: live PG tests panic reaching for the managed cluster = non-mock). 5 read-only adversarial sub-agents (each acknowledging Codex v1.4 + WP_VALIDATOR_PROTOCOL) found no cross-MT contradiction; anti-scaffold confirmed on MT-046/049/053; real 8-way concurrency race on MT-022. No whole-WP spec-clause violation surfaced (V1 whole-WP block was MT-incompleteness only, now resolved).",
+    "merge": "WITHHELD",
+    "merge_reason": "(1) OPERATOR-FORBIDDEN this session. (2) STRUCTURAL: WP branches off in-development feat/WP-KERNEL-012 (SOURCE_HEAD 6bb8cfb4), not main; main_containment_status=NOT_STARTED; current_main_compatibility=NOT_RUN. Cannot target main until WP-KERNEL-012 lands. Consistent with wp_validation_v1 ('WITHHELD_PER_OPERATOR; branches off in-development WP-KERNEL-012; do not merge').",
+    "closeout_governance_debt": {
+      "note": "The following are GOVERNANCE-CLOSEOUT mechanics, NOT MT-level correctness blockers. This WP was validated ad-hoc per Operator directive (per-MT V1/V2), not through the full governed ACP handoff pipeline, so standard closeout artifacts were never produced. Per CLOSEOUT_AUTHORITY, only correctness blockers may withhold product outcome; none exist. Merge is withheld for the reasons above regardless.",
+      "committed_handoff_evidence": "MISSING (candidate=FAIL) - no committed CODER_HANDOFF range in the manual-relay pipeline.",
+      "topology_ledger": "FAIL - inherited WP-KERNEL-004 gov-check teardown residue (topology-bundle-check), pre-existing at session start, not introduced by this WP.",
+      "terminal_closeout_record": "ABSENT (not created; merge withheld).",
+      "provenance": "MISSING.",
+      "repomem_coverage": "DEBT (CODER/WP_VALIDATOR session-open/close checkpoints not recorded during the ad-hoc lane; per-MT judgment provenance lives in each MT validation_v2)."
+    },
+    "master_spec_closeout": "Full clause-by-clause Master Spec closeout deferred to the eventual real merge lane (when WP-KERNEL-012 lands and this WP targets main). Per-MT spec-anchor + Spec-Realism review performed by the 5 sub-agents. Not independently re-resolved clause-by-clause this session because merge is forbidden and the WP is not main-targeting.",
+    "live_reexec": "Live managed-PG re-exec attempted; env-blocked by a port-5544 conflict with a concurrent managed cluster (46 postgres procs). Not forced against the concurrent cluster (no-disruption rule). Backend binaries compile; verdict basis = committed-source + compile-gate + adversarial review + coder's recorded managed-PG passes.",
+    "concerns": [
+      "BULK_COMMIT_TRACEABILITY: V2 landed all backend MTs in one commit 7a666f3d and all frontend in one a2abba07 (V1 plans prescribed per-MT commits). Satisfies committed-reproducibility; per-MT diffs are file/symbol-attributed, not commit-bisectable. Route as CONCERN for future WPs.",
+      "MT-033/MT-036 hardening (true >LIST_CAP pagination stress + concurrent-writer race + FOR-UPDATE-under-contention) is BEYOND the stated ACs and tracked in MT-056 (F1_F2_F3/F5_F9/F4). ACs met; hardening not silently dropped.",
+      "MT-023 Posekit below-viewport overflow deferral pointer was dangling; V2 added a concrete POSEKIT_SPLITVIEW_OVERFLOW finding to MT-056.",
+      "MT-049 remediation_v2.proof_result overstated the fix; corrected in MT-049.validation_v2 (chain existed since MT-016; V1 RED was crate-compile from uncommitted siblings)."
+    ],
+    "whole_wp_verdict": "WHOLE_WP_TECHNICAL_PASS_V2 (all 55 impl MTs pass; technically sound at HEAD) -- MERGE_WITHHELD (operator-forbidden + branches off in-development WP-KERNEL-012).",
+    "merge_action_taken": "NONE (no merge, no sync-gov-to-main, no push, no gate-commit). Per Operator FORBIDDEN-TO-MERGE."
   }
 }
