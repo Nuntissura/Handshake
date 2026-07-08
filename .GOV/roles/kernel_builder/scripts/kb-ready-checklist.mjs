@@ -539,9 +539,18 @@ function deriveTestGateFindings(contract) {
   return findings;
 }
 
+function extractProofCommands(contract) {
+  const topLevel = Array.isArray(contract?.proof_commands) ? contract.proof_commands : [];
+  const scoped = Array.isArray(contract?.scope?.proof_commands) ? contract.scope.proof_commands : [];
+  const legacyScopedTargets = Array.isArray(contract?.scope?.proof_targets) ? contract.scope.proof_targets : [];
+  return [...topLevel, ...scoped, ...legacyScopedTargets]
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean);
+}
+
 function deriveProofCommandFindings(contract) {
   const findings = [];
-  const proofCommands = Array.isArray(contract?.proof_commands) ? contract.proof_commands : [];
+  const proofCommands = extractProofCommands(contract);
   if (proofCommands.length === 0) {
     findings.push("MT contract declares NO proof_commands. Confirm the MT genuinely has no executable proof and the validator focus does not require runtime evidence.");
     return findings;

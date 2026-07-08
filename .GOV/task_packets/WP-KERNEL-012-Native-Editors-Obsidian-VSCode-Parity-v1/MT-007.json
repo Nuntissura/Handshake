@@ -14,7 +14,7 @@
   "title": "E1-MT-007-GutterDiagnosticsBreakpoints",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-04T15:20:57.954Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-007.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-001",
@@ -36,11 +36,55 @@
       "MT-008"
     ],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:25:27Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: MT-007-line-numbers.png shows gutter numbers at visibly smaller row pitch than body rows (number 10 aligns near text row l8; ~1.3 rows drift on a 10-line buffer) contradicting the contract POSITIONING requirement (gutter row N lines up exactly with code row N) and the row-aligned claim. Drift grows with row count - line_height vs painted-pitch mismatch (gutter.rs:300-301 vs panel.rs:7727-7731). Pixel tests sample too generous a band to catch it. Also deferred MC-002 fold-triangle CI test and MC-001 runtime gutter-widen e2e remain unenforced. Fix shared row metric, re-render both PNGs, add tight alignment assertion.",
     "deflection_category": "gutter_row_pitch_misalignment",
-    "remediation_appendage": "Unify gutter row pitch with painted body pitch (shared MT-054 unit fix); add tight alignment assertion; land deferred MC-001/MC-002 tests; re-render PNGs."
+    "remediation_appendage": "Unify gutter row pitch with painted body pitch (shared MT-054 unit fix); add tight alignment assertion; land deferred MC-001/MC-002 tests; re-render PNGs.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Unify gutter row pitch with painted body pitch (shared MT-054 unit fix); add tight alignment assertion; land deferred MC-001/MC-002 tests; re-render PNGs.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-001: `cargo test -p handshake-native gutter` passes — tests: gutter width calculation for 1-line, 100-line, 10000-line buffer; GutterMarker list correct for a buffer with one error on line 5., AC-002: `cargo test -p handshake-native breakpoint_set` passes — tests: toggle adds breakpoint, toggle again removes it, contains() returns correct state., AC-003: egui_kittest screenshot with an error marker on line 3 shows a red dot in the gutter at row 3 (pixel color check)., AC-004: egui_kittest screenshot shows line numbers right-aligned in the gutter for a 10-line buffer (lines 1-10 visible)., AC-005: egui_kittest interactive test: click gutter at line 2 toggles a breakpoint (verified via AccessKit code_editor_breakpoint_2 ToggleButton state change)., AC-006: egui_kittest interactive test: click fold triangle at line 1 calls fold_set.toggle(0) (verified via fold state change — line 2 no longer visible in screenshot)., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PT-001: `cargo test -p handshake-native gutter` — GREEN, logged. ; PT-002: `cargo test -p handshake-native breakpoint_set` — GREEN, logged. ; PT-003: egui_kittest screenshot `test_output/MT-007-gutter-error.png` pixel-verified for red diagnostic dot. ; PT-004: egui_kittest screenshot `test_output/MT-007-line-numbers.png` pixel-verified for line number text. ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260704-122106",
+    "ready_for_validation_at_utc": "2026-07-04T15:20:57.954Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260704-122106",
+    "ready_for_validation_summary": "MT-007 gutter repair final handoff: shared painted-row gutter model, wrap continuation hardening, row-tight diagnostics, AccessKit toggled proof, fresh PNGs, manual/settings coverage, and post-review PASS complete.",
+    "kb_ready_checklist_receipt": {
+      "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-07-04T15:18:23.556Z",
+      "overall_verdict": "PASS",
+      "actor_session": "KERNEL_BUILDER-20260704-122106",
+      "summary": "MT-007 gutter repair final handoff: shared painted-row gutter model, wrap continuation hardening, row-tight diagnostics, AccessKit toggled proof, fresh PNGs, manual/settings coverage, and post-review PASS complete."
+    }
   },
   "scope": {
     "summary": "Goal: Implement the editor gutter: a narrow left-margin strip that renders line numbers, diagnostic severity icons (error/warning/info sourced from backend diagnostics), fold triangles (toggle fold state from MT-005), and breakpoint toggles (click to add/remove a breakpoint; breakpoints are sent to the debug adapter protocol client when it is attached). Expected diff shape: new module `src/frontend/handshake_native/src/code_editor/gutter.rs`, edits to `src/frontend/handshake_native/src/code_editor/mod.rs` and `src/frontend/handshake_native/src/code_editor/panel.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/gutter.rs` — `GutterConfig { show_line_numbers: bool, show_fold_triangles: bool, show_diagnostics: bool, show_breakpoints: bool }`. `GutterMarker { line: usize, kind: GutterMarkerKind }` where `GutterMarkerKind` is an enum: `Diagnostic(DiagnosticSeverity)`, `Breakpoint`, `FoldTriangle(bool)` (bool = is_open). `Gutter::render(ui, visible_range, buffer, markers: &[GutterMarker], config: &GutterConfig, on_fold_click: impl FnMut(usize), on_breakpoint_click: impl FnMut(usize)) -> GutterResponse` — renders the gutter as a left strip. Returns `GutterResponse { fold_toggled: Option<usize>, breakpoint_toggled: Option<usize> }`. `DiagnosticSeverity` enum: `Error`, `Warning`, `Info`, `Hint`.\n- CREATE `src/frontend/handshake_native/src/code_editor/breakpoints.rs` — `BreakpointSet { lines: HashSet<usize> }`. Methods: `toggle(line)`, `iter() -> impl Iterator<Item=usize>`, `contains(line) -> bool`. Also defines `BreakpointEvent { file_path: String, line: usize, action: BreakpointAction }` where `BreakpointAction { Set, Clear }`. When a breakpoint is toggled, the `CodeEditorPanel` should publish a `BreakpointEvent` to a channel that the debug adapter client (future MT) will consume. The breakpoint publish channel reuses the existing `event_bus.rs` pattern from WP-011 for in-app event fan-out.\n- EDIT `src/frontend/handshake_native/src/code_editor/mod.rs` — add `gutter_config: GutterConfig`, `breakpoint_set: BreakpointSet`, `diagnostic_markers: Vec<GutterMarker>` to `CodeEditorPanel`. `diagnostic_markers` is populated by the LSP client (MT-008 will push diagnostics here; this MT prepares the slot). Wire `GutterResponse` from the gutter render call to `fold_set.toggle()` and `breakpoint_set.toggle()` in each frame.\n- EDIT `src/frontend/handshake_native/src/code_editor/panel.rs` — render the gutter as a fixed-width left strip (default 52px: ~4 chars for line number + icon columns) using a custom painter area. Render line numbers as right-aligned gray text. Render diagnostic icons as colored dots (red for error, yellow for warning, blue for info). Render fold triangles as `▶` (collapsed) or `▼` (expanded). Render breakpoints as filled red circles.\n\nExact crates/functions/APIs to use:\n- `egui::Painter::circle_filled` — for breakpoint dots.\n- `egui::Painter::text` — for line numbers and fold triangles.\n- `egui::Painter::rect_filled` — for diagnostic severity color bars (VS Code style: a 3px left border on the line).\n- `egui::Response::on_hover_text` — for diagnostic hover tooltip (show the diagnostic message).\n- `std::sync::mpsc::channel` — for BreakpointEvent publishing to the debug adapter.\n- AccessKit (reuse the WP-011 accessibility/ module — accessibility/registry.rs + accessibility/live.rs for node registration): `author_id = \"code_editor_gutter\"` `Role::Group` on the gutter strip; `author_id = \"code_editor_breakpoint_{line}\"` `Role::ToggleButton` on each breakpoint toggle; `author_id = \"code_editor_diagnostic_{line}\"` `Role::StaticText` on each diagnostic marker.\n\nDiagnostics source (this MT): `diagnostic_markers` is initialized as empty. MT-008 will populate it via `CodeEditorPanel::push_diagnostics(markers: Vec<GutterMarker>)`. This MT must define the `push_diagnostics` method stub so MT-008 can call it without a re-implementation.\n\nDebug adapter integration: This MT does NOT implement the debug adapter client. It only publishes `BreakpointEvent` to a `std::sync::mpsc::Sender<BreakpointEvent>`. The receiver is a stub `None` until the debug adapter MT is implemented. Guard all send calls with `if let Some(sender) = &self.breakpoint_sender { sender.send(event).ok(); }`.\n\nReact reference files:\n- `app/src/components/operator/ProblemsView.tsx` — displays diagnostics from the backend `listProblemGroups` API. The gutter diagnostic markers in the native editor consume the same backend data (see MT-008 for the API binding).\n- `app/src/lib/monaco/code_intelligence.ts` lines 447-484 — `refreshHandshakeCodeIntelligenceMarkers`: sets Monaco marker data from backend symbol staleness. The native gutter must accept equivalent marker data from MT-008's LSP client.\n- `app/src/harness/mt249_code_intelligence_harness.tsx` lines 292-297 — `monaco.editor.getModelMarkers({ owner: 'handshake-code-intelligence' })` — proof that markers are per-editor; native equivalent is `CodeEditorPanel::diagnostic_markers`.\n\nStep-by-step implementation notes:\n1. Gutter width: compute from the number of digits in `buffer.len_lines()` using `(buffer.len_lines() as f64).log10().ceil() as usize + 1` chars, multiplied by the monospace char width from MT-003.\n2. Render order per line (left to right): breakpoint circle, fold triangle, line number, diagnostic icon. Each occupies a fixed sub-column within the gutter width.\n3. Interaction: use `ui.interact(rect, id, egui::Sense::click())` for each clickable gutter row. The entire line row in the gutter is clickable for breakpoints; only the fold triangle sub-rect is clickable for fold.\n4. Diagnostic hover: iterate `diagnostic_markers` for the hovered line; collect all messages and join with '\\n' for the hover tooltip.\n5. `push_diagnostics` method: replace `self.diagnostic_markers = markers; self.buffer_version += 1` (increment version to trigger highlight cache invalidation is not needed for diagnostics, but flushing the list is required).\n\nDependencies/unblock conditions: MT-001 (buffer, line count), MT-002 (VirtualLineLayout, visible line range — gutter must render only visible lines), MT-005 (fold_set — gutter reads fold state for fold triangle direction). MT-008 depends on the `push_diagnostics` stub defined here.\nRisk if missed: No gutter means no line numbers (poor navigation), no diagnostic visibility (operators can't see errors inline), no breakpoints (debug workflow broken).",
@@ -106,7 +150,7 @@
     "HBR-INT"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260704-122106",
     "wp_validator_session": null
   },
   "red_team": {
@@ -151,6 +195,54 @@
       "O(rows*markers) per-frame marker scan -> perf follow-up (fine at LSP rates)",
       "coverage gaps: glyph-fallback CI test (MC-002), runtime gutter-widen e2e (MC-001), hover-tooltip interaction, breakpoint-click-on-fold-row disjoint-rect branch -> follow-up test MT"
     ],
-    "process_fix": "Pipeline review prompt updated to require running the FULL cargo test suite (all bins) + clippy --all-targets, not just MT-specific filters, so cross-cutting architecture-guard regressions are caught going forward."
+    "process_fix": "Pipeline review prompt updated to require running the FULL cargo test suite (all bins) + clippy --all-targets, not just MT-specific filters, so cross-cutting architecture-guard regressions are caught going forward.",
+    "proof_refresh_2026_07_04_final": {
+      "implemented_by": "KERNEL_BUILDER-20260704-122106",
+      "summary": "MT-007 gutter repair final handoff: shared painted-row gutter model, wrap continuation hardening, row-tight diagnostics, AccessKit toggled proof, fresh PNGs, manual/settings coverage, and post-review PASS complete.",
+      "code_changes": [
+        "Introduced shared GutterPaintRow paint model so gutter y positions use the same painted rows as the editor body.",
+        "Skipped line numbers, diagnostics, breakpoints, folds, clicks, and quick-fix bulbs on wrap continuation fragments while preserving row pitch.",
+        "Hardened gutter breakpoint/fold test seams to return positions only for visible first fragments.",
+        "Added row-tight red diagnostic, AccessKit toggled, wrap alignment, continuation-only click, and quick-fix continuation-pitch regressions."
+      ],
+      "proof_commands": [
+        "cargo test --test test_gutter -- --nocapture => 13 passed",
+        "cargo test --test test_code_actions code_action_lightbulb_on_diagnostic_screenshot -- --nocapture => 1 passed",
+        "cargo test --test test_code_editor_panel painted_row_pitch_equals_geometry_unit_and_gutter_rows -- --nocapture => 1 passed",
+        "cargo test --test test_breakpoint_set -- --nocapture => 5 passed",
+        "cargo test --test test_word_wrap -- --nocapture => 10 passed",
+        "cargo test --test test_manual_content wave5_surface_topics_exist_and_carry_real_no_context_facts -- --nocapture => 1 passed",
+        "cargo test --test test_manual_content wave6_editor_settings_topic_documents_live_font_and_palette_effects -- --nocapture => 1 passed",
+        "cargo test --test test_editor_settings_section_renders -- --nocapture => 3 passed",
+        "git diff --check -- touched MT-007 files => exit 0; LF/CRLF warnings only"
+      ],
+      "artifacts": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-007/MT-007-gutter-error.png",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-007/MT-007-line-numbers.png",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-049/MT-049-lightbulb.png",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-072/editor_settings_sections.png"
+      ],
+      "visual_inspection": [
+        "MT-007-gutter-error.png inspected: red diagnostic mark is row-aligned.",
+        "MT-007-line-numbers.png inspected: gutter numbers 1-10 use consistent row pitch.",
+        "editor_settings_sections.png inspected: editor settings manual/options surface remains covered."
+      ],
+      "adversarial_reviews": [
+        "Arendt post-change review PASS after brittle wrapped-line query removal and proof refresh.",
+        "Curie post-change review PASS after quick-fix continuation-pitch fix and test-seam hardening."
+      ],
+      "hygiene": [
+        "Artifacts written under Handshake_Artifacts external root.",
+        "No repo-local test_output, tests/screenshots, or target directories found in product or crate roots.",
+        "No cargo/rustc/link/rustdoc processes owned by kb-wp012-mt007 remained after proof runs."
+      ],
+      "kb_ready_checklist_receipt": {
+        "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+        "generated_at_utc": "2026-07-04T15:18:23.556Z",
+        "overall_verdict": "PASS",
+        "actor_session": "KERNEL_BUILDER-20260704-122106",
+        "summary": "MT-007 gutter repair final handoff: shared painted-row gutter model, wrap continuation hardening, row-tight diagnostics, AccessKit toggled proof, fresh PNGs, manual/settings coverage, and post-review PASS complete."
+      }
+    }
   }
 }

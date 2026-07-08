@@ -24,13 +24,15 @@ import { reconcileWpCommunicationTruth } from "../../../roles_shared/scripts/wp/
 import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 
-registerFailCaptureHook("task-board-set.mjs", { role: "ORCHESTRATOR" });
+const ACTOR_ROLE = String(process.env.HANDSHAKE_TASK_BOARD_ACTOR_ROLE || "ORCHESTRATOR").trim().toUpperCase() || "ORCHESTRATOR";
+
+registerFailCaptureHook("task-board-set.mjs", { role: ACTOR_ROLE });
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
 const TRACEABILITY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 
 function fail(message, details = []) {
-  failWithMemory("task-board-set.mjs", message, { role: "ORCHESTRATOR", details });
+  failWithMemory("task-board-set.mjs", message, { role: ACTOR_ROLE, details });
 }
 
 function readText(p) {

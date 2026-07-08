@@ -14,7 +14,7 @@
   "title": "E7-MT-041-EditorActionsAccessKit",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-03T21:26:02Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-041.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "OPEN",
     "active": false,
     "depends_on": [
       "MT-001",
@@ -37,11 +37,44 @@
       "MT-044"
     ],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:36:44Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: sync_editor_actions early-returns when no registry installed and NO live host installs one - zero calls to install_editor_action_registry outside kittests, so the canonical editor.code.*/editor.rich.* AccessKit action nodes + dispatch exist ONLY in test harnesses; the LIVE app tree never carries them (tree already includes post-E7 work). AC-041-06 overstated: the save proof spies the command-palette channel, not the E6 endpoint; the test file itself says it must not claim a knowledge_documents backend touch, yet implementation_result reports PASS with E6-wiring-spy phrasing. Positive: dispatch via real AccessKit events, catalogs complete, ids stable, disabled heading-4..6/language-picker honestly typed. Fix: shell installs one shared EditorActionRegistry on every mounted pane + live-shell kittest asserting editor.code.save present + code-pane save->E6 assertion or typed blocker + editor.rich.save dispatch->SaveManager kittest.",
     "deflection_category": "action_registry_never_installed",
-    "remediation_appendage": "Install one shared EditorActionRegistry on every mounted pane; live-shell kittest asserting editor.code.save present; code-pane save->E6 assertion or typed blocker; downgrade AC-041-06."
+    "remediation_appendage": "Install one shared EditorActionRegistry on every mounted pane; live-shell kittest asserting editor.code.save present; code-pane save->E6 assertion or typed blocker; downgrade AC-041-06.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Install one shared EditorActionRegistry on every mounted pane; live-shell kittest asserting editor.code.save present; code-pane save->E6 assertion or typed blocker; downgrade AC-041-06.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-041-01: `cargo test -p handshake-native --test test_e7_editor_action_accesskit` passes with zero failures. The test must open both panes in-process, query the AccessKit tree, and assert that every EditorActionId variant maps to an AccessKit node with the correct author_id (format: 'editor.<pane_type>.<action_id>'), correct role, and at least one declared action., AC-041-02: Every code-editor action listed in implementation note IN-041-03 is present in the AccessKit tree with a stable author_id that does NOT include runtime-generated random segments; the author_id must be deterministic given (pane_type, action_id, pane_instance_index)., AC-041-03: Every rich-text editor action listed in implementation note IN-041-04 is present in the AccessKit tree with the same deterministic author_id convention., AC-041-04: Simulating `dispatch_action('editor.code.find-open', 'activate')` via the AccessKit surface in the kittest harness causes the find panel to open (observable as a new AccessKit node 'editor.code.find-panel' appearing in the tree within 100 ms)., AC-041-05: Simulating `dispatch_action('editor.rich.format-bold', 'activate')` causes the bold format to apply to the current selection (observable via the AccessKit node state 'editor.rich.format-bold' having `checked: true` when the cursor is inside bold text)., AC-041-06: Simulating `dispatch_action('editor.code.save', 'activate')` triggers the backend save API call (observable via a test spy on the knowledge document update endpoint, or an EventLedger event if spy is unavailable)., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PROOF-041-A: Run `cargo test -p handshake-native --test test_e7_editor_action_accesskit 2>&1`; paste full stdout. Every line must show 'ok'. Zero 'FAILED' lines. ; PROOF-041-B: In the kittest, print the full AccessKit tree to stdout and paste it. Reviewer must be able to locate 'editor.code.find-open', 'editor.code.save', 'editor.rich.format-bold', 'editor.rich.command-palette-open' as named nodes. ; PROOF-041-C: Run `cargo build -p handshake-native 2>&1 | grep -E 'warning:|error:'`; paste output. Zero new warnings attributable to files changed in this MT. ; PROOF-041-D: Paste the AccessKit node dump for at least 5 find-panel actions showing correct role (Button or ToggleButton as appropriate) and at least one declared action string.",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
   },
   "scope": {
     "summary": "GOAL: Expose every interactive editor action in both the native code editor (E1 cluster) and the native rich-text editor (E2 cluster) through the WP-011 AccessKit model-accessibility surface, each with a stable author_id, correct AccessKit role, and declared actions. An out-of-process swarm agent must be able to discover and invoke any editor action (format text, insert snippet/block, open find/replace, toggle find options, navigate find matches, save document, toggle multi-cursor, jump to line, open command palette, open language picker) purely through the AccessKit action channel — no screen-scraping, no keyboard simulation.\n\nEXPECTED DIFF SHAPE:\n  CREATE  src/frontend/handshake_native/src/native_editors/accessibility/editor_action_registry.rs\n    — defines EditorActionId enum (one variant per action, kebab-case string repr) and EditorActionNode struct { author_id: String, role: AccessKitRole, label: String, actions: Vec<AccessKitAction>, state: EditorActionState }\n    — defines EditorActionRegistry: maintains a stable BTreeMap<EditorActionId, EditorActionNode> per open editor pane; emits diff notifications to the WP-011 AccessKit adapter on change\n  EDIT    src/frontend/handshake_native/src/native_editors/code_editor/pane.rs\n    — on pane init and on state change: register/update each code-editor action node in the EditorActionRegistry\n    — map: save=CustomAction{\"save\"}, find_open=CustomAction{\"find-open\"}, find_next=CustomAction{\"find-next\"}, find_prev=CustomAction{\"find-prev\"}, find_toggle_case=ToggleButton, find_toggle_word=ToggleButton, find_toggle_regex=ToggleButton, replace_open=CustomAction{\"replace-open\"}, replace_one=CustomAction{\"replace-one\"}, replace_all=CustomAction{\"replace-all\"}, format=CustomAction{\"format\"}, go_to_line=CustomAction{\"go-to-line\"}, multi_cursor_add=CustomAction{\"multi-cursor-add\"}, multi_cursor_clear=CustomAction{\"multi-cursor-clear\"}, command_palette_open=CustomAction{\"command-palette-open\"}, language_picker_open=CustomAction{\"language-picker-open\"}\n  EDIT    src/frontend/handshake_native/src/native_editors/rich_editor/pane.rs\n    — same registry call for rich-text editor actions: save, find_open, find_next, find_prev, find_toggle_case, find_toggle_word, find_toggle_regex, replace_one, replace_all, format_bold, format_italic, format_code, format_heading_1..6, insert_block_slash_command, command_palette_open\n  CREATE  src/frontend/handshake_native/tests/test_e7_editor_action_accesskit.rs\n    — kittest harness that opens both editor panes, queries the AccessKit tree, asserts every EditorActionId appears with the correct author_id prefix, role, and at least one declared action; simulates action dispatch and asserts state updates\n\nFILES TO CREATE/EDIT (all under allowed paths):\n  src/frontend/handshake_native/src/native_editors/accessibility/editor_action_registry.rs  (NEW)\n  src/frontend/handshake_native/src/native_editors/code_editor/pane.rs                      (EDIT)\n  src/frontend/handshake_native/src/native_editors/rich_editor/pane.rs                      (EDIT)\n  src/frontend/handshake_native/src/native_editors/accessibility/mod.rs                      (EDIT — add pub mod editor_action_registry)\n  src/frontend/handshake_native/tests/test_e7_editor_action_accesskit.rs                   (NEW)\n\nREUSE (WP-011 modules under src/frontend/handshake_native/src/): the WP-011 model-accessibility surface lives in accessibility/ (mod.rs, live.rs, registry.rs, snapshot.rs) — register/dispatch editor action nodes through that surface, do NOT build a parallel AccessKit adapter. The shared command bus that editor actions already fire through is command_registry.rs + event_bus.rs; the command palette surface is command_palette.rs + command_registry.rs. Swarm-agent action discovery/invocation routes through mcp/* (server.rs, tools.rs, action.rs, attribution.rs).\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n  - WP-KERNEL-011 MT-001 spike delivered: egui + AccessKit model-accessibility surface exists under src/frontend/handshake_native/src/accessibility/ (mod.rs, live.rs, registry.rs, snapshot.rs); the surface exposes a stable public API for registering nodes (author_id, role, actions) and dispatching actions (author_id, action_id).\n  - WP-KERNEL-012 MT-001 (code editor pane skeleton) and MT-011 (rich-text editor pane skeleton) are COMPLETE so pane.rs exists with an init/update lifecycle hook to attach to.\n  - WP-KERNEL-012 MT-031 (shared command bus integration over command_registry.rs + event_bus.rs) is COMPLETE so the code-editor and rich-editor actions already fire through the bus; this MT adds AccessKit registration on top of the bus dispatch.\n\nRISK IF MISSED: MT-043 (SwarmEditProof) cannot execute: the out-of-process agent test has no AccessKit node to target for either editor, making the E7 cluster proof impossible. MT-044 parity proof cannot include model-accessibility acceptance criteria.",

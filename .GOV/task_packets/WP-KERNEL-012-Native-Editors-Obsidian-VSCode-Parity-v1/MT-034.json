@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-05T10:45:13.536Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -38,11 +38,78 @@
       "MT-046"
     ],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:30:48Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: note-to-code MIS-ROUTED live - clicked [[code:...]] chip emits WikilinkActivated ref_kind code and app.rs:6305-6312 sends every non-document ref_kind to open_loom_block, so a code chip opens the symbol_entity_id as a Loom block instead of the code editor at the symbol line; correct machinery exists (dispatch_code_ref_open, CMD_OPEN_CODE_SYMBOL, open_code_symbol) but is called only by tests and take_pending_code_symbol has no shell drain. Code-to-note dead-ends: mounted NoteRefsPanel click stages pending_navigation + CMD_OPEN_DOCUMENT which nothing drains - silent no-op. Fix: ref_kind==code arm routing to open_code_symbol + shell drain + live-shell kittest driving chip click to mounted code pane; run gated live resolve/find-notes tests.",
     "deflection_category": "code_note_edge_broken_both_directions",
-    "remediation_appendage": "Route ref_kind==code chips to open_code_symbol (currently opens as Loom block); drain take_pending_code_symbol; fix code->note NoteRefs click dead-end; live-shell chip-click kittest."
+    "remediation_appendage": "Route ref_kind==code chips to open_code_symbol (currently opens as Loom block); drain take_pending_code_symbol; fix code->note NoteRefs click dead-end; live-shell chip-click kittest.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Route ref_kind==code chips to open_code_symbol (currently opens as Loom block); drain take_pending_code_symbol; fix code->note NoteRefs click dead-end; live-shell chip-click kittest.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (Inserting a code_ref node via '/code-ref' slash command, selecting a symbol from the live backend lookup, saves and reloads the document with the symbol_entity_id intact — proven by integration test against real PG., Clicking a code_ref chip in the rich-text pane dispatches 'open-code-symbol' with the correct symbol_entity_id, and the code pane scrolls to the correct line — proven by kittest: assert code pane's visible line range contains line_start after dispatch., NoteRefsPanel in the code pane lists at least one note when a rich doc containing a code_ref to the current symbol exists in the PG — proven by integration test: create rich doc with code_ref, dwell on that symbol in code pane, assert NoteRefsPanel shows the doc title., An unresolved code_ref (symbol deleted from backend) renders as a greyed-out chip with 'unresolved' label and does not crash or panic — proven by unit test simulating a 404 response., AccessKit nodes: 'code-ref-chip-{symbol_entity_id}' (Button), 'note-refs-panel' (List), 'code-symbol-search' (Dialog) all present in correct pane context — proven by AccessKit tree dumps., cargo test -p handshake-native code_note_cross_ref -- --nocapture passes with no failures.) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: cargo test -p handshake-native code_note_cross_ref -- --nocapture  =>  all PASS ; integration test (real PG): create rich doc with code_ref node, save, reload, assert symbol_entity_id preserved ; kittest: click code_ref chip 'code-ref-chip-{id}', assert 'open-code-symbol' command received by bus ; integration test: pre-seed rich doc with code_ref for symbol S; in code pane focus symbol S; assert NoteRefsPanel shows the doc ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      },
+      {
+        "at_utc": "2026-07-05T09:13:48.788Z",
+        "by": "KERNEL_BUILDER-20260705-091218",
+        "reason": "KERNEL_BUILDER claimed MT-034 after dependencies MT-031, MT-032, MT-007, and MT-012 were READY_FOR_VALIDATION; next direct closure unit is the reopened code-note cross-reference live-route repair.",
+        "previous_status": "OPEN",
+        "new_status": "CLAIMED",
+        "previous_active": false
+      },
+      {
+        "at_utc": "2026-07-05T10:45:13.536Z",
+        "by": "KERNEL_BUILDER-20260705-091218",
+        "reason": "Reopened MT-034 code-note cross-reference live-route repair completed: entity-id and hand-authored path#Symbol note->code refs now resolve through the mounted shell to file/line, NoteRefs rows preserve backend document_id and open through the shell drain, manual/HBR wording is refreshed, KB_READY_CHECKLIST emitted PASS, and live-PG content proof remains NEEDS_MANAGED_RESOURCE_PROOF.",
+        "previous_status": "CLAIMED",
+        "new_status": "READY_FOR_VALIDATION",
+        "previous_active": true
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260705-091218",
+    "ready_for_validation_at_utc": "2026-07-05T10:45:13.536Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260705-091218",
+    "ready_for_validation_reason": "MT-034 reopened repair is proof-refreshed and post-review hardened: ref_kind=code entity-id chips and hand-authored [[code:path#Symbol]] refs route through open-code-symbol to the mounted CodeSymbol pane, resolve via getCodeSymbol or lookup_symbols_by_name_path, load source_id, and prove visible line range contains line_start; NoteRefs rows preserve backend document_id separate from block_id and click through CMD_OPEN_DOCUMENT shell drain into the mounted Notes pane; manual/HBR content names the live ids/routes. Official validator has not run.",
+    "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "missing_resource": {
+      "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+      "reason": "The focused repair proved standalone/native-shell route behavior, integration route binding, and manual coverage. The seeded live PostgreSQL/handshake_core proofs for rich-document save/reload and NoteRefs content assertions did not run against a populated managed environment and are not faked.",
+      "required_resource": "Seeded managed handshake_core/PostgreSQL workspace with code-indexed symbols and rich documents containing code refs, available at http://127.0.0.1:37501 or HANDSHAKE_TEST_DB_URL for the native integration tests."
+    },
+    "ready_for_validation_summary": "MT-034 READY_FOR_VALIDATION evidence refreshed by KERNEL_BUILDER-20260705-091218: code ref entity ids and hand-authored path#Symbol refs now navigate through the mounted CodeSymbol shell path to file/line, NoteRefs rows preserve backend document_id and open through CMD_OPEN_DOCUMENT shell drain, manual/HBR wording names the routes and ids, post-review Dalton blockers are closed, and KB_READY_CHECKLIST PASS was emitted. Proofs passed: test_code_note_cross_ref 13/13, test_code_note_cross_ref --features integration 15/15, interop::cross_ref lib 15/15, manual_content 20/20, manual_pane_editors 8/8, neighboring fixture tests, rustfmt --check, scoped diff check, and artifact hygiene. Official validator has not run; validator_verdict remains PENDING. Live PostgreSQL save/reload and seeded NoteRefs content remain NEEDS_MANAGED_RESOURCE_PROOF.",
+    "kb_ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
+      "generated_at_utc": "2026-07-05T10:45:03.525Z",
+      "verdict": "PASS",
+      "blockers": []
+    }
   },
   "scope": {
     "summary": "Goal: implement bidirectional code<->note cross-references. A user should be able to: (A) from a note, click a code symbol reference (written as [[code:path/to/file.rs#MyStruct]]) and jump to that symbol in the code editor; (B) from the code editor, invoke 'Find notes referencing this symbol' and get a panel listing rich documents that mention this symbol. Expected diff: (a) a new CodeRef inline node type for the rich-text editor that renders a clickable code-symbol chip; (b) a cross-reference resolution service in src/frontend/handshake_native/src/interop/cross_ref.rs that calls the existing backend code-nav APIs; (c) a NoteRefsPanel widget added to the code pane that shows notes mentioning the currently focused symbol; (d) integration tests with a real PG backend proving both directions work.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/interop/cross_ref.rs  — defines CodeRef { symbol_key: String, file_path: String, line_start: u32, line_end: u32 }, NoteRef { document_id: String, document_title: String, block_id: String, excerpt: String }. Provides async fn resolve_code_ref(symbol_entity_id: &str) -> Result<CodeRef, CrossRefError> (calls GET /code/symbols/{symbol_entity_id}). Provides async fn find_notes_referencing_symbol(symbol_key: &str, workspace_id: &str) -> Result<Vec<NoteRef>, CrossRefError> (calls GET /knowledge/search with a query derived from the symbol_key, or GET /knowledge/documents filtered by block ref_value containing the symbol_key).\n  - src/frontend/handshake_native/src/code_editor/note_refs_panel.rs  — egui widget for the code pane sidebar; takes workspace_id + current_symbol_entity_id; loads NoteRef list via find_notes_referencing_symbol; shows each note as a clickable row that fires bus.dispatch_command(\"open-document\", CommandArgs::DocumentId(doc_id)). AccessKit: panel container author_id=\"note-refs-panel\", role=List; each row author_id=\"note-ref-{doc_id}\", role=ListItem, actions=[Press].\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/interop/mod.rs  — add `pub mod cross_ref;`\n  - src/frontend/handshake_native/src/code_editor/mod.rs  — add `pub mod note_refs_panel;`\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — add handling for CodeRef inline node: a custom node type 'code_ref' with attrs { symbol_key, file_path, symbol_entity_id }. Rendered as a monospace chip with a small code icon. On click: call bus.dispatch_command(\"open-code-symbol\", CommandArgs::SymbolEntityId(symbol_entity_id)). Register 'open-code-symbol' on the shared command bus (command_registry.rs + event_bus.rs, established for MT-031) so the code editor pane handles it by jumping to the symbol.\n  - src/frontend/handshake_native/src/code_editor/editor.rs  — (a) register 'open-code-symbol' command handler: when received, call resolve_code_ref to get file_path + line_start, open the file in the code pane (or switch to existing tab), jump to line. (b) Add NoteRefsPanel to the right sidebar of the code pane; bind to the currently focused/hovered symbol via a watcher that fires when the cursor dwells on a symbol for 800ms (debounce).\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — add a slash-command '/code-ref' that opens a code symbol search dialog: fuzzy search via lookupCodeSymbols (GET /code/symbols/lookup?q=...), display results, on select insert a CodeRef node at cursor.\n\nStep-by-step implementation notes:\n  1. CodeRef node insertion via slash command: when user types '/code-ref' in the rich-text editor, open a floating search widget (egui::Window). Populate from lookupCodeSymbols({ query, workspace_id }) — api.ts line 2158. On selection of a result insert node { type: 'code_ref', attrs: { symbol_key, file_path, symbol_entity_id } } at caret in the document tree.\n  2. CodeRef rendering in rich-text: draw a rounded rectangle chip using egui::Frame with a slightly tinted background. Show the symbol_key (short form: last '::' segment). Entire chip is a Button; click fires bus.dispatch_command(\"open-code-symbol\", SymbolEntityId(symbol_entity_id)).\n  3. open-code-symbol command handler in code editor: call GET /code/symbols/{symbol_entity_id} (api.ts line 2152 getCodeSymbol) to get symbol.definition { source_id, line_start, line_end }. Open the file source_id in the code pane (if not already open). Scroll to line_start.\n  4. find_notes_referencing_symbol: call GET /knowledge/search?q={symbol_key}&workspace_id={ws_id}&surface=rich_docs or, if the backlinks system (MT-032) is live, scan RichDocBacklink records where ref_value contains the symbol_key. The cleanest path is to call getCodeSymbolReferences (api.ts line 2169: GET /code/symbols/{id}/references) to get callers/callees, then cross-reference with known rich-doc block refs. Alternatively, call GET /knowledge/documents (with text search) if the full-text index includes block content. Document which approach is used in a comment.\n  5. NoteRefsPanel shows: document title (truncated to 40 chars), a short excerpt centered on the symbol mention, and a right-arrow icon. Clicking fires OpenDocument.\n  6. Debounce for NoteRefsPanel: in the code pane update() fn, track last_symbol_entity_id and last_dwell_start (Instant). If cursor is on the same symbol for > 800ms and it differs from currently loaded symbol, fire find_notes_referencing_symbol in a background task.\n  7. 'code_ref' node must survive saveRichDocument + loadRichDocument round-trip: the attrs dict must be preserved in JSONContent. Guard: on load, if symbol_entity_id is Some but getCodeSymbol returns 404, render the chip as 'unresolved' (greyed out) without crashing.\n  8. Linking back from CodeSymbolPanel.tsx (React reference): the React CodeSymbolPanel already shows definition + file lens. The native version extends this with a 'Notes mentioning this symbol' section — that is the NoteRefsPanel widget's purpose.\n  9. AccessKit: CodeRef chip in rich-text uses author_id=\"code-ref-chip-{symbol_entity_id}\", role=Button, actions=[Press]. The symbol search dialog uses author_id=\"code-symbol-search\", role=Dialog; the search input author_id=\"code-symbol-search-input\", role=TextField. Reuse the existing AccessKit registration surface (accessibility/registry.rs, accessibility/live.rs).\n  10. Tests: src/frontend/handshake_native/tests/test_code_note_cross_ref.rs — (a) unit: parse [[code:src/main.rs#MyStruct]] extracts file_path='src/main.rs', symbol='MyStruct'; (b) unit: code_ref node round-trips through JSONContent serialization with all attrs; (c) integration (real PG): call getCodeSymbol for a known test symbol (pre-seeded in test PG), assert definition fields non-empty; (d) integration: create a rich doc with a code_ref node, save, reload, assert code_ref node and symbol_entity_id preserved; (e) kittest: click a code_ref chip, assert open-code-symbol command dispatched with correct symbol_entity_id.\n\nDependencies / unblock conditions:\n  - MT-031 (shared command bus + command dispatch, built on command_registry.rs + event_bus.rs) merged.\n  - MT-032 (loom block addressing — needed for cross-ref to live in the block backlink system) merged.\n  - MT-007 (code editor jump-to-line / file-open infrastructure) merged.\n  - MT-012 (rich-text slash commands infrastructure) merged.\n  - WP-011 reuse (cross-WP): the shared command bus modules command_registry.rs and event_bus.rs and the AccessKit registration modules under accessibility/ are delivered by WP-KERNEL-011 and are reused directly; the loom graph surface (loom_graph.rs) is also available from WP-011.\n  - Backend: GET /code/symbols/{id} and GET /code/symbols/lookup must be reachable — confirmed api.ts lines 2152–2158.\n\nRisk if missed: the code<->note cross-reference edge is explicitly listed in the interconnection contract. Without it, code symbols are isolated from the knowledge surface, the parity proof suite cannot validate this edge, and the 'melt-together' claim is unproven for the code+note pair.",
@@ -110,7 +177,7 @@
     "HBR-VIS"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260705-091218",
     "wp_validator_session": null
   },
   "red_team": {
@@ -141,15 +208,58 @@
     ]
   },
   "implementation_result": {
-    "implemented_by": "KERNEL_BUILDER folded pipeline wf_68aabe71 (impl + 3-lens panel + harden)",
+    "schema_id": "hsk.mt_implementation_proof_refresh@1",
+    "implemented_by": "KERNEL_BUILDER-20260705-091218",
     "branch": "feat/WP-KERNEL-012",
-    "commits": [
-      "44ba0f0d feat MT-034 code<->note cross-references (E5)",
-      "bf9d1775 fix harden per adversarial review"
+    "refreshed_at_utc": "2026-07-05T10:37:55.025Z",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "summary": "Reopened MT-034 code-note cross-reference live-route repair is implemented and proof-refreshed. ref_kind=code entity-id chips and hand-authored [[code:path#Symbol]] refs now route through open-code-symbol to the mounted CodeSymbol pane, resolve through getCodeSymbol or lookup_symbols_by_name_path, load source_id, and prove the visible line range contains line_start. NoteRefs rows keep backend document_id separate from block_id and click through CMD_OPEN_DOCUMENT shell drain into the mounted Notes pane. Manual/HBR content names the live ids, routes, path#Symbol behavior, and NoteRefs document_id/block_id distinction. Official validator remains PENDING; live PostgreSQL content round-trip and seeded NoteRefs data remain NEEDS_MANAGED_RESOURCE_PROOF due absent managed env.",
+    "product_changes": [
+      "src/frontend/handshake_native/src/app.rs: added mounted CodeNavClient plumbing, pending code-ref navigation, CodeSymbol tab activation, async code-ref resolve, file load, line navigation, and shell-drain handling for open-code-symbol.",
+      "src/frontend/handshake_native/src/code_editor/code_nav.rs: added lookup_symbols_by_name_path for hand-authored path#Symbol refs through GET /knowledge/code/symbols with workspace_id, name, path, and limit query params.",
+      "src/frontend/handshake_native/src/backend_client.rs: added LoomSearchBlock.document_id so search hits can distinguish hit block identity from the rich document to open.",
+      "src/frontend/handshake_native/src/interop/cross_ref.rs: added path#Symbol parsing and workspace-aware code-ref resolution; NoteRef::from_hit now opens document_id while retaining block_id as hit identity.",
+      "src/frontend/handshake_native/src/manual_content_editors.rs and manual tests: refreshed UserManual/HBR wording for /code-ref, code-symbol-search, code-ref-chip, lookup_symbols_by_name_path, note-refs-panel, note-ref-{document_id}, block_id, and document_id."
     ],
-    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 2 must-fixes hardened.",
-    "proofs": "AC-1..6 PASS (live-PG halves gated NEEDS_MANAGED_RESOURCE_PROOF); 1064 lib + 9 ckc-cross-ref + regression (interaction_bus 9, ckc_embed 11, accesskit 5, slash 9) + test_theme green; no screenshot (cross-ref logic + chips/panels inside already-verified editors, proven via AccessKit kittest dumps); no tracked artifacts.",
-    "steers_all_held": "(1) code_ref = hsLink ATOM by refKind=code (3rd embed-lesson application: MT-014 img/MT-033 atelier/MT-034 code) - refValue=ent-... preserved through DocJson round-trip; NO invented node. (2) [[code:...]] prefix registered in MT-011's wikilink parser (ref_kind=code); reused MT-016 slash (/code-ref) + MT-014 chip renderer. (3) open-code-symbol via MT-030's ShellNavigator EditorPaneNotMounted seam (no fake jump; lands at E11/MT-069). (4) find_notes via the VERIFIED loom search-v2 rich-doc-content-type-filtered (not naive full-text, RISK-1). (5) percent_encode_symbol (RISK-2). (6) SymbolDwellTracker 800ms fire-once debounce (RISK-3). (7) unresolved chip greyed via palette token (no Color32 literal; test_theme passes).",
-    "waiver_granted": "interop/interaction_bus.rs (CMD_OPEN_CODE_SYMBOL) + rich_editor/wikilinks/parser.rs+inline_view.rs + rich_editor_widget.rs + slash_commands/* + code_editor/mod.rs+panel.rs + backend_client.rs + tests in allowed_paths."
+    "proofs": [
+      "RED: cargo test --test test_code_note_cross_ref ac2_live_shell_routes_literal_path_symbol_code_ref_to_mounted_code_pane -- --nocapture failed before fix because the literal path#Symbol ref did not load the code panel file.",
+      "RED: cargo test --lib note_ref_from_hit_uses_backend_document_id_when_present -- --nocapture failed before fix because NoteRef document_id fell back to block_id.",
+      "GREEN: cargo test --test test_code_note_cross_ref -- --nocapture => 13 passed.",
+      "GREEN: cargo test --features integration --test test_code_note_cross_ref -- --nocapture => 15 passed, with route binding exercised and live managed content proof reported as NEEDS_MANAGED_RESOURCE_PROOF.",
+      "GREEN: cargo test --lib interop::cross_ref -- --nocapture => 15 passed.",
+      "GREEN: cargo test --test test_manual_content -- --nocapture => 20 passed; non-fatal Tokio shutdown panic printed after pass with exit 0.",
+      "GREEN: cargo test --test test_manual_pane_editors -- --nocapture => 8 passed.",
+      "GREEN: cargo test --test test_loom_search_v2 -- --nocapture => 14 passed, 2 ignored.",
+      "GREEN: cargo test --test test_locus_interop -- --nocapture => 14 passed, 1 ignored.",
+      "GREEN: cargo test --test test_other_pillar_interop_proofs -- --nocapture => 10 passed; expected spawned-thread absent-DSN panic printed with exit 0.",
+      "GREEN: cargo test --test test_e7_swarm_edit_proof -- --nocapture => 5 passed; expected caught timeout panic printed in the timeout test with exit 0.",
+      "GREEN: rustfmt --edition 2021 --check on touched Rust files passed.",
+      "GREEN: git diff --check scoped to MT-034 code-ref files passed.",
+      "GREEN: artifact hygiene check reported LOCAL_TARGET_ABSENT, LOCAL_TEST_OUTPUT_ABSENT, and LOCAL_TEST_SCREENSHOTS_ABSENT."
+    ],
+    "post_review_hardening": [
+      "Dalton blocker 1 fixed: hand-authored [[code:path#Symbol]] refs use lookup_symbols_by_name_path with workspace context and prove file/line visible in the live mounted shell.",
+      "Dalton blocker 2 fixed: LoomSearchBlock carries document_id and NoteRef::from_hit opens document_id while retaining block_id as hit key; tests use distinct BLK-7 and DOC-7 ids.",
+      "Dalton blocker 3 preserved as a typed NEEDS_MANAGED_RESOURCE_PROOF instead of AC pass evidence."
+    ],
+    "typed_blockers": [
+      "NEEDS_MANAGED_RESOURCE_PROOF: live rich-document save/reload and seeded NoteRefs content require a running managed handshake_core plus PostgreSQL on http://127.0.0.1:37501; the integration route-binding test reports a typed backend blocker instead of PASS language for unavailable live content."
+    ],
+    "manual_hbr": "UserManual Wikilinks and Backlinks topic and manual-content needles were refreshed for code-symbol-search/code-ref-chip, lookup_symbols_by_name_path, note-refs-panel/note-ref-{document_id}, and block_id/document_id behavior.",
+    "artifact_hygiene": "CARGO_TARGET_DIR and screenshots used external Handshake_Artifacts; local target, test_output, and tests/screenshots directories are absent.",
+    "official_validator": "PENDING",
+    "under_scoped_paths_requiring_operator_waiver": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/code_editor/code_nav.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_manual_content.rs",
+      "src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+      "src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs",
+      "src/frontend/handshake_native/tests/test_loom_search_v2.rs",
+      "src/frontend/handshake_native/tests/test_locus_interop.rs",
+      "src/frontend/handshake_native/tests/test_other_pillar_interop_proofs.rs"
+    ],
+    "under_scoped_waiver_reason": "The reopened live-shell route repair and HBR-MAN/manual proof required touching shell drain, code-nav lookup, manual, and neighbor fixture paths beyond MT-034 allowed_paths; waiver remains operator-owned and is not self-granted."
   }
 }

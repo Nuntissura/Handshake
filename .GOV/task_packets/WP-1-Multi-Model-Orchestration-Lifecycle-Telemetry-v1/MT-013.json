@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-013",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-07-01T19:02:22Z",
-  "scope_status": "DEFERRED_FROM_MT-003_2026-07-01_EMBEDDED_LOAD_CONFORMANCE_HARDENING",
+  "updated_at_utc": "2026-07-04T05:32:28Z",
+  "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04_REAL_CANDLE_LOAD_LEDGER_PROOF_GREEN_LOSSLESS_OVERFLOW_FIX",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-013.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -25,16 +25,16 @@
     "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T18:12:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
-    "ready_for_validation_at_utc": "2026-07-02T20:27:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260704-040151",
+    "ready_for_validation_at_utc": "2026-07-04T04:45:58Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "PASS_MT013_2026-07-02: embedded ModelRuntime ProcessOwnershipLedger START/STOP + FR-on-error/embedding. Impl 4a5232e5 + hardening 8f510ba9. Proofs all green, independently re-proven: embedded_model_ledger_tests 4/4 (START via real production assemble_local_runtime_client seam, os_pid=None honest pid-less row, process_uuid=minted UUIDv7, display_name from MT-014 catalog; STOP now GENUINELY fires - graceful-shutdown signal (ctrl_c/SIGTERM) -> serve resolves -> llm_client.shutdown() -> drain_and_join_ledger_writer -> managed_pg.stop(); hard-crash pid-less/session-less orphan reconciled by boot sweep reclaim_pidless_embedded_orphans (started_at<boot); idempotent single STOP; NON-skippable, 0 ignored); llm_client_local_routing_tests 14/14 (FR at CALL TIME on all completion error branches + embedding success/error + DisabledLlmClient completion AND embedding; call-twice=2-events proves not construction-time); user_manual_behavior_coverage_tests 2/2 (AC#5: 4 embedded-model behavior rows FR=WIRED / internal_diagnostics=DeferredWithReason / palmistry=DeferredWithReason + seeded page embedded-model-lifecycle-ledger); llm_default_boot_resolution 4/4 regression. Post-impl review (task a35d38d8c6c523baa) caught a REAL false-green: STOP seam unreachable on signal-kill + disclosed reclaim provably useless for pid-less/session-less orphan -> FIXED (8f510ba9). Boxing clause(1) vacuous per 3.6.2 (in-process load, no spawn). Real-Candle-weights e2e (UUIDv7 mint from real weights) needs an operator live-run (candle-runtime-engine feature). Incidentally repaired a pre-existing MT-014 seed origin_check regression via migration 0343 (restored MT-011 coverage).",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT013_LEDGER_STARTSTOP_FR_HARDENED",
+    "proof_status": "PASS_MT013_2026-07-04_REAL_CANDLE_DEFAULT_LOAD_LEDGER_GREEN_LOSSLESS_OVERFLOW_FIX: subagent-discovered fail-open overflow blocker fixed with lossless embedded START/STOP enqueue path and retryable STOP failure. Fresh proofs passed after fix: embedded_model_ledger_tests 8/8, process_ledger_writer overflow preservation 1/1, llm_client_local_routing_tests 14/14, user_manual_behavior_coverage_tests 4/4, frontend cloud/settings Argus 5/5, operator-chat selection/transcript Argus exact 1/1. Required managed-resource proof command passed 1/1 with HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a local cached peft-internal-testing/tiny-random-LlamaForCausalLM snapshot; output printed [MT-013_REAL_CANDLE_LEDGER_DUMP] with a real Candle START row and matching STOP row for process_uuid 019f2b98-b88c-7c22-b714-a93a5d8f1fea, os_pid=null, os_pid_absent_reason=in_process_library_load_no_os_process, model_artifact_sha256=49c20f32c6c597480fcaec5df2f86c645eabea765cbea1e67886dbae45e5c992, owner_role=handshake-embedded-default, and stop_reason=llm-client-shutdown. Logs are under ../Handshake_Artifacts/handshake-test/wp1-final-audit/.",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT013_REAL_CANDLE_LEDGER_FR_MANUAL_PROOFS_GREEN",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-    "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a35d38d8c6c523baa_F1_STOP_FALSE_GREEN_FIXED_8f510ba9_F2_EMBEDDING_FR_FIXED_F3_AC5_DONE",
-    "adversarial_findings_status": "APPLIED_F1_GRACEFUL_SHUTDOWN_STOP_PLUS_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_USERMANUAL_COVERAGE"
+    "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_REVIEW_OVERFLOW_BLOCKER_FIXED_AND_REPROVEN",
+    "adversarial_findings_status": "APPLIED_F1_GRACEFUL_SHUTDOWN_STOP_PLUS_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_USERMANUAL_COVERAGE_2026-07-04_REAL_PROOF_FALSE_GREEN_REPLACED_LEDGER_START_FAIL_CLOSED_MULTI_EMBEDDING_HANDLE_LOSSLESS_OVERFLOW_FAIL_CLOSED"
   },
   "scope": {
     "summary": "Embedded ModelRuntime real-load conformance hardening: box the default embedded-model load path under a SandboxAdapter and emit ProcessOwnershipLedger START/STOP rows, and emit a Flight Recorder event on the DisabledLlmClient / fail-closed error paths, all validated with a REAL Candle model load.",
@@ -60,8 +60,16 @@
       "Same-change UserManual coverage for the embedded-load boxing/ledger + FR-on-error behavior; HBR-INT-009 three-tier posture recorded (Flight Recorder WIRED; internal_diagnostics + Palmistry DEFERRED-with-reason until WP-KERNEL-012/016).",
       "Pre- and post-implementation adversarial review before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
     ],
-    "proof_targets": [
-      "TO_BE_FINALIZED_AT_ACTIVATION: exact Rust tests proving (a) embedded default load boxes under SandboxAdapter + emits ProcessOwnershipLedger START/STOP (real Candle load, --features \"test-utils,candle-runtime-engine\"); (b) DisabledLlmClient/fail-closed path emits a Flight Recorder event (engine-free, --features test-utils). Proof commands MUST name exact tests and fail on zero matching tests."
+    "proof_commands": [
+      "PASS_REQUIRED_PROOF_2026-07-04: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture, with HANDSHAKE_TEST_CANDLE_MODEL_DIR pointing at a real model directory containing model.safetensors and tokenizer.json. Passed 1/1 and printed [MT-013_REAL_CANDLE_LEDGER_DUMP] with matching real START/STOP rows for the default embedded LlmClient Candle load path.",
+      "ENGINE_FREE_SUPPORTING_PROOF_2026-07-04_AFTER_OVERFLOW_FIX: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests (8/8 PASS, includes supplied_ledger_start_overflow_fails_local_client_assembly_closed and embedded_model_stop_overflow_returns_error_for_retry).",
+      "ENGINE_FREE_SUPPORTING_PROOF_2026-07-04_AFTER_OVERFLOW_FIX: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_writer_tests overflow_10001st_event_emits_fr_evt_ledger_overflow_without_blocking_spawn_path -- --exact (1/1 PASS; ordinary spawn path remains nonblocking).",
+      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests -- --nocapture",
+      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests embedded_model_load_emits_ledger_start_and_shutdown_seam_emits_stop -- --exact --nocapture",
+      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests graceful_shutdown_sequence_flushes_stop_through_background_writer -- --exact --nocapture",
+      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests hard_crash_pidless_embedded_orphan_is_reconciled_on_boot -- --exact --nocapture",
+      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests -- --nocapture",
+      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests embedded_model_behaviors_have_manual_coverage -- --exact --nocapture"
     ],
     "risk_if_missed": "The default local model path runs an unboxed, unledgered model load - a master-spec 3.6.2/4.6.1 HARD violation and a swarm-safety/attribution gap (no ownership/reclaim record for the default model process), and error/disabled LLM calls are invisible to Flight Recorder replay.",
     "reference_only_paths": [

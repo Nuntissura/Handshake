@@ -14,7 +14,7 @@
   "title": "E3-MT024-PinsFavoritesBacklinksUnlinked",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-05T01:23:40.480Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-024.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-021",
@@ -34,11 +34,60 @@
     ],
     "blocks": [],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:26:58Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: LoomSidebarPanel (pins/favorites/backlinks/unlinked/breadcrumbs, 1055 lines) mounted by NO host; SidebarEvent zero consumers; LoomSidebarClient never constructed; two-call pin removal + bookmarks-changed emission explicitly delegated to a host that does not exist - no pin/favorite mutation can ever fire in the running app. Fix: mount + SidebarEvent-to-client wiring + ShellEvent::BookmarkRemoved emission (event_bus notify seam is half-wired: project_tree consumes but nothing emits).",
     "deflection_category": "orphan_surface_sidebar",
-    "remediation_appendage": "Mount LoomSidebarPanel; wire SidebarEvent -> LoomSidebarClient (two-call pin removal) + ShellEvent::BookmarkRemoved emission; run gated live-PG tests."
+    "remediation_appendage": "Mount LoomSidebarPanel; wire SidebarEvent -> LoomSidebarClient (two-call pin removal) + ShellEvent::BookmarkRemoved emission; run gated live-PG tests.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Mount LoomSidebarPanel; wire SidebarEvent -> LoomSidebarClient (two-call pin removal) + ShellEvent::BookmarkRemoved emission; run gated live-PG tests.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC1: The Pins section loads all pinned LoomBlocks from a real PG workspace (>=2 pins seeded). Block titles and kind chips display correctly., AC2: Clicking 'Remove' on a pin row calls PUT /pin-order(null) then PATCH {pinned:false}, the row disappears from the list, and a re-fetch confirms the block is no longer pinned., AC3: The Favorites section loads all favorited blocks; removing a favorite calls PATCH {favorite:false} and the row disappears., AC4: With an active_block_id set, the Backlinks section loads and displays blocks that mention that block via the graph-search API (>=1 backlink in test data)., AC5: With an active_block_id set, the Unlinked Mentions section loads and displays unlinked blocks., AC6: The breadcrumb strip shows the navigation history (up to 5 entries). Clicking a breadcrumb fires on_open with the correct block_id., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PROOF1: cargo test -p handshake-native loom::sidebar_panel -- --nocapture passes unit tests for breadcrumb push/truncate logic (max 5 entries). ; PROOF2: kittest test with 2 pinned blocks in real PG: asserts 2 'sidebar.pin.*' AccessKit nodes in Pins section. ; PROOF3: kittest remove-pin test: click 'sidebar.pin.block-001.remove', assert PUT /pin-order and PATCH requests fired, assert 'sidebar.pin.block-001' no longer in AccessKit tree. ; PROOF4: kittest backlinks test: set active_block_id='block-A' (which has 1 loom edge pointing to it), assert 1 'sidebar.backlink.*' node in AccessKit tree. ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260705-005519",
+    "claimed_role": "KERNEL_BUILDER",
+    "ready_for_validation_at_utc": "2026-07-05T01:23:40.480Z",
+    "ready_for_validation_by": "KERNEL_BUILDER",
+    "ready_for_validation_session": "KERNEL_BUILDER-20260705-005519",
+    "ready_for_validation_reason": "MT-024 drift repair closed the live-host blocker: mounted sidebar now binds LoomBlock active context, dispatches and drains generation-stamped Backlinks/Unlinked deliveries, and retries those sections against the bound active block. Pins/Favorites host wiring, two-call pin removal, and BookmarkRemoved emission were inspected and retained. Live-PG seeded-resource checks remain typed as NEEDS_MANAGED_RESOURCE_PROOF for official validator review.",
+    "ready_for_validation_history": [
+      {
+        "at_utc": "2026-07-05T01:23:40.480Z",
+        "by": "KERNEL_BUILDER",
+        "session": "KERNEL_BUILDER-20260705-005519",
+        "previous_status": "OPEN",
+        "validator_verdict": "PENDING",
+        "reason": "Drift repair and refreshed proof pass for MT-024 live sidebar host wiring; official validation not run."
+      }
+    ]
   },
   "scope": {
     "summary": "Goal: Implement a multi-section sidebar panel in the native egui frontend that ports the React WorkspaceSidebar pins/favorites/bookmarks sections plus adds backlinks and unlinked mentions panels for the currently-open block. The panel has five collapsible sections: Pins, Favorites, Backlinks, Unlinked Mentions, and a breadcrumb strip. All data comes from the real PostgreSQL backend via existing loom view APIs. Expected diff shape: one new file src/frontend/handshake_native/src/loom/sidebar_panel.rs containing LoomSidebarPanel, edits to src/frontend/handshake_native/src/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/loom/sidebar_panel.rs — LoomSidebarPanel widget\n- EDIT src/frontend/handshake_native/src/loom/mod.rs — pub mod sidebar_panel; + re-export\n\nReuse existing WP-011 modules (do not reinvent): the loom graph surface lives in src/frontend/handshake_native/src/loom_graph.rs — reuse its LoomBlock/LoomEdge types and graph-view integration for backlinks rendering. Change-notification after pin/favorite mutation must be emitted through the existing shared event bus at src/frontend/handshake_native/src/event_bus.rs (not a bespoke channel). AccessKit node registration reuses the existing accessibility helpers under src/frontend/handshake_native/src/accessibility/ (mod.rs, live.rs, registry.rs, snapshot.rs). HTTP calls go through the shared backend client at src/frontend/handshake_native/src/backend_client.rs.\n\nExact APIs / React reference:\n- PRIMARY REACT REFERENCE: app/src/components/WorkspaceSidebar.tsx — the Bookmarks section (lines 363-424) calls queryLoomView(workspaceId, 'pins', {limit:100}) and renders bookmark rows with open/remove actions. The setLoomBlockPinOrder + updateLoomBlock({pinned:false}) pair is the remove-bookmark flow (WorkspaceSidebar.tsx lines 293-312). The 'favorites' view type (LoomViewType, api.ts line 1058) is the favorites surface.\n- SECONDARY REACT REFERENCE: app/src/harness/loom_bookmarks_harness.tsx — the integration harness wiring WorkspaceSidebar + LoomBlockPanel.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/pins?limit=100 — LoomViewResponse {view_type:'pins', blocks:LoomBlock[]} (queryLoomView 'pins')\n  - GET /workspaces/{workspace_id}/loom/views/favorites?limit=100 — LoomViewResponse {view_type:'favorites', blocks:LoomBlock[]}\n  - GET /workspaces/{workspace_id}/loom/views/unlinked?limit=50 — LoomViewResponse {view_type:'unlinked', blocks:LoomBlock[]}\n  - PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — updateLoomBlock({pinned:false}) to unpin\n  - PUT /workspaces/{workspace_id}/loom/blocks/{block_id}/pin-order — setLoomBlockPinOrder(null) to clear pin order\n  - PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — updateLoomBlock({favorite:false}) to un-favorite\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id}/backlinks — load backlinks for currently-open block (rich doc backlinks, api.ts line 3326 for documents; for loom blocks use graph-search with mentionIds=[block_id])\n  - GET /workspaces/{workspace_id}/loom/graph-search?mention_ids={block_id}&limit=50 — load loom backlinks/mentions for active block\n\nStep-by-step implementation notes:\n1. Define LoomSidebarPanel { workspace_id: String, active_block_id: Option<String>, pins: Vec<LoomBlock>, favorites: Vec<LoomBlock>, backlinks: Vec<LoomBlock>, unlinked: Vec<LoomBlock>, breadcrumbs: Vec<BreadcrumbEntry>, on_open: Callback<String>, loading_section: HashSet<SectionKind>, error_section: HashMap<SectionKind, String> } where SectionKind = Pins | Favorites | Backlinks | Unlinked.\n2. On workspace_id change, reload Pins and Favorites sections. On active_block_id change, reload Backlinks and Unlinked sections.\n3. Breadcrumb strip: maintain a Vec<BreadcrumbEntry { block_id, title }> as navigation history. Each on_open callback push adds an entry. Render as a horizontal strip at top: 'Home > Folder > Block'. Each crumb is clickable (on_open fires for that block_id). Truncate to last 5 crumbs. AccessKit: each crumb 'sidebar.breadcrumb.{idx}' role=Link.\n4. Pins section: render as a collapsible section header 'Pins (N)'. Each pin row: block title + kind chip + 'Remove' button. Remove = call PUT /pin-order (null) then PATCH {pinned:false}; remove from local list immediately (optimistic) and re-fetch. AccessKit: each row 'sidebar.pin.{block_id}', remove button 'sidebar.pin.{block_id}.remove'.\n5. Favorites section: same pattern as Pins but calls PATCH {favorite:false} to remove. AccessKit: 'sidebar.favorite.{block_id}', 'sidebar.favorite.{block_id}.remove'.\n6. Backlinks section: render only when active_block_id is set. Show blocks that mention the active block via GET /loom/graph-search?mention_ids={block_id}. Each row shows source block title + edge_type label. Click -> on_open(source_block_id). AccessKit: 'sidebar.backlink.{block_id}'.\n7. Unlinked mentions section: render only when active_block_id is set. Show blocks from GET /loom/views/unlinked that textually mention the active block title but have no edge. Click -> on_open(block_id). AccessKit: 'sidebar.unlinked.{block_id}'.\n8. Section headers are collapsible (egui::CollapsingHeader or manual toggle bool). Each section has a Retry button on error.\n9. Emit a 'handshake:loom-bookmarks-changed' equivalent event through the existing event_bus.rs so other panels can react to pin/favorite changes.\n\nDependencies / unblock conditions: MT-021, MT-022, MT-023 must be complete so that src/frontend/handshake_native/src/loom/mod.rs is fully scaffolded and the shared backend_client.rs HTTP client is available. Cross-WP note: the existing loom graph surface (loom_graph.rs), event bus (event_bus.rs), accessibility helpers (accessibility/*), and backend client (backend_client.rs) are delivered by WP-KERNEL-011 and are reused here, not recreated.\n\nRisk if missed: The sidebar navigation surface is absent. Users cannot find pinned blocks, favorites, backlinks, or unlinked mentions, which are core Obsidian-parity knowledge-navigation features.",
@@ -107,7 +156,7 @@
     "HBR-VIS"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260705-005519",
     "wp_validator_session": null
   },
   "red_team": {
@@ -148,6 +197,42 @@
     "proofs": "AC2/AC3/AC5/AC6/AC7/AC8/AC9 + PROOF1-5 PASS; AC1/AC2-refetch/AC4 live-PG = NEEDS_MANAGED_RESOURCE_PROOF (gated); 907 lib + 8 unit + 11 integration green; sidebar (breadcrumbs Home>Project Notes>Active Block + Pins 2 + Favorites 1 + Backlinks 1 + Unlinked 1, remove buttons) visually verified; screenshot EXTERNAL (git ls-files src/**/*.png empty).",
     "backend_shape_corrected": "THREE verified contract-vs-reality corrections: (1) backlinks bound to the dedicated GET /loom/blocks/{id}/backlinks (MT-178, Vec<LoomBacklink>{edge_type,source_block}) NOT the contract's graph-search?mention_ids; (2) per-block unlinked bound to GET /loom/blocks/{id}/unlinked-mentions NOT the workspace /views/unlinked (per-block scope = AC5 semantics); (3) pin-order body field is pin_order (SetPinOrderRequest, MT-183). All verified read-only; no backend edit.",
     "corrections_held": "graph/ dir (not loom/); two-call pin removal (PUT pin-order null + PATCH pinned:false) optimistic+rollback; generation-counter cancel for rapid active-block nav; collapse state in egui::Memory; per-section loading/error; backend_client (no Tauri); event_bus change-notify.",
-    "waiver_granted": "backend_client.rs (LoomSidebarClient) + tests/test_sidebar_panel.rs in allowed_paths (contract under-scoped)."
+    "waiver_granted": "backend_client.rs (LoomSidebarClient) + tests/test_sidebar_panel.rs in allowed_paths (contract under-scoped).",
+    "host_repair_2026_07_05": {
+      "implemented_by": "KERNEL_BUILDER",
+      "session": "KERNEL_BUILDER-20260705-005519",
+      "status": "READY_FOR_VALIDATION",
+      "summary": "Mounted sidebar host now live-binds Backlinks and Unlinked to LoomBlock active context. open_navigator_tab and open_content_on_active_pane bind active block ids; drive_sidebar_pane drains generation-stamped sidebar_backlinks_cell/sidebar_unlinked_cell deliveries; Retry for Backlinks/Unlinked re-fetches against the bound active block instead of surfacing the stale host-carry error.",
+      "product_files_changed": [
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/tests/test_app_host_mount_secondary.rs"
+      ],
+      "proof_commands": [
+        {
+          "command": "rustfmt --edition 2021 --check src/frontend/handshake_native/src/app.rs src/frontend/handshake_native/tests/test_app_host_mount_secondary.rs",
+          "result": "PASS"
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_app_host_mount_secondary --jobs 1 sidebar_active_block_deliveries_bind_backlinks_and_unlinked -- --nocapture",
+          "result": "PASS: 1 passed; 0 failed; 21 filtered out",
+          "log": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-024/test_app_host_mount_secondary-sidebar_active_block.log"
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib --jobs 1 graph::sidebar_panel -- --nocapture",
+          "result": "PASS: 8 passed; 0 failed; 1637 filtered out",
+          "log": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-024/lib-graph-sidebar_panel.log"
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_sidebar_panel --jobs 1 -- --nocapture",
+          "result": "PASS: 10 passed; 0 failed; 0 ignored",
+          "log": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-024/test_sidebar_panel.log"
+        }
+      ],
+      "managed_resource_status": "AC1/AC2 live refetch/AC4 live seeded PG remain NEEDS_MANAGED_RESOURCE_PROOF, as already encoded in the MT-024 contract; no official validator run performed.",
+      "subagent_spot_checks": [
+        "Dirac confirmed Pins/Favorites live-hosted and Backlinks/Unlinked missing before repair; smallest fix matched implemented host binding and retry/drain plan.",
+        "Wegener separately spot-checked MT-025 source-only; no MT-025 state promotion performed in this MT-024 closure unit."
+      ]
+    }
   }
 }

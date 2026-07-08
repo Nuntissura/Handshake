@@ -60,12 +60,14 @@ function normalizeStatus(value) {
 }
 
 const VISIBLE_STATUS_VALUES = new Set([
+  "OPEN",
   "PENDING",
   "CLAIMED",
   "READY_FOR_VALIDATION",
   "COMPLETED",
   "BLOCKED",
   "BLOCKED_ON_DEPENDENCY",
+  "NEEDS_MANAGED_RESOURCE_PROOF",
   "NEEDS_EXTERNAL_RESOURCE",
   "FAIL_NEEDS_REWORK",
   "CANCELLED",
@@ -173,7 +175,7 @@ function populate(wpIdValue) {
 
 function claim(wpIdValue, sessionKey) {
   const rows = declaredMtRows(wpIdValue);
-  const claimable = rows.find((row) => row.status === "PENDING" && dependenciesCompleted(row, rows));
+  const claimable = rows.find((row) => (row.status === "OPEN" || row.status === "PENDING") && dependenciesCompleted(row, rows));
   if (!claimable) {
     console.log(`[MT_BOARD] No unclaimed microtasks available for ${wpIdValue}`);
     return;

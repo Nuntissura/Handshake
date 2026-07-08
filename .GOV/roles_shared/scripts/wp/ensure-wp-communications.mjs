@@ -46,6 +46,7 @@ import { GOV_ROOT_REPO_REL,
   repoPathAbs,
   workPacketPath } from "../lib/runtime-paths.mjs";
 import { buildWorkPacketCommunicationView,
+  buildWorkPacketEvaluatorView,
   writeWorkPacketProjectionWithLifecycleSync,
 } from "../lib/work-packet-contract-read-lib.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "../lib/merge-progression-truth-lib.mjs";
@@ -167,17 +168,18 @@ function syncRuntimeDeclaredFieldsFromPacket(runtimeStatus = {}, packetText = ""
     eventAt: runtimeStatus?.last_event_at || new Date().toISOString(),
   });
   const packetWpId = parseSingleField(packetText, "WP_ID") || parseSingleField(packetText, "TASK_ID");
+  const communicationPaths = communicationPathsForWp(packetWpId || "");
   syncedRuntime.task_packet = normalize(workPacketPath(packetWpId || ""));
-  syncedRuntime.communication_dir = normalize(parseSingleField(packetText, "WP_COMMUNICATION_DIR"));
-  syncedRuntime.thread_file = normalize(parseSingleField(packetText, "WP_THREAD_FILE"));
-  syncedRuntime.runtime_status_file = normalize(parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE"));
-  syncedRuntime.receipts_file = normalize(parseSingleField(packetText, "WP_RECEIPTS_FILE"));
-  syncedRuntime.workflow_lane = parseSingleField(packetText, "WORKFLOW_LANE");
-  syncedRuntime.execution_owner = parseSingleField(packetText, "EXECUTION_OWNER");
-  syncedRuntime.workflow_authority = parseSingleField(packetText, "WORKFLOW_AUTHORITY");
-  syncedRuntime.technical_advisor = parseSingleField(packetText, "TECHNICAL_ADVISOR");
-  syncedRuntime.technical_authority = parseSingleField(packetText, "TECHNICAL_AUTHORITY");
-  syncedRuntime.merge_authority = parseSingleField(packetText, "MERGE_AUTHORITY");
+  syncedRuntime.communication_dir = normalize(parseSingleField(packetText, "WP_COMMUNICATION_DIR") || syncedRuntime.communication_dir || communicationPaths.dir);
+  syncedRuntime.thread_file = normalize(parseSingleField(packetText, "WP_THREAD_FILE") || syncedRuntime.thread_file || communicationPaths.threadFile);
+  syncedRuntime.runtime_status_file = normalize(parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE") || syncedRuntime.runtime_status_file || communicationPaths.runtimeStatusFile);
+  syncedRuntime.receipts_file = normalize(parseSingleField(packetText, "WP_RECEIPTS_FILE") || syncedRuntime.receipts_file || communicationPaths.receiptsFile);
+  syncedRuntime.workflow_lane = parseSingleField(packetText, "WORKFLOW_LANE") || syncedRuntime.workflow_lane;
+  syncedRuntime.execution_owner = parseSingleField(packetText, "EXECUTION_OWNER") || syncedRuntime.execution_owner;
+  syncedRuntime.workflow_authority = parseSingleField(packetText, "WORKFLOW_AUTHORITY") || syncedRuntime.workflow_authority;
+  syncedRuntime.technical_advisor = parseSingleField(packetText, "TECHNICAL_ADVISOR") || syncedRuntime.technical_advisor || "WP_VALIDATOR";
+  syncedRuntime.technical_authority = parseSingleField(packetText, "TECHNICAL_AUTHORITY") || syncedRuntime.technical_authority || "INTEGRATION_VALIDATOR";
+  syncedRuntime.merge_authority = parseSingleField(packetText, "MERGE_AUTHORITY") || syncedRuntime.merge_authority || "INTEGRATION_VALIDATOR";
   syncedRuntime.wp_validator_of_record = normalizeSessionValue(parseSingleField(packetText, "WP_VALIDATOR_OF_RECORD"));
   syncedRuntime.integration_validator_of_record = normalizeSessionValue(parseSingleField(packetText, "INTEGRATION_VALIDATOR_OF_RECORD"));
   syncedRuntime.secondary_validator_sessions = parseSecondaryValidatorSessions(
@@ -447,9 +449,10 @@ function ensureWpCommunicationsCore({
   }
 
   const packetContext = buildWorkPacketCommunicationView(WP_ID);
+  const packetEvaluatorContext = buildWorkPacketEvaluatorView(WP_ID);
   const packetPath = packetContext.packetPath || workPacketPath(WP_ID);
   const packetAbsPath = packetContext.packetAbsPath || repoPathAbs(packetPath);
-  let packetText = packetContext.packetText || "";
+  let packetText = packetEvaluatorContext?.ok ? packetEvaluatorContext.packetText : (packetContext.packetText || "");
   if (!packetText && fs.existsSync(packetAbsPath)) {
     packetText = fs.readFileSync(packetAbsPath, "utf8");
   }

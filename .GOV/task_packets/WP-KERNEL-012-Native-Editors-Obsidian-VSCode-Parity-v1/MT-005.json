@@ -14,7 +14,7 @@
   "title": "E1-MT-005-CodeFolding",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-04T14:39:07.813Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-005.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-001",
@@ -36,11 +36,55 @@
       "MT-007"
     ],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:25:27Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: paint_chrome_decorations assumes contiguous buffer lines - indent guides iterate HIDDEN folded lines (panel.rs:7479, comment claiming otherwise is false) and decoration_xy paints folded-away bracket glyphs onto rows below the fold label (panel.rs:7562-7571). MT-005-folded.png confirms ~10 rows of orphaned braces/guides where AC-004 requires absence. Fix: map buffer line to painted row via the fold-filtered visible-rows list; skip decorations for invisible lines; add pixel assertion that the band below the fold label is background-only; re-render PNG. Leak introduced by MT-054 layer but breaks MT-005 acceptance.",
     "deflection_category": "fold_decoration_leak",
-    "remediation_appendage": "Make decorations fold-aware (skip hidden lines, map buffer->visible rows); pixel-assert the collapsed band is background-only; re-render PNG."
+    "remediation_appendage": "Make decorations fold-aware (skip hidden lines, map buffer->visible rows); pixel-assert the collapsed band is background-only; re-render PNG.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Make decorations fold-aware (skip hidden lines, map buffer->visible rows); pixel-assert the collapsed band is background-only; re-render PNG.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-001: `cargo test -p handshake-native fold_provider` passes — tests: parse a 20-line Rust function, compute returns at least one FoldRegion covering the function body; single-line nodes produce no fold region., AC-002: `cargo test -p handshake-native fold_set_visibility` passes — tests: folded region lines 5-10, is_line_visible(4)=true, is_line_visible(5)=true (start line visible), is_line_visible(6)=false, is_line_visible(10)=false, is_line_visible(11)=true., AC-003: `cargo test -p handshake-native fold_set_mapping` passes — tests: visible_line_to_buffer_line with one folded region of 5 lines correctly offsets buffer lines after the region., AC-004: egui_kittest screenshot with one region folded shows the fold label line (containing '…') and the subsequent lines of the region are absent., AC-005: AccessKit tree contains a node with author_id='code_editor_fold_0' and role=TreeItem and action=Expand when that region is folded., AC-006: Toggle fold twice returns to original unfolded state (idempotency test).) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PT-001: `cargo test -p handshake-native fold_provider` — GREEN, logged. ; PT-002: `cargo test -p handshake-native fold_set_visibility` — GREEN, logged. ; PT-003: `cargo test -p handshake-native fold_set_mapping` — GREEN, logged. ; PT-004: egui_kittest screenshot `test_output/MT-005-folded.png` pixel-verified for fold label presence and collapsed lines absence. ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260704-122106",
+    "ready_for_validation_at_utc": "2026-07-04T14:39:07.813Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260704-122106",
+    "ready_for_validation_summary": "MT-005 product proof refreshed after reopened fold-decoration leak: hidden folded rows no longer paint decorations, fold AccessKit node ids are stable by start line, FoldAll invalidates visible/wrap caches, folding commands are exposed through menu/palette/settings/manual coverage, external artifacts refreshed, and two fresh read-only subagent reviews passed. Validator verdict remains PENDING.",
+    "kb_ready_checklist_receipt": {
+      "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-07-04T14:37:58.584Z",
+      "overall_verdict": "PASS",
+      "actor_session": "KERNEL_BUILDER-20260704-122106",
+      "summary": "MT-005 folding repair final handoff: stable fold node identity, FoldAll cache invalidation, menu/palette/manual/settings coverage, stale-comment cleanup, screenshot/decor proof, and post-review PASS complete."
+    }
   },
   "scope": {
     "summary": "Goal: Implement code folding derived from the tree-sitter parse tree. Foldable regions are identified from tree-sitter node types (function bodies, class bodies, block statements, if/else branches, comment blocks). Folded regions are collapsed to a single summary line with an ellipsis. The gutter (rendered in MT-007) shows fold triangles; this MT only computes fold regions and applies them to the virtual line layout. Expected diff shape: new module `src/frontend/handshake_native/src/code_editor/folding.rs`, edits to `src/frontend/handshake_native/src/code_editor/mod.rs` and `src/frontend/handshake_native/src/code_editor/panel.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/folding.rs` — defines `FoldRegion { start_line: usize, end_line: usize, folded: bool, label: String }` where `label` is the first line of the region plus `...` (e.g. `fn main() {…}`). Implements `FoldProvider::compute(tree: &tree_sitter::Tree, buffer: &TextBuffer) -> Vec<FoldRegion>` — walks the tree-sitter syntax tree using `tree.root_node().children()` recursively, identifies nodes whose type is in a configurable set (`FoldableNodeTypes`), and extracts their start/end row from `node.start_position().row` / `node.end_position().row`. Returns only regions spanning at least 2 lines. Also: `FoldSet { regions: Vec<FoldRegion> }` with methods `toggle(start_line: usize)`, `is_line_visible(line: usize) -> bool` (returns false if the line falls inside a folded region that is not the start line), `visible_line_to_buffer_line(visible_line: usize) -> usize` (maps from visible (post-fold) line index to actual buffer line index, accounting for collapsed regions).\n- EDIT `src/frontend/handshake_native/src/code_editor/mod.rs` — add `fold_set: FoldSet` to `CodeEditorPanel`. After each buffer edit or tree-sitter re-parse, call `FoldProvider::compute` and update `fold_set`. In `show()`, wrap the `VirtualLineLayout` visible_range computation with `FoldSet::is_line_visible` filtering so folded lines are skipped.\n- EDIT `src/frontend/handshake_native/src/code_editor/panel.rs` — in the line rendering loop, when the current line is the start line of a folded region, render the summary label line (first line text + `…`) instead of the actual line, and skip all subsequent lines until `end_line`. The gutter click handler (for fold triangles, to be rendered in MT-007) calls `fold_set.toggle(start_line)`.\n\nFoldable node types (initial set for Rust and JS):\n- Rust: `function_item`, `impl_item`, `struct_item`, `enum_item`, `block`, `match_expression`, `use_declaration` (group).\n- JS/TS: `function_declaration`, `arrow_function`, `class_declaration`, `block_statement`, `object`, `array`.\n- Store in a `HashMap<&'static str, &'static [&'static str]>` keyed by language id.\n\nExact crates/functions/APIs to use:\n- `tree-sitter` — already a dependency from MT-001. Use `Node::kind()`, `Node::start_position()`, `Node::end_position()`, `Node::children()` cursor API.\n- No additional crates needed.\n- AccessKit: add `author_id = \"code_editor_fold_{start_line}\"` `Role::TreeItem` nodes for each foldable region, with `actions: [Action::Expand, Action::Collapse]` depending on fold state. Reuse the AccessKit integration in `src/frontend/handshake_native/src/accessibility/` (mod.rs, live.rs, registry.rs, snapshot.rs) from WP-011 rather than introducing a new accessibility surface.\n\nStep-by-step implementation notes:\n1. Implement `FoldProvider::compute` using a tree-sitter `TreeCursor` traversal (more efficient than recursive children). Push a `FoldRegion` whenever `cursor.node().kind()` is in `FoldableNodeTypes` for the current language and `end_row - start_row >= 1`.\n2. Sort `FoldSet::regions` by `start_line` ascending. `is_line_visible`: binary-search for the last region with `start_line <= line`; if found and `folded == true` and `line > region.start_line` and `line <= region.end_line`, return false.\n3. `visible_line_to_buffer_line`: iterate regions in order, accumulate skipped lines (for each folded region before the visible line, add `region.end_line - region.start_line` to a running offset), return `visible_line + offset`.\n4. In the rendering loop: iterate visible line indices from VirtualLineLayout, map each to buffer line via `visible_line_to_buffer_line`, render normally unless the buffer line is the start of a folded region, in which case render the fold label.\n5. Keyboard shortcut for fold/unfold: Ctrl+Shift+[ folds the region at the cursor; Ctrl+Shift+] unfolds. Wire these in the code editor key handler (MT-010 will formalize; pre-wire here).\n6. Total line count for VirtualLineLayout must account for folds: compute `visible_line_count` as `buffer.len_lines() - sum(folded_region.end_line - folded_region.start_line for all folded regions)` and pass this to `VirtualLineLayout::new`.\n\nDependencies/unblock conditions: MT-001 (tree-sitter parse tree available in CodeEditorPanel), MT-002 (VirtualLineLayout — folding modifies the effective line count that it receives). Cross-WP: the AccessKit accessibility surface (accessibility/*) comes from WP-011 and is reused, not rebuilt.\nRisk if missed: Large files (thousands of lines) are harder to navigate without folding. The gutter (MT-007) renders fold triangles and needs the fold region list.",
@@ -95,7 +139,7 @@
     "HBR-SWARM"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260704-122106",
     "wp_validator_session": null
   },
   "red_team": {
@@ -139,6 +183,126 @@
       "MAX_ACCESSKIT_FOLDS=64 cap drops folds beyond 64 in a dense window -> documented cap",
       "fold-label paints in punctuation/comment color ignoring real token highlighting -> MT-007/MT-010 cosmetic parity",
       "tests for mid-window highlight clip / real Ctrl+Shift+[] key events / edit-reparse fold preservation -> follow-up"
-    ]
+    ],
+    "proof_refresh_2026_07_04_final": {
+      "schema_id": "hsk.mt_implementation_evidence@1",
+      "status": "READY_FOR_VALIDATION",
+      "prepared_by": "KERNEL_BUILDER-20260704-122106",
+      "prepared_at_utc": "2026-07-04T14:39:07.813Z",
+      "validator_verdict": "PENDING",
+      "summary": "Closed reopened MT-005 fold-decoration leak and post-review hardening blockers. The folded render now hides body rows and has pixel proof that the collapsed band is background-only; fold AccessKit nodes are keyed by start line rather than visible slot; FoldAll invalidates FoldSet visible maps and panel wrap-row cache; folding commands are reachable through Settings keybindings, command palette, EDIT menu leaves, and UserManual documentation.",
+      "product_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1",
+      "touched_product_areas": [
+        "src/frontend/handshake_native/src/code_editor/folding.rs",
+        "src/frontend/handshake_native/src/code_editor/panel.rs",
+        "src/frontend/handshake_native/src/command_registry.rs",
+        "src/frontend/handshake_native/src/top_menu_bar.rs",
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/settings_editor_section.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_fold_accesskit.rs",
+        "src/frontend/handshake_native/tests/test_keymap.rs",
+        "src/frontend/handshake_native/tests/test_top_menu_bar.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs",
+        "src/frontend/handshake_native/tests/test_editor_keybindings_table.rs"
+      ],
+      "operator_required_scope_note": "The live operator instruction for this goal required UserManual/options/settings/menu coverage in addition to the original MT-005 folding files; command/menu/manual/settings files were therefore updated to close the requested operator-facing coverage gap.",
+      "fixed_defects": [
+        "Folded hidden-line decoration leak: folded body rows no longer receive leaked bracket/indent-guide painting; PT-004 and folded decoration-band pixel proofs assert stray_pixels/stray=0.",
+        "Stale fold AccessKit target reuse: default fold node ids are keyed by code_editor_fold_{start_line}, not by visible slot, so stale offscreen actions cannot collapse another currently visible fold row.",
+        "FoldAll cache invalidation: FoldSet::set_all_folded invalidates visible_map_cache/visible_map_built_for and CodeEditorPanel::fold_state_changed clears wrap_row_index.",
+        "Menu/palette/manual/settings coverage gap: fold commands are in command_registry, EDIT menu leaves, app dispatch, Settings keybinding catalog, UserManual text, and live tree/manual tests.",
+        "Stale fixed fold-band comments removed from panel.rs after post-review note."
+      ],
+      "proof_commands": [
+        {
+          "command": "cargo test --test test_fold_accesskit -- --nocapture",
+          "result": "PASS 5/5",
+          "notes": "PT-005 fold nodes present; PT-004 screenshot saved externally; stray_pixels=0."
+        },
+        {
+          "command": "cargo test --test test_code_folding -- --nocapture",
+          "result": "PASS 10/10",
+          "notes": "FoldProvider/FoldSet visibility/mapping/toggle proofs."
+        },
+        {
+          "command": "cargo test --test test_indent_guides folded_region_paints_no_decorations_below_fold_label -- --nocapture",
+          "result": "PASS 1/1",
+          "notes": "Folded decoration band proof; stray=0; external MT-054 PNG saved."
+        },
+        {
+          "command": "cargo test --test test_keymap -- --nocapture",
+          "result": "PASS 13/13",
+          "notes": "Includes fold_all_after_render_rebuilds_visible_map and command-node coverage."
+        },
+        {
+          "command": "cargo test --test test_editor_keybindings_table -- --nocapture",
+          "result": "PASS 6/6",
+          "notes": "Settings/options keybinding catalog includes fold defaults."
+        },
+        {
+          "command": "cargo test --test test_top_menu_bar -- --nocapture",
+          "result": "PASS 14/14",
+          "notes": "EDIT menu fold leaves present and existing menu behavior preserved."
+        },
+        {
+          "command": "cargo test --test test_manual_content -- --nocapture",
+          "result": "PASS 12/12, exit 0",
+          "notes": "Manual topic includes fold menu author id; observed Tokio shutdown-time panic printed after completion but cargo exit code remained 0."
+        },
+        {
+          "command": "cargo test --test test_fold_accesskit stale_fold_action_target_does_not_reuse_visible_slot_for_another_region -- --nocapture",
+          "result": "PASS 1/1 after final comment cleanup",
+          "notes": "Final focused rerun after stale comment cleanup."
+        },
+        {
+          "command": "git diff --check -- touched MT-005 files",
+          "result": "PASS",
+          "notes": "Only CRLF warnings from git; no whitespace errors."
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-005/MT-005-folded.png",
+          "size_bytes": 22896,
+          "last_write_time_local": "2026-07-04 16:27:51"
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-054/MT-054-fold-band.png",
+          "size_bytes": 21638,
+          "last_write_time_local": "2026-07-04 16:28:18"
+        }
+      ],
+      "hygiene": {
+        "repo_local_test_output": false,
+        "repo_local_tests_screenshots": false,
+        "repo_local_target": false,
+        "owned_cargo_rustc_link_processes_remaining": false
+      },
+      "subagent_reviews": [
+        {
+          "agent": "Raman",
+          "id": "019f2d89-1cb1-7942-af1a-0e9ef529e008",
+          "verdict": "PASS",
+          "notes": "No blockers; prior stale AccessKit id, FoldAll cache, and menu coverage blockers closed. Non-blocking stale fold-band comments were cleaned."
+        },
+        {
+          "agent": "Poincare",
+          "id": "019f2d89-5e33-7742-90e1-2ee796979953",
+          "verdict": "PASS product/proof readiness",
+          "notes": "No product blockers; governance status update pending at review time."
+        }
+      ],
+      "kb_ready_checklist": {
+        "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+        "generated_at_utc": "2026-07-04T14:37:58.584Z",
+        "overall_verdict": "PASS",
+        "blockers": []
+      },
+      "residual_risks": [
+        "test_manual_content printed a Tokio shutdown-time panic after all assertions passed and cargo returned exit 0; track if it repeats, but it is not treated as an MT-005 product blocker.",
+        "Official validator review has not run; validator_verdict remains PENDING."
+      ]
+    }
   }
 }

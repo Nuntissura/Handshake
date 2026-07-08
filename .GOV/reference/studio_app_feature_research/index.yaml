@@ -1,0 +1,593 @@
+# Research paper index - Studio app feature inventory for Handshake Studio rebuild.
+# Machine-readable map over per-topic files in this folder.
+
+research_paper:
+  id: handshake-studio-app-feature-research
+  feature_name: Studio
+  title: "Handshake Studio - Photoshop, Affinity, InDesign, Illustrator, and Figma Feature Inventory"
+  purpose: >-
+    Reference inventory of Photoshop, Affinity Photo/Designer/Publisher, InDesign,
+    Illustrator, and Figma app behavior for rebuilding equivalent capability as
+    local-first, no-cloud-required, Handshake-native Rust tools inside the built-in
+    Studio module.
+  status: "draft - category maps plus generated official-help leaf indexes where source TOCs were reachable"
+  updated_at: "2026-07-05"
+  repo: Handshake
+  location: ".GOV/reference/studio_app_feature_research/"
+  instruction_file: "INSTRUCTIONS.md"
+  authority_note: "Reference/landscape material only. Not a Work Packet, Master Spec, validator gate, or implementation authority."
+  source_policy: "Prefer official vendor help/product/developer pages; mark uncertain or blocked claims UNVERIFIED."
+  naming_policy: "Vendor product names are source/provenance and compatibility references only; shipped Studio tools, commands, panels, and manual topics use Handshake-native names."
+  file_format_policy: "Preserve compatibility with existing creative file formats through explicit import/export contracts and fixtures; do not invent a replacement interchange format for this rebuild scope."
+  provider_offline_policy: "Provider, cloud, AI, collaboration, community, hosted API, and compatibility behavior remains documented, but built-in Studio behavior is local-first with optional adapters, deterministic fallbacks, receipts, and offline verification."
+
+header_convention:
+  topic_header: "## [<TOPIC_ID>] <Title>"
+  subtopic_header: "### [<TOPIC_ID>.<suffix>] <Title>"
+  frontmatter_keys: [file_id, topic_id, title, status, summary, sources, updated_at]
+  feature_record_format: "Fenced YAML blocks containing stable ids, app_behavior, primitive_domain, and source_ids."
+  source_location: "Every topic file ends with a sources block at EOF."
+
+id_namespaces:
+  photoshop: "Adobe Photoshop and Camera Raw features."
+  affinity_photo: "Affinity Photo 2 raster/photo features."
+  affinity_designer: "Affinity Designer 2 vector/design features."
+  affinity_publisher: "Affinity Publisher 2 layout/publishing features."
+  indesign: "Adobe InDesign layout/publishing features."
+  illustrator: "Adobe Illustrator vector/illustration features."
+  figma: "Figma Design, FigJam, Draw, Motion, Slides, Sites, Buzz, Make, Dev Mode, API, and collaboration features."
+
+topics:
+  - id: SFR-PREAMBLE
+    title: "Preamble and Approach"
+    file: "00-preamble.md"
+    status: draft
+    summary: "Scope, non-authority stance, source policy, schema, risks, and recommended build approach."
+    subtopics: [purpose, scope, schema, approach, risks, roi, sources]
+  - id: SFR-PHOTOSHOP
+    title: "Adobe Photoshop Feature Map"
+    file: "01-photoshop-feature-map.md"
+    status: draft
+    summary: "Photoshop desktop, Camera Raw, generative AI, automation, export, and collaboration feature families."
+    feature_count: 74
+    subtopics: [inventory, implementation-notes, gaps, sources]
+  - id: SFR-AFFINITY
+    title: "Affinity Suite Feature Map"
+    file: "02-affinity-suite-feature-map.md"
+    status: draft
+    summary: "Affinity Photo, Designer, and Publisher V2 feature families, including StudioLink and the newer unified Affinity direction."
+    feature_count: 39
+    subtopics: [source-shape, photo, designer, publisher, implementation-notes, gaps, sources]
+  - id: SFR-INDESIGN
+    title: "Adobe InDesign Feature Map"
+    file: "03-indesign-feature-map.md"
+    status: draft
+    summary: "InDesign page layout, typography, styles, prepress, export, collaboration, automation, and AI feature families."
+    feature_count: 75
+    subtopics: [inventory, implementation-notes, gaps, sources]
+  - id: SFR-STUDIO-LOCAL-FIRST-RUST
+    title: "Studio Local-First Rust Parity Posture"
+    file: "19-studio-local-first-rust-posture.md"
+    status: draft
+    summary: "Local-first, no-cloud-required, Rust-forward posture for Studio app parity without vendor product naming."
+    subtopics: [policy, engine-map, compatibility, sources]
+  - id: SFR-ILLUSTRATOR
+    title: "Illustrator Feature Map"
+    file: "20-illustrator-feature-map.md"
+    status: draft
+    summary: "Illustrator vector, typography, object, color, AI, import/export, print, and automation feature families."
+    feature_count: 12
+    subtopics: [inventory, implementation-notes, sources]
+  - id: SFR-FIGMA
+    title: "Figma Feature Map"
+    file: "21-figma-feature-map.md"
+    status: draft
+    summary: "Figma Design, Draw, FigJam, Motion, Slides, Sites, Buzz, Make, Dev Mode, API, AI, and collaboration feature families."
+    feature_count: 13
+    subtopics: [inventory, implementation-notes, sources]
+  - id: SFR-AFFINITY-LEAF
+    title: "Affinity V2 Help Leaf Index"
+    file: "04-affinity-leaf-index.md"
+    status: draft
+    summary: "Machine-expanded Affinity help table-of-contents leaves from official V2 XML snapshots."
+    feature_count: 862
+    subtopics: [inventory, sources]
+  - id: SFR-PHOTOSHOP-LEAF
+    title: "Adobe Photoshop Help Leaf Index"
+    file: "06-photoshop-leaf-index.md"
+    status: draft
+    summary: "Machine-expanded Photoshop desktop help leaves from official Adobe Help TOC via local Jina Reader snapshot."
+    feature_count: 441
+    support_context_count: 20
+    subtopics: [inventory, gaps, sources]
+  - id: SFR-INDESIGN-LEAF
+    title: "Adobe InDesign Help Leaf Index"
+    file: "07-indesign-leaf-index.md"
+    status: draft
+    summary: "Machine-expanded InDesign desktop help leaves from official Adobe Help TOC via local Jina Reader snapshot."
+    feature_count: 542
+    support_context_count: 61
+    subtopics: [inventory, gaps, sources]
+  - id: SFR-ILLUSTRATOR-LEAF
+    title: "Illustrator Help Leaf Index"
+    file: "22-illustrator-leaf-index.md"
+    status: draft
+    summary: "Machine-expanded Illustrator help leaves from current official Adobe Help snapshots."
+    feature_count: 515
+    support_context_count: 17
+    subtopics: [inventory, sources]
+  - id: SFR-FIGMA-LEAF
+    title: "Figma Help Leaf Index"
+    file: "23-figma-leaf-index.md"
+    status: draft
+    summary: "Machine-expanded Figma help leaves from official Figma snapshots plus verified category/source-agent evidence."
+    feature_count: 200
+    support_context_count: 0
+    subtopics: [inventory, sources]
+  - id: SFR-GAP-NOTES
+    title: "Gap Resolution Notes"
+    file: "08-gap-resolution-notes.md"
+    status: draft
+    summary: "Resolved, mitigated, and residual research gaps after the leaf-index, desktop-delta, command-contract, provider-posture, parity-matrix, and vertical-slice passes."
+    subtopics: [resolved, unresolved, next, sources]
+  - id: SFR-AFFINITY-DESKTOP-DELTA
+    title: "Affinity Desktop Help Delta"
+    file: "09-affinity-desktop-delta.md"
+    status: draft
+    summary: "Affinity Photo/Designer/Publisher desktop help leaves parsed from official desktop index.html snapshots and compared against the iPad XML-derived leaf index."
+    feature_count: 1035
+    stable_unique_feature_id_count: 1032
+    desktop_only_delta_count: 234
+    subtopics: [inventory, gaps, sources]
+  - id: SFR-COMMAND-CONTRACTS
+    title: "Studio Command Contract Seed"
+    file: "10-studio-command-contracts.md"
+    status: draft
+    summary: "Reusable Studio command-contract schema plus seed command contracts across layer, mask, selection, raster, vector, typography, layout, prepress, export, and AI/provider primitives."
+    command_count: 12
+    subtopics: [schema, seed, roi, sources]
+  - id: SFR-PROVIDER-POSTURE
+    title: "Provider Posture Map"
+    file: "11-provider-posture-map.md"
+    status: draft
+    summary: "AI, cloud, collaboration, stock/template, metadata, and online-publishing features classified as provider adapters, optional integrations, or compatibility shims."
+    classified_count: 183
+    subtopics: [policy, inventory, fallbacks, sources]
+  - id: SFR-PARITY-MATRIX
+    title: "Cross-App Studio Parity Matrix"
+    file: "12-cross-app-parity-matrix.md"
+    status: draft
+    summary: "Primitive-centered parity lanes mapping Photoshop, Affinity, and InDesign features to Handshake Studio engines."
+    parity_lane_count: 11
+    subtopics: [matrix, workflow, roi, sources]
+  - id: SFR-LAYER-GRAPH-SLICE
+    title: "Non-Destructive Layer Graph Vertical Slice"
+    file: "13-layer-graph-vertical-slice.md"
+    status: draft
+    summary: "First vertical slice contract for proving shared StudioLayerGraph behavior across Photoshop, Affinity, and InDesign-style workflows."
+    command_count: 9
+    fixture_count: 5
+    subtopics: [scope, commands, state-model, fixtures, failures, acceptance, roi, sources]
+  - id: SFR-FEATURE-USE-CARDS
+    title: "Feature Use Card Schema"
+    file: "14-feature-use-card-schema.md"
+    status: draft
+    summary: "Planning bridge that preserves feature purpose, user goals, workflows, options, expected results, mistakes, edge cases, recovery steps, and future Studio UserManual handoff requirements."
+    seed_card_count: 3
+    generated_full_coverage_card_count: 2730
+    subtopics: [policy, schema, seed, rollout, sources]
+  - id: SFR-PHOTOSHOP-USE-CARDS
+    title: "Photoshop Feature Use Cards"
+    file: "15-photoshop-feature-use-cards.md"
+    status: draft
+    summary: "Generated Feature Use Cards for all stable Photoshop feature_leaf records in the verified desktop help leaf inventory."
+    feature_use_card_count: 441
+    explanation_status: toc_inferred
+    subtopics: [coverage, generated-cards, sources]
+  - id: SFR-AFFINITY-USE-CARDS
+    title: "Affinity Feature Use Cards"
+    file: "16-affinity-feature-use-cards.md"
+    status: draft
+    summary: "Generated Feature Use Cards for all stable unique Affinity desktop feature IDs from Photo 2, Designer 2, and Publisher 2 help leaves."
+    feature_use_card_count: 1032
+    raw_desktop_leaf_rows: 1035
+    explanation_status: toc_inferred
+    subtopics: [coverage, generated-cards, sources]
+  - id: SFR-INDESIGN-USE-CARDS
+    title: "InDesign Feature Use Cards"
+    file: "17-indesign-feature-use-cards.md"
+    status: draft
+    summary: "Generated Feature Use Cards for all stable InDesign feature_leaf records in the verified desktop help leaf inventory."
+    feature_use_card_count: 542
+    explanation_status: toc_inferred
+    subtopics: [coverage, generated-cards, sources]
+  - id: SFR-ILLUSTRATOR-USE-CARDS
+    title: "Illustrator Feature Use Cards"
+    file: "24-illustrator-feature-use-cards.md"
+    status: draft
+    summary: "Generated Feature Use Cards for stable Illustrator feature_leaf records in the current help leaf inventory."
+    feature_use_card_count: 515
+    explanation_status: toc_inferred
+    subtopics: [coverage, generated-cards, sources]
+  - id: SFR-FIGMA-USE-CARDS
+    title: "Figma Feature Use Cards"
+    file: "25-figma-feature-use-cards.md"
+    status: draft
+    summary: "Generated Feature Use Cards for stable Figma feature_leaf records in the current help leaf inventory."
+    feature_use_card_count: 200
+    explanation_status: toc_inferred
+    subtopics: [coverage, generated-cards, sources]
+  - id: SFR-USE-CARD-HANDOFF
+    title: "Feature Use Card Manual Handoff Index"
+    file: "18-feature-use-card-manual-handoff-index.md"
+    status: draft
+    summary: "Manual-surface grouping and promotion rules for turning generated Feature Use Cards into internal Studio UserManual entries when product behavior is implemented."
+    total_feature_use_cards: 2730
+    manual_entry_status: planning_only
+    subtopics: [summary, manual-topic-groups, handoff-rules, sources]
+  - id: SFR-ILLUSTRATOR-FIGMA-PROVIDER-POSTURE
+    title: "Illustrator/Figma Provider Posture Map"
+    file: "26-illustrator-figma-provider-posture-map.md"
+    status: draft
+    summary: "Provider posture classifications for Illustrator and Figma cloud, AI, collaboration, community, and compatibility-adapter behavior."
+    classified_count: 344
+    subtopics: [policy, inventory, sources]
+  - id: SFR-ILLUSTRATOR-FIGMA-PARITY
+    title: "Illustrator/Figma Studio Parity Matrix"
+    file: "27-illustrator-figma-parity-matrix.md"
+    status: draft
+    summary: "Primitive-centered parity lanes mapping Illustrator and Figma features to Handshake Studio engines."
+    parity_lane_count: 10
+    subtopics: [matrix, sources]
+  - id: SFR-ADOBE-COUNT-METHODOLOGY
+    title: "Adobe Expanded Count Methodology"
+    file: "28-adobe-count-methodology.md"
+    status: draft
+    summary: "Count semantics and proof rules for distilling Photoshop, InDesign, and Illustrator features/tools from online sources."
+    count_status: ONLINE_SOURCE_DISTILLABLE
+    subtopics: [policy, semantics, workflow, sources]
+  - id: SFR-PHOTOSHOP-EXPANDED-COUNTS
+    title: "Photoshop Expanded Count Ledger"
+    file: "29-photoshop-expanded-count-ledger.md"
+    status: draft
+    summary: "Expanded online-source count ledger for Photoshop desktop and Camera Raw."
+    count_status: ONLINE_SOURCE_DISTILLED_SEED
+    public_help_feature_leaves: 441
+    public_file_format_entries_observed: 66
+    camera_raw_shortcut_rows_estimate: 164
+    subtopics: [counts, installed-enrichment, sources]
+  - id: SFR-INDESIGN-EXPANDED-COUNTS
+    title: "InDesign Expanded Count Ledger"
+    file: "30-indesign-expanded-count-ledger.md"
+    status: draft
+    summary: "Expanded online-source count ledger for InDesign desktop."
+    count_status: ONLINE_SOURCE_DISTILLED_SEED
+    public_help_feature_leaves: 542
+    public_shortcut_rows: 190
+    dom_api_markdown_pages: 1080
+    subtopics: [counts, installed-enrichment, sources]
+  - id: SFR-ILLUSTRATOR-EXPANDED-COUNTS
+    title: "Illustrator Expanded Count Ledger"
+    file: "31-illustrator-expanded-count-ledger.md"
+    status: draft
+    summary: "Expanded online-source count ledger for Illustrator desktop."
+    count_status: ONLINE_SOURCE_DISTILLED_SEED
+    public_help_feature_leaves: 515
+    public_shortcut_rows: 391
+    public_scripting_object_classes: 138
+    subtopics: [counts, installed-enrichment, sources]
+  - id: SFR-ADOBE-INSTALLED-UI-EXPORT
+    title: "Adobe Installed UI Export Playbook"
+    file: "32-adobe-installed-ui-export-playbook.md"
+    status: draft
+    summary: "Optional installed-app enrichment path for IDs, shortcuts, panels, context states, and file-dialog fixture detail."
+    count_status: OPTIONAL_INSTALLED_ENRICHMENT
+    subtopics: [purpose, schema, app-steps, acceptance, sources]
+  - id: SFR-ONLINE-SOURCE-DISTILLED-LEDGER
+    title: "Online Source Distilled Feature Ledger"
+    file: "33-online-source-distilled-feature-ledger.md"
+    status: draft
+    summary: "Unified source-distilled ledger for documenting all online-source-observable features and tools for Photoshop, InDesign, Illustrator, Affinity, and Figma before Studio implementation."
+    count_status: ONLINE_SOURCE_DISTILLED
+    source_app_families: [photoshop, camera_raw, indesign, illustrator, affinity_photo, affinity_designer, affinity_publisher, figma_design, figjam, figma_draw, figma_motion, figma_slides, figma_sites, figma_buzz, figma_make, figma_dev_mode]
+    subtopics: [policy, source-surfaces, app-ledgers, merge-record, next, sources]
+  - id: SFR-PHOTOSHOP-SOURCE-DISTILLED-DOMAINS
+    title: "Photoshop Source Distilled Domain Ledger"
+    file: "34-photoshop-source-distilled-domain-ledger.md"
+    status: draft
+    summary: "Online-source-distilled Photoshop and Camera Raw feature/tool domains for Studio parity planning."
+    count_status: ONLINE_SOURCE_DISTILLED_DOMAIN_LEDGER
+    domain_count: 15
+    subtopics: [policy, domains, sources]
+  - id: SFR-INDESIGN-SOURCE-DISTILLED-DOMAINS
+    title: "InDesign Source Distilled Domain Ledger"
+    file: "35-indesign-source-distilled-domain-ledger.md"
+    status: draft
+    summary: "Online-source-distilled InDesign feature/tool domains for Studio parity planning."
+    count_status: ONLINE_SOURCE_DISTILLED_DOMAIN_LEDGER
+    domain_count: 10
+    subtopics: [policy, domains, sources]
+  - id: SFR-ILLUSTRATOR-SOURCE-DISTILLED-DOMAINS
+    title: "Illustrator Source Distilled Domain Ledger"
+    file: "36-illustrator-source-distilled-domain-ledger.md"
+    status: draft
+    summary: "Online-source-distilled Illustrator feature/tool domains for Studio parity planning."
+    count_status: ONLINE_SOURCE_DISTILLED_DOMAIN_LEDGER
+    domain_count: 11
+    subtopics: [policy, domains, sources]
+  - id: SFR-AFFINITY-SOURCE-DISTILLED-DOMAINS
+    title: "Affinity Source Distilled Domain Ledger"
+    file: "37-affinity-source-distilled-domain-ledger.md"
+    status: draft
+    summary: "Online-source-distilled Affinity Photo, Designer, and Publisher feature/tool domains for Studio parity planning."
+    count_status: ONLINE_SOURCE_DISTILLED_DOMAIN_LEDGER
+    domain_count: 10
+    subtopics: [policy, domains, sources]
+  - id: SFR-FIGMA-SOURCE-DISTILLED-DOMAINS
+    title: "Figma Source Distilled Domain Ledger"
+    file: "38-figma-source-distilled-domain-ledger.md"
+    status: draft
+    summary: "Online-source-distilled Figma Design, FigJam, Draw, Motion, Slides, Sites, Buzz, Make, Dev Mode, API, and collaboration domains for Studio parity planning."
+    count_status: ONLINE_SOURCE_DISTILLED_DOMAIN_LEDGER
+    domain_count: 10
+    subtopics: [policy, domains, sources]
+  - id: SFR-PHOTOSHOP-SOURCE-DISTILLED-FEATURE-ROWS
+    title: "Photoshop Source Distilled Feature Rows"
+    file: "39-photoshop-source-distilled-feature-rows.md"
+    status: draft
+    summary: "Generated source-distilled Photoshop feature rows derived from Feature Use Cards and the Photoshop domain ledger."
+    count_status: ONLINE_SOURCE_DISTILLED_FEATURE_ROWS
+    feature_row_count: 441
+    subtopics: [feature-row-coverage, source-distilled-feature-rows, sources]
+  - id: SFR-INDESIGN-SOURCE-DISTILLED-FEATURE-ROWS
+    title: "InDesign Source Distilled Feature Rows"
+    file: "40-indesign-source-distilled-feature-rows.md"
+    status: draft
+    summary: "Generated source-distilled InDesign feature rows derived from Feature Use Cards and the InDesign domain ledger."
+    count_status: ONLINE_SOURCE_DISTILLED_FEATURE_ROWS
+    feature_row_count: 542
+    subtopics: [feature-row-coverage, source-distilled-feature-rows, sources]
+  - id: SFR-ILLUSTRATOR-SOURCE-DISTILLED-FEATURE-ROWS
+    title: "Illustrator Source Distilled Feature Rows"
+    file: "41-illustrator-source-distilled-feature-rows.md"
+    status: draft
+    summary: "Generated source-distilled Illustrator feature rows derived from Feature Use Cards and the Illustrator domain ledger."
+    count_status: ONLINE_SOURCE_DISTILLED_FEATURE_ROWS
+    feature_row_count: 515
+    subtopics: [feature-row-coverage, source-distilled-feature-rows, sources]
+  - id: SFR-AFFINITY-SOURCE-DISTILLED-FEATURE-ROWS
+    title: "Affinity Source Distilled Feature Rows"
+    file: "42-affinity-source-distilled-feature-rows.md"
+    status: draft
+    summary: "Generated source-distilled Affinity feature rows derived from Feature Use Cards and the Affinity domain ledger."
+    count_status: ONLINE_SOURCE_DISTILLED_FEATURE_ROWS
+    feature_row_count: 1032
+    subtopics: [feature-row-coverage, source-distilled-feature-rows, sources]
+  - id: SFR-FIGMA-SOURCE-DISTILLED-FEATURE-ROWS
+    title: "Figma Source Distilled Feature Rows"
+    file: "43-figma-source-distilled-feature-rows.md"
+    status: draft
+    summary: "Generated source-distilled Figma feature rows derived from Feature Use Cards and the Figma domain ledger."
+    count_status: ONLINE_SOURCE_DISTILLED_FEATURE_ROWS
+    feature_row_count: 200
+    subtopics: [feature-row-coverage, source-distilled-feature-rows, sources]
+  - id: SFR-CROSS-APP-OVERLAP-AFFINITY-DEDUPE
+    title: "Cross-App Overlap and Affinity Dedupe Map"
+    file: "44-cross-app-overlap-and-affinity-dedupe-map.md"
+    status: draft
+    summary: "Generated map for grouping shared source-app behavior into one Studio primitive while preserving Affinity-specific source variants and avoiding Adobe-labeled overlap."
+    count_status: ONLINE_SOURCE_DISTILLED_OVERLAP_MAP
+    feature_row_count: 2730
+    primitive_domain_count: 21
+    affinity_domain_count: 10
+    subtopics: [overlap-policy, primitive-overlap-matrix, sources]
+  - id: SFR-SOURCE-DISTILLED-TOOL-REGISTRY
+    title: "Source Distilled Tool Registry"
+    file: "45-source-distilled-tool-registry.md"
+    status: draft
+    summary: "Generated source-distilled registry of tool, panel, command, output, workflow, API, and workspace-mode surfaces from the app domain ledgers."
+    count_status: ONLINE_SOURCE_DISTILLED_TOOL_REGISTRY
+    tool_registry_row_count: 1219
+    unique_normalized_label_count: 876
+    cross_app_name_overlap_count: 125
+    subtopics: [tool-registry-coverage, tool-registry-rows, sources]
+  - id: SFR-FILE-FORMAT-COMPATIBILITY-REGISTRY
+    title: "File Format Compatibility Registry"
+    file: "46-file-format-compatibility-registry.md"
+    status: draft
+    summary: "Generated source-distilled registry of native, import, export, round-trip, and fixture-required format compatibility records for Studio rebuild planning."
+    count_status: ONLINE_SOURCE_DISTILLED_FORMAT_COMPATIBILITY_REGISTRY
+    compatibility_record_count: 410
+    format_family_count: 38
+    native_format_record_count: 15
+    domain_format_record_count: 23
+    feature_format_record_count: 372
+    subtopics: [compatibility-coverage, compatibility-records, sources]
+  - id: SFR-STUDIO-RUST-IMPLEMENTATION-BACKLOG
+    title: "Studio Rust Implementation Backlog"
+    file: "47-studio-rust-implementation-backlog.md"
+    status: draft
+    summary: "Generated implementation-facing backlog grouping source-distilled feature rows, tool rows, and compatibility records into local-first Rust Studio primitive lanes."
+    count_status: SOURCE_DISTILLED_IMPLEMENTATION_BACKLOG
+    backlog_item_count: 28
+    build_slice_count: 5
+    feature_row_count: 2730
+    tool_registry_row_count: 1219
+    compatibility_record_count: 410
+    subtopics: [backlog-coverage, primitive-backlog, sources]
+  - id: SFR-PROVIDER-OFFLINE-PARITY-REGISTRY
+    title: "Provider Offline Parity Registry"
+    file: "48-provider-offline-parity-registry.md"
+    status: draft
+    summary: "Generated registry that classifies source-distilled provider, cloud, AI, collaboration, runtime, automation, and compatibility-adjacent rows into local-first Studio parity requirements."
+    count_status: SOURCE_DISTILLED_PROVIDER_OFFLINE_PARITY_REGISTRY
+    provider_offline_parity_row_count: 1061
+    source_feature_row_count: 2730
+    source_app_count: 5
+    offline_parity_class_count: 6
+    subtopics: [provider-offline-coverage, provider-offline-parity-rows, provider-offline-sources]
+  - id: SFR-SOURCE-COVERAGE-VERIFICATION-MATRIX
+    title: "Source Coverage Verification Matrix"
+    file: "49-source-coverage-verification-matrix.md"
+    status: draft
+    summary: "Generated per-feature matrix that audits source-distilled rows for required planning fields, source reference strength, provider/offline linkage, format linkage, tool linkage, and implementation obligations."
+    count_status: SOURCE_DISTILLED_COVERAGE_VERIFICATION_MATRIX
+    coverage_row_count: 2730
+    source_feature_row_count: 2730
+    source_distilled_complete_with_local_snapshot_path: 2730
+    source_distilled_complete_without_local_snapshot_path: 0
+    provider_offline_registry_selected_rows: 1061
+    provider_posture_or_runtime_adjacent_rows: 693
+    missing_required_field_count: 0
+    subtopics: [source-coverage-summary, source-coverage-rows, source-coverage-sources]
+  - id: SFR-PROPRIETARY-FORMAT-FIXTURE-PLAN
+    title: "Proprietary Format Fixture Plan"
+    file: "50-proprietary-format-fixture-plan.md"
+    status: draft
+    summary: "Generated fixture, round-trip, unsupported-feature receipt, and Rust lane plan for native, proprietary, local-copy, and round-trip source creative formats."
+    count_status: SOURCE_DISTILLED_PROPRIETARY_FORMAT_FIXTURE_PLAN
+    format_fixture_plan_count: 15
+    source_format_family_count: 38
+    source_compatibility_record_count: 410
+    target_selection_rule: "format families with compatibility_posture native_round_trip_target"
+    subtopics: [format-fixture-summary, format-fixture-rows, format-fixture-sources]
+  - id: SFR-PRIMITIVES
+    title: "Studio Primitive and Engine Module Map"
+    file: "05-studio-primitive-map.md"
+    status: draft
+    summary: "Cross-app mapping from vendor feature domains to Handshake-native Studio primitives, Rust engine modules, state authority, diagnostics, and model-facing tool surfaces."
+    subtopics: [mapping, command-contract, build-order, sources]
+
+global_primitive_domains:
+  - raster
+  - layer
+  - selection
+  - mask
+  - color
+  - asset_pipeline
+  - brush_engine
+  - camera_raw
+  - raw
+  - typography
+  - vector
+  - geometry
+  - layout
+  - page_layout
+  - master_pages
+  - style_system
+  - tables
+  - interactive
+  - pdf
+  - epub
+  - print
+  - prepress
+  - file_io
+  - export
+  - automation
+  - collaboration
+  - ai
+  - brand_assets
+  - whiteboard
+  - web
+  - presentation
+  - studio_link
+  - workspace
+  - design_systems
+  - motion
+  - dev_mode
+
+known_gaps:
+  - id: SFR-GAP-001
+    severity: medium
+    status: mitigated
+    detail: "Leaf-level help indexes now exist, and a reusable command-contract schema with seed commands has been created. Individual vendor leaves still need promotion before implementation."
+    mitigation: "Use 10-studio-command-contracts.md as the promotion gate for high-priority leaves."
+  - id: SFR-GAP-002
+    severity: medium
+    status: mitigated
+    detail: "Affinity desktop contents.xml paths still return 403, but desktop index.html pages were reachable and parsed into 1,035 raw desktop leaf rows, 1,032 stable unique feature IDs, and 234 path-based desktop-only deltas."
+    mitigation: "Use 09-affinity-desktop-delta.md for desktop delta planning; capture desktop XML later only if exact vendor-TOC fidelity is required."
+  - id: SFR-GAP-003
+    severity: high
+    status: mitigated
+    detail: "Feature parity has been reframed into Studio primitives, command contracts, a parity matrix, and a first vertical slice."
+    mitigation: "Use 05-studio-primitive-map.md, 10-studio-command-contracts.md, 12-cross-app-parity-matrix.md, and 13-layer-graph-vertical-slice.md before implementation."
+  - id: SFR-GAP-004
+    severity: medium
+    status: mitigated
+    detail: "Direct shell fetches to Adobe Photoshop and InDesign desktop index pages timed out, but official Adobe Help TOCs were retrieved through Jina Reader snapshots and used to generate Adobe leaf indexes."
+    mitigation: "Keep official Adobe URLs and local Jina snapshots together; if source fidelity is disputed, rerun through a real browser/manual export and diff against the generated leaf rows."
+  - id: SFR-GAP-005
+    severity: medium
+    status: mitigated
+    detail: "AI, cloud, collaboration, stock/template, metadata, and online-publishing features have been classified into provider posture rows."
+    mitigation: "Use 11-provider-posture-map.md as the implementation gate for provider-backed or optional integration behavior."
+  - id: SFR-GAP-006
+    severity: medium
+    status: mitigated
+    detail: "Feature purpose/use coverage now exists for every stable source-backed leaf feature ID in the current Photoshop, Affinity, and InDesign inventories."
+    mitigation: "Use 15-photoshop-feature-use-cards.md, 16-affinity-feature-use-cards.md, 17-indesign-feature-use-cards.md, and 18-feature-use-card-manual-handoff-index.md as planning inputs. Keep each generated card marked toc_inferred until promoted through source-page/app inspection, command contract, tests, and internal Studio UserManual update."
+  - id: SFR-GAP-007
+    severity: medium
+    status: mitigated
+    detail: "Studio local-first, no-cloud-required, Rust-forward posture is now explicit for the expanded app parity corpus."
+    mitigation: "Use 19-studio-local-first-rust-posture.md as the posture gate when promoting Illustrator/Figma cards into Studio work packets."
+  - id: SFR-GAP-008
+    severity: medium
+    status: mitigated
+    detail: "Illustrator and Figma source coverage has been added, including feature maps, leaf indexes, provider posture, parity lanes, and use cards."
+    mitigation: "Use 20-illustrator-feature-map.md through 27-illustrator-figma-parity-matrix.md as planning inputs; keep all cards planning-only until source-page/app-behavior promotion."
+  - id: SFR-GAP-009
+    severity: medium
+    status: mitigated
+    detail: "Figma Design and Make category snapshots contain deeper article-level links, while several adjacent Figma category snapshots are represented through visible category evidence, source-agent research, the source-distilled domain ledger, and generated feature rows."
+    mitigation: "Use 21-figma-feature-map.md, 23-figma-leaf-index.md, 25-figma-feature-use-cards.md, 38-figma-source-distilled-domain-ledger.md, and 43-figma-source-distilled-feature-rows.md as the current source-distilled inventory. A deeper Figma Help category crawl is a delta-improvement pass, not a blocker."
+  - id: SFR-GAP-010
+    severity: high
+    status: mitigated
+    detail: "Proprietary .ai, .fig, .jam, .deck, .buzz, .site, and .make schemas are compatibility targets, not documented implementation schemas."
+    mitigation: "Use 50-proprietary-format-fixture-plan.md. It turns 15 native/proprietary/local-copy round-trip targets into fixture families, required support directions, unsupported-feature receipt fields, Rust implementation lanes, and manual-topic requirements."
+  - id: SFR-GAP-011
+    severity: high
+    status: mitigated
+    detail: "Photoshop, InDesign, and Illustrator help-leaf card counts are not the full online-source feature/tool inventory."
+    mitigation: "Use 28-adobe-count-methodology.md through 43-figma-source-distilled-feature-rows.md. Online sources are the primary source-distilled rebuild inventory; installed exports are optional ID/context enrichment."
+  - id: SFR-GAP-012
+    severity: high
+    status: mitigated
+    detail: "Affinity coverage must not be confused with Adobe product overlap when all source apps are rebuilt as one Studio module."
+    mitigation: "Use 44-cross-app-overlap-and-affinity-dedupe-map.md. Shared source behavior maps to one Handshake-native Studio primitive; Affinity rows keep their own source_distilled_feature_id, source refs, compatibility posture, and behavior variants."
+  - id: SFR-GAP-013
+    severity: high
+    status: mitigated
+    detail: "The corpus needed a dedicated cross-app source-distilled tool/surface registry for tool-level rebuild planning."
+    mitigation: "Use 45-source-distilled-tool-registry.md. It preserves source app provenance, source domain, tool/surface kind, Studio primitive grouping, Affinity overlap guard, and implementation-readiness status."
+  - id: SFR-GAP-014
+    severity: high
+    status: mitigated
+    detail: "The corpus needed a dedicated file-format compatibility registry so Studio preserves existing creative formats instead of inventing a replacement interchange format."
+    mitigation: "Use 46-file-format-compatibility-registry.md. It records native, import, export, round-trip, and fixture-required format compatibility targets with source provenance and fixture requirements."
+  - id: SFR-GAP-015
+    severity: high
+    status: mitigated
+    detail: "The corpus needed an implementation-facing bridge from research records to future local-first Rust Studio module work."
+    mitigation: "Use 47-studio-rust-implementation-backlog.md. It groups feature rows, tool rows, and compatibility records into Studio primitive lanes, marks existing-vs-derived primitive mappings, and records verification/manual/fixture obligations."
+  - id: SFR-GAP-016
+    severity: high
+    status: mitigated
+    detail: "Provider, cloud, AI, collaboration, hosted API, runtime, automation, and compatibility-adjacent rows needed one cross-app offline parity registry so Studio does not accidentally inherit mandatory online dependencies."
+    mitigation: "Use 48-provider-offline-parity-registry.md. It classifies 1,061 selected rows into local-first primitive, optional provider adapter with offline fallback, compatibility shim with receipts, local collaboration/model surface, local runtime/automation surface, and local model/provider-adapter postures."
+  - id: SFR-GAP-017
+    severity: high
+    status: mitigated
+    detail: "The corpus needed a coverage verification matrix before any claim that all source-distilled feature rows have the required planning fields and linkage surfaces."
+    mitigation: "Use 49-source-coverage-verification-matrix.md. It audits all 2,730 feature rows, records zero missing required planning fields, identifies 2,730 rows with URL plus local path evidence, links provider/offline selections, and records implementation obligations per row."
+  - id: SFR-GAP-018
+    severity: medium
+    status: mitigated
+    detail: "Illustrator and Figma generated feature rows previously had source URLs but no local source snapshot path references in the per-row source_refs."
+    mitigation: "Resolved by adding snapshot-path resolution to _tools/generate-source-distilled-feature-rows.py, adding explicit Figma manual-row URL overrides, patching _tools/generate-illustrator-figma-research.py to emit stable snapshot names, capturing the missing Figma snapshots, and regenerating 39 through 49. The coverage matrix now reports zero URL-only rows."
+
+review:
+  verdict: "Useful research corpus and implementation-planning seed for Studio; still not product authority until selected command contracts are accepted into a work packet or spec."
+  updated_at: "2026-07-05"

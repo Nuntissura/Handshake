@@ -133,6 +133,18 @@ test("validateRuntimeStatus accepts JSON-only folder packet paths", () => {
   assert.deepEqual(errors, []);
 });
 
+test("validateRuntimeStatus accepts folded Kernel Builder no-ACP runtime authority", () => {
+  const errors = validateRuntimeStatus({
+    ...runtimeStatusFixture(".GOV/task_packets/WP-TEST-RUNTIME-v1/packet.json"),
+    workflow_lane: "KERNEL_BUILDER_FOLDED_NO_ACP",
+    execution_owner: "KERNEL_BUILDER",
+    workflow_authority: "KERNEL_BUILDER",
+    agentic_mode: "YES",
+    current_packet_status: "Ready for Validation",
+  });
+  assert.deepEqual(errors, []);
+});
+
 test("validateRuntimeStatus accepts cross-repo kernel packet paths when they resolve to the authoritative packet", () => {
   const errors = validateRuntimeStatus({
     ...runtimeStatusFixture("../wt-gov-kernel/.GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.md"),

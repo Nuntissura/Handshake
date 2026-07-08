@@ -106,7 +106,8 @@
     "workflow_lane": {
       "enum": [
         "MANUAL_RELAY",
-        "ORCHESTRATOR_MANAGED"
+        "ORCHESTRATOR_MANAGED",
+        "KERNEL_BUILDER_FOLDED_NO_ACP"
       ]
     },
     "execution_owner": {
@@ -136,11 +137,15 @@
         "CODER_W",
         "CODER_X",
         "CODER_Y",
-        "CODER_Z"
+        "CODER_Z",
+        "KERNEL_BUILDER"
       ]
     },
     "workflow_authority": {
-      "const": "ORCHESTRATOR"
+      "enum": [
+        "ORCHESTRATOR",
+        "KERNEL_BUILDER"
+      ]
     },
     "technical_advisor": {
       "enum": [

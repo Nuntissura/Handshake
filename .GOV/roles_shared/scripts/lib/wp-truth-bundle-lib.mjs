@@ -40,6 +40,10 @@ function normalizeList(values = []) {
     .filter(Boolean);
 }
 
+function escapeRegex(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function contractMicrotaskCursor(contract = null) {
   const microtasks = contract?.microtasks || {};
   const declaredIds = normalizeList(microtasks.declared_ids);
@@ -49,16 +53,33 @@ function contractMicrotaskCursor(contract = null) {
   const sequenceNextId = activeIndex >= 0 ? normalizeText(declaredIds[activeIndex + 1]) : "";
   return {
     active_mt: activeId,
-    next_mt: declaredNextId && declaredNextId !== activeId
-      ? declaredNextId
-      : (sequenceNextId || declaredNextId),
+    next_mt: declaredNextId || sequenceNextId,
   };
 }
 
 function parseSingleField(text, label) {
-  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapeRegex(label)}(?:\\s*:\\s*\\*\\*|(?:\\*\\*)?\\s*:\\s*)(.+)\\s*$`, "mi");
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
+}
+
+function contractWorkflowLane(contract = null, packetText = "") {
+  return normalizeText(
+    contract?.lifecycle?.workflow_lane
+    || contract?.workflow?.workflow_lane
+    || contract?.workflow?.lane
+    || contract?.workflow_lane
+    || parseSingleField(packetText, "WORKFLOW_LANE"),
+  );
+}
+
+function contractValidationTopology(contract = null, packetText = "") {
+  return normalizeText(
+    contract?.workflow?.validation_topology
+    || contract?.lifecycle?.validation_topology
+    || contract?.validation_topology
+    || parseSingleField(packetText, "VALIDATION_TOPOLOGY"),
+  );
 }
 
 function safeReadJson(filePath = "", fallback = null) {
@@ -197,11 +218,25 @@ function deriveBlockers({ signedScopeValidation = null, drift = null, repomemCov
 function deriveExactNextCommand(bundle = {}) {
   const wpId = bundle.wp_id;
   const finalVerdict = normalizeText(bundle.final_verdict).toUpperCase();
+  const workflowLane = normalizeText(bundle.workflow_lane).toUpperCase();
+  const validationTopology = normalizeText(bundle.validation_topology).toUpperCase();
   if (finalVerdict === "PASS" && bundle.product_main_containment_status === "MERGE_PENDING") {
     return `just phase-check CLOSEOUT ${wpId} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`;
   }
   if (["PASS", "FAIL", "OUTDATED_ONLY", "ABANDONED"].includes(finalVerdict) && bundle.task_board_status !== "IN_PROGRESS") {
     return `just phase-check CLOSEOUT ${wpId}`;
+  }
+  if (
+    normalizeText(bundle.packet_status).toUpperCase() === "BLOCKED"
+    || normalizeText(bundle.task_board_status).toUpperCase() === "BLOCKED"
+  ) {
+    return `just mt-board ${wpId}`;
+  }
+  if (workflowLane.startsWith("KERNEL_BUILDER_FOLDED")) {
+    const validatorRole = validationTopology.includes("INTEGRATION_VALIDATOR")
+      ? "INTEGRATION_VALIDATOR"
+      : "VALIDATOR";
+    return `just validator-next ${validatorRole} ${wpId}`;
   }
   if (bundle.next_actor && !["NONE", "ORCHESTRATOR"].includes(bundle.next_actor)) {
     return `just orchestrator-steer-next ${wpId} "<why this governed role is the next legal actor, >=40 chars>"`;
@@ -301,6 +336,8 @@ export function buildWpTruthBundle({
     runtimeStatus: runtime,
   });
   const contractMicrotasks = contractMicrotaskCursor(packetView?.contract);
+  const workflowLane = contractWorkflowLane(packetView?.contract, text);
+  const validationTopology = contractValidationTopology(packetView?.contract, text);
   const bundle = {
     schema_id: WP_TRUTH_BUNDLE_SCHEMA_ID,
     schema_version: WP_TRUTH_BUNDLE_SCHEMA_VERSION,
@@ -309,6 +346,8 @@ export function buildWpTruthBundle({
     packet_path: packetPath,
     packet_contract_source: packetView?.contractSource || (packetText !== null ? "INJECTED_PACKET_TEXT" : "LEGACY_PROJECTION"),
     packet_contract_authority: packetView?.contract?.contract_authority || null,
+    workflow_lane: workflowLane,
+    validation_topology: validationTopology,
     packet_status: parseSingleField(text, "Status") || projection.current_packet_status || "UNKNOWN",
     runtime_status: normalizeText(runtime?.runtime_status || "UNKNOWN"),
     task_board_status: boardStatus,

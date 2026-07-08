@@ -22,7 +22,7 @@
   "title": "B1-MT-107-BackendLaunchContractValidator-ManagedPgTestHarness-ReScope",
   "group": "E6",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-03T21:26:02Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-107.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,17 +35,55 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "OPEN",
     "depends_on": [],
     "blocks": [
       "MT-101"
     ],
-    "active": true,
+    "active": false,
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER",
-    "claimed_at_utc": "2026-07-02T03:14:11Z",
-    "claim_session": "KERNEL_BUILDER-20260702-012522",
-    "remediation_appendage": "Backend re-scope proofs running (launch-contract units, managed-PG bootstrap, PG-bound model_run tests); operator waiver disposition for the forbidden-path breach required before RFV."
+    "remediation_appendage": "Backend re-scope proofs running (launch-contract units, managed-PG bootstrap, PG-bound model_run tests); operator waiver disposition for the forbidden-path breach required before RFV.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "CLAIMED",
+      "previous_active": true,
+      "previous_claim": {
+        "claimed_by": "KERNEL_BUILDER",
+        "claimed_at_utc": "2026-07-02T03:14:11Z",
+        "claim_session": "KERNEL_BUILDER-20260702-012522",
+        "handoff_coder_session": null
+      },
+      "cutoff_assumption": "Operator assumption: this was active work that got cut off. Reopened as unclaimed OPEN work; resume only after inspecting current evidence.",
+      "fix_first": "Verify and close the audit finding: Backend re-scope proofs running (launch-contract units, managed-PG bootstrap, PG-bound model_run tests); operator waiver disposition for the forbidden-path breach required before RFV.",
+      "how_to_fix": [
+        "Treat the previous active work as cut off: inspect any durable evidence or partial product changes, but do not assume the stale claim is live ownership.",
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-107-1, AC-107-2, AC-107-3, AC-107-4, AC-107-5) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib native_workspace_model_run ; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib storage::tests::postgres_test_base_url_bootstraps_default_postgres_when_url_candidates_missing -- --exact ; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib managed_postgres::tests::from_env_defaults_are_disk_agnostic -- --exact ; PG-bound: cargo test --manifest-path src/backend/handshake_core/Cargo.toml model_run_timeout_ms_fails_before_simulated_runtime_finishes model_run_dispatch_repairs_legacy_null_workflow_run_before_parse_failure model_run_startup_repair_backfills_legacy_null_workflow_run model_run_capability_denial_marks_precreated_workflow_failed",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "CLAIMED",
+        "new_status": "OPEN",
+        "previous_active": true
+      }
+    ],
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
+    "reopened_by": "KERNEL_BUILDER",
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
   },
   "scope": {
     "summary": "Re-scope and own the backend work that rode into recovery commit 3bf307a8 under MT-101 whose contract forbids src/backend/**. Owns: (1) validate_native_workspace_model_launch_contract in workflows.rs - marker-gated fail-closed validation of native workspace model_run launches (launch_surface=handshake_native, launch_mode=workspace_model_session, session_id/wrapper required, workspace_folder==working_dir, provider==backend) plus 7 pure unit tests; (2) api/jobs.rs model_run lane changes incl. workflow_run pre-creation and legacy null-binding repair; (3) managed_postgres.rs remediation - default pgdata under ../Handshake_Artifacts/handshake-product/managed_pgdata, ensure_running wait/adopt when postmaster.pid exists but pg_isready is not yet ready (double pg_ctl start race fix); (4) storage/postgres.rs postgres_test_base_url bootstrap of managed PostgreSQL when POSTGRES_TEST_URL/DATABASE_URL absent; (5) managed-PG auto-boot test harness adoption across backend test files plus DuckDbFlightRecorder to NoopTestRecorder swap in workflows tests; (6) session worktrees default to ../Handshake_Artifacts/handshake-tool/session_worktrees. GLOBAL-SCOPE-005 disclosure: this work was performed by the prior session as cross-cutting PostgreSQL recovery attached to the MT-101 continuation, violating MT-101 forbidden_paths; this MT is the governed re-scope so the Operator has one place to waive or reject it. Full touched-file list is enumerated in commit 3bf307a8 message and packet status_sync notes.",

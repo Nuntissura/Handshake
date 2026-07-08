@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="stylesheets/affinityhelp.xsl"?>
+
+<contents>
+	<category name="Introduction" isExpanded="True">
+		<item name="What is Affinity Designer 2 for iPad?" href="pages/Introduction/about_designer.html" />
+		<item name="Key features" href="pages/Introduction/keyFeatures.html" />
+		<item name="New features in V2.6" href="pages/Introduction/newFeatures.html" />
+		<item name="Personas" href="pages/Introduction/about_Personas.html" />
+	</category>
+	
+	<category name="User interface">
+		<item name="Interface Visual Reference" href="pages/Workspace/interface.html" />
+		<item name="Command Controller" href="pages/Workspace/wheel.html" />
+		<item name="Context toolbar" href="pages/Workspace/contextBar.html" />
+		<item name="Quick Menu" href="pages/Workspace/quickMenu.html" />
+	</category>
+
+ 	<category name="Get started"> 
+		<item name="Home screen" href="pages/GetStarted/homeScreen.html" />	
+ 		<item name="Creating new documents" href="pages/GetStarted/NewDocument.html" />
+ 		<item name="New document from clipboard" href="pages/GetStarted/NewFromClipboard.html" />
+		<item name="Opening and importing" href="pages/GetStarted/openDocument.html" />
+		<item name="Importing PDF documents" href="pages/GetStarted/importPDF.html" />
+		<item name="Importing Adobe documents" href="pages/GetStarted/importAdobe.html" />
+		<item name="Importing CAD documents" href="pages/GetStarted/importCAD.html" />
+		<item name="Document units" href="pages/GetStarted/documentUnits.html" />
+		<item name="Drawing scale" href="pages/GetStarted/drawingScale.html" />
+		<item name="Resizing documents" href="pages/GetStarted/resize.html" />
+		<item name="Zooming and panning" href="pages/GetStarted/pan.html" />
+		<item name="Viewing options and view modes" href="pages/GetStarted/view.html" />
+		<item name="Saving" href="pages/GetStarted/save.html" />
+		<item name="Closing documents" href="pages/GetStarted/closing.html" />
+ 		<item name="Document templates" href="pages/GetStarted/templates.html" />
+		<item name="Creating projects" href="pages/GetStarted/NewProject.html" />		
+	</category>
+	
+	<category name="Artboards"> 
+		<item name="About artboards" href="pages/Artboards/artboards_about.html" />
+		<item name="Adding and removing" href="pages/Artboards/artboards_addDelete.html" />
+		<item name="Selecting, moving and resizing" href="pages/Artboards/artboards_moveResize.html" />
+		<item name="Renaming and viewing" href="pages/Artboards/artboards_renameView.html" />
+		<item name="Aligning and distributing" href="pages/Artboards/artboards_alignDistribute.html" />
+		<item name="Design aids" href="pages/Artboards/artboards_designAids.html" />
+		<item name="Exporting" href="pages/Artboards/artboards_export.html" />
+	</category>
+
+	<category name="Lines, curves and shapes">
+		<item name="About lines, curves and shapes" href="pages/CurvesShapes/about_linesAndShapes.html" />
+		<item name="Draw lines, curves and shapes" href="pages/CurvesShapes/draw_linesAndShapes.html" />
+		<item name="Draw pencil lines" href="pages/CurvesShapes/draw_pencilLines.html" />
+		<item name="Pressure sensitivity" href="pages/CurvesShapes/pressure.html" />
+		<item name="Edit on-page pressure profiles" href="pages/CurvesShapes/edit_pressureProfiles.html" />		
+		<item name="Edit lines and shapes" href="pages/CurvesShapes/edit_linesAndShapes.html" />
+		<item name="About geometric shapes" href="pages/CurvesShapes/about_geometricShapes.html" />
+		<item name="Draw and edit shapes" href="pages/CurvesShapes/draw_geometricShapes.html" />
+		<item name="Draw QR codes" href="pages/CurvesShapes/draw_qrCodes.html" />
+		<item name="Arrowheads" href="pages/CurvesShapes/arrowheads.html" />
+		<item name="Dot/dash line styles" href="pages/CurvesShapes/dot_dash_lines.html" />
+		<item name="Texture line styles" href="pages/CurvesShapes/texture_line_style.html" />
+		<item name="Using multiple strokes and fills" href="pages/CurvesShapes/multiStrokesAndFills.html" />
+		<item name="Transforming lines and shapes" href="pages/CurvesShapes/transform_linesAndShapes.html" />
+		<item name="Selecting and aligning nodes" href="pages/CurvesShapes/select_align_nodes.html" />
+		<item name="Contouring curves and shapes" href="pages/CurvesShapes/contouringShapes.html" />
+		<item name="Cornering shapes" href="pages/CurvesShapes/corneringShapes.html" />
+		<item name="Expanding strokes" href="pages/CurvesShapes/expandStroke.html" />
+	</category>
+	
+	<category name="Color">
+		<item name="About color" href="pages/Clr/aboutClr.html" />
+		<item name="Color models" href="pages/Clr/ClrModels.html" />
+		<item name="Color spaces" href="pages/Clr/aboutClrSpaces.html" />
+		<item name="Color management" href="pages/Clr/ClrProfiles.html" />
+		<item name="Using OpenColorIO" href="pages/Clr/ocio.html" />
+		<item name="Selecting colors" href="pages/Clr/selectingClr.html" />
+		<item name="Sampling colors" href="pages/Clr/samplingClr.html" />
+		<item name="Global colors" href="pages/Clr/globalClr.html" />
+		<item name="Spot colors" href="pages/Clr/spotClr.html" />
+		<item name="Overprinting" href="pages/Clr/overprint.html" />
+		<item name="Gradients" href="pages/Clr/gradientEditor.html" />
+		<item name="Transparency" href="pages/Clr/transparency.html" />
+	</category>
+
+	<category name="Layers">
+		<item name="About layers" href="pages/Layers/aboutLayers.html" />
+		<item name="Create layers" href="pages/Layers/createLayers.html" />
+		<item name="Layer drop zones" href="pages/Layers/layerDropZones.html" />
+		<item name="Selecting and editing layers" href="pages/Layers/selectEditLayers.html" />
+		<item name="Tagging layers" href="pages/Layers/tagLayers.html" />
+		<item name="Arrange/manage layers" href="pages/Layers/manageLayers.html" />
+		<item name="Merge layers" href="pages/Layers/mergeLayers.html" />		
+		<item name="Layer opacity" href="pages/Layers/layerOpacity.html" />
+		<item name="Layer blending" href="pages/Layers/layerBlendModes.html" />
+		<item name="Layer blend ranges" href="pages/Layers/layerBlendRanges.html" />
+		<item name="Image layers" href="pages/Layers/layerImage.html" />
+		<item name="Layer masking" href="pages/Layers/LayerMasks.html" />
+		<item name="Adjustment layers" href="pages/Layers/adjustmentLayers.html" />
+	</category>
+
+	<category name="Object Control">
+		<item name="Selecting objects" href="pages/ObjectControl/select.html" />
+		<item name="Grouping objects" href="pages/ObjectControl/group.html" />
+		<item name="Duplicating objects" href="pages/ObjectControl/duplicate.html" />
+		<item name="Aligning objects" href="pages/ObjectControl/align.html" />
+		<item name="Layer clipping" href="pages/ObjectControl/layerClip.html" />
+		<item name="Joining objects" href="pages/ObjectControl/join.html" />
+		<item name="Compound objects" href="pages/ObjectControl/compound.html" />
+		<item name="Adding objects by shape building" href="pages/ObjectControl/join_shapeBuilder.html" />
+		<item name="Cutting objects" href="pages/ObjectControl/cutting.html" />
+		<item name="Warping objects" href="pages/ObjectControl/warp.html" />	
+		<item name="Spacing objects" href="pages/ObjectControl/distribute.html" />
+		<item name="Ordering objects" href="pages/ObjectControl/order.html" />
+		<item name="Targeting objects" href="pages/ObjectControl/target.html" />
+		<item name="Soloing objects" href="pages/ObjectControl/isolating.html" />
+		<item name="Transforming objects" href="pages/ObjectControl/transform.html" />
+		<item name="Rotating and shearing objects" href="pages/ObjectControl/rotateShear.html" />
+		<item name="Rasterizing objects" href="pages/ObjectControl/rasterizing.html" />
+		<item name="Flooding areas" href="pages/ObjectControl/floodingAreas.html" />
+		<item name="Converting objects to curves" href="pages/ObjectControl/converttocurves.html" />
+		<item name="Styles" href="pages/ObjectControl/styles.html" />
+		<item name="Copying and pasting objects" href="pages/ObjectControl/copyPasteOptions.html" />
+		<item name="Symbols" href="pages/SymbolsAssets/symbols.html" />
+		<item name="Object defaults" href="pages/ObjectControl/objectDefaults.html" />
+	</category>
+	
+	<category name="Vector painting">
+		<item name="Painting vector brush strokes" href="pages/Painting/painting.html" />
+		<item name="Modifying vector brush settings" href="pages/Painting/modifyStrokes.html" />
+		<item name="Creating custom vector brushes" href="pages/Painting/create_custombrushes.html" />
+		<item name="Pressure sensitivity" href="pages/CurvesShapes/pressure.html" />
+	</category>
+	
+	<category name="Pixel (raster) painting">
+		<item name="Painting raster brush strokes" href="pages/Painting/pixel_painting.html" />
+		<item name="Modifying raster brush settings" href="pages/Painting/pixel_modify.html" />
+		<item name="Creating custom raster brushes" href="pages/Painting/pixel_customBrushes.html" />		
+		<item name="Erasing" href="pages/Painting/erasing.html" />
+		<item name="Pixel-aligned painting" href="pages/Painting/pixelBrushing.html" />
+	</category>
+	
+	<category name="Text">
+		<item name="Working with text" href="pages/Text/text_general.html" />
+		<item name="Artistic text" href="pages/Text/artText.html" />
+		<item name="Frame text" href="pages/Text/frameText.html" />
+		<item name="Text on a path" href="pages/Text/pathText.html" />
+		<item name="Shape text" href="pages/Text/shapeText.html" />
+		<item name="Editing text" href="pages/Text/textEditing.html" />
+		<item name="Importing text" href="pages/Text/importText.html" />
+		<item name="Character formatting" href="pages/Text/characters.html" />
+		<item name="Paragraph formatting" href="pages/Text/paragraphs.html" />
+		<item name="Fitting text to frames" href="pages/Text/fittingFrameText.html" />
+		<item name="Variable fonts" href="pages/Text/variableFonts.html" />
+		<item name="OpenType font features" href="pages/Text/opentype_fonts.html" />
+		<item name="Special characters and glyphs" href="pages/Text/specialCharacters.html" />
+		<item name="Using text styles" href="pages/Text/textStyles.html" />
+		<item name="Creating and managing text styles" href="pages/Text/textStyles_create.html" />
+	</category>
+
+	<category name="Placing external content">
+		<item name="Embedding vs linking" href="pages/Media/embeddingVsLinking.html" />
+		<item name="Placing content" href="pages/Media/placeImages.html" />
+		<item name="Using stock photos" href="pages/Media/stockPhotos.html" />
+		<item name="Resource Manager panel" href="pages/Panels/resourceManagerPanel.html" />
+	</category>
+
+	<category name="Assets">
+		<item name="Assets" href="pages/SymbolsAssets/assets.html" />
+	</category>
+
+	<category name="Selections">
+		<category name="Creating pixel selections">
+			<item name="Overview" href="pages/Selections/selections_create.html" />
+			<item name="By painting" href="pages/Selections/selections_brush.html" />
+			<item name="By flooding" href="pages/Selections/selections_flood.html" />
+			<item name="By drawing" href="pages/Selections/selections_freehand.html" />
+			<item name="From a sampled color" href="pages/Selections/selections_sampled.html" />
+			<item name="Using a marquee" href="pages/Selections/selections_marquee.html" />
+		</category>
+		<item name="Modifying pixel selections" href="pages/Selections/selections_modify.html" />
+		<item name="Transforming pixel selections" href="pages/Selections/selections_transform.html" />
+		<item name="Refining pixel selection edges" href="pages/Selections/selections_refine.html" />
+		<item name="Creating outline selections" href="pages/Selections/selections_outline.html" />
+	</category>
+	
+	<category name="Sharing">
+		
+		<item name="Setting bleed" href="pages/ShareSavePrint/bleed.html" />
+		<item name="Export" href="pages/ShareSavePrint/export.html" />
+		<item name="Export Settings" href="pages/ShareSavePrint/exportSettings.html" />
+		<item name="Print" href="pages/ShareSavePrint/print.html" />
+		<item name="Share" href="pages/ShareSavePrint/share.html" />
+	</category>
+	
+	<category name="Export Persona">
+		<item name="Exporting using Export Persona" href="pages/ExportPersona/exportPersona.html" />
+		<item name="Slices panel" href="pages/ExportPersona/slicesPanel.html" />
+		<item name="Layers panel" href="pages/ExportPersona/exportPersona_layersPanel.html" />
+	</category>
+	
+	
+	<category name="Design aids">
+		<item name="Using undo, redo and history" href="pages/DesignAids/undo.html" />
+		<item name="Clip to Canvas" href="pages/DesignAids/clipToCanvas.html" />
+		<item name="Rotate document view" href="pages/DesignAids/rotateCanvas.html" />
+		<item name="Grids" href="pages/DesignAids/grids.html" />
+		<item name="Isometric and axonometric grids" href="pages/DesignAids/grids_axonometric.html" />		
+		<item name="Ruler and column guides" href="pages/DesignAids/guides.html" />
+		<item name="Dynamic guides" href="pages/DesignAids/dynamicGuides.html" />
+		<item name="Margins" href="pages/DesignAids/margins.html" />
+		<item name="Rulers" href="pages/DesignAids/rulers.html" />
+		<item name="Measuring" href="pages/DesignAids/measuring.html" />
+		<item name="Preview mode" href="pages/DesignAids/previewMode.html" />
+		<item name="Snapping" href="pages/DesignAids/snapping.html" />
+		<item name="Curve snapping" href="pages/DesignAids/curveSnapping.html" target="topic" />
+		<item name="Construction snapping for curves" href="pages/DesignAids/constructionSnapping.html" />
+		<item name="Force Pixel Alignment" href="pages/DesignAids/pixelAlign.html" />
+		<item name="Constraints" href="pages/DesignAids/constraints.html" />
+		<item name="Using snapshots" href="pages/DesignAids/snapshot.html" />
+		<item name="Assistant" href="pages/DesignAids/AssistantManager.html" />
+	</category>
+
+	<category name="Layer effects (FX)">
+		<item name="Using layer effects" href="pages/LayerFX/create_LayerFX.html" />
+		<item name="3D Effect" href="pages/LayerFX/layerFX_3D.html" />
+		<item name="Bevel/Emboss" href="pages/LayerFX/layerFX_bevelEmboss.html" />
+		<item name="Color Overlay" href="pages/LayerFX/layerFX_clrOverlay.html" />
+		<item name="Gaussian Blur" href="pages/LayerFX/layerFX_gaussianBlur.html" />
+		<item name="Gradient Overlay" href="pages/LayerFX/layerFX_gradientOverlay.html" />
+		<item name="Inner Glow" href="pages/LayerFX/layerFX_innerGlow.html" />
+		<item name="Inner Shadow" href="pages/LayerFX/layerFX_innerShadow.html" />
+		<item name="Outer Glow" href="pages/LayerFX/layerFX_outerGlow.html" />
+		<item name="Outer Shadow" href="pages/LayerFX/layerFX_outerShadow.html" />
+		<item name="Outline" href="pages/LayerFX/layerFX_outline.html" />
+	</category>
+	
+	
+	<category name="Adjustments">
+		<item name="Applying adjustments" href="pages/Adjustments/adjustment_applying.html" />
+		<item name="Tonal adjustments" href="pages/Adjustments/tonalAdjustments.html" />
+		<item name="Color adjustments" href="pages/Adjustments/clrAdjustments.html" />
+		<item name="Other adjustments" href="pages/Adjustments/otherAdjustments.html" />
+	</category>
+	
+
+	<category name="Workspace">
+		<item name="Changing the UI appearance" href="pages/Workspace/uiAppearance.html" />
+		<item name="Keyboard shortcuts" href="pages/Workspace/shortcuts.html" />
+		<item name="Customizing keyboard shortcuts" href="pages/Workspace/customizingShortcuts.html" />
+		<item name="Settings" href="pages/Workspace/preferences.html" />
+		<item name="Using on-screen modifiers" href="pages/Workspace/onscreenModifiers.html" />
+		<item name="Field input" href="pages/Workspace/fieldInput.html" />
+	</category>
+
+	<category name="Tools">
+		<category name="Design Tools">
+			<item name="Move Tool" href="pages/Tools/tools_move.html" />
+			<item name="Node Tool" href="pages/Tools/tools_node.html" />
+			<item name="Point Transform Tool" href="pages/Tools/tools_pointTransform.html" />
+			<item name="Contour Tool" href="pages/Tools/tools_contour.html" />
+			<item name="Corner Tool" href="pages/Tools/tools_corner.html" />
+			<item name="Pencil Tool" href="pages/Tools/tools_pencil.html" />
+			<item name="Stroke Width Tool" href="pages/Tools/tools_lineWidth.html" />
+			<item name="Vector Brush Tool" href="pages/Tools/tools_Brush.html" />
+			<item name="Pen Tool" href="pages/Tools/tools_pen.html" />
+			<item name="Knife Tool" href="pages/Tools/tools_knife.html" />
+			<item name="Gradient Tool" href="pages/Tools/tools_gradient.html" />
+			<item name="Vector Flood Fill Tool" href="pages/Tools/tools_vectorFloodFill.html" />
+			<item name="Transparency Tool" href="pages/Tools/tools_transparency.html" />
+			<item name="Vector Crop Tool" href="pages/Tools/tools_crop.html" />
+			<item name="Shape Builder Tool" href="pages/Tools/tools_shapeBuilder.html" />			
+			<item name="Color Picker Tool" href="pages/Tools/tools_clrpicker.html" />
+			<item name="Style Picker Tool" href="pages/Tools/tools_stylePicker.html" />
+			<item name="Measure Tool" href="pages/Tools/tools_measure.html" />
+			<item name="Area Tool" href="pages/Tools/tools_area.html" />			
+		</category>
+			
+		<category name="Shape Tools">
+			<item name="Rectangle Tool" href="pages/Tools/tools_rectangle.html" />
+			<item name="Rounded Rectangle Tool" href="pages/Tools/tools_roundedRectangle.html" />
+			<item name="Ellipse Tool" href="pages/Tools/tools_ellipse.html" />		
+			<item name="Triangle Tool" href="pages/Tools/tools_triangle.html" />
+			<item name="Diamond Tool" href="pages/Tools/tools_diamond.html" />	
+			<item name="Trapezoid Tool" href="pages/Tools/tools_trapezoid.html" />
+			<item name="Polygon Tool" href="pages/Tools/tools_polygon.html" />
+			<item name="Star Tool" href="pages/Tools/tools_star.html" />
+			<item name="Double Star Tool" href="pages/Tools/tools_doublestar.html" />
+			<item name="Square Star Tool" href="pages/Tools/tools_squareStar.html" />
+			<item name="Arrow Tool" href="pages/Tools/tools_arrow.html" />
+			<item name="Donut Tool" href="pages/Tools/tools_dnut.html" />
+			<item name="Pie Tool" href="pages/Tools/tools_pie.html" />
+			<item name="Segment Tool" href="pages/Tools/tools_segment.html" />
+			<item name="Crescent Tool" href="pages/Tools/tools_crescent.html" />
+			<item name="Cog Tool" href="pages/Tools/tools_cog.html" />
+			<item name="Cloud Tool" href="pages/Tools/tools_cloud.html" />
+			<item name="Callout Rectangle Tool" href="pages/Tools/tools_calloutRectangle.html" />
+			<item name="Callout Ellipse Tool" href="pages/Tools/tools_calloutEllipse.html" />
+			<item name="Tear Tool" href="pages/Tools/tools_tear.html" />
+			<item name="Heart Tool" href="pages/Tools/tools_heart.html" />
+			<item name="Spiral Tool" href="pages/Tools/tools_spiral.html" />
+			<item name="QR Code Tool" href="pages/Tools/tools_qrCode.html" />
+		</category>
+		
+		<category name="Text Tools">
+			<item name="Art Text Tool" href="pages/Tools/tools_artText.html" />
+			<item name="Frame Text Tool" href="pages/Tools/tools_frameText.html" />
+		</category>
+		
+		<category name="Raster Design Tools">
+			<item name="Paint Brush Tool" href="pages/Tools/tools_paintBrush.html" />
+			<item name="Pixel Tool" href="pages/Tools/tools_pixel.html" />
+			<item name="Erase Brush Tool" href="pages/Tools/tools_eraseBrush.html" />
+			<item name="Flood Fill Tool" href="pages/Tools/tools_floodFill.html" />		
+		</category>
+
+		<category name="Selection Tools">
+			<item name="Smart Selection Brush Tool" href="pages/Tools/tools_selectionBrush.html" />
+			<item name="Flood Selection Tool" href="pages/Tools/tools_floodSelect.html" />
+			<item name="Marquee Selection Tools" href="pages/Tools/tools_marquee.html" />
+		</category>
+
+		<category name="Export Tools">
+			<item name="Slice Tool" href="pages/Tools/tools_slice.html" />
+		</category>
+
+	</category>
+
+	<category name="Studio panels">
+			<item name="Color panel" href="pages/Panels/clrPanel.html" />
+			<item name="Stroke panel" href="pages/Panels/strokePanel.html" />
+			<item name="Brushes panel" href="pages/Panels/brushesPanel.html" />
+			<item name="Layers panel" href="pages/Panels/layersPanel.html" />
+			<item name="Appearance panel" href="pages/Panels/appearancePanel.html" />
+			<item name="Assets panel" href="pages/Panels/assetsPanel.html" />
+			<item name="Stock panel" href="pages/Panels/stockPanel.html" />
+			<item name="Symbols panel" href="pages/Panels/symbolsPanel.html" />
+			<item name="Layer FX panel" href="pages/Panels/layerFxPanel.html" />
+			<item name="Adjustments panel" href="pages/Panels/adjustmentsPanel.html" />
+			<item name="Text panel" href="pages/Panels/textPanel.html" />
+			<item name="Transform panel" href="pages/Panels/transformPanel.html" />
+			<item name="Navigator panel" href="pages/Panels/navigatorPanel.html" />
+			<item name="History panel" href="pages/Panels/historyPanel.html" />
+			<item name="Resource Manager panel" href="pages/Panels/resourceManagerPanel.html" />
+			<item name="Slices panel (Export Persona)" href="pages/ExportPersona/slicesPanel.html" />
+			<item name="Layers panel (Export Persona)" href="pages/ExportPersona/exportPersona_layersPanel.html" />
+	</category>
+
+	<category name="Add-ons">
+		<item name="About add-ons" href="pages/Addons/aboutAddons.html" />
+		<item name="Linking custom content across apps" href="pages/Addons/linkingContent.html" />
+		<item name="Exporting add-ons" href="pages/Addons/exportingAddons.html" />
+		<item name="Importing add-ons" href="pages/Addons/importingAddons.html" />
+	</category>
+
+	<category name="Appendix">
+		<item name="Supported file formats" href="pages/Appendix/fileformat.html" />
+		<item name="Contacting us" href="pages/Appendix/contacting_us.html" />
+		<item name="Copyrights" href="pages/Appendix/copyrights.html" />
+		<item name="Glossary" href="pages/Appendix/glossary.html" />
+	</category>
+	
+	<category name="Extras">
+		<item name="Apple Photos library access" href="pages/Extras/photosLibrary.html" />
+		<item name="Using an Apple Pencil" href="pages/Extras/applePencil.html" />
+		<item name="Using a mouse or trackpad" href="pages/Extras/pointingDevices.html" />
+		<item name="Using external screens" href="pages/Extras/externalDisplays.html" />
+	</category>
+	
+</contents>

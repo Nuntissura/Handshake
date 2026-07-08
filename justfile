@@ -483,10 +483,10 @@ validator-next role wp-id="" *FLAGS:
 	@just memory-recall VALIDATOR_RESUME --role {{role}} --wp {{wp-id}}
 	@$env:HANDSHAKE_VALIDATOR_ROLE="{{role}}"; node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" --role {{role}} {{wp-id}} --raw-flags "{{FLAGS}}"
 
-task-board-set wp-id status context reason="":
-	@just repomem-gate --role ORCHESTRATOR --wp {{wp-id}}
-	@just repomem context "{{context}}" --trigger task-board-set --role ORCHESTRATOR --wp {{wp-id}}
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
+task-board-set wp-id status context reason="" role="ORCHESTRATOR":
+	@just repomem-gate --role {{role}} --wp {{wp-id}}
+	@just repomem context "{{context}}" --trigger task-board-set --role {{role}} --wp {{wp-id}}
+	@$env:HANDSHAKE_TASK_BOARD_ACTOR_ROLE="{{role}}"; node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
 
 integration-validator-context-brief wp-id *args:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs" {{wp-id}} --raw-flags "{{args}}"

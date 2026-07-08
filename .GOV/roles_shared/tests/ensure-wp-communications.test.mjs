@@ -259,6 +259,60 @@ test("reconcileWpCommunicationTruth replays final review receipts into packet an
   assert.equal(reconciliation.nextRuntimeStatus.route_anchor_target_session, null);
 });
 
+test("reconcileWpCommunicationTruth preserves folded JSON-only communication defaults", () => {
+  const packetText = [
+    "# Contract-Derived Packet Projection: WP-TEST-FOLDED-COMMS-v1",
+    "",
+    "- WP_ID: WP-TEST-FOLDED-COMMS-v1",
+    "- BASE_WP_ID: WP-TEST-FOLDED-COMMS",
+    "- **Status:** Ready for Validation",
+    "- WORKFLOW_LANE: KERNEL_BUILDER_FOLDED_NO_ACP",
+    "- WORKFLOW_AUTHORITY: KERNEL_BUILDER",
+    "- EXECUTION_OWNER: KERNEL_BUILDER",
+    "- AGENTIC_MODE: YES",
+    "- LOCAL_BRANCH: feat/WP-TEST-FOLDED-COMMS-v1",
+    "- LOCAL_WORKTREE_DIR: ../wtc-test-folded-comms-v1",
+    "- MAIN_CONTAINMENT_STATUS: NOT_STARTED",
+    "- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN",
+    "- PACKET_WIDENING_DECISION: NONE",
+  ].join("\n");
+
+  const reconciliation = reconcileWpCommunicationTruth({
+    wpId: "WP-TEST-FOLDED-COMMS-v1",
+    packetPath: ".GOV/task_packets/WP-TEST-FOLDED-COMMS-v1/packet.json",
+    packetText,
+    runtimeStatus: {
+      schema_version: "wp_runtime_status@1",
+      wp_id: "WP-TEST-FOLDED-COMMS-v1",
+      base_wp_id: "WP-TEST-FOLDED-COMMS",
+      technical_advisor: "WP_VALIDATOR",
+      technical_authority: "INTEGRATION_VALIDATOR",
+      merge_authority: "INTEGRATION_VALIDATOR",
+      current_packet_status: "Ready for Validation",
+      runtime_status: "working",
+      current_phase: "VALIDATION",
+    },
+    receipts: [],
+  });
+
+  assert.equal(
+    reconciliation.nextRuntimeStatus.communication_dir,
+    "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-TEST-FOLDED-COMMS-v1",
+  );
+  assert.equal(
+    reconciliation.nextRuntimeStatus.thread_file,
+    "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-TEST-FOLDED-COMMS-v1/THREAD.md",
+  );
+  assert.equal(reconciliation.nextRuntimeStatus.workflow_lane, "KERNEL_BUILDER_FOLDED_NO_ACP");
+  assert.equal(reconciliation.nextRuntimeStatus.execution_owner, "KERNEL_BUILDER");
+  assert.equal(reconciliation.nextRuntimeStatus.workflow_authority, "KERNEL_BUILDER");
+  assert.equal(reconciliation.nextRuntimeStatus.technical_advisor, "WP_VALIDATOR");
+  assert.equal(reconciliation.nextRuntimeStatus.technical_authority, "INTEGRATION_VALIDATOR");
+  assert.equal(reconciliation.nextRuntimeStatus.merge_authority, "INTEGRATION_VALIDATOR");
+  assert.equal(reconciliation.nextRuntimeStatus.current_task_board_status, "IN_PROGRESS");
+  assert.equal(reconciliation.nextRuntimeStatus.current_milestone, "HANDOFF");
+});
+
 test("reconcileWpCommunicationTruth resets relay cycle after route progress clears a stale validator wake", () => {
   const packetText = [
     "# Task Packet: WP-TEST-COMMS-v1",

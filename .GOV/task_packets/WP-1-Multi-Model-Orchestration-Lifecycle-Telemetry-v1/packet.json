@@ -20,7 +20,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "base_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-01T19:02:22Z",
+  "updated_at_utc": "2026-07-04T04:45:58Z",
   "source_control": {
     "merge_base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
     "canonical_branch": "main",
@@ -40,10 +40,13 @@
     "backup_push_status": "NOT_STARTED"
   },
   "workflow": {
-    "lane": "ORCHESTRATOR_MANAGED",
-    "authority": "ACTIVATION_MANAGER",
-    "execution_owner": "UNCLAIMED",
-    "session_start_authority": "ORCHESTRATOR_AFTER_OPERATOR_MT_SELECTION",
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "authority": "KERNEL_BUILDER",
+    "technical_advisor": "WP_VALIDATOR",
+    "technical_authority": "INTEGRATION_VALIDATOR",
+    "merge_authority": "INTEGRATION_VALIDATOR",
+    "execution_owner": "KERNEL_BUILDER",
+    "session_start_authority": "OPERATOR_DIRECT_KERNEL_BUILDER_STARTUP_2026-07-04",
     "host_preference": "AUTO",
     "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
     "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/THREAD.md",
@@ -57,8 +60,8 @@
     "coder_compatible_execution_lane": "MULTI_AGENT_MT_PARALLEL"
   },
   "lifecycle": {
-    "status": "Ready for Dev",
-    "current_wp_status": "READY_FOR_DEV",
+    "status": "Ready for Validation",
+    "current_wp_status": "READY_FOR_VALIDATION",
     "main_containment_status": "NOT_STARTED",
     "merged_main_commit": "NONE",
     "main_containment_verified_at_utc": "N/A",
@@ -337,8 +340,8 @@
       "MT-015",
       "MT-016"
     ],
-    "active_id": "MT-003",
-    "next_id": "MT-003"
+    "active_id": null,
+    "next_id": null
   },
   "research_basis": {
     "external_research_status": "CURRENT_EXTERNAL_RESEARCH_COMPLETED_FOR_MT_REFINEMENT_2026-06-28",

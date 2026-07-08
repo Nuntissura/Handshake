@@ -291,8 +291,11 @@ export const WP_TOTAL_TOKEN_BUDGET = Object.freeze({
 export const EXECUTION_OWNER_TOKENS = Array.from({ length: 26 }, (_, index) =>
   String.fromCharCode("A".charCodeAt(0) + index),
 );
-export const EXECUTION_OWNER_VALUES = EXECUTION_OWNER_TOKENS.map((token) => `CODER_${token}`);
-export const EXECUTION_OWNER_RANGE_HELP = "Coder-A..Coder-Z";
+export const EXECUTION_OWNER_VALUES = [
+  ...EXECUTION_OWNER_TOKENS.map((token) => `CODER_${token}`),
+  "KERNEL_BUILDER",
+];
+export const EXECUTION_OWNER_RANGE_HELP = "Coder-A..Coder-Z or KERNEL_BUILDER";
 export const SESSION_ROLES = ["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "MEMORY_MANAGER"];
 export const SESSION_RUNTIME_STATES = [
   "UNSTARTED",

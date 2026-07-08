@@ -115,6 +115,85 @@ test("mt-board preserves blocked microtasks and skips them during claim", () => 
   }
 });
 
+test("mt-board preserves managed-resource-proof blockers and skips them during claim", () => {
+  const wpId = "WP-TEST-MT-BOARD-MANAGED-RESOURCE-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  writeContract(path.join(packetDir, "packet.json"), {
+    schema_id: "hsk.work_packet_contract@1",
+    wp_id: wpId,
+  });
+  writeContract(path.join(packetDir, "MT-001.json"), {
+    schema_id: "hsk.microtask_contract@1",
+    mt_id: "MT-001",
+    wp_id: wpId,
+    title: "Managed resource proof blocked JSON MT",
+    owned_files: ["src/managed.rs"],
+    proof_commands: ["cargo test managed"],
+    depends_on_mts: [],
+    lifecycle: {
+      status: "NEEDS_MANAGED_RESOURCE_PROOF",
+      depends_on: [],
+      missing_resource: "REAL_CANDLE_CPU_MODEL_LOAD",
+    },
+    handoff: {},
+  });
+  writeContract(path.join(packetDir, "MT-002.json"), {
+    schema_id: "hsk.microtask_contract@1",
+    mt_id: "MT-002",
+    wp_id: wpId,
+    title: "Available JSON MT",
+    owned_files: ["src/available.rs"],
+    proof_commands: ["cargo test available"],
+    depends_on_mts: [],
+    lifecycle: { status: "PENDING", depends_on: [] },
+    handoff: {},
+  });
+
+  try {
+    const board = runMtBoard(["board", wpId]);
+    assert.match(board, /MT-001 \| NEEDS_MANAGED_RESOURCE_PROOF/);
+    assert.match(runMtBoard(["claim", wpId, "session-json"]), /Claimed MT-002/);
+    const mt001 = JSON.parse(fs.readFileSync(path.join(packetDir, "MT-001.json"), "utf8"));
+    const mt002 = JSON.parse(fs.readFileSync(path.join(packetDir, "MT-002.json"), "utf8"));
+    assert.equal(mt001.lifecycle.status, "NEEDS_MANAGED_RESOURCE_PROOF");
+    assert.equal(mt001.handoff.coder_session, undefined);
+    assert.equal(mt002.lifecycle.status, "CLAIMED");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
+test("mt-board treats open microtasks as visible and claimable", () => {
+  const wpId = "WP-TEST-MT-BOARD-OPEN-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  writeContract(path.join(packetDir, "packet.json"), {
+    schema_id: "hsk.work_packet_contract@1",
+    wp_id: wpId,
+  });
+  writeContract(path.join(packetDir, "MT-001.json"), {
+    schema_id: "hsk.microtask_contract@1",
+    mt_id: "MT-001",
+    wp_id: wpId,
+    title: "Open JSON MT",
+    owned_files: ["src/open.rs"],
+    proof_commands: ["cargo test open"],
+    depends_on_mts: [],
+    lifecycle: { status: "OPEN", active: false, depends_on: [] },
+    handoff: {},
+  });
+
+  try {
+    const board = runMtBoard(["board", wpId]);
+    assert.match(board, /MT-001 \| OPEN/);
+    assert.match(runMtBoard(["claim", wpId, "session-json"]), /Claimed MT-001/);
+    const mt001 = JSON.parse(fs.readFileSync(path.join(packetDir, "MT-001.json"), "utf8"));
+    assert.equal(mt001.lifecycle.status, "CLAIMED");
+    assert.equal(mt001.handoff.coder_session, "session-json");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
 test("mt-board treats ready-for-validation microtasks as implemented dependency evidence", () => {
   const wpId = "WP-TEST-MT-BOARD-READY-v1";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);

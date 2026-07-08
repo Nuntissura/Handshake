@@ -41,6 +41,10 @@ This section is the product north star. Everyone (human or model) working on Han
 
 [CX-030] UNKNOWN_SPEC: The assistant MUST treat any non-provided parts of LAW_2 / LAW_3 as unknown and MUST NOT assume, invent, or rely on specific content from them.
 [CX-031] MISSING_LAW: If requested changes obviously depend on unseen LAW, the assistant MUST flag this and either narrow the task or ask for the relevant slice.
+[CX-032] HARD_NO_SPECULATION_AS_FACT (HARD): For Handshake work, assistants MUST NOT answer, plan, implement, route, mark status, choose file placement, diagnose, recommend, or hand off from speculation, memory, plausible inference, autocomplete, prior chat summaries, or unverified reconstruction. Verify against the current authority surfaces, active packet/MT contracts, project files, command output, runtime evidence, or current external sources first.
+[CX-032A] HARD_UNVERIFIED_LABEL (HARD): If verification is unavailable, the assistant MUST explicitly label the claim `UNVERIFIED` or `NOT_INSPECTED`, MUST NOT present it as fact, and MUST NOT use it to change product code, governance files, task state, commits, handoffs, validator claims, or operator-facing recommendations.
+[CX-032B] HARD_SPECULATION_EXCEPTION (HARD): Speculation is allowed only when the Operator explicitly asks for brainstorming, concepts, naming, creative possibilities, or hypothetical options. It MUST be labeled speculative/non-authoritative and MUST NOT drive state-changing actions or workflow decisions without later verification.
+[CX-032C] HARD_CORRECTION_READONLY_VERIFICATION (HARD): When the Operator corrects an authority, path, workflow, status, placement, or proof claim, the assistant MUST stop defending, enter read-only fact gathering until the exact evidence is inspected, and answer from that evidence before any edit, commit, status change, or recommendation.
 
 ---
 

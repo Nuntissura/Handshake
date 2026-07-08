@@ -174,9 +174,10 @@ function matchRegistrySessionToGitContext(session, repoRoot, gitContext = {}) {
 
 export function readValidatorAuthority(packetContent = "") {
   const workflowLane = String(parseClaimField(packetContent, "WORKFLOW_LANE") || "").trim().toUpperCase();
+  const foldedKernelBuilderLane = workflowLane.startsWith("KERNEL_BUILDER_FOLDED");
   const technicalAuthority =
     normalizeValidatorRole(parseClaimField(packetContent, "TECHNICAL_AUTHORITY"))
-    || (workflowLane === "ORCHESTRATOR_MANAGED" ? "INTEGRATION_VALIDATOR" : "CLASSICAL_VALIDATOR");
+    || (workflowLane === "ORCHESTRATOR_MANAGED" || foldedKernelBuilderLane ? "INTEGRATION_VALIDATOR" : "CLASSICAL_VALIDATOR");
   const mergeAuthority =
     normalizeValidatorRole(parseClaimField(packetContent, "MERGE_AUTHORITY"))
     || technicalAuthority;
@@ -474,6 +475,19 @@ export function resolveValidatorActorContext({
       actorBranch: String(matchingGovernedSession.local_branch || branch || "").trim(),
       actorWorktreeDir: normalizePath(String(matchingGovernedSession.local_worktree_dir || worktreeDir || "").trim()),
       source: "SESSION_REGISTRY",
+      authority,
+    };
+  }
+
+  if (authority.workflowLane.startsWith("KERNEL_BUILDER_FOLDED")) {
+    return {
+      actorRole: "INTEGRATION_VALIDATOR",
+      actorSessionKey: "",
+      actorSessionId: "",
+      actorThreadId: "",
+      actorBranch: branch,
+      actorWorktreeDir: worktreeDir,
+      source: "FOLDED_KERNEL_BUILDER_TOPOLOGY",
       authority,
     };
   }

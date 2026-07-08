@@ -1,0 +1,1169 @@
+Title: Supported file formats
+
+URL Source: https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html
+
+Markdown Content:
+*   
+    *   
+        *   
+            *   [![Image 1: Adobe, Inc.](https://www.adobe.com/content/dam/cc/icons/adobe_wordmark_red.svg)](https://www.adobe.com/)
+            *    
+            *   
+                *   
+ 
+                    *   
+[Creativity & Design Creativity Creativity & Design](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+                        *   
+                            *   
+                                *   
+Shop for  
+                                    *   [![Image 2: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)What is Creative Cloud?Creative apps and services for everyone](https://www.adobe.com/creativecloud.html)
+
+                                *   
+                                    *   [Photographers Lightroom, Photoshop, and more](https://www.adobe.com/creativecloud/photography.html)
+                                    *   [Individuals 20+ creative apps, Acrobat, and more](https://www.adobe.com/creativecloud/all-apps.html)
+                                    *   [Business Solutions for teams and enterprises](https://www.adobe.com/creativecloud/business.html)
+                                    *   [Students and teachers Save 57% on Creative Cloud](https://www.adobe.com/creativecloud/buy/students.html)
+                                    *   [View plans and pricing](https://www.adobe.com/creativecloud/plans.html)
+
+                            *   
+Featured products  
+                                *   [Photoshop Image editing and design](https://www.adobe.com/products/photoshop.html)
+                                *   [Premiere Video editing and production](https://www.adobe.com/products/premiere.html)
+                                *   [Adobe Firefly AI-powered content creation](https://www.adobe.com/products/firefly.html)
+                                *   [Illustrator Vector graphics and illustration](https://www.adobe.com/products/illustrator.html)
+                                *   [Adobe Express All-in-one design, video, photo, and PDF app](https://www.adobe.com/express/?promoid=Y69SGP43&mv=other)
+                                *   [Lightroom Photo editing and organization](https://www.adobe.com/products/photoshop-lightroom.html)
+                                *   [Adobe Stock High-quality licensable assets](https://stock.adobe.com/?as_channel=adobe_com&as_source=profile_menu&as_campclass=brand&as_campaign=may2017&as_audience=users&as_content=globalnav)
+                                *   [View all products](https://www.adobe.com/products/catalog.html#category=creativity-design)
+
+                            *   
+                                *   
+Online tools  
+                                    *   [Remove background](https://www.adobe.com/express/feature/image/remove-background)
+                                    *   [Generate AI images](https://www.adobe.com/products/firefly/features/text-to-image.html)
+                                    *   [Generate AI videos](https://www.adobe.com/products/firefly/features/ai-video-generator.html)
+                                    *   [Generate AI art](https://www.adobe.com/products/firefly/features/ai-art-generator.html)
+                                    *   [Edit photos with AI](https://www.adobe.com/products/firefly/features/ai-photo-editor.html)
+
+                            *   
+                                *   
+                                    *   [![Image 3: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)](https://www.adobe.com/creativecloud/plan-recommender/quiz.html) 
+                                    *   
+                                        *   Find the perfect app in about 60 seconds. 
+                                        *   **[Get started](https://www.adobe.com/creativecloud/plan-recommender/quiz.html)** 
+
+                        *   
+                            *   [![Image 4: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)Adobe.com](https://www.adobe.com/index.html)
+                            *   [Creativity & Design](https://www.adobe.com/creativecloud.html)
+                            *   [PDF & E-signatures](https://www.adobe.com/acrobat.html)
+                            *   [Marketing & Commerce](https://business.adobe.com/)
+                            *   [Learn & Support](https://helpx.adobe.com/support.html)
+
+                    *    
+                    *   
+                        *   [Illustrator](https://www.adobe.com/products/illustrator.html)
+                        *   [iPad Features](https://www.adobe.com/products/illustrator/ipad.html)
+                        *   
+[Features](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+                            *   [What's New](https://helpx.adobe.com/illustrator/using/whats-new.html)
+                            *   [Text to Vector Graphic](https://www.adobe.com/products/illustrator/text-to-vector-graphic.html)
+                            *   [Generative Recolor](https://www.adobe.com/products/illustrator/generative-recolor.html)
+                            *   [Logo design](https://www.adobe.com/products/illustrator/logo-design-software.html)
+                            *   [Typography Font design](https://www.adobe.com/products/illustrator/typography-font-design.html)
+                            *   [Hand Lettering design](https://www.adobe.com/products/illustrator/lettering.html)
+                            *   [Icon design](https://www.adobe.com/products/illustrator/icon-design.html)
+                            *   [Infographic design](https://www.adobe.com/products/illustrator/infographic-design.html)
+                            *   [Banner design](https://www.adobe.com/products/illustrator/banner-design.html)
+                            *   [Chart design](https://www.adobe.com/products/illustrator/chart-design-software.html)
+                            *   [Wallpaper maker](https://www.adobe.com/products/illustrator/wallpaper-maker.html)
+
+                        *   [System Requirements](https://helpx.adobe.com/illustrator/system-requirements.html)
+                        *   
+[More](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+                            *   [Learn & Support](https://helpx.adobe.com/support/illustrator.html)
+                            *   [System Requirements](https://helpx.adobe.com/illustrator/system-requirements.html)
+
+                        *   
+[Learn & Support](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+                            *   [Home](https://helpx.adobe.com/support/illustrator.html)
+                            *   [Get started](https://helpx.adobe.com/illustrator/get-started.html)
+                            *   [Tutorials](https://creativecloud.adobe.com/en/learn/app/illustrator)
+                            *   [User Guide](https://helpx.adobe.com/illustrator/user-guide.html)
+                            *   [Contact Us](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+                        *   [Free trial](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#commerce-free-trial)
+                        *   
+                            *   [Buy now](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#commerce-buy-now)
+
+            *   [![Image 5: Adobe, Inc.](https://www.adobe.com/content/dam/cc/icons/adobe_wordmark_red.svg)](https://www.adobe.com/)
+
+        *   
+            *    Sign In   
+            *    
+
+*    
+
+[![Image 6: Adobe, Inc.](https://www.adobe.com/federal/assets/svgs/adobe-logo.svg)](https://www.adobe.com/)
+
+ Creativity & Design 
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+ PDFs & E-signatures 
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+ Marketing & Commerce 
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+ Learn & Support 
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[Buy now](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#commerce-buy-now@buy-now)
+
+User Guide Cancel
+
+# Supported file formats
+
+Search
+
+Last updated on Jun 11, 2023
+
+[![Image 7: Adobe Illustrator](https://helpx.adobe.com/content/dam/help/mnemonics/ai_cc_app_RGB.svg)](https://www.adobe.com/download/illustrator)
+
+[Illustrator](https://www.adobe.com/download/illustrator)
+
+[Open app](https://www.adobe.com/download/illustrator)
+
+*   [Illustrator User Guide](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+*    Get to know Illustrator  
+    1.    Introduction to Illustrator  
+        1.   [What's new in Illustrator](https://helpx.adobe.com/illustrator/using/whats-new.html)
+        2.   [Latest performance enhancements](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Illustrator release notes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Work with Illustrator (Beta)](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Common questions](https://helpx.adobe.com/illustrator/faq.html)
+        6.   [Illustrator system requirements](https://helpx.adobe.com/illustrator/system-requirements.html)
+        7.   [Illustrator for Apple silicon](https://helpx.adobe.com/illustrator/kb/illustrator-for-apple-silicon.html)
+        8.   [GPU performance](https://helpx.adobe.com/illustrator/kb/gpu-performance-preview-improvements.html)
+
+    2.    Workspace  
+        1.   [Workspace basics](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Create documents](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Learn faster with the Illustrator Discover panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Accelerate workflows using the Contextual Task Bar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Toolbar](https://helpx.adobe.com/illustrator/using/tools.html)
+        6.   [Default keyboard shortcuts](https://helpx.adobe.com/illustrator/using/default-keyboard-shortcuts.html)
+        7.   [Customize keyboard shortcuts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Introduction to artboards](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        9.   [Manage artboards](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Customize the workspace](https://helpx.adobe.com/illustrator/using/customizing-workspace.html)
+        11.   [Properties panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        12.   [Set preferences](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        13.   [Touch Workspace](https://helpx.adobe.com/illustrator/using/illustrator-touch-workspace.html)
+        14.   [Microsoft Surface Dial support in Illustrator](https://helpx.adobe.com/illustrator/using/microsoft-dial.html)
+        15.   [Undo edits and manage design history](https://helpx.adobe.com/illustrator/using/recovery-undo-automation.html)
+        16.   [Rotate view](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        17.   [Rulers, grids, and guides](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        18.   [Accessibility in Illustrator](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        19.   [View artwork](https://helpx.adobe.com/illustrator/using/viewing-artwork.html)
+        20.   [Use the Touch Bar with Illustrator](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        21.   [Files and templates](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    3.    Tools in Illustrator  
+        1.   [Tools at a glance](https://helpx.adobe.com/illustrator/using/tools-in-illustrator.html)
+        2.    Select tools  
+            1.   [Selection](https://helpx.adobe.com/illustrator/using/tool-techniques/selection-tool.html)
+            2.   [Direct Selection](https://helpx.adobe.com/illustrator/using/tool-techniques/direct-selection-tool.html)
+            3.   [Group Selection](https://helpx.adobe.com/illustrator/using/tool-techniques/group-selection-tool.html)
+            4.   [Magic Wand](https://helpx.adobe.com/illustrator/using/tool-techniques/magic-wand-tool.html)
+            5.   [Lasso](https://helpx.adobe.com/illustrator/using/tool-techniques/lasso-tool.html)
+            6.   [Artboard](https://helpx.adobe.com/illustrator/using/tool-techniques/artboard-tool.html)
+
+        3.    Navigate tools  
+            1.   [Hand](https://helpx.adobe.com/illustrator/using/tool-techniques/hand-tool.html)
+            2.   [Rotate View](https://helpx.adobe.com/illustrator/using/tool-techniques/rotate-view-tool.html)
+            3.   [Zoom](https://helpx.adobe.com/illustrator/using/tool-techniques/zoom-tool.html)
+
+        4.    Paint tools  
+            1.   [Gradient](https://helpx.adobe.com/illustrator/using/tool-techniques/gradient-tool.html)
+            2.   [Mesh](https://helpx.adobe.com/illustrator/using/tool-techniques/mesh-tool.html)
+            3.   [Shape Builder](https://helpx.adobe.com/illustrator/using/tool-techniques/shape-builder-tool.html)
+
+        5.    Text tools  
+            1.   [Type](https://helpx.adobe.com/illustrator/using/tool-techniques/type-tool.html)
+            2.   [Type on a Path](https://helpx.adobe.com/illustrator/using/tool-techniques/type-on-path-tool.html)
+            3.   [Vertical Type](https://helpx.adobe.com/illustrator/using/tool-techniques/vertical-type-tool.html)
+
+        6.    Draw tools  
+            1.   [Pen](https://helpx.adobe.com/illustrator/using/tool-techniques/pen-tool.html)
+            2.   [Add Anchor Point](https://helpx.adobe.com/illustrator/using/tool-techniques/add-anchor-point-tool.html)
+            3.   [Delete Anchor Point](https://helpx.adobe.com/illustrator/using/tool-techniques/delete-anchor-point-tool.html)
+            4.   [Anchor Point](https://helpx.adobe.com/illustrator/using/tool-techniques/anchor-point-tool.html)
+            5.   [Curvature](https://helpx.adobe.com/illustrator/using/tool-techniques/curvature-tool.html)
+            6.   [Line Segment](https://helpx.adobe.com/illustrator/using/tool-techniques/line-segment-tool.html)
+            7.   [Rectangle](https://helpx.adobe.com/illustrator/using/tool-techniques/rectangle-tool.html)
+            8.   [Rounded Rectangle](https://helpx.adobe.com/illustrator/using/tool-techniques/rounded-rectangle-tool.html)
+            9.   [Ellipse](https://helpx.adobe.com/illustrator/using/tool-techniques/ellipse-tool.html)
+            10.   [Polygon](https://helpx.adobe.com/illustrator/using/tool-techniques/polygon-tool.html)
+            11.   [Star](https://helpx.adobe.com/illustrator/using/tool-techniques/star-tool.html)
+            12.   [Paintbrush](https://helpx.adobe.com/illustrator/using/tool-techniques/paintbrush-tool.html)
+            13.   [Blob Brush](https://helpx.adobe.com/illustrator/using/tool-techniques/blob-brush-tool.html)
+            14.   [Pencil](https://helpx.adobe.com/illustrator/using/tool-techniques/pencil-tool.html)
+            15.   [Shaper](https://helpx.adobe.com/illustrator/using/tool-techniques/shaper-tool.html)
+            16.   [Slice](https://helpx.adobe.com/illustrator/using/tool-techniques/slice-tool.html)
+
+        7.    Modify tools  
+            1.   [Rotate](https://helpx.adobe.com/illustrator/using/tool-techniques/rotate-tool.html)
+            2.   [Reflect](https://helpx.adobe.com/illustrator/using/tool-techniques/reflect-tool.html)
+            3.   [Scale](https://helpx.adobe.com/illustrator/using/tool-techniques/scale-tool.html)
+            4.   [Shear](https://helpx.adobe.com/illustrator/using/tool-techniques/shear-tool.html)
+            5.   [Width](https://helpx.adobe.com/illustrator/using/tool-techniques/width-tool.html)
+            6.   [Free Transform](https://helpx.adobe.com/illustrator/using/tool-techniques/free-transform-tool.html)
+            7.   [Eyedropper](https://helpx.adobe.com/illustrator/using/tool-techniques/eyedropper-tool.html)
+            8.   [Blend](https://helpx.adobe.com/illustrator/using/tool-techniques/blend-tool.html)
+            9.   [Eraser](https://helpx.adobe.com/illustrator/using/tool-techniques/eraser-tool.html)
+            10.   [Scissors](https://helpx.adobe.com/illustrator/using/tool-techniques/scissors-tool.html)
+            11.   [Dimension](https://helpx.adobe.com/illustrator/using/tool-techniques/dimension-tool.html)
+
+    4.    Generative AI (not available in mainland China)  
+        1.   [Illustrator generative AI FAQs](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Generate scenes, subjects, and icons using text prompts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Generate vector patterns using text prompts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Generate vector shape fills using text prompts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Generate graphics to expand artwork and fill the bleed area](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Recolor your artwork using text prompts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    5.    Quick actions  
+        1.   [Retro text](https://helpx.adobe.com/illustrator/using/quick-actions/retro-text.html)
+        2.   [Neon glow text](https://helpx.adobe.com/illustrator/using/quick-actions/neon-glow-text.html)
+        3.   [Old school text](https://helpx.adobe.com/illustrator/using/quick-actions/old-school-text.html)
+        4.   [Recolor](https://helpx.adobe.com/illustrator/using/quick-actions/recolor.html)
+        5.   [Convert sketch to vector](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+*    Illustrator on the iPad  
+    1.    Introduction to Illustrator on the iPad  
+        1.   [Illustrator on the iPad overview](https://helpx.adobe.com/illustrator/using/Illustrator-on-ipad.html)
+        2.   [Illustrator on the iPad FAQs](https://helpx.adobe.com/illustrator/using/ipad-faqs.html)
+        3.   [System requirements | Illustrator on the iPad](https://helpx.adobe.com/illustrator/system-requirements-ipad.html)
+        4.   [What you can or cannot do on Illustrator on the iPad](https://helpx.adobe.com/illustrator/using/features-not-supported-ipad.html)
+
+    2.    Workspace  
+        1.   [Illustrator on the iPad workspace](https://helpx.adobe.com/illustrator/using/workspace-on-iPad.html)
+        2.   [Touch shortcuts and gestures](https://helpx.adobe.com/illustrator/using/touch-shortcuts-gestures.html)
+        3.   [Keyboard shortcuts for Illustrator on the iPad](https://helpx.adobe.com/illustrator/using/keyboard-shortcuts-ios.html)
+        4.   [Manage your app settings](https://helpx.adobe.com/illustrator/using/app-preferences-ipad.html)
+
+    3.    Documents  
+        1.   [Work with documents in Illustrator on the iPad](https://helpx.adobe.com/illustrator/using/open-save-documents-ipad.html)
+        2.   [Import Photoshop and Fresco documents](https://helpx.adobe.com/illustrator/using/work-with-cc-apps.html)
+
+    4.    Select and arrange objects  
+        1.   [Create repeat objects](https://helpx.adobe.com/illustrator/using/repeat-patterns.html)
+        2.   [Blend objects](https://helpx.adobe.com/illustrator/using/blend-objects-on-ipad.html)
+
+    5.    Drawing  
+        1.   [Draw and edit paths](https://helpx.adobe.com/illustrator/using/draw-edit-on-ipad.html)
+        2.   [Draw and edit shapes](https://helpx.adobe.com/illustrator/using/draw-edit-shapes-ipad.html)
+
+    6.    Type  
+        1.   [Work with type and fonts](https://helpx.adobe.com/illustrator/using/create-text-ipad.html)
+        2.   [Create text designs along a path](https://helpx.adobe.com/illustrator/using/create-text-designs-ipad.html)
+        3.   [Add your own fonts](https://helpx.adobe.com/illustrator/using/add-your-font-ipad.html)
+
+    7.    Work with images  
+        1.   [Vectorize raster images](https://helpx.adobe.com/illustrator/using/sketch-to-vector-ipad.html)
+
+    8.    Color  
+        1.   [Apply colors and gradients](https://helpx.adobe.com/illustrator/using/colors-gradients-ipad.html)
+
+*    Cloud documents  
+    1.    Basics  
+        1.   [Work with Illustrator cloud documents](https://helpx.adobe.com/illustrator/using/cloud-documents.html)
+        2.   [Share and collaborate on Illustrator cloud documents](https://helpx.adobe.com/illustrator/using/share-and-collaborate.html)
+        3.   [Share documents for review](https://helpx.adobe.com/illustrator/using/share-documents-for-review.html)
+        4.   [Upgrade cloud storage for Adobe Illustrator](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Illustrator cloud documents | Common questions](https://helpx.adobe.com/illustrator/using/cloud-documents-faq.html)
+
+    2.    Troubleshooting  
+        1.   [Troubleshoot create or save issues for Illustrator cloud documents](https://helpx.adobe.com/illustrator/kb/cloud-document-save-or-create-error.html)
+        2.   [Troubleshoot Illustrator cloud documents issues](https://helpx.adobe.com/illustrator/kb/cloud-document-troubleshooting.html)
+
+*    Add and edit content  
+    1.    Drawing  
+        1.   [Drawing basics](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Edit paths](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Draw pixel-perfect art](https://helpx.adobe.com/illustrator/using/pixel-perfect.html)
+        4.   [Draw with the Pen, Curvature, or Pencil tool](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Draw simple lines and shapes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Draw rectangular and polar grids](https://helpx.adobe.com/illustrator/using/draw-rectangular-and-polar-grids.html)
+        7.   [Draw and edit flares](https://helpx.adobe.com/illustrator/using/draw-and-edit-flares.html)
+        8.   [Trace images](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        9.   [Simplify a path](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Symbolism tools and symbol sets](https://helpx.adobe.com/illustrator/using/symbolism-tools-symbol-sets.html)
+        11.   [Adjust path segments](https://helpx.adobe.com/illustrator/using/adjust-path-segments.html)
+        12.   [Design a flower in 5 easy steps](https://helpx.adobe.com/illustrator/using/create-a-heart-shaped-flower.html)
+        13.   [Create and edit a perspective grid](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        14.   [Draw and modify objects on a perspective grid](https://helpx.adobe.com/illustrator/using/draw-and-modify-objects-perspective-grid.html)
+        15.   [Use objects as symbols for repeat use](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        16.   [Draw pixel-aligned paths for web workflows](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    2.    Measurement  
+        1.   [Measure distance and area](https://helpx.adobe.com/illustrator/using/measure-distance-and-area.html)
+        2.   [Measure and plot dimensions](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    3.    3D objects and materials  
+        1.   [About 3D effects in Illustrator](https://helpx.adobe.com/illustrator/using/about-3d-effects-illustrator.html)
+        2.   [Create 3D graphics](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Map artwork over 3D objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Create 3D Text](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Create 3D objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    4.    Color  
+        1.   [About color](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Select colors](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Use and create swatches](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Adjust colors](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Use the Adobe Color Themes panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Color groups (harmonies)](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Color Themes panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Recolor your artwork](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    5.    Painting  
+        1.   [About painting](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Paint with fills and strokes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Live Paint groups](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Gradients](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Brushes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Transparency and blending modes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Apply stroke on an object](https://helpx.adobe.com/illustrator/using/stroke-object.html)
+        8.   [Create and edit patterns](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        9.   [Meshes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Patterns](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    6.    Select and arrange objects  
+        1.   [Select objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Layers](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Expand, group, and ungroup objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Move, align, and distribute objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Align, arrange, and move objects on a path](https://helpx.adobe.com/illustrator/using/objects-on-path.html)
+        6.   [Snap objects to glyph](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Snap objects to Japanese glyph](https://helpx.adobe.com/illustrator/using/snap-to-japanese-glyph.html)
+        8.   [Stack objects](https://helpx.adobe.com/illustrator/using/stacking-objects.html)
+        9.   [Lock, hide, and delete objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Copy and duplicate objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        11.   [Rotate and reflect objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        12.   [Intertwine objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        13.   [Create realistic mockups](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    7.    Reshape objects  
+        1.   [Crop images](https://helpx.adobe.com/illustrator/using/crop.html)
+        2.   [Transform objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Combine objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Cut, divide, and trim objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Puppet Warp](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Scale, shear, and distort objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Blend objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Reshape using envelopes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        9.   [Reshape objects with effects](https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html)
+        10.   [Build new shapes with Shaper and Shape Builder tools](https://helpx.adobe.com/illustrator/using/building-new-shapes-using-shape.html)
+        11.   [Work with Live Corners](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        12.   [Enhanced reshape workflows with touch support](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        13.   [Edit clipping masks](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        14.   [Live shapes](https://helpx.adobe.com/illustrator/using/live-shapes.html)
+        15.   [Create shapes using the Shape Builder tool](https://helpx.adobe.com/illustrator/using/creating-shapes-shape-builder-tool.html)
+        16.   [Global editing](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    8.    Type  
+        1.   [Add text and work with type objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Add basic formatting to text](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [FAQs on fonts in Illustrator](https://helpx.adobe.com/illustrator/using/fonts-faq.html)
+        4.   [Fonts and typography](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Create type on a path](https://helpx.adobe.com/illustrator/using/creating-type-path.html)
+        6.   [Create bulleted and numbered lists](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Manage text area](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Add advanced formatting to text](https://helpx.adobe.com/illustrator/using/add-advanced-formatting-to-text.html)
+        9.   [Format paragraphs](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Character and paragraph styles](https://helpx.adobe.com/illustrator/using/character-paragraph-styles.html)
+        11.   [Special characters](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        12.   [Tabs](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        13.   [Scale and rotate type](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        14.   [Line and character spacing](https://helpx.adobe.com/illustrator/using/line-character-spacing.html)
+        15.   [Hyphenation and line breaks](https://helpx.adobe.com/illustrator/using/hyphenation-line-breaks.html)
+        16.   [Spelling and language dictionaries](https://helpx.adobe.com/illustrator/using/spelling-language-dictionaries.html)
+        17.   [Format Asian characters](https://helpx.adobe.com/illustrator/using/formatting-asian-characters.html)
+        18.   [Arabic and Hebrew type](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        19.   [Composers for Asian scripts](https://helpx.adobe.com/illustrator/using/asian-scripts.html)
+        20.   [Reflow Viewer](https://helpx.adobe.com/illustrator/using/reflow-viewer.html)
+        21.   [Preview, add, or replace missing fonts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        22.   [Import and export text](https://helpx.adobe.com/illustrator/using/importing-exporting-text.html)
+        23.   [Identify the fonts used in images and outlined text](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        24.   [Creative typography designs](https://helpx.adobe.com/illustrator/using/creative-typography-designs.html)
+        25.   [Create text designs with blend objects](https://helpx.adobe.com/illustrator/using/creative-typography.html)
+        26.   [Create a text poster using Image Trace](https://helpx.adobe.com/illustrator/using/create-text-with-image-trace.html)
+
+    9.    Create special effects  
+        1.   [Work with effects](https://helpx.adobe.com/illustrator/using/effects.html)
+        2.   [Graphic styles](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Appearance attributes](https://helpx.adobe.com/illustrator/using/appearance-attributes.html)
+        4.   [Create sketches and mosaics](https://helpx.adobe.com/illustrator/using/creating-sketches-mosaics.html)
+        5.   [Drop shadows, glows, and feathering](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Summary of effects](https://helpx.adobe.com/illustrator/using/summary-effects.html)
+
+    10.    Web graphics  
+        1.   [Best practices for creating web graphics](https://helpx.adobe.com/illustrator/using/best-practices-creating-web-graphics.html)
+        2.   [Graphs](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [SVG](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Slices and image maps](https://helpx.adobe.com/illustrator/using/slices-image-maps.html)
+
+*    Import, export, and save  
+    1.    Import  
+        1.   [Place multiple files](https://helpx.adobe.com/illustrator/using/place-multiple-files.html)
+        2.   [Manage linked and embedded files](https://helpx.adobe.com/illustrator/using/manage-linked-and-embedded-files.html)
+        3.   [Links information](https://helpx.adobe.com/illustrator/using/links-info.html)
+        4.   [Unembed images](https://helpx.adobe.com/illustrator/using/unembed-images.html)
+        5.   [Import artwork from Photoshop](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Import bitmap images](https://helpx.adobe.com/illustrator/using/importing-bitmap-images.html)
+        7.   [Import Adobe PDF files](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Import EPS, DCS, and AutoCAD files](https://helpx.adobe.com/illustrator/using/importing-eps-dcs-autocad-files.html)
+
+    2.    Creative Cloud Libraries in Illustrator 
+        1.   [Creative Cloud Libraries in Illustrator](https://helpx.adobe.com/illustrator/using/creative-cloud-libraries-sync-share-assets.html)
+
+    3.    Save and export  
+        1.   [Save artwork](https://helpx.adobe.com/illustrator/using/saving-artwork.html)
+        2.   [Export artwork](https://helpx.adobe.com/illustrator/using/exporting-artwork.html)
+        3.   [Create Adobe PDF files](https://helpx.adobe.com/illustrator/using/creating-pdf-files.html)
+        4.   [Adobe PDF options](https://helpx.adobe.com/illustrator/using/pdf-options.html)
+        5.   [Use Illustrator artwork in Photoshop](https://helpx.adobe.com/illustrator/using/use-illustrator-artwork-in-photoshop.html)
+        6.   [Collect assets and export in batches](https://helpx.adobe.com/illustrator/using/collect-assets-export-for-screens.html)
+        7.   [Package files](https://helpx.adobe.com/illustrator/using/package-files.html)
+        8.   [Extract CSS | Illustrator CC](https://helpx.adobe.com/illustrator/using/css-extraction.html)
+        9.   [Document info panel](https://helpx.adobe.com/illustrator/using/file-information-metadata.html)
+
+*    Printing  
+    1.    Prepare for printing  
+        1.   [Set up documents for printing](https://helpx.adobe.com/illustrator/using/setting-documents-printing.html)
+        2.   [Change the page size and orientation](https://helpx.adobe.com/illustrator/using/change-page-size-orientation.html)
+        3.   [Specify crop marks for trimming or aligning](https://helpx.adobe.com/illustrator/using/specify-crop-marks-trimming-or.html)
+        4.   [Get started with large canvas](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    2.    Printing  
+        1.   [Overprint](https://helpx.adobe.com/illustrator/using/overprinting.html)
+        2.   [White Overprint](https://helpx.adobe.com/illustrator/using/white-overprint.html)
+        3.   [Print with color management](https://helpx.adobe.com/illustrator/using/printing-color-management.html)
+        4.   [PostScript printing](https://helpx.adobe.com/illustrator/using/postscript-printing.html)
+        5.   [Print presets](https://helpx.adobe.com/illustrator/using/print-presets.html)
+        6.   [Printer's marks and bleeds](https://helpx.adobe.com/illustrator/using/printers-marks-bleeds.html)
+        7.   [Print and save transparent artwork](https://helpx.adobe.com/illustrator/using/printing-saving-transparent-artwork.html)
+        8.   [Trapping](https://helpx.adobe.com/illustrator/using/trapping.html)
+        9.   [Print color separations](https://helpx.adobe.com/illustrator/using/printing-color-separations.html)
+        10.   [Print gradients, meshes, and color blends](https://helpx.adobe.com/illustrator/using/printing-gradients-meshes-color-blends.html)
+
+*    Automate tasks  
+    1.   [Data merge using the Variables panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    2.   [Automation with scripts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    3.   [Automation with actions](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+*    Troubleshooting 
+    1.   [Fixed issues](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    2.   [Known issues](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    3.   [Crash issues](https://helpx.adobe.com/illustrator/kb/fix-crash-on-launch-issues.html)
+    4.   [Recover files after crash](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    5.   [Repair damaged documents](https://helpx.adobe.com/illustrator/kb/enable-content-recovery-mode-illustrator.html)
+    6.   [Safe mode](https://helpx.adobe.com/illustrator/using/safe-mode-illustrator-diagnostic-startup-tests.html)
+    7.   [File issues](https://helpx.adobe.com/illustrator/kb/troubleshoot-file-issues.html)
+    8.   [Supported file formats](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+    9.   [GPU device driver issues](https://helpx.adobe.com/illustrator/kb/illustrator-gpu-performance-driver-update.html)
+    10.   [GPU performance issues](https://helpx.adobe.com/illustrator/kb/gpu-performance-errors-troubleshooting-workarounds.html)
+    11.   [Wacom device issues](https://helpx.adobe.com/illustrator/kb/illustrator-cc-crash-wacom-drivers.html)
+    12.   [DLL file issues](https://helpx.adobe.com/illustrator/kb/vcruntime-error-on-launch.html)
+    13.   [Memory issues](https://helpx.adobe.com/illustrator/kb/not-enough-memory-illustrator-cc.html)
+    14.   [Preferences file issues](https://helpx.adobe.com/illustrator/kb/troubleshoot-preference-issues.html)
+    15.   [Font issues](https://helpx.adobe.com/fonts/kb/troubleshoot-fonts-illustrator-indesign.html)
+    16.   [Printer issues](https://helpx.adobe.com/illustrator/kb/troubleshoot-printer-issues.html)
+    17.   [Media issues](https://helpx.adobe.com/illustrator/kb/illustrator-support-networks-removable-media.html)
+    18.   [Missing plugin issues](https://helpx.adobe.com/illustrator/kb/plugin-missing-issue.html)
+    19.   [Share crash report with Adobe](https://helpx.adobe.com/illustrator/kb/crash-next-steps.html)
+    20.   [Unable to apply effects in Illustrator](https://helpx.adobe.com/illustrator/kb/unable-to-apply-effects.html)
+    21.   [Improve Illustrator performance](https://helpx.adobe.com/illustrator/kb/optimize-illustrator-performance.html)
+
+1.   [Illustrator User Guide](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+2.    Get to know Illustrator  
+    1.    Introduction to Illustrator  
+        1.   [What's new in Illustrator](https://helpx.adobe.com/illustrator/using/whats-new.html)
+        2.   [Latest performance enhancements](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Illustrator release notes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Work with Illustrator (Beta)](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Common questions](https://helpx.adobe.com/illustrator/faq.html)
+        6.   [Illustrator system requirements](https://helpx.adobe.com/illustrator/system-requirements.html)
+        7.   [Illustrator for Apple silicon](https://helpx.adobe.com/illustrator/kb/illustrator-for-apple-silicon.html)
+        8.   [GPU performance](https://helpx.adobe.com/illustrator/kb/gpu-performance-preview-improvements.html)
+
+    2.    Workspace  
+        1.   [Workspace basics](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Create documents](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Learn faster with the Illustrator Discover panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Accelerate workflows using the Contextual Task Bar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Toolbar](https://helpx.adobe.com/illustrator/using/tools.html)
+        6.   [Default keyboard shortcuts](https://helpx.adobe.com/illustrator/using/default-keyboard-shortcuts.html)
+        7.   [Customize keyboard shortcuts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Introduction to artboards](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        9.   [Manage artboards](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Customize the workspace](https://helpx.adobe.com/illustrator/using/customizing-workspace.html)
+        11.   [Properties panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        12.   [Set preferences](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        13.   [Touch Workspace](https://helpx.adobe.com/illustrator/using/illustrator-touch-workspace.html)
+        14.   [Microsoft Surface Dial support in Illustrator](https://helpx.adobe.com/illustrator/using/microsoft-dial.html)
+        15.   [Undo edits and manage design history](https://helpx.adobe.com/illustrator/using/recovery-undo-automation.html)
+        16.   [Rotate view](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        17.   [Rulers, grids, and guides](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        18.   [Accessibility in Illustrator](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        19.   [View artwork](https://helpx.adobe.com/illustrator/using/viewing-artwork.html)
+        20.   [Use the Touch Bar with Illustrator](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        21.   [Files and templates](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    3.    Tools in Illustrator  
+        1.   [Tools at a glance](https://helpx.adobe.com/illustrator/using/tools-in-illustrator.html)
+        2.    Select tools  
+            1.   [Selection](https://helpx.adobe.com/illustrator/using/tool-techniques/selection-tool.html)
+            2.   [Direct Selection](https://helpx.adobe.com/illustrator/using/tool-techniques/direct-selection-tool.html)
+            3.   [Group Selection](https://helpx.adobe.com/illustrator/using/tool-techniques/group-selection-tool.html)
+            4.   [Magic Wand](https://helpx.adobe.com/illustrator/using/tool-techniques/magic-wand-tool.html)
+            5.   [Lasso](https://helpx.adobe.com/illustrator/using/tool-techniques/lasso-tool.html)
+            6.   [Artboard](https://helpx.adobe.com/illustrator/using/tool-techniques/artboard-tool.html)
+
+        3.    Navigate tools  
+            1.   [Hand](https://helpx.adobe.com/illustrator/using/tool-techniques/hand-tool.html)
+            2.   [Rotate View](https://helpx.adobe.com/illustrator/using/tool-techniques/rotate-view-tool.html)
+            3.   [Zoom](https://helpx.adobe.com/illustrator/using/tool-techniques/zoom-tool.html)
+
+        4.    Paint tools  
+            1.   [Gradient](https://helpx.adobe.com/illustrator/using/tool-techniques/gradient-tool.html)
+            2.   [Mesh](https://helpx.adobe.com/illustrator/using/tool-techniques/mesh-tool.html)
+            3.   [Shape Builder](https://helpx.adobe.com/illustrator/using/tool-techniques/shape-builder-tool.html)
+
+        5.    Text tools  
+            1.   [Type](https://helpx.adobe.com/illustrator/using/tool-techniques/type-tool.html)
+            2.   [Type on a Path](https://helpx.adobe.com/illustrator/using/tool-techniques/type-on-path-tool.html)
+            3.   [Vertical Type](https://helpx.adobe.com/illustrator/using/tool-techniques/vertical-type-tool.html)
+
+        6.    Draw tools  
+            1.   [Pen](https://helpx.adobe.com/illustrator/using/tool-techniques/pen-tool.html)
+            2.   [Add Anchor Point](https://helpx.adobe.com/illustrator/using/tool-techniques/add-anchor-point-tool.html)
+            3.   [Delete Anchor Point](https://helpx.adobe.com/illustrator/using/tool-techniques/delete-anchor-point-tool.html)
+            4.   [Anchor Point](https://helpx.adobe.com/illustrator/using/tool-techniques/anchor-point-tool.html)
+            5.   [Curvature](https://helpx.adobe.com/illustrator/using/tool-techniques/curvature-tool.html)
+            6.   [Line Segment](https://helpx.adobe.com/illustrator/using/tool-techniques/line-segment-tool.html)
+            7.   [Rectangle](https://helpx.adobe.com/illustrator/using/tool-techniques/rectangle-tool.html)
+            8.   [Rounded Rectangle](https://helpx.adobe.com/illustrator/using/tool-techniques/rounded-rectangle-tool.html)
+            9.   [Ellipse](https://helpx.adobe.com/illustrator/using/tool-techniques/ellipse-tool.html)
+            10.   [Polygon](https://helpx.adobe.com/illustrator/using/tool-techniques/polygon-tool.html)
+            11.   [Star](https://helpx.adobe.com/illustrator/using/tool-techniques/star-tool.html)
+            12.   [Paintbrush](https://helpx.adobe.com/illustrator/using/tool-techniques/paintbrush-tool.html)
+            13.   [Blob Brush](https://helpx.adobe.com/illustrator/using/tool-techniques/blob-brush-tool.html)
+            14.   [Pencil](https://helpx.adobe.com/illustrator/using/tool-techniques/pencil-tool.html)
+            15.   [Shaper](https://helpx.adobe.com/illustrator/using/tool-techniques/shaper-tool.html)
+            16.   [Slice](https://helpx.adobe.com/illustrator/using/tool-techniques/slice-tool.html)
+
+        7.    Modify tools  
+            1.   [Rotate](https://helpx.adobe.com/illustrator/using/tool-techniques/rotate-tool.html)
+            2.   [Reflect](https://helpx.adobe.com/illustrator/using/tool-techniques/reflect-tool.html)
+            3.   [Scale](https://helpx.adobe.com/illustrator/using/tool-techniques/scale-tool.html)
+            4.   [Shear](https://helpx.adobe.com/illustrator/using/tool-techniques/shear-tool.html)
+            5.   [Width](https://helpx.adobe.com/illustrator/using/tool-techniques/width-tool.html)
+            6.   [Free Transform](https://helpx.adobe.com/illustrator/using/tool-techniques/free-transform-tool.html)
+            7.   [Eyedropper](https://helpx.adobe.com/illustrator/using/tool-techniques/eyedropper-tool.html)
+            8.   [Blend](https://helpx.adobe.com/illustrator/using/tool-techniques/blend-tool.html)
+            9.   [Eraser](https://helpx.adobe.com/illustrator/using/tool-techniques/eraser-tool.html)
+            10.   [Scissors](https://helpx.adobe.com/illustrator/using/tool-techniques/scissors-tool.html)
+            11.   [Dimension](https://helpx.adobe.com/illustrator/using/tool-techniques/dimension-tool.html)
+
+    4.    Generative AI (not available in mainland China)  
+        1.   [Illustrator generative AI FAQs](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Generate scenes, subjects, and icons using text prompts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Generate vector patterns using text prompts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Generate vector shape fills using text prompts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Generate graphics to expand artwork and fill the bleed area](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Recolor your artwork using text prompts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    5.    Quick actions  
+        1.   [Retro text](https://helpx.adobe.com/illustrator/using/quick-actions/retro-text.html)
+        2.   [Neon glow text](https://helpx.adobe.com/illustrator/using/quick-actions/neon-glow-text.html)
+        3.   [Old school text](https://helpx.adobe.com/illustrator/using/quick-actions/old-school-text.html)
+        4.   [Recolor](https://helpx.adobe.com/illustrator/using/quick-actions/recolor.html)
+        5.   [Convert sketch to vector](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+3.    Illustrator on the iPad  
+    1.    Introduction to Illustrator on the iPad  
+        1.   [Illustrator on the iPad overview](https://helpx.adobe.com/illustrator/using/Illustrator-on-ipad.html)
+        2.   [Illustrator on the iPad FAQs](https://helpx.adobe.com/illustrator/using/ipad-faqs.html)
+        3.   [System requirements | Illustrator on the iPad](https://helpx.adobe.com/illustrator/system-requirements-ipad.html)
+        4.   [What you can or cannot do on Illustrator on the iPad](https://helpx.adobe.com/illustrator/using/features-not-supported-ipad.html)
+
+    2.    Workspace  
+        1.   [Illustrator on the iPad workspace](https://helpx.adobe.com/illustrator/using/workspace-on-iPad.html)
+        2.   [Touch shortcuts and gestures](https://helpx.adobe.com/illustrator/using/touch-shortcuts-gestures.html)
+        3.   [Keyboard shortcuts for Illustrator on the iPad](https://helpx.adobe.com/illustrator/using/keyboard-shortcuts-ios.html)
+        4.   [Manage your app settings](https://helpx.adobe.com/illustrator/using/app-preferences-ipad.html)
+
+    3.    Documents  
+        1.   [Work with documents in Illustrator on the iPad](https://helpx.adobe.com/illustrator/using/open-save-documents-ipad.html)
+        2.   [Import Photoshop and Fresco documents](https://helpx.adobe.com/illustrator/using/work-with-cc-apps.html)
+
+    4.    Select and arrange objects  
+        1.   [Create repeat objects](https://helpx.adobe.com/illustrator/using/repeat-patterns.html)
+        2.   [Blend objects](https://helpx.adobe.com/illustrator/using/blend-objects-on-ipad.html)
+
+    5.    Drawing  
+        1.   [Draw and edit paths](https://helpx.adobe.com/illustrator/using/draw-edit-on-ipad.html)
+        2.   [Draw and edit shapes](https://helpx.adobe.com/illustrator/using/draw-edit-shapes-ipad.html)
+
+    6.    Type  
+        1.   [Work with type and fonts](https://helpx.adobe.com/illustrator/using/create-text-ipad.html)
+        2.   [Create text designs along a path](https://helpx.adobe.com/illustrator/using/create-text-designs-ipad.html)
+        3.   [Add your own fonts](https://helpx.adobe.com/illustrator/using/add-your-font-ipad.html)
+
+    7.    Work with images  
+        1.   [Vectorize raster images](https://helpx.adobe.com/illustrator/using/sketch-to-vector-ipad.html)
+
+    8.    Color  
+        1.   [Apply colors and gradients](https://helpx.adobe.com/illustrator/using/colors-gradients-ipad.html)
+
+4.    Cloud documents  
+    1.    Basics  
+        1.   [Work with Illustrator cloud documents](https://helpx.adobe.com/illustrator/using/cloud-documents.html)
+        2.   [Share and collaborate on Illustrator cloud documents](https://helpx.adobe.com/illustrator/using/share-and-collaborate.html)
+        3.   [Share documents for review](https://helpx.adobe.com/illustrator/using/share-documents-for-review.html)
+        4.   [Upgrade cloud storage for Adobe Illustrator](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Illustrator cloud documents | Common questions](https://helpx.adobe.com/illustrator/using/cloud-documents-faq.html)
+
+    2.    Troubleshooting  
+        1.   [Troubleshoot create or save issues for Illustrator cloud documents](https://helpx.adobe.com/illustrator/kb/cloud-document-save-or-create-error.html)
+        2.   [Troubleshoot Illustrator cloud documents issues](https://helpx.adobe.com/illustrator/kb/cloud-document-troubleshooting.html)
+
+5.    Add and edit content  
+    1.    Drawing  
+        1.   [Drawing basics](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Edit paths](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Draw pixel-perfect art](https://helpx.adobe.com/illustrator/using/pixel-perfect.html)
+        4.   [Draw with the Pen, Curvature, or Pencil tool](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Draw simple lines and shapes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Draw rectangular and polar grids](https://helpx.adobe.com/illustrator/using/draw-rectangular-and-polar-grids.html)
+        7.   [Draw and edit flares](https://helpx.adobe.com/illustrator/using/draw-and-edit-flares.html)
+        8.   [Trace images](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        9.   [Simplify a path](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Symbolism tools and symbol sets](https://helpx.adobe.com/illustrator/using/symbolism-tools-symbol-sets.html)
+        11.   [Adjust path segments](https://helpx.adobe.com/illustrator/using/adjust-path-segments.html)
+        12.   [Design a flower in 5 easy steps](https://helpx.adobe.com/illustrator/using/create-a-heart-shaped-flower.html)
+        13.   [Create and edit a perspective grid](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        14.   [Draw and modify objects on a perspective grid](https://helpx.adobe.com/illustrator/using/draw-and-modify-objects-perspective-grid.html)
+        15.   [Use objects as symbols for repeat use](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        16.   [Draw pixel-aligned paths for web workflows](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    2.    Measurement  
+        1.   [Measure distance and area](https://helpx.adobe.com/illustrator/using/measure-distance-and-area.html)
+        2.   [Measure and plot dimensions](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    3.    3D objects and materials  
+        1.   [About 3D effects in Illustrator](https://helpx.adobe.com/illustrator/using/about-3d-effects-illustrator.html)
+        2.   [Create 3D graphics](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Map artwork over 3D objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Create 3D Text](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Create 3D objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    4.    Color  
+        1.   [About color](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Select colors](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Use and create swatches](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Adjust colors](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Use the Adobe Color Themes panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Color groups (harmonies)](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Color Themes panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Recolor your artwork](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    5.    Painting  
+        1.   [About painting](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Paint with fills and strokes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Live Paint groups](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Gradients](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Brushes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Transparency and blending modes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Apply stroke on an object](https://helpx.adobe.com/illustrator/using/stroke-object.html)
+        8.   [Create and edit patterns](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        9.   [Meshes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Patterns](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    6.    Select and arrange objects  
+        1.   [Select objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Layers](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Expand, group, and ungroup objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Move, align, and distribute objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Align, arrange, and move objects on a path](https://helpx.adobe.com/illustrator/using/objects-on-path.html)
+        6.   [Snap objects to glyph](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Snap objects to Japanese glyph](https://helpx.adobe.com/illustrator/using/snap-to-japanese-glyph.html)
+        8.   [Stack objects](https://helpx.adobe.com/illustrator/using/stacking-objects.html)
+        9.   [Lock, hide, and delete objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Copy and duplicate objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        11.   [Rotate and reflect objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        12.   [Intertwine objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        13.   [Create realistic mockups](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    7.    Reshape objects  
+        1.   [Crop images](https://helpx.adobe.com/illustrator/using/crop.html)
+        2.   [Transform objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Combine objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Cut, divide, and trim objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Puppet Warp](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Scale, shear, and distort objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Blend objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Reshape using envelopes](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        9.   [Reshape objects with effects](https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html)
+        10.   [Build new shapes with Shaper and Shape Builder tools](https://helpx.adobe.com/illustrator/using/building-new-shapes-using-shape.html)
+        11.   [Work with Live Corners](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        12.   [Enhanced reshape workflows with touch support](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        13.   [Edit clipping masks](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        14.   [Live shapes](https://helpx.adobe.com/illustrator/using/live-shapes.html)
+        15.   [Create shapes using the Shape Builder tool](https://helpx.adobe.com/illustrator/using/creating-shapes-shape-builder-tool.html)
+        16.   [Global editing](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    8.    Type  
+        1.   [Add text and work with type objects](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        2.   [Add basic formatting to text](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [FAQs on fonts in Illustrator](https://helpx.adobe.com/illustrator/using/fonts-faq.html)
+        4.   [Fonts and typography](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        5.   [Create type on a path](https://helpx.adobe.com/illustrator/using/creating-type-path.html)
+        6.   [Create bulleted and numbered lists](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        7.   [Manage text area](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Add advanced formatting to text](https://helpx.adobe.com/illustrator/using/add-advanced-formatting-to-text.html)
+        9.   [Format paragraphs](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        10.   [Character and paragraph styles](https://helpx.adobe.com/illustrator/using/character-paragraph-styles.html)
+        11.   [Special characters](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        12.   [Tabs](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        13.   [Scale and rotate type](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        14.   [Line and character spacing](https://helpx.adobe.com/illustrator/using/line-character-spacing.html)
+        15.   [Hyphenation and line breaks](https://helpx.adobe.com/illustrator/using/hyphenation-line-breaks.html)
+        16.   [Spelling and language dictionaries](https://helpx.adobe.com/illustrator/using/spelling-language-dictionaries.html)
+        17.   [Format Asian characters](https://helpx.adobe.com/illustrator/using/formatting-asian-characters.html)
+        18.   [Arabic and Hebrew type](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        19.   [Composers for Asian scripts](https://helpx.adobe.com/illustrator/using/asian-scripts.html)
+        20.   [Reflow Viewer](https://helpx.adobe.com/illustrator/using/reflow-viewer.html)
+        21.   [Preview, add, or replace missing fonts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        22.   [Import and export text](https://helpx.adobe.com/illustrator/using/importing-exporting-text.html)
+        23.   [Identify the fonts used in images and outlined text](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        24.   [Creative typography designs](https://helpx.adobe.com/illustrator/using/creative-typography-designs.html)
+        25.   [Create text designs with blend objects](https://helpx.adobe.com/illustrator/using/creative-typography.html)
+        26.   [Create a text poster using Image Trace](https://helpx.adobe.com/illustrator/using/create-text-with-image-trace.html)
+
+    9.    Create special effects  
+        1.   [Work with effects](https://helpx.adobe.com/illustrator/using/effects.html)
+        2.   [Graphic styles](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [Appearance attributes](https://helpx.adobe.com/illustrator/using/appearance-attributes.html)
+        4.   [Create sketches and mosaics](https://helpx.adobe.com/illustrator/using/creating-sketches-mosaics.html)
+        5.   [Drop shadows, glows, and feathering](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Summary of effects](https://helpx.adobe.com/illustrator/using/summary-effects.html)
+
+    10.    Web graphics  
+        1.   [Best practices for creating web graphics](https://helpx.adobe.com/illustrator/using/best-practices-creating-web-graphics.html)
+        2.   [Graphs](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        3.   [SVG](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        4.   [Slices and image maps](https://helpx.adobe.com/illustrator/using/slices-image-maps.html)
+
+6.    Import, export, and save  
+    1.    Import  
+        1.   [Place multiple files](https://helpx.adobe.com/illustrator/using/place-multiple-files.html)
+        2.   [Manage linked and embedded files](https://helpx.adobe.com/illustrator/using/manage-linked-and-embedded-files.html)
+        3.   [Links information](https://helpx.adobe.com/illustrator/using/links-info.html)
+        4.   [Unembed images](https://helpx.adobe.com/illustrator/using/unembed-images.html)
+        5.   [Import artwork from Photoshop](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        6.   [Import bitmap images](https://helpx.adobe.com/illustrator/using/importing-bitmap-images.html)
+        7.   [Import Adobe PDF files](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        8.   [Import EPS, DCS, and AutoCAD files](https://helpx.adobe.com/illustrator/using/importing-eps-dcs-autocad-files.html)
+
+    2.    Creative Cloud Libraries in Illustrator 
+        1.   [Creative Cloud Libraries in Illustrator](https://helpx.adobe.com/illustrator/using/creative-cloud-libraries-sync-share-assets.html)
+
+    3.    Save and export  
+        1.   [Save artwork](https://helpx.adobe.com/illustrator/using/saving-artwork.html)
+        2.   [Export artwork](https://helpx.adobe.com/illustrator/using/exporting-artwork.html)
+        3.   [Create Adobe PDF files](https://helpx.adobe.com/illustrator/using/creating-pdf-files.html)
+        4.   [Adobe PDF options](https://helpx.adobe.com/illustrator/using/pdf-options.html)
+        5.   [Use Illustrator artwork in Photoshop](https://helpx.adobe.com/illustrator/using/use-illustrator-artwork-in-photoshop.html)
+        6.   [Collect assets and export in batches](https://helpx.adobe.com/illustrator/using/collect-assets-export-for-screens.html)
+        7.   [Package files](https://helpx.adobe.com/illustrator/using/package-files.html)
+        8.   [Extract CSS | Illustrator CC](https://helpx.adobe.com/illustrator/using/css-extraction.html)
+        9.   [Document info panel](https://helpx.adobe.com/illustrator/using/file-information-metadata.html)
+
+7.    Printing  
+    1.    Prepare for printing  
+        1.   [Set up documents for printing](https://helpx.adobe.com/illustrator/using/setting-documents-printing.html)
+        2.   [Change the page size and orientation](https://helpx.adobe.com/illustrator/using/change-page-size-orientation.html)
+        3.   [Specify crop marks for trimming or aligning](https://helpx.adobe.com/illustrator/using/specify-crop-marks-trimming-or.html)
+        4.   [Get started with large canvas](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    2.    Printing  
+        1.   [Overprint](https://helpx.adobe.com/illustrator/using/overprinting.html)
+        2.   [White Overprint](https://helpx.adobe.com/illustrator/using/white-overprint.html)
+        3.   [Print with color management](https://helpx.adobe.com/illustrator/using/printing-color-management.html)
+        4.   [PostScript printing](https://helpx.adobe.com/illustrator/using/postscript-printing.html)
+        5.   [Print presets](https://helpx.adobe.com/illustrator/using/print-presets.html)
+        6.   [Printer's marks and bleeds](https://helpx.adobe.com/illustrator/using/printers-marks-bleeds.html)
+        7.   [Print and save transparent artwork](https://helpx.adobe.com/illustrator/using/printing-saving-transparent-artwork.html)
+        8.   [Trapping](https://helpx.adobe.com/illustrator/using/trapping.html)
+        9.   [Print color separations](https://helpx.adobe.com/illustrator/using/printing-color-separations.html)
+        10.   [Print gradients, meshes, and color blends](https://helpx.adobe.com/illustrator/using/printing-gradients-meshes-color-blends.html)
+
+8.    Automate tasks  
+    1.   [Data merge using the Variables panel](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    2.   [Automation with scripts](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    3.   [Automation with actions](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+9.    Troubleshooting 
+    1.   [Fixed issues](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    2.   [Known issues](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    3.   [Crash issues](https://helpx.adobe.com/illustrator/kb/fix-crash-on-launch-issues.html)
+    4.   [Recover files after crash](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+    5.   [Repair damaged documents](https://helpx.adobe.com/illustrator/kb/enable-content-recovery-mode-illustrator.html)
+    6.   [Safe mode](https://helpx.adobe.com/illustrator/using/safe-mode-illustrator-diagnostic-startup-tests.html)
+    7.   [File issues](https://helpx.adobe.com/illustrator/kb/troubleshoot-file-issues.html)
+    8.   [Supported file formats](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+    9.   [GPU device driver issues](https://helpx.adobe.com/illustrator/kb/illustrator-gpu-performance-driver-update.html)
+    10.   [GPU performance issues](https://helpx.adobe.com/illustrator/kb/gpu-performance-errors-troubleshooting-workarounds.html)
+    11.   [Wacom device issues](https://helpx.adobe.com/illustrator/kb/illustrator-cc-crash-wacom-drivers.html)
+    12.   [DLL file issues](https://helpx.adobe.com/illustrator/kb/vcruntime-error-on-launch.html)
+    13.   [Memory issues](https://helpx.adobe.com/illustrator/kb/not-enough-memory-illustrator-cc.html)
+    14.   [Preferences file issues](https://helpx.adobe.com/illustrator/kb/troubleshoot-preference-issues.html)
+    15.   [Font issues](https://helpx.adobe.com/fonts/kb/troubleshoot-fonts-illustrator-indesign.html)
+    16.   [Printer issues](https://helpx.adobe.com/illustrator/kb/troubleshoot-printer-issues.html)
+    17.   [Media issues](https://helpx.adobe.com/illustrator/kb/illustrator-support-networks-removable-media.html)
+    18.   [Missing plugin issues](https://helpx.adobe.com/illustrator/kb/plugin-missing-issue.html)
+    19.   [Share crash report with Adobe](https://helpx.adobe.com/illustrator/kb/crash-next-steps.html)
+    20.   [Unable to apply effects in Illustrator](https://helpx.adobe.com/illustrator/kb/unable-to-apply-effects.html)
+    21.   [Improve Illustrator performance](https://helpx.adobe.com/illustrator/kb/optimize-illustrator-performance.html)
+
+This document provides an overview of file formats supported in Illustrator. For information about specific formats and their use, see [Illustrator Help](https://helpx.adobe.com/illustrator/user-guide.html).
+
+| Action |  | Supported file format |  |
+| --- | --- | --- | --- |
+| **Open** | * Adobe Illustrator (ai, ait) * Adobe PDF (pdf) * AutoCAD Drawing (dwg) * AutoCAD Interchange File (dxf) * AV1 Image (avif) * BMP (bmp , rle , dib) * Computer Graphics Metafile (cgm) * CorelDRAW 5, 6, 7, 8, 9, 10 (cdr) * Encapsulated PostScript (eps, epsf , ps) | * Enhanced Metafile (emf) * GIF (gif) * High Efficiency Image (heic, heif) * Illustrator EPS (eps, epsf , ps) * JPEG (jpg, jpe , jpeg) * JPEG2000 ( jpf , jpx , jp2, j2k, j2c, jpc ) * Microsoft RTF ( rtf ) * Microsoft Word (doc) * Microsoft Word DOCX (docx) | * PCX (pcx) * Photoshop (psd, pdd) * Pixar (pxr) * PNG (png, pns) * SVG (svg) * SVG Compressed (svgz) * Targa (tga, vda, icb, vst) * Text (txt) * TIFF (tif, tiff) * WebP (webp) * Windows Metafile (wmf) |
+| **Place** | * Adobe Illustrator (ai, ait) * Adobe PDF (pdf) * AutoCAD Drawing (dwg) * AutoCAD Interchange File (dxf) * AV1 Image (avif) * BMP (bmp, rle, dib) * Computer Graphics Metafile (cgm) * CorelDRAW 5, 6, 7, 8, 9, 10 (cdr) * Encapsulated PostScript (eps, epsf, ps) * Enhanced Metafile (emf) | * GIF (gif) * High Efficiency Image (heic, heif) * JPEG (jpg, jpe, jpeg) * JPEG2000 (jpf, jpx, jp2, j2k, j2c, jpc) * Microsoft RTF (rtf) * Microsoft Word (doc) * Microsoft Word DOCX (docx) * PCX (pcx) | * Photoshop (psd, pdd) * Pixar (pxr) * PNG (png, pns) * SVG (svg) * SVG Compressed (svgz) * Targa (tga, vda, icb, vst) * Text (txt) * TIFF (tif, tiff) * WebP (webp) * Windows Metafile (wmf) |
+| **Save** | * Adobe Illustrator (ai) * Adobe PDF (pdf) * Illustrator EPS(eps) | * Illustrator Template (ait) * SVG (svg) * SVG Compressed (svgz) |  |
+| **Export** | * AutoCAD Drawing (dwg) * AutoCAD Interchange File (dxf) * BMP (bmp) * CSS (css) * Enhanced Metafile (emf) | * JPEG (jpg) * Photoshop (psd) * PNG (png) * SVG (svg) * Targa (tga) | * Text Format (txt) * TIFF (tif) * WebP (webp) * Windows Metafile (wmf) |
+| **Save for web** | * GIF (gif) * JPEG (jpg) * PNG (png) |  |  |
+| **Export for screens** | * Adobe PDF (pdf) * JPEG (jpg) * PNG (png) * SVG (svg) * WebP (webp) |  |  |
+
+![Image 8: Adobe, Inc.](https://helpx.adobe.com/content/dam/helpx/icons/adobe-logo.svg)
+
+## **Get help faster and easier**
+
+[Sign in](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+New user?
+
+[Create an account ›](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+![Image 9: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+[Manage account](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+Quick links
+
+[View all your plans](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)[Manage your plans](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+[View quick links](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+[Hide quick links](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+[Legal Notices](https://helpx.adobe.com/legal/legal-notices.html)|[Online Privacy Policy](https://www.adobe.com/privacy.html)
+
+![Image 10: Adobe Illustrator](https://helpx.adobe.com/content/dam/help/mnemonics/ai_cc_app_RGB.svg)
+
+![Image 11: Adobe Illustrator](https://helpx.adobe.com/content/dam/help/mnemonics/ai_cc_app_RGB.svg)
+
+**Design with precision in Illustrator**
+
+ Bring your ideas to life with vector graphics tools built for creative freedom and accuracy.
+
+[Open the app](https://www.adobe.com/download/illustrator)
+
+[Open the app](https://www.adobe.com/download/illustrator)
+
+### Share this page
+
+*   [](http://www.facebook.com/sharer.php)
+*   [](https://twitter.com/share?text=twitter)
+*   [](http://www.linkedin.com/shareArticle?mini=true)
+*   [Link copied](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+Was this page helpful?
+
+Yes, thanks Not really
+
+![Image 12: Adobe Illustrator](https://helpx.adobe.com/content/dam/help/mnemonics/ai_cc_app_RGB.svg)
+## Adobe Illustrator
+
+*   [< Visit Adobe Help Center](https://helpx.adobe.com/support.html#/all_products)
+
+*   [Learn & Support](https://helpx.adobe.com/support/illustrator.html)
+*   [Get Started](https://helpx.adobe.com/illustrator/get-started.html)
+*   [User Guide](https://helpx.adobe.com/illustrator/user-guide.html)
+*   [Tutorials](https://helpx.adobe.com/illustrator/tutorials.html)
+
+### Ask the Community
+
+Post questions and get answers from experts.
+
+[Ask now](https://community.adobe.com/t5/illustrator/ct-p/ct-illustrator)
+
+### Contact Us
+
+Expert support for your issues.
+
+[Start now](https://helpx.adobe.com/contact.html?step=ILST)
+
+[^Back to top](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+*   
+    *   
+        *   
+[For individuals & small business](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+            *   [Creative AI](https://www.adobe.com/products/firefly.html?promoid=ZP46FD38&mv=other)
+            *   [Photography](https://www.adobe.com/creativecloud/photography/apps.html)
+            *   [Design and illustration](https://www.adobe.com/creativecloud/design.html?promoid=Z2G1FSYV&mv=other)
+            *   [Video and animation](https://www.adobe.com/creativecloud/video.html)
+            *   [PDF](https://www.adobe.com/acrobat.html)
+            *   [3D](https://www.adobe.com/products/substance3d.html)
+            *   [Elements Family](https://www.adobe.com/products/elements-family.html)
+            *   [Stock images and video](http://stock.adobe.com/)
+            *   [View all products](https://www.adobe.com/products/catalog.html#category=all?types=pf_252Fdesktop&types=pf_252Fmobile&types=pf_252Fweb)
+
+    *   
+        *   
+            *   
+[For medium & large business](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+                *   [Personalization at scale](https://business.adobe.com/solutions/personalization-at-scale.html)
+                *   [Content supply chain](https://business.adobe.com/solutions/content-supply-chain.html)
+                *   [Unified customer experience](https://business.adobe.com/solutions/unified-customer-experience.html)
+                *   [Creativity and production](https://business.adobe.com/solutions/content-supply-chain/creation-production.html)
+                *   [B2B GTM orchestration](https://business.adobe.com/solutions/b2b-marketing.html)
+                *   [View all products](https://business.adobe.com/products.html)
+
+    *   
+        *   
+[For organizations](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+            *   [Education](https://www.adobe.com/education.html)
+            *   [Nonprofits](https://www.adobe.com/nonprofits.html)
+            *   [Government](https://www.adobe.com/howtobuy/buying-programs/government.html)
+
+    *   
+        *   
+            *   
+[Support](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+                *   [Help Center](https://helpx.adobe.com/support.html)
+                *   [Download and install](https://helpx.adobe.com/download-install.html)
+                *   [Adobe Community](https://www.adobe.com/community)
+                *   [Adobe Learn](https://www.adobe.com/learn)
+                *   [Medium and large business support](https://business.adobe.com/support/main.html)
+
+    *   
+        *   
+[Contact sales](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+            *   [Request information](https://business.adobe.com/request-consultation.html)
+
+    *   
+        *   
+[Adobe](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+            *   [Log into your account](https://account.adobe.com/)
+            *   [About](https://www.adobe.com/about-adobe.html)
+            *   [Careers](https://www.adobe.com/careers.html)
+            *   [Events](https://www.adobe.com/events.html)
+            *   [Newsroom](https://news.adobe.com/home/default.aspx)
+            *   [Corporate responsibility](https://www.adobe.com/corporate-responsibility.html)
+            *   [Investor Relations](https://www.adobe.com/investor-relations.html)
+            *   [Supply chain](https://www.adobe.com/corporate-responsibility/supply-chain.html)
+            *   [Trust Center](https://www.adobe.com/trust.html)
+            *   [Adobe for All](https://www.adobe.com/diversity.html)
+            *   [Adobe blog](https://blog.adobe.com/)
+
+*   
+    *   Featured products 
+    *   [![Image 13: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)Adobe Acrobat Reader](https://get.adobe.com/reader/)
+    *   [![Image 14: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)Adobe Express](https://www.adobe.com/express/?promoid=Z2G1FSYV&mv=other)
+    *   [![Image 15: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)Photoshop](https://www.adobe.com/products/photoshop/free-trial-download.html)
+    *   [![Image 16: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)Firefly](https://www.adobe.com/products/firefly.html)
+
+*   
+    *   
+        *   [Change region](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        *   
+            *   [![Image 17: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)](https://www.facebook.com/adobe)
+            *   [![Image 18: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)](https://www.instagram.com/adobe/)
+            *   [![Image 19: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)](https://twitter.com/Adobe)
+            *   [![Image 20: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)](https://www.linkedin.com/company/adobe)
+            *   [![Image 21: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+    *   
+Copyright © 2026 Adobe. All rights reserved. 
+        *   [Privacy](https://www.adobe.com/privacy.html)
+        *   [Terms of Use](https://www.adobe.com/legal/terms.html)
+        *   [Cookie preferences](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+        *   [Do not sell or share my personal information](https://www.adobe.com/privacy/us-rights.html)
+        *   [![Image 22: Avatar](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)AdChoices](https://www.adobe.com/privacy/opt-out.html#interest-based-ads)
+
+Language Navigation
+
+Language Navigation
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+Choose a region
+
+Selecting a region changes the language and/or content on Adobe.com.
+
+*   Americas
+
+*   [Brasil](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Canada - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Canada - Français](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Latinoamérica](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [México](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Argentina](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Colombia](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Perú](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Chile](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [United States](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   Asia Pacific
+
+*   [Australia](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Hong Kong S.A.R. of China](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [India - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Indonesia - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Malaysia - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [New Zealand](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Philippines - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Vietnam - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [中国](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [中國香港特別行政區](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [台灣地區](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [日本](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Indonesia](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Malaysia](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Pilipinas](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Việt Nam](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [भारत](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [한국](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Singapore](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Thailand - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [ประเทศไทย](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   Europe, Middle East and Africa
+
+*   [Africa - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [België - Nederlands](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Belgique - Français](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Belgium - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Česká republika](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Danmark](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Deutschland](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Eesti](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [España](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [France](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Greece - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Ireland](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Israel - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Italia](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Latvija](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Lietuva](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Luxembourg - Deutsch](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Luxembourg - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Luxembourg - Français](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Magyarország](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Middle East and North Africa - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Nederland](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Norge](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Österreich](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Polska](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Portugal](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [România](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Schweiz](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Slovenija](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Slovensko](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Suisse](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Suomi](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Svizzera](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Türkiye](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [United Kingdom](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [България](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Россия](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Україна](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [الشرق الأوسط وشمال أفريقيا - اللغة العربية](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [ישראל - עברית](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Sverige](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [Saudi Arabia - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [United Arab Emirates - English](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [الإمارات العربية المتحدة](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+*   [المملكة العربية السعودية](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+
+Locale Modalv2
+
+We have detected you are visiting a different region on adobe.com
+
+[](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html#)
+
+[United States](https://helpx.adobe.com/illustrator/kb/supported-file-formats-illustrator.html)
+

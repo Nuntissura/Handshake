@@ -164,6 +164,79 @@ test("listDeclaredWpMicrotasks parses JSON-only packet folders and top-level MT 
   }
 });
 
+test("deriveWpMicrotaskPlan keeps managed-resource proof blockers active and reads scope proof commands", () => {
+  const wpId = "WP-TEST-MICROTASK-MANAGED-RESOURCE-BLOCKER-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.json"), JSON.stringify({
+    schema_id: "hsk.work_packet_contract@1",
+    wp_id: wpId,
+  }), "utf8");
+  fs.writeFileSync(
+    path.join(packetDir, "MT-012.json"),
+    JSON.stringify({
+      schema_id: "hsk.microtask_contract@1",
+      mt_id: "MT-012",
+      wp_id: wpId,
+      title: "Completed setup",
+      owned_files: ["src/setup.rs"],
+      proof_commands: ["cargo test setup"],
+      lifecycle: {
+        status: "COMPLETED",
+      },
+    }),
+    "utf8",
+  );
+  fs.writeFileSync(
+    path.join(packetDir, "MT-013.json"),
+    JSON.stringify({
+      schema_id: "hsk.microtask_contract@1",
+      mt_id: "MT-013",
+      wp_id: wpId,
+      title: "Managed resource proof",
+      owned_files: ["src/candle.rs"],
+      scope: {
+        proof_commands: ["cargo test candle_e2e_smoke -- --ignored"],
+      },
+      lifecycle: {
+        status: "NEEDS_MANAGED_RESOURCE_PROOF",
+      },
+    }),
+    "utf8",
+  );
+  fs.writeFileSync(
+    path.join(packetDir, "MT-014.json"),
+    JSON.stringify({
+      schema_id: "hsk.microtask_contract@1",
+      mt_id: "MT-014",
+      wp_id: wpId,
+      title: "Later work",
+      owned_files: ["src/later.rs"],
+      proof_commands: ["cargo test later"],
+      lifecycle: {
+        status: "PENDING",
+      },
+    }),
+    "utf8",
+  );
+
+  try {
+    const microtasks = listDeclaredWpMicrotasks(wpId);
+    assert.deepEqual(microtasks.find((entry) => entry.mtId === "MT-013")?.expectedTests, [
+      "cargo test candle_e2e_smoke -- --ignored",
+    ]);
+
+    const plan = deriveWpMicrotaskPlan({ wpId, microtasks });
+    assert.equal(plan.items.find((entry) => entry.mt_id === "MT-012")?.state, "CLEARED");
+    assert.equal(plan.active_microtask?.mt_id, "MT-013");
+    assert.equal(plan.active_microtask?.state, "REPAIR_REQUIRED");
+    assert.equal(plan.suggested_next_microtask?.mt_id, "MT-013");
+    assert.equal(plan.items.find((entry) => entry.mt_id === "MT-014")?.state, "DECLARED");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
 test("deriveWpMicrotaskPlan advances after JSON lifecycle completion without receipt downgrade", () => {
   const wpId = "WP-TEST-MICROTASK-JSON-LIFECYCLE-v1";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);

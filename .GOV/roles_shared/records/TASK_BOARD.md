@@ -74,7 +74,6 @@ Entry format (recommended):
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
-- **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [READY_FOR_DEV]
 
 
 
@@ -169,6 +168,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 - **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [IN_PROGRESS]
 - **[WP-CKC-posekit-overhaul]** - [IN_PROGRESS]
+- **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [IN_PROGRESS]
 
 
 

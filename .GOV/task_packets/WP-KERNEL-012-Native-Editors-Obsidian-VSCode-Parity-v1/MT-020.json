@@ -14,7 +14,7 @@
   "title": "E2-MT020-SaveToFormatDraftRecovery",
   "group": "E2 Rich-text editor (Obsidian/Notion parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-04T21:01:26.661Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-020.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-011",
@@ -34,11 +34,58 @@
     "depends_on_cross_wp_note": "Reuses existing WP-011 modules under src/frontend/handshake_native/src/ (command_registry.rs, event_bus.rs, top_menu_bar.rs, accessibility/*) via the live crate; this is a code-reuse dependency on WP-KERNEL-011 deliverables, not a microtask depends_on edge.",
     "blocks": [],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:24:41Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: carried MT-015 inline-atom undo amendment only half-delivered. Step::InsertInlineChild/DeleteInlineChild exist in transform.rs (96-104) with unit tests, but NO live insert path uses them: confirm_wikilink direct-mutates (confirm.rs:83, module doc now stale/false), slash_commands/executor.rs:360-392 insert_inline_atom direct-mutates (embeds/transclusions/code-refs), MT-058 tag commit uses same path. Ctrl+Z cannot undo wikilink/embed/transclusion/code-ref/tag inserts; bypassing UndoManager creates position-corruption risk for earlier undo receipts. implementation_result 'Model now backend-complete' overstates. Rewire through Transaction+history.push (executor.rs:300-314 shows the pattern) + live-widget undo-after-insert regression test + fix stale docs. Also: extend MT-099 mock to serve non-null draft on second open for app-level draft recovery proof.",
     "deflection_category": "undo_amendment_half_delivered",
-    "remediation_appendage": "Rewire confirm_wikilink/insert_inline_atom/tag-commit through Transaction+InsertInlineChild with history.push; add live-widget undo-after-insert test; fix stale doc comments; extend MT-099 mock to serve a non-null draft for app-level recovery proof."
+    "remediation_appendage": "Rewire confirm_wikilink/insert_inline_atom/tag-commit through Transaction+InsertInlineChild with history.push; add live-widget undo-after-insert test; fix stale doc comments; extend MT-099 mock to serve a non-null draft for app-level recovery proof.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Rewire confirm_wikilink/insert_inline_atom/tag-commit through Transaction+InsertInlineChild with history.push; add live-widget undo-after-insert test; fix stale doc comments; extend MT-099 mock to serve a non-null draft for app-level recovery proof.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (Ctrl+S triggers save_document; a successful save clears the dirty flag and updates doc_version in RichEditorState (cargo test with mock HTTP 200 response)., A 409 response from the save endpoint sets ConflictState and displays the conflict_ui window (cargo test with mock 409 + kittest screenshot)., 'Keep server' in the conflict UI reloads the server content into the DocModel and clears ConflictState (cargo test)., 'Keep yours' re-saves with the server's doc_version, overwriting the server content (cargo test with mock HTTP)., Draft recovery: on mount with a loadRichDocumentDraft response containing a draft, DraftState::Available is set and a 'Draft recovery' banner appears (cargo test + kittest screenshot)., 'Restore draft' button loads the draft content into the DocModel (cargo test)., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: cargo test -p handshake-native -- save outputs 'test result: ok' with test count >= 10. ; kittest screenshot saved to src/frontend/handshake_native/tests/screenshots/mt020_conflict_ui.png showing the conflict window. ; kittest screenshot saved to src/frontend/handshake_native/tests/screenshots/mt020_draft_banner.png showing the draft recovery banner. ; Integration test (real Postgres backend): cargo test -p handshake-native --test test_rich_editor_save -- test_real_save_conflict --ignored; asserts 409 conflict is received and ConflictState is set. ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260704-195953",
+    "claimed_at_utc": "2026-07-04T20:59:08.0121864Z",
+    "claim_takeover_note_2026_07_04": "KERNEL_BUILDER-20260704-195953 inspected and refreshed evidence after the operator-directed reopen. No official validator has run; validator_verdict remains PENDING.",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260704-195953",
+    "ready_for_validation_at_utc": "2026-07-04T21:01:26.661Z",
+    "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "missing_resource": "Seeded Handshake-managed backend workspace/document for real save-conflict round-trip: cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_rich_editor_save test_real_save_conflict -- --ignored --nocapture with backend/database env set.",
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
+      "verdict": "PASS",
+      "emitted_by": "KERNEL_BUILDER-20260704-195953",
+      "emitted_at_utc": "2026-07-04T21:01:26.661Z"
+    }
   },
   "scope": {
     "summary": "Implement save-to-format export and draft/crash recovery for the native rich-text editor. This MT delivers: (1) a SaveManager that persists the document to the backend (the canonical authority), (2) export projections to HTML (self-contained and reference-linked), Markdown, plain text, and ProseMirror JSON, (3) draft/crash recovery via the backend draft endpoint so in-progress edits survive a crash or forced close, and (4) a conflict/merge UI for concurrent edits. This is the native Rust port of app/src/lib/editor/export_formats.ts + app/src/components/RichDocumentView.tsx save/draft/recovery logic (MT-244/MT-255).\n\nEXPECTED DIFF SHAPE:\n- src/frontend/handshake_native/src/rich_editor/save/mod.rs\n- src/frontend/handshake_native/src/rich_editor/save/save_manager.rs (canonical save: PUT /knowledge/documents/{id}/save with optimistic concurrency)\n- src/frontend/handshake_native/src/rich_editor/save/draft_manager.rs (draft upsert + draft recovery on mount)\n- src/frontend/handshake_native/src/rich_editor/save/export.rs (export projections: HTML self-contained, HTML reference-linked, Markdown, plain text, ProseMirror JSON)\n- src/frontend/handshake_native/src/rich_editor/save/conflict_ui.rs (egui conflict resolution panel: show diff, choose operator or server version, or merge)\n- Extend src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs to host the conflict UI and wire Ctrl+S.\n\nSAVE MANAGER (save_manager.rs - port RichDocumentView.tsx save flow):\n- fn save_document(doc_id: &str, content_json: &DocJson, expected_version: u64, ctx: &RichDocContext) -> Result<RichDocSaveResult, SaveError>\n- HTTP call: PUT /knowledge/documents/{doc_id}/save { content_json, expected_version, ... }\n- On 409 Conflict (version mismatch): transition to ConflictState { server_doc: RichDocLoad, local_content: DocJson }. Show conflict_ui.\n- On 200 Ok: update doc_version to result.document.doc_version, clear dirty flag, update updated_at.\n- SaveError variants: VersionConflict(RichDocLoad), Network(String), Server(u16, String), SchemaRejected(String).\n- Ctrl+S keyboard shortcut (SAVE_ACTION from editor_keymap.ts equivalent) calls save_document.\n\nDRAFT MANAGER (draft_manager.rs - port RichDocumentView.tsx draft flow):\n- On document mount: call GET /knowledge/documents/{id}/draft (loadRichDocumentDraft). If a draft exists and draft.base_doc_version matches the current doc_version AND the draft content differs from the server content: show a 'Draft recovery' banner with [Restore draft] [Discard] buttons.\n- On every document change (dirty): debounced 5-second upsert: PUT /knowledge/documents/{id}/draft { base_doc_version, base_content_sha256, content_json } (upsertRichDocumentDraft).\n- On successful canonical save: call DELETE /knowledge/documents/{id}/draft (clearRichDocumentDraft) to clean up.\n- On Discard draft: call clearRichDocumentDraft.\n- DraftState: None, Checking, Available { draft: RichDocumentDraft, shown: bool }, Discarded.\n- SHA256 of content_json: use the sha2 crate to compute base_content_sha256.\n\nEXPORT (export.rs - port export_formats.ts):\n- ExportFormat enum: HtmlSelfContained, HtmlReferenceLiked, Markdown, PlainText, ProseMirrorJson.\n- fn export_document(doc: &DocNode, format: ExportFormat, workspace_id: &str, title: &str) -> Result<ExportOutput, ExportError> where ExportOutput { content: Vec<u8>, filename: String, mime: String }.\n- HTML Self-contained: walk the DocNode tree, emit HTML5 markup. For image embeds: fetch the asset bytes (GET /workspaces/{workspace_id}/assets/{asset_id}/content) and base64-inline as data: URLs. Size guards (mirroring export_formats.ts): images up to 10 MB each; total base64 data cap 50 MB; video NEVER inlined. Unresolvable embeds: emit a visible <p data-hs-export-error=\"{error_kind}\"> placeholder, never silent blank.\n- HTML Reference-linked: same structure but media elements use the backend asset content URL (http://127.0.0.1:37501/workspaces/{workspace_id}/assets/{asset_id}/content) instead of data: URLs.\n- Markdown: walk DocNode tree, emit CommonMark. Lossy (matches the React markdown export: drops underline/strikethrough nuance, flattens table col widths, converts wikilinks to [[kind:value]] tokens, converts task items to '- [ ]'/'- [x]'). Never panics on unsupported nodes; emit a '<!-- unsupported: {kind} -->' comment.\n- PlainText: walk all TextLeafs and concatenate their rope content with newlines between blocks.\n- ProseMirrorJson: use MT-011 doc_json.rs serialization with a typed envelope { schema_version: 'rich_document_v1', projection_disclaimer: 'This is a read-only export projection. The canonical authority is the Postgres RichDocument record.', content: DocJson }.\n- File save: use the native OS file save dialog (rfd crate: rfd::FileDialog::new().save_file()) OR write to a specified path. On success, show a toast 'Exported to {filename}'.\n\nCONFLICT UI (conflict_ui.rs - port RichDocumentView.tsx conflict handling):\n- Floating egui::Window 'Save conflict'.\n- Show: 'Server version (v{N})' panel (read-only rendered block list) vs 'Your version' panel (current DocModel rendered).\n- Three choices: [Keep yours] (force-save with the operator's content at the server version), [Keep server] (reload server content, discard local), [Open merge] (open a side-by-side merge view, deferred to a future MT - for now show 'Merge not yet available' text).\n- AccessKit: window = 'conflict-dialog', keep-yours = 'conflict-keep-yours', keep-server = 'conflict-keep-server'. Register these via the existing WP-011 accessibility modules (src/frontend/handshake_native/src/accessibility/mod.rs + registry.rs); do not invent a new AccessKit registry.\n\nFILE SAVE DIALOG:\n- Add crate: rfd = '0.14' (Rust file dialog, async-capable, no wry/webview dependency).\n- Add crate: sha2 = '0.10'.\n- Add crate: base64 = '0.22'.\n\nSTEP-BY-STEP:\n1. Implement save_manager.rs with the save_document fn and the Ctrl+S wiring in rich_editor_widget.rs.\n2. Implement draft_manager.rs: on mount call loadRichDocumentDraft; on dirty changes debounce upsertRichDocumentDraft; on save call clearRichDocumentDraft.\n3. Implement export.rs: start with PlainText (simplest), then ProseMirrorJson, then Markdown, then HTML (both modes). Each export fn is independently callable.\n4. Implement conflict_ui.rs: show when ConflictState is set. Wire Keep yours / Keep server buttons.\n5. Add a menu button 'Export...' in the toolbar (toolbar.rs from MT-013 or as a standalone button if MT-013 is not yet done); for app-level menu integration reuse the existing WP-011 module src/frontend/handshake_native/src/top_menu_bar.rs. The button opens an export format picker popup.\n6. Cargo tests: save_document 409 -> ConflictState set. Draft recovery: loadRichDocumentDraft returns a draft -> DraftState::Available. export_document PlainText extracts all text correctly. export_document Markdown produces valid CommonMark for a heading + paragraph + bold mark. SHA256 of DocJson matches base_content_sha256 in the draft upsert body.\n7. Integration test (real backend): save, then save again with wrong expected_version, assert 409 -> ConflictState.\n\nDEPENDENCIES: MT-011 (DocJson serialization for save + export, doc_version tracking), MT-012 (Ctrl+S keyboard handling in input_handler.rs for the save shortcut).",
@@ -120,7 +167,7 @@
     "HBR-STOP"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260704-195953",
     "wp_validator_session": null
   },
   "red_team": {
@@ -166,10 +213,145 @@
       "a65d52d3 feat MT-020 save-to-format + draft/crash recovery + conflict resolution",
       "3afa032f fix harden per adversarial review"
     ],
-    "proofs": "AC-1..14 GREEN; 864 lib + 13 integration; FULL suite 72 bin-result lines ALL 0 failed (KERNEL_BUILDER independently re-ran - the MODEL amendments broke NOTHING); clippy clean; conflict UI (Server v5 vs Your version diff + Keep yours/server/Open-merge) + draft banner visually verified; screenshots EXTERNAL (git ls-files src/**/*.png empty).",
-    "model_amendments_done": "The 3 carried MT-011 model/transform amendments DELIVERED: (1) TableHeader NodeKind + doc_json json_to_block/block_to_json mapping (node.rs/doc_json.rs/schema.rs); (2) embed hsLink shape handling; (3) undoable inline-atom insert/delete Step in transform.rs (hsLink/text/transclusion). Model now backend-complete.",
+    "proofs": "Current RFV proof is scoped, not a validator PASS: manual/HBR content tests 2/2; live inline-atom undo widget tests 2/2 wikilinks, 1/1 tags, 3/3 slash commands, 1/1 CKC embed; app-level second-open draft recovery 1/1; rich save/draft/conflict suite 17/17 with external conflict/draft screenshots; final cargo test save filter PASS. Real PostgreSQL/EventLedger save-conflict round-trip remains NEEDS_MANAGED_RESOURCE_PROOF.",
+    "model_amendments_done": "The carried inline-atom undo amendment is now live-path proven: wikilink confirm, slash embed/transclusion/code-ref insertion, tag commit, and remove-embed routes use Transaction + Step::InsertInlineChild/DeleteInlineChild with history.push or equivalent undo receipt paths. TableHeader/doc_json and embed hsLink shape handling remain historical carried context, not official validator approval.",
     "backend_shape_corrected": "CRITICAL SHA256 CORRECTION (verified vs backend): draft base_content_sha256 uses the REAL backend canonical-JSON hash (knowledge_canonical_json_sha256), NOT the contract's stale serde_json::to_vec wording - a wrong hash would make the backend reject EVERY draft. canonical_hash.rs matches the backend's canonical-JSON computation. Field/shape-verification discipline (hsLink/tableHeader/WP009/rename/document_id/now canonical-hash).",
     "export": "PlainText/Markdown(manual CommonMark walker, NO comrak - reconciliation held)/HTML(self-contained+reference, per-image+50MB total size guards, video never inlined, XSS escaping)/ProseMirrorJson(typed projection envelope); rfd 0.14 file dialog behind a mockable seam (user-initiated, std::thread, HBR-QUIET); sha2/base64 already present (no dup).",
-    "blocked": "PT real save-conflict round-trip = NEEDS_MANAGED_RESOURCE_PROOF (gated #[ignore]+integration, real PUT /save 409; not run offline). 'Keep yours' confirmation (HBR-STOP, no silent data loss); draft-vs-save race guarded (is_saving)."
+    "blocked": "PT real save-conflict round-trip = NEEDS_MANAGED_RESOURCE_PROOF (gated #[ignore]+integration, real PUT /save 409; not run offline). 'Keep yours' confirmation (HBR-STOP, no silent data loss); draft-vs-save race guarded (is_saving).",
+    "latest_refreshed_by": "KERNEL_BUILDER-20260704-195953",
+    "latest_refreshed_at_utc": "2026-07-04T21:01:26.661Z",
+    "review_verdict": "READY_FOR_VALIDATION_EVIDENCE_REFRESHED",
+    "proof_status": "GREEN_WITH_TYPED_EXTERNAL_BLOCKER",
+    "proof_refresh_2026_07_04_mt020_repair": {
+      "schema_id": "hsk.mt_implementation_evidence@1",
+      "refreshed_by": "KERNEL_BUILDER-20260704-195953",
+      "refreshed_at_utc": "2026-07-04T21:01:26.661Z",
+      "status": "READY_FOR_VALIDATION",
+      "validator_verdict": "PENDING",
+      "summary": "Reopened MT-020 save/draft/conflict, manual/HBR, and inline-atom undo audit evidence refreshed. Current product rewires wikilink, slash inline atom, and tag commit insert paths through Transaction + Step::InsertInlineChild with history.push, proves live Ctrl+Z undo from widget paths, and proves MT-099 app-level second-open non-null draft recovery through the mounted pane. Save/draft/conflict/export local proofs and screenshots pass; real backend conflict round-trip remains a typed managed-resource proof gap.",
+      "source_inspection": [
+        "src/frontend/handshake_native/src/rich_editor/wikilinks/confirm.rs: confirm_wikilink builds DeleteText + InsertInlineChild transaction and pushes the receipt to history; cancel path also uses transaction/history.",
+        "src/frontend/handshake_native/src/rich_editor/slash_commands/executor.rs: embed, transclusion, and code-ref inline atoms insert through Step::InsertInlineChild and ctx.history.push(receipt).",
+        "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs: inline tag commit reuses confirm_wikilink and queues unified undo bus snapshots for live Ctrl+Z.",
+        "src/frontend/handshake_native/src/rich_editor/document_model/transform.rs: InsertInlineChild/DeleteInlineChild transform steps and undo regression exist.",
+        "src/frontend/handshake_native/tests/test_notes_end_to_end.rs: MT-099 mock can stage a non-null draft and the second-open mounted-pane test restores it."
+      ],
+      "proof_commands": [
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_content --jobs 1 wave5_surface_topics_exist_and_carry_real_no_context_facts -- --nocapture",
+          "result": "PASS: 1 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_content --jobs 1 mt020_agent_tool_reference_covers_save_draft_and_export_controls -- --nocapture",
+          "result": "PASS: 1 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_wikilinks --jobs 1 mt020_live -- --nocapture",
+          "result": "PASS: 2 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_inline_tags --jobs 1 mt020_live_tag_commit_undo_restores_pre_insert_doc -- --nocapture",
+          "result": "PASS: 1 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_slash_commands --jobs 1 mt020_live -- --nocapture",
+          "result": "PASS: 3 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_notes_end_to_end --jobs 1 draft_recovery_banner_restores_draft_through_mounted_pane_on_second_open -- --nocapture",
+          "result": "PASS: 1 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_rich_editor_save --jobs 1 mt020_ -- --nocapture",
+          "result": "PASS: 17 passed, 0 failed; conflict and draft screenshots saved externally."
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_ckc_embed --jobs 1 mt020_atelier_drop_insert_is_one_undoable_transaction -- --nocapture",
+          "result": "PASS: 1 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --jobs 1 save -- --nocapture",
+          "result": "PASS: final rerun exit 0; one live PostgreSQL test remains ignored as NEEDS_MANAGED_RESOURCE_PROOF."
+        }
+      ],
+      "screenshot_artifacts": [
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-020/mt020_conflict_ui.png",
+          "bytes": 64164,
+          "last_write_time_utc": "2026-07-04T20:14:50Z",
+          "inspected": true,
+          "inspection_note": "Shows Save conflict window with server/local panes plus Keep yours, Keep server, and Open merge controls."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-020/mt020_draft_banner.png",
+          "bytes": 40839,
+          "last_write_time_utc": "2026-07-04T20:14:55Z",
+          "inspected": true,
+          "inspection_note": "Shows Unsaved draft recovered banner with Restore draft, Discard, and Keep editing controls."
+        }
+      ],
+      "external_resource_proof": {
+        "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+        "reason": "HANDSHAKE_TEST_WORKSPACE_ID, HANDSHAKE_BACKEND_URL, DATABASE_URL, HANDSHAKE_TEST_DB_URL, and HANDSHAKE_TEST_RICH_DOC_ID were absent, so the ignored real backend save-conflict round-trip was not run locally.",
+        "missing_env_vars": [
+          "HANDSHAKE_TEST_WORKSPACE_ID",
+          "HANDSHAKE_BACKEND_URL",
+          "DATABASE_URL",
+          "HANDSHAKE_TEST_DB_URL",
+          "HANDSHAKE_TEST_RICH_DOC_ID"
+        ],
+        "ignored_test": "test_real_save_conflict"
+      },
+      "subagent_reviews": [
+        {
+          "reviewer": "Peirce",
+          "verdict": "ALREADY_FIXED",
+          "finding": "Pre-review confirmed confirm_wikilink, slash insert_inline_atom, tag commit, and remove-embed use transaction/undo paths."
+        },
+        {
+          "reviewer": "Carson",
+          "verdict": "ALREADY_FIXED",
+          "finding": "Pre-review confirmed the MT-099 mock can serve a non-null draft on second open and the mounted-pane app-level recovery test exists."
+        },
+        {
+          "reviewer": "Banach",
+          "verdict": "HBR_GAPS_FOUND_AND_CLOSED",
+          "finding": "Pre-review found UserManual/agent-row gaps for draft recovery, conflict controls, inline atom undo, HBR-INT-009, and export controls; KERNEL_BUILDER patched manual_content_editors.rs and test_manual_content.rs and reran focused tests."
+        },
+        {
+          "reviewer": "Volta",
+          "verdict": "POST_REVIEW_PASS",
+          "finding": "Post-review passed product diff quality and cross-checked manual claims against live source IDs and transaction paths."
+        },
+        {
+          "reviewer": "Kuhn",
+          "verdict": "HBR_POST_REVIEW_PASS",
+          "finding": "Post-review found no remaining HBR manual/tool-row blockers and confirmed live PostgreSQL/EventLedger conflict proof must remain typed NEEDS_MANAGED_RESOURCE_PROOF."
+        },
+        {
+          "reviewer": "Beauvoir",
+          "verdict": "STATE_READY_FOR_RFV",
+          "finding": "Post-review recommended MT-020 READY_FOR_VALIDATION with validator_verdict PENDING and the managed-resource proof gap preserved."
+        }
+      ],
+      "command_failures_or_retries": [
+        {
+          "command": "PowerShell env var presence JSON one-liner",
+          "result": "FAILED: parser error from invalid pipeline shape; rerun with $rows variable succeeded."
+        },
+        {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --jobs 1 save -- --nocapture",
+          "result": "First broad run timed out before verdict and was not counted. A later broad run exposed an unrelated transient project_tabs failure; isolated rerun passed, and the final broad save rerun passed."
+        }
+      ],
+      "process_hygiene": "Used CARGO_TARGET_DIR under Handshake_Artifacts, waited for KERNEL_BUILDER-started cargo processes to finish, and did not close processes not started by KERNEL_BUILDER.",
+      "kb_ready_checklist": {
+        "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+        "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
+        "verdict": "PASS",
+        "emitted_by": "KERNEL_BUILDER-20260704-195953",
+        "emitted_at_utc": "2026-07-04T21:01:26.661Z"
+      }
+    }
   }
 }

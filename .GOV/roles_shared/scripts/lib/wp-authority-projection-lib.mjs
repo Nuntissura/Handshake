@@ -121,6 +121,8 @@ export function taskBoardStatusForPacketStatus(packetStatus) {
       return "READY_FOR_DEV";
     case "In Progress":
       return "IN_PROGRESS";
+    case "Ready for Validation":
+      return "IN_PROGRESS";
     case "Blocked":
       return "BLOCKED";
     case "Done":
@@ -198,6 +200,7 @@ export function derivePacketMilestone({
     return COMMUNICATION_STATE_MILESTONE_MAP[normalizedState];
   }
   if (normalizedPacketStatus === "Ready for Dev") return "BOOTSTRAP";
+  if (normalizedPacketStatus === "Ready for Validation") return "HANDOFF";
   if (normalizedPacketStatus === "Blocked") return "WORKFLOW_REPAIR";
 
   const normalizedCurrentMilestone = normalizeUpper(currentMilestone);

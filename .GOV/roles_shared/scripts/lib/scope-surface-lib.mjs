@@ -61,8 +61,12 @@ export function formatBoundedItemList(items, {
   return `${summary.count} ${noun}(s): ${sampleText}`;
 }
 
+function fieldSeparatorPattern() {
+  return String.raw`(?:\s*:\s*\*\*|(?:\*\*)?\s*:\s*)`;
+}
+
 function topLevelLabelRegex(label) {
-  return new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapeRegex(label)}(?:\\*\\*)?\\s*:\\s*$`, "i");
+  return new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapeRegex(label)}${fieldSeparatorPattern()}\\s*$`, "i");
 }
 
 function headingRegex(label) {
@@ -133,7 +137,7 @@ export function normalizeScopeEntries(entries) {
 
 export function parsePacketSingleField(packetContent, label) {
   const match = String(packetContent || "").match(
-    new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapeRegex(label)}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi"),
+    new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapeRegex(label)}${fieldSeparatorPattern()}(.+)\\s*$`, "mi"),
   );
   return match ? match[1].trim() : "";
 }

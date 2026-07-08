@@ -26,7 +26,7 @@
       "MT-007",
       "MT-008"
     ],
-    "active": true,
+    "active": false,
     "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260628-220906",
     "claimed_at_utc": "2026-06-28T22:32:08.601Z",

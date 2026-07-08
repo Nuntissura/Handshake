@@ -42,8 +42,8 @@
     "last_recovery_event_ref": null,
     "last_runtime_status_ref": null,
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "NOT_RUN",
-    "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
+    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL"
   },
   "scope": {
     "summary": "Expose readable swarm lane/message diagnostics in UI/debug surfaces.",

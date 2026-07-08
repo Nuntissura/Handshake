@@ -14,7 +14,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-05T08:59:28.198Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -38,11 +38,91 @@
       "MT-044"
     ],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:30:48Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: CMD_OPEN_DOCUMENT melt-together nav channel is test-only - take_pending_navigation drained ONLY by tests; live backlink clicks work via the PARALLEL EditorEvent::BacklinkActivated nav-bus path; the MT-032 bus bridge routes nothing in production and MT-034 NoteRefs clicks depend on the undrained channel. Live backlink computation proofs (created-doc block_id, computed backlinks, content-hash equality) are ignored+integration and never ran - all in-suite backlink assertions use seeded fixtures. Fix: add shell drain for take_pending_navigation (mirror take_pending_stage_content drain at app.rs:6684) or retire the duplicate channel; run gated live-PG backlink tests.",
     "deflection_category": "nav_bridge_channel_test_only",
-    "remediation_appendage": "Add shell drain for take_pending_navigation (or retire the duplicate channel); run gated live-PG computed-backlinks tests."
+    "remediation_appendage": "Add shell drain for take_pending_navigation (or retire the duplicate channel); run gated live-PG computed-backlinks tests.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Add shell drain for take_pending_navigation (or retire the duplicate channel); run gated live-PG computed-backlinks tests.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (loom_uri / parse_loom_uri round-trip: parse_loom_uri(loom_uri(&addr)) == Some(addr) — proven by unit test., Creating a rich document via the live PG backend and loading it returns a non-empty block_id that parses as a valid LoomBlockAddr — proven by integration test against real PG., BacklinkPanel renders a list of backlinks for a document that has at least one inbound wikilink, with each row showing source_document_id and link_kind — proven by integration test creating doc A (wikilink to B) then loading B's panel., Clicking a backlink row fires the OpenDocument command on the shared command bus (command_registry.rs + event_bus.rs) with the correct document ID — proven by kittest harness asserting command receipt., Canvas nodes with a placed_block_id display the loom:// chip in their header — proven by kittest screenshot + AccessKit node present., Content hash write-back: after saving a rich document the backend PATCH /loom/blocks/{block_id} is called with a non-empty content_hash — proven by integration test asserting updated block.content_hash matches SHA-256 of saved JSON., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: cargo test -p handshake-native loom_address -- --nocapture  =>  all PASS ; integration test (real PG): create rich doc, load, assert block_id non-empty, GET backlinks returns 200 ; integration test: create doc A with wikilink [[doc_B]], save, assert GET /knowledge/documents/{B_id}/backlinks returns entry with source_document_id == A_id ; kittest: click backlink row, assert shared command bus received OpenDocument command with correct doc_id ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      },
+      {
+        "at_utc": "2026-07-05T07:13:19.304Z",
+        "by": "KERNEL_BUILDER-20260705-071227",
+        "reason": "KERNEL_BUILDER claimed MT-032 to verify and close the reopened CMD_OPEN_DOCUMENT live shell-drain audit before product edits.",
+        "previous_status": "OPEN",
+        "new_status": "CLAIMED",
+        "previous_active": false
+      },
+      {
+        "at_utc": "2026-07-05T07:42:14.843Z",
+        "by": "KERNEL_BUILDER-20260705-074205",
+        "reason": "Previous Kernel Builder repomem session auto-closed during kbstart continuation; claim transferred to the live session before continuing MT-032 product remediation.",
+        "previous_status": "CLAIMED",
+        "new_status": "CLAIMED",
+        "previous_active": true
+      },
+      {
+        "at_utc": "2026-07-05T08:59:28.198Z",
+        "by": "KERNEL_BUILDER-20260705-074205",
+        "reason": "MT-032 reopened live CMD_OPEN_DOCUMENT route audit closed after production BacklinkActivated now routes through dispatch_backlink_open/CMD_OPEN_DOCUMENT into the shell drain, bus-contention retry is covered, manual HBR posture is explicit, proof commands passed, and KB_READY_CHECKLIST_RECEIPT emitted PASS. Official validator remains pending.",
+        "previous_status": "CLAIMED",
+        "new_status": "READY_FOR_VALIDATION",
+        "previous_active": true
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260705-074205",
+    "ready_for_validation_at_utc": "2026-07-05T08:59:28.198Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260705-074205",
+    "ready_for_validation_reason": "MT-032 reopened CMD_OPEN_DOCUMENT backlink audit is closed by current product proof: mounted BacklinkActivated routes through dispatch_backlink_open -> CMD_OPEN_DOCUMENT -> InteractionBus.pending_navigation -> drive_ckc_interop -> ShellNavigator, a one-frame pending_navigation assertion prevents a direct-bypass false green, bus contention retries instead of dropping the event, and the UserManual names the route/HBR posture. Official validator has not run.",
+    "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "missing_resource": {
+      "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+      "reason": "The focused repair proved standalone/native-shell route behavior and manual coverage. The seeded live PostgreSQL/handshake_core proofs for create-doc block_id, doc-B inbound backlinks from doc-A wikilink, and content_hash round trip did not run and are not faked.",
+      "typed_blockers": [
+        "NEEDS_MANAGED_RESOURCE_PROOF: live PostgreSQL/handshake_core proof for create rich doc -> non-empty block_id.",
+        "NEEDS_MANAGED_RESOURCE_PROOF: live doc A wikilink -> doc B inbound backlinks route with source_document_id == A.",
+        "NEEDS_MANAGED_RESOURCE_PROOF: live content_hash read/equality round trip against a saved rich document."
+      ],
+      "required_resource": "Seeded managed handshake_core/PostgreSQL workspace with rich-document creation, wikilink/inbound-backlink indexing, and content_hash readback available to the native integration tests."
+    },
+    "ready_for_validation_summary": "MT-032 READY_FOR_VALIDATION evidence refreshed by KERNEL_BUILDER-20260705-074205: production backlink activation now uses the existing MT-015 dispatch bridge and shared CMD_OPEN_DOCUMENT shell drain, with regression coverage for direct-bypass prevention and bus-contention retry; loom_address and manual proof suites passed; HBR-MAN/HBR-INT posture is recorded. Official validator has not run; validator_verdict remains PENDING. Live PostgreSQL AC-2/AC-3/AC-6 remain NEEDS_MANAGED_RESOURCE_PROOF.",
+    "kb_ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
+      "verdict": "PASS",
+      "emitted_by": "KERNEL_BUILDER-20260705-074205",
+      "emitted_at_utc": "2026-07-05T08:55:43.171Z"
+    }
   },
   "scope": {
     "summary": "Goal: make every document, rich-text block, canvas node, and code-file node in the native surface addressable as a Loom block with a content hash and live backlinks. This is the 'everything is a Loom block' invariant from the interconnection contract. Expected diff: (a) a new module src/frontend/handshake_native/src/loom_address.rs (~200–300 lines) that holds LoomBlockAddr, LoomBlockRecord, ContentHash, and the resolution logic; (b) a LoomBlockResolver that calls the existing backend APIs (getLoomBlock, getLoomBlockTransclusion, getDocumentBacklinks); (c) a BacklinkPanel widget added to the bottom of the rich-text editor and the graph pane; (d) tests proving that creating a rich document yields a loom:// URI and that the backlink panel loads real backlinks from the live PG backend.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/loom_address.rs  — defines LoomBlockAddr { workspace_id: String, block_id: String }, ContentHash(String), LoomBlockRecord { addr: LoomBlockAddr, title: String, content_hash: ContentHash, block_type: LoomBlockType }, LoomBlockType enum { RichDocument | CanvasNode | CodeFileNode | GraphNode }. Provides fn loom_uri(addr: &LoomBlockAddr) -> String (format: \"loom://{workspace_id}/{block_id}\"). Provides fn parse_loom_uri(s: &str) -> Option<LoomBlockAddr>.\n  - src/frontend/handshake_native/src/backlink_panel.rs  — egui widget; takes workspace_id + document_id; on first render calls backend GET /knowledge/documents/{doc_id}/backlinks; shows list of RichDocBacklink { backlink_id, source_document_id, link_kind, target, block_id }; each row is a clickable button that fires the OpenDocument command via the shared command bus (command_registry.rs + event_bus.rs, established in MT-031). AccessKit: panel container author_id=\"backlinks-panel-{doc_id}\", role=List; each row author_id=\"backlink-{backlink_id}\", role=ListItem, actions=[Press].\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/lib.rs  — add `pub mod loom_address;` and `pub mod backlink_panel;` module declarations (the native crate uses flat module registration in lib.rs; there is no shared/mod.rs or widgets/mod.rs).\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — after saving a document, call backend PATCH /loom/blocks/{block_id} with the document's content_hash (derived as SHA-256 of canonical JSON); embed BacklinkPanel at the bottom of the pane. (rich_text/ is the new WP-012 rich-text editor module subdir under handshake_native/src/.)\n  - src/frontend/handshake_native/src/canvas_board.rs  — each canvas node that maps to a placed Loom block must resolve and display its loom:// address in the node header; double-click opens the referenced document. (canvas_board.rs is the existing WP-011 canvas surface; reuse it, do not create a new canvas pane.)\n  - src/frontend/handshake_native/src/loom_graph.rs  — each graph node tooltip shows its loom:// URI and backlink count. (loom_graph.rs is the existing WP-011 graph surface; reuse it.)\n\nStep-by-step implementation notes:\n  1. ContentHash: use sha2::Sha256 (add sha2 ^0.10 to Cargo.toml if not present). Canonical JSON: serialize the document's ProseMirror JSONContent using serde_json with sorted keys (use indexmap if needed) then hash bytes.\n  2. LoomBlockAddr is stable across renames: the block_id is the backend's UUID; the workspace_id is the app-level workspace UUID.\n  3. To resolve a document_id to its loom block_id: the existing backend RichDocument (from loadRichDocument / GET /knowledge/documents/{id}) already carries a block_id field (see api.ts LoomBlock: block_id). Read this field on document load.\n  4. BacklinkPanel loading: call GET /knowledge/documents/{doc_id}/backlinks — this maps to the React call getRichDocBacklinks (api.ts line ~3326: request('/knowledge/documents/${documentId}/backlinks')). Response is { source_document_id, backlinks: RichDocBacklink[] }. Cache the result in BacklinkPanel's local egui state (load once per document_id change).\n  5. Backlink row: display source_document_id (truncated), link_kind badge, and a right-arrow icon. On click: dispatch the \"open-document\" command via the shared command bus (command_registry.rs + event_bus.rs) with CommandArgs::DocumentId(source_document_id). The OpenDocument command must be registered on the command bus (MT-031).\n  6. Canvas node addressing: each CanvasNode in the DB has a placed_block_id (see api.ts CanvasPlacedNode line ~1642). Use this as the loom block_id. On canvas_board render, for each node, show a loom:// chip in the node header if placed_block_id is Some.\n  7. Content hash write-back: after saveRichDocument returns (api.ts ~3245), read the save_receipt_event_id and doc_version. Derive ContentHash of the saved JSON. Call PATCH /loom/blocks/{block_id} with { content_hash }. This is the backend updateLoomBlock call (api.ts ~1890: request('/loom/blocks/${blockId}', { method: 'PATCH', body })). Map to the Rust IPC/backend client (backend_client.rs).\n  8. AccessKit: see above under BacklinkPanel; reuse the accessibility/* helpers (accessibility/live.rs, accessibility/registry.rs, accessibility/snapshot.rs) for node registration.\n  9. Tests: src/frontend/handshake_native/tests/test_loom_address.rs — (a) unit: parse_loom_uri(\"loom://ws1/block1\") returns Some(LoomBlockAddr { workspace_id: 'ws1', block_id: 'block1' }); (b) unit: loom_uri round-trips; (c) integration (real PG): create a rich document via backend API, load it, assert block_id is non-empty, assert GET /knowledge/documents/{id}/backlinks returns 200; (d) integration: create doc A with a wikilink to doc B, save A, assert B's backlinks include A's block_id.\n\nDependencies / unblock conditions:\n  - MT-031 (shared command bus / OpenDocument command registration on command_registry.rs + event_bus.rs) merged.\n  - MT-021 (graph surface) and MT-022 (canvas surface placing loom blocks) merged so canvas node placed_block_id field is accessible.\n  - sha2 crate ^0.10 added to Cargo.toml.\n  - Backend: GET /knowledge/documents/{id}/backlinks endpoint must exist (it does — confirmed in api.ts line 3326).\n  - Backend: PATCH /loom/blocks/{block_id} must exist (confirmed api.ts updateLoomBlock line 1890).\n\nRisk if missed: without the loom block addressing layer, MT-033 (CKC embeds as loom:// refs) and MT-034 (code<->note cross-refs) both lack a stable addressable target, and the parity proof suite (MT-044) cannot assert the 'everything is a Loom block' invariant.",
@@ -106,10 +186,11 @@
   "hbr_obligations": [
     "HBR-INT",
     "HBR-SWARM",
-    "HBR-VIS"
+    "HBR-VIS",
+    "HBR-MAN"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260705-074205",
     "wp_validator_session": null
   },
   "red_team": {
@@ -139,18 +220,153 @@
       "placed_block_id-None skip chip; reuse MT-015 panel author_ids; no Color32 literal; external screenshots"
     ]
   },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER_EVENTLEDGER",
+      "status": "NOT_APPLICABLE_WITH_REASON",
+      "reason": "The refreshed MT-032 fix changes local native editor navigation from a backlink row to the existing OpenDocument shell path. It does not mutate authority or write EventLedger records."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "The native internal_diagnostics tier is not shipped for this route yet; the same-change manual now states this explicitly rather than implying diagnostic coverage exists."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "The external watcher/Palmistry tier is not shipped for this route yet; the same-change manual now states this explicitly rather than implying watcher coverage exists."
+    }
+  ],
   "implementation_result": {
-    "implemented_by": "KERNEL_BUILDER folded pipeline wf_844c68bd (impl + 3-lens panel + harden)",
+    "schema_id": "hsk.mt_implementation_proof_refresh@1",
+    "implemented_by": "KERNEL_BUILDER-20260705-074205",
     "branch": "feat/WP-KERNEL-012",
-    "commits": [
-      "db43eb96 feat MT-032 everything-is-a-Loom-block addressing + loom:// chips/backlinks",
-      "d798f0af fix harden per adversarial review"
+    "refreshed_at_utc": "2026-07-05T08:54:22.544Z",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "fix_first_closure": "Closed the reopened audit finding that CMD_OPEN_DOCUMENT backlink navigation was test-only/parallel-path in production. Mounted EditorEvent::BacklinkActivated now routes through dispatch_backlink_open -> CMD_OPEN_DOCUMENT -> InteractionBus.pending_navigation -> drive_ckc_interop -> ShellNavigator instead of direct ShellNavigator::open_document. The shell drain is proven on the live mounted app path, including a bus-contention retry path.",
+    "product_changes": [
+      "src/frontend/handshake_native/src/app.rs: added pending_backlink_open_retry and dispatch_backlink_open_through_bus so production backlink activation uses the MT-015 dispatch bridge and the shared InteractionBus channel; drive_editor_mounts retries queued backlink opens when the bus was contended.",
+      "src/frontend/handshake_native/tests/test_loom_address.rs: added mounted_backlink_event_routes_through_bus_and_live_shell with a one-frame pending_navigation assertion before shell drain, and mounted_backlink_event_retries_when_bus_is_contended to prove the event is not dropped under try_lock contention.",
+      "src/frontend/handshake_native/tests/test_loom_address.rs: corrected the ignored live-PG backlink proof label so AC-3 target-B inbound/reverse backlink coverage is not overclaimed; the existing live helper now proves only the forward backend shape until a seeded managed resource is available.",
+      "src/frontend/handshake_native/src/manual_content_editors.rs: updated the Wikilinks and Backlinks manual topic with the real CMD_OPEN_DOCUMENT route and explicit HBR-INT posture for Flight Recorder/EventLedger, internal_diagnostics, and Palmistry.",
+      "src/frontend/handshake_native/tests/test_manual_content.rs: added manual-content needles for EditorEvent::BacklinkActivated, dispatch_backlink_open, and the explicit HBR-INT tier statuses."
     ],
-    "review_panel": "correctness=CHANGES_REQUIRED(3), backend-shape=CHANGES_REQUIRED(2), perf-focus-hygiene=PASS(0) -> 5 must-fixes hardened.",
-    "proofs": "AC-1/4/5/7/8 PASS; AC-2/3/6-live = NEEDS_MANAGED_RESOURCE_PROOF (gated); 1022 lib + 13 loom_address + 9 integration green; test_theme 19 (palette.accent, no Color32 literal); clippy clean; canvas loom:// chips (loom://ws-32/blk-7, blk-8 green footers) visually verified; screenshot EXTERNAL.",
-    "reuse_held": "My reuse-not-duplicate steer HELD: NO new backlink_panel.rs (lib.rs documents MT-015 owns it); dispatch_backlink_open bridge routes the EXISTING MT-015 panel's click -> bus CMD_OPEN_DOCUMENT (AC-4). loom_address.rs is the unique deliverable (LoomBlockAddr/ContentHash/loom_uri/resolver) + loom:// chips on canvas (graph/canvas_board.rs) + graph (loom_graph.rs tooltip + backlink_count).",
-    "content_hash_verified": "CONTRACT CORRECTION (verified, the predicted MT-022 lesson): LoomBlockUpdate has NO writable content_hash (pinned/favorite/title only) - so NO client PATCH; the backend computes content_hash server-side. The live test READS the backend content_hash via getLoomBlock + asserts it equals the local canonical SHA-256 (reused MT-020's canonical algorithm + existing sha2). No fake write.",
-    "transient_confirmed": "The earlier MT-027 full-suite exit-101 was confirmed a TRANSIENT incremental-cache race ('invalid metadata for crate reqwest') under high concurrency, NOT a code defect (clean recompile + clean re-run).",
-    "waiver_granted": "backend_client.rs (LiveBlock content_hash read) + interop/interaction_bus.rs (CMD_OPEN_DOCUMENT) + rich_editor/wikilinks/backlinks_panel.rs (dispatch bridge) + graph/canvas_board.rs + loom_graph.rs + tests in allowed_paths."
+    "proof_commands": [
+      {
+        "command": "cargo fmt --check",
+        "working_directory": "src/frontend/handshake_native",
+        "result": "PASS"
+      },
+      {
+        "command": "cargo check --lib --jobs 1",
+        "working_directory": "src/frontend/handshake_native",
+        "result": "PASS; warnings only existing app.rs dead-code fields editor_action_registry, outline_panel, knowledge_registry"
+      },
+      {
+        "command": "git diff --check -- src/frontend/handshake_native/src/app.rs src/frontend/handshake_native/src/loom_address.rs src/frontend/handshake_native/tests/test_loom_address.rs src/frontend/handshake_native/src/manual_content_editors.rs src/frontend/handshake_native/tests/test_manual_content.rs src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+        "working_directory": "product worktree root",
+        "result": "PASS; CRLF warnings only"
+      },
+      {
+        "command": "cargo test --test test_loom_address -- --nocapture",
+        "working_directory": "src/frontend/handshake_native",
+        "result": "PASS 12/12",
+        "artifacts": [
+          "../../../../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-032/MT-032-canvas-loom-chips.png"
+        ]
+      },
+      {
+        "command": "cargo test loom_address --lib -- --nocapture",
+        "working_directory": "src/frontend/handshake_native",
+        "result": "PASS 15/15"
+      },
+      {
+        "command": "cargo test --test test_manual_content mt032_agent_tool_reference_covers_fixed_backlinks_controls -- --nocapture",
+        "working_directory": "src/frontend/handshake_native",
+        "result": "PASS 1/1"
+      },
+      {
+        "command": "cargo test --test test_manual_content wave5_surface_topics_exist_and_carry_real_no_context_facts -- --nocapture",
+        "working_directory": "src/frontend/handshake_native",
+        "result": "PASS 1/1"
+      },
+      {
+        "command": "cargo test --test test_manual_content -- --nocapture",
+        "working_directory": "src/frontend/handshake_native",
+        "result": "PASS 20/20; prior post-summary Tokio shutdown panic residual did not reproduce in this rerun"
+      },
+      {
+        "command": "cargo test --test test_manual_pane_editors -- --nocapture",
+        "working_directory": "src/frontend/handshake_native",
+        "result": "PASS 8/8",
+        "artifacts": [
+          "../../../../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-073/manual_pane_editors.png"
+        ]
+      }
+    ],
+    "acceptance_criteria_status": {
+      "AC-1": "PASS: loom_uri/parse_loom_uri round-trip proven by unit/integration tests.",
+      "AC-2": "NEEDS_MANAGED_RESOURCE_PROOF: create/load rich document block_id proof still requires seeded live PostgreSQL/handshake_core.",
+      "AC-3": "PARTIAL_BACKEND_SHAPE_ONLY: panel rendering/accessibility is proven with fixtures, but doc-B inbound/reverse backlinks created from doc-A wikilink remain BACKEND_SHAPE_GAP_INBOUND_BACKLINK_ROUTE until a seeded managed live backend proof runs.",
+      "AC-4": "PASS: backlink row/click path fires OpenDocument on the shared bus and the mounted app drains it into ShellNavigator; direct bypass and bus-contention drop are covered by regression tests.",
+      "AC-5": "PASS: canvas placed_block loom:// chips are covered by AccessKit and screenshot proof.",
+      "AC-6": "NEEDS_MANAGED_RESOURCE_PROOF: backend content_hash round trip remains live-managed-resource proof; no unsupported client PATCH is claimed.",
+      "AC-7": "PASS: backlinks-panel/backlink-row AccessKit fixture coverage remains green.",
+      "AC-8": "PASS: loom_address suite passes."
+    },
+    "subagent_review": [
+      {
+        "agent": "Lorentz",
+        "phase": "pre",
+        "verdict": "CHANGES_REQUIRED",
+        "findings_closed": [
+          "production EditorEvent::BacklinkActivated direct-called ShellNavigator::open_document and bypassed dispatch_backlink_open",
+          "take_pending_navigation shell drain existed and needed a production route into it"
+        ]
+      },
+      {
+        "agent": "Copernicus",
+        "phase": "post",
+        "verdict": "NEEDS_FIX_THEN_PROVEN_SAFE",
+        "findings_closed": [
+          "bus contention no longer drops a backlink click; failed try_lock queues a retry and reuses the shared dispatch route",
+          "mounted route test now asserts pending_navigation is populated before the next frame drains it, preventing a false green direct-bypass path"
+        ]
+      },
+      {
+        "agent": "Sagan",
+        "phase": "post",
+        "verdict": "NEEDS_FIX_THEN_PROVEN_SAFE",
+        "findings_closed_or_deferred": [
+          "UserManual now names the route and explicit HBR-INT posture",
+          "AC-3 proof mapping corrected to partial backend-shape/managed-resource debt instead of a full inbound-backlink proof",
+          "manual allowed-path overrun is recorded as HBR-MAN same-change scope waiver needed"
+        ]
+      }
+    ],
+    "typed_blockers": [
+      "NEEDS_MANAGED_RESOURCE_PROOF: live PostgreSQL/handshake_core proof for create rich doc -> non-empty block_id.",
+      "NEEDS_MANAGED_RESOURCE_PROOF: live doc A wikilink -> doc B inbound backlinks route with source_document_id == A.",
+      "NEEDS_MANAGED_RESOURCE_PROOF: live content_hash read/equality round trip against a saved rich document."
+    ],
+    "hbr": {
+      "HBR_MAN": "Updated the frontend internal UserManual topic in the same change and proved it with focused and full test_manual_content.",
+      "HBR_VIS": "External MT-032 canvas loom-chip screenshot was generated by test_loom_address.",
+      "HBR_INT": "Flight Recorder/EventLedger is NOT_APPLICABLE-with-reason for local non-mutating tab navigation; internal_diagnostics and Palmistry are DEFERRED-with-reason until those tiers ship.",
+      "HBR_SWARM": "No swarm/session launch path changed."
+    },
+    "out_of_scope_waiver_needed": {
+      "reason": "The reopened audit targeted live mounted shell behavior and same-change manual proof, but MT-032 allowed_paths omitted app.rs and the UserManual files. These edits were the minimum needed to close the product route and HBR-MAN evidence without inventing a duplicate backlink panel.",
+      "touched_paths": [
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs"
+      ]
+    },
+    "residuals": [
+      "Live managed-backend AC-2/AC-3/AC-6 proof remains gated behind seeded PostgreSQL/handshake_core resources.",
+      "The product worktree contains unrelated pre-existing dirty hunks outside this MT; this refresh did not revert them."
+    ]
   }
 }

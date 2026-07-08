@@ -14,7 +14,7 @@
   "title": "E3-MT025-WikiPageProjectionOverlay",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-05T02:10:29.652Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-025.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,18 +25,61 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-021"
     ],
     "blocks": [],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:26:58Z",
+    "claimed_by": "KERNEL_BUILDER-20260705-013720",
+    "ready_for_validation_at_utc": "2026-07-05T02:10:29.652Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: LoomWikiPagePanel (907 lines) mounted by NO host; PaneType::LoomWikiPage is bound to RichEditorPaneMount, and open_wiki_page(projection_id) + open_navigator_tab treat the wiki projection_id as a rich DOCUMENT id to reload - navigating to a wiki page feeds a projection id into the rich-document loader (likely live load failure). No-fake-write claim is real (POST overlays route verified; AC2/AC3 deviation contract-sanctioned). Fix: own PaneType or content-kind dispatch inside the LoomWikiPage factory + route wiki projection ids to the panel.",
     "deflection_category": "orphan_surface_wiki_panel_and_nav_misroute",
-    "remediation_appendage": "Mount LoomWikiPagePanel (own PaneType or content-kind dispatch); route wiki projection ids to it instead of the rich-document loader (current nav misroute)."
+    "remediation_appendage": "Mount LoomWikiPagePanel (own PaneType or content-kind dispatch); route wiki projection ids to it instead of the rich-document loader (current nav misroute).",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Mount LoomWikiPagePanel (own PaneType or content-kind dispatch); route wiki projection ids to it instead of the rich-document loader (current nav misroute).",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC1: The panel loads a real LoomWikiProjection from PG (seeded via backend) and displays the title, page_type badge, rebuild_status badge, source count, and rendered_content text., AC2: Clicking the 'Edit' button switches to edit overlay showing a multiline text editor pre-filled with the current rendered_content., AC3: Editing the content and clicking 'Save' persists the change to the backend via PATCH/PUT /loom/wiki/{projection_id}, then reloads and displays the updated content in read-only view., AC4: Clicking 'Cancel' in edit mode discards the edits and returns to read-only view without a backend call., AC5: If the save call fails (simulated 5xx), the error is shown inline below the toolbar and the edit_buffer is preserved (not lost)., AC6: If projection has a stale staleness_verdict, a 'Stale' notice appears in the footer of the read-only view., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PROOF1: cargo test -p handshake-native graph::wiki_page_panel -- --nocapture passes unit tests for edit_buffer pre-fill and cancel-no-mutation logic. ; PROOF2: kittest test with a real PG wiki projection seeded: assert 'wiki.title.*' label present in AccessKit tree and rendered_content text is non-empty. ; PROOF3: kittest edit-save test: click 'wiki.edit.proj-001', type 'NEW CONTENT' into 'wiki.edit-area.proj-001', click 'wiki.save.proj-001', assert PATCH/PUT request fired (Tauri intercept), assert rendered_content updated in read-only view. ; PROOF4: kittest cancel test: click 'wiki.edit.proj-001', type 'THROWAWAY', click 'wiki.cancel.proj-001', assert no PATCH/PUT request fired and panel returns to read-only showing original content. ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      },
+      {
+        "at_utc": "2026-07-05T02:10:29.652Z",
+        "by": "KERNEL_BUILDER-20260705-013720",
+        "reason": "Reopened audit blocker repaired/proven: wiki_page navigation now routes projection ids to the dedicated Placeholder(\"Wiki Page\") host pane instead of the LoomWikiPage rich-document loader; refreshed MT-025 proof suite passed.",
+        "previous_status": "OPEN",
+        "new_status": "READY_FOR_VALIDATION",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
   },
   "scope": {
     "summary": "Goal: Implement a wiki page projection panel in the native egui frontend that ports the React LoomWikiPagePanel (MT-184/185 parity). The panel loads a LoomWikiProjection from the real PostgreSQL backend, renders its content as read-only rendered markdown in a scroll area, and provides an 'Edit overlay' mode that allows inline editing of the rendered_content field and persists changes back via the backend wiki API. Expected diff shape: one new file src/frontend/handshake_native/src/graph/wiki_page_panel.rs containing LoomWikiPagePanel widget, edits to src/frontend/handshake_native/src/graph/mod.rs. Reuse the existing WP-011 loom graph surface (src/frontend/handshake_native/src/loom_graph.rs) for graph/projection navigation context.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/graph/wiki_page_panel.rs — LoomWikiPagePanel widget\n- EDIT src/frontend/handshake_native/src/graph/mod.rs — pub mod wiki_page_panel; + re-export\n\nExact APIs / React reference:\n- PRIMARY REACT REFERENCE: app/src/components/LoomWikiPagePanel.tsx — loads via getLoomWikiProjection(workspaceId, projectionId) (api.ts line 1544), renders title, page_type badge, projection metadata (projection_id, workspace_id, rebuild_status, source_block_ids.length), and rendered_content. The React component is read-only; this MT adds the editable overlay on top.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/wiki/{projection_id} — getLoomWikiProjection; returns LoomWikiProjection { projection_id, workspace_id, title, source_block_ids[], rendered_content, staleness_hash, rebuild_status, page_type, page_links, created_at, updated_at, staleness_verdict } (api.ts line 1144-1161)\n  - PATCH /workspaces/{workspace_id}/loom/wiki/{projection_id} — update rendered_content or trigger rebuild (if this endpoint exists; fall back to PUT if PATCH not available — document the choice)\n  - POST /workspaces/{workspace_id}/loom/wiki/{projection_id}/rebuild — trigger a projection rebuild (if available; mark as OPTIONAL in implementation; show rebuild_status)\n\nStep-by-step implementation notes:\n1. Define LoomWikiPagePanel { workspace_id: String, projection_id: String, page: Option<LoomWikiProjection>, edit_mode: bool, edit_buffer: String, loading: bool, error: Option<String>, saving: bool, save_error: Option<String> }.\n2. On init (or when projection_id changes), call GET /workspaces/{id}/loom/wiki/{projection_id} and populate the page field. Store rendered_content in edit_buffer (pre-load for edit mode).\n3. Read-only view (edit_mode=false):\n   a. Render title as a large bold label (egui::RichText::new(title).heading()).\n   b. Render a row of metadata chips: page_type badge (colored chip), rebuild_status badge (green=ok, amber=stale, red=error), source count '(N sources)'.\n   c. Render rendered_content inside a ScrollArea as plain text (egui::Label). For now, do NOT attempt full markdown rendering — show the raw content string. A future MT can add markdown rendering. Label the scroll area 'wiki.content.{projection_id}'.\n   d. Show staleness_verdict as a subtle footer line if it indicates the projection is stale.\n   e. 'Edit' button at top-right (author_id='wiki.edit.{projection_id}'): switches to edit_mode=true, copies rendered_content into edit_buffer.\n   f. Optional 'Rebuild' button (author_id='wiki.rebuild.{projection_id}'): fires POST .../rebuild if endpoint exists; shows 'rebuilding...' in rebuild_status until next reload.\n4. Edit overlay (edit_mode=true):\n   a. Show a full-height egui::TextEdit::multiline bound to edit_buffer. Author_id='wiki.edit-area.{projection_id}'.\n   b. Toolbar at top: 'Save' button (author_id='wiki.save.{projection_id}') + 'Cancel' button (author_id='wiki.cancel.{projection_id}').\n   c. 'Save': call PATCH (or PUT) /workspaces/{id}/loom/wiki/{projection_id} with { rendered_content: edit_buffer }. On success, reload the projection (GET) and exit edit_mode. On error, show save_error inline without discarding the edit_buffer.\n   d. 'Cancel': discard edit_buffer, exit edit_mode without a save.\n5. AccessKit: title label 'wiki.title.{projection_id}', content area 'wiki.content.{projection_id}' role=Document, edit button 'wiki.edit.{projection_id}', edit area 'wiki.edit-area.{projection_id}' role=MultiLineTextInput, save 'wiki.save.{projection_id}', cancel 'wiki.cancel.{projection_id}'.\n6. Loading state: show spinner + 'Loading wiki page...' while loading=true. Error state: show error text + Retry button.\n\nReuse pointers (real WP-011 modules under src/frontend/handshake_native/src/): graph/projection navigation context via loom_graph.rs; AccessKit node registration via accessibility/* (mod.rs, live.rs, registry.rs, snapshot.rs); MCP tool/screenshot surfaces via mcp/* if model-driven proof is needed.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client infrastructure. No dependency on MT-022, MT-023, MT-024.\n\nRisk if missed: Wiki projection surfaces (MT-184/185 parity) are unavailable in the native frontend. Knowledge synthesis pages cannot be read or edited.",
@@ -137,6 +180,48 @@
     "proofs": "AC1-AC8 + PROOF1-5 PASS; AC1/AC3 live-PG = NEEDS_MANAGED_RESOURCE_PROOF (gated); wiki_page_panel + LoomWikiClient lib + 8 kittest tests green; clippy clean; wiki panel (Ownership model title + concept/fresh badges + (3 sources) + content + Edit overlay/Rebuild + 'Read-only projection - saved as overlay annotation' notice) visually verified; screenshot EXTERNAL.",
     "spec_realism_win": "The wiki-edit-semantics patch WORKED: the agent VERIFIED rendered_content has NO edit route (it is a derived projection rendered from source_block_ids). Instead of a fake save, it bound the REAL persisted POST /loom/wiki/{id}/overlays {annotation} - an ADDITIVE overlay annotation (buffer starts EMPTY, not pre-filled - the edit is additive, not a fake content edit). The panel HONESTLY shows 'Read-only projection - rendered from the source blocks; your note is saved as an overlay annotation (the source content is edited via its blocks)'. No fake write. Backend-shape correction recorded.",
     "inherited_regression": "MT-025's correctness lens surfaced a PRE-EXISTING regression from MT-023: graph/tags_panel.rs has 12 Color32::from_rgb literals (the djb2 chip palette) tripping the CONTROL-4 guard test_theme::no_hardcoded_color32 (RED since MT-023 035a7a0d; undetected at MT-023/024 gates because the test_theme BIN was not run - only cargo test --lib). KERNEL_BUILDER is fixing it this session (moved the palette to the sanctioned theme/palette.rs + delegate; verifying full suite green + will commit). GATE LESSON: the correctness lens must run the FULL `cargo test` (every bin INCLUDING test_theme), not just --lib + the MT bin.",
-    "waiver_granted": "backend_client.rs (LoomWikiClient) + tests/test_wiki_page_panel.rs in allowed_paths (contract under-scoped)."
+    "waiver_granted": "backend_client.rs (LoomWikiClient) + tests/test_wiki_page_panel.rs in allowed_paths (contract under-scoped).",
+    "host_repair_2026_07_05": {
+      "by": "KERNEL_BUILDER-20260705-013720",
+      "status": "READY_FOR_VALIDATION",
+      "summary": "Verified the MT-025 source-level blocker is closed and added a host-route regression for the reopened audit finding: Quick Switcher wiki_page hits open Placeholder(\"Wiki Page\") carrying the projection id and do not open PaneType::LoomWikiPage with that projection id.",
+      "product_changes": [
+        "Added tests/test_quick_switcher.rs::wiki_page_hit_opens_dedicated_wiki_page_pane."
+      ],
+      "source_evidence": [
+        "src/frontend/handshake_native/src/app.rs::open_wiki_page routes to editor_pane_factories::placeholder_pane_type(WIKI_PAGE_PANE_LABEL).",
+        "src/frontend/handshake_native/src/editor_pane_factories.rs::WikiPagePaneMount binds a LoomWikiPagePanel per projection id and queues Load/Save/Regenerate requests.",
+        "src/frontend/handshake_native/src/app.rs::drive_wiki_pane drains WikiPaneRequest onto LoomWikiClient GET/POST overlays/POST regenerate routes."
+      ],
+      "proof_commands": [
+        "rustfmt --edition 2021 --check src/frontend/handshake_native/tests/test_quick_switcher.rs src/frontend/handshake_native/src/app.rs src/frontend/handshake_native/src/editor_pane_factories.rs src/frontend/handshake_native/src/graph/wiki_page_panel.rs src/frontend/handshake_native/tests/test_wiki_page_panel.rs",
+        "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_quick_switcher --jobs 1 wiki_page_hit_opens_dedicated_wiki_page_pane -- --nocapture",
+        "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib --jobs 1 graph::wiki_page_panel -- --nocapture",
+        "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib --jobs 1 backend_client::wiki_client_tests -- --nocapture",
+        "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_wiki_page_panel --jobs 1 -- --nocapture",
+        "git diff --check -- src/frontend/handshake_native/tests/test_quick_switcher.rs src/frontend/handshake_native/src/app.rs src/frontend/handshake_native/src/editor_pane_factories.rs src/frontend/handshake_native/src/graph/wiki_page_panel.rs src/frontend/handshake_native/tests/test_wiki_page_panel.rs"
+      ],
+      "proof_logs": [
+        "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-025/test_quick_switcher-wiki_page_hit_opens_dedicated_wiki_page_pane.rerun.log",
+        "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-025/lib-graph-wiki_page_panel.log",
+        "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-025/lib-backend_client-wiki_client_tests.log",
+        "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-025/test_wiki_page_panel.log"
+      ],
+      "proof_results": [
+        "test_quick_switcher::wiki_page_hit_opens_dedicated_wiki_page_pane: 1 passed, 0 failed.",
+        "graph::wiki_page_panel: 11 passed, 0 failed.",
+        "backend_client::wiki_client_tests: 6 passed, 0 failed.",
+        "test_wiki_page_panel: 8 passed, 0 failed.",
+        "Scoped rustfmt check passed.",
+        "Scoped git diff --check passed with CRLF warnings only."
+      ],
+      "typed_blockers": [
+        "AC1/AC3 live PostgreSQL projection load/save round-trip remains NEEDS_MANAGED_RESOURCE_PROOF until a seeded Handshake-managed backend is available."
+      ],
+      "subagent_notes": [
+        "Chandrasekhar and local inspection agreed the source blocker was closed but a host-route proof was missing; the new quick-switcher regression supplies that proof."
+      ],
+      "contract_scope_note": "The stale MT-025 allowed_paths list did not include tests/test_quick_switcher.rs, but the reopened audit blocker was the host open_wiki_page route. The host-route regression was the smallest direct proof surface for that blocker; operator waiver is required for this under-scoped proof file."
+    }
   }
 }

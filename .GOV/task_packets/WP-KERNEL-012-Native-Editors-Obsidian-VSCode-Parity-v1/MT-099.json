@@ -14,7 +14,7 @@
   "title": "U3-MT-099-EndToEndNotesUsability",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-03T21:26:02Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-099.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "OPEN",
+    "active": false,
     "depends_on": [
       "MT-097"
     ],
@@ -34,11 +34,49 @@
       "MT-104"
     ],
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER",
-    "claimed_at_utc": "2026-07-02T01:51:45Z",
-    "claim_session": "KERNEL_BUILDER-20260702-012522",
     "reopen_note": "Proof-repair claim 2026-07-02: contract requires live managed-core save receipt (KNOWLEDGE_RICH_DOCUMENT_SAVED) OR explicit NEEDS_MANAGED_RESOURCE_PROOF marking - neither present. KERNEL_BUILDER will run the live half against managed PostgreSQL+handshake_core and record the result.",
-    "remediation_appendage": "Run the live managed-core save half (KNOWLEDGE_RICH_DOCUMENT_SAVED receipt) or record NEEDS_MANAGED_RESOURCE_PROOF in the implementation record."
+    "remediation_appendage": "Run the live managed-core save half (KNOWLEDGE_RICH_DOCUMENT_SAVED receipt) or record NEEDS_MANAGED_RESOURCE_PROOF in the implementation record.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "CLAIMED",
+      "previous_active": true,
+      "previous_claim": {
+        "claimed_by": "KERNEL_BUILDER",
+        "claimed_at_utc": "2026-07-02T01:51:45Z",
+        "claim_session": "KERNEL_BUILDER-20260702-012522",
+        "handoff_coder_session": "KERNEL_BUILDER-20260629-104235"
+      },
+      "cutoff_assumption": "Operator assumption: this was active work that got cut off. Reopened as unclaimed OPEN work; resume only after inspecting current evidence.",
+      "fix_first": "Verify and close the audit finding: Run the live managed-core save half (KNOWLEDGE_RICH_DOCUMENT_SAVED receipt) or record NEEDS_MANAGED_RESOURCE_PROOF in the implementation record.",
+      "how_to_fix": [
+        "Treat the previous active work as cut off: inspect any durable evidence or partial product changes, but do not assume the stale claim is live ownership.",
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-099-1 (OPEN, prove first): opening a document by id in the running app loads its content into the live rich/notes pane via the REAL GET route (GET /knowledge/documents/:id or the Loom block route) with the required identity headers — proven by a kittest driving the live HandshakeApp open path (ShellNavigator open_document / open_content_on_active_pane) against the real RichDocClient and asserting the loaded content renders in the editor (not an empty/placeholder pane)., AC-099-2 (EDIT -> SAVE): editing the open document and invoking Save issues the REAL PUT /knowledge/documents/:id/save with the edited content + identity headers — proven by a kittest asserting the native side issues the correct save request (method + path + body shape + headers) against the real RichDocClient. When a managed handshake_core is available, the save persists and the KNOWLEDGE_RICH_DOCUMENT_SAVED EventLedger receipt is observed (live half); when not, that live half is marked NEEDS_MANAGED_RESOURCE_PROOF (the native request-issuance is still proven against the verified route shape — NOT faked)., AC-099-3 (REOPEN SHOWS THE EDIT): reloading the same document id after save shows the saved edit in the editor — proven by the end-to-end test (live: against managed handshake_core the reload returns the persisted edit; offline: the reload path re-issues the GET and re-renders the returned content, with the persisted-content half NEEDS_MANAGED_RESOURCE_PROOF). The round-trip is REAL (the native side genuinely re-fetches), never a cached fake., AC-099-4 (BLOCKERS FIXED OR HONESTLY TYPED): whatever blocked the open->edit->save->reopen chain in the running app is FIXED (the wire is complete) OR, if a specific sub-step is genuinely blocked by an absent route, that sub-step is an HONEST typed blocker (NOT a fabricated pass) recorded in implementation_result. No fake 'save succeeded' without a route call., AC-099-5: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external CARGO_TARGET_DIR; no Color32 literal outside theme/palette.rs (CONTROL-4); `git ls-files src/**/*.png` empty.) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PT-099-A: kittest opens a document by id in the live app, asserts the loaded content renders in the rich pane (real GET, identity headers). ; PT-099-B: kittest asserts Save issues the real PUT /knowledge/documents/:id/save (correct method/path/body/headers) against the real RichDocClient; live persistence + KNOWLEDGE_RICH_DOCUMENT_SAVED receipt when a managed handshake_core is available (else NEEDS_MANAGED_RESOURCE_PROOF for the live half). ; PT-099-C: end-to-end open->edit->save->reload test shows the saved edit on reopen (live against managed handshake_core, or the native re-fetch+re-render proven offline with the persisted half NEEDS_MANAGED_RESOURCE_PROOF). ; PT-099-D: cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green + CONTROL-4 green + git ls-files src/**/*.png empty.",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "CLAIMED",
+        "new_status": "OPEN",
+        "previous_active": true
+      }
+    ],
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
+    "reopened_by": "KERNEL_BUILDER",
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
   },
   "scope": {
     "summary": "OPERATOR: 'i cannot use notes in handshake'. This MT is the END-TO-END NOTES USABILITY fix: prove (and fix whatever blocks) the operator flow in the RUNNING app — OPEN a document/file -> EDIT it in the live editor -> SAVE -> REOPEN shows the edit. The notes editors are mounted live (MT-079) and are the default worksurface (MT-097), but the OPEN -> live-editor -> SAVE -> PERSIST -> REOPEN chain must actually work for the operator, not just render.\n\nVERIFIED BACKEND STATE (live-app inspection 2026-06-27): the notes/documents persistence chain HAS REAL HTTP ROUTES on handshake_core — so this is a REAL WIRE, not a typed blocker:\n- GET /knowledge/documents/:document_id (load_document), PUT /knowledge/documents/:document_id/save (save_document, persists to knowledge_rich_documents + emits a KNOWLEDGE_RICH_DOCUMENT_SAVED EventLedger receipt), POST /knowledge/documents (create_document), plus the draft routes (GET/PUT /knowledge/documents/:id/draft). Routes registered in src/backend/handshake_core/src/api/knowledge_documents.rs. Loom blocks: GET/PATCH /workspaces/:workspace_id/loom/blocks/:block_id.\n- Identity headers required on these routes (x-hsk-actor-id / x-hsk-actor-kind / x-hsk-kernel-task-run-id / x-hsk-session-run-id) — the native client must send them (reuse the existing backend_client header-injection if present).\n\nWhat to do (wire-into-live + a real end-to-end proof):\n- INSPECT src/frontend/handshake_native/src/backend_client.rs for the existing RichDocClient (MT-020/079 referenced a `RichDocClient::production`) — it is the reuse-via-API surface for load/save. INSPECT the rich editor save path (rich_editor/save/** + the RichEditorState::set_embed_context / the MT-020 save the editor already calls). The open path: app.rs open_content_on_active_pane(PaneType::LoomWikiPage|LoomBlock, Some(document_id)) + the ShellNavigator open_document -> rich pane (MT-030/079).\n- WIRE THE FULL CHAIN end-to-end so it works in the running app: (1) OPEN a document by id -> the rich/notes pane loads its content from GET /knowledge/documents/:id (or the Loom block route); (2) EDIT the content in the live editor; (3) SAVE -> PUT /knowledge/documents/:id/save persists + the EventLedger receipt fires; (4) REOPEN (re-load by the same id) -> the editor shows the saved edit. Fix WHATEVER blocks this chain (a missing open-by-id wire, a save not reaching the route, a reload not re-fetching, the identity headers not set, the draft vs authoritative-save confusion).\n- This is reuse-via-API ONLY: src/backend untouched. The routes EXIST; the work is the NATIVE open->edit->save->reload wiring + the proof.\n- CREATE src/frontend/handshake_native/tests/test_notes_end_to_end.rs.\n\nReuse notes: the document load/save HTTP routes EXIST (knowledge_documents.rs); the native RichDocClient (backend_client.rs) is the reuse surface; the rich editor + its MT-020 save + MT-079 mount are built. This MT closes the operator-flow gap: it makes OPEN->EDIT->SAVE->REOPEN actually round-trip in the running app and PROVES it.\n\nProof discipline (NOT a fake pass): the end-to-end proof must exercise the REAL save route. Because a live save round-trip needs a running PostgreSQL/handshake_core (a managed resource), the proof is EITHER (a) a live end-to-end test against a managed handshake_core (open->edit->save->reload shows the edit, the KNOWLEDGE_RICH_DOCUMENT_SAVED receipt observed) when the managed resource is available, OR (b) a kittest that drives the native open->edit->save->reload chain against the REAL RichDocClient pointed at a test handshake_core / a verified-shape stub of the documented route (asserting the native side issues the correct GET/PUT with identity headers and re-renders the reloaded content), with the live-PG half marked NEEDS_MANAGED_RESOURCE_PROOF — NOT a fabricated 'save succeeded' with no route call. If a specific sub-step is genuinely blocked by an absent route, record an HONEST typed blocker for that sub-step only.\n\nRisk if missed: the headline operator complaint ('i cannot use notes') stays unfixed — the editor renders but a real open->edit->save->reopen does not round-trip.",

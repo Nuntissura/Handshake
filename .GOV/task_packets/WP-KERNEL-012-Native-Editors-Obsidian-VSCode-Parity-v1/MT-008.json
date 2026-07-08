@@ -14,7 +14,7 @@
   "title": "E1-MT-008-LspClient",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-04T16:57:47Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-001",
@@ -33,11 +33,56 @@
     ],
     "blocks": [],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:25:27Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
-    "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: real-LSP half unreachable in the shipped app - panel lsp_client defaults to LspClient::disabled(), set_lsp_client has zero production callers, panel NEVER calls did_open/did_change, server spawns lazily only inside did_open, so a configured server would never spawn nor learn document contents. Host mount (MT-079) carried only code-nav runtime wiring. No test spawns a REAL language-server process (all transport proofs use in-memory duplex pipes); Drop shutdown/no-zombie path untested. implementation_result overstates AC-005/006 (synthetic completion/hover injection; contracted backend-populated halves belong in the NEEDS_MANAGED_RESOURCE_PROOF blocker but blocked_acs lists only AC-001/002/003). Fix: host provides LspServerConfig per language + set_lsp_client + did_open on file load + did_change on buffer_version bump; add gated real-process spawn/initialize/Drop test; reclassify AC-005/006 PARTIAL.",
+    "operator_decision_summary": "Current MT-008 remediation state: the reopen finding was that real LSP was not reachable from the shipped app path, didOpen/didChange were not proven, real-process LSP Drop proof was absent, and backend-populated AC-005/006 were overclaimed. KERNEL_BUILDER-20260704-122106 implemented app-level LSP attach/sync, deterministic didOpen/didChange frame proof, real-process spawn/initialize/Drop proof, URI-scoped publishDiagnostics gutter proof, completion/hover fallback raw-symbol queue proof, manual coverage, and honest typed blockers for backend-populated content that still needs a seeded indexed-code workspace.",
     "deflection_category": "lsp_app_level_orphan",
-    "remediation_appendage": "Wire real LSP into the app: LspServerConfig per language, set_lsp_client at mount, did_open on load + did_change on edit; add gated real-process spawn/initialize/Drop test; reclassify AC-005/006 partial."
+    "remediation_appendage": "Closed for validator review by KERNEL_BUILDER-20260704-122106: production HandshakeApp attaches discovered LSP for the mounted code pane; host frame pump sends didOpen/didChange for file-backed documents; LSP process spawn uses CREATE_NO_WINDOW on Windows and Drop reaps the process; completion/hover code-nav fallback queues raw symbols for staleness; AC-001/002/003 populated native-client content and backend-populated AC-005/006 remain NEEDS_MANAGED_RESOURCE_PROOF until a live indexed-code workspace is seeded.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Wire real LSP into the app: LspServerConfig per language, set_lsp_client at mount, did_open on load + did_change on edit; add gated real-process spawn/initialize/Drop test; reclassify AC-005/006 partial.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-001: `cargo test -p handshake-native code_nav_client` passes with real PostgreSQL backend — test: `lookup_symbols(workspace_id, 'add', 5)` returns at least one result with `symbol_kind` populated., AC-002: `cargo test -p handshake-native code_nav_hover` passes with real backend — test: `get_symbol(entity_id)` returns a `CodeSymbolResponse` with `display_name` and `definition.line_start` populated., AC-003: `cargo test -p handshake-native code_nav_references` passes with real backend — test: `get_references(entity_id)` returns a response with at least one caller or callee., AC-004: `cargo test -p handshake-native lsp_client_graceful` passes without a language server running — all methods return empty/None without panicking., AC-005: egui_kittest interactive test: trigger completion on a Rust snippet with backend running, verify completion popup AccessKit node (code_editor_completion_popup ListBox) appears with at least one item., AC-006: egui_kittest interactive test: hover on identifier 'add' with backend running, verify hover tooltip AccessKit node (code_editor_hover Tooltip) contains 'add' in its text content., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PT-001: `cargo test -p handshake-native code_nav_client` with real PG — GREEN, logged. Backend connection string from env var `HANDSHAKE_TEST_DB_URL`. ; PT-002: `cargo test -p handshake-native code_nav_hover` with real PG — GREEN, logged. ; PT-003: `cargo test -p handshake-native code_nav_references` with real PG — GREEN, logged. ; PT-004: `cargo test -p handshake-native lsp_client_graceful` — GREEN without backend. ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260704-122106",
+    "remediation_closed_at_utc": "2026-07-04T16:53:29Z",
+    "remediation_closed_by": "KERNEL_BUILDER-20260704-122106",
+    "remediation_closed_summary": "Implementation and fresh proof complete for the app-level LSP orphan and raw-symbol fallback gaps. Official validator review remains pending; do not mark COMPLETED from builder handoff.",
+    "ready_for_validation_at_utc": "2026-07-04T16:55:22Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260704-122106",
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-07-04T16:54:55.805Z",
+      "actor_session": "KERNEL_BUILDER-20260704-122106",
+      "overall_verdict": "PASS"
+    }
   },
   "scope": {
     "summary": "Goal: Implement an LSP (Language Server Protocol) client for the native code editor that provides: completion (triggered on `.`, `:`, `_` or Ctrl+Space), hover documentation (on cursor dwell), go-to-definition, find-references, and diagnostics (pushing results to the gutter from MT-007 via `push_diagnostics`). Additionally, bind the existing Handshake backend knowledge/code-nav APIs (`/knowledge/code/symbols`, `/knowledge/code/symbols/{id}`, `/knowledge/code/symbols/{id}/references`, `/knowledge/code/files/{path}/lens`) as a fallback intelligence source when no language server is attached. Port the `CodeSymbolPanel` component and `code_intelligence.ts` logic.\n\nExpected diff shape: new module `src/frontend/handshake_native/src/code_editor/lsp_client.rs` (LSP JSON-RPC client over stdio to a language server process), new module `src/frontend/handshake_native/src/code_editor/code_nav.rs` (Handshake backend code-nav API calls via the existing HTTP client), edits to `src/frontend/handshake_native/src/code_editor/mod.rs` (wiring completion and hover popups into the editor panel), and `src/frontend/handshake_native/src/code_editor/editor_view.rs` (completion popup widget and hover tooltip widget).\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/lsp_client.rs` — `LspClient { process: Option<Child>, sender: mpsc::Sender<LspRequest>, receiver: mpsc::Receiver<LspResponse> }`. Uses `tower-lsp` client-side or raw JSON-RPC over stdio. Implements: `initialize(root_uri)`, `did_open(uri, language_id, text)`, `did_change(uri, version, changes)`, `completion(uri, position) -> Vec<CompletionItem>`, `hover(uri, position) -> Option<HoverResult>`, `goto_definition(uri, position) -> Option<Location>`, `references(uri, position) -> Vec<Location>`, `publish_diagnostics callback -> Vec<LspDiagnostic>`. All requests are async; results are returned via a `tokio::sync::oneshot` channel. The LSP process is launched lazily on first `did_open`. If no language server is configured or the process fails to start, all methods return empty/None gracefully.\n- CREATE `src/frontend/handshake_native/src/code_editor/code_nav.rs` — `CodeNavClient` that wraps the Handshake backend HTTP calls. Ports the logic from `app/src/lib/monaco/code_intelligence.ts`. Methods: `lookup_symbols(workspace_id: &str, prefix: &str, limit: usize) -> Vec<CodeSymbolNavProjection>`, `get_symbol(entity_id: &str) -> Option<CodeSymbolResponse>`, `get_references(entity_id: &str) -> CodeSymbolReferencesResponse`, `get_file_lens(workspace_id: &str, path: &str, content_hash: &str, parser_version: &str) -> CodeFileLensResponse`. REUSE the existing `src/frontend/handshake_native/src/backend_client.rs` HTTP client for all backend code-nav calls (do NOT introduce a second HTTP stack); add the code-nav routes as new methods on that client. Reuse `src/frontend/handshake_native/src/error.rs` for error typing.\n- EDIT `src/frontend/handshake_native/src/code_editor/mod.rs` — add `lsp_client: Option<LspClient>`, `code_nav_client: CodeNavClient`, `completion_state: Option<CompletionState>`, `hover_state: Option<HoverState>`. On each `did_change` event (after TextBuffer edit), call `lsp_client.did_change(...)` async. On cursor dwell (500ms without movement), trigger `hover(cursor_position)`. On Ctrl+Space or trigger characters, trigger `completion(cursor_position)`. Wire diagnostics: `lsp_client.on_publish_diagnostics(|diags| panel.push_diagnostics(diags_to_markers(diags)))`.  \n- EDIT `src/frontend/handshake_native/src/code_editor/editor_view.rs` — render completion popup as a floating `egui::Window` at the cursor position with a scrollable list of `CompletionItem` (label, kind icon, detail). Arrow keys navigate; Enter accepts; Escape dismisses. Render hover tooltip as a floating `egui::Frame` with markdown-rendered documentation (use `egui_commonmark` if available, otherwise plain text). Render go-to-definition link in the hover (click opens the target file in a new editor pane or scrolls to the line if same file). REUSE the existing command-palette popup pattern from `src/frontend/handshake_native/src/command_palette.rs` + `src/frontend/handshake_native/src/command_registry.rs` for the keyboard-navigable floating list (selection/keyboard semantics), rather than reinventing list navigation.\n\nExact crates/functions/APIs to use:\n- `tower-lsp = \"0.20\"` or `lsp-types = \"0.95\"` + raw stdio JSON-RPC — use `lsp-types` for the type definitions and implement a lightweight JSON-RPC stdio transport rather than the full tower-lsp server stack (tower-lsp is server-side). Use `tokio::process::Command` to spawn the language server.\n- `tokio` — already required for async backend calls. LSP requests run on the tokio runtime.\n- backend HTTP via `src/frontend/handshake_native/src/backend_client.rs` — for CodeNavClient HTTP calls (reuse the existing client; do not add a separate reqwest stack).\n- `serde_json` — for LSP JSON-RPC serialization.\n- `egui_commonmark` (optional) — for markdown rendering in hover tooltips.\n- AccessKit (via `src/frontend/handshake_native/src/accessibility/*`): `author_id = \"code_editor_completion_popup\"` `Role::ListBox` on the completion popup; `author_id = \"code_editor_completion_item_{n}\"` `Role::Option` on each item; `author_id = \"code_editor_hover\"` `Role::Tooltip` on the hover widget. Register nodes through the existing accessibility registry rather than emitting raw AccessKit.\n\nReact reference files:\n- `app/src/lib/monaco/code_intelligence.ts` — the entire file is the reference. Ports: `ensureHandshakeCodeIntelligenceProviders` -> `CodeNavClient` methods; `completionKind` -> native equivalent; `refreshHandshakeCodeIntelligenceMarkers` -> `push_diagnostics` call; `codeSymbolStalenessLabel` -> same utility function in Rust.\n- `app/src/components/CodeSymbolPanel.tsx` — displays symbol detail from `getCodeSymbol` and `getCodeFileLens`. The native equivalent is the hover tooltip showing the same data.\n- `app/src/lib/api.ts` functions: `getCodeSymbol` -> `GET /knowledge/code/symbols/{entity_id}`, `lookupCodeSymbols` -> `GET /knowledge/code/symbols?workspace_id=...&prefix=...`, `getCodeSymbolReferences` -> `GET /knowledge/code/symbols/{id}/references`, `getCodeFileLens` -> `GET /knowledge/code/files/{path}/lens?workspace_id=...&content_hash=...&parser_version=...`.\n- `app/src/harness/mt249_code_intelligence_harness.tsx` — the proof harness for the backend code-nav integration; the native equivalent must pass equivalent real-backend tests.\n\nStep-by-step implementation notes:\n1. LSP client stdio transport: open `tokio::process::Command::new(server_bin).stdin(Stdio::piped()).stdout(Stdio::piped())`. Spawn a tokio task that reads stdout line-by-line (LSP messages are header+content), parses JSON-RPC responses, and routes them to pending request futures via a `HashMap<RequestId, oneshot::Sender<Value>>`.\n2. `completion` request: send `textDocument/completion` with `TextDocumentPositionParams`. Map response `CompletionItem.kind` integers to a `CompletionItemKind` enum using the LSP spec table.\n3. `hover` request: send `textDocument/hover`. Extract `contents.value` (MarkupContent) for display.\n4. Diagnostics: LSP servers push `textDocument/publishDiagnostics` notifications (not responses to requests). The reader task must detect notification messages (no `id` field) and route them to a notification channel. The `on_publish_diagnostics` callback is called from there.\n5. CodeNavClient: all methods are `async fn`; call them from the egui frame using `tokio::task::spawn` and a `std::sync::mpsc::channel` to return results to the next frame (avoid blocking the egui thread).\n6. Completion popup rendering: on each frame, if `completion_state.is_some()` and the popup has items, render a `Window::new(\"completion\").fixed_pos(cursor_px_pos).show(ui.ctx(), ...)`. Intercept Arrow Up/Down in the window to navigate `selected_index`. On Enter: insert the selected item's `insert_text` at the cursor using `cursor_set.insert_at_all`.\n7. Staleness markers: for CodeNavClient responses, check `staleness.fresh` field (as in `refreshHandshakeCodeIntelligenceMarkers`); if not fresh, push a `GutterMarker::Diagnostic(Warning)` for the affected lines.\n\nDependencies/unblock conditions: MT-001 (TextBuffer, Highlighter), MT-007 (`push_diagnostics` stub). Requires a real PostgreSQL backend (`handshake_core`) running for proof targets that call the backend code-nav APIs. If backend is unavailable, LSP and CodeNav return empty results gracefully. Cross-WP note: the backend HTTP client this MT reuses (`backend_client.rs`) was delivered by WP-KERNEL-011; this dependency is a reuse pointer, not a depends_on edge.\nRisk if missed: No code intelligence means operators cannot use completion, hover, or go-to-definition — the primary productivity features of the VS Code parity goal. Diagnostic markers from LSP are also missing from the gutter.",
@@ -108,7 +153,7 @@
     "HBR-VIS"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260704-122106",
     "wp_validator_session": null
   },
   "red_team": {
@@ -139,23 +184,113 @@
     ]
   },
   "implementation_result": {
-    "implemented_by": "KERNEL_BUILDER folded pipeline wf_83853ffe (impl + adversarial-review + harden)",
-    "branch": "feat/WP-KERNEL-012",
-    "commits": [
-      "9d357aae feat MT-008 LSP client + code-nav fallback",
-      "ee749f62 fix harden per adversarial review"
+    "implemented_by": "KERNEL_BUILDER-20260704-122106",
+    "role": "KERNEL_BUILDER",
+    "updated_at_utc": "2026-07-04T16:57:47Z",
+    "status": "READY_FOR_VALIDATION_PENDING_VALIDATOR_REVIEW",
+    "summary": "Closed the reopened MT-008 app-level LSP gap: production HandshakeApp now attaches the discovered LSP client for the mounted code pane, drives didOpen/didChange for file-backed documents, and has deterministic app-host proof of the actual LSP frames. Hardened publishDiagnostics URI filtering, same-frame code-nav staleness aggregation, hover dwell one-shot behavior, completion/hover raw-symbol fallback queuing, Windows CREATE_NO_WINDOW spawn option proof, real-process LSP Drop-reap proof, and internal manual coverage. Builder handoff is honest: populated native-client backend content is still partial where no seeded indexed-code workspace exists.",
+    "changed_files": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/tests/test_app_host_mount.rs",
+      "src/frontend/handshake_native/tests/test_lsp_client.rs",
+      "src/frontend/handshake_native/tests/test_completion_hover_accesskit.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_manual_content.rs",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-008.json"
     ],
-    "transport": "lsp-types 0.95.1 + hand-rolled JSON-RPC-over-stdio (NOT tower-lsp, per research wf_ffa74d6d); focus-safe tokio process; CodeNavClient binds real handshake_core routes with x-hsk-* headers, reusing backend_client.rs.",
-    "bugs_caught_and_fixed": "Review caught: (1) FALSE 'clippy clean' - cargo clippy --all-targets failed on assertions_on_constants (the new full-suite pipeline rule surfaced it); harden used const _: () = assert!(). (2) UNWIRED SCAFFOLDING - trigger_completion/hover/diagnostics existed as public API with ZERO call sites in show()/process_cursor_input, so the primary deliverable did not function for a real operator (ACs passed only via direct test calls). Harden wired the live loop: set_runtime injection + per-frame pump_code_intelligence (drains diagnostics, hover-dwell, debounced completion) + completion-popup keymap in process_cursor_input + Ctrl+Space/trigger-chars, non-focus-stealing; added 3 live-path tests driving real key events.",
-    "proofs": "AC-004/005/006/007/008 + PT-004..007 GREEN standalone; full suite green (465 lib + all integration); clippy --all-targets -D warnings EXIT=0; staleness gutter visually verified; no leakage; no tree-sitter dup core.",
-    "blocked_acs": "AC-001/002/003 (+ PT-001/002/003) content are PARTIAL_BLOCKED = NEEDS_MANAGED_RESOURCE_PROOF: the managed handshake_core + bundled PostgreSQL WAS started + healthy and the CodeNavClient binding is proven REAL (routes, headers, envelope, real 404), but the populated-content assertions need a CODE-INDEXED workspace seeded into PG via the backend CodeIndexEngine (cross-crate, forbidden to the frontend per CX-109D). Gated behind the integration Cargo feature; run green-with-data once HANDSHAKE_TEST_DB_URL points at an indexed workspace. NOT faked.",
-    "carried_forward_to_MT_069_E11": "APP-LEVEL HOST MOUNTING: the code_editor pane is NOT yet registered in app.rs / threaded a runtime+workspace via PaneRenderContext (app.rs/pane_registry.rs out of MT-008 allowed_paths; CodeEditorPaneFactory not registered in app.rs). The panel exposes set_runtime()/set_workspace_id() as the injection point. The host MT (E11 / MT-069) must register CodeEditorPaneFactory in app.rs and call the injection setters so the editor + its code-intelligence actually run in the shipped app.",
-    "waiver_granted": "panel.rs (the real CodeEditorPanel editor state lives here, not mod.rs as the contract prose assumed) + test_completion_hover_accesskit.rs - outside MT-008 allowed_paths but within packet src/frontend/**, required for the live-loop wiring + GUI proof. Granted per GLOBAL-SCOPE-005.",
-    "deferred": [
-      "cargo fmt not run (crate has no rustfmt.toml; default fmt fails on hundreds of pre-existing lines in untouched files; reformatting = out-of-scope spillover per CODER_PROTOCOL) - house style matched, clippy-clean",
-      "AC-002/003 integration binding tests accept any non-2xx (404/400/500) as up-not-down; tighten to assert correct binding once seeded",
-      "get_file_lens %2F path encoding untested+unbound (latent)",
-      "LspClient Drop/shutdown no-zombie path real but untested by a spawn-drop test"
+    "out_of_scope_waiver_needed": {
+      "reason": "The reopened defect was app-level/shipped-path behavior and the operator explicitly required internal manual updates; MT-008 allowed_paths did not include the app host/manual surfaces, but the direct closure unit could not be true without touching them.",
+      "touched_paths": [
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/tests/test_app_host_mount.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs",
+        ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-008.json"
+      ]
+    },
+    "manual_menu_settings_coverage": {
+      "manual": "Updated Code Editor manual content with LSP discovery/typed absent state, completion popup author ids, hover tooltip author id, URI-scoped publishDiagnostics, code-nav fallback, and NEEDS_MANAGED_RESOURCE_PROOF wording for unseeded indexed workspace content.",
+      "options_settings": "No new user option or settings control was introduced by this MT-008 repair; existing editor settings tests remain green.",
+      "dropdown_menu_items": "No new operator-facing dropdown item was introduced by this repair; existing Code Editor GO navigation/manual surfaces are documented and covered by current manual tests."
+    },
+    "acceptance_status": {
+      "AC-001": "PARTIAL: native CodeNavClient binding to live handshake_core at http://127.0.0.1:37501 is proven; lookup route accepted and returned matches=0. Populated native-client content remains NEEDS_MANAGED_RESOURCE_PROOF until a live indexed-code workspace is seeded.",
+      "AC-002": "PARTIAL: native get_symbol route reached live backend and responded with typed 404 in the unseeded workspace; backend route content is proven separately by the handshake_core CodeIndexEngine fixture test. Populated native-client content remains NEEDS_MANAGED_RESOURCE_PROOF.",
+      "AC-003": "PARTIAL: native get_references route reached live backend and responded with typed 404 in the unseeded workspace; backend route content is proven separately by the handshake_core CodeIndexEngine fixture test. Populated native-client content remains NEEDS_MANAGED_RESOURCE_PROOF.",
+      "AC-004": "GREEN_STANDALONE: lsp_client graceful unconfigured methods return empty/None without panic; default LSP suite passes.",
+      "AC-005": "PARTIAL: completion popup AccessKit/rendering, keyboard accept, live Ctrl+Space pump, and real async code-nav fallback against an in-process HTTP backend are proven. Backend-populated completion content from a live indexed-code workspace remains NEEDS_MANAGED_RESOURCE_PROOF.",
+      "AC-006": "PARTIAL: hover tooltip AccessKit/rendering, hover dwell one-shot, live dwell pump, and real async code-nav fallback against an in-process HTTP backend are proven. Backend-populated hover content from a live indexed-code workspace remains NEEDS_MANAGED_RESOURCE_PROOF.",
+      "AC-007": "GREEN_STANDALONE: staleness code-nav batches aggregate before gutter push; screenshot proof saved externally at Handshake_Artifacts/handshake-test/wp-kernel-012-mt-008/MT-008-staleness-gutter.png.",
+      "AC-008": "GREEN_STANDALONE: publishDiagnostics notification reaches CodeEditorPanel gutter and non-matching document URIs are ignored."
+    },
+    "residual_blockers": [
+      "AC-001/002/003 populated native-client content requires HANDSHAKE_TEST_DB_URL pointing at a live handshake_core with a seeded indexed-code workspace.",
+      "Backend-populated AC-005/006 completion and hover content requires the same seeded indexed-code workspace; current proof covers frontend render/input and real async fallback transport, not managed-resource content.",
+      "Backend route content is split-proofed by handshake_core knowledge_code_nav_api_tests with CodeIndexEngine fixture; it is not a substitute for native-client populated-content proof."
+    ],
+    "proof_summary": {
+      "app_host_lsp": "cargo test --test test_app_host_mount lsp_ -- --nocapture => 4 passed, including deterministic didOpen/didChange frame proof and production constructor attach state.",
+      "lsp_client": "cargo test --test test_lsp_client -- --nocapture => 12 passed; HANDSHAKE_LSP_PROCESS_PROOF=1 cargo test --test test_lsp_client gated_real_process_lsp_spawn_initialize_drop_no_zombie -- --nocapture => 1 passed.",
+      "completion_hover": "cargo test --test test_completion_hover_accesskit -- --nocapture => 11 passed, including in-process HTTP backend completion/hover fallback raw-symbol queue proof.",
+      "live_backend_binding": "HANDSHAKE_TEST_DB_URL=http://127.0.0.1:37501 cargo test --features integration --test test_code_nav_client -- --nocapture => 11 passed; AC-001 route accepted with matches=0; AC-002/003 routes responded typed 404; content deferred.",
+      "backend_route_content": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_nav_api_tests mt106_nav_api_lookup_definition_references_tests_spans_with_receipts -- --nocapture --test-threads=1 => 1 passed, proving backend code-nav content routes with managed PostgreSQL fixture/indexed Rust symbol.",
+      "manual": "cargo test --test test_manual_content -- --nocapture => 12 passed.",
+      "formatting": "rustfmt --edition 2021 on touched Rust files completed; git diff --check pending after JSON update."
+    },
+    "subagent_reviews": [
+      {
+        "agent": "Boole 019f2dd8-0008-7c41-bdb2-c98643545367",
+        "scope": "initial app/process LSP review",
+        "verdict": "FAIL initially; app attach/sync and process proof findings addressed"
+      },
+      {
+        "agent": "Heisenberg 019f2dd8-9f32-7eb1-8390-9969386f83d5",
+        "scope": "initial AC overclaim and hover/code-nav review",
+        "verdict": "FAIL initially; AC-005/006 reclassified partial and hover/code-nav hardening added"
+      },
+      {
+        "agent": "Turing 019f2de9-c3f2-7ba0-91e6-d8802a9f1ff7",
+        "scope": "diagnostics URI routing re-review",
+        "verdict": "PASS with caveat strict URI string equality"
+      },
+      {
+        "agent": "Aristotle 019f2de9-de63-76e0-8941-e10a013e0f52",
+        "scope": "hover/code-nav queue re-review",
+        "verdict": "PASS after same-frame staleness aggregation fix"
+      },
+      {
+        "agent": "Kant 019f2dfa-61c0-7191-b329-cc24809b19c8",
+        "scope": "post-compaction code-quality proof-gap review",
+        "verdict": "FAIL initially; deterministic didOpen/didChange frame test, Windows CREATE_NO_WINDOW option test, and real async fallback raw-symbol tests added"
+      },
+      {
+        "agent": "Ptolemy 019f2dfa-46a4-7690-bfc7-cd4a44caf716",
+        "scope": "post-compaction readiness honesty review",
+        "verdict": "FAIL initially on stale MT handoff; implementation_result/lifecycle refreshed with partial AC split"
+      }
+    ],
+    "known_caveats": [
+      "publishDiagnostics URI routing uses strict URI string equality; future hardening may normalize file URLs.",
+      "AC-005/006 are split: frontend/render/input and real async fallback transport are proven; live seeded backend-populated content remains a managed-resource proof.",
+      "The Windows no-window proof guards the named CREATE_NO_WINDOW spawn option; it does not attempt unreliable foreground-window observation in headless tests."
+    ],
+    "ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl @ 2026-07-04T16:54:55.805Z",
+    "subagent_final_reviews": [
+      {
+        "agent": "Kant 019f2dfa-61c0-7191-b329-cc24809b19c8",
+        "scope": "post-fix code-quality proof-gap re-review",
+        "verdict": "PASS",
+        "summary": "Previous proof gaps closed: app-driven didOpen/didChange frames observed; CREATE_NO_WINDOW spawn option named/used/tested; completion/hover fallback raw-symbol staleness proven via real CodeNavClient against in-process HTTP backend."
+      },
+      {
+        "agent": "Ptolemy 019f2dfa-46a4-7690-bfc7-cd4a44caf716",
+        "scope": "readiness-handoff honesty re-review",
+        "verdict": "PASS",
+        "summary": "No remaining stale implementation_result/lifecycle overclaims; AC-001/002/003 and backend-populated AC-005/006 correctly split as PARTIAL/NEEDS_MANAGED_RESOURCE_PROOF; manual/options/menu coverage honestly represented."
+      }
     ]
   }
 }
+

@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-07-02T03:14:11Z",
+  "updated_at_utc": "2026-07-03T21:26:02Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,11 +35,52 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "OPEN",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "PENDING",
+      "previous_active": false,
+      "previous_claim": {
+        "claimed_by": null,
+        "claimed_at_utc": null,
+        "claim_session": null,
+        "handoff_coder_session": null
+      },
+      "cutoff_assumption": "Operator assumption: this was active work that got cut off. Reopened as unclaimed OPEN work; resume only after inspecting current evidence.",
+      "fix_first": "Work the microtask scope from the top: Deferred residual hardening collected from the 2026-07-02 wave-A adversarial drift audit so approved-minor gaps are not forgotten (operator directive: defer uncorrelated gaps to a future MT in the same WP). Items: (1) MT-004: auto-scroll current match below find-bar occlusion (RISK-004); replace_all over-1000 cap or off-thread run plus progress indicator; kittest typing into find TextEdit. (2) MT-006: outline raw-click navigation kittest; fold-active navigation landing-row test. (3) MT-013: overflow popup 2-frame kittest; Bold toolbar button click kittest; fix stale offset-0 backspace comment in input_handler.rs. (4) MT-016: fix code-block slash-menu description promising a nonexistent language prompt (or implement code-language and table row/col prompts); assert slash char remains after Escape. (5) MT-018: keystroke-driven find-input kittest; replace-one/replace-all click kittests; scrolled-tall-doc highlight integration test. (6) MT-098: live-harness type-and-click send proof observing EndpointMissing; align probed route naming with real backend route conventions. (7) MT-100: workspace-folder resolution residual (process cwd vs chosen folder) tracked to the real /terminal rout...",
+      "how_to_fix": [
+        "Treat the previous active work as cut off: inspect any durable evidence or partial product changes, but do not assume the stale claim is live ownership.",
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-108-1, AC-108-2, AC-108-3) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: cargo test -p handshake-native (full suite -j 2) ; per-item targeted tests enumerated at claim time",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "PENDING",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
+    "reopened_by": "KERNEL_BUILDER",
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
   },
   "scope": {
     "summary": "Deferred residual hardening collected from the 2026-07-02 wave-A adversarial drift audit so approved-minor gaps are not forgotten (operator directive: defer uncorrelated gaps to a future MT in the same WP). Items: (1) MT-004: auto-scroll current match below find-bar occlusion (RISK-004); replace_all over-1000 cap or off-thread run plus progress indicator; kittest typing into find TextEdit. (2) MT-006: outline raw-click navigation kittest; fold-active navigation landing-row test. (3) MT-013: overflow popup 2-frame kittest; Bold toolbar button click kittest; fix stale offset-0 backspace comment in input_handler.rs. (4) MT-016: fix code-block slash-menu description promising a nonexistent language prompt (or implement code-language and table row/col prompts); assert slash char remains after Escape. (5) MT-018: keystroke-driven find-input kittest; replace-one/replace-all click kittests; scrolled-tall-doc highlight integration test. (6) MT-098: live-harness type-and-click send proof observing EndpointMissing; align probed route naming with real backend route conventions. (7) MT-100: workspace-folder resolution residual (process cwd vs chosen folder) tracked to the real /terminal route. (8) MT-102: real-GPU worksurface screenshot captured and visually inspected (PT-102-B). (9) MT-105: decide/implement hard total-runtime cap for forever-ticking operations (deadline currently = progress-gap only). (10) MT-106: surface Suspected/no-baseline child stalls as diagnostics events; make registration-time liveness baseline mandatory via register_file_child. (11) SYSTEMIC: screenshot proof harness must emit an explicit typed DEFERRED/BLOCKED marker instead of silently passing when no wgpu adapter exists, so GREEN never implies pixels on headless hosts. (12) MT-004/MT-009 dep governance nit: Cargo.toml/Cargo.lock rode outside allowed_paths for sanctioned deps - record disposition.",

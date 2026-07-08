@@ -14,7 +14,7 @@
   "title": "E1-MT-009-DiffMergeEditor",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-04T18:05:01Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-001",
@@ -33,11 +33,50 @@
     ],
     "blocks": [],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T01:51:45Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
-    "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review after coder session hit limits; no MT has been validated by an official validator. Adversarial drift audit 2026-07-02 (operator-ordered): diff/merge editor is an orphan surface (no PaneType, factory pane_type() returns PaneType::CodeSymbol which would replace the mounted code editor; no shell registration, no command/menu entry, conflict_ui Open-merge button is a no-op). SyncScrollState offsets never read/written (user scroll does not sync panes). MergeEngine::three_way is positional per-line-index, not aligned base-diffs - insertions produce spurious conflicts (blocking for CRDT merge use). Merge mode renders 2 panes, contract requires 3 (module doc contradicts code). Diff tint overlay hardcodes scroll_offset 0 and misaligns after scroll. MC-001 background diff for >10k lines signed off but not implemented.",
+    "operator_decision_summary": "Current MT-009 remediation state: KERNEL_BUILDER-20260704-122106 closed the reopened audit findings for the native diff/merge editor. The implementation now mounts a real Diff Merge pane without CodeSymbol collision, opens through command-palette/conflict-dialog routes, computes base-aligned three-way merge blocks, preserves unresolved conflict sides until explicit Accept Local/Remote/Both, renders local/base/remote merge panes, synchronizes live user scroll with fractional scroll-aware diff tint overlays, runs >10k-line diffs on a background worker with observable failure state, and proves side-by-side/inline GUI output with strict screenshot pixel tests.",
     "deflection_category": "orphan_surface_and_engine_gaps",
-    "remediation_appendage": "Mount the diff/merge editor (own PaneType, fix CodeSymbol factory collision, add entry point); implement user scroll-sync; rewrite three_way as aligned base-diffs (insertions currently produce false conflicts); render base pane; fold tint overlay to live scroll; implement or waive MC-001."
+    "remediation_appendage": "Closed for validator review by KERNEL_BUILDER-20260704-122106: MT-009 product implementation and fresh proofs passed; Linnaeus and Meitner subagent re-reviews returned PASS/no blocking findings. Official validator review remains pending; do not mark COMPLETED from builder handoff.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Mount the diff/merge editor (own PaneType, fix CodeSymbol factory collision, add entry point); implement user scroll-sync; rewrite three_way as aligned base-diffs (insertions currently produce false conflicts); render base pane; fold tint overlay to live scroll; implement or waive MC-001.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-001: `cargo test -p handshake-native diff_engine` passes — port the test cases from `document_diff_merge.test.ts`: identical texts -> all Equal blocks; added line -> one Added block; removed line -> one Removed block; modified line -> one Modified block., AC-002: `cargo test -p handshake-native merge_engine` passes — tests: local adds line 2, remote adds line 5 to same base -> two LocalOnly/RemoteOnly blocks (no conflict); both modify line 3 differently -> one Conflict block., AC-003: egui_kittest screenshot in SideBySide mode shows two panes with a green background rect in the right pane for an added line., AC-004: egui_kittest screenshot in Inline mode shows `+ ` prefix (green colored) on an added line and `- ` prefix (red colored) on a removed line., AC-005: egui_kittest interactive test: merge mode with one Conflict block; click 'Accept Local' button; verify the merged output buffer contains the local version of the conflicted block., AC-006: AccessKit tree in merge mode contains at least one button node with author_id matching 'diff_block_0_accept_local'., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PT-001: `cargo test -p handshake-native diff_engine` — GREEN, logged. ; PT-002: `cargo test -p handshake-native merge_engine` — GREEN, logged. ; PT-003: egui_kittest screenshot `test_output/MT-009-sidebyside-diff.png` pixel-verified for green background in right pane. ; PT-004: egui_kittest screenshot `test_output/MT-009-inline-diff.png` pixel-verified for colored prefixes. ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260704-122106",
+    "claimed_at_utc": "2026-07-04T16:59:14Z",
+    "remediation_closed_at_utc": "2026-07-04T18:05:01Z",
+    "remediation_closed_by": "KERNEL_BUILDER-20260704-122106",
+    "remediation_closed_summary": "Diff/merge editor orphan surface, merge alignment, base pane, scroll sync, overlay positioning, background diff worker, route wiring, strict screenshot proof, and manual coverage are complete for validator review.",
+    "ready_for_validation_at_utc": "2026-07-04T18:05:01Z"
   },
   "scope": {
     "summary": "Goal: Implement a diff and merge editor panel supporting side-by-side and inline (unified) diff views for both prose and code content. This provides parity with the KERNEL-009 MT-247 diff surface and ports the `document_diff_merge.ts` logic from the React codebase into a native egui panel. Also handles CRDT conflict UI: when a CRDT merge conflict exists in the workspace (signalled via a workspace state update), the merge editor opens with local/base/remote three-way view and per-block accept/reject controls. Expected diff shape: new `src/frontend/handshake_native/src/code_editor/diff_engine.rs`, new `src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs`, edits to `src/frontend/handshake_native/src/code_editor/mod.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/diff_engine.rs` — ports `document_diff_merge.ts`. Defines `DiffBlock { left_lines: Range<usize>, right_lines: Range<usize>, status: DiffStatus }` where `DiffStatus` is an enum: `Equal`, `Added`, `Removed`, `Modified`. `DiffEngine::diff(left: &TextBuffer, right: &TextBuffer) -> Vec<DiffBlock>` — uses the Myers diff algorithm (implement from scratch or use the `similar` crate which is MIT-licensed and production-grade). For prose mode: works at the paragraph/block level (port `buildRichDocumentDiff` behavior for line-level comparison). `MergeBlock { base_lines: Range<usize>, local_lines: Range<usize>, remote_lines: Range<usize>, status: MergeStatus, chosen: Option<MergeChoice> }` where `MergeStatus: LocalOnly | RemoteOnly | BothSame | Conflict` and `MergeChoice: Local | Remote | Both`. `MergeEngine::three_way(base: &TextBuffer, local: &TextBuffer, remote: &TextBuffer) -> Vec<MergeBlock>` — computes local vs base diff and remote vs base diff, then aligns them to produce merge blocks.\n- CREATE `src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs` — `DiffEditorPanel` egui widget. State: `left: TextBuffer`, `right: TextBuffer`, `diff: Vec<DiffBlock>`, `mode: DiffMode` (enum: `SideBySide`, `Inline`). `DiffEditorPanel::show(ui)` renders: (a) SideBySide: two `CodeEditorPanel` instances side by side, synchronized scroll (when left scrolls, right scrolls to the same line, accounting for added/removed blocks), diff block backgrounds highlighted (green=added, red=removed, yellow=modified). (b) Inline: single panel showing both left and right lines interleaved with change markers. Toggle button for SideBySide vs Inline in the panel header. Also supports `MergeMode`: three panes (local, base, remote) with per-block accept buttons.\n- EDIT `src/frontend/handshake_native/src/code_editor/mod.rs` — add `open_diff(left: TextBuffer, right: TextBuffer)` and `open_merge(base, local, remote: TextBuffer)` factory methods that construct a `DiffEditorPanel` and place it in the egui tile layout as a new tile. Reuse the existing WP-011 layout primitives `split_layout.rs` and `pane_registry.rs` (under `src/frontend/handshake_native/src/`) to register and place the new tile rather than introducing a parallel layout system.\n\nExact crates/functions/APIs to use:\n- `similar = \"2\"` (MIT) — production-grade diff library used by many Rust projects; provides Myers diff over slices. Use `similar::ChangeTag` and `similar::TextDiff::from_lines` for line-level diff.\n- `egui::SidePanel` or manual `ui.columns(2, ...)` for the side-by-side layout.\n- `egui::Painter::rect_filled` — for diff block background highlights.\n- `egui::Button` — for merge choice accept buttons (Accept Local, Accept Remote, Accept Both).\n- AccessKit (reuse `accessibility/*` under `src/frontend/handshake_native/src/`): `author_id = \"diff_editor_panel\"` `Role::Group`; `author_id = \"diff_block_{n}_accept_local\"` `Role::Button` on each merge accept button; `author_id = \"diff_mode_toggle\"` `Role::ToggleButton` on the SideBySide/Inline toggle.\n\nReact reference files:\n- `app/src/lib/editor/document_diff_merge.ts` — complete reference for diff and merge data structures. Port: `RichDocumentDiff`, `RichDocumentDiffBlock`, `RichDocumentDiffStatus`, `RichDocumentMergePlan`, `RichDocumentMergeBlock`, `RichDocumentMergeStatus`, `buildRichDocumentDiff`, `buildRichDocumentMergePlan`, `applyRichDocumentMergeChoices`. Native equivalents use `TextBuffer` instead of `JSONContent` (the prose format). For code buffers, the diff is line-level not block-level.\n- `app/src/lib/editor/document_diff_merge.test.ts` — test cases for the diff/merge logic; port these tests as Rust unit tests.\n- `app/src/harness/rich_document_diff_harness.tsx` — the visual harness for the React diff editor; the native egui panel must match its feature surface.\n\nStep-by-step implementation notes:\n1. Use `similar::TextDiff::from_lines(left_text, right_text)` for line-level diff. Map `ChangeTag::Equal` -> `DiffStatus::Equal`, `Insert` -> `Added`, `Delete` -> `Removed`, and consecutive Delete+Insert at the same position -> `Modified`.\n2. Side-by-side sync scroll: maintain a `sync_scroll: SyncScrollState { left_scroll_offset: f32, right_scroll_offset: f32, last_changed: Side }`. When the left ScrollArea changes scroll offset, compute the corresponding right offset by counting visible lines in diff blocks and mapping them. Use `VirtualLineLayout` from MT-002 for each pane.\n3. Diff block backgrounds: before rendering each line in the virtual line loop, check if the line falls in a `DiffBlock` and set `ui.painter().rect_filled(line_rect, 0, diff_color)` where `diff_color` is: Added=Color32::from_rgba_unmultiplied(0,255,0,30), Removed=Color32::from_rgba_unmultiplied(255,0,0,30), Modified=Color32::from_rgba_unmultiplied(255,200,0,30).\n4. Inline mode: render left lines normally; for Added blocks, add a green `+ ` prefix; for Removed, a red `- ` prefix; for Equal, a gray `  ` prefix. No side-by-side layout needed.\n5. Merge mode per-block UI: for each `MergeBlock` with `status=Conflict`, render three rows (local, base, remote) with Accept Local / Accept Remote / Accept Both buttons. On accept, set `block.chosen` and recompute the merged output buffer.\n6. Synchronized scroll algorithm: maintain a `line_map: Vec<(Option<usize>, Option<usize>)>` where each entry is (left_line, right_line) for the corresponding visual row (None for lines that only exist on one side). When left scrolls to visual row R, find `line_map[R].1` and scroll right to that row.\n\nDependencies/unblock conditions: MT-001 (TextBuffer for both panes), MT-002 (VirtualLineLayout for both panes). Does NOT require MT-005, MT-007, or MT-008 — the diff editor is a standalone panel.\nRisk if missed: No diff view means code review workflows are blocked. CRDT conflict resolution has no UI. This is parity with KERNEL-009 MT-247 which is already validated.",
@@ -97,7 +136,7 @@
     "HBR-SWARM"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260704-122106",
     "wp_validator_session": null
   },
   "red_team": {
@@ -126,18 +165,98 @@
     ]
   },
   "implementation_result": {
-    "implemented_by": "KERNEL_BUILDER folded pipeline wf_8cce417f (impl + adversarial-review PASS, no harden)",
+    "schema_id": "hsk.mt_implementation_result@1",
+    "updated_at_utc": "2026-07-04T18:03:35Z",
+    "implemented_by": "KERNEL_BUILDER-20260704-122106",
     "branch": "feat/WP-KERNEL-012",
-    "commits": [
-      "fd715b74 feat MT-009 diff + three-way merge editor panel"
+    "base_commit": "2fe559ed",
+    "product_worktree": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-native-editors-v1",
+    "summary": "Implemented/repaired MT-009 native diff/merge editor closure: aligned base-span three-way merge, unresolved-conflict preservation until explicit choice, side-by-side and inline diff views, three-pane local/base/remote merge UI, direct diff/merge pane factory key, command-palette and conflict-dialog routes, live user scroll sync with fractional scroll-aware diff tint overlays, >10k-line background diff worker with observable failure state, strict screenshot/pixel proof, and no-context manual coverage.",
+    "direct_work_changed_files": [
+      "src/frontend/handshake_native/src/code_editor/diff_engine.rs",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_merge_engine.rs",
+      "src/frontend/handshake_native/tests/test_diff_editor_panel.rs",
+      "src/frontend/handshake_native/tests/test_manual_content.rs"
     ],
-    "review_verdict": "PASS (reviewer re-ran proofs + inspected; no must_fix)",
-    "proofs": "AC-001..007 + PT-001..006 GREEN; similar v2.7.0 Myers diff; 483 lib + ~60 integration bins green; clippy --all-targets -D warnings clean; CONTROL-4 theme guard GREEN; side-by-side diff (green added-line band, two synced panes) + inline diff (+/- prefixes) visually verified by KERNEL_BUILDER; no leakage.",
-    "self_caught_fix": "impl self-caught a visual-honesty defect: the initial 'green pixels' were the MINIMAP not the diff tint (panel bg occluded the pre-painted rects); fixed by hiding outline/minimap + painting diff tint on a foreground overlay AFTER panes render, then re-inspected. RISK-004 two-panel mount runtime-proven (with_instance left/right -> disjoint egui Ids + AccessKit author_ids #left/#right).",
+    "proof_commands": [
+      {
+        "command": "cargo fmt --manifest-path src/frontend/handshake_native/Cargo.toml",
+        "result": "PASS",
+        "evidence": "format completed exit 0"
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_merge_engine -- --nocapture",
+        "result": "PASS",
+        "evidence": "8 passed; includes unresolved conflict preserving both LOCAL_EDIT and REMOTE_EDIT"
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_diff_editor_panel -- --nocapture",
+        "result": "PASS",
+        "evidence": "11 passed; side-by-side and inline screenshot pixel checks passed and regenerated MT-009 PNG artifacts"
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib code_editor::diff_editor_panel::tests::background_diff_disconnection_is_observable -- --nocapture",
+        "result": "PASS",
+        "evidence": "1 passed; disconnected worker clears pending and exposes failure text"
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_diff_engine -- --nocapture",
+        "result": "PASS",
+        "evidence": "6 passed"
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_menu_wireup diff_merge -- --nocapture",
+        "result": "PASS",
+        "evidence": "2 passed; command-palette diff/merge route renders real conflict diff and clears stale diff"
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_menu_wireup conflict_dialog_open_merge_button_opens_real_diff -- --nocapture",
+        "result": "PASS",
+        "evidence": "1 passed; conflict dialog Open merge opens real diff"
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_content wave5_surface_topics_exist_and_carry_real_no_context_facts -- --nocapture",
+        "result": "PASS",
+        "evidence": "1 passed; manual includes diff/merge no-context facts"
+      },
+      {
+        "command": "git diff --check -- MT-009 touched files",
+        "result": "PASS",
+        "evidence": "exit 0; only CRLF conversion warnings"
+      }
+    ],
+    "visual_artifacts": [
+      "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\handshake-test\\wp-kernel-012-mt-009\\MT-009-sidebyside-diff.png",
+      "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\handshake-test\\wp-kernel-012-mt-009\\MT-009-inline-diff.png"
+    ],
+    "subagent_reviews": [
+      {
+        "agent": "Linnaeus 019f2e27-32e2-73c2-94c9-0b68b0e69c3b",
+        "verdict": "PASS",
+        "evidence": "No concrete file/line findings; final scroll-sync state reviewed."
+      },
+      {
+        "agent": "Meitner 019f2e27-6185-7fc1-b05a-0bc4029206c4",
+        "verdict": "PASS",
+        "evidence": "Prior FAIL items verified resolved: unresolved conflicts preserve both sides; fractional overlay uses pixel offset; scroll sync records programmatic targets; strict screenshots pass in proof environment; disconnected background diff exposes failure."
+      }
+    ],
+    "risks_closed": [
+      "Audit orphan-surface gap closed: DiffEditorPaneFactory now advertises a dedicated Diff Merge pane key and shell routes open real diff/merge surfaces.",
+      "RISK-002/RISK-003 closed for base-aligned three-way merge: insertion/deletion alignment tests pass and unresolved conflicts preserve both sides until explicit choice.",
+      "RISK-004 closed for side-by-side panes: left/right/base CodeEditorPanel instances have disjoint instance IDs and AccessKit author IDs.",
+      "MT-002 positioning gap closed for diff tints: overlay y-position uses actual pixel scroll offset including fractional row offset.",
+      "MC-001 closed: >10k-line diff uses a background worker, pending state, delivery proof, and observable worker-disconnect failure state."
+    ],
     "deferred": [
-      "prose/JSON-block diff (buildRichDocumentDiff over serde_json::Value) deferred to when E2's native rich-document format exists (MT-011+); line-level TextBuffer diff+merge delivered",
-      "CRDT-conflict auto-trigger deferred (open_merge is a direct API call); wires to a workspace-state event in a later CRDT MT",
-      "adversarial alternating add/remove diff-boundary cases vs VS Code exact boundaries - residual (similar's grouping); add edge tests in a follow-up"
-    ]
+      "JSON/block-level rich-document diff remains deferred to the E2 native rich-document format because MT-009 owns TextBuffer/code-editor line-level diff and merge.",
+      "CRDT conflict auto-trigger remains deferred to a later workspace-state integration; MT-009 exposes and proves direct open_merge(base, local, remote) and shell conflict-dialog routing."
+    ],
+    "validator_handoff": "READY_FOR_VALIDATION requested only after validator review; lifecycle.validator_verdict remains PENDING and completed_by remains unset for official validator ownership."
   }
 }

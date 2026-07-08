@@ -215,12 +215,13 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
   communicationEvaluation = null,
 } = {}) {
   const rawRuntimeStatus = runtimeStatus || {};
+  const projection = parseRuntimeProjectionFromPacket(packetText);
   const publication = readExecutionPublicationView({
     runtimeStatus,
-    packetStatus: parsePacketStatus(packetText),
+    packetStatus: projection.current_packet_status,
+    taskBoardStatus: projection.current_task_board_status,
   });
   runtimeStatus = publication.runtime;
-  const projection = parseRuntimeProjectionFromPacket(packetText);
   const issues = [];
   const issueDetails = [];
   const ownerClasses = new Set();

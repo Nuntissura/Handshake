@@ -81,11 +81,13 @@ function parseMicrotaskContract(mtAbsPath, mtRelPath) {
       ? scope.allowed_paths
       : (Array.isArray(contract?.owned_files) ? contract.owned_files : []),
   );
-  const expectedTests = Array.isArray(scope.proof_targets)
-    ? scope.proof_targets.map((entry) => String(entry || "").trim()).filter(Boolean)
-    : (Array.isArray(contract?.proof_commands)
-        ? contract.proof_commands.map((entry) => String(entry || "").trim()).filter(Boolean)
-        : []);
+  const expectedTests = Array.isArray(scope.proof_commands)
+    ? scope.proof_commands.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : (Array.isArray(scope.proof_targets)
+        ? scope.proof_targets.map((entry) => String(entry || "").trim()).filter(Boolean)
+        : (Array.isArray(contract?.proof_commands)
+            ? contract.proof_commands.map((entry) => String(entry || "").trim()).filter(Boolean)
+            : []));
   const dependsOnSource = Array.isArray(lifecycle.depends_on)
     ? lifecycle.depends_on
     : (Array.isArray(contract?.depends_on_mts) ? contract.depends_on_mts : []);
@@ -321,6 +323,7 @@ function stateFromReceipt(receipt = {}) {
 function stateFromLifecycle(definition = {}) {
   const status = String(definition.lifecycleStatus || "").trim().toUpperCase();
   if (["COMPLETED", "COMPLETE", "DONE", "CLEARED"].includes(status)) return "CLEARED";
+  if (["NEEDS_MANAGED_RESOURCE_PROOF", "BLOCKED_NEEDS_MANAGED_RESOURCE_PROOF", "BLOCKED"].includes(status)) return "REPAIR_REQUIRED";
   if (["CLAIMED", "ACTIVE", "IN_PROGRESS"].includes(status) || definition.lifecycleActive === true) return "ACTIVE";
   return "DECLARED";
 }

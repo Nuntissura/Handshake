@@ -478,6 +478,7 @@ export function buildContractDerivedPacketProjectionText({ contract = null, pack
   const normalizedContract = contract && typeof contract === "object" ? contract : {};
   const workflow = normalizedContract.workflow || {};
   const lifecycle = normalizedContract.lifecycle || {};
+  const mtPlan = normalizedContract.mt_plan || {};
   const sourceControl = normalizedContract.source_control || {};
   const scope = normalizedContract.scope || {};
   const authorityFiles = normalizedContract.authority_files || {};
@@ -492,14 +493,18 @@ export function buildContractDerivedPacketProjectionText({ contract = null, pack
   appendIfPresent(lines, formatProjectionField("WP_ID", normalizedContract.wp_id));
   appendIfPresent(lines, formatProjectionField("BASE_WP_ID", normalizedContract.base_wp_id));
   appendIfPresent(lines, `- **Status:** ${contractOrPacketField(lifecycle.status, packetText, "Status")}`);
-  appendIfPresent(lines, formatProjectionField("WORKFLOW_LANE", contractOrPacketField(workflow.lane, packetText, "WORKFLOW_LANE")));
+  const projectedWorkflowLane = lifecycle.workflow_lane || workflow.workflow_lane || workflow.lane;
+  const projectedExecutionOwner = lifecycle.execution_owner || workflow.execution_owner || workflow.coder_compatible_execution_lane;
+  const projectedAgenticMode = workflow.agentic_mode || (String(projectedWorkflowLane || "").startsWith("KERNEL_BUILDER_FOLDED") ? "YES" : "");
+
+  appendIfPresent(lines, formatProjectionField("WORKFLOW_LANE", contractOrPacketField(projectedWorkflowLane, packetText, "WORKFLOW_LANE")));
   appendIfPresent(lines, formatProjectionField("WORKFLOW_AUTHORITY", contractOrPacketField(workflow.authority, packetText, "WORKFLOW_AUTHORITY")));
-  appendIfPresent(lines, formatProjectionField("EXECUTION_OWNER", contractOrPacketField(workflow.coder_compatible_execution_lane || workflow.execution_owner, packetText, "EXECUTION_OWNER")));
+  appendIfPresent(lines, formatProjectionField("EXECUTION_OWNER", contractOrPacketField(projectedExecutionOwner, packetText, "EXECUTION_OWNER")));
   appendIfPresent(lines, formatProjectionField("SESSION_START_AUTHORITY", contractOrPacketField(workflow.session_start_authority, packetText, "SESSION_START_AUTHORITY")));
   appendIfPresent(lines, formatProjectionField("TECHNICAL_ADVISOR", contractOrPacketField(workflow.technical_advisor, packetText, "TECHNICAL_ADVISOR")));
   appendIfPresent(lines, formatProjectionField("TECHNICAL_AUTHORITY", contractOrPacketField(workflow.technical_authority, packetText, "TECHNICAL_AUTHORITY")));
   appendIfPresent(lines, formatProjectionField("MERGE_AUTHORITY", contractOrPacketField(workflow.merge_authority, packetText, "MERGE_AUTHORITY")));
-  appendIfPresent(lines, formatProjectionField("AGENTIC_MODE", contractOrPacketField(workflow.agentic_mode || (workflow.kernel_builder_consolidation ? "YES" : ""), packetText, "AGENTIC_MODE")));
+  appendIfPresent(lines, formatProjectionField("AGENTIC_MODE", contractOrPacketField(projectedAgenticMode || (workflow.kernel_builder_consolidation ? "YES" : ""), packetText, "AGENTIC_MODE")));
   appendIfPresent(lines, formatProjectionField("WP_COMMUNICATION_DIR", contractOrPacketField(workflow.communication_dir, packetText, "WP_COMMUNICATION_DIR")));
   appendIfPresent(lines, formatProjectionField("WP_THREAD_FILE", contractOrPacketField(workflow.thread_file, packetText, "WP_THREAD_FILE")));
   appendIfPresent(lines, formatProjectionField("WP_RUNTIME_STATUS_FILE", contractOrPacketField(workflow.runtime_status_file, packetText, "WP_RUNTIME_STATUS_FILE")));
@@ -524,7 +529,10 @@ export function buildContractDerivedPacketProjectionText({ contract = null, pack
   appendIfPresent(lines, formatProjectionField("CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC", contractOrPacketField(lifecycle.current_main_compatibility_verified_at_utc, packetText, "CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC")));
   appendIfPresent(lines, formatProjectionField("PACKET_WIDENING_DECISION", contractOrPacketField(lifecycle.packet_widening_decision, packetText, "PACKET_WIDENING_DECISION")));
   appendIfPresent(lines, formatProjectionField("PACKET_WIDENING_EVIDENCE", contractOrPacketField(lifecycle.packet_widening_evidence, packetText, "PACKET_WIDENING_EVIDENCE")));
-  appendIfPresent(lines, formatProjectionField("CURRENT_WP_STATUS", contractOrPacketField(lifecycle.current_wp_status, packetText, "CURRENT_WP_STATUS")));
+  appendIfPresent(lines, formatProjectionField(
+    "CURRENT_WP_STATUS",
+    contractOrPacketField(lifecycle.current_wp_status || mtPlan.wp_status, packetText, "CURRENT_WP_STATUS"),
+  ));
   appendIfPresent(lines, formatProjectionField("RISK_TIER", contractOrPacketField(lifecycle.risk_tier, packetText, "RISK_TIER")));
   appendIfPresent(lines, formatProjectionField("AUTHORITATIVE_CONTRACT_FILE", authorityFiles.packet_contract));
   appendIfPresent(lines, formatProjectionField("MARKDOWN_PROJECTION_FILE", projection.path || authorityFiles.packet_projection));

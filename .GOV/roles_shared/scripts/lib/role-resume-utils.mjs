@@ -157,7 +157,9 @@ export function parseStatus(packetContent) {
 }
 
 export function parseCurrentWpStatus(packetContent) {
-  const match = packetContent.match(/^\s*-\s*Current WP_STATUS:[ \t]*([^\r\n]*)[ \t]*$/mi);
+  const match =
+    packetContent.match(/^\s*-\s*Current WP_STATUS:[ \t]*([^\r\n]*)[ \t]*$/mi)
+    || packetContent.match(/^\s*-\s*CURRENT_WP_STATUS:[ \t]*([^\r\n]*)[ \t]*$/mi);
   return match ? match[1].trim() : "";
 }
 

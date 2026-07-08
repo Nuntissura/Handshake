@@ -209,6 +209,33 @@ test("validator authority defaults keep orchestrator-managed packets on the inte
   assert.equal(authority.mergeAuthority, "INTEGRATION_VALIDATOR");
 });
 
+test("validator authority routes folded Kernel Builder packets to Integration Validator", () => {
+  const packetContent = [
+    "# Task Packet: WP-TEST-FOLDED-v1",
+    "",
+    "**Status:** Ready for Validation",
+    "",
+    "## METADATA",
+    "- WP_ID: WP-TEST-FOLDED-v1",
+    "- WORKFLOW_LANE: KERNEL_BUILDER_FOLDED_NO_ACP",
+  ].join("\n");
+  const authority = readValidatorAuthority(packetContent);
+  const actorContext = resolveValidatorActorContext({
+    repoRoot: ".",
+    wpId: "WP-TEST-FOLDED-v1",
+    packetContent,
+    gitContext: {
+      branch: "feat/WP-TEST-FOLDED",
+      topLevel: "../wtc-test-folded",
+    },
+    registrySessions: [],
+  });
+
+  assert.equal(authority.technicalAuthority, "INTEGRATION_VALIDATOR");
+  assert.equal(actorContext.actorRole, "INTEGRATION_VALIDATOR");
+  assert.equal(actorContext.source, "FOLDED_KERNEL_BUILDER_TOPOLOGY");
+});
+
 test("validator actor context infers integration-validator from handshake_main main lane", () => {
   const actorContext = resolveValidatorActorContext({
     repoRoot: ".",

@@ -14,7 +14,7 @@
   "title": "D7-MT-087-InAppDiagnosticsPanel-SettingsSection",
   "group": "D3 Diagnostics Panel (Tier 2 consumer, §10.12)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-03T21:26:02Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-087.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "OPEN",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -36,11 +36,44 @@
       "MT-096"
     ],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:40:52Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: STALE PROOF at 3bf307a8 - tier3_palmistry_empty_state_and_accesskit_ids_present asserts contains('No freeze/crash records') but panel.rs:363 now renders 'No freeze/crash/child-stall records.' (changed by MT-106 commit 547b29c9); the substring does not match so the MT-087 proof test FAILS at the audited commit (test_survivor_forward.rs already uses the new string; test_diagnostics_panel.rs was not updated). Panel implementation itself is correct (pure projection, hosted in Settings per operator steer, reachable live, AccessKit ids match contract, corroborated by inspected PNG). Also the saved PNG shows Recent-events + Tier-3 sections below the scroll fold (AC-007-3 asks all sections legible) and the full-suite no-regression window never finished per implementation_result. Fix: update the assertion to the MT-106 text or a stable prefix, re-run test_diagnostics_panel, capture a scrolled/taller screenshot on the next proof pass.",
     "deflection_category": "stale_proof_assertion_broken_at_head",
-    "remediation_appendage": "Update the stale empty-state assertion to the MT-106 panel text (test currently fails at HEAD); scrolled/taller screenshot; full-suite no-regression run."
+    "remediation_appendage": "Update the stale empty-state assertion to the MT-106 panel text (test currently fails at HEAD); scrolled/taller screenshot; full-suite no-regression run.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Update the stale empty-state assertion to the MT-106 panel text (test currently fails at HEAD); scrolled/taller screenshot; full-suite no-regression run.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-007-1 (REAL MOUNT, prove first): the `DiagnosticsPaneFactory` is registered in app.rs (PlaceholderPaneFactory NO LONGER used for PaneType::Diagnostics) — proven by a kittest that drives the live HandshakeApp tree, mounts/opens the Diagnostics pane, and asserts the REAL panel AccessKit subtree renders (author_id='diagnostics_panel' Region with the heartbeat/events child nodes), NOT a placeholder node., AC-007-2: the panel renders live internal_diagnostics state — after the live frame loop has run (heartbeat advancing, at least one DiagEvent recorded), the kittest asserts the panel shows a non-zero heartbeat, frame-time stats, and at least one event row, all sourced from the MT-082/005/006 globals (the panel holds no own authority)., AC-007-3: a wgpu screenshot of the mounted Diagnostics panel is saved to the EXTERNAL artifact root (Handshake_Artifacts/handshake-test/wp-kernel-015-mt-007/) and is visually inspected by the coder to confirm the panel is readable (heartbeat, frame-time, resource, events sections legible; HBR-VIS)., AC-007-4: the Tier-3 Palmistry section renders an honest empty-state (no freeze/crash records yet; forwarding wired in MT-093) — the §10.12.5 three-tier layout is present, not faked., AC-007-5: AccessKit nodes present (diagnostics_panel + section ids); no perpetual spinner; NO Color32 literal outside theme/palette.rs (CONTROL-4 green via test_theme / grep); the panel uses theme tokens only., AC-007-6: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external target dir; `git ls-files src/**/*.png` empty (screenshots external only).) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PT-007-A: kittest drives the live HandshakeApp, mounts the Diagnostics pane, asserts the REAL panel AccessKit subtree (not placeholder) + saves a wgpu screenshot to the external root. ; PT-007-B: kittest asserts the panel shows live heartbeat + frame-time + resource + >=1 event row from the globals. ; PT-007-C: Tier-3 empty-state assertion + AccessKit ids present. ; PT-007-D: CONTROL-4 (no Color32 outside theme) green; `cargo build --lib --bins` clean + clippy clean + full suite -j 2 green; git ls-files src/**/*.png empty.",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
   },
   "scope": {
     "summary": "Goal: Build the in-app DIAGNOSTICS PANEL — a new egui pane that renders the live internal_diagnostics state (Master Spec v02.196 §5.8.4 'in-app Diagnostics Panel' + §10.12.5 three-tier model). The panel is a PROJECTION over internal_diagnostics (it holds NO state authority, §5.8.4): it reads `diagnostics::snapshot_last_n` (last-N events, MT-082), `frame_stats()` (MT-085), the resource counters + GpuInfo (MT-086), and the live heartbeat. It MUST be mounted as a REAL pane in the running app (follow the editor_pane_factories.rs host-mount pattern), with AccessKit metadata + a visual (wgpu screenshot) proof. (The Palmistry freeze/crash records the panel also surfaces per §10.12.5 are wired in MT-093; this MT renders the Tier 2 internal_diagnostics surface + leaves a clearly-typed empty section for the Tier 3 Palmistry records until MT-093 forwards them.)\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/diagnostics/panel.rs` — `DiagnosticsPanel` (the egui widget) + `DiagnosticsPaneFactory` (impl `crate::pane_registry::PaneFactory`). Declare `pub mod panel;` in diagnostics/mod.rs.\n- EDIT `src/frontend/handshake_native/src/pane_registry.rs` — add a `PaneType::Diagnostics` variant to the `PaneType` enum (line ~36), with its `label()` => \"Diagnostics\" and `default_label()` => \"Diagnostics\" arms (both match statements). (Note: a `VisualDebugger` variant already exists for the §10.12 visual-debugger surface; the new three-tier Diagnostics panel is a DISTINCT §10.12.5 surface — add a dedicated variant rather than overload VisualDebugger.)\n- EDIT `src/frontend/handshake_native/src/app.rs` — register the real `DiagnosticsPaneFactory` in the factory map (in `build_default_factories` ~line 590 or alongside `install_editor_mounts` ~line 742), replacing the PlaceholderPaneFactory for `PaneType::Diagnostics`. Follow the EXACT pattern editor_pane_factories.rs uses: a thin factory whose `&self render` reads the process-global diagnostics snapshot each frame (no &mut needed — the data comes from the MT-082 global recorder, so no shared-cell is even required; the factory is stateless and reads the global).\n- CREATE `src/frontend/handshake_native/tests/test_diagnostics_panel.rs`.\n\nPanel content (panel.rs) — `PaneFactory::render(&self, ui, ctx)`:\n- Heartbeat section: the live counter + time-since-last-beat (read from the ring header via the recorder, or an in-process mirror of the last bumped value) — shows the app is alive.\n- Frame-time section: last/p50/p95 from `frame_stats()` (MT-085), formatted ms.\n- Resource section: CPU% + RSS from the last ResourceSample + the GpuInfo hardware line (MT-086).\n- Last-N events section: a scrolling list of the last ~50 DiagEvents (MT-082 snapshot) — render each as its typed fields (event_code label, phase, severity, counters, timestamp). NO free text (there is none — DiagEvent is typed integers; map event_code -> a static human label for display).\n- A Tier-3 Palmistry section: a clearly-labeled placeholder/empty-state ('No freeze/crash records' / 'Palmistry forwarding wired in MT-093') so the §10.12.5 three-tier layout is present from this MT, honestly empty until MT-093.\n- AccessKit: register the pane container as `Role::Region`/`Group` with a stable `author_id = \"diagnostics_panel\"` through the existing accessibility layer (src/frontend/handshake_native/src/accessibility/registry.rs), and key child sections (e.g. `diagnostics_heartbeat`, `diagnostics_events`) so a no-context model + swarm agents can address it. NO perpetual spinner; theme tokens only (no Color32 literal outside theme/palette.rs — CONTROL-4).\n\nHost-mount pattern (the REAL mount, not a widget harness): mirror MT-079's editor mount — the factory is registered in the app's factory HashMap keyed on PaneType::Diagnostics, and `PaneFactory::render` is CONSUMED by the live pane host each frame. Prove it renders in the LIVE app tree (a kittest driving the real HandshakeApp that opens/mounts the Diagnostics pane), not only as a standalone widget.\n\nReuse note: the PaneFactory trait + PaneRenderContext + the factory-map registration are the EXISTING WP-011/MT-079 pattern (editor_pane_factories.rs is the worked reference). The accessibility registry + theme layer are reused (registry.rs, theme/palette.rs, theme/syntax.rs). The diagnostics data all comes from the MT-082/005/006 process-global — the panel allocates none of its own authority. src/backend untouched.\n\nRisk if missed: §5.8.4 + §10.12.5 unmet (no operator-facing consumer of internal_diagnostics); a panel built only as a widget (not host-mounted) would never render in the live app (the MT-079 RISK-2 'mounted but not consumed' class); a Color32 literal would break CONTROL-4.",

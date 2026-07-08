@@ -146,8 +146,8 @@
       "proof_status": "PASS_MT007_2026-07-02_RECOVERY_9_9_AND_MIXED_5_5_RECONCILED_PER_KIND_PLUS_IDENTITY_ORDER_FIX_COMMITS_ba13ca74_4a3c8ef9_NO_CROSS_SUITE_REGRESSION",
       "hbr_status": "PASS_MT007_RECOVERY_RECONCILED",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+      "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
+      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL"
     },
     {
       "mt_id": "MT-008",
@@ -167,8 +167,8 @@
       "proof_status": "PASS_MT008_2026-07-02_BACKEND_swarm_lane_diagnostics_pg_tests_2_PASS_550s_PLUS_FRONTEND_test_swarm_lane_diagnostics_argus_3_PASS_headless_accesskit_menu_drilldown_projection_matches_eventledger_FR_only_posture_rejected",
       "hbr_status": "PASS_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+      "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
+      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL"
     },
     {
       "mt_id": "MT-009",
@@ -188,8 +188,8 @@
       "proof_status": "PASS_MT009_2026-07-02_MIXED_INTEGRATION_5_5_PASS_657s_COMMITS_ba13ca74_4a3c8ef9_CATCHUP_MSGSTRING_EVENTSEQ_IDENTITY_ORDER_MT007_RECOVERY_RECONFIRMED_9_9",
       "hbr_status": "PASS_MT009_MIXED_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+      "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
+      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL"
     },
     {
       "mt_id": "MT-010",
@@ -205,8 +205,8 @@
       "proof_status": "PASS_MT010_2026-07-02_NAV_API_2_PASS_506s_ARTIFACTS_LOOKUP_500_FIXED_JSON_FIELD_QUERY_TEST_REGISTERED_COMMIT_8744430f_8_SURFACES_MATCH",
       "hbr_status": "PASS_MT010_NAV_AND_MANUAL_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+      "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
+      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL"
     },
     {
       "mt_id": "MT-011",
@@ -221,12 +221,12 @@
       "proof_status": "PASS_MT011_2026-07-02_USERMANUAL_BEHAVIOR_COVERAGE_1_PASS_79s_15_BEHAVIORS_MATRIX_MATCHES_SCHEMA_REGISTRY_AND_SEED_CORPUS_POSTURE_ASSERTED_NEW_MTS_ADD_OWN_COVERAGE",
       "hbr_status": "PASS_MT011_USERMANUAL_COVERAGE_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+      "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
+      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL"
     },
     {
       "mt_id": "MT-012",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-003",
         "MT-008",
@@ -237,11 +237,11 @@
       "summary": "Operator work-surface: interactive native chat/launch pane to pick local/cloud model + folder/worktree, launch via Dexterity SwarmCoordinator, and capture CLI conversation/thought/tool-calls as ModelLaneMessage wired to Flight Recorder. Build after MT-014 (local enum) + MT-015 (cloud enum/auth). OPERATOR_REQUESTED_ADDITION 2026-07-01.",
       "unlocks": "Unlocks operator-driven local/cloud model sessions inside Handshake with typed CLI-wrapper capture.",
       "blocks": [],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT012_2026-07-04_OPERATOR_CHAT_SURFACE_AND_SUBAGENT_LAUNCH_GREEN: prior local/cloud/operator-chat evidence retained; current repair added SUBAGENT inventory, frontend selection audit, backend no-OS SwarmCoordinator launch, ModelLane persistence, operator prompt persistence, UserManual coverage, and route regression proof. Current-session commands passed; KB ready checklist PASS refreshed at 2026-07-04T03:40:13.631Z.",
+      "hbr_status": "PASS_HBR_VIS_INT_SWARM_QUIET_MAN_FOR_MT012_OPERATOR_CHAT_SURFACE_WITH_SUBAGENT_NO_OS_LAUNCH",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review_BUILD_AFTER_MT014_MT015",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "NOT_RUN"
+      "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_POST_REVIEW_NO_OPEN_BLOCKERS_AFTER_DUPLICATE_AGENT_EVENT_FIX",
+      "adversarial_findings_status": "POST_REVIEW_BLOCKER_APPLIED_RUNTIME_AGENT_EVENT_DUPLICATE_FIXED_SELECTION_AUDIT_AND_PICKER_DISABLE_BEHAVIOR_PROVEN"
     },
     {
       "mt_id": "MT-013",
@@ -252,11 +252,11 @@
       "summary": "Embedded ModelRuntime real-load conformance: box the default embedded model-load path under a SandboxAdapter + emit ProcessOwnershipLedger START/STOP (master-spec 3.6.2/4.6.1), and emit Flight Recorder on DisabledLlmClient/fail-closed paths (4.2.3.2(3)); validated with a REAL Candle load. DEFERRED_FROM_MT-003 2026-07-01.",
       "unlocks": "Closes the master-spec 3.6.2/4.6.1 HARD boxing/ledger gap on the default embedded local model path and the FR-on-error gap.",
       "blocks": [],
-      "proof_status": "PASS_MT013_2026-07-02_LEDGER_4_FR_ROUTING_14_USERMANUAL_COV_2_BOOT_4_ALL_GREEN_IMPL_4a5232e5_HARDENING_8f510ba9_STOP_FALSE_GREEN_FIXED_GRACEFUL_SHUTDOWN_PLUS_ORPHAN_RECONCILE_AC5_DONE_REAL_CANDLE_E2E_NEEDS_OPERATOR_LIVERUN_ALSO_REPAIRED_MT014_SEED_REGRESSION_0343",
-      "hbr_status": "PASS_MT013_LEDGER_STARTSTOP_FR_HARDENED",
+      "proof_status": "PASS_MT013_2026-07-04_REAL_CANDLE_DEFAULT_LOAD_LEDGER_GREEN_LOSSLESS_OVERFLOW_FIX: subagent-discovered fail-open overflow blocker fixed with lossless embedded START/STOP enqueue path and retryable STOP failure. Fresh proofs passed after fix: embedded_model_ledger_tests 8/8, process_ledger_writer overflow preservation 1/1, llm_client_local_routing_tests 14/14, user_manual_behavior_coverage_tests 4/4, frontend cloud/settings Argus 5/5, operator-chat selection/transcript Argus exact 1/1. Required managed-resource proof command passed 1/1 with HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a local cached peft-internal-testing/tiny-random-LlamaForCausalLM snapshot and printed [MT-013_REAL_CANDLE_LEDGER_DUMP] with matching real START/STOP rows, os_pid=null, model_artifact_sha256=49c20f32c6c597480fcaec5df2f86c645eabea765cbea1e67886dbae45e5c992, and stop_reason=llm-client-shutdown. Logs are under ../Handshake_Artifacts/handshake-test/wp1-final-audit/.",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT013_REAL_CANDLE_LEDGER_FR_MANUAL_PROOFS_GREEN",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-      "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a35d38d8c6c523baa_F1_STOP_FIXED_F2_F3_DONE",
-      "adversarial_findings_status": "APPLIED_F1_STOP_GRACEFUL_SHUTDOWN_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_AC5"
+      "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_REVIEW_OVERFLOW_BLOCKER_FIXED_AND_REPROVEN",
+      "adversarial_findings_status": "APPLIED_F1_STOP_GRACEFUL_SHUTDOWN_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_AC5_2026-07-04_REAL_PROOF_FALSE_GREEN_REPLACED_LEDGER_START_FAIL_CLOSED_MULTI_EMBEDDING_HANDLE_LOSSLESS_OVERFLOW_FAIL_CLOSED"
     },
     {
       "mt_id": "MT-014",
@@ -290,18 +290,18 @@
     },
     {
       "mt_id": "MT-016",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-014"
       ],
-      "summary": "Dedicated embedding model distinct from the chat model: second embedding-capable local registration + supports_embedding capability; LoomSearchV2 embeds via the registry-resolved embedding model, not the chat model's profile().model_id. DEFERRED from MT-014 AC-4b (pre-impl review F9).",
+      "summary": "Dedicated embedding model distinct from the chat model: second embedding-capable local registration + supports_embedding/embedding_dimension product-extension capability; LoomSearchV2 embeds via the registry-resolved embedding model, filters semantic rows by embedding_model, and never falls back to chat profile().model_id. DEFERRED from MT-014 AC-4b (pre-impl review F9).",
       "unlocks": "Unlocks a separate correctly-dimensioned embedding model for LoomSearchV2 semantic search, decoupled from the chat model.",
       "blocks": [],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
-      "pre_implementation_adversarial_review_status": "NOT_RUN",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "NOT_RUN"
+      "proof_status": "PASS_MT016_2026-07-04_DEDICATED_EMBEDDING_MODEL_GREEN: exact proof commands 6/6 PASS; additional regressions default_local_runtime_client_embedding_is_supported_via_model_runtime_embed, mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search, and mt264_pgvector_semantic_and_hybrid PASS; git diff --check exit 0 with CRLF warnings only; KB_READY_CHECKLIST_RECEIPT PASS written to ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl; RC-004 n/a cross-platform CI/non-target cargo check not run.",
+      "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL",
+      "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
+      "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
+      "adversarial_findings_status": "POST_REVIEW_FINDINGS_APPLIED_STABLE_EMBEDSPACE_ROUTING_DIM_CHECK_USERMANUAL_EVENT_TOOL_PROOF_UPDATES; OPTIONAL_BAD_EMBEDDING_LOAD_FAIL_CLOSED_UNDER_EXISTING_BOOT_CONTRACT"
     }
   ]
 }

@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-016",
   "created_at_utc": "2026-07-02T03:00:00Z",
-  "updated_at_utc": "2026-07-02T03:00:00Z",
-  "scope_status": "DEFERRED_FROM_MT-014_AC4b_PENDING_SCOPE_CONFIRMATION",
+  "updated_at_utc": "2026-07-04T02:44:02Z",
+  "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-016.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -16,28 +16,28 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-014"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260704-003205",
+    "claimed_at_utc": "2026-07-04T00:32:05Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260704-003205",
+    "ready_for_validation_at_utc": "2026-07-04T02:44:02Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_RUN",
-    "hbr_status": "PENDING",
-    "pre_implementation_adversarial_review_status": "NOT_RUN",
-    "post_implementation_adversarial_review_status": "NOT_RUN",
-    "adversarial_findings_status": "NOT_RUN"
+    "proof_status": "PASS_MT016_2026-07-04_DEDICATED_EMBEDDING_MODEL_GREEN: exact proof commands 6/6 PASS (model_registry capability/env validation, model_catalog ready embedding selector, default boot distinct embedding model, LoomSearchV2 dedicated embedding route/search with real PostgreSQL, LoomSearchV2 no-model keyword degrade without chat embedding call, UserManual behavior coverage). Additional regressions PASS: default_local_runtime_client_embedding_is_supported_via_model_runtime_embed; mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search; mt264_pgvector_semantic_and_hybrid. git diff --check exit 0 with CRLF warnings only. KB_READY_CHECKLIST_RECEIPT PASS written to ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl; RC-004 recorded n/a because cross-platform CI/non-target cargo check was not run.",
+    "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL: shared ModelRegistry/ModelCatalog capability validation, embedded local-runtime dedicated embedding registration, LoomSearchV2 no-chat-fallback route with stable embedding-space persistence, PostgreSQL same-space vector filtering, and UserManual startup/recovery/evidence coverage.",
+    "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
+    "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
+    "adversarial_findings_status": "POST_REVIEW_FINDINGS_APPLIED: stable embedding-space key replaces per-boot UUID persistence/search matching; router rejects runtime embedding dimension mismatch with typed error; dedicated embedding capabilities no longer overdeclare chat/LoRA/KV/steering; UserManual event family and tool-entry proof targets updated; optional bad embedding-model load remains fail-closed under existing boot contract and is not claimed as separate fail-open behavior."
   },
   "scope": {
-    "summary": "Dedicated embedding model distinct from the chat model: a second local-model registration whose ModelCapabilities declares supports_embedding + embedding dimension, so LoomSearchV2 embeds via the embedding-capable model resolved from the shared registry rather than via the single chat model's profile().model_id.",
+    "summary": "Dedicated embedding model distinct from the chat model: a second local-model registration whose ModelCapabilities declares supports_embedding + embedding dimension as an MT-016 product extension, so LoomSearchV2 embeds via the embedding-capable model resolved from the shared registry rather than via the single chat model's profile().model_id.",
     "origin": "Deferred from MT-014 AC-4b per the MT-014 pre-implementation adversarial review (task aa63db63808f7a7b3, finding F9): 'dedicated embedding model distinct from the chat model' is materially larger than MT-014's embedding-dimension degrade-not-error fix and is unsupported by the current single-model config + capability model. Split out so MT-014 does not scaffold it. MT-014 keeps the degrade-not-error robustness (AC-4a); MT-016 adds the real second embedding model.",
     "allowed_paths": [
       "src/backend/handshake_core/src/llm/",
@@ -52,14 +52,33 @@
       "new TypeScript/React/app/src implementation"
     ],
     "acceptance_criteria": [
-      "TO_BE_FINALIZED_AT_ACTIVATION. Draft intent: (1) ModelCapabilities gains an embedding capability (supports_embedding + embedding dimension) declared per spec 4.6.3; (2) a second local model may be configured + registered as embedding-capable (config surface beyond the single HANDSHAKE_LOCAL_MODEL_PATH); (3) LoomSearchV2 resolves the embedding-capable model from the shared registry (MT-014) instead of hard-coding profile().model_id; (4) when no dedicated embedding model is configured it degrades per MT-014 (degrade-not-error), not crash; (5) engine-free proof using InMemoryLlmClient embedding dims; (6) same-change UserManual coverage; pre/post adversarial review."
+      "ModelCapabilities exposes supports_embedding and embedding_dimension as an MT-016 product extension; registration rejects inconsistent states such as supports_embedding=false with a dimension or supports_embedding=true without a positive dimension.",
+      "A second local embedding model can be configured independently from HANDSHAKE_LOCAL_MODEL_PATH, loaded through the embedded local runtime, registered in the same shared ModelRegistry, marked ready, and exposed in ModelCatalog as distinct from the chat model.",
+      "ModelCatalog exposes machine-readable embedding capability fields and a helper that selects a ready embedding-capable local model matching LoomSearchV2's canonical 768-dimensional index; chat-only and wrong-dimension models are ignored.",
+      "LocalModelRuntimeLlmClient rejects embedding calls for registered models whose capabilities do not declare supports_embedding, so adding a UUIDv7 registration is not enough to fake embedding support.",
+      "LoomSearchV2 reindex and search resolve the embedding-capable model from the catalog instead of hard-coding llm.profile().model_id; embedding calls use the selected model's per-boot routing UUIDv7, while persisted/search `embedding_model` values use the stable embedding-space key derived from artifact sha256 + embedding dimension.",
+      "LoomSearchV2 vector scoring and facets compare only rows whose stored embedding_model matches the query embedding model, preventing cross-model embedding-space contamination.",
+      "When no matching dedicated embedding model is configured, LoomSearchV2 degrades to keyword/trigram without calling the chat model for embeddings, fabricating vectors, or hard-erroring.",
+      "Existing MT-014 dimension mismatch degrade-not-error behavior remains intact and surfaces the typed dim-mismatch reason.",
+      "Same-change UserManual page/tool/behavior coverage documents purpose, startup/config variables, routing workflow, expected inputs/outputs, FR/EventLedger evidence, HBR-INT-009 posture, common failures, and recovery.",
+      "Pre- and post-implementation adversarial review completed; implementer may move MT-016 only to READY_FOR_VALIDATION, never COMPLETED."
+    ],
+    "proof_commands": [
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_tests mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests dedicated_embedding_model_behaviors_have_manual_coverage -- --exact --nocapture"
     ],
     "risk_if_missed": "LoomSearchV2 semantic search is permanently tied to the single chat model's embedding output; operators cannot run a separate, correctly-dimensioned embedding model, limiting semantic search quality and the CPU-baseline story.",
     "reference_only_paths": []
   },
   "implementation_notes": [
     "Do NOT start before MT-014 lands the shared/enumerable registry + degrade-not-error (this MT resolves the embedding model FROM that registry).",
-    "Confirm scope with operator before activation: whether a second local model config surface is in-scope now or a further follow-on.",
+    "Activation decision 2026-07-04: second local embedding model config is in scope now because MT-016 explicitly closes MT-014 AC-4b and the operator asked to finish all MTs.",
+    "supports_embedding + embedding_dimension is an MT-016 product extension relative to the currently checked spec 4.6.3 text; do not claim the existing spec already lists the fields.",
+    "LoomSearchV2 proof must fail if it still embeds through llm.profile().model_id or compares query embeddings against rows produced by a different embedding_model.",
     "Rust-only. CPU-baseline (Candle) default; llama.cpp opt-in only."
   ],
   "required_build_rules": [
@@ -94,6 +113,23 @@
     "minimum_controls": [
       "Engine-free proof that LoomSearchV2 routes embeddings to the registry-resolved embedding-capable model.",
       "Degrade-not-error retained when no dedicated embedding model is configured."
+    ]
+  },
+  "pre_implementation_review": {
+    "reviewed_at_utc": "2026-07-04T00:32:05Z",
+    "reviewers": [
+      "Galileo: ModelCapabilities/local registry/config",
+      "Singer: LoomSearchV2 routing/degrade/storage embedding_model filter",
+      "Einstein: tests/UserManual/HBR/Spec-Realism"
+    ],
+    "findings_and_decisions": [
+      "Capability gap: ModelCapabilities and current spec 4.6.3 do not list embedding support. DECISION: implement supports_embedding + embedding_dimension as an MT-016 product extension and avoid claiming existing spec support.",
+      "Single-model boot gap: LocalModelConfig and build_default_local_client are chat-model-only. DECISION: add a second HANDSHAKE_LOCAL_EMBEDDING_MODEL_* config, load/register it into the same ModelRegistry, and keep profile().model_id on the chat model.",
+      "Loom routing gap: embed_text uses llm.profile().model_id. DECISION: resolve a ready catalog entry matching LOOM_SEARCH_EMBEDDING_DIM, use that model id for EmbeddingRequest routing, and use a stable embedding-space key (artifact sha256 + dimension) for durable embedding_model storage/search comparison.",
+      "Fake-green trap: LocalModelRuntimeLlmClient can embed any registered UUIDv7 model. DECISION: enforce declared supports_embedding before runtime.embed.",
+      "Storage contamination gap: loom_block_search_index.embedding_model is written but vector scoring does not filter by it. DECISION: add request embedding_model and filter vector scoring/facets to matching rows only.",
+      "Proof gap: existing pg_or_skip! tests can skip. DECISION: MT-016 managed-resource tests must fail if PostgreSQL is unavailable and must inspect embedding_model rows.",
+      "Manual/HBR gap: MT-014 has feature-only manual text. DECISION: add first-class dedicated-embedding UserManual page/tool/behavior coverage."
     ]
   },
   "research_basis": {

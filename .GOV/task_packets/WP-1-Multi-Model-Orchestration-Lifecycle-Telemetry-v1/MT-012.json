@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-012",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-07-01T19:02:22Z",
-  "scope_status": "OPERATOR_REQUESTED_ADDITION_2026-07-01_PENDING_SCOPE_CONFIRMATION",
+  "updated_at_utc": "2026-07-04T03:32:36Z",
+  "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -16,7 +16,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-003",
       "MT-008",
@@ -27,18 +27,18 @@
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260704-030347",
+    "claimed_at_utc": "2026-07-04T03:03:47Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260704-030347",
+    "ready_for_validation_at_utc": "2026-07-04T03:32:36Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_RUN",
-    "hbr_status": "PENDING",
-    "pre_implementation_adversarial_review_status": "NOT_RUN",
-    "post_implementation_adversarial_review_status": "NOT_RUN",
-    "adversarial_findings_status": "NOT_RUN"
+    "proof_status": "PASS_MT012_2026-07-04_OPERATOR_CHAT_SURFACE_AND_SUBAGENT_LAUNCH_GREEN: prior local/cloud/operator-chat route and capture evidence retained from KERNEL_BUILDER-20260704-000054; current repair added operator-facing SUBAGENT inventory row, frontend selection audit, backend no-OS SwarmCoordinator launch path, ModelLane persistence, operator prompt persistence, UserManual coverage, and route regression proof. Current-session commands passed: backend subagent no-OS launch 1/1, frontend Argus selection/transcript with subagent row 1/1, backend operator-chat route regression 1/1, UserManual operator-chat launch coverage 1/1, file-scoped rustfmt checks passed, git diff --check exit 0 with CRLF warnings only. KB_READY_CHECKLIST_RECEIPT PASS refreshed at 2026-07-04T03:40:13.631Z in ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl.",
+    "hbr_status": "PASS_HBR_VIS_INT_SWARM_QUIET_MAN_FOR_MT012_OPERATOR_CHAT_SURFACE: native egui/Argus surface, LOCAL/CLOUD/CLI/SUBAGENT inventory rows, SwarmCoordinator Dexterity launch route fail-closed, SUBAGENT no-OS launch records RuntimeBinding::Subagent and LaunchAuthority::SubagentManager without process ownership, ModelLaneMessage capture + Flight Recorder/EventLedger evidence for process-backed lanes, UserManual coverage, stable author_id controls, official-CLI runtime duplicate FR-EVT-AGENT producer suppressed for replay-captured Operator Chat while LLM infer telemetry remains wired.",
+    "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review_BUILD_AFTER_MT014_MT015",
+    "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_POST_REVIEW_NO_OPEN_BLOCKERS_AFTER_DUPLICATE_AGENT_EVENT_FIX",
+    "adversarial_findings_status": "POST_REVIEW_BLOCKER_APPLIED: production Operator Chat official-CLI providers use replay-captured builder; runtime-level FR-EVT-AGENT emission can be suppressed independently from FR-EVT-LLM-INFER telemetry; local/cloud picker selection audit and unavailable-row disable behavior proven."
   },
   "scope": {
     "summary": "Operator work-surface: an interactive native chat/launch pane where the operator selects a local or cloud model lane and a folder/worktree, launches a session through the Dexterity SwarmCoordinator contract, and sees the CLI-wrapper conversation, model-exposed reasoning/thought, and tool calls captured as typed ModelLaneMessage records wired to Flight Recorder.",
@@ -72,8 +72,13 @@
       "Same-change in-product UserManual coverage for the operator chat/launch surface (purpose, model+worktree selection, launch, capture, recovery, Flight Recorder linkage).",
       "Pre- and post-implementation adversarial review through multiple lenses before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
     ],
-    "proof_targets": [
-      "TO_BE_FINALIZED_AT_ACTIVATION: exact Rust test targets for (a) backend launch-from-operator-surface through SwarmCoordinator Dexterity contract, (b) CLI-capture persisted as ModelLaneMessage with Flight Recorder evidence, in src/backend/handshake_core (--features test-utils where the suite is gated), and (c) Argus native pane drive in src/frontend/handshake_native. Proof commands MUST name exact test targets and fail on zero matching tests."
+    "proof_commands": [
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_subagent_selection_launches_no_os_subagent_lane -- --exact",
+      "cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_operator_chat_selection_and_transcript_argus operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript -- --exact",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_route_performs_real_launch_when_wired -- --exact",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests operator_chat_launch_behaviors_have_manual_coverage -- --exact",
+      "rustfmt --edition 2021 --check src/backend/handshake_core/src/swarm_orchestration/coordinator.rs src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs src/backend/handshake_core/src/swarm_orchestration/mod.rs src/backend/handshake_core/src/api/operator_chat.rs src/backend/handshake_core/src/user_manual/seed.rs src/backend/handshake_core/tests/operator_chat_capture_tests.rs src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs src/frontend/handshake_native/src/operator_chat_pane.rs src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
+      "git diff --check"
     ],
     "risk_if_missed": "Operator cannot drive local/cloud model sessions from inside Handshake with a folder/worktree choice; the CLI-wrapper conversation, thought, and tool calls stay siloed in the legacy app/src-tauri path and never become typed ModelLane authority. The operator work-surface that the WP's lane telemetry exists to serve is missing.",
     "reference_only_paths": [

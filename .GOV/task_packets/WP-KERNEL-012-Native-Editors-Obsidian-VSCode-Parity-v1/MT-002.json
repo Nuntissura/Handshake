@@ -14,7 +14,7 @@
   "title": "E1-MT-002-LargeFileVirtualization",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T21:29:53Z",
+  "updated_at_utc": "2026-07-03T21:26:02Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-002.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-001"
@@ -34,13 +34,50 @@
       "MT-006"
     ],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:25:27Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: PT-002 requires bench JSON pass:true value<4.0; artifact on disk reads median_frame_ms 17.11, optimized:false, pass:false - a debug run clobbered the release proof (writer writes unconditionally). Claimed release gate 0.630ms is not on disk. Also MT-002-scroll-mid.png shows gutter/body row-pitch drift (11 gutter numbers vs 9 painted rows). Fix: re-run --release bench and archive pass:true artifact; include build profile in bench filename so debug never clobbers release; diagnose row-pitch drift vs MT-054/MT-071 row-metric changes.",
     "deflection_category": "bench_artifact_contradicts_claim",
     "remediation_appendage": "Re-run release bench and archive pass:true artifact; profile-scoped bench filenames so debug never clobbers release; fix gutter/body row-pitch drift (shared MT-054 unit fix).",
-    "remediation_progress_note": "2026-07-02 wave-4b: the reopen reason (row-pitch drift + bench artifact contradicting claim) is RESOLVED - row-unit correctness fixed and green, bench now reports honestly. BUT AC-002 <4ms release frame-budget gate at 100k lines is NOT reliably met: median ~4.0-5.5ms (down from wave-3 8.0ms via ASCII-bidi fast-path + folding-cache O(1) + minimap run-length merge), only rarely dips <4ms. A cherry-picked 1-of-25 passing run was rejected by adversarial review (proof-gaming). HONEST STATE: AC-002 NOT MET; further galley-layout caching needed to reliably clear <4ms. Tracked as perf residual - do NOT mark green.",
-    "ac_002_status": "NOT_MET_PERF_RESIDUAL"
+    "remediation_progress_note": "2026-07-04 proof refresh: prior AC-002 residual is closed by render-path span filtering/per-row LayoutJob hardening already in product code plus this session's correctness-preserving HighlightSpanWindow prefix max-end selector. Warm release proof wrote MT-002-bench-release.json with pass=true, median_frame_ms=2.5200, max_frame_ms=2.9107, optimized=true. Prior row-pitch drift remains closed; regenerated scroll-mid PNG shows lines 100-110 and no line 0, with automated pixel delta proof.",
+    "ac_002_status": "MET_PROVEN_2026_07_04_RELEASE_MEDIAN_AND_MAX",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Re-run release bench and archive pass:true artifact; profile-scoped bench filenames so debug never clobbers release; fix gutter/body row-pitch drift (shared MT-054 unit fix).",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-001: `cargo test -p handshake-native virtual_lines` passes — tests cover: visible_range for scroll=0 (first 8+overscan lines), scroll to middle of 100k-line buffer (correct mid-range), scroll to end (last lines), total_height_px matches line_count * line_height, y_for_line is monotonically increasing., AC-002: Benchmark harness test `large_file_frame_time` renders a 100 000-line buffer through the CodeEditorPanel for 60 frames and records `frame_time_ms`; the test asserts max frame time < 4 ms (soft warn at 2 ms, hard fail at 4 ms)., AC-003: egui_kittest screenshot of a 200-line buffer with scroll at line 100 shows lines 92-116 (±overscan) rendered and line 0 NOT rendered (pixel row for line 0 is background color)., AC-004: AccessKit tree contains a node with author_id='code_editor_scroll_area' and role=ScrollView., AC-005: No regression on MT-001 acceptance criteria (AC-001 through AC-006 still pass)., AC-006 (artifact hygiene, operator directive): the MT-001 panel screenshot test writes its PNG ONLY to the external artifact root (Handshake_Artifacts/handshake-test/...). NO repo-local test_output/ dir is created or left behind. Assert no repo-local test_output/ exists after the test run, and remove the existing orphan test_output/ dir., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PT-001: `cargo test -p handshake-native virtual_lines` — GREEN, output logged. ; PT-002: Benchmark output `test_output/MT-002-bench.json` contains `{ \"max_frame_ms\": <value>, \"pass\": true }` with value < 4.0. ; PT-003: egui_kittest screenshot `test_output/MT-002-scroll-mid.png` saved and pixel-verified by test.",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260704-122106",
+    "ready_for_validation_at_utc": "2026-07-04T13:55:37.504Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260704-122106",
+    "ready_for_validation_summary": "MT-002 reopened repair is proof-refreshed and post-review hardened: release bench artifact pass=true with median=2.520ms and max=2.911ms for 60 frames on a 100001-line buffer; scroll-mid screenshot is hard-rendered/saved externally and pixel-asserts the original line-0 row changed after scroll; AccessKit ScrollView node proof passes; AC-007 uses egui show_rows actual row_range; external artifact hygiene is clean; official validator verdict remains PENDING."
   },
   "scope": {
     "summary": "Goal: Replace the naive full-buffer render from MT-001 with a virtualized line renderer that only paints lines currently visible in the scroll viewport. This keeps frame time under 4 ms for files up to 100 000 lines. Expected diff shape: new module `src/frontend/handshake_native/src/code_editor/virtual_lines.rs` implementing the viewport-line calculator, and changes to `src/frontend/handshake_native/src/code_editor/mod.rs` and `src/frontend/handshake_native/src/code_editor/panel.rs` to use it.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/virtual_lines.rs` — implements `VirtualLineLayout`. Constructor: `VirtualLineLayout::new(line_count: usize, line_height_px: f32, viewport_height_px: f32, scroll_offset_px: f32)`. Key method: `visible_range(&self) -> Range<usize>` returns the first and last line indices that intersect the viewport (inclusive), with a configurable overscan of ±8 lines. Also: `total_height_px(&self) -> f32` (line_count * line_height_px, used to size the egui ScrollArea content rect so the scrollbar thumb is correctly proportioned), `y_for_line(line: usize) -> f32` (pixel offset of a given line from the content top).\n- EDIT `src/frontend/handshake_native/src/code_editor/mod.rs` — add `VirtualLineLayout` to the CodeEditorPanel state. On each `show()` call, compute the layout from the current scroll offset (read from `egui::ScrollArea::state`) and render only the visible range from the TextBuffer.\n- EDIT `src/frontend/handshake_native/src/code_editor/panel.rs` — wrap the text area in `egui::ScrollArea::vertical().show_rows(...)` using `VirtualLineLayout::total_height_px()` as the virtual content height and `VirtualLineLayout::visible_range()` to feed the row closure.\n\nExact crates/functions/APIs to use:\n- `egui::ScrollArea::vertical().show_rows(ui, row_height, total_rows, |ui, row_range| { ... })` — this is the idiomatic egui virtualized list API. It handles scroll-state internally and passes only the visible row range to the closure.\n- `ropey::Rope::line(idx)` — O(log n) line access, so rendering only visible lines is O(visible * log N) not O(N).\n- No additional crates needed beyond MT-001 dependencies.\n\nPerformance budget:\n- Target: frame time for a 100 000-line Rust file (no syntax highlighting on invisible lines) must stay below 4 ms on a mid-range CPU (measured via `egui::Context::frame_time()` in a benchmark harness).\n- Highlight spans: only compute tree-sitter highlights for the visible line range on each frame. Keep the full parse tree cached in `CodeEditorPanel` state; do NOT re-parse the whole file each frame — use incremental edit application.\n\nStep-by-step implementation notes:\n1. Implement `VirtualLineLayout` in `virtual_lines.rs`. `visible_range` formula: `first = max(0, floor(scroll_offset_px / line_height_px) - overscan)`, `last = min(line_count - 1, ceil((scroll_offset_px + viewport_height_px) / line_height_px) + overscan)`.\n2. In `CodeEditorPanel::show()`, replace the naive all-lines loop with `ScrollArea::vertical().show_rows(ui, line_height, buffer.len_lines(), |ui, visible_rows| { for line_idx in visible_rows { ... } })`.\n3. For highlight spans: add a `highlight_cache: Option<(Vec<HighlightSpan>, usize)>` field where the usize is the buffer version counter. Recompute only when version changes. Clip the span list to the visible range before rendering each frame.\n4. Expose a `perf_stats()` method on `CodeEditorPanel` returning `{ frame_lines_rendered: usize, buffer_len_lines: usize }` for the swarm diagnostics surface.\n5. Add an AccessKit `author_id = \"code_editor_scroll_area\"` `Role::ScrollView` wrapping the virtualized area, registered via the existing WP-011 accessibility surface (reuse `src/frontend/handshake_native/src/accessibility/registry.rs` for author_id registration and `src/frontend/handshake_native/src/accessibility/snapshot.rs` for tree snapshot verification; do not introduce a parallel a11y mechanism).\n\nDependencies/unblock conditions: MT-001 must be DONE (TextBuffer and Highlighter exist). `egui::ScrollArea::show_rows` must be available (egui 0.27+).\nRisk if missed: Without virtualization, opening files over ~5000 lines will cause frame drops that make the editor unusable and violate HBR-VIS frame budget.",
@@ -91,7 +128,7 @@
     "HBR-SWARM"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260704-122106",
     "wp_validator_session": null
   },
   "red_team": {
@@ -135,7 +172,7 @@
     "subagent_review_status": "PENDING: 4x API 529 (review agent could not spawn, 0 tokens). The pipeline review+harden will run when the API recovers and MUST satisfy AC-007 before MT-002 advances to READY_FOR_VALIDATION."
   },
   "implementation_result": {
-    "implemented_by": "KERNEL_BUILDER folded pipeline (impl wf_4eab00f1; KERNEL_BUILDER main-loop gate raised AC-007; adversarial-review + harden after API-529 recovery)",
+    "implemented_by": "KERNEL_BUILDER-20260704-122106 proof-refresh/hardening pass on feat/WP-KERNEL-012 working tree (prior MT-002 implementation retained, stale evidence refreshed).",
     "branch": "feat/WP-KERNEL-012",
     "commits": [
       "40b63602 feat MT-002 virtualization (VirtualLineLayout + ScrollArea::show_rows)",
@@ -143,13 +180,62 @@
     ],
     "ac007_status": "SATISFIED: last_visible_range()/perf now capture egui show_rows ACTUAL painted row_range (not the overscan-padded recompute); item_spacing.y zeroed so egui row-height unit matches VirtualLineLayout; tautological AC-003 test rewritten to reconcile against on-screen labels; false 'calc==render' docs corrected.",
     "deeper_bug_fixed": "scroll_to_line(N) landed on the wrong line (~83 for N=100) due to a sans-spacing vs with-spacing row-height mismatch; fixed. KERNEL_BUILDER gate flagged the symptom (PNG 83-93 vs range 92..122); adversarial review diagnosed the root cause; harden fixed + proved (PNG now shows line 100 at top).",
-    "proofs": "full crate suite GREEN (385 unit + all integration); release AC-002 gate median 0.630ms < 4ms (painted 47/100001); clippy --all-targets -D warnings clean; no repo-local target/ or test_output/; PNG visually inspected by KERNEL_BUILDER.",
+    "proofs": "2026-07-04 refreshed AC-001..AC-007 proof set GREEN: test_virtual_lines 6/6; test_code_editor_panel 8/8; release large_file_frame_time pass=true median=2.520ms max=2.911ms painted=45/100001; scroll_mid_virtualizes saved external PNG and asserted changed_line0_pixels=96 with visible=100..112; scroll_area_node_present AccessKit ScrollView proof; manual Code Editor topic needle proof; external artifact hygiene clean; no repo-local target/ or test_output/.",
     "deferred": [
-      "AC-002 4ms perf gate runs only under --release (debug uses a 60ms invariant); CI MUST run cargo test --release for the hard gate - Integration Validator / CI-wiring concern (coder cannot edit .GOV/CI).",
       "line_height_px is cached for the panel lifetime with no invalidation hook; a future zoom/font-size MT must invalidate it alongside buffer_version.",
-      "spans_in_byte_window MAX_BACKSTEP=4096 silent cap for >4096-span comments above the viewport -> MT-005 folding/large-comment handling.",
       "RISK-002 undo version-bump end-to-end proof -> MT-003 (no length-changing undo path until then).",
       "RISK-004 two-panel simultaneous scroll independence runtime test -> later (diff view MT-009)."
-    ]
+    ],
+    "proof_refresh_2026_07_04": {
+      "performed_by": "KERNEL_BUILDER-20260704-122106",
+      "summary": "Reopened MT-002 repair was verified against current product code, post-review blockers were fixed, and declared proof targets were refreshed. The prior release-bench artifact contradiction, row-pitch screenshot drift, AC-003 pixel-proof gap, and overlap-span correctness regression are closed for validator review.",
+      "code_changes": [
+        "src/frontend/handshake_native/src/code_editor/panel.rs: HighlightSpanWindow stores prefix max-end indices so window/line clipping preserves long parent spans even when shorter child spans ended before the viewport row.",
+        "src/frontend/handshake_native/tests/test_code_editor_panel.rs: scroll_mid_virtualizes now hard-fails render/save and asserts a pixel delta in the original line-0 row region after scrolling to line 100.",
+        "src/frontend/handshake_native/src/manual_content_editors.rs and tests/test_manual_content.rs: Code Editor manual documents automatic large-file virtualization and the test covers the sentence."
+      ],
+      "subagent_reviews": [
+        "Pre-review Gauss/Wegener/Archimedes inspected performance, GUI/manual/artifact, and integration/scope risks before implementation.",
+        "Post-review Epicurus found the start-sorted span backtrack correctness bug; fixed with HighlightSpanWindow and RED/GREEN regression span_window_keeps_long_parent_after_ended_child_span.",
+        "Post-review Feynman found AC-003 lacked literal automated pixel proof; fixed with changed_pixels_in_rect assertion in scroll_mid_virtualizes."
+      ],
+      "proof_commands": [
+        {
+          "command": "$env:CARGO_TARGET_DIR='..\\Handshake_Artifacts\\handshake-cargo-target\\kb-wp012-mt002'; cargo test --lib span_window_keeps_long_parent_after_ended_child_span -- --nocapture",
+          "result": "PASS: 1 passed, 0 failed, 1633 filtered out"
+        },
+        {
+          "command": "$env:CARGO_TARGET_DIR='..\\Handshake_Artifacts\\handshake-cargo-target\\kb-wp012-mt002'; cargo test --test test_virtual_lines -- --nocapture",
+          "result": "PASS: 6 passed, 0 failed; PT-001 scroll0=0..59, mid=49992..50059, end=99992..100000"
+        },
+        {
+          "command": "$env:CARGO_TARGET_DIR='..\\Handshake_Artifacts\\handshake-cargo-target\\kb-wp012-mt002'; cargo test --test test_code_editor_panel -- --nocapture",
+          "result": "PASS: 8 passed, 0 failed; includes scroll_mid_virtualizes, scroll_area_node_present, MT-001 panel screenshot/accesskit regression coverage, debug virtualization invariant"
+        },
+        {
+          "command": "$env:CARGO_TARGET_DIR='..\\Handshake_Artifacts\\handshake-cargo-target\\kb-wp012-mt002'; cargo test --release --test test_code_editor_panel large_file_frame_time -- --nocapture",
+          "result": "PASS: median=2.520ms, mean=2.5426ms, max=2.9107ms, painted=45, optimized=true, pass=true"
+        },
+        {
+          "command": "$env:CARGO_TARGET_DIR='..\\Handshake_Artifacts\\handshake-cargo-target\\kb-wp012-mt002'; cargo test --test test_manual_content wave5_surface_topics_exist_and_carry_real_no_context_facts -- --nocapture",
+          "result": "PASS: 1 passed, 0 failed; Code Editor topic includes Large files are virtualized automatically"
+        }
+      ],
+      "artifacts": [
+        "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-002/MT-002-scroll-mid.png",
+        "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-002/MT-002-bench-release.json",
+        "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
+      ],
+      "artifact_hygiene": "Verified no repo-local src/frontend/handshake_native/test_output, src/frontend/handshake_native/target, or repo-root target exists; proof artifacts are under Handshake_Artifacts.",
+      "known_residuals": [
+        "Full test_manual_content exits 0 and all 12 tests pass but emits an existing post-pass Tokio shutdown panic line; the MT-002-specific manual proof test was rerun cleanly and passed.",
+        "cargo tests emit existing app.rs dead-code warnings for EditorMountHandles.editor_action_registry and SecondaryMountHandles outline_panel/knowledge_registry."
+      ],
+      "kb_ready_checklist": {
+        "verdict": "PASS",
+        "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
+      },
+      "validator_verdict": "PENDING"
+    }
   }
 }

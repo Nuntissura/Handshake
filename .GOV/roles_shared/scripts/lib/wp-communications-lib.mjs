@@ -41,12 +41,13 @@ export const FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION = "2026-03-22";
 export const WORKFLOW_INVALIDITY_RECEIPT_KIND = "WORKFLOW_INVALIDITY";
 export const OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE = "OPERATOR_RULE_RESTATEMENT";
 
-export const WORKFLOW_LANE_VALUES = ["MANUAL_RELAY", "ORCHESTRATOR_MANAGED"];
+export const WORKFLOW_LANE_VALUES = ["MANUAL_RELAY", "ORCHESTRATOR_MANAGED", "KERNEL_BUILDER_FOLDED_NO_ACP"];
 export { EXECUTION_OWNER_VALUES };
 export const AGENTIC_MODE_VALUES = ["YES", "NO"];
 export const PACKET_STATUS_VALUES = [
   "Ready for Dev",
   "In Progress",
+  "Ready for Validation",
   "Blocked",
   "Done",
   "Validated (PASS)",
@@ -838,7 +839,13 @@ export function validateRuntimeStatus(data) {
   }
   if (!WORKFLOW_LANE_VALUES.includes(data.workflow_lane)) errors.push(`workflow_lane invalid (${data.workflow_lane})`);
   if (!EXECUTION_OWNER_VALUES.includes(data.execution_owner)) errors.push(`execution_owner invalid (${data.execution_owner})`);
-  if (data.workflow_authority !== "ORCHESTRATOR") errors.push(`workflow_authority invalid (${data.workflow_authority})`);
+  const allowedWorkflowAuthority =
+    data.workflow_lane === "KERNEL_BUILDER_FOLDED_NO_ACP"
+      ? "KERNEL_BUILDER"
+      : "ORCHESTRATOR";
+  if (data.workflow_authority !== allowedWorkflowAuthority) {
+    errors.push(`workflow_authority invalid (${data.workflow_authority})`);
+  }
   if (!["WP_VALIDATOR", "NONE"].includes(data.technical_advisor)) errors.push(`technical_advisor invalid (${data.technical_advisor})`);
   if (!["INTEGRATION_VALIDATOR", "NONE"].includes(data.technical_authority)) errors.push(`technical_authority invalid (${data.technical_authority})`);
   if (!["INTEGRATION_VALIDATOR", "OPERATOR", "NONE"].includes(data.merge_authority)) errors.push(`merge_authority invalid (${data.merge_authority})`);
