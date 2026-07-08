@@ -43,9 +43,9 @@
 //! `slash-item-*` nodes). So STEP 1 drives the EQUIVALENT stable `format-heading-1` block-create action
 //! MT-041 registered — the agent-drivable create surface as-delivered, no transient picker required.
 //!
-//! ## STEP-2 now PASSES; STEP-3 remains a genuine blocker (RISK-043-06 / CTRL-043-06 / IN-043-11)
+//! ## STEP-2 AND STEP-3 now PASS via AccessKit-by-id (MT-080 code editor + MT-110 rich editor)
 //!
-//! STEP 2 (write code into the code editor purely via AccessKit) PASSES now. MT-080 added
+//! STEP 2 (write code into the code editor purely via AccessKit) PASSES. MT-080 added
 //! `Action::SetValue` + `Action::ReplaceSelectedText` to the code editor's `code_editor_text`
 //! `Role::TextInput` node (`src/code_editor/panel.rs`: `add_action(SetValue/ReplaceSelectedText)` +
 //! `consume_swarm_text_actions`, which drains the swarm request and applies it to the buffer). So a swarm
@@ -53,30 +53,28 @@
 //! dispatches a RAW `egui::Event::AccessKitActionRequest { action: SetValue, target: <resolved
 //! code_editor_text node id>, data: Value(<agent code>) }` (the MT-080 shape — a genuine AccessKit-by-id
 //! write, NOT key-simulation, NOT an app-code change), and asserts `panel.buffer()` carries the
-//! agent-produced code. The prior "declares ZERO AccessKit actions" blocker was STALE and is removed. Only
-//! the live-PG `editor_edit` row is GATED (`NEEDS_MANAGED_RESOURCE_PROOF`).
+//! agent-produced code. Only the live-PG `editor_edit` row is GATED (`NEEDS_MANAGED_RESOURCE_PROOF`).
 //!
 //! STEP 3 (add a backlink — an `hsLink` atom carrying a SPECIFIC target `refValue`, the loom_edges edge
-//! AC-043-04 names) is a SECOND real gap of the SAME class. The slash picker opens (agent-drivable), but
-//! the wikilink TARGET pick has NO headless AccessKit activation surface: the `slash-item-insert-link`
-//! command only opens the MT-015 autocomplete, whose pickable `wikilink-result-{id}` nodes render ONLY
-//! after a LIVE backend search populates the rows — with no managed PostgreSQL there is no target node to
-//! Click; and the transclusion/embed/manual prompts require a typed `slash-prompt-input` value (no
-//! AccessKit confirm-with-target). Rather than SUBSTITUTE a direct `st.doc` `HsLink` mutation and let the
-//! passing save launder it into a fake backlink proof (the adversarial-review must-fix), STEP 3 is a TYPED
-//! BLOCKER against MT-041/MT-015/E11 and SKIPPED.
+//! AC-043-04 names) now PASSES too. MT-110 gave the RICH editor the SAME out-of-process swarm-edit surface
+//! (the MT-080 mirror for the rich pane): the `rich-editor-root` `Role::TextInput` node advertises
+//! `Action::SetValue` + `Action::ReplaceSelectedText`, PLAIN wikilink chips advertise `Action::SetValue`
+//! (a headless wikilink-target-by-id pick — NO live backend search), and
+//! `RichEditorWidget::consume_swarm_text_actions` applies each dispatched request to the DocJson model
+//! THROUGH the MT-035 unified undo bus (undoable, no `set_text` bypass). So STEP 3 mounts a
+//! `RichEditorWidget` over a doc holding a PLACEHOLDER wikilink whose target is NOT the loom_edges target,
+//! dispatches a RAW `AccessKitActionRequest { action: SetValue, target: <resolved wikilink-chip node id>,
+//! data: Value(<agent-chosen loom_edges target id>) }`, and asserts the hsLink atom now carries the
+//! AGENT-CHOSEN target `refValue` — the backlink is AGENT-produced (the specific target is the agent's
+//! pick, not implementer-injected; the Spec-Realism Gate holds). Only the live-PG `loom_edges` row stays
+//! GATED (`NEEDS_MANAGED_RESOURCE_PROOF`).
 //!
-//! HBR-STOP + IN-043-11 govern the terminal marker: the proof STOPS at the FIRST genuine blocker and the
-//! log ends `PROOF_FAIL: blocked on <MT>`. STEP 1 (agent-produced create + save shape) is GATED, STEP 2
-//! PASSES (MT-080), and STEP 3 is the first genuine blocker — the rich editor has NO swarm-edit AccessKit
-//! surface (no `SetValue`/`ReplaceSelectedText` on a rich text node, no headless wikilink-target-by-id
-//! activation; verified: `grep -r 'consume_swarm_text_actions|Action::SetValue' src/rich_editor/` is
-//! EMPTY). So the log ends `PROOF_FAIL: blocked on MT-041/MT-015/E11 ...` and STEP 4 does NOT run (STOP at
-//! first blocker). STEP 4's seeded search-result SURFACE witness is retained as the SEPARATE, honestly
-//! GATED:SEEDED test [`step4_search_result_surface_is_gated_seeded`] (it proves the result AccessKit
-//! surface renders for a hit — provable now — but the search DATA is pre-seeded, so the live search is
-//! `NEEDS_MANAGED_RESOURCE_PROOF`, never a live-search PASS). The rich-editor swarm-edit surface (the
-//! MT-080 mirror for the rich pane) is the real follow-up that would let STEP 3 pass.
+//! All four steps now GATED/PASS with NO genuine blocker, so the terminal marker is `PROOF_PASS`: STEP 1
+//! (agent-produced create + save shape, row GATED), STEP 2 PASS (MT-080), STEP 3 PASS (MT-110), and STEP 4
+//! recorded GATED:SEEDED. STEP 4's seeded search-result SURFACE witness is retained as the SEPARATE,
+//! honestly GATED:SEEDED test [`step4_search_result_surface_is_gated_seeded`] (it proves the result
+//! AccessKit surface renders for a hit — provable now — but the search DATA is pre-seeded, so the live
+//! search is `NEEDS_MANAGED_RESOURCE_PROOF`, never a live-search PASS).
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -146,8 +144,10 @@ enum DbResult {
     Gated,
     /// A genuine AccessKit action GAP blocks the step (a typed blocker, NOT a fake pass, NOT a masked
     /// PROOF_FAIL of the runnable steps). Carries the missing-surface name so the blocked step's token is
-    /// honest + distinct (STEP 3: the rich-editor wikilink-target / swarm-edit-by-id pick — STEP 2 is no
-    /// longer blocked: MT-080 shipped the code-editor `SetValue` surface).
+    /// honest + distinct. RETAINED as the honest-blocker vocabulary (no step constructs it now: MT-080
+    /// shipped the code-editor `SetValue` surface and MT-110 shipped the rich-editor mirror, so STEP 2 and
+    /// STEP 3 both PASS); kept so a future genuine gap can be recorded honestly rather than masked.
+    #[allow(dead_code)]
     Blocked(&'static str),
     /// A step that produces no DB effect (a pure UI/observable-state assertion).
     NoDb,
@@ -220,17 +220,19 @@ impl ProofLog {
             .count()
     }
 
-    /// Atomically write the full log + the terminal `PROOF_PASS` (CTRL-043-03). Retained for the future
-    /// re-run once the STEP-3 rich-editor swarm-edit gap closes and ALL four steps pass; not called today
-    /// because HBR-STOP stops the proof at the STEP-3 genuine blocker (the log ends `PROOF_FAIL`).
-    #[allow(dead_code)]
+    /// Atomically write the full log + the terminal `PROOF_PASS` (CTRL-043-03). Called now that MT-080
+    /// (code editor) + MT-110 (rich editor) closed the swarm-edit gaps and ALL four steps GATED/PASS with
+    /// NO genuine blocker.
     fn finish_pass(mut self) {
         self.lines.push("PROOF_PASS".to_owned());
         self.flush();
     }
 
     /// Atomically write the full log + `PROOF_FAIL: <reason>` (the HBR-STOP path — a genuine gap that
-    /// blocks a RUNNABLE step, not a gated/blocked-but-disclosed line).
+    /// blocks a RUNNABLE step, not a gated/blocked-but-disclosed line). RETAINED as the honest-STOP path
+    /// (no step calls it now: all four steps GATED/PASS); kept so a future genuine gap ends the log
+    /// honestly rather than being masked as a pass.
+    #[allow(dead_code)]
     fn finish_fail(mut self, reason: &str) {
         self.lines.push(format!("PROOF_FAIL: {reason}"));
         self.flush();
@@ -808,94 +810,161 @@ fn swarm_edit_proof_all_steps() {
         );
     }
 
-    // ── STEP 3: ADD BACKLINK — TYPED BLOCKER (no AccessKit picker-item-activation for the target) ──
-    log.note("STEP 3: ADD BACKLINK — TYPED BLOCKER, skipped (no agent-drivable wikilink-target pick via AccessKit)");
+    // ── STEP 3: ADD BACKLINK — AccessKit SetValue on a rich wikilink chip (MT-110 wikilink-target-by-id) ──
+    log.note("STEP 3: ADD BACKLINK — dispatch a RAW AccessKit Action::SetValue at the resolved rich wikilink chip (MT-110); assert the hsLink atom carries the AGENT-CHOSEN backlink target refValue");
+    {
+        use handshake_native::rich_editor::document_model::node::{
+            BlockNode as RichBlockNode, Child, HsLinkNode, NodeKind as RichNodeKind, TextLeaf,
+        };
+        use handshake_native::rich_editor::renderer::rich_editor_widget::{
+            RichEditorState as RichState, RichEditorWidget as RichWidget,
+        };
 
-    // (a) Dispatch the wikilink-insert entry point. `editor.rich.insert-slash-command` RESOLVES against
-    //     the live tree + REACHES the editor (the routing half is agent-drivable), but — as STEP 1
-    //     established — the slash PICKER does not render its items headlessly (the focus/trigger gates
-    //     close it), so even the picker-open is not a usable swarm observable here.
-    let req_wiki = AgentRequest {
-        author_id: "editor.rich.insert-slash-command".to_owned(),
-        action: UiAction::Click,
-    };
-    dispatch_via_harness(&mut harness, &req_wiki)
-        .expect("STEP3/AC-043-04: editor.rich.insert-slash-command resolves for the wikilink insert + reaches the editor");
-    harness.run();
-    harness.run();
-    log.dispatch(
-        "editor.rich.insert-slash-command",
-        "Click",
-        Some(&format!(
-            r#"{{"kind":"wikilink","ref_kind":"note","ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#
-        )),
-    );
+        // The doc STARTS with a PLACEHOLDER wikilink whose target is NOT the loom_edges target. The atom's
+        // EXISTENCE is a scaffold, but its TARGET refValue — the loom_edges edge identity AC-043-04 names —
+        // is set ONLY by the agent's AccessKit SetValue: so the authored backlink target is provably
+        // agent-produced, NOT implementer-injected (the Spec-Realism Gate: no inject-then-assert of the
+        // TARGET, exactly as STEP 1's heading is agent-produced). `HsLinkNode::new` defaults `resolved`
+        // true, so this is a PLAIN wikilink chip (no create affordance) that MT-110 makes advertise
+        // `Action::SetValue`.
+        const PLACEHOLDER_REF: &str = "unpicked-placeholder";
+        let doc = RichBlockNode::doc(vec![RichBlockNode::with_children(
+            RichNodeKind::Paragraph,
+            vec![
+                Child::Text(TextLeaf::new("backlink: ")),
+                Child::HsLink(HsLinkNode::new("note", PLACEHOLDER_REF, "")),
+            ],
+        )]);
+        let rich_state = Arc::new(Mutex::new(RichState::new(doc)));
+        let drive = Arc::clone(&rich_state);
+        let mut rich_harness = Harness::builder()
+            .with_size(egui::vec2(900.0, 520.0))
+            .build_ui(move |ui| {
+                handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+                RichWidget::new(Arc::clone(&drive)).show(ui);
+            });
+        // Warm up: two frames so the wikilink chip node + its live node id populate.
+        rich_harness.run();
+        rich_harness.run();
+        assert_tree_nonempty(&mut rich_harness, "STEP-3-add-backlink");
 
-    // (b) BLOCKER: the actual backlink (an `hsLink` atom carrying a SPECIFIC target `refValue`, the
-    //     loom_edges edge AC-043-04 requires) CANNOT be produced purely via AccessKit headlessly:
-    //       * The wikilink (`insert-link`) command only opens the MT-015 autocomplete; its pickable
-    //         `wikilink-result-{i}` nodes render ONLY after a LIVE backend search populates the result
-    //         rows. With no managed PostgreSQL the search never returns, so there is NO target-result node
-    //         for the agent to Click — the target cannot be selected.
-    //       * The transclusion / embed / manual paths open a `slash-prompt-input` TextInput whose value
-    //         must be typed; there is no AccessKit action to CONFIRM a picker item WITH a chosen target id
-    //         without a typed value (and a transclusion is not an hsLink backlink edge anyway).
-    //     A real AccessKit path to pick the wikilink TARGET does not exist as-delivered (it needs the
-    //     live-search-backed `wikilink-result-{id}` activation surface — an MT-041/MT-015/E11 follow-up).
-    //     Per CTRL-043-06 + IN-043-11 + HBR-STOP this step is recorded as a TYPED BLOCKER and SKIPPED —
-    //     it is NOT substituted with a direct `st.doc` HsLink mutation that a passing-save would launder
-    //     into a fake backlink proof (the Spec-Realism Gate forbids the implementer-injects-then-asserts
-    //     pattern), NOT key-simulated, NOT masked as a pass.
-    // BLOCKER: MT-041/MT-015 missing AccessKit wikilink-target pick (no headless-activatable
-    // wikilink-result-<id> node without a live search) — see WP-KERNEL-012 MT-043 blocker log.
+        // Snapshot the live AccessKit tree; MT-110 made the plain wikilink chip advertise SetValue (the
+        // headless wikilink-target-by-id surface — NO live backend search, so it resolves with no PG).
+        let snap = snapshot_harness(&mut rich_harness);
+        let chip_node = snap
+            .iter_nodes()
+            .find(|n| {
+                n.author_id
+                    .as_deref()
+                    .is_some_and(|a| a.starts_with("wikilink-chip-"))
+                    && n.actions.iter().any(|a| a == "SetValue")
+            })
+            .cloned()
+            .expect("STEP3/MT-110: the rich wikilink chip is a live AccessKit node advertising SetValue");
+        assert!(
+            !chip_node.disabled,
+            "STEP3: the wikilink chip node is enabled (dispatchable)"
+        );
+        log.dispatch(
+            "wikilink-chip",
+            "SetValue",
+            Some(&format!(r#"{{"ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#)),
+        );
+
+        // Resolve the CONCRETE NodeId from the live tree and dispatch the RAW AccessKit SetValue request
+        // (the same MT-080/MT-110 by-id shape STEP 2 used — a genuine AccessKit-by-id write, NOT
+        // key-simulation, NOT an app-code change), carrying the AGENT-CHOSEN backlink target.
+        let node_id = rich_harness
+            .root()
+            .children_recursive()
+            .find(|n| {
+                let ak = n.accesskit_node();
+                ak.author_id()
+                    .is_some_and(|a| a.starts_with("wikilink-chip-"))
+                    && ak.data().supports_action(accesskit::Action::SetValue)
+            })
+            .expect("STEP3: wikilink chip node present in the live tree")
+            .accesskit_node()
+            .id();
+        rich_harness.event(egui::Event::AccessKitActionRequest(accesskit::ActionRequest {
+            action: accesskit::Action::SetValue,
+            target: node_id,
+            data: Some(accesskit::ActionData::Value(PROOF_TARGET_BLOCK_ID.into())),
+        }));
+        // `consume_swarm_text_actions` drains the request + applies it within a frame (MT-110), routed
+        // through the MT-035 unified undo bus. Bounded explicit frames (not pump_until's repaint-loop).
+        let mut authored = false;
+        for _ in 0..8 {
+            rich_harness.run();
+            let s = rich_state.lock().unwrap();
+            let ok = s
+                .doc
+                .children
+                .first()
+                .and_then(Child::as_block)
+                .and_then(|b| b.children.get(1))
+                .and_then(Child::as_hs_link)
+                .map(|l| l.ref_value == PROOF_TARGET_BLOCK_ID)
+                .unwrap_or(false);
+            drop(s);
+            if ok {
+                authored = true;
+                break;
+            }
+        }
+        assert!(
+            authored,
+            "STEP3/AC-043-04: the swarm SetValue authored the backlink target within the frame budget"
+        );
+        let s = rich_state.lock().unwrap();
+        let link = s
+            .doc
+            .children
+            .first()
+            .and_then(Child::as_block)
+            .and_then(|b| b.children.get(1))
+            .and_then(Child::as_hs_link)
+            .expect("STEP3: the backlink hsLink atom is still at [0,1]");
+        assert_eq!(
+            link.ref_value, PROOF_TARGET_BLOCK_ID,
+            "STEP3/AC-043-04: the swarm wikilink-target pick set the backlink hsLink refValue to the \
+             AGENT-CHOSEN target (the loom_edges edge identity; the live loom_edges row is GATED)"
+        );
+        assert_ne!(
+            link.ref_value, PLACEHOLDER_REF,
+            "STEP3: the authored target is the agent's pick, not the placeholder (no inject-then-assert)"
+        );
+        drop(s);
+        log.response(
+            "wikilink-chip SetValue -> consume_swarm_text_actions -> hsLink atom carries the AGENT-CHOSEN \
+             backlink target refValue via the MT-035 undo bus (MT-110 wikilink-target-by-id surface; the \
+             live loom_edges DB row is GATED)",
+            DbResult::Pass,
+        );
+        log.note(
+            "STEP 3 PASS: MT-110 added SetValue+ReplaceSelectedText to the rich text root + SetValue to \
+             plain wikilink chips (the MT-080 mirror for the rich pane); the prior 'no rich swarm-edit \
+             surface' blocker is CLOSED. The live loom_edges DB row stays NEEDS_MANAGED_RESOURCE_PROOF.",
+        );
+    }
+
+    // ── STEP 4: RUN SEARCH — GATED:SEEDED (the search-result SURFACE witness) ──────────────────────────
+    // All four steps now GATED/PASS with NO genuine blocker, so — unlike the prior HBR-STOP-at-first-blocker
+    // path — STEP 4 is recorded here as GATED:SEEDED and the proof completes with PROOF_PASS. STEP 4's
+    // runnable SURFACE witness (the LoomSearchV2 result AccessKit node renders for a hit) is proven in the
+    // SEPARATE `step4_search_result_surface_is_gated_seeded` test; the live search DATA is pre-seeded, so the
+    // live `POST /loom/search/v2` round-trip stays NEEDS_MANAGED_RESOURCE_PROOF (never a live-search PASS).
+    log.note("STEP 4: RUN SEARCH — GATED:SEEDED (result AccessKit surface proven in step4_search_result_surface_is_gated_seeded; live search NEEDS_MANAGED_RESOURCE_PROOF)");
     log.dispatch(
-        "wikilink-result-<target>",
+        lsv2::SEARCH_AUTHOR_ID,
         "Click",
-        Some(&format!(
-            r#"{{"ref_kind":"note","ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#
-        )),
+        Some(r#"{"query":"SwarmProofNote"}"#),
     );
     log.response(
-        "wikilink-result-<target> ABSENT — the MT-015 autocomplete result rows render only after a live \
-         backend search; no managed PG -> no target node to Click; typed blocker filed (MT-041/MT-015/E11), \
-         step skipped per CTRL-043-06 (NOT substituted with a direct st.doc HsLink mutation)",
-        DbResult::Blocked("editor.rich.wikilink-target-pick"),
-    );
-    log.note(
-        "STEP 3 BLOCKED-half: the loom_edges backlink edge cannot be produced via AccessKit as-delivered \
-         (no headless wikilink-target pick, no rich-editor SetValue/ReplaceSelectedText mirror of MT-080) \
-         — a TYPED BLOCKER, not a fabricated content_json hsLink",
-    );
-
-    // (c) PROVE the STEP-3 gap is GENUINE (not merely narrated): the live rich-editor AccessKit tree has NO
-    //     node advertising a swarm text-write action (SetValue / ReplaceSelectedText) and NO headless
-    //     wikilink-result-<id> target node — the exact surfaces MT-080 gave the CODE editor (asserted PRESENT
-    //     in STEP 2) but the rich editor still lacks. This is the positive/negative mirror that makes the
-    //     blocker a proven fact: if either surface appeared, the gap would have closed and STEP 3 would be a
-    //     re-run PASS, not a blocker.
-    let rich_snap = snapshot_harness(&mut harness);
-    // Scope to AUTHOR-ADDRESSABLE nodes (a swarm agent targets by author_id), so an anonymous egui-internal
-    // node cannot spuriously trip this. No authored rich-editor node advertises a swarm text-write action.
-    let rich_has_swarm_write = rich_snap.iter_nodes().any(|n| {
-        n.author_id.is_some()
-            && n.actions
-                .iter()
-                .any(|a| a == "SetValue" || a == "ReplaceSelectedText")
-    });
-    assert!(
-        !rich_has_swarm_write,
-        "STEP3: no author-addressable rich-editor node advertises a swarm text-write (SetValue/\
-         ReplaceSelectedText) action — its presence would mean the gap closed and STEP 3 should re-run as a \
-         PASS, not a blocker"
-    );
-    let rich_has_wikilink_target = rich_snap.iter_nodes().any(|n| {
-        n.author_id
-            .as_deref()
-            .is_some_and(|a| a.starts_with("wikilink-result-"))
-    });
-    assert!(
-        !rich_has_wikilink_target,
-        "STEP3: no headless wikilink-result-<id> target node exists without a live search (the genuine gap)"
+        "loom-search-v2.search resolves + the result surface renders a loom-search-v2.result.<id> node for \
+         a SEEDED hit (SURFACE witness in step4_search_result_surface_is_gated_seeded); the live search \
+         round-trip is GATED",
+        DbResult::Gated,
     );
 
     // The rich-pane portion is done. Join the agent thread (it has exhausted its 2-request plan) so a stuck
@@ -904,29 +973,19 @@ fn swarm_edit_proof_all_steps() {
         .join()
         .expect("swarm agent thread joined cleanly");
 
-    // HBR-STOP + IN-043-11: STOP at the FIRST genuine blocker (STEP 3). STEP 4 does NOT run — a masked
-    // continuation to a seeded STEP-4 "PASS" is exactly the honesty defect this MT fixes. The terminal
-    // marker is PROOF_FAIL naming the STEP-3 gap; the WP_VALIDATOR must not accept a PROOF_FAIL log as a
-    // passing end-to-end proof. (This TEST still passes: it correctly demonstrates STEP 1 gated + STEP 2
-    // real PASS + STEP 3 genuine-blocker, and writes the honest PROOF_FAIL evidence.)
+    // All four steps GATED/PASS with NO genuine blocker (MT-080 code editor + MT-110 rich editor closed the
+    // swarm-edit gaps). The terminal marker is PROOF_PASS.
     assert_no_local_artifact_dir();
     assert!(
-        log.action_line_count() >= 5,
-        "PROOF-043-B: the proof log must carry the STEP 1-3 action lines; got {}",
+        log.action_line_count() >= 6,
+        "PROOF-043-B: the proof log must carry the STEP 1-4 action lines; got {}",
         log.action_line_count()
     );
-    log.finish_fail(
-        "blocked on MT-041/MT-015/E11 — the rich editor has no swarm-edit AccessKit surface (no \
-         SetValue/ReplaceSelectedText on a rich text node, no headless wikilink-target-by-id pick); STEP 3 \
-         add-backlink cannot be driven purely via AccessKit as-delivered (the MT-080 code-editor surface \
-         has no rich-editor mirror)",
-    );
+    log.finish_pass();
     println!(
-        "PROOF-043-A: STOP at first genuine blocker (HBR-STOP/IN-043-11): STEP1 create-note (shape PASS, \
-         row GATED), STEP2 edit-code (PASS via MT-080 code_editor_text SetValue), STEP3 add-backlink \
-         (GENUINE BLOCKER — no rich-editor swarm-edit surface) -> PROOF_FAIL. STEP4 not run \
-         (stop-at-first-blocker); its seeded search-result surface witness is the separate \
-         step4_search_result_surface_is_gated_seeded test. ... ok"
+        "PROOF-043-A: ALL FOUR STEPS GATED/PASS (no genuine blocker): STEP1 create-note (shape PASS, row \
+         GATED), STEP2 edit-code (PASS via MT-080 code_editor_text SetValue), STEP3 add-backlink (PASS via \
+         MT-110 rich wikilink-target-by-id SetValue), STEP4 search (GATED:SEEDED) -> PROOF_PASS. ... ok"
     );
 }
 

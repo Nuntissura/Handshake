@@ -190,6 +190,26 @@ pub struct RichEditorState {
     /// frames — only on frames that carry input events. Observability seam for the perf proof
     /// (`doc_snapshot_count`), not undo authority.
     pub doc_snapshot_count: u64,
+    /// WP-KERNEL-012 MT-110 (E7 swarm-authoring, the MT-080 mirror for the rich pane): the LIVE
+    /// AccessKit node id the root `Role::TextInput` editor node was emitted on THIS frame (the same
+    /// per-frame `ui.unique_id()` the node carries). Captured during render so
+    /// [`RichEditorWidget::consume_swarm_text_actions`] can drain the swarm `Action::SetValue` /
+    /// `Action::ReplaceSelectedText` requests dispatched at it out-of-process. `None` before the first
+    /// editable render / in reading mode (the read-only root advertises no editable action).
+    pub live_root_node_id: Option<egui::Id>,
+    /// WP-KERNEL-012 MT-110: the per-frame map of `(live wikilink-chip AccessKit node id -> the atom's
+    /// doc path [block_idx, leaf_idx])` for every PLAIN wikilink chip that advertised the swarm
+    /// `Action::SetValue` this frame. A swarm agent picks a wikilink TARGET by id (headless, no live
+    /// backend search) by dispatching `SetValue` at the chip node; the consume path locates the hsLink at
+    /// the recorded path and sets its `ref_value`. Rebuilt each editable render frame (cleared at frame
+    /// start), so it never carries a stale node id.
+    pub live_wikilink_chip_nodes: Vec<(egui::Id, Vec<usize>)>,
+    /// WP-KERNEL-012 MT-110: count of swarm text/wikilink edits that recorded an undo entry through the
+    /// MT-035 unified undo bus (an observability seam — `undo_fired` — for the swarm-author proof, NOT
+    /// undo authority). Advances once per applied `SetValue` / `ReplaceSelectedText` / wikilink-target
+    /// dispatch that mutated the doc, so a test can assert the swarm edit was routed through the same
+    /// undoable path a typed edit uses.
+    pub swarm_undo_fired_count: u64,
 }
 
 impl RichEditorState {
@@ -271,6 +291,9 @@ impl RichEditorState {
             pending_bus_undo: Vec::new(),
             pending_tag_edge_intent: None,
             doc_snapshot_count: 0,
+            live_root_node_id: None,
+            live_wikilink_chip_nodes: Vec::new(),
+            swarm_undo_fired_count: 0,
         }
     }
 
@@ -1019,6 +1042,14 @@ impl RichEditorWidget {
         let mut undo_pane_id: Option<crate::pane_registry::PaneId> = None;
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
 
+        // WP-KERNEL-012 MT-110: reset the per-frame swarm-authoring node records before this frame's
+        // render repopulates them (the MT-080 mirror uses the SAME live-node-id capture discipline). The
+        // root text-node id + the wikilink-chip node map are re-emitted below; clearing here means
+        // `consume_swarm_text_actions` can never drain a request against a stale node id from a prior
+        // frame (e.g. a chip that no longer renders).
+        state.live_root_node_id = None;
+        state.live_wikilink_chip_nodes.clear();
+
         // OUTER container scope: a stable Ui id keeps the root AccessKit node id fixed
         // across frames (same pattern the code editor uses). We render the scroll area +
         // blocks inside it and emit the root node onto this scope's Ui id so the per-block
@@ -1217,8 +1248,24 @@ impl RichEditorWidget {
                         node.set_role(ROOT_ROLE);
                         node.set_value(value.clone());
                         node.add_action(accesskit::Action::Focus);
+                        // WP-KERNEL-012 MT-110 (AC / MT-043 STEP 3, the MT-080 mirror for the rich pane):
+                        // advertise the two text-edit actions a swarm agent uses to AUTHOR rich content by
+                        // id, exactly as `code_editor_text` advertises them. `SetValue` replaces the WHOLE
+                        // document body (the agent authors the doc); `ReplaceSelectedText` inserts at the
+                        // caret/selection. Declaring them here makes the editable rich surface's contract
+                        // discoverable out-of-process; `consume_swarm_text_actions` drains the matching
+                        // requests and applies each THROUGH the MT-035 unified undo bus (undoable, no
+                        // set_text bypass). Read-only mode never advertises them (RISK-005).
+                        node.add_action(accesskit::Action::SetValue);
+                        node.add_action(accesskit::Action::ReplaceSelectedText);
                     }
                 });
+                // WP-KERNEL-012 MT-110: record the root node's LIVE id (editable path only) so the
+                // post-render consume drains swarm requests dispatched at it THIS frame (the code editor's
+                // `live_text_node_id` capture discipline).
+                if !read_only {
+                    state.live_root_node_id = Some(root_node_id);
+                }
 
                 surface
             })
@@ -1235,6 +1282,17 @@ impl RichEditorWidget {
             state.pending_bus_undo.drain(..).collect();
         for (before, after) in pending_atom_undo {
             Self::record_rich_edit_undo(&mut state, &bus_for_undo, &state_arc, before, after);
+        }
+
+        // WP-KERNEL-012 MT-110 (E7 swarm-authoring, the MT-080 mirror): drain any swarm `Action::SetValue`
+        // / `Action::ReplaceSelectedText` dispatched at the rich text root node THIS frame, and any
+        // `Action::SetValue` dispatched at a wikilink chip (the headless wikilink-target-by-id pick), and
+        // apply each to the DocJson model THROUGH the MT-035 unified undo bus. Skipped in reading mode
+        // (RISK-005 — a read-only doc advertises no editable action, so there is nothing to consume). Runs
+        // while the state guard is still held (the mutation path is guard-safe; the bus recording uses
+        // `with_try_lock`, and the post-frame Ctrl+Z routing below is unaffected).
+        if !read_only {
+            Self::consume_swarm_text_actions(ui, &mut state, &bus_for_undo, &state_arc);
         }
 
         // MT-035 (E5 — unified undo): now that the per-frame state guard is dropped, route any decoded
@@ -1656,6 +1714,176 @@ impl RichEditorWidget {
                 "rich: edit",
             );
         });
+    }
+
+    /// WP-KERNEL-012 MT-110 (E7 swarm-authoring — the MT-080 mirror for the rich pane). Drain this frame's
+    /// swarm text-edit / wikilink-target requests dispatched at the rich editor's AccessKit nodes and apply
+    /// each to the DocJson model THROUGH the MT-035 unified undo bus (never a `set_text` bypass — every
+    /// swarm edit is undoable and records an undo entry, exactly like a typed edit). Three surfaces:
+    /// - [`accesskit::Action::SetValue`] at the root `Role::TextInput` node replaces the WHOLE document
+    ///   body with the agent text as paragraph content (the swarm "author the doc" path).
+    /// - [`accesskit::Action::ReplaceSelectedText`] at the root inserts the agent text at the
+    ///   caret/selection (the swarm "edit the selection" path), via the SAME [`input_handler`] insert the
+    ///   keyboard path uses.
+    /// - [`accesskit::Action::SetValue`] at a wikilink CHIP node sets/creates that hsLink atom's target
+    ///   `ref_value` WITHOUT a live backend search — the headless wikilink-target-by-id pick MT-043 STEP 3
+    ///   needs (an out-of-process agent adds a backlink by choosing the target id).
+    ///
+    /// Reuses egui's own `input.accesskit_action_requests(node_id, action)` consumer (the same hook the
+    /// MT-041 registry + the code editor's `consume_swarm_text_actions` use), so a swarm agent's
+    /// `egui::Event::AccessKitActionRequest` drives the node exactly like a real edit. An empty/absent
+    /// `Value` is a benign no-op (never a panic). The live node ids are the ones the render path recorded
+    /// THIS frame ([`RichEditorState::live_root_node_id`] / [`RichEditorState::live_wikilink_chip_nodes`]).
+    fn consume_swarm_text_actions(
+        ui: &egui::Ui,
+        state: &mut RichEditorState,
+        bus: &Arc<Mutex<crate::interop::interaction_bus::InteractionBus>>,
+        state_arc: &Arc<Mutex<RichEditorState>>,
+    ) {
+        use crate::rich_editor::document_model::doc_json::to_content_json_value;
+
+        // Collect the (target, value) pairs FIRST so the input borrow is released before mutating the doc
+        // (the undo recording takes its own bus lock). SetValue is applied before ReplaceSelectedText so a
+        // whole-doc set followed by a selection-insert in the same frame composes deterministically.
+        let root_id = state.live_root_node_id;
+        let chip_nodes = state.live_wikilink_chip_nodes.clone();
+        let mut set_value: Option<String> = None;
+        let mut replace_values: Vec<String> = Vec::new();
+        let mut wikilink_targets: Vec<(Vec<usize>, String)> = Vec::new();
+        ui.input(|input| {
+            if let Some(root_id) = root_id {
+                for request in input.accesskit_action_requests(root_id, accesskit::Action::SetValue) {
+                    if let Some(accesskit::ActionData::Value(v)) = &request.data {
+                        set_value = Some(v.to_string());
+                    }
+                }
+                for request in
+                    input.accesskit_action_requests(root_id, accesskit::Action::ReplaceSelectedText)
+                {
+                    if let Some(accesskit::ActionData::Value(v)) = &request.data {
+                        replace_values.push(v.to_string());
+                    }
+                }
+            }
+            for (chip_id, path) in &chip_nodes {
+                for request in input.accesskit_action_requests(*chip_id, accesskit::Action::SetValue)
+                {
+                    if let Some(accesskit::ActionData::Value(v)) = &request.data {
+                        wikilink_targets.push((path.clone(), v.to_string()));
+                    }
+                }
+            }
+        });
+
+        let mut changed = false;
+
+        // (1) Root SetValue — replace the whole document body with the agent text as paragraph content.
+        if let Some(value) = set_value {
+            let before = to_content_json_value(&state.doc);
+            state.doc = Self::build_doc_from_swarm_text(&value);
+            // The old selection may point into a removed block; reset it to the new doc start so a later
+            // render never indexes a stale path.
+            state.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+            let after = to_content_json_value(&state.doc);
+            if after != before {
+                Self::record_rich_edit_undo(state, bus, state_arc, before, after);
+                state.swarm_undo_fired_count += 1;
+                changed = true;
+            }
+        }
+
+        // (2) Root ReplaceSelectedText — insert the agent text at the caret/selection.
+        for value in replace_values {
+            if value.is_empty() {
+                continue;
+            }
+            let before = to_content_json_value(&state.doc);
+            let applied = {
+                let RichEditorState {
+                    doc,
+                    selection,
+                    undo,
+                    actor_id,
+                    ..
+                } = &mut *state;
+                let mut ctx = EditContext {
+                    doc,
+                    selection,
+                    undo,
+                    actor_id: actor_id.as_str(),
+                };
+                input_handler::apply_action(&mut ctx, input_handler::EditAction::Insert(value))
+            };
+            if applied {
+                let after = to_content_json_value(&state.doc);
+                if after != before {
+                    Self::record_rich_edit_undo(state, bus, state_arc, before, after);
+                    state.swarm_undo_fired_count += 1;
+                    changed = true;
+                }
+            }
+        }
+
+        // (3) Wikilink chip SetValue — the headless wikilink-target-by-id pick (no live backend search).
+        for (path, value) in wikilink_targets {
+            let before = to_content_json_value(&state.doc);
+            if Self::set_hs_link_ref_value(&mut state.doc, &path, &value) {
+                let after = to_content_json_value(&state.doc);
+                if after != before {
+                    Self::record_rich_edit_undo(state, bus, state_arc, before, after);
+                    state.swarm_undo_fired_count += 1;
+                    changed = true;
+                }
+            }
+        }
+
+        if changed {
+            // The swarm authored content: mark the save/draft coordinators dirty (silent-data-loss guard,
+            // same as the typed-edit path) and repaint so the new content paints this frame.
+            if let Some(save) = state.save.as_mut() {
+                save.mark_dirty();
+            }
+            if let Some(draft) = state.draft.as_mut() {
+                draft.mark_dirty(std::time::Instant::now());
+            }
+            ui.ctx().request_repaint();
+        }
+    }
+
+    /// WP-KERNEL-012 MT-110: build a `doc` block tree from the swarm agent's `SetValue` text, one
+    /// paragraph per line (lossless — a trailing newline yields a trailing empty paragraph). An empty
+    /// value yields a single empty paragraph so the doc is never child-less (the schema always expects at
+    /// least one block).
+    fn build_doc_from_swarm_text(text: &str) -> BlockNode {
+        let paragraphs: Vec<BlockNode> = if text.is_empty() {
+            vec![BlockNode::paragraph("")]
+        } else {
+            text.split('\n').map(BlockNode::paragraph).collect()
+        };
+        BlockNode::doc(paragraphs)
+    }
+
+    /// WP-KERNEL-012 MT-110: set the target `ref_value` of the hsLink atom at `path = [block_idx,
+    /// leaf_idx]` (a headless wikilink-target pick — no backend search). Marks it `resolved` so the chip
+    /// renders as a real link. Returns `false` (no-op) when the path does not resolve to an hsLink atom or
+    /// the value is unchanged, so the caller never records a phantom undo entry.
+    fn set_hs_link_ref_value(doc: &mut BlockNode, path: &[usize], value: &str) -> bool {
+        if path.len() != 2 {
+            return false;
+        }
+        let (block_idx, leaf_idx) = (path[0], path[1]);
+        let Some(Child::Block(block)) = doc.children.get_mut(block_idx) else {
+            return false;
+        };
+        let Some(Child::HsLink(link)) = block.children.get_mut(leaf_idx) else {
+            return false;
+        };
+        if link.ref_value == value {
+            return false;
+        }
+        link.ref_value = value.to_owned();
+        link.resolved = true;
+        true
     }
 
     /// MT-020: trigger a canonical save of the live document. Captures the current `content_json`
@@ -2934,13 +3162,22 @@ impl RichEditorWidget {
     /// the label text on top, an interactive AccessKit node (`wikilink-chip-{hash}`, Role::Link), and
     /// click handling that returns a `WikilinkActivated` event (the caller enqueues it). `origin` is
     /// the block's painted screen top-left (already scroll-adjusted — RISK-1 / MC-001).
+    ///
+    /// WP-KERNEL-012 MT-110: the chip's paint outcome — see [`ChipPaintOutcome`]. When `allow_swarm_edit`
+    /// (the editable path) and the chip is a PLAIN wikilink
+    /// (not a tag / code-ref / locus-ref specialized chip), the chip node advertises `Action::SetValue`
+    /// and its live node id is returned in [`ChipPaintOutcome::swarm_node_id`] so the caller can record
+    /// the `(node id -> atom path)` mapping the headless wikilink-target-by-id consume needs. In reading
+    /// mode (or for a specialized chip) `swarm_node_id` is `None` (RISK-005 — a read-only doc advertises no
+    /// editable action).
     fn paint_one_wikilink_chip(
         ui: &mut egui::Ui,
         spec: &WikilinkChipSpec,
         origin: egui::Pos2,
         palette: &HsPalette,
         creating: bool,
-    ) -> Option<crate::rich_editor::wikilinks::inline_view::EditorEvent> {
+        allow_swarm_edit: bool,
+    ) -> ChipPaintOutcome {
         use crate::rich_editor::wikilinks::inline_view::{
             chip_author_id, chip_rect_for_span, code_ref_chip_author_id,
             create_affordance_author_id, is_code_ref, is_locus_ref, locus_ref_chip_author_id,
@@ -2994,11 +3231,27 @@ impl RichEditorWidget {
         let role = CHIP_ROLE;
         let author_for_node = author.clone();
         let label_for_node = spec.label.clone();
+        // WP-KERNEL-012 MT-110: a PLAIN wikilink chip (not a tag / code-ref / locus-ref specialized chip)
+        // advertises `Action::SetValue` in the editable path so a swarm agent can pick this chip's target
+        // by id (headless, no live backend search). The node's live id is returned so the caller records
+        // the `(node id -> atom path)` mapping `consume_swarm_text_actions` uses to set the hsLink's
+        // `ref_value`. A specialized chip (tag/code/locus references a specific entity, not a generic
+        // wikilink target) and reading mode never advertise it.
+        let swarm_edit_node = allow_swarm_edit
+            && !is_tag
+            && !is_code_ref(&spec.link)
+            && !is_locus_ref(&spec.link);
         ui.ctx().accesskit_node_builder(chip_id, move |node| {
             node.set_role(role);
             node.set_author_id(author_for_node.clone());
             node.set_label(label_for_node.clone());
+            if swarm_edit_node {
+                node.add_action(accesskit::Action::SetValue);
+            }
         });
+        // WP-KERNEL-012 MT-110: the chip's live AccessKit node id, returned so the caller records the
+        // `(node id -> atom path)` mapping when this chip advertised the swarm SetValue action.
+        let swarm_node_id = if swarm_edit_node { Some(chip_id) } else { None };
 
         // WP-KERNEL-012 MT-057: an UNRESOLVED wikilink offers a "Create note" affordance to the RIGHT of
         // the chip — a small Button addressable by the STABLE `wikilink-create-{hash}` author_id
@@ -3049,10 +3302,13 @@ impl RichEditorWidget {
             if !creating && (create_resp.clicked() || resp.clicked()) {
                 create_event = Some(EditorEvent::CreateNote { title });
             }
-            return create_event;
+            return ChipPaintOutcome {
+                event: create_event,
+                swarm_node_id,
+            };
         }
 
-        if resp.clicked() {
+        let event = if resp.clicked() {
             // WP-KERNEL-012 MT-058: a TAG chip emits a TagActivated navigation event (NOT
             // WikilinkActivated) so the host routes it onto the WP-011 bus to open the MT-023 tag hub —
             // the chip never opens the hub directly (RISK-005 / MC-005). Carries the canonical identity
@@ -3072,6 +3328,10 @@ impl RichEditorWidget {
             }
         } else {
             None
+        };
+        ChipPaintOutcome {
+            event,
+            swarm_node_id,
         }
     }
 
@@ -3580,7 +3840,19 @@ impl RichEditorWidget {
                             .as_ref()
                             .map(|t| state.wikilinks.is_creating(t))
                             .unwrap_or(false);
-                        if let Some(ev) = Self::paint_one_wikilink_chip(ui, &spec, top, palette, creating) {
+                        // WP-KERNEL-012 MT-110: the atom's doc path (block index + leaf index) so a swarm
+                        // SetValue dispatched at this chip resolves to the exact hsLink atom.
+                        let atom_path = vec![idx, spec.leaf_index];
+                        let outcome = Self::paint_one_wikilink_chip(
+                            ui, &spec, top, palette, creating, !read_only,
+                        );
+                        // WP-KERNEL-012 MT-110: record the chip's live node id -> atom path when the chip
+                        // advertised the swarm SetValue action, so `consume_swarm_text_actions` can pick
+                        // this wikilink target by id (headless, no live backend search).
+                        if let Some(node_id) = outcome.swarm_node_id {
+                            state.live_wikilink_chip_nodes.push((node_id, atom_path));
+                        }
+                        if let Some(ev) = outcome.event {
                             // WP-KERNEL-012 MT-057: a CreateNote intent is DISPATCHED on the runtime
                             // (off-thread `POST /knowledge/documents` via the MT-037 binding — never
                             // inline on this frame, RISK-007/MC-007) AND enqueued for the shell to
@@ -4197,6 +4469,19 @@ impl RichEditorWidget {
     }
 }
 
+/// WP-KERNEL-012 MT-110: the result of painting one inline wikilink chip. Carries the click event (the
+/// existing return) PLUS the chip's live AccessKit node id when the chip advertised the swarm
+/// `Action::SetValue` action (the headless wikilink-target-by-id surface). The caller records the node id
+/// with the atom's doc path so `consume_swarm_text_actions` can resolve a dispatched SetValue to the exact
+/// hsLink atom and set its `ref_value`.
+struct ChipPaintOutcome {
+    /// The click-driven editor event (WikilinkActivated / TagActivated / CreateNote), or `None`.
+    event: Option<crate::rich_editor::wikilinks::inline_view::EditorEvent>,
+    /// `Some(node id)` when this chip advertised the swarm SetValue action (editable path + plain
+    /// wikilink chip); `None` otherwise (reading mode, or a tag/code/locus specialized chip).
+    swarm_node_id: Option<egui::Id>,
+}
+
 /// Map an autocomplete result's backend content type to the wikilink `ref_kind` an inserted hsLink
 /// atom carries. A `note`/`document` block becomes a `note` link (the knowledge-document ref kind);
 /// any other content type maps to that type verbatim (so a forward-compatible backend type still
@@ -4230,6 +4515,12 @@ struct WikilinkChipSpec {
     /// a code ref / known-kind chip not subject to create-from-unresolved). The title is the trimmed
     /// original-case title the create intent + the create affordance author_id are keyed on.
     create_title: Option<String>,
+    /// WP-KERNEL-012 MT-110: the atom's child index within its block (the leaf index). Combined with the
+    /// block index at the call site it gives the doc path `[block_idx, leaf_index]` the swarm
+    /// wikilink-target consume ([`RichEditorWidget::set_hs_link_ref_value`]) mutates. The chip's swarm
+    /// SetValue dispatch is resolved to THIS atom by that path (never by matching ref_value, which two
+    /// atoms could share).
+    leaf_index: usize,
 }
 
 /// Compute the [`WikilinkChipSpec`]s for every hsLink atom in an inline-content block by re-laying it
@@ -4262,7 +4553,7 @@ fn wikilink_chip_specs(
 
     let mut specs = Vec::new();
     let mut char_cursor = 0usize; // running char offset into the laid-out plain text.
-    for child in &block.children {
+    for (leaf_index, child) in block.children.iter().enumerate() {
         match child {
             Child::Text(t) => {
                 char_cursor += t.text.len_chars();
@@ -4304,6 +4595,7 @@ fn wikilink_chip_specs(
                     fg,
                     label,
                     create_title,
+                    leaf_index,
                 });
                 char_cursor = end;
             }
