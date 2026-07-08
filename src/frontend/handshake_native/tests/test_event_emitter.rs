@@ -504,6 +504,143 @@ async fn bus_route_to_stage_emits_route_event() {
     assert_eq!(posted[0]["message_id"], "native_editor:route_to_stage");
 }
 
+// ── MT-036 unified-undo emit: EVERY undo path emits `undo_fired` exactly once with the right scope ────
+
+/// A recording `EditorSurface` that captures each emitted event's `(action, scope)` SYNCHRONOUSLY via the
+/// `InteractionBus::emit_event` fan-out. Deterministic (no async race): one callback == one ledger emit.
+/// MT-036 uses it to prove EACH undo path emits `undo_fired` exactly once with the correct `UndoScope`
+/// (the async ledger POST itself is proven separately by `bus_emit_event_dispatches_to_installed_emitter`,
+/// but that path's closed post-body drops the scope — the native payload the surface sees carries it).
+/// The `(action, scope)` capture log the recording surface appends to.
+type UndoFiredLog = Arc<Mutex<Vec<(String, Option<String>)>>>;
+
+struct ScopeRecordingSurface {
+    seen: UndoFiredLog,
+}
+impl EditorSurface for ScopeRecordingSurface {
+    fn surface_id(&self) -> &'static str {
+        "mt036_scope_recorder"
+    }
+    fn on_selection_changed(&self, _s: &handshake_native::interop::interaction_bus::SharedSelection) {}
+    fn on_event_emitted(&self, event: &NativeEditorEvent, _e: &NativeEditorEventEmitter) {
+        let p = event.to_native_payload();
+        let action = p["action"].as_str().unwrap_or_default().to_owned();
+        let scope = p["payload"]["scope"].as_str().map(|s| s.to_owned());
+        self.seen.lock().unwrap().push((action, scope));
+    }
+    fn undo_local(&self) -> Option<SeamUndoResult> {
+        None
+    }
+    fn redo_local(&self) -> Option<SeamUndoResult> {
+        None
+    }
+}
+
+/// A headless emitter (no tokio runtime): the async ledger POST is a NoRuntime no-op, but the SYNCHRONOUS
+/// surface fan-out inside `emit_event` still records — the deterministic exactly-once capture MT-036 needs.
+fn headless_emitter(ws: &str) -> NativeEditorEventEmitter {
+    NativeEditorEventEmitter::new(
+        ws,
+        Arc::new(RuntimeChatLedgerTransport::new("http://test")),
+        None,
+    )
+}
+
+/// A trivial synchronous undo action (ok/ok closures) for pushing onto the bus rings.
+fn sync_undo_action() -> handshake_native::undo_stack::UndoAction {
+    use handshake_native::undo_stack::{UndoAction, UndoResult};
+    UndoAction::sync("edit", Arc::new(UndoResult::ok), Arc::new(UndoResult::ok))
+}
+
+/// MT-036: each of the FOUR bus undo/redo choke points emits `undo_fired` exactly once with the correct
+/// scope. `undo`/`redo` are `local`; `undo_cross_pane`/`redo_cross_pane` are `cross_pane` (dead-in-prod
+/// before MT-036). This is the "dispatch undo via the bus (palette path)" + "dispatch undo_cross_pane"
+/// exactly-once proof.
+#[test]
+fn undo_paths_emit_undo_fired_exactly_once_with_scope() {
+    use handshake_native::interop::interaction_bus::InteractionBus;
+    use handshake_native::pane_registry::PaneId;
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let mut bus = InteractionBus::new();
+    bus.set_event_emitter(headless_emitter("WS-UNDO"));
+    bus.register_surface(Box::new(ScopeRecordingSurface {
+        seen: Arc::clone(&seen),
+    }));
+
+    let pane: PaneId = Arc::from("pane-rich");
+
+    // LOCAL undo + redo (the command-palette Undo/Redo AND the Ctrl+Z/Ctrl+Y chord all route through here).
+    bus.push_undo_local(pane.clone(), sync_undo_action());
+    assert!(bus.undo(&pane).is_some(), "undo popped the pushed local action");
+    assert!(bus.redo(&pane).is_some(), "redo re-applied the undone action");
+
+    // CROSS-PANE undo + redo (POLICY-2 — entirely SILENT before MT-036; scope=cross_pane).
+    bus.set_focus_owner(pane.clone());
+    bus.push_undo_cross_pane(sync_undo_action());
+    assert!(bus.undo_cross_pane().is_some(), "cross-pane undo popped");
+    assert!(bus.redo_cross_pane().is_some(), "cross-pane redo re-applied");
+
+    let seen = seen.lock().unwrap();
+    assert_eq!(
+        seen.as_slice(),
+        &[
+            ("undo_fired".to_owned(), Some("local".to_owned())),
+            ("undo_fired".to_owned(), Some("local".to_owned())),
+            ("undo_fired".to_owned(), Some("cross_pane".to_owned())),
+            ("undo_fired".to_owned(), Some("cross_pane".to_owned())),
+        ],
+        "each of the four bus undo/redo choke points emits exactly ONE undo_fired with the right scope"
+    );
+}
+
+/// MT-036: the command-palette `Undo` + `Undo Cross-Pane` commands (the SILENT-before-fix palette paths)
+/// now emit `undo_fired` through the same central choke points. Drives the REAL registered command
+/// handlers via `dispatch_command` (the exact path the palette + keybind dispatch use).
+#[test]
+fn command_palette_undo_commands_emit_undo_fired() {
+    use handshake_native::interop::interaction_bus::{
+        InteractionBus, CMD_UNDO, CMD_UNDO_CROSS_PANE,
+    };
+    use handshake_native::pane_registry::PaneId;
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let mut bus = InteractionBus::new();
+    bus.set_event_emitter(headless_emitter("WS-CMD"));
+    bus.register_surface(Box::new(ScopeRecordingSurface {
+        seen: Arc::clone(&seen),
+    }));
+    bus.register_undo_commands();
+
+    let ctx = egui::Context::default();
+    let pane: PaneId = Arc::from("pane-code");
+    bus.set_focus_owner(pane.clone());
+
+    // The palette `Undo` command handler calls `bus.undo(focus_owner)` — SILENT before MT-036.
+    bus.push_undo_local(pane.clone(), sync_undo_action());
+    assert!(
+        bus.dispatch_command(&ctx, CMD_UNDO),
+        "the Undo command is registered + dispatched"
+    );
+
+    // The palette `Undo Cross-Pane` command handler calls `bus.undo_cross_pane()` — SILENT before MT-036.
+    bus.push_undo_cross_pane(sync_undo_action());
+    assert!(
+        bus.dispatch_command(&ctx, CMD_UNDO_CROSS_PANE),
+        "the Undo Cross-Pane command is registered + dispatched"
+    );
+
+    let seen = seen.lock().unwrap();
+    assert_eq!(
+        seen.as_slice(),
+        &[
+            ("undo_fired".to_owned(), Some("local".to_owned())),
+            ("undo_fired".to_owned(), Some("cross_pane".to_owned())),
+        ],
+        "the command-palette Undo + Undo-Cross-Pane commands now emit undo_fired (both silent before MT-036)"
+    );
+}
+
 // ── AC-8 hygiene guard (always runs) ─────────────────────────────────────────────────────────────────
 
 #[test]

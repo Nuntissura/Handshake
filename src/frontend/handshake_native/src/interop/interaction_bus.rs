@@ -986,7 +986,13 @@ impl InteractionBus {
             return Some(Self::missing_undo_runtime_result());
         }
         let action = self.undo_scope.pop_undo_local(pane_id)?;
-        Some(self.invoke_undo(action))
+        let result = self.invoke_undo(action);
+        // MT-036: emit the ONE-ledger `undo_fired` HERE so EVERY local undo entry point records exactly
+        // once — the Ctrl+Z chord, the command-palette `Undo`, and the shell keybind all route through this
+        // method (POLICY-1 scope=local). An empty ring returned above via `?`, so a no-op undo is NOT an
+        // event. Before MT-036 only the chord site emitted, leaving palette/keybind undo silent.
+        self.emit_undo_fired_event(crate::event_emitter::UndoScope::Local, pane_id.as_ref());
+        Some(result)
     }
 
     /// LOCAL redo for `pane_id` (POLICY-1, the Ctrl+Y path). Pops the focused pane's most recently
@@ -997,7 +1003,10 @@ impl InteractionBus {
             return Some(Self::missing_undo_runtime_result());
         }
         let action = self.undo_scope.pop_redo_local(pane_id)?;
-        Some(self.invoke_redo(action))
+        let result = self.invoke_redo(action);
+        // MT-036: emit the ONE-ledger `undo_fired` (POLICY-1 scope=local) at the single redo choke point.
+        self.emit_undo_fired_event(crate::event_emitter::UndoScope::Local, pane_id.as_ref());
+        Some(result)
     }
 
     /// CROSS-PANE undo (POLICY-2, the Ctrl+Shift+Z path). Pops the most recent cross-pane action and
@@ -1008,7 +1017,16 @@ impl InteractionBus {
             return Some(Self::missing_undo_runtime_result());
         }
         let action = self.undo_scope.pop_undo_cross_pane()?;
-        Some(self.invoke_undo(action))
+        let result = self.invoke_undo(action);
+        // MT-036: emit the ONE-ledger `undo_fired` with scope=cross_pane (POLICY-2). This path was
+        // ENTIRELY silent before MT-036 (UndoScope::CrossPane was dead-in-prod). The originating pane label
+        // is the current focus owner (empty -> DEFAULT_ACTOR_ID for a pure cross-pane action).
+        let pane_label = self
+            .focus_owner()
+            .map(|p| p.as_ref().to_owned())
+            .unwrap_or_default();
+        self.emit_undo_fired_event(crate::event_emitter::UndoScope::CrossPane, &pane_label);
+        Some(result)
     }
 
     /// CROSS-PANE redo. Pops the most recently undone cross-pane action and re-applies it.
@@ -1017,7 +1035,39 @@ impl InteractionBus {
             return Some(Self::missing_undo_runtime_result());
         }
         let action = self.undo_scope.pop_redo_cross_pane()?;
-        Some(self.invoke_redo(action))
+        let result = self.invoke_redo(action);
+        // MT-036: emit the ONE-ledger `undo_fired` with scope=cross_pane (POLICY-2) at the cross-pane redo
+        // choke point (silent before MT-036, same as the cross-pane undo above).
+        let pane_label = self
+            .focus_owner()
+            .map(|p| p.as_ref().to_owned())
+            .unwrap_or_default();
+        self.emit_undo_fired_event(crate::event_emitter::UndoScope::CrossPane, &pane_label);
+        Some(result)
+    }
+
+    /// Emit exactly ONE `undo_fired` event onto the ONE ledger (MT-036) for an undo/redo that actually
+    /// fired. Centralized here so EVERY undo entry point — the Ctrl+Z/Ctrl+Y chord
+    /// ([`crate::rich_editor::renderer::rich_editor_widget`]), the command-palette
+    /// `Undo`/`Redo`/`Undo Cross-Pane` commands ([`Self::register_undo_commands`]), and the shell keybind
+    /// dispatch — records once with the correct [`crate::event_emitter::UndoScope`]. Before MT-036 only the
+    /// chord path emitted, so palette + cross-pane undo were SILENT and `UndoScope::CrossPane` was
+    /// dead-in-prod; now the emit lives at the four bus choke points and NO call site emits separately.
+    /// Routes through [`Self::emit_event`] so the design-only future-surface registry fan-out stays wired.
+    /// Honest no-op until the shell installs the emitter (unmounted-pane defer). `pane_label` is the
+    /// originating pane slug (empty for a pure cross-pane action -> `DEFAULT_ACTOR_ID`).
+    fn emit_undo_fired_event(&self, scope: crate::event_emitter::UndoScope, pane_label: &str) {
+        let workspace_id = self
+            .event_emitter()
+            .map(|e| e.workspace_id().to_owned())
+            .unwrap_or_default();
+        let event = crate::event_emitter::NativeEditorEvent::undo_fired(
+            scope,
+            pane_label,
+            crate::event_emitter::native_editor_actor_id(pane_label),
+            workspace_id,
+        );
+        self.emit_event(event);
     }
 
     /// The local "Undo ({n})" indicator count for `pane_id` (AC-6).

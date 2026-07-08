@@ -1582,29 +1582,15 @@ impl RichEditorWidget {
         };
         crate::interop::interaction_bus::InteractionBus::with_try_lock(bus, |b| {
             b.set_focus_owner(pane_id.clone());
-            let fired = match chord {
+            // MT-036 (E5 — one event ledger): the `undo_fired` emit now lives INSIDE `b.undo`/`b.redo` (the
+            // single central choke point), so EVERY undo path — this Ctrl+Z/Ctrl+Y chord, the command-palette
+            // Undo/Redo, and cross-pane undo — emits exactly once with the correct UndoScope. This site must
+            // NOT emit again: the previous duplicate emit here made the chord path double-count. `b.undo`
+            // only emits when an action actually fired (an empty ring is a no-op, not an event).
+            match chord {
                 UndoChord::Undo => b.undo(pane_id).is_some(),
                 UndoChord::Redo => b.redo(pane_id).is_some(),
-            };
-            // MT-036 (E5 — one event ledger): emit a REAL `undo_fired` FlightEvent at this LIVE undo
-            // dispatch (the MT-035 path that is wired + tested). Only emit when an action actually fired
-            // (a no-op chord on an empty ring is NOT an event). The bus is ALREADY locked here, so emit
-            // directly (no re-lock). scope=local — this is the focused-pane local-first Ctrl+Z/Ctrl+Y
-            // ring (POLICY-1). The emit is a no-op until the shell installs the emitter (defer policy).
-            if fired {
-                let workspace_id = b
-                    .event_emitter()
-                    .map(|e| e.workspace_id().to_owned())
-                    .unwrap_or_default();
-                let ev = crate::event_emitter::NativeEditorEvent::undo_fired(
-                    crate::event_emitter::UndoScope::Local,
-                    pane_id.as_ref(),
-                    crate::event_emitter::native_editor_actor_id(pane_id.as_ref()),
-                    workspace_id,
-                );
-                b.emit_event(ev);
             }
-            fired
         })
         .unwrap_or(false)
     }
@@ -4473,5 +4459,81 @@ mod tests {
         let f = RichEditorPaneFactory::new(st);
         assert_eq!(f.pane_type(), PaneType::LoomWikiPage);
         assert_eq!(f.accesskit_role(), accesskit::Role::TextInput);
+    }
+
+    /// MT-036 exactly-once proof for the Ctrl+Z CHORD path. The chord routes through `b.undo`, which is now
+    /// the single `undo_fired` emit choke point; this asserts the chord emits EXACTLY ONE local undo_fired
+    /// (not zero — the chord's OWN emit was removed; not two — the pre-MT-036 double-emit is gone). Capture
+    /// is the SYNCHRONOUS surface-registry fan-out inside `InteractionBus::emit_event`, so the count is
+    /// deterministic (no async race): one surface callback == one ledger emit.
+    #[test]
+    fn chord_undo_emits_exactly_one_local_undo_fired() {
+        use crate::event_emitter::{
+            NativeEditorEvent, NativeEditorEventEmitter, RuntimeChatLedgerTransport,
+        };
+        use crate::interop::interaction_bus::{InteractionBus, SharedSelection};
+        use crate::surface_extension_seam::{EditorSurface, UndoResult as SeamUndoResult};
+        use crate::undo_stack::{UndoAction, UndoResult};
+
+        // The (action, scope) capture log (aliased to satisfy clippy::type_complexity).
+        type SeenLog = Arc<Mutex<Vec<(String, Option<String>)>>>;
+
+        struct Recorder {
+            seen: SeenLog,
+        }
+        impl EditorSurface for Recorder {
+            fn surface_id(&self) -> &'static str {
+                "mt036_chord_recorder"
+            }
+            fn on_selection_changed(&self, _s: &SharedSelection) {}
+            fn on_event_emitted(&self, event: &NativeEditorEvent, _e: &NativeEditorEventEmitter) {
+                let p = event.to_native_payload();
+                let action = p["action"].as_str().unwrap_or_default().to_owned();
+                let scope = p["payload"]["scope"].as_str().map(|s| s.to_owned());
+                self.seen.lock().unwrap().push((action, scope));
+            }
+            fn undo_local(&self) -> Option<SeamUndoResult> {
+                None
+            }
+            fn redo_local(&self) -> Option<SeamUndoResult> {
+                None
+            }
+        }
+
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let bus = Arc::new(Mutex::new(InteractionBus::new()));
+        let pane: crate::pane_registry::PaneId = Arc::from("pane-rich");
+        {
+            let mut b = bus.lock().unwrap();
+            // Headless emitter (no runtime): the async ledger POST is a NoRuntime no-op, but the SYNCHRONOUS
+            // surface fan-out still records — deterministic exactly-once capture, no tokio runtime needed.
+            b.set_event_emitter(NativeEditorEventEmitter::new(
+                "WS-CHORD",
+                Arc::new(RuntimeChatLedgerTransport::new("http://test")),
+                None,
+            ));
+            b.register_surface(Box::new(Recorder {
+                seen: Arc::clone(&seen),
+            }));
+            b.push_undo_local(
+                pane.clone(),
+                UndoAction::sync(
+                    "edit",
+                    Arc::new(UndoResult::ok),
+                    Arc::new(UndoResult::ok),
+                ),
+            );
+        }
+
+        // Drive the PRIVATE chord fn — the exact path the rich pane's Ctrl+Z input dispatches.
+        let fired = RichEditorWidget::invoke_undo_chord(&bus, Some(&pane), UndoChord::Undo);
+        assert!(fired, "the chord undo popped the pushed local action");
+
+        let seen = seen.lock().unwrap();
+        assert_eq!(
+            seen.as_slice(),
+            &[("undo_fired".to_owned(), Some("local".to_owned()))],
+            "the chord path emits EXACTLY ONE local undo_fired (not zero, not the pre-MT-036 double-emit)"
+        );
     }
 }

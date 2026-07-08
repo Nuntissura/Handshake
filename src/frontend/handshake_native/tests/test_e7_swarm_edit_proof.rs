@@ -43,16 +43,18 @@
 //! `slash-item-*` nodes). So STEP 1 drives the EQUIVALENT stable `format-heading-1` block-create action
 //! MT-041 registered — the agent-drivable create surface as-delivered, no transient picker required.
 //!
-//! ## STEP-2 + STEP-3 typed blockers (RISK-043-06 / CTRL-043-06 / IN-043-11)
+//! ## STEP-2 now PASSES; STEP-3 remains a genuine blocker (RISK-043-06 / CTRL-043-06 / IN-043-11)
 //!
-//! STEP 2 (insert code text into the code editor purely via AccessKit) is a REAL, FILED GAP. MT-041
-//! registered COMMAND actions (save/find/format/multi-cursor/palette) but did NOT register a text-INSERTION
-//! action, and the code editor's `code_editor_text` `Role::TextInput` node declares ZERO AccessKit actions
-//! (no `SetValue`, no `ReplaceSelectedText`, not even `Focus` — verified in
-//! `src/code_editor/panel.rs::render_rows`). So a swarm agent CANNOT write text into the code editor via
-//! AccessKit, and the contract FORBIDS the only two workarounds (key-simulation: AC-043-07; an inline app
-//! code change: `forbidden_paths` includes `src/.../src/**`). Per CTRL-043-06 ("file a typed blocker and
-//! skip") + IN-043-11 + HBR-STOP, STEP 2 is recorded as a TYPED BLOCKER against MT-041/E11 and SKIPPED.
+//! STEP 2 (write code into the code editor purely via AccessKit) PASSES now. MT-080 added
+//! `Action::SetValue` + `Action::ReplaceSelectedText` to the code editor's `code_editor_text`
+//! `Role::TextInput` node (`src/code_editor/panel.rs`: `add_action(SetValue/ReplaceSelectedText)` +
+//! `consume_swarm_text_actions`, which drains the swarm request and applies it to the buffer). So a swarm
+//! agent CAN author code by id: STEP 2 mounts a `CodeEditorPanel`, snapshots the live AccessKit tree,
+//! dispatches a RAW `egui::Event::AccessKitActionRequest { action: SetValue, target: <resolved
+//! code_editor_text node id>, data: Value(<agent code>) }` (the MT-080 shape — a genuine AccessKit-by-id
+//! write, NOT key-simulation, NOT an app-code change), and asserts `panel.buffer()` carries the
+//! agent-produced code. The prior "declares ZERO AccessKit actions" blocker was STALE and is removed. Only
+//! the live-PG `editor_edit` row is GATED (`NEEDS_MANAGED_RESOURCE_PROOF`).
 //!
 //! STEP 3 (add a backlink — an `hsLink` atom carrying a SPECIFIC target `refValue`, the loom_edges edge
 //! AC-043-04 names) is a SECOND real gap of the SAME class. The slash picker opens (agent-drivable), but
@@ -64,12 +66,17 @@
 //! passing save launder it into a fake backlink proof (the adversarial-review must-fix), STEP 3 is a TYPED
 //! BLOCKER against MT-041/MT-015/E11 and SKIPPED.
 //!
-//! Both blocked steps are neither faked nor masked as a pass. The proof log records STEP 2 as
-//! `db_result=BLOCKED:editor.code.insert-text` and STEP 3 as `db_result=BLOCKED:...wikilink-target...`
-//! (typed-limitation lines, never a silent `PASS`). The overall log ends `PROOF_PASS` only because the
-//! RUNNABLE steps (STEP 1 agent-produced create + save shape, STEP 4 search result surface) assert and the
-//! gaps are honestly disclosed (the WP_VALIDATOR is NOT misled — the blocker lines are explicit). The live
-//! `editor.code.insert-text` write + the headless wikilink-target activation are follow-ups on MT-041/E11.
+//! HBR-STOP + IN-043-11 govern the terminal marker: the proof STOPS at the FIRST genuine blocker and the
+//! log ends `PROOF_FAIL: blocked on <MT>`. STEP 1 (agent-produced create + save shape) is GATED, STEP 2
+//! PASSES (MT-080), and STEP 3 is the first genuine blocker — the rich editor has NO swarm-edit AccessKit
+//! surface (no `SetValue`/`ReplaceSelectedText` on a rich text node, no headless wikilink-target-by-id
+//! activation; verified: `grep -r 'consume_swarm_text_actions|Action::SetValue' src/rich_editor/` is
+//! EMPTY). So the log ends `PROOF_FAIL: blocked on MT-041/MT-015/E11 ...` and STEP 4 does NOT run (STOP at
+//! first blocker). STEP 4's seeded search-result SURFACE witness is retained as the SEPARATE, honestly
+//! GATED:SEEDED test [`step4_search_result_surface_is_gated_seeded`] (it proves the result AccessKit
+//! surface renders for a hit — provable now — but the search DATA is pre-seeded, so the live search is
+//! `NEEDS_MANAGED_RESOURCE_PROOF`, never a live-search PASS). The rich-editor swarm-edit surface (the
+//! MT-080 mirror for the rich pane) is the real follow-up that would let STEP 3 pass.
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -138,8 +145,9 @@ enum DbResult {
     /// A live-DB round-trip that needs a managed PostgreSQL — gated `#[ignore]` integration only.
     Gated,
     /// A genuine AccessKit action GAP blocks the step (a typed blocker, NOT a fake pass, NOT a masked
-    /// PROOF_FAIL of the runnable steps). Carries the missing-surface name so each blocked step's token is
-    /// honest + distinct (STEP 2: code text-insertion; STEP 3: wikilink-target pick).
+    /// PROOF_FAIL of the runnable steps). Carries the missing-surface name so the blocked step's token is
+    /// honest + distinct (STEP 3: the rich-editor wikilink-target / swarm-edit-by-id pick — STEP 2 is no
+    /// longer blocked: MT-080 shipped the code-editor `SetValue` surface).
     Blocked(&'static str),
     /// A step that produces no DB effect (a pure UI/observable-state assertion).
     NoDb,
@@ -212,8 +220,10 @@ impl ProofLog {
             .count()
     }
 
-    /// Atomically write the full log + the terminal `PROOF_PASS` (CTRL-043-03). Called ONLY after every
-    /// runnable step asserted. Echoes to stdout so PROOF-043-A/B can paste it.
+    /// Atomically write the full log + the terminal `PROOF_PASS` (CTRL-043-03). Retained for the future
+    /// re-run once the STEP-3 rich-editor swarm-edit gap closes and ALL four steps pass; not called today
+    /// because HBR-STOP stops the proof at the STEP-3 genuine blocker (the log ends `PROOF_FAIL`).
+    #[allow(dead_code)]
     fn finish_pass(mut self) {
         self.lines.push("PROOF_PASS".to_owned());
         self.flush();
@@ -221,7 +231,6 @@ impl ProofLog {
 
     /// Atomically write the full log + `PROOF_FAIL: <reason>` (the HBR-STOP path — a genuine gap that
     /// blocks a RUNNABLE step, not a gated/blocked-but-disclosed line).
-    #[allow(dead_code)]
     fn finish_fail(mut self, reason: &str) {
         self.lines.push(format!("PROOF_FAIL: {reason}"));
         self.flush();
@@ -709,24 +718,95 @@ fn swarm_edit_proof_all_steps() {
          needs managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF) — proven agent-driven shape, gated row",
     );
 
-    // ── STEP 2: EDIT CODE — TYPED BLOCKER (RISK-043-06 / CTRL-043-06 / IN-043-11) ─────────────────
-    log.note("STEP 2: EDIT CODE — TYPED BLOCKER, skipped (no AccessKit text-insertion surface)");
-    // BLOCKER: MT-041 missing action editor.code.insert-text — see WP-KERNEL-012 MT-043 blocker log.
-    // The code editor `code_editor_text` Role::TextInput node declares ZERO AccessKit actions (no SetValue
-    // / ReplaceSelectedText / Focus), so a swarm agent cannot write code text via AccessKit, and the two
-    // workarounds are FORBIDDEN (key-simulation: AC-043-07; an inline app code change: forbidden_paths
-    // includes src/.../src/**). Per CTRL-043-06 + IN-043-11 + HBR-STOP this step is SKIPPED as a typed
-    // blocker — NOT faked, NOT key-simulated, NOT masked as a pass.
-    log.dispatch(
-        "editor.code.insert-text",
-        "SetValue",
-        Some(r#"{"text":"print(\"swarm-proof\")"}"#),
-    );
-    log.response(
-        "editor.code.insert-text ABSENT — code_editor_text TextInput declares no SetValue/Focus action; \
-         typed blocker filed (MT-041/E11), step skipped per CTRL-043-06",
-        DbResult::Blocked("editor.code.insert-text"),
-    );
+    // ── STEP 2: EDIT CODE — AccessKit SetValue on the code_editor_text node (MT-080 swarm-author) ──
+    log.note("STEP 2: EDIT CODE — dispatch a RAW AccessKit Action::SetValue at the resolved code_editor_text node (MT-080); assert the buffer carries the AGENT-PRODUCED code");
+    {
+        use handshake_native::code_editor::panel::CodeEditorPanel;
+        use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
+
+        // The agent-produced code. It is NOT implementer-injected into the buffer: the panel STARTS with a
+        // different placeholder, and ONLY the agent's AccessKit SetValue dispatch replaces it — so the
+        // asserted buffer content is provably agent-authored (the Spec-Realism Gate: no inject-then-assert).
+        const AGENT_CODE: &str = "print(\"swarm-proof\")\n";
+        let panel = Arc::new(CodeEditorPanel::new(
+            "// placeholder — replaced by the swarm agent\n",
+            "py",
+        ));
+        let drive = Arc::clone(&panel);
+        let mut code_harness = Harness::builder()
+            .with_size(egui::vec2(900.0, 520.0))
+            .build_ui(move |ui| {
+                handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+                drive.show(ui);
+            });
+        // Warm up: two frames so the code_editor_text node + its live node id populate.
+        code_harness.run();
+        code_harness.run();
+        assert_tree_nonempty(&mut code_harness, "STEP-2-edit-code");
+
+        // Snapshot the live AccessKit tree; MT-080 made the code_editor_text node advertise SetValue.
+        let snap = snapshot_harness(&mut code_harness);
+        let text_node = snap
+            .find_by_author_id(CODE_EDITOR_TEXT_AUTHOR_ID)
+            .expect("STEP2/AC-043-03: the code_editor_text node is a live AccessKit node")
+            .clone();
+        assert!(
+            !text_node.disabled,
+            "STEP2: the code_editor_text node is enabled (dispatchable)"
+        );
+        assert!(
+            text_node.actions.iter().any(|a| a == "SetValue"),
+            "STEP2/MT-080: the code_editor_text node advertises the SetValue action a swarm agent authors code with; got {:?}",
+            text_node.actions
+        );
+        log.dispatch(
+            "code_editor_text",
+            "SetValue",
+            Some(r#"{"value":"print(\"swarm-proof\")\n"}"#),
+        );
+
+        // Resolve the CONCRETE NodeId from the live tree and dispatch the RAW AccessKit SetValue request
+        // (the MT-080 shape — a genuine AccessKit-by-id write, NOT key-simulation, NOT an app-code change).
+        let node_id = code_harness
+            .root()
+            .children_recursive()
+            .find(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_TEXT_AUTHOR_ID))
+            .expect("STEP2: code_editor_text node present in the live tree")
+            .accesskit_node()
+            .id();
+        code_harness.event(egui::Event::AccessKitActionRequest(accesskit::ActionRequest {
+            action: accesskit::Action::SetValue,
+            target: node_id,
+            data: Some(accesskit::ActionData::Value(AGENT_CODE.into())),
+        }));
+        // `consume_swarm_text_actions` drains the request + applies it within a frame (MT-080). Bounded
+        // explicit frames (not pump_until's repaint-loop) so a transient panel repaint cannot trip the
+        // max-steps guard.
+        let mut applied = false;
+        for _ in 0..8 {
+            code_harness.run();
+            if panel.buffer().to_string() == AGENT_CODE {
+                applied = true;
+                break;
+            }
+        }
+        assert!(
+            applied,
+            "STEP2/AC-043-03: the swarm SetValue dispatch was consumed within the frame budget"
+        );
+        assert_eq!(
+            panel.buffer().to_string(),
+            AGENT_CODE,
+            "STEP2/AC-043-03: the swarm Action::SetValue at code_editor_text wrote the AGENT-PRODUCED code into the buffer"
+        );
+        log.response(
+            "code_editor_text SetValue -> consume_swarm_text_actions -> buffer carries the agent-produced code (MT-080 swarm-author surface; the live editor_edit DB row is GATED)",
+            DbResult::Pass,
+        );
+        log.note(
+            "STEP 2 PASS: MT-080 added SetValue+ReplaceSelectedText to code_editor_text; the prior 'declares ZERO actions' blocker is STALE and removed. The live editor_edit DB row stays NEEDS_MANAGED_RESOURCE_PROOF.",
+        );
+    }
 
     // ── STEP 3: ADD BACKLINK — TYPED BLOCKER (no AccessKit picker-item-activation for the target) ──
     log.note("STEP 3: ADD BACKLINK — TYPED BLOCKER, skipped (no agent-drivable wikilink-target pick via AccessKit)");
@@ -783,61 +863,92 @@ fn swarm_edit_proof_all_steps() {
     );
     log.note(
         "STEP 3 BLOCKED-half: the loom_edges backlink edge cannot be produced via AccessKit as-delivered \
-         (no headless wikilink-target pick) — a TYPED BLOCKER, not a fabricated content_json hsLink",
+         (no headless wikilink-target pick, no rich-editor SetValue/ReplaceSelectedText mirror of MT-080) \
+         — a TYPED BLOCKER, not a fabricated content_json hsLink",
     );
 
-    // The rich-pane portion is done. Join the agent thread (it has exhausted its plan) so a stuck agent
-    // would surface here, then run STEP 4 against the search pane (a fresh harness; the agent's STEP 4
-    // dispatch is modeled by the same channel contract on the search surface).
+    // (c) PROVE the STEP-3 gap is GENUINE (not merely narrated): the live rich-editor AccessKit tree has NO
+    //     node advertising a swarm text-write action (SetValue / ReplaceSelectedText) and NO headless
+    //     wikilink-result-<id> target node — the exact surfaces MT-080 gave the CODE editor (asserted PRESENT
+    //     in STEP 2) but the rich editor still lacks. This is the positive/negative mirror that makes the
+    //     blocker a proven fact: if either surface appeared, the gap would have closed and STEP 3 would be a
+    //     re-run PASS, not a blocker.
+    let rich_snap = snapshot_harness(&mut harness);
+    // Scope to AUTHOR-ADDRESSABLE nodes (a swarm agent targets by author_id), so an anonymous egui-internal
+    // node cannot spuriously trip this. No authored rich-editor node advertises a swarm text-write action.
+    let rich_has_swarm_write = rich_snap.iter_nodes().any(|n| {
+        n.author_id.is_some()
+            && n.actions
+                .iter()
+                .any(|a| a == "SetValue" || a == "ReplaceSelectedText")
+    });
+    assert!(
+        !rich_has_swarm_write,
+        "STEP3: no author-addressable rich-editor node advertises a swarm text-write (SetValue/\
+         ReplaceSelectedText) action — its presence would mean the gap closed and STEP 3 should re-run as a \
+         PASS, not a blocker"
+    );
+    let rich_has_wikilink_target = rich_snap.iter_nodes().any(|n| {
+        n.author_id
+            .as_deref()
+            .is_some_and(|a| a.starts_with("wikilink-result-"))
+    });
+    assert!(
+        !rich_has_wikilink_target,
+        "STEP3: no headless wikilink-result-<id> target node exists without a live search (the genuine gap)"
+    );
+
+    // The rich-pane portion is done. Join the agent thread (it has exhausted its 2-request plan) so a stuck
+    // agent would surface here rather than hang.
     agent_join
         .join()
         .expect("swarm agent thread joined cleanly");
 
-    // ── STEP 4: RUN SEARCH (against the LoomSearchV2 native surface) ───────────────────────────────
-    log.note("STEP 4: RUN SEARCH — dispatch loom-search-v2.search; assert a result node references the note");
-    run_search_step(&mut log);
-
-    // CTRL-043-04 (cleanup completeness): the proof wrote NO live DB rows (every DB half is GATED/BLOCKED)
-    // and held no pre-seeded backend state, so there is nothing to roll back — the test is idempotent and
-    // re-runnable without accumulating backend state (AC-043-08). Assert the in-memory doc still holds the
-    // AGENT-PRODUCED heading (the cleanup-by-scope witness: nothing leaked to a backend; the only created
-    // content is the heading the agent's slash-item Click produced).
-    {
-        let st = state.lock().unwrap();
-        assert!(
-            st.doc
-                .children
-                .iter()
-                .any(|c| c.as_block().is_some_and(|b| matches!(b.kind, NodeKind::Heading(_)))),
-            "CLEANUP witness: the agent-produced heading is still the only created content (dropped on scope exit)"
-        );
-    }
-    log.note("CLEANUP: no live DB rows written (all DB halves GATED/BLOCKED); in-memory doc dropped on scope exit — idempotent (AC-043-08)");
-
-    // All RUNNABLE steps asserted; write PROOF_PASS atomically (CTRL-043-03).
+    // HBR-STOP + IN-043-11: STOP at the FIRST genuine blocker (STEP 3). STEP 4 does NOT run — a masked
+    // continuation to a seeded STEP-4 "PASS" is exactly the honesty defect this MT fixes. The terminal
+    // marker is PROOF_FAIL naming the STEP-3 gap; the WP_VALIDATOR must not accept a PROOF_FAIL log as a
+    // passing end-to-end proof. (This TEST still passes: it correctly demonstrates STEP 1 gated + STEP 2
+    // real PASS + STEP 3 genuine-blocker, and writes the honest PROOF_FAIL evidence.)
+    assert_no_local_artifact_dir();
     assert!(
-        log.action_line_count() >= 10,
-        "PROOF-043-B: the proof log must carry >=10 action lines; got {}",
+        log.action_line_count() >= 5,
+        "PROOF-043-B: the proof log must carry the STEP 1-3 action lines; got {}",
         log.action_line_count()
     );
-    assert_no_local_artifact_dir();
-    log.finish_pass();
+    log.finish_fail(
+        "blocked on MT-041/MT-015/E11 — the rich editor has no swarm-edit AccessKit surface (no \
+         SetValue/ReplaceSelectedText on a rich text node, no headless wikilink-target-by-id pick); STEP 3 \
+         add-backlink cannot be driven purely via AccessKit as-delivered (the MT-080 code-editor surface \
+         has no rich-editor mirror)",
+    );
     println!(
-        "PROOF-043-A: all four steps driven via AccessKit dispatch from a channel-only agent — STEP1 \
-         create-note (AGENT-PRODUCED heading via editor.rich.format-heading-1 Click; shape PASS, row GATED), \
-         STEP2 edit-code (TYPED BLOCKER, skipped), STEP3 add-backlink (TYPED BLOCKER — no AccessKit \
-         wikilink-target pick, skipped), STEP4 run-search (result node PASS). ... ok"
+        "PROOF-043-A: STOP at first genuine blocker (HBR-STOP/IN-043-11): STEP1 create-note (shape PASS, \
+         row GATED), STEP2 edit-code (PASS via MT-080 code_editor_text SetValue), STEP3 add-backlink \
+         (GENUINE BLOCKER — no rich-editor swarm-edit surface) -> PROOF_FAIL. STEP4 not run \
+         (stop-at-first-blocker); its seeded search-result surface witness is the separate \
+         step4_search_result_surface_is_gated_seeded test. ... ok"
     );
 }
 
-/// STEP 4: drive the native LoomSearchV2 surface PURELY via the AccessKit `loom-search-v2.search` action,
-/// with the search response pre-seeded (the live backend round-trip is GATED — no managed PG). Assert a
-/// `loom-search-v2.result.<block_id>` node referencing the STEP-1 created note appears in the tree
-/// (AC-043-05 / PROOF-043-E: the search-result AccessKit surface a swarm agent reads).
-fn run_search_step(log: &mut ProofLog) {
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// STEP 4 (SEARCH) — a SEPARATE, honestly GATED:SEEDED surface witness. It is NOT part of the
+// stop-at-first-blocker proof chain: `swarm_edit_proof_all_steps` STOPS at the STEP-3 genuine blocker per
+// HBR-STOP / IN-043-11 and ends PROOF_FAIL, so STEP 4 never runs there (masking a blocker with a seeded
+// STEP-4 "PASS" is exactly the honesty defect this MT fixes). This test asserts ONLY the now-provable fact
+// — the LoomSearchV2 result AccessKit SURFACE renders a `loom-search-v2.result.<id>` node for a hit, and
+// the `loom-search-v2.search` action resolves to a live node — and does NOT claim a live-search PASS: the
+// response is PRE-SEEDED and the seed block_id is a hardcoded constant (SELF-REFERENTIAL, not threaded
+// from a live search or STEP 1), so AC-043-05's live search is GATED:SEEDED (NEEDS_MANAGED_RESOURCE_PROOF).
+// It writes NO proof-log fixture (that belongs to the PROOF_FAIL chain).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn step4_search_result_surface_is_gated_seeded() {
     use handshake_native::backend_client::LoomSearchV2Client;
 
-    // The panel state seeded with a result referencing the created note (the GATED backend's response).
+    // SEEDED response referencing a HARDCODED note id (the GATED backend's stand-in). This is a SEEDED
+    // reflection, NOT a data-flow proof: no search executes and `block_id` is a constant — so this only
+    // witnesses that the result SURFACE renders for a hit, never that a live search returned it.
     let panel = Arc::new(Mutex::new(lsv2::LoomSearchV2PanelState::new()));
     {
         let mut p = panel.lock().unwrap();
@@ -868,7 +979,6 @@ fn run_search_step(log: &mut ProofLog) {
     let client = LoomSearchV2Client::new("http://127.0.0.1:37501", rt.handle().clone());
 
     let panel_ui = Arc::clone(&panel);
-    let mut opened: Option<String> = None;
     let opened_cell = Arc::new(Mutex::new(None::<String>));
     let opened_for_ui = Arc::clone(&opened_cell);
 
@@ -897,22 +1007,22 @@ fn run_search_step(log: &mut ProofLog) {
     harness.run();
     assert_tree_nonempty(&mut harness, "STEP-4-run-search");
 
-    // The result node referencing the STEP-1 created note is present (the search-result AccessKit surface).
+    // The result SURFACE renders a node for the SEEDED hit (provable now — the AccessKit surface exists).
     let result_author = lsv2::result_author_id(PROOF_NOTE_BLOCK_ID);
     let snap = snapshot_harness(&mut harness);
     assert!(
         snap.find_by_author_id(&result_author).is_some(),
-        "STEP4/AC-043-05: a search-result AccessKit node '{result_author}' referencing the created note \
-         must be present (the loom-search-v2.result.<block_id> surface a swarm agent reads)"
+        "STEP4/AC-043-05 (GATED:SEEDED): the LoomSearchV2 result AccessKit surface renders node \
+         '{result_author}' for a hit — a SURFACE witness, not a live-search PASS"
     );
-    // PROOF-043-E: dump the result-node author_id so the reviewer can locate it.
-    println!("PROOF-043-E: STEP4 search-result node present: author_id={result_author}");
+    println!(
+        "PROOF-043-E (GATED:SEEDED): STEP4 search-result SURFACE renders node author_id={result_author} for \
+         a SEEDED, self-referential hit; the live POST /loom/search/v2 search is NEEDS_MANAGED_RESOURCE_PROOF"
+    );
 
-    // The search action itself RESOLVES to a live AccessKit node + Click (the swarm `loom-search-v2.search`
-    // dispatch is well-formed and addressable). We assert RESOLUTION here but do NOT feed the live Click:
-    // firing the live search sets `loading=true` and the panel then spins forever waiting on a backend that
-    // does not exist (no managed PG) — that LIVE re-fire is exactly the GATED half. Proving the action
-    // resolves to a live, enabled node + Click is the provable-now swarm-navigability proof.
+    // The search action RESOLVES to a live AccessKit node + Click (the swarm request is well-formed +
+    // addressable). We do NOT fire the live Click — firing sets `loading=true` and spins on the absent
+    // backend (the GATED half). Resolution is the provable-now half; the live re-fire stays GATED.
     let search_req = AgentRequest {
         author_id: lsv2::SEARCH_AUTHOR_ID.to_owned(),
         action: UiAction::Click,
@@ -924,32 +1034,15 @@ fn run_search_step(log: &mut ProofLog) {
         !events.is_empty(),
         "STEP4: the search dispatch produced an AccessKit event (well-formed swarm request)"
     );
-    log.dispatch(
-        "loom-search-v2.search",
-        "Click",
-        Some(r#"{"q":"SwarmProofNote"}"#),
-    );
-    log.response(
-        &format!(
-            "loom-search-v2.search resolves to a live node; loom-search-v2.result.{PROOF_NOTE_BLOCK_ID} node present referencing the created note"
-        ),
-        DbResult::Pass,
-    );
-    log.response(
-        "live POST /loom/search/v2 re-fire (sets loading + awaits managed PG) — the GATED half",
-        DbResult::Gated,
-    );
 
-    // Dispatch the result row open via AccessKit (the swarm navigates to the found note). A real Click on
-    // the result node routes the `on_open_block` callback with the created note's id (the cross-surface
-    // navigation a swarm agent performs). This does NOT fire the live search, so no spinner loop.
+    // Row-open navigation via AccessKit: the result-row Click routes the host `on_open_block` callback with
+    // the seeded id (the cross-surface navigation a swarm agent performs). Bounded frames (no repaint loop).
     let row_req = AgentRequest {
         author_id: result_author.clone(),
         action: UiAction::Click,
     };
+    let mut opened: Option<String> = None;
     if dispatch_via_harness(&mut harness, &row_req).is_ok() {
-        // Use bounded explicit frames (not `pump_until`'s repaint-looping `run`) so a transient panel
-        // repaint cannot trip the max-steps guard; the open callback fires within a frame of the Click.
         for _ in 0..6 {
             harness.run();
             if opened_cell.lock().unwrap().is_some() {
@@ -958,22 +1051,12 @@ fn run_search_step(log: &mut ProofLog) {
         }
         opened = opened_cell.lock().unwrap().clone();
     }
-    log.dispatch(&result_author, "Click", None);
-    if opened.as_deref() == Some(PROOF_NOTE_BLOCK_ID) {
-        log.response(
-            "result row open -> on_open_block(created note id) — cross-surface navigation",
-            DbResult::Pass,
-        );
-    } else {
-        log.response(
-            "result row open dispatched (open callback is host-routed)",
-            DbResult::NoDb,
-        );
-    }
-    log.note(
-        "STEP 4 GATED-half: the live POST /loom/search/v2 round-trip needs managed PostgreSQL \
-         (NEEDS_MANAGED_RESOURCE_PROOF) — the result AccessKit surface is proven now",
+    // The open callback is host-routed; assert only that the dispatch was accepted, never a false PASS.
+    println!(
+        "STEP4 (GATED:SEEDED): result-row open dispatched via AccessKit; opened={opened:?} (host-routed \
+         callback). The live search round-trip remains NEEDS_MANAGED_RESOURCE_PROOF."
     );
+    assert_no_local_artifact_dir();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
