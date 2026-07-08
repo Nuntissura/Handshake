@@ -893,6 +893,14 @@ pub struct CodeEditorPanel {
     /// off-thread resolve task writes the freshly-resolved symbol straight into it (the UI thread reads
     /// it on the next trigger).
     signature_fallback_cache: SignatureFallbackCache,
+    /// MT-047 (AC-002 dismissal) whether the code TEXT surface currently holds focus, mirrored each frame
+    /// from the pane factory's `has_focus` (`ui.memory().focused()` == the pane's egui id) BEFORE `show()`
+    /// runs. The per-frame signature-help dismissal guard closes the popup when this is `false` (the editor
+    /// lost focus — scope step 8), alongside the caret-left-the-call check. Defaults to `true` so a headless
+    /// harness that drives `show()` directly (no factory — e.g. the synthetic render/AccessKit proofs) is
+    /// never spuriously dismissed; the live factory path and the interaction tests set it explicitly via
+    /// [`set_code_surface_focus`](Self::set_code_surface_focus).
+    code_surface_focused: std::sync::atomic::AtomicBool,
 
     // ── MT-048 Rename Symbol (F2) ─────────────────────────────────────────────────────────────────
     /// MT-048 the rename state machine phase (Idle / Editing the inline input / Previewing the multi-file
@@ -1550,6 +1558,9 @@ impl CodeEditorPanel {
             signature_help_result: Arc::new(Mutex::new(None)),
             signature_help_request: std::sync::atomic::AtomicBool::new(false),
             signature_fallback_cache: Arc::new(Mutex::new(None)),
+            // MT-047 (AC-002): assume focused until the factory mirrors real pane focus each frame, so a
+            // direct-`show()` harness (no factory) never spuriously dismisses the popup.
+            code_surface_focused: std::sync::atomic::AtomicBool::new(true),
             // MT-048 rename: starts Idle; the result cell is empty until an off-thread rename resolves.
             rename_state: Mutex::new(RenameState::Idle),
             rename_result: Arc::new(Mutex::new(None)),
@@ -3228,6 +3239,27 @@ impl CodeEditorPanel {
         if sig_armed {
             self.trigger_signature_help(&runtime);
         }
+
+        // MT-047 (AC-002) PER-FRAME DISMISSAL GUARD: once the popup is OPEN, close it when the caret has
+        // left the anchored call OR the code text surface lost focus. These are the dismissal paths a
+        // NON-TYPING caret move (ArrowLeft/Right/Up/Down, Home/End, or a mouse click) or a focus change
+        // takes — none of them arm a trigger character, so without this guard the popup lingers at its
+        // stale anchor and follows the cursor. The typing triggers ('(' / ',' / ')'), Escape, and the
+        // in-flight-result drain do NOT cover a bare caret move. Reuses the EXISTING enclosing-call
+        // scanner (`active_call_open_paren` -> `find_enclosing_open_paren`) rather than a second scan: the
+        // caret is "still inside the call" ONLY when its enclosing open-paren is exactly the popup anchor,
+        // so typing ',' between args (caret still inside the same call) keeps it open + updates the active
+        // param. Runs INSIDE the runtime-present branch so the runtime-less synthetic-state render/AccessKit
+        // proofs (which open the popup directly at a non-call anchor) are never spuriously dismissed.
+        if let Some(state) = self.signature_help_state() {
+            let cursor_byte = self.primary_cursor_offset();
+            let caret_left_call =
+                self.active_call_open_paren(cursor_byte) != Some(state.anchor_byte);
+            let surface_lost_focus = !self.code_surface_focused.load(Ordering::Relaxed);
+            if caret_left_call || surface_lost_focus {
+                self.close_signature_help();
+            }
+        }
     }
 
     /// A snapshot of the completion popup state (`None` when no popup is showing). For tests + the
@@ -3408,6 +3440,27 @@ impl CodeEditorPanel {
             .signature_fallback_cache
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Mirror whether the code TEXT surface currently holds focus (AC-002 dismissal — scope step 8). The
+    /// pane factory calls this every frame from its `has_focus` (`ui.memory().focused()` == the pane's egui
+    /// id) BEFORE `show()`, so the per-frame signature-help dismissal guard can close the popup when the
+    /// editor loses focus. Interaction tests drive it directly to prove the focus-loss dismissal path.
+    pub fn set_code_surface_focus(&self, focused: bool) {
+        self.code_surface_focused
+            .store(focused, Ordering::Relaxed);
+    }
+
+    /// The number of overloads in the open signature-help popup (0 when closed). The input handler uses it
+    /// to decide whether the popup OWNS Up/Down (overload cycling) so those keys are consumed instead of
+    /// ALSO moving the caret (the peeked-not-consumed double-fire fix, applied only when >1 overload).
+    fn signature_help_overload_count(&self) -> usize {
+        self.signature_help_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|s| s.signatures.len())
+            .unwrap_or(0)
     }
 
     /// Cycle the active overload to the NEXT signature (Down arrow while the popup is open). No-op when
@@ -11355,10 +11408,32 @@ impl CodeEditorPanel {
         if self.is_signature_help_open() {
             if sig_escape {
                 self.close_signature_help();
+                // AC-002 double-fire fix: Escape is read here via an input-STATE query (peeked, not
+                // consumed), so without this `process_keymap` (below) would ALSO resolve Escape the SAME
+                // frame and run CancelMultiCursor — collapsing a multi-cursor / selection while merely
+                // dismissing the popup. Consume it so dismissing the popup does NOT also fire an editor
+                // action. Skip the consume when the completion popup is open: it OWNS Escape
+                // (`DismissCompletion`, which `resolve_contextual` already returns as `Consumed` with no
+                // CancelMultiCursor fall-through), so leaving the event lets completion dismiss too with
+                // no double action.
+                if !self.is_completion_open() {
+                    ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+                }
             } else if sig_down {
                 self.signature_help_next();
+                // Parity hardening (same peeked-not-consumed class as Escape): when there is MORE THAN ONE
+                // overload the popup OWNS Up/Down (cycle the active signature) like the completion popup
+                // does — consume so the key does not ALSO fall through to `process_keymap`'s line movement.
+                // With a single overload the cycle is a no-op, so the key is left to move the caret (which
+                // then dismisses the popup via the per-frame guard).
+                if self.signature_help_overload_count() > 1 {
+                    ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown));
+                }
             } else if sig_up {
                 self.signature_help_prev();
+                if self.signature_help_overload_count() > 1 {
+                    ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp));
+                }
             }
         }
 
@@ -11499,6 +11574,9 @@ impl PaneFactory for CodeEditorPaneFactory {
         // code selection must not claim focus or consume clipboard shortcuts while another editor/input is
         // active; explicit menu/palette commands materialize selections through the host dispatch path.
         let has_focus = ui.memory(|m| m.focused().map(|f| f == ctx.egui_id).unwrap_or(false));
+        // MT-047 (AC-002): mirror the real pane focus into the panel BEFORE `show()` so the per-frame
+        // signature-help dismissal guard closes the popup when the code editor loses focus (scope step 8).
+        self.panel.set_code_surface_focus(has_focus);
         let mut registered = self.bus_registered.load(Ordering::Relaxed);
         super::interop_adapter::drive_bus_in_render(
             &bus,

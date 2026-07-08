@@ -42,6 +42,7 @@
 //! produce parameter hints from the current real backend.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
@@ -476,4 +477,335 @@ fn signature_help_popup_emphasizes_active_parameter_screenshot() {
         }
     }
     assert_no_local_artifact_dir();
+}
+
+// ── AC-002 LIVE INTERACTION PROOFS: open / update / dismiss through the REAL input pipeline ─────────
+//
+// These drive `egui::Event::Text` / `egui::Event::Key` through the production `process_cursor_input` ->
+// `pump_code_intelligence` path (NOT `open_signature_help(synthetic)`), with an injected multi-thread
+// tokio runtime + an in-memory MOCK LSP transport (the same `LspClient::install_test_transport` the
+// PT-001 request proof uses). They cover the AC-002 dismissal contract — the popup opens on `(`, updates
+// (same anchor) on `,`, and dismisses on `)`, Escape, a caret move OUT of the call, and code-surface
+// focus loss — plus the manual Ctrl+Shift+Space open. The arrow-key dismissal
+// (`..._arrow_key_dismiss_is_the_guard_for_the_fix`) is the guard for the panel.rs per-frame dismissal
+// fix: it FAILS if that guard is removed (a bare caret move never armed a trigger, so nothing else
+// dismisses the popup — the exact lingering-popup bug the fix closes).
+
+/// Inject a key press into the harness (the shape the completion/goto-line/find tests use). The editor's
+/// `process_cursor_input` reads these off the live egui input each frame.
+fn press_key(harness: &mut Harness, key: egui::Key, modifiers: egui::Modifiers) {
+    harness.event(egui::Event::Key {
+        key,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers,
+    });
+}
+
+/// Pump frames — letting the injected runtime's async LSP round-trip land BETWEEN frames — until `cond`
+/// holds or the budget elapses. Mirrors the MT-008 completion/hover live-driving loop. Returns whether
+/// the condition held.
+fn run_until(harness: &mut Harness, cond: impl Fn() -> bool) -> bool {
+    for _ in 0..80 {
+        harness.run();
+        if cond() {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    harness.run();
+    cond()
+}
+
+/// Build a live code panel wired to an injected multi-thread tokio runtime + an in-memory MOCK LSP
+/// transport, and spawn a PERSISTENT responder that answers every `textDocument/signatureHelp` request
+/// with a two-parameter signature whose `activeParameter` is whatever the returned `AtomicUsize` currently
+/// holds (the test sets it before typing so the popup's active parameter is deterministic — the LSP path
+/// takes the server's `activeParameter`, not a local comma count). This drives the REAL arm -> pump ->
+/// off-thread request -> drain -> open pipeline (NOT `open_signature_help(synthetic)`).
+fn live_panel_with_mock_lsp(
+    text: &str,
+) -> (Arc<CodeEditorPanel>, tokio::runtime::Runtime, Arc<AtomicUsize>) {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("build tokio runtime");
+
+    let panel = Arc::new(CodeEditorPanel::new(text, "rs"));
+    // A non-empty file path so `lsp_uri()` is Some and the trigger takes the LSP path (AC-001 / AC-006).
+    panel.load_file("mock.rs");
+    panel.set_runtime(rt.handle().clone());
+    panel.set_workspace_id("ws-test");
+
+    // The mock LSP client: declare the signatureHelp capability + install the in-memory duplex transport
+    // wired to the client's REAL request()/read_loop routing. `install_test_transport` needs the runtime
+    // context (it spawns the reader loop + records `Handle::current()`), so build it inside `block_on`.
+    let client = Arc::new(LspClient::disabled());
+    client.set_signature_help_capability_for_test(&['(', ',']);
+    let server_write = rt.block_on(async { client.install_test_transport() });
+    panel.set_lsp_client(Arc::clone(&client));
+
+    let active_param = Arc::new(AtomicUsize::new(0));
+
+    // Persistent responder: for EACH framed signatureHelp request the client writes, reply with a
+    // two-param signature carrying the current active parameter. Loops until the transport closes.
+    let resp_client = Arc::clone(&client);
+    let resp_active = Arc::clone(&active_param);
+    rt.spawn(async move {
+        use tokio::io::AsyncWriteExt;
+        let mut server_write = server_write;
+        loop {
+            let Some(req) = resp_client.read_test_request().await else {
+                break; // transport closed (runtime shutting down).
+            };
+            if req.get("method").and_then(|m| m.as_str()) != Some("textDocument/signatureHelp") {
+                continue;
+            }
+            let id = req.get("id").cloned().unwrap_or(serde_json::json!(0));
+            let ap = resp_active.load(Ordering::SeqCst);
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": {
+                    "signatures": [{
+                        "label": "fn add(a: i32, b: i32) -> i32",
+                        "parameters": [ { "label": [7, 13] }, { "label": "b: i32" } ]
+                    }],
+                    "activeSignature": 0,
+                    "activeParameter": ap
+                }
+            });
+            let frame = LspClient::frame_message_for_test(&response);
+            if server_write.write_all(&frame).await.is_err() {
+                break;
+            }
+            let _ = server_write.flush().await;
+        }
+    });
+
+    (panel, rt, active_param)
+}
+
+/// Build a headless harness over the live panel's `show()` (no GPU, no factory).
+fn live_harness(panel: &Arc<CodeEditorPanel>) -> Harness<'static> {
+    let panel_ui = Arc::clone(panel);
+    Harness::builder()
+        .with_size(egui::vec2(900.0, 300.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        })
+}
+
+/// AC-002: typing `(` opens the popup, `,` UPDATES it in place (same anchor, active param advances, no
+/// second popup), and `)` dismisses it — all through the real keystroke -> pump -> mock-LSP pipeline.
+#[test]
+fn mustfix_signature_help_live_open_comma_closeparen_through_input() {
+    let (panel, rt, active_param) = live_panel_with_mock_lsp("add");
+    panel.set_single_cursor(3); // caret at the end of "add", ready to type the call.
+    let mut harness = live_harness(&panel);
+    harness.run();
+
+    // type '(' -> arm -> pump -> mock round-trip -> drain opens the popup anchored at the '(' byte (3).
+    active_param.store(0, Ordering::SeqCst);
+    harness.event(egui::Event::Text("(".to_owned()));
+    assert!(
+        run_until(&mut harness, || panel.is_signature_help_open()),
+        "AC-002: typing '(' opens the signature-help popup via the live input pipeline"
+    );
+    let opened = panel.signature_help_state().expect("open");
+    assert_eq!(opened.anchor_byte, 3, "the popup anchors at the '(' byte");
+    assert_eq!(
+        opened.active_parameter, 0,
+        "right after '(' the active parameter is 0"
+    );
+
+    // type ',' inside the call -> still open, SAME anchor (no second popup), active param ADVANCES to 1.
+    active_param.store(1, Ordering::SeqCst);
+    harness.event(egui::Event::Text(",".to_owned()));
+    assert!(
+        run_until(&mut harness, || panel
+            .signature_help_state()
+            .map(|s| s.active_parameter == 1)
+            .unwrap_or(false)),
+        "AC-002: typing ',' keeps the popup open and advances the active parameter"
+    );
+    let updated = panel.signature_help_state().expect("still open after ','");
+    assert_eq!(
+        updated.anchor_byte, 3,
+        "AC-002: ',' UPDATES the same popup (same anchor), it does not open a second one"
+    );
+    assert_eq!(
+        updated.active_parameter, 1,
+        "AC-002: the active parameter advanced to 1"
+    );
+
+    // type ')' -> the call's argument list ended; the popup dismisses.
+    harness.event(egui::Event::Text(")".to_owned()));
+    assert!(
+        run_until(&mut harness, || !panel.is_signature_help_open()),
+        "AC-002: typing ')' dismisses the popup"
+    );
+
+    drop(harness);
+    drop(panel);
+    rt.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+/// AC-002 GUARD-FOR-THE-FIX: with the popup OPEN, a caret move OUT of the argument list via a NON-TYPING
+/// key (ArrowLeft) — which arms no trigger character — must dismiss the popup. This is the exact bug the
+/// per-frame dismissal guard in `pump_code_intelligence` closes: before the fix, `close_signature_help`
+/// fired only on a typed `(`/`,`/`)`, Escape, or a delivered result, so a bare caret move left the popup
+/// lingering at its stale anchor. If the guard is removed, `is_signature_help_open()` stays true after the
+/// arrow move and the final assert FAILS.
+#[test]
+fn mustfix_signature_help_arrow_key_dismiss_is_the_guard_for_the_fix() {
+    let (panel, rt, active_param) = live_panel_with_mock_lsp("add");
+    panel.set_single_cursor(3);
+    let mut harness = live_harness(&panel);
+    harness.run();
+
+    active_param.store(0, Ordering::SeqCst);
+    harness.event(egui::Event::Text("(".to_owned()));
+    assert!(
+        run_until(&mut harness, || panel.is_signature_help_open()),
+        "the popup opened via the live pipeline"
+    );
+    let (before, _) = panel.primary_selection_bytes();
+    assert_eq!(before, 4, "the caret sits inside the call after typing '('");
+
+    // Move the caret OUT of the arg list with a NON-TYPING key (no trigger armed). Only the per-frame
+    // dismissal guard can close the popup here.
+    press_key(&mut harness, egui::Key::ArrowLeft, egui::Modifiers::NONE);
+    let dismissed = run_until(&mut harness, || !panel.is_signature_help_open());
+    let (after, _) = panel.primary_selection_bytes();
+    assert!(
+        after < before,
+        "ArrowLeft moved the caret out of the arg list with no typing; got {after} (was {before})"
+    );
+    assert!(
+        dismissed,
+        "AC-002 (the bug the fix closes): a caret move OUT of the call dismisses the popup — FAILS if \
+         the per-frame dismissal guard in pump_code_intelligence is removed"
+    );
+
+    drop(harness);
+    drop(panel);
+    rt.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+/// AC-002: Escape dismisses the popup AND (the double-fire fix) does NOT also fall through to
+/// `process_keymap`'s CancelMultiCursor. Proof: with two carets whose PRIMARY (highest offset) stays
+/// inside the call, Escape closes the popup and the caret set stays at TWO; WITHOUT the consume fix Escape
+/// would ALSO run CancelMultiCursor and collapse to one caret.
+#[test]
+fn mustfix_signature_help_escape_dismiss_does_not_double_fire() {
+    let (panel, rt, active_param) = live_panel_with_mock_lsp("add");
+    panel.set_single_cursor(3);
+    let mut harness = live_harness(&panel);
+    harness.run();
+
+    active_param.store(0, Ordering::SeqCst);
+    harness.event(egui::Event::Text("(".to_owned())); // buffer "add(", caret 4 (inside the call).
+    assert!(
+        run_until(&mut harness, || panel.is_signature_help_open()),
+        "the popup opened via the live pipeline"
+    );
+
+    // Add a SECOND caret at byte 1 (inside "add", before the call). The PRIMARY is the highest-offset
+    // caret (byte 4, inside the call), so the guard keeps the popup open; a would-be CancelMultiCursor is
+    // observable because it collapses the set to ONE caret at the primary head.
+    panel.add_cursor_at(1);
+    harness.run();
+    assert_eq!(panel.cursor_count(), 2, "two carets before Escape");
+    assert!(
+        panel.is_signature_help_open(),
+        "the popup is still open (primary caret is inside the call)"
+    );
+
+    press_key(&mut harness, egui::Key::Escape, egui::Modifiers::NONE);
+    assert!(
+        run_until(&mut harness, || !panel.is_signature_help_open()),
+        "AC-002: Escape dismisses the popup"
+    );
+    assert_eq!(
+        panel.cursor_count(),
+        2,
+        "AC-002 double-fire fix: Escape dismissing the popup must NOT also run CancelMultiCursor (the \
+         caret set stays at two); it collapses to one WITHOUT the consume fix"
+    );
+
+    drop(harness);
+    drop(panel);
+    rt.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+/// AC-002: Ctrl+Shift+Space manually opens the popup (the VS Code manual trigger) while the caret is
+/// inside a call, through the real input-state path (no typed trigger character).
+#[test]
+fn mustfix_signature_help_ctrl_shift_space_manual_open_through_input() {
+    let (panel, rt, _active_param) = live_panel_with_mock_lsp("add()");
+    panel.set_single_cursor(4); // caret between '(' and ')'.
+    let mut harness = live_harness(&panel);
+    harness.run();
+    assert!(
+        !panel.is_signature_help_open(),
+        "the popup starts closed (no trigger yet)"
+    );
+
+    let ctrl_shift = egui::Modifiers {
+        alt: false,
+        ctrl: true,
+        shift: true,
+        mac_cmd: false,
+        command: false,
+    };
+    // The panel's manual-trigger check reads the AGGREGATE `i.modifiers` (not the per-event modifiers),
+    // so use kittest's `key_press_modifiers`, which sets `RawInput.modifiers` (persisted across frames)
+    // around the key press — a bare `Event::Key { modifiers }` does NOT update `i.modifiers`.
+    harness.key_press_modifiers(ctrl_shift, egui::Key::Space);
+    assert!(
+        run_until(&mut harness, || panel.is_signature_help_open()),
+        "AC-002: Ctrl+Shift+Space manually opens the signature-help popup"
+    );
+    assert_eq!(
+        panel.signature_help_state().expect("open").anchor_byte,
+        3,
+        "the manual open anchors at the enclosing call's '(' byte"
+    );
+
+    drop(harness);
+    drop(panel);
+    rt.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+/// AC-002 (scope step 8): when the code text surface loses focus the open popup dismisses. Driving
+/// `show()` directly (no pane factory) leaves the mirrored focus flag under test control, so setting it
+/// false exercises the per-frame guard's focus-loss branch.
+#[test]
+fn mustfix_signature_help_focus_loss_dismisses() {
+    let (panel, rt, active_param) = live_panel_with_mock_lsp("add");
+    panel.set_single_cursor(3);
+    let mut harness = live_harness(&panel);
+    harness.run();
+
+    active_param.store(0, Ordering::SeqCst);
+    harness.event(egui::Event::Text("(".to_owned()));
+    assert!(
+        run_until(&mut harness, || panel.is_signature_help_open()),
+        "the popup opened via the live pipeline"
+    );
+
+    // The code editor lost focus (another pane/input became active): the popup must dismiss even though
+    // the caret is still inside the call.
+    panel.set_code_surface_focus(false);
+    assert!(
+        run_until(&mut harness, || !panel.is_signature_help_open()),
+        "AC-002 scope step 8: losing code-surface focus dismisses the popup"
+    );
+
+    drop(harness);
+    drop(panel);
+    rt.shutdown_timeout(std::time::Duration::from_secs(2));
 }
