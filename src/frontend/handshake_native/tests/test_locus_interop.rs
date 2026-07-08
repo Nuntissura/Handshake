@@ -50,8 +50,8 @@ use handshake_native::backend_client::{
 };
 use handshake_native::interop::{
     dispatch_locus_ref_open, normalize_locus_id, parse_locus_ref, CrossRefError, DocumentRef,
-    FindNotesSearch, InteractionBus, LocusInteropError, LocusInteropService, LocusRefKind,
-    CMD_OPEN_LOCUS_REF, LOCUS_REF_KIND,
+    FindNotesHttp, FindNotesSearch, InteractionBus, LocusInteropError, LocusInteropService,
+    LocusRefKind, CMD_OPEN_LOCUS_REF, LOCUS_REF_KIND,
 };
 use handshake_native::rich_editor::document_model::doc_json::{
     from_json_string, to_content_json_value, to_json_string,
@@ -67,6 +67,13 @@ use handshake_native::rich_editor::wikilinks::inline_view::{
 };
 use handshake_native::rich_editor::wikilinks::parser::parse_wikilink;
 use handshake_native::theme::HsTheme;
+
+// The shared live-PostgreSQL backend gate (`require_live_backend` / `LiveBackend`) — the SAME honest
+// `requires_pg` precondition + HTTP surface the sibling PG-binding suites use
+// (tests/test_e7_knowledge_accesskit.rs, tests/test_parity_knowledge.rs). Used only by the gated
+// `#[ignore = "requires_pg"]` reverse-lookup case-robustness proof below; the default run never touches it.
+mod pg_proof_support;
+use pg_proof_support::{require_live_backend, LiveBackend};
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Artifact hygiene (CX-212E / SCREENSHOT RULE): all artifacts go to the EXTERNAL root ONLY.
@@ -1096,5 +1103,103 @@ fn authored_locus_wikilink_drives_chip_helpers_with_real_ref_value() {
 
     println!(
         "MUST-FIX OK: authored ref_value=wp/WP-KERNEL-012 -> author_id=locus-ref-chip-wp-WP-KERNEL-012, label=WP-KERNEL-012, staged=locus://wp/wp-kernel-012"
+    );
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// AC-004 / PT-004 (LIVE) — GATED #[ignore = "requires_pg"] reverse-lookup CASE-ROBUSTNESS proof.
+//
+// The unit `ac004_reverse_lookup_lists_referencing_documents` above proves the reverse lookup KEYS on the
+// NORMALIZED `locus://mt/mt-034` and de-dups — but its `CountingReverseLookup` returns the seeded hits
+// REGARDLESS of the query string, so it can NOT prove that a document STORING the authored-case
+// `locus://mt/MT-034` actually matches when the lookup keys on the lowercased `locus://mt/mt-034`. That
+// case-robustness is a LIVE-PG claim: the real reverse-lookup backend is the loom search-v2 route
+// (`POST /workspaces/{ws}/loom/search-v2`, driven by [`FindNotesHttp`]), whose FTS lexemes are lower-cased
+// and whose trigram similarity is case-insensitive. This gated proof seeds a real `note` block whose
+// searchable text (`block_search_text` flattens the block title into the FTS/trigram index —
+// `loom_search/mod.rs`) carries the MIXED-CASE authored ref, drives the REAL `FindNotesHttp` reverse lookup
+// through `find_documents_referencing` with the LOWERCASED normalized key, and asserts the seeded block IS
+// returned — proving authored `MT-034` is found via normalized `mt-034`.
+//
+// It is `#[ignore = "requires_pg"]` so the default run never depends on a live backend; the WP validator
+// runs it with `-- --ignored` against the managed backend. It seeds + best-effort cleans up its OWN note
+// block; it adds NO backend route and mutates NO Locus WP/MT state (it only creates a note block it then
+// deletes — the READ + REFERENCE-ONLY Locus edge is unchanged).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL on 127.0.0.1:37501 + HSK_TEST_WORKSPACE_ID; seeds a note block carrying authored-case locus://mt/MT-034, drives the REAL loom search-v2 reverse lookup with the lowercased normalized key, and asserts a case-robust match (authored MT-034 found via mt-034)"]
+fn ac004_reverse_lookup_case_robust_against_real_pg_live() {
+    // (a) REQUIRE + CONNECT the live managed backend + PostgreSQL (env + a reachable `/health`, else a
+    //     `requires_pg` panic — no fake-PG, no silent skip). The SAME gate the sibling PG suites use.
+    let be: LiveBackend = require_live_backend();
+    let ws = be.workspace_id.clone();
+
+    // (b) SEED a real `note` block whose searchable text carries the AUTHORED-CASE `locus://mt/MT-034`.
+    //     `block_search_text` flattens the block title into the FTS/trigram index (loom_search/mod.rs), and
+    //     `create_loom_block` refreshes that projection synchronously, so the block is searchable the moment
+    //     the POST returns. A unique marker keeps the assertion specific to THIS block. `note` is one of the
+    //     rich-doc content types the reverse lookup restricts to (NOTE_REF_CONTENT_TYPES), so it is in scope.
+    let marker = format!("mt068-caserobust-{}", std::process::id());
+    let seeded = be.post_json(
+        &format!("/workspaces/{ws}/loom/blocks"),
+        &serde_json::json!({
+            "content_type": "note",
+            // MIXED/authored case ON PURPOSE: the stored ref is `MT-034`, the lookup keys on `mt-034`.
+            "title": format!("{marker} references locus://mt/MT-034 for case-robustness"),
+        }),
+    );
+    let seeded_block_id = seeded
+        .get("block_id")
+        .and_then(|v| v.as_str())
+        .or_else(|| {
+            seeded
+                .get("block")
+                .and_then(|b| b.get("block_id"))
+                .and_then(|v| v.as_str())
+        })
+        .expect("AC-004 LIVE: create-loom-block returns a block_id")
+        .to_owned();
+    assert!(
+        !seeded_block_id.is_empty(),
+        "AC-004 LIVE: seeded a real note block ({seeded_block_id})"
+    );
+
+    // (c) Drive the REAL reverse-lookup path: a LocusInteropService bound to the live base, backed by the
+    //     REAL loom search-v2 reverse lookup (`FindNotesHttp` against the live backend) — NOT the counted
+    //     in-memory mock. `find_documents_referencing` keys on the LOWERCASED normalized ref.
+    let svc = LocusInteropService::with_base_url(
+        be.base.clone(),
+        ws.clone(),
+        Arc::new(FindNotesHttp::new(be.base.clone())),
+    );
+    // Parse the AUTHORED mixed-case ref; `.normalized` is the lowercased `locus://mt/mt-034` the lookup
+    // actually queries with — the case-robustness pivot (stored `MT-034` vs queried `mt-034`).
+    let mt = parse_locus_ref("locus://mt/MT-034").expect("a valid mt ref");
+    assert_eq!(
+        mt.normalized, "locus://mt/mt-034",
+        "AC-004 LIVE: the lookup keys on the LOWERCASED normalized ref (the case-robustness pivot)"
+    );
+    let docs = rt()
+        .block_on(async { svc.find_documents_referencing(&mt).await })
+        .expect("AC-004 LIVE: the real loom search-v2 reverse lookup returns Ok");
+
+    // (d) Whether the seeded block (authored `MT-034`) was found via the lowercased key.
+    let found = docs.iter().any(|d| {
+        d.document_id == seeded_block_id || d.block_id.as_deref() == Some(seeded_block_id.as_str())
+    });
+
+    // (e) Best-effort cleanup BEFORE the assertion so a failed match still removes the seeded block (DELETE
+    //     never panics; a cleanup failure must not mask the verdict).
+    let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{seeded_block_id}"));
+
+    assert!(
+        found,
+        "AC-004 LIVE: a note storing authored-case locus://mt/MT-034 must be returned by the reverse \
+         lookup keyed on the lowercased locus://mt/mt-034 (case-robust match); got docs={docs:?}"
+    );
+    println!(
+        "AC-004 LIVE OK: seeded note {seeded_block_id} (authored MT-034) found via normalized mt-034 \
+         through the REAL loom search-v2 reverse lookup (case-robust)"
     );
 }
