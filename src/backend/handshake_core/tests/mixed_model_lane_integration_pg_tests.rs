@@ -610,6 +610,190 @@ impl ProcessLedgerOverflowSink for RecordingOverflowSink {
     }
 }
 
+/// WP-1 MT-009 / HBR-SWARM-001 (REQUIRED acceptance row): two concurrent
+/// agent/model lanes (local + subagent) PLUS a simulated operator lane write to
+/// the SAME shared CRDT key at the same time.
+///
+/// The pre-existing mixed run gave each lane a DISJOINT key (`mt009.local` /
+/// `mt009.cloud` / `mt009.subagent`) and recorded messages sequentially, so
+/// convergence held by construction and shared-state contention was never
+/// exercised. This drives real `tokio` concurrency against ONE key and proves:
+///   * no deadlock / starvation - every concurrent `record_message` completes;
+///   * no silent overwrite - all three updates persist with distinct EventLedger
+///     sequences;
+///   * deterministic convergence - `materialize_crdt` resolves exactly one
+///     winner for the shared key by EventLedger order (not submission order),
+///     and is stable under reordering + duplicate replay;
+///   * the operator edit is a first-class `HumanOperator` lane
+///     (`launch_authority=Operator`, `runtime_binding=Human`).
+#[tokio::test]
+async fn mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key() {
+    const SWARM_RUN_ID: &str = "run-mt009-swarm001";
+    const SWARM_LOCAL_LANE: &str = "lane-mt009-swarm-local";
+    const SWARM_SUBAGENT_LANE: &str = "lane-mt009-swarm-subagent";
+    const SWARM_OPERATOR_LANE: &str = "lane-mt009-swarm-operator";
+    const SHARED_CRDT_KEY: &str = "mt009.shared.plan";
+
+    let (_pool, store) = model_lane_store().await;
+    store
+        .record_run(sample_run(
+            SWARM_RUN_ID,
+            vec![
+                SWARM_LOCAL_LANE.to_owned(),
+                SWARM_SUBAGENT_LANE.to_owned(),
+                SWARM_OPERATOR_LANE.to_owned(),
+            ],
+        ))
+        .await
+        .expect("record swarm ModelLaneRun");
+
+    for (lane_id, kind, binding, authority) in [
+        (
+            SWARM_LOCAL_LANE,
+            ModelLaneKind::LocalModel,
+            RuntimeBinding::Local,
+            LaunchAuthority::ModelRuntime,
+        ),
+        (
+            SWARM_SUBAGENT_LANE,
+            ModelLaneKind::Subagent,
+            RuntimeBinding::Subagent,
+            LaunchAuthority::SubagentManager,
+        ),
+        (
+            SWARM_OPERATOR_LANE,
+            ModelLaneKind::HumanOperator,
+            RuntimeBinding::Human,
+            LaunchAuthority::Operator,
+        ),
+    ] {
+        store
+            .record_lane(sample_lane(lane_id, SWARM_RUN_ID, kind, binding, authority))
+            .await
+            .unwrap_or_else(|err| panic!("record lane {lane_id}: {err}"));
+    }
+
+    let writers = [
+        (
+            "msg-mt009-swarm-local",
+            SWARM_LOCAL_LANE,
+            "local",
+            "local proposes plan v1",
+            1i64,
+        ),
+        (
+            "msg-mt009-swarm-subagent",
+            SWARM_SUBAGENT_LANE,
+            "subagent",
+            "subagent proposes plan v2",
+            2i64,
+        ),
+        (
+            "msg-mt009-swarm-operator",
+            SWARM_OPERATOR_LANE,
+            "operator",
+            "operator edits plan v3",
+            3i64,
+        ),
+    ];
+
+    // Concurrent writers against one shared CRDT key.
+    let shared_store = std::sync::Arc::new(store);
+    let mut handles = Vec::new();
+    for (message_id, lane_id, label, value, seq) in writers {
+        let store = std::sync::Arc::clone(&shared_store);
+        let mut message = sample_message(message_id, SWARM_RUN_ID, lane_id, label, seq);
+        message.diagnostic_payload["crdt_key"] = json!(SHARED_CRDT_KEY);
+        message.diagnostic_payload["crdt_value"] = json!(value);
+        handles.push(tokio::spawn(
+            async move { store.record_message(message).await },
+        ));
+    }
+    for handle in handles {
+        handle
+            .await
+            .expect("concurrent writer must not panic, deadlock, or starve")
+            .expect("concurrent record_message on a shared CRDT key must succeed");
+    }
+
+    // Durable payload authority for each concurrently-written message.
+    for (message_id, lane_id, label, _value, seq) in writers {
+        let message = sample_message(message_id, SWARM_RUN_ID, lane_id, label, seq);
+        shared_store
+            .record_context_bundle_artifact_binding(sample_artifact_binding_for_message(&message))
+            .await
+            .expect("record ArtifactStore/EventLedger payload authority");
+    }
+
+    let replay = shared_store
+        .replay_run(SWARM_RUN_ID)
+        .await
+        .expect("replay concurrent swarm run");
+
+    // No silent overwrite: every concurrent update is durable and distinctly sequenced.
+    assert_eq!(
+        replay.messages.len(),
+        3,
+        "all three concurrent shared-key updates must persist"
+    );
+    let sequences: BTreeSet<i64> = replay
+        .messages
+        .iter()
+        .map(|message| message.event_ledger_seq)
+        .collect();
+    assert_eq!(
+        sequences.len(),
+        3,
+        "each concurrent write must receive a distinct EventLedger sequence"
+    );
+
+    // The operator edit is a first-class HumanOperator lane.
+    let operator_lane = replay
+        .lanes
+        .iter()
+        .find(|lane| lane.lane_id == SWARM_OPERATOR_LANE)
+        .expect("operator lane persisted");
+    assert_eq!(operator_lane.kind, ModelLaneKind::HumanOperator);
+    assert_eq!(operator_lane.launch_authority, LaunchAuthority::Operator);
+    assert_eq!(operator_lane.runtime_binding, RuntimeBinding::Human);
+
+    // Convergence is decided by EventLedger order, not submission order.
+    let expected_winner = replay
+        .messages
+        .iter()
+        .max_by_key(|message| message.event_ledger_seq)
+        .and_then(|message| {
+            message
+                .diagnostic_payload
+                .get("crdt_value")
+                .and_then(Value::as_str)
+        })
+        .expect("winning crdt_value")
+        .to_owned();
+
+    let materialized = materialize_crdt(&replay.messages);
+    assert_eq!(
+        materialized.len(),
+        1,
+        "all writers targeted a single shared key"
+    );
+    assert_eq!(
+        materialized.get(SHARED_CRDT_KEY),
+        Some(&expected_winner),
+        "shared-key convergence must follow EventLedger order, with no lost update"
+    );
+
+    // Order-stable and duplicate-tolerant (idempotent replay).
+    let mut shuffled = replay.messages.clone();
+    shuffled.reverse();
+    shuffled.push(replay.messages[0].clone());
+    assert_eq!(
+        materialize_crdt(&shuffled),
+        materialized,
+        "concurrent shared-key convergence must be order-stable and duplicate-id tolerant"
+    );
+}
+
 #[tokio::test]
 async fn mixed_model_lane_recovery_replays_post_checkpoint_eventledger_catchup() {
     let (pool, store) = model_lane_store().await;
