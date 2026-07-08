@@ -1,0 +1,112 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-017",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": "2026-07-09T00:00:00Z",
+  "scope_status": "DEFERRED_BACKLOG_NOT_STARTED",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": { "path": "", "status": "SKIPPED_MINIMAL_GOVERNANCE" },
+  "lifecycle": {
+    "status": "DEFERRED",
+    "depends_on": ["MT-006", "MT-008", "MT-009", "MT-011"],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_STARTED",
+    "hbr_status": "NOT_STARTED",
+    "pre_implementation_adversarial_review_status": "CARRIED_FROM_KERNEL_BUILDER_REPROOF_2026-07-09",
+    "post_implementation_adversarial_review_status": "NOT_STARTED",
+    "adversarial_findings_status": "FINDINGS_CAPTURED_FROM_WP1_HEAD_REPROOF"
+  },
+  "scope": {
+    "summary": "Close the deferred WP-1 hardening gaps discovered during the KERNEL_BUILDER adversarial re-proof of all 16 MTs at HEAD. These are real, evidence-backed gaps that were deliberately NOT folded into their originating MTs because they require design decisions or touch a security boundary.",
+    "origin": "KERNEL_BUILDER takeover 2026-07-08/09: 6 parallel adversarial reviewers + full runtime re-proof at HEAD. Fixes already landed in-MT: MT-006 lane-bound consent negative test (commit 01c1ad8b), MT-009 HBR-SWARM-001 real concurrency (commit 750b9447), loom/ModelCapabilities compile fixes (commit 2e1204f0).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/",
+      "src/frontend/handshake_native/"
+    ],
+    "forbidden_paths": [
+      "SQLite runtime/test/fixture additions",
+      "new TypeScript/React/app/src implementation"
+    ],
+    "acceptance_criteria": [
+      "AC-1 [SECURITY BOUNDARY, from MT-006]: ModelLaneCloudConsentScope::SingleRun (model_lane.rs:6784) is currently UNREACHABLE DEAD METADATA. ProjectionPlan and ConsentReceipt are lane-bound (single lane_id) and ensure_cloud_launch_authority_tx (model_lane.rs:7452-7463) require_equal's plan/receipt lane_id against the launching lane, and ALL cloud lanes preflight. Therefore two lanes can never share a consent_receipt_ref, so revoke_cloud_consent_receipt's fan-out query (model_lane.rs:793, `WHERE record_json->>'consent_receipt_ref' = $1`) can never return more than one lane, and its Vec<ModelLaneRecord> return is unreachable. DECIDE AND IMPLEMENT: either (a) make SingleRun real - run-scoped ProjectionPlan+ConsentReceipt (drop the lane binding) plus scope-aware preflight (SingleRun => require run_id equality only; SingleLane => exact lane_id), then prove multi-lane fan-out revocation cancels ALL covered lanes with per-lane CX-MM-007 terminal EventLedger evidence and revoke idempotency; or (b) remove SingleRun as dead metadata. Do NOT silently broaden consent enforcement.",
+      "AC-2 [from MT-009 AC#5]: snapshot compaction has NO test. Prove compaction preserves update hashes, state vectors, and replay metadata.",
+      "AC-3 [from MT-009 AC#5]: crdt_state_vector is hardcoded ('sv:mt009:3', mixed_model_lane_integration_pg_tests.rs:2194) and never derived or compared. Derive a real state vector and assert stability across replay orders and duplicates.",
+      "AC-4 [from MT-009 AC#4]: cooperative cancellation is asserted only as static metadata (cancellation_boundary strings). Drive a real mid-stream cancellation at a streaming-chunk / tool-call boundary and prove the lane terminates cleanly with durable evidence.",
+      "AC-5 [from MT-008]: the native diagnostics Argus proof injects a hand-authored fixture (set_swarm_lane_diagnostics_projection_for_test), not backend output. Backend serves ModelLaneDiagnosticsProjection (model_lane.rs:6297); the frontend deserializes a SEPARATE SwarmLaneDiagnosticsProjection (swarm_lane_diagnostics.rs:31) coupled only by JSON field-name convention, and handshake_native intentionally does NOT depend on handshake_core. A field rename on either side ships a runtime parse error while both suites stay green. Pin the contract: a backend test asserting the projection's serialized field-name set matches the frontend deserializer's required keys, or a shared golden-JSON fixture asserted from both sides, or a live-route integration test.",
+      "AC-6 [from MT-011]: user_manual/behavior_coverage.rs:45 self_consistency_result() is a hardcoded constant always returning 'verified: ...'; every verifier only checks starts_with('verified:'). Make it compute a real check or rename it so it does not misrepresent verification.",
+      "AC-7 [from MT-010/MT-011]: behavior-coverage verifiers only check runtime_surface_id is non-empty (behavior_coverage.rs:553,756). A runtime_surface_id naming a DELETED internal Rust symbol still passes. HBR-MAN-003 'named surface exists' is enforced for HTTP routes but not internal function surfaces. Add symbol/route existence enforcement or downgrade the claim.",
+      "AC-8 [from MT-011]: only the model-lane behavior matrix is registry-generated; the operator-chat / cloud-access / embedded-model / dedicated-embedding matrices are hand-authored and guarded only by a self-referential expected-set assert. Drive non-schema matrices from an event-family/API registry, or disclose the gap in the manual.",
+      "AC-9 [from MT-004]: the six ModelLaneRoutingPolicy variants are typed/persisted metadata; the concrete engine (routing.rs:376 route()) only tiers Local vs Cloud. Decide whether each policy must drive distinct executable dispatch; implement or mark closed with rationale.",
+      "AC-10 [from MT-007]: lane_leases_for_run is bounded at checkpoint_bound_event_ledger_seq even on a forward-advanced run, so a lease taken for a new lane AFTER the checkpoint is neither surfaced active nor reconciled as orphan until the next checkpoint. Add an explicit test locking in the intended documented semantics.",
+      "AC-11 [from MT-015]: cloud_byok_access_config_leak_tests is gated `#![cfg(all(feature=\"os-keychain\", target_os=\"windows\"))]`, so off-Windows the named proof command compiles to ZERO tests and passes vacuously - which the packet forbids. Add a mock/in-memory-vault leak variant that runs cross-platform (the route tests already inject an in-memory vault), keeping the real OS-keychain Windows proof.",
+      "AC-12 [from MT-015, LOW]: the frontend store_key hop drops the zeroizing guarantee (app.rs:2824 key.to_string(); backend_client.rs:1122 store_key(api_key: String)). Wrap the transient in Zeroizing/SecretString so the 'SecretString at trust boundaries' claim holds on the client hop too.",
+      "AC-13 [from MT-012, LOW]: not-ready LOCAL picker rows render enabled (operator_chat_pane.rs:509) unlike cloud/cli/subagent disable-unavailable rows; owner_session/parent_session_id are hardcoded 'operator-chat-native' (backend_client.rs:158); OperatorChatLaunchService::enumerate_models (operator_chat.rs:1212) is dead code duplicating api/operator_chat.rs:142 enumerate_inventory."
+    ],
+    "proof_commands": [
+      "TO BE DEFINED per AC at activation. All durable authority proof MUST touch real managed PostgreSQL/EventLedger; no SQLite; proof commands must fail on zero matching tests."
+    ],
+    "risk_if_missed": "SingleRun consent scope stays dead metadata while the API surface implies run-scoped consent fan-out (a security-semantics lie). CRDT compaction/state-vector/cancellation claims stay asserted-but-unproven. The backend<->frontend diagnostics projection can drift into a runtime parse error with both test suites green. UserManual 'self_consistency verified' and 'named surface exists' claims overstate what is actually enforced.",
+    "reference_only_paths": ["app/src-tauri/", "app/src/"]
+  },
+  "implementation_notes": [
+    "AC-1 is a security-boundary change: broadening what a ConsentReceipt authorizes. It MUST be an explicit operator/validator decision, not an incidental refactor. Prefer removing SingleRun if run-scoped consent is not a real product requirement.",
+    "AC-5 cannot be a single-crate serde round-trip: handshake_native deliberately does not depend on handshake_core (API-reuse only; a crate dep is forbidden for this WP).",
+    "Already closed in-MT during the KERNEL_BUILDER re-proof and NOT part of this MT: MT-006 cross-lane consent reuse fails closed (cloud_consent_receipt_bound_to_other_lane_fails_closed); MT-009 HBR-SWARM-001 real concurrency on a shared CRDT key with a HumanOperator lane.",
+    "Rust-only: Rust backend plus native egui/Argus. No TypeScript/React/app-src."
+  ],
+  "required_build_rules": ["HBR-INT-003", "HBR-INT-004", "HBR-INT-009", "HBR-SWARM-002", "HBR-MAN-003", "HBR-MAN-004", "HBR-VIS-004"],
+  "hbr_obligations": ["INT", "SWARM", "MAN", "VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "consent_scope_security_boundary",
+      "crdt_compaction_state_vector_and_cancellation_runtime_proof",
+      "cross_crate_projection_contract_drift",
+      "usermanual_self_consistency_truthfulness",
+      "spec_realism_negative_guards_and_mt_status_signaling"
+    ]
+  },
+  "out_of_wp1_scope_disclosures": [
+    "tests/knowledge_pg_support.rs (WP-KERNEL-009) holds ManagedPostgres in a `static OnceCell`; Rust never drops statics at process exit, so EVERY PG test run LEAKS its managed PostgreSQL cluster. The leaked postgres inherits the test runner's redirected stdout handle, which can deadlock a parent shell pipeline forever. This is also an HBR-QUIET-003 reclaim gap (spawned resource never reclaimed). Route to the owning WP.",
+    "src/frontend/handshake_native/tests/test_settings_dialog.rs: duplicate_keybinding_chord_shows_conflict_banner_and_is_not_saved (:237) and reset_panes_and_drawers_button_arms_layout_reset (:298) FAIL at HEAD. Diff-confirmed that WP-1's WIP touched neither these tests nor the keybinding/layout-reset source logic; they are pre-existing, non-WP-1 (general UX) failures. Route to the owning WP.",
+    "tests/knowledge_ingestion_support (WP-KERNEL-009) fails to compile at HEAD: error[E0432] unresolved import `crate::knowledge_pg_support`. Pre-existing, unrelated to WP-1; only surfaces under `cargo check --tests` (all binaries), never under WP-1's targeted per-MT proof commands."
+  ],
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "AC-1 could be 'fixed' by relaxing preflight lane_id equality unconditionally, silently broadening every existing SingleLane receipt into a run-wide grant.",
+      "AC-5 could be 'fixed' with a hand-authored golden JSON that drifts with the backend, reproducing the same false-green.",
+      "AC-6 could be 'fixed' by deleting the assertion rather than computing a real check."
+    ],
+    "minimum_controls": [
+      "SingleLane receipts MUST remain exactly-one-lane after any AC-1 change; prove with a negative test that a SingleLane receipt cannot authorize a sibling lane.",
+      "AC-5 golden fixture, if used, MUST be generated from the backend type in a backend test that fails when the backend shape changes.",
+      "AC-6 must assert a computed result, not a constant."
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "rust_only_implementation": "Rust backend plus native egui/Argus only.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch real resources; COMPLETED is validator-only."
+  }
+}

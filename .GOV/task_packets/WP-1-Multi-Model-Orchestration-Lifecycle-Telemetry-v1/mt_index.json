@@ -2,8 +2,8 @@
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "generated_at_utc": "2026-07-01T19:02:22Z",
-  "total": 16,
-  "range": "MT-001..MT-016",
+  "total": 17,
+  "range": "MT-001..MT-017",
   "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes.",
   "microtasks": [
     {
@@ -302,6 +302,24 @@
       "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
       "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
       "adversarial_findings_status": "POST_REVIEW_FINDINGS_APPLIED_STABLE_EMBEDSPACE_ROUTING_DIM_CHECK_USERMANUAL_EVENT_TOOL_PROOF_UPDATES; OPTIONAL_BAD_EMBEDDING_LOAD_FAIL_CLOSED_UNDER_EXISTING_BOOT_CONTRACT"
+    },
+    {
+      "mt_id": "MT-017",
+      "status": "DEFERRED",
+      "depends_on": [
+        "MT-006",
+        "MT-008",
+        "MT-009",
+        "MT-011"
+      ],
+      "summary": "Deferred WP-1 hardening backlog from the KERNEL_BUILDER adversarial re-proof at HEAD: enforce-or-remove the unreachable ModelLaneCloudConsentScope::SingleRun (security boundary), CRDT snapshot-compaction + derived state_vector + real mid-stream cancellation proofs, backend<->frontend diagnostics projection contract pin, UserManual self-consistency/surface-existence truthfulness, routing-policy differentiation decision, post-checkpoint lease coverage, cross-platform BYOK leak proof, frontend zeroize. DEFERRED_BY_KERNEL_BUILDER 2026-07-09.",
+      "unlocks": "Closes the evidence-backed gaps that were deliberately not folded into their originating MTs because they need design decisions or touch a security boundary.",
+      "blocks": [],
+      "proof_status": "NOT_STARTED",
+      "hbr_status": "NOT_STARTED",
+      "pre_implementation_adversarial_review_status": "CARRIED_FROM_KERNEL_BUILDER_REPROOF_2026-07-09",
+      "post_implementation_adversarial_review_status": "NOT_STARTED",
+      "adversarial_findings_status": "FINDINGS_CAPTURED_FROM_WP1_HEAD_REPROOF"
     }
   ]
 }
