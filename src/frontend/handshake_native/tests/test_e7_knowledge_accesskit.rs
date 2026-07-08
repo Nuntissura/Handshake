@@ -40,8 +40,10 @@
 //! AC-042-05/06/07/10 + PROOF-042-D's DB ROUND-TRIP halves (place-block -> loom_canvas_placements row,
 //! kanban-move -> tag edge, add-edge -> edge row) are NEEDS_MANAGED_RESOURCE_PROOF: they need a running
 //! Handshake-managed PostgreSQL with a seeded loom canvas + view. They are the `#[ignore]`d `*_live_pg`
-//! tests, gated behind the `integration` feature; absent a seeded backend they are NOT faked and NOT a
-//! fake-PG (the MT contract's REAL-PG REALITY gate). The AccessKit registration + dispatch + the typed
+//! tests, harness-recognized via `#[ignore = "requires_pg: ..."]` and run with `-- --ignored` (the
+//! sibling `test_parity_knowledge.rs` pattern — NO cargo feature). Absent a seeded backend they are NOT
+//! faked and NOT a fake-PG (the MT contract's REAL-PG REALITY gate). The AccessKit registration +
+//! dispatch + the typed
 //! EVENT SHAPE the host would send to the E6 loom client are proven STANDALONE here with an in-memory
 //! graph-projection fixture (IN-042-09 permits this when a real-PG fixture is not yet wired).
 //!
@@ -51,6 +53,8 @@
 //! CHURN/VIEWPORT/QUIET gate: "AccessKit tree dump = HBR-VIS proof printed to stdout, no screenshot
 //! needed"). [`assert_no_local_artifact_dir`] still fails the run if a repo-local `tests/screenshots/`
 //! or `test_output/` dir exists (the reviewer also greps `git ls-files "src/**/*.png"`).
+
+mod pg_proof_support;
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -64,7 +68,9 @@ use handshake_native::accessibility::knowledge_action_registry::{
     COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG, HEALTH_CANARY_AUTHOR_ID,
 };
 use handshake_native::backend::loom::{CreateLoomEdgeRequest, LoomEdgeCreatedBy, LoomEdgeType};
-use handshake_native::backend_client::{BlockViewClient, CanvasBoardClient, HttpMethod};
+use handshake_native::backend_client::{
+    shared_http_client, BlockViewClient, CanvasBoardClient, HttpMethod, RequestSpec,
+};
 use handshake_native::graph::block_collection_view::{
     BlockCollectionView, BlockViewDefinition, BlockViewEvent, BlockViewKind, BlockViewLane,
     BlockViewResults, LoomBlockRow,
@@ -73,6 +79,8 @@ use handshake_native::graph::canvas_board::PAN_STEP;
 use handshake_native::graph::canvas_board::{CanvasEvent, CanvasPlacementCard, LoomCanvasBoard};
 use handshake_native::graph::graph_view::{GraphEdge, GraphEvent, GraphNode, LoomGraphView};
 use handshake_native::theme::HsTheme;
+
+use pg_proof_support::{require_live_backend, LiveBackend};
 
 // ── artifact-hygiene guard (CX-212E) ──────────────────────────────────────────────────────────────
 
@@ -1277,17 +1285,157 @@ fn ctrl03_malformed_payload_does_not_panic() {
 // ── AC-042-10 (gated): real-PG round-trip for place-block / kanban-move / add-edge ──────────────────
 //
 // NEEDS_MANAGED_RESOURCE_PROOF (the MT REAL-PG REALITY gate): the AccessKit registration + dispatch +
-// the typed EVENT SHAPE are proven above with an in-memory fixture. The DB ROUND-TRIP (place-block ->
-// loom_canvas_placements row; kanban-move -> tag edge; add-edge -> edge row; AC-042-05/06/07/10 +
-// PROOF-042-D's `SELECT tag_edges WHERE block_id=...`) needs a running Handshake-managed PostgreSQL with
-// a seeded loom canvas + view. It is NOT faked and NOT a fake-PG. Run against a live, seeded backend:
-//   cargo test --features integration --test test_e7_knowledge_accesskit -- --ignored
+// the typed EVENT SHAPE are proven above with an in-memory fixture. THIS is the DB ROUND-TRIP half
+// (place-block -> loom_canvas_placements row; kanban-move -> tag_edges row; add-edge -> edges row;
+// AC-042-05/06/07/10 + PROOF-042-D). It BINDS a running Handshake-managed PostgreSQL with a seeded loom
+// canvas + view, so it is a harness-recognized `#[ignore = "requires_pg: ..."]` proof — the SAME honest
+// gate the E8 parity suite (tests/test_parity_knowledge.rs) uses (no cargo feature; NOT faked, NO silent
+// skip). It stays `ignored` in the default run and is exercised in the live-PG batch:
+//   cargo test -p handshake-native --test test_e7_knowledge_accesskit -- --ignored
+
+/// Dispatch a prebuilt production [`RequestSpec`] (from the REAL `*_request` builders) against the live
+/// backend, honoring its HTTP method. [`LiveBackend`] covers POST/PUT/GET/DELETE but NOT PATCH, and the
+/// kanban-move round-trip is a PATCH (`updateLoomBlock` add_tags/remove_tags), so this method-aware
+/// sender dispatches the spec through the crate's production [`shared_http_client`] on `rt` — the same
+/// async surface `pg_proof_support` uses. It prepends `base`, panics `requires_pg` on transport failure,
+/// and asserts a 2xx (no mock, no silent skip). Returns the parsed JSON body (`Null` for an empty 2xx).
+fn send_spec(base: &str, rt: &tokio::runtime::Runtime, spec: &RequestSpec) -> serde_json::Value {
+    let url = format!("{base}{}", spec.url);
+    let client = shared_http_client();
+    let body = spec.body.clone();
+    let (status, text) = rt.block_on(async {
+        let mut rb = match spec.method {
+            HttpMethod::Post => client.post(&url),
+            HttpMethod::Patch => client.patch(&url),
+            HttpMethod::Put => client.put(&url),
+            HttpMethod::Get => client.get(&url),
+            HttpMethod::Delete => client.delete(&url),
+        };
+        if let Some(b) = &body {
+            rb = rb.json(b);
+        }
+        let resp = rb
+            .send()
+            .await
+            .unwrap_or_else(|e| panic!("requires_pg: {:?} {url} failed: {e}", spec.method));
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        (status, text)
+    });
+    assert!(
+        status.is_success(),
+        "{:?} {url} -> {status}: {text}",
+        spec.method
+    );
+    if text.is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::from_str(&text).unwrap_or(serde_json::Value::String(text))
+    }
+}
+
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: real PostgreSQL/EventLedger + seeded loom canvas/view (AC-042-05/06/07/10, PROOF-042-D)"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL; seed HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID + HSK_TEST_BOARD_ID + HSK_TEST_TARGET_BLOCK_ID (AC-042-05/06/07/10, PROOF-042-D: place-block->loom_canvas_placements, kanban-move->tag_edges, add-edge->edges)"]
 fn ac10_live_pg_round_trip() {
-    // Intentionally a documented gate, not a fake. A future E6-wired integration run drives the E6 loom
-    // client (POST .../placements, updateLoomBlock add_tags/remove_tags, POST /loom/edges) against a real
-    // PG and SELECTs the resulting rows. This MT proves the request SHAPE + the AccessKit surface; the
-    // DB authority touch is the host's E6 path under a live backend.
-    panic!("run only with --features integration against a seeded live backend");
+    // (a) REQUIRE + CONNECT the live managed backend + PostgreSQL. `require_live_backend` enforces
+    //     HSK_TEST_WORKSPACE_ID + a reachable `/health`, panicking `requires_pg` otherwise (no fake-PG,
+    //     no silent skip) — the SAME gate tests/test_parity_knowledge.rs uses.
+    let be: LiveBackend = require_live_backend();
+    let ws = be.workspace_id.clone();
+
+    // Seed ids come from the managed-PG seed the live-PG batch stands up (the honest env split the sibling
+    // parity proofs use). require_block_id() is the shared helper; the canvas board + edge-target block
+    // are read the same descriptive-`requires_pg` way.
+    let source_block = be.require_block_id();
+    let board_id = std::env::var("HSK_TEST_BOARD_ID")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .expect(
+            "requires_pg: set HSK_TEST_BOARD_ID to a real loom canvas board id in the seeded workspace",
+        );
+    let target_block = std::env::var("HSK_TEST_TARGET_BLOCK_ID")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .expect(
+            "requires_pg: set HSK_TEST_TARGET_BLOCK_ID to a second real Loom block id (the add-edge target)",
+        );
+
+    // (b) SEED the "+ view" half via the VERIFIED create-view route (POST /loom/views/definitions — the
+    //     E3-34 route), so the round-trip also touches a real saved view. The view id is the created
+    //     block's id.
+    let view = be.post_json(
+        &format!("/workspaces/{ws}/loom/views/definitions"),
+        &serde_json::json!({
+            "title": "mt042-ac10-kanban",
+            "definition": { "kind": "kanban", "columns": ["title"] }
+        }),
+    );
+    let view_id = view
+        .get("block")
+        .and_then(|b| b.get("block_id"))
+        .and_then(|v| v.as_str())
+        .or_else(|| view.get("block_id").and_then(|v| v.as_str()))
+        .expect("AC-042-10: create-view returns block.block_id")
+        .to_owned();
+    assert!(!view_id.is_empty(), "AC-042-10: seeded a real saved view ({view_id})");
+
+    // The REAL production request builders — the SAME ones the STANDALONE request-shape proofs
+    // (ac05_place_block_event_builds_real_placements_request /
+    // ac06_card_move_event_builds_real_update_loom_block_request /
+    // ac07_add_edge_event_builds_real_create_loom_edge_request) assert against. Built with an EMPTY base
+    // so `spec.url` is the exact PATH the live-backend helpers prepend `be.base` to.
+    let rt = request_runtime();
+    let canvas = CanvasBoardClient::new("", rt.handle().clone());
+    let blocks = BlockViewClient::new("", rt.handle().clone());
+
+    // (c1) place-block -> POST .../placements (AC-042-05 DB half). Body from the REAL place_block_request.
+    let place = canvas.place_block_request(&ws, &board_id, &source_block, 100.0, 100.0, 200.0, 120.0);
+    let placement = be.post_json(&place.url, &place.body.expect("place-block carries a body"));
+    let placement_id = placement["placement_id"]
+        .as_str()
+        .expect("AC-042-05: placeBlockOnCanvas returns a placement_id")
+        .to_owned();
+
+    // (d1) SELECT loom_canvas_placements: the row persisted iff it appears in the board GET.
+    let board = be.get_json(&format!("/workspaces/{ws}/loom/canvas-boards/{board_id}"));
+    assert!(
+        serde_json::to_string(&board).unwrap().contains(&placement_id),
+        "AC-042-05/PROOF-042-D: placement {placement_id} must appear in the board GET \
+         (loom_canvas_placements row persisted)"
+    );
+
+    // (c2) kanban-move -> PATCH /loom/blocks/:id add_tags=[done], remove_tags=[todo] (AC-042-06 DB half).
+    //      Body from the REAL card_move_request (top-level add_tags/remove_tags). PATCH is dispatched via
+    //      send_spec because LiveBackend exposes no PATCH helper.
+    let to_lane = "mt042-ac10-done";
+    let from_lane = "mt042-ac10-todo";
+    let mv = blocks.card_move_request(&ws, &source_block, &[to_lane.to_owned()], &[from_lane.to_owned()]);
+    send_spec(&be.base, &rt, &mv);
+
+    // (d2) SELECT tag_edges: the add_tags edge persisted iff the block surfaces in the tag hub for the tag.
+    let hub = be.get_json(&format!("/workspaces/{ws}/loom/tags/{to_lane}"));
+    assert!(
+        serde_json::to_string(&hub).unwrap().contains(&source_block),
+        "AC-042-06/PROOF-042-D: block {source_block} must surface in the tag hub for '{to_lane}' \
+         (tag_edges row persisted)"
+    );
+
+    // (c3) add-edge -> POST /loom/edges (AC-042-07 DB half). Body from the REAL semantic_edge_request
+    //      (source/target/edge_type=mention/created_by=user).
+    let edge = canvas.semantic_edge_request(&ws, &source_block, &target_block);
+    be.post_json(&edge.url, &edge.body.expect("add-edge carries a body"));
+
+    // (d3) SELECT edges: the edge row persisted iff source appears in target's backlinks (the A->B edge).
+    let backlinks = be.get_json(&format!("/workspaces/{ws}/loom/blocks/{target_block}/backlinks"));
+    assert!(
+        serde_json::to_string(&backlinks).unwrap().contains(&source_block),
+        "AC-042-07/AC-042-10/PROOF-042-D: source {source_block} must appear in {target_block} backlinks \
+         (edges row persisted)"
+    );
+
+    println!(
+        "AC-042-05/06/07/10 + PROOF-042-D: place-block -> placement {placement_id} in board GET; \
+         kanban-move -> tag_edges hub '{to_lane}'; add-edge -> edges backlink {source_block} -> \
+         {target_block} — all round-tripped through real PostgreSQL"
+    );
 }
