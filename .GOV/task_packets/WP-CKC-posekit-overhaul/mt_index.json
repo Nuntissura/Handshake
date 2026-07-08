@@ -2,7 +2,7 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-05T10:29:13.4708984Z",
+  "updated_at_utc": "2026-07-08T04:40:00Z",
   "active_mt_id": null,
   "next_mt_id": null,
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
@@ -177,7 +177,7 @@
     },
     {
       "mt_id": "MT-012",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "product_commit": "fb6ecf39",
       "ready_for_validation_at_utc": "2026-07-02T08:47:55.759Z",
       "title": "Restore CKC story panels and native moodboard integration",
@@ -189,7 +189,9 @@
       "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-013",
@@ -241,7 +243,7 @@
     },
     {
       "mt_id": "MT-016",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Link CKC sheet versions to ComfyUI renders and OpenPose artifacts",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-016.json",
       "product_edit_allowed": true,
@@ -252,11 +254,13 @@
       "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-017",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Build CKC/Ingest dataset mining review pipeline",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-017.json",
       "product_edit_allowed": true,
@@ -266,11 +270,13 @@
       "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-018",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Add native contact sheet generator for image mining and LoRA review",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
       "product_edit_allowed": true,
@@ -280,7 +286,9 @@
       "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-019",
@@ -326,28 +334,32 @@
     },
     {
       "mt_id": "MT-022",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Make all Atelier tool surfaces parallel-agent safe and Argus steerable",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-022.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-07-04T06:04:24Z",
       "ready_for_validation_at_utc": "2026-07-04T07:12:24.322Z",
-      "validator_verdict": "FAIL_V1"
+      "validator_verdict": "FAIL_V1",
+      "product_commit_v2": "7a666f3d+a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-023",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Run Argus-driven visual and behavioral overhaul pass for Atelier tools",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-07-04T07:29:50.935Z",
       "claimed_by": "KERNEL_BUILDER-20260704-072636",
       "ready_for_validation_at_utc": "2026-07-04T09:39:46.789Z",
-      "validator_verdict": "FAIL_V1"
+      "validator_verdict": "FAIL_V1",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-024",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Retire or contain legacy non-Rust CKC/Posekit surfaces after native parity",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.json",
       "product_edit_allowed": true,
@@ -356,7 +368,9 @@
       "validator_verdict": "FAIL_V1",
       "ready_for_validation_at_utc": "2026-07-04T10:21:26.547Z",
       "disposition_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024-legacy-surface-disposition.json",
-      "review_correlation_id": "review:WP-CKC-posekit-overhaul:review_request:mr67pp56:acc855"
+      "review_correlation_id": "review:WP-CKC-posekit-overhaul:review_request:mr67pp56:acc855",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-025",
@@ -484,7 +498,7 @@
     },
     {
       "mt_id": "MT-033",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Scale CKC media albums for large libraries and pagination",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
       "product_edit_allowed": true,
@@ -492,11 +506,13 @@
       "ready_for_validation_at_utc": "2026-07-04T12:11:32.578Z",
       "parallel_lane_note": "Follow-up from MT-010 review; captures album/member pagination and large-library merge safety.",
       "claimed_by": "KERNEL_BUILDER-20260704-072636",
-      "validator_verdict": "FAIL_V1"
+      "validator_verdict": "FAIL_V1",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-034",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Add CKC media album unlink, reorder, and link-edit APIs",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-034.json",
       "product_edit_allowed": true,
@@ -504,11 +520,13 @@
       "ready_for_validation_at_utc": "2026-07-04T20:16:21.068Z",
       "parallel_lane_note": "Follow-up from MT-010 review; captures album mutation API gaps beyond add/list.",
       "claimed_by": "KERNEL_BUILDER-20260704-184131",
-      "validator_verdict": "FAIL_V1"
+      "validator_verdict": "FAIL_V1",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-035",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Define CKC folder and source-ref authority",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
       "product_edit_allowed": true,
@@ -516,11 +534,13 @@
       "claimed_by": "KERNEL_BUILDER-20260704-202642",
       "validator_verdict": "FAIL_V1",
       "parallel_lane_note": "Follow-up from MT-010 review; captures folder/source provenance authority and validation.",
-      "ready_for_validation_at_utc": "2026-07-04T21:22:06.333Z"
+      "ready_for_validation_at_utc": "2026-07-04T21:22:06.333Z",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-036",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Add CKC media row-level attribution and parallel-agent conflict safety",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json",
       "product_edit_allowed": true,
@@ -528,7 +548,9 @@
       "parallel_lane_note": "Follow-up from MT-010 review; captures row-level attribution and parallel-agent recovery.",
       "claimed_by": "KERNEL_BUILDER-20260704-202642",
       "validator_verdict": "FAIL_V1",
-      "ready_for_validation_at_utc": "2026-07-04T22:44:42.472Z"
+      "ready_for_validation_at_utc": "2026-07-04T22:44:42.472Z",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-037",
@@ -548,7 +570,7 @@
     },
     {
       "mt_id": "MT-038",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Run CKC linked-media runtime Argus and manual proof pass",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-038.json",
       "product_edit_allowed": true,
@@ -556,7 +578,9 @@
       "parallel_lane_note": "Follow-up from MT-010 review; captures runtime Argus/manual proof and artifact-size control.",
       "claimed_by": "KERNEL_BUILDER-20260704-232626",
       "validator_verdict": "FAIL_V1",
-      "ready_for_validation_at_utc": "2026-07-05T00:20:03.134Z"
+      "ready_for_validation_at_utc": "2026-07-05T00:20:03.134Z",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-039",
@@ -647,7 +671,7 @@
     },
     {
       "mt_id": "MT-043",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "product_commit": "9902d7b0",
       "title": "Backend+client byte-fetch endpoints for Posekit source-image and OpenPose artifact display",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-043.json",
@@ -662,7 +686,9 @@
       "claimed_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
       "claim_recovered_at_utc": "2026-07-05T10:29:13.4708984Z",
-      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL."
+      "claim_recovery_reason": "Status recovery: legacy RFV contract lacked lifecycle.claimed_by; Kernel Builder inspected current MT state and accepts implementer-side handoff responsibility without claiming validator PASS/FAIL.",
+      "product_commit_v2": "7a666f3d+a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-044",
@@ -692,7 +718,8 @@
     },
     {
       "mt_id": "MT-045",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
+      "product_commit_v2": "2915c434",
       "title": "Isolate moodboard PG round-trip proof from broken core-data test binary",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-045.json",
       "product_edit_allowed": true,
@@ -701,11 +728,12 @@
       "claimed_by": "KERNEL_BUILDER-20260705-003842",
       "validator_verdict": "FAIL_V1",
       "ready_for_validation_at_utc": "2026-07-05T01:10:09.319Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-046",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Make moodboard add/place/connect affordances honest",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-046.json",
       "product_edit_allowed": true,
@@ -714,11 +742,13 @@
       "validator_verdict": "FAIL_V1",
       "claimed_by": "KERNEL_BUILDER-20260705-003842",
       "ready_for_validation_at_utc": "2026-07-05T02:15:53.623Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-047",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Bound decoded CKC media and Posekit image caches",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-047.json",
       "product_edit_allowed": true,
@@ -727,11 +757,13 @@
       "validator_verdict": "FAIL_V1",
       "claimed_by": "KERNEL_BUILDER-20260705-003842",
       "ready_for_validation_at_utc": "2026-07-05T02:40:34.126Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-048",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Harden Atelier panel mock-server tests under load",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-048.json",
       "product_edit_allowed": true,
@@ -740,11 +772,13 @@
       "validator_verdict": "FAIL_V1",
       "claimed_by": "KERNEL_BUILDER-20260705-003842",
       "ready_for_validation_at_utc": "2026-07-05T02:57:44.434Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-049",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Preserve Argus actor on local CKC sheet-artifact attach",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-049.json",
       "product_edit_allowed": true,
@@ -753,11 +787,13 @@
       "validator_verdict": "FAIL_V1",
       "claimed_by": "KERNEL_BUILDER-20260705-003842",
       "ready_for_validation_at_utc": "2026-07-05T03:06:29.565Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-050",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Render literal Posekit exported PNG artifact bytes",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-050.json",
       "product_edit_allowed": true,
@@ -766,11 +802,13 @@
       "validator_verdict": "FAIL_V1",
       "claimed_by": "KERNEL_BUILDER-20260705-003842",
       "ready_for_validation_at_utc": "2026-07-05T04:37:33.943Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "7a666f3d+a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-051",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Wire prompt-feedback panel to backend round-trip drain loop",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-051.json",
       "product_edit_allowed": true,
@@ -780,11 +818,13 @@
       "claimed_by": "KERNEL_BUILDER-20260705-044820",
       "claimed_at_utc": "2026-07-05T05:00:05.147Z",
       "ready_for_validation_at_utc": "2026-07-05T06:12:43.245Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-052",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Add prompt-stress CSV import adapter",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-052.json",
       "product_edit_allowed": true,
@@ -794,11 +834,13 @@
       "claimed_by": "KERNEL_BUILDER-20260705-044820",
       "claimed_at_utc": "2026-07-05T06:16:55.567Z",
       "ready_for_validation_at_utc": "2026-07-05T07:17:42.000Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-053",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Replace Facial manual ID allowlist with rendered-panel audit",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-053.json",
       "product_edit_allowed": true,
@@ -808,11 +850,13 @@
       "claimed_by": "KERNEL_BUILDER-20260705-044820",
       "claimed_at_utc": "2026-07-05T07:20:27.760Z",
       "ready_for_validation_at_utc": "2026-07-05T07:40:21.667Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-054",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Expose Facial montage/export content readouts and numeric parse notes",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-054.json",
       "product_edit_allowed": true,
@@ -822,11 +866,13 @@
       "claimed_by": "KERNEL_BUILDER-20260705-044820",
       "claimed_at_utc": "2026-07-05T07:42:50.990Z",
       "ready_for_validation_at_utc": "2026-07-05T08:30:01.353Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "a2abba07",
+      "validator_verdict_v2": "PENDING_V2"
     },
     {
       "mt_id": "MT-055",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V2",
       "title": "Envelope-wrap remaining Facial review commands",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-055.json",
       "product_edit_allowed": true,
@@ -836,7 +882,18 @@
       "claimed_by": "KERNEL_BUILDER-20260705-044820",
       "claimed_at_utc": "2026-07-05T08:39:17.822Z",
       "ready_for_validation_at_utc": "2026-07-05T09:52:14.692Z",
-      "handoff_status": "READY_FOR_VALIDATION"
+      "handoff_status": "READY_FOR_VALIDATION",
+      "product_commit_v2": "7a666f3d",
+      "validator_verdict_v2": "PENDING_V2"
+    },
+    {
+      "mt_id": "MT-056",
+      "status": "DEFERRED",
+      "title": "CKC swarm-safety, EventLedger-atomicity, and pagination hardening (deferred from V2 adversarial review)",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-056.json",
+      "product_edit_allowed": true,
+      "origin": "New deferred-hardening tracker created during V2 remediation; captures adversarial-review findings F1-F10 + intake deadlock-retry + F8 operator-decision. Source MTs remain proven; do not reopen them.",
+      "validator_verdict": "NOT_APPLICABLE_DEFERRED"
     }
   ],
   "baseline": {

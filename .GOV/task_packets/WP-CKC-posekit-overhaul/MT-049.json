@@ -13,7 +13,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-049",
   "title": "Preserve Argus actor on local CKC sheet-artifact attach",
-  "status": "FAIL_V1",
+  "status": "READY_FOR_VALIDATION_V2",
   "created_at_utc": "2026-07-05T00:47:00.588Z",
   "updated_at_utc": "2026-07-05T03:07:34.621Z",
   "started_at_utc": "2026-07-05T02:57:44.434Z",
@@ -30,7 +30,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-049.json"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-016",
@@ -170,5 +170,17 @@
   },
   "status_v1": "FAIL_V1",
   "validator_verdict": "FAIL_V1",
-  "status_before_v1": "READY_FOR_VALIDATION"
+  "status_before_v1": "READY_FOR_VALIDATION",
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "remediated_by": "KERNEL_BUILDER-20260708-025948",
+    "remediated_at_utc": "2026-07-08T04:40:00Z",
+    "product_commits": [
+      "a2abba07"
+    ],
+    "proof_result": "test_atelier_panel argus_attaches_latest_posekit_export_to_ckc_sheet_artifacts_locally + ckc_local_fallback_is_argus_visible passed at committed HEAD (actor->linked_by wiring committed)",
+    "managed_pg": "Handshake-native PostgreSQL 16 cluster 127.0.0.1:5545",
+    "adversarial_review": "pre- and post-implementation adversarial sub-agent review performed; hardening findings (F1-F10, intake deadlock-retry, F8 operator-decision) deferred to MT-056",
+    "validator_verdict": "PENDING_V2"
+  }
 }

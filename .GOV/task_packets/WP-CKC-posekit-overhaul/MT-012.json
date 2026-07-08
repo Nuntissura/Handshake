@@ -5,7 +5,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-012",
   "title": "Restore CKC story panels and native moodboard integration",
-  "status": "FAIL_V1",
+  "status": "READY_FOR_VALIDATION_V2",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
   "updated_at_utc": "2026-06-28T21:53:53.761Z",
   "product_edit_allowed": true,
@@ -22,7 +22,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-012.json"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-009",
@@ -104,5 +104,17 @@
   },
   "status_v1": "FAIL_V1",
   "validator_verdict": "FAIL_V1",
-  "status_before_v1": "READY_FOR_VALIDATION"
+  "status_before_v1": "READY_FOR_VALIDATION",
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "remediated_by": "KERNEL_BUILDER-20260708-025948",
+    "remediated_at_utc": "2026-07-08T04:40:00Z",
+    "product_commits": [
+      "7a666f3d"
+    ],
+    "proof_result": "core_data atelier_moodboard_schema_layer_model_round_trips_full_structure + atelier_story_cards_and_beats_round_trip 2 passed (managed PG); E0382 clone fix",
+    "managed_pg": "Handshake-native PostgreSQL 16 cluster 127.0.0.1:5545",
+    "adversarial_review": "pre- and post-implementation adversarial sub-agent review performed; hardening findings (F1-F10, intake deadlock-retry, F8 operator-decision) deferred to MT-056",
+    "validator_verdict": "PENDING_V2"
+  }
 }

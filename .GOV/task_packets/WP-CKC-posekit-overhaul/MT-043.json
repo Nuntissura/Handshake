@@ -13,7 +13,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-043",
   "title": "Backend+client byte-fetch endpoints for Posekit source-image and OpenPose artifact display",
-  "status": "FAIL_V1",
+  "status": "READY_FOR_VALIDATION_V2",
   "created_at_utc": "2026-07-02T00:06:17.077Z",
   "updated_at_utc": "2026-07-02T00:06:17.077Z",
   "started_at_utc": null,
@@ -41,7 +41,7 @@
   },
   "hbr_obligations_note": "HBR-INT (ArtifactStore/EventLedger byte fetch), HBR-VIS (Argus-inspect the loaded image/PNG), HBR-QUIET (async non-blocking, explicit error state), HBR-MAN (UserManual).",
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-014"
@@ -99,5 +99,18 @@
   },
   "status_v1": "FAIL_V1",
   "validator_verdict": "FAIL_V1",
-  "status_before_v1": "READY_FOR_VALIDATION"
+  "status_before_v1": "READY_FOR_VALIDATION",
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "remediated_by": "KERNEL_BUILDER-20260708-025948",
+    "remediated_at_utc": "2026-07-08T04:40:00Z",
+    "product_commits": [
+      "7a666f3d",
+      "a2abba07"
+    ],
+    "proof_result": "atelier_pose byte-fetch passed (managed PG); AC2/AC5 satisfied via committed MT-050 (openpose-png byte route + literal render)",
+    "managed_pg": "Handshake-native PostgreSQL 16 cluster 127.0.0.1:5545",
+    "adversarial_review": "pre- and post-implementation adversarial sub-agent review performed; hardening findings (F1-F10, intake deadlock-retry, F8 operator-decision) deferred to MT-056",
+    "validator_verdict": "PENDING_V2"
+  }
 }
