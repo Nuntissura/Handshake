@@ -14,7 +14,7 @@
   "title": "D2-MT-082-InternalDiagnosticsModule-OpenRecordApi-LiveWired",
   "group": "D2 internal_diagnostics (Tier 2 in-process)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-08T00:29:01.128Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-082.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,27 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
-    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "active": true,
+    "claimed_by": "KERNEL_BUILDER-20260707-224033",
+    "claimed_at_utc": "2026-07-08T00:29:01.128Z",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-07-08T00:29:01.128Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "rfv_evidence_2026_07_08": {
+      "by": "KERNEL_BUILDER-20260707-224033",
+      "mode": "VERIFY_AND_PROVE (no code change - reopen finding already fixed in WIP)",
+      "session_summary": "Reopened OPEN MT-082 taken over. Verified the 2026-07-03 reopen finding (multi-producer ring-write race: buffer lock dropped before writer.write) is ALREADY FIXED in current code - recorder.rs record() holds the buffer mutex across writer.write (single-producer discipline restored). 3-lens adversarial pre-review (correctness/proof/perf) ALL PASS: live-wiring REAL (record consumed by production install/startup-marker/heartbeat/panic/watchdog/backend), CX-981-003 privacy compile-time enforced (POD DiagEvent, closed enum, no text), hot path wait-free. No code change required.",
+      "proofs": "test_internal_diagnostics 5/5 exit-0 (KERNEL_BUILDER re-run, single-threaded): record_writes_ring_and_buffer (cross-process ring read-back), record_is_nonblocking_panic_free_under_stress (8x5000 multi-thread torn-record = the reopen fix proof), live_startup_marker_is_recorded (real HandshakeApp::new consumption), public_api_has_no_free_text_surface, record_degrades_gracefully_with_no_writer. cargo build --lib clean. PT-002-E git-hygiene clean.",
+      "hbr_int_009_posture": "FR=NOT_APPLICABLE (untouched; forwarding is MT-093), INTERNAL_DIAGNOSTICS=WIRED, PALMISTRY=WIRED (ring read-back).",
+      "batch_deferred": "PT-002-D whole-crate 'full -j2 suite green + clippy -D clean' is the Integration Validator BATCH gate per validation_topology; clippy -D is currently blocked by pre-existing MT-080 app.rs dead_code (editor_action_registry/outline_panel/knowledge_registry declared ahead of their MT-080 consumer, NOT MT-082 code). Deferred to IV batch (passes once MT-080 wires them).",
+      "deferred_bridges": [
+        "editor large-file render should register with diagnostics OperationWatchdog/SlowFrame -> MT-045/MT-105.",
+        "surface dropped_count + SLOW_FRAME_THRESHOLD/SAMPLE_INTERVAL in diagnostics panel/settings -> MT-087.",
+        "install_panic_hook (panic_hook.rs:104-117) has no idempotency guard (single-call today) -> note for MT-083.",
+        "FR recovery-forward survivor_forward.rs -> MT-093."
+      ]
+    },
     "depends_on": [
       "MT-081"
     ],
@@ -39,11 +58,44 @@
       "MT-088"
     ],
     "validator_verdict": "PENDING",
-    "reopened_at_utc": "2026-07-02T03:40:52Z",
+    "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: record() drops the buffer lock BEFORE writer.write(event) (recorder.rs:123-130), funneling MULTIPLE threads into the SPSC DiagRingWriter (Relaxed write_index load + non-atomic payload copy, single-producer only). Production now HAS cross-thread producers: MT-105 watchdog poll thread emits StalledOperation via diagnostics::record and MT-083 panic hook records from the panicking thread, concurrent with UI-thread SlowFrame/ResourceSample/Backend* emits. Two racing record() calls can interleave per-slot seq odd/even such that a reader ACCEPTS a torn record - plus a plain Rust data race (UB). The stress-test justification comment (production never does this - UI thread is sole writer) is no longer true after MT-105/MT-083. Heartbeat slot unaffected (UI-thread-only, disjoint fields). Fix: serialize ring record writes (hold the buffer mutex across writer.write, or dedicated ring-write mutex, or atomic slot claim via fetch_add + per-slot seq), then extend the stress test to a writer-installed recorder with multi-thread torn-record read-back. Live wiring itself is genuinely proven (ring installed in main before eframe, startup marker from production ctor).",
     "deflection_category": "ring_write_multi_producer_race",
-    "remediation_appendage": "Serialize ring record writes (multi-producer race into SPSC writer since MT-105/MT-083 - torn-record + UB risk); extend stress test to writer-installed recorder."
+    "remediation_appendage": "Serialize ring record writes (multi-producer race into SPSC writer since MT-105/MT-083 - torn-record + UB risk); extend stress test to writer-installed recorder.",
+    "open_repair_plan_2026_07_03": {
+      "schema_id": "hsk.mt_open_repair_plan@1",
+      "created_at_utc": "2026-07-03T21:26:02Z",
+      "created_by": "KERNEL_BUILDER",
+      "source": "operator_live_command_2026_07_03_reopen_all_non_ready_validation_mts",
+      "operator_rule": "No official validation has run for any MT; canonical MT status must be READY_FOR_VALIDATION or OPEN. Any other lifecycle.status is drift.",
+      "previous_status": "NEEDS_REIMPLEMENTATION",
+      "previous_active": false,
+      "previous_claim": null,
+      "cutoff_assumption": null,
+      "fix_first": "Verify and close the audit finding: Serialize ring record writes (multi-producer race into SPSC writer since MT-105/MT-083 - torn-record + UB risk); extend stress test to writer-installed recorder.",
+      "how_to_fix": [
+        "Start by reading this lifecycle.open_repair_plan_2026_07_03, lifecycle.remediation_appendage, lifecycle.operator_decision_summary, scope.acceptance_criteria, and scope.proof_targets before editing.",
+        "Inspect the current product/runtime files named by the audit note before deciding whether the defect still exists; existing implementation_result PASS/PROVEN language is not official validation evidence.",
+        "If the defect still exists, make the smallest live-path fix that closes the named operator-visible/runtime gap; if current code already fixed it, do not rework it, instead rerun and record the proof.",
+        "Map the fix back to the contract acceptance criteria (AC-002-1: `cargo test -p handshake-native internal_diagnostics` passes a test that installs a DiagnosticsRecorder with a real DiagRingWriter (a temp ring), calls `diagnostics::record(...)` N times, and asserts both (a) `snapshot_last_n` returns them in-process AND (b) a separate DiagRingReader::open on the same ring reads them back — proving record() writes the ring., AC-002-2: `record()` is non-blocking + panic-free under stress: a test calls it from multiple threads thousands of times with a full buffer and asserts no panic, the buffer stays bounded (<= cap), and `dropped_count()` accounts for shed events (no unbounded growth, no deadlock)., AC-002-3: graceful degradation: with NO writer installed, `record()` still buffers in-process and never errors/panics (the headless/test path)., AC-002-4 (WIRE-INTO-LIVE, the anti-dead-code gate): a real launch produces at least one DiagEvent through the LIVE call site with zero test scaffolding — proven by a kittest that drives the real HandshakeApp startup (or pane mount) and asserts `diagnostics::snapshot_last_n` is non-empty after the live path ran (the recorded event came from production code, not the test)., AC-002-5: the API exposes NO free-text/byte-blob surface — `record` and `record_with` accept only DiagEvent / typed enum+integer args; a source scan in the test confirms no `String`/`&str` content parameter on the public diagnostics API (typed-allowlist invariant from §5.8.3 preserved at the API boundary)., AC-002-6: `cargo build -p handshake-native` (lib + bins) compiles clean with the new path dependency; clippy `--all-targets -D warnings` clean; the full suite via `-j 2` is green (no regression to the ~90 bins)., ...) so the next validator sees the closure path.",
+        "Run the declared proof target(s), plus any targeted audit-named live/managed-resource proof: PT-002-A: `cargo test -p handshake-native internal_diagnostics` GREEN — record() -> ring read-back + in-process snapshot. ; PT-002-B: stress test GREEN — multithread record(), bounded buffer, dropped accounting, no panic/deadlock. ; PT-002-C: kittest drives real HandshakeApp startup/pane-mount and asserts snapshot_last_n non-empty from the LIVE call site (consumption proof). ; PT-002-D: `cargo build --lib --bins` clean + `cargo test -j 2` full suite green + clippy clean. ; ...",
+        "If a real external resource or GUI/GPU proof cannot run, record a typed blocker such as NEEDS_MANAGED_RESOURCE_PROOF or BLOCKED instead of writing PASS/GREEN language.",
+        "Only after implementation/proof succeeds, update implementation_result or implementation_evidence, emit the required builder-ready receipt if this lane requires it, and move status to READY_FOR_VALIDATION while leaving validator_verdict as PENDING for the official validator."
+      ],
+      "ready_for_validation_gate": "Do not set READY_FOR_VALIDATION until the fix-first item is implemented or proven already closed, declared proof targets pass or blockers are typed, and implementation evidence is refreshed. Official validator verdict remains PENDING until validator review."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-03T21:26:02Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator ordered all non-READY_FOR_VALIDATION/non-OPEN MTs reopened because no official validation has run.",
+        "previous_status": "NEEDS_REIMPLEMENTATION",
+        "new_status": "OPEN",
+        "previous_active": false
+      }
+    ],
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
   },
   "scope": {
     "summary": "Goal: Build the `internal_diagnostics` MODULE inside handshake-native and its OPEN diagnostic-event API (Master Spec v02.196 §5.8.2 'Open diagnostic-event API' + §5.8.4). This is Tier 2 of the three-tier model. The module owns a process-global diagnostics facade: any feature (backend call site, widget, GUI action, job bridge) calls `diagnostics::record(DiagEvent)` and the event is (a) written to the MT-081 shared-memory ring (so the external Palmistry watcher sees it) AND (b) appended to a small in-process ring buffer the in-app Diagnostics Panel (MT-087) reads. Per §5.8.2 the API is OPEN BY DESIGN so nothing built is left un-instrumented. CRITICAL (no dead code / wire-into-live, HBR-INT + Spec-Realism Gate): this MT MUST wire AT LEAST ONE real, live call site so `record()` is actually CONSUMED by the running app, not scaffolding.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/diagnostics/mod.rs` — the module root. Declares submodules and exposes the public API. Add `pub mod diagnostics;` to `src/frontend/handshake_native/src/lib.rs` (alphabetically near `debug_console`).\n- CREATE `src/frontend/handshake_native/src/diagnostics/recorder.rs` — the `DiagnosticsRecorder` struct + the process-global facade.\n- EDIT `src/frontend/handshake_native/Cargo.toml` — add the path dependency `handshake-diag-ring = { path = \"diag_ring\" }` (the crate created in MT-081).\n- EDIT one LIVE call site to prove consumption (see step 5).\n- CREATE `src/frontend/handshake_native/tests/test_internal_diagnostics.rs`.\n\nAPI shape (recorder.rs):\n- `pub struct DiagnosticsRecorder { writer: Option<DiagRingWriter>, buffer: Mutex<VecDeque<DiagEvent>>, dropped: AtomicU64 }` — `writer` is the MT-081 `handshake_diag_ring::DiagRingWriter` (None in a headless/test shell that did not create a ring — graceful degradation, never a panic); `buffer` is a bounded in-process last-N (cap 512) the panel reads; `dropped` counts events shed when contended (never blocks).\n- `pub fn record(event: DiagEvent)` — the OPEN public API. Pushes to the in-process buffer (bounded; drop-oldest, never grow unbounded, never block the caller) AND calls `writer.write(event)` if a writer is installed. MUST be cheap + non-blocking + panic-free: a poisoned mutex is recovered (`into_inner`), a full buffer drops the oldest, a missing writer is a silent no-op on the ring side. The UI thread calls this every frame (MT-084/005) so it cannot allocate-heavy or lock-contend.\n- `pub fn record_with(code: DiagEventCode, phase: DiagPhase, severity: DiagSeverity, counters...)` — ergonomic helper that builds a typed DiagEvent and calls `record`; keeps call sites from hand-rolling.\n- `pub fn install(writer: DiagRingWriter)` / a `OnceLock<DiagnosticsRecorder>` global so `record()` is callable from ANY module without threading a handle (the spec's 'any feature MAY call' requirement). Before install, `record()` buffers in-process only (no ring) — still works, just not visible to Palmistry yet.\n- `pub fn snapshot_last_n(n: usize) -> Vec<DiagEvent>` + `pub fn dropped_count() -> u64` — what the panel (MT-087) reads.\n- The recorder NEVER stores anything but DiagEvent (the MT-081 typed allowlist), so the no-sensitive-data invariant is structural: there is no API surface that accepts free text.\n\nWhere to install the writer (HandshakeApp::new): in `src/frontend/handshake_native/src/app.rs` `HandshakeApp::new(cc)` (line ~1181), after the runtime/clients are set up, create the ring writer (named by a per-session id) and call `diagnostics::install(writer)`. The session id + ring backing-file path are needed by MT-094 (passed to Palmistry), so store them on HandshakeApp (a `diag_session: DiagSession { session_id, ring_path }` field). If ring creation fails (e.g. temp dir unwritable), log a tracing::warn and continue WITHOUT a writer (graceful degradation — the app still runs, diagnostics are in-process-only). This app.rs edit is the install point; the per-frame heartbeat/record calls are MT-084/005 (this MT just installs + proves one consume).\n\nStep 5 — the REQUIRED live call site (proves consumption, not dead code): wire `diagnostics::record_with(DiagEventCode::PaneMounted, ...)` (or a similarly cheap existing lifecycle event) at ONE real runtime point that fires in the normal app run — e.g. in `app.rs` when a pane is first mounted, or a `DiagEventCode::Other`/startup marker recorded once in `HandshakeApp::new` right after install. The point is that a NORMAL launch produces at least one real DiagEvent in the ring + buffer with zero test scaffolding. (MT-084 heartbeat + MT-085 frame-time + MT-086 resource counters + MT-088 backend-unreachable are the fuller instrumentation; this MT proves the pipe is live with one consumer.)\n\nReuse note: app.rs already owns the tokio runtime handle + per-session state (workspace id, clients) — reuse those, do not mint a second runtime. The in-process buffer mirrors the existing bounded-error-ring pattern event_emitter.rs already uses (cap-20 in-memory error ring) — same shape, cap 512. src/backend untouched.\n\nRisk if missed: nothing can record diagnostics; MT-084/005/006/007/008 all have no API to call; the open-API spec requirement (§5.8.2) is unmet; and a panel with no producer is empty.",
