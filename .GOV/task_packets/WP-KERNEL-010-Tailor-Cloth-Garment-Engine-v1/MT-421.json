@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-421",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-08T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-421.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-421.md",
@@ -45,25 +45,27 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement the FBX joint-animation export bake pass (R-ANIM-039) that writes explicit keyframes at every frame in the export range to prevent interpolation drift when consuming FBX in third-party DCC tools",
+    "summary": "Verify and fail-close the FBX delivery contract (companion to MT-419; supersedes the earlier duplicate native fbx_key_baker scope which violated Master Spec 13.12): round-trip verification of the Blender-bridge FBX bake, EXPORT_VALID integration, negative guard proving no native FBX writer exists in the codebase, and the ModelManual limitation entry for the FBX lane.",
     "allowed_paths": [
       "src/backend/handshake_core/src/tailor/export/",
-      "src/backend/handshake_core/src/tailor/animation/",
+      "src/backend/handshake_core/src/tailor/validation/",
       "src/backend/handshake_core/src/tailor/mod.rs"
     ],
-    "forbidden_paths": [],
+    "forbidden_paths": [
+      "tailor-solver/src/export/fbx.rs"
+    ],
     "acceptance_criteria": [
-      "src/tailor/export/fbx_key_baker.rs exists and exports a bake_joint_animation_fbx function that writes a FBX 7.x ASCII or binary file with one keyframe per frame in the export range for every animated joint",
-      "The bake pass is gated behind the tailor-fbx-import feature flag (reusing the FBX dependency already required for import)",
-      "Every empty frame in the range receives an explicit keyframe interpolated from the surrounding keys before writing (no gaps that a DCC importer might fill with its own interpolation logic)",
-      "The spec note in R-ANIM-039 that this is a post-MVP deliverable is preserved: the MT implements the bake pass but the MVP FBX export MAY omit baked keys with a documented limitation in the ModelManual",
-      "Export emits TailorGarmentExportCompleted with export_format='fbx_joint_animation'"
+      "A negative guard test asserts that no FBX-writing module, function, or dependency exists in tailor-solver or handshake_core (Master Spec 13.12: FBX write MUST NOT be implemented natively); the guard fails the build if one is introduced.",
+      "EXPORT_VALID covers the fbx_bridge lane: the export manifest for export_format='fbx_bridge' records the generated script hash, intermediate cache artifact hashes, and the produced FBX artifact ref, and validation fails when any element is missing.",
+      "A round-trip verification test drives the MT-419 bridge path end-to-end in headless Blender and asserts dense per-frame keys (no empty frames a DCC importer would re-interpolate).",
+      "The ModelManual documents the FBX lane truthfully: native FBX write is prohibited; the Blender-bridge bake is the supported path; requesting FBX without a configured Blender bridge returns a typed 422 error naming the bridge requirement.",
+      "A governed-debt note is recorded in the packet debt surface: when a mature open FBX writer (e.g. ufbx_write) stabilizes, a future MT MAY propose a native lane behind a feature flag; until then the prohibition stands."
     ],
     "proof_targets": [
-      "cargo test -p handshake_core --features tailor-fbx-import tailor::export::tests::fbx_key_bake_no_empty_frames",
-      "cargo test -p handshake_core tailor::export::tests::fbx_export_without_feature_returns_422"
+      "cargo test -p handshake_core tailor::export::tests::fbx_no_native_writer_guard",
+      "cargo test -p handshake_core tailor::export::tests::fbx_bridge_roundtrip_dense_keys_export_valid"
     ],
-    "risk_if_missed": "Without baked keyframes, FBX animation imported into Maya, 3ds Max, or older versions of Blender will be re-interpolated with the host application's own curves, causing visible drift from the Tailor simulation. This is specifically why MD added the auto-key feature in 2026.0."
+    "risk_if_missed": "Without the guard, a future MT or coder reintroduces a native FBX writer and silently violates 13.12; without round-trip verification, the bridge bake can emit sparse keys that Maya/3ds Max/older Blender re-interpolate with drift — the exact failure MD 2026.0 auto-key exists to prevent."
   },
   "hbr_obligations": [],
   "handoff": {

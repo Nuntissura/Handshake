@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-419",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-08T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-419.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-419.md",
@@ -45,25 +45,28 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement FBX animated garment export with joint-animation auto-key bake: for each frame in the export range, write a joint transform keyframe even on frames with no authored key, so the exported FBX is a fully-baked dense curve that downstream DCC tools can import without drift.",
+    "summary": "Implement FBX animated-garment delivery with dense auto-key bake via the Blender-bridge conversion path (MD 2026.0 auto-key parity, R-ANIM-039): the export job emits glTF/Alembic-shim/OBJ-sequence artifacts plus a generated headless Blender script (extends the MT-323 bridge generator and MT-440 shim pattern) that bakes one joint-transform key per frame in the export range and writes the FBX from Blender. Native Rust FBX writing remains PROHIBITED per Master Spec 13.12 (no FBX writer in tailor-solver or handshake_core).",
     "allowed_paths": [
-      "tailor-solver/src/export/fbx.rs",
+      "src/backend/handshake_core/src/tailor/export/",
       "src/backend/handshake_core/src/api/tailor.rs",
       "src/backend/handshake_core/src/tailor/storage_glue.rs"
     ],
-    "forbidden_paths": [],
+    "forbidden_paths": [
+      "tailor-solver/src/export/fbx.rs"
+    ],
     "acceptance_criteria": [
-      "FBX export path exists in tailor-solver/src/export/fbx.rs and is wired into the animation export API alongside glTF/Alembic/OBJ-sequence.",
-      "The exporter bakes joint transforms at every frame in the export range (auto-key), not only at frames that have an authored keyframe in the Tailor timeline.",
-      "A garment animated with 3 sparse avatar-pose keyframes exports an FBX with N dense joint-transform keys (one per frame), and reimporting that FBX into a reference DCC reconstructs the same pose curve within float32 tolerance.",
-      "The export range parameters from the Animation Range Export MT apply to FBX export.",
-      "cargo test export::fbx::autokey_dense_joint_curve passes."
+      "The animation export API offers export_format='fbx_bridge' alongside glTF/Alembic-shim/OBJ-sequence; selecting it generates a headless Blender bake script plus the intermediate cache artifacts the script consumes.",
+      "The generated script bakes joint transforms at every frame in the export range (auto-key), not only at frames that have an authored keyframe in the Tailor timeline; empty frames receive explicit keys interpolated per the Tailor timeline curves before writing.",
+      "A garment animated with 3 sparse avatar-pose keyframes produces, through the bridge, an FBX with N dense joint-transform keys (one per frame); re-importing that FBX in headless Blender reconstructs the pose curve within float32 tolerance.",
+      "The export range parameters from MT-418 (frame-range export) apply to the fbx_bridge path.",
+      "No FBX-writing code is added to tailor-solver or handshake_core; the only FBX writer invoked is Blender via the generated script (Master Spec 13.12 prohibition upheld).",
+      "Export emits TailorGarmentExportCompleted with export_format='fbx_bridge'."
     ],
     "proof_targets": [
-      "cargo test -p tailor-solver export::fbx::autokey_dense_joint_curve",
-      "cargo test -p tailor-solver export::fbx::sparse_keys_expand_to_frame_count"
+      "cargo test -p handshake_core tailor::export::tests::fbx_bridge_script_dense_autokey_generation",
+      "cargo test -p handshake_core tailor::export::tests::fbx_bridge_sparse_keys_expand_to_frame_count"
     ],
-    "risk_if_missed": "FBX handoff to Maya, Blender, and UE with sparse keyframe sources produces drifting or snapping joint animation in the downstream DCC. MD 2026.0 auto-keys are the standard industry expectation for FBX cloth animation delivery. Without them Tailor's FBX output is rejected or produces visible animation artifacts in production."
+    "risk_if_missed": "FBX handoff to Maya, Blender, and UE with sparse keyframe sources produces drifting or snapping joint animation in the downstream DCC. MD 2026.0 auto-keys are the standard industry expectation for FBX cloth animation delivery. Implementing this as a native Rust FBX writer instead of the bridge path would violate Master Spec 13.12 and take on the unmaintainable FBX-write burden the format research rejected (no mature Rust FBX writer exists; ufbx_write is immature)."
   },
   "hbr_obligations": [],
   "handoff": {

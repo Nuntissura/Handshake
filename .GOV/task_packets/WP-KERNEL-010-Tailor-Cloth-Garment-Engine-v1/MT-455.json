@@ -1,0 +1,129 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-455",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-455.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-455.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-455.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-454"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the steam brush as localized shrinkage mask painting (CG-07, MD Steam brush + Steam Eraser 2026.0): add/remove shrinkage percentage on a painted region mask (strength, radius, hardness), applied as per-region rest-length scaling in the solver (13.3), composing with per-pattern Shrink weft/warp (MT-411).",
+    "allowed_paths": [
+      "tailor-solver/src/material/",
+      "src/backend/handshake_core/src/tailor/garment.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "SteamMask per panel stores per-vertex shrink weights (weft/warp separable); brush API (add/remove, strength, radius, hardness) mutates the mask via typed ops usable from GUI and MCP.",
+      "Solver scales rest lengths per-edge from interpolated mask weights; effect composes multiplicatively with pattern-level shrinkage and is keyframe-compatible.",
+      "Steam eraser (remove mode) restores baseline; mask round-trips GarmentSpec versioning and CRDT."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver material::steam_mask_scales_rest_lengths_locally"
+    ],
+    "risk_if_missed": "Localized shaping via steam is the MD way to set lapel rolls and ease fullness; without it those effects need fake darts or full-pattern shrinkage that distorts everything."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed receipts, and the 13.12 capture APIs; GUI exposure rides the existing Tailor panels and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the Tailor* KernelEventType family on the EventLedger per Section 13.11/13.14."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long sim/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

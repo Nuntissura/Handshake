@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-260",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-08T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-260.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-260.md",
@@ -45,18 +45,20 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement the run_simulation MCP tool (trigger a sandboxed sim job, return SIM- run id).",
+    "summary": "Implement the simulate_garment MCP tool (canonical wire name per Master Spec 13.13.4; supersedes the run_simulation working name): trigger a sandboxed sim job for a draft garment and deliver the typed SimulationReceipt as MCP structuredContent per TAI-OVR-005.",
     "allowed_paths": [
-      "src/backend/handshake_core/src/tailor/model_api/tools/run_sim.rs"
+      "src/backend/handshake_core/src/tailor/model_api/tools/simulate_garment.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Tool dispatches a Handshake job, returns SIM- id immediately; non-blocking."
+      "Tool is registered under the canonical MCP wire name simulate_garment (13.13.4); no run_simulation tool name is exposed.",
+      "Tool dispatches a Handshake job (scheduler leases/cancellation apply), returning the SIM- run id; dispatch is non-thread-blocking.",
+      "The typed SimulationReceipt (hsk.tailor.simulation_receipt@1) is returned to the model as MCP structuredContent when the run completes, per TAI-OVR-005; receipt fetch is NOT a separate tool (get_garment also exposes the latest receipt)."
     ],
     "proof_targets": [
-      "cargo test -p handshake_core tailor::model_api::run_simulation"
+      "cargo test -p handshake_core tailor::model_api::simulate_garment_returns_receipt"
     ],
-    "risk_if_missed": "A blocking sim tool stalls the swarm."
+    "risk_if_missed": "A blocking sim tool stalls the swarm; a non-canonical tool name (run_simulation) produces tool-not-found failures in model prompts and ModelManual drift against spec 13.13.4."
   },
   "hbr_obligations": [],
   "handoff": {

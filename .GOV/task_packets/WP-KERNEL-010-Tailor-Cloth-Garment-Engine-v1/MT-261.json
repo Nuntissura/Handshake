@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-261",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-08T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-261.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-261.md",
@@ -45,18 +45,20 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement the fetch_simulation_receipt MCP tool returning the typed SimulationReceipt for a run.",
+    "summary": "Implement the get_garment MCP tool (canonical per Master Spec 13.13.4; supersedes the non-canonical fetch_simulation_receipt working name): read the current GarmentSpec and the latest typed SimulationReceipt for a draft or authority garment by garment id.",
     "allowed_paths": [
-      "src/backend/handshake_core/src/tailor/model_api/tools/fetch_receipt.rs"
+      "src/backend/handshake_core/src/tailor/model_api/tools/get_garment.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Returns the typed receipt (converged, residual, collision/validation summary, hints)."
+      "Tool is registered under the canonical MCP wire name get_garment (13.13.4); no fetch_simulation_receipt tool name is exposed.",
+      "Returns the current GarmentSpec (draft or authority) plus the latest typed SimulationReceipt (converged, residual, collision/validation summary, suggested_fix hints) when one exists.",
+      "SimulationReceipt delivery via simulate_garment/promote_garment return values remains the primary receipt path; get_garment is the read-back path for resumed or observing agents."
     ],
     "proof_targets": [
-      "cargo test -p handshake_core tailor::model_api::fetch_receipt"
+      "cargo test -p handshake_core tailor::model_api::get_garment_spec_and_latest_receipt"
     ],
-    "risk_if_missed": "Without a receipt fetch, models cannot evaluate their runs."
+    "risk_if_missed": "Without get_garment, resumed or parallel swarm agents cannot read current garment state and last receipt; a non-canonical receipt-fetch tool name drifts from spec 13.13.4's exact six-tool surface."
   },
   "hbr_obligations": [],
   "handoff": {

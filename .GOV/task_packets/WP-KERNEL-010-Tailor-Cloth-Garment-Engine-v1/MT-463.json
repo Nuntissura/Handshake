@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-463",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-463.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-463.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-463.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-462"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement intersection resolution/untangle plus collision control toggles (CG-15, MD Intersection Resolution + collision detection toggles + Deactivate scopes): a recovery pass resolving already-interpenetrating cloth (normal/flipped-normal strategies), per-pair-type collision toggles (avatar-cloth, self, proximity; triangle-vertex vs edge-edge) in SimRunParams, and Deactivate with two scopes (pattern-only vs pattern+sewing), per Section 13.4 + 13.3.",
+    "allowed_paths": [
+      "tailor-solver/src/collision/",
+      "tailor-solver/src/",
+      "src/backend/handshake_core/src/tailor/simulation/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "untangle pass: detects intersecting cloth regions and resolves via normal-side reassignment or flipped-normal recovery (MD's two modes), runnable on demand and automatically after teleport-style edits; documented limits (deep multi-layer tangles may require re-drape).",
+      "SimRunParams gains per-pair-type collision toggles (avatar_cloth, self, proximity) x (triangle_vertex, edge_edge) with defaults matching current behavior; wired into the WGSL dispatch flags.",
+      "Deactivate(pattern_only) removes a panel from sim but keeps seams pulling; Deactivate(pattern_and_sewing) removes both (MD's two distinct modes); freeze (MT-336) unchanged.",
+      "NO_INTERPENETRATION validation can invoke untangle-and-retest as a suggested_fix action."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver collision::untangle_recovers_interpenetrating_fixture"
+    ],
+    "risk_if_missed": "Every MD user leans on Intersection Resolution to rescue tangled states; without recovery, one bad edit means restarting the drape from scratch (models especially need mechanical recovery, not restarts)."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed receipts, and the 13.12 capture APIs; GUI exposure rides the existing Tailor panels and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the Tailor* KernelEventType family on the EventLedger per Section 13.11/13.14."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long sim/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

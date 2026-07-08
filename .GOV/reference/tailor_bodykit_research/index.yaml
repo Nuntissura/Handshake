@@ -1,0 +1,67 @@
+# Tailor BodyKit + Cloth second-pass parity research package
+# Session 2026-07-08, KERNEL_BUILDER. Non-normative provenance (mirrors cloth_engine_research pattern).
+# Purpose: research basis for (1) WP-KERNEL-010 Cloth second-pass MD parity gap closure and
+# (2) the BodyKit fold-in (Daz Studio replacement submodule of the Tailor module).
+package: tailor_bodykit_research
+normative_status: non_normative_context_only
+translation_rule: >
+  Every accepted idea MUST be translated into Handshake-native normative requirements in the
+  Master Spec (versioned bundle) and into MT contracts before implementation. This package is
+  provenance, not authority. Operator-stated requirements in topic 03 are scope authority for
+  refinement but bind implementation only once encoded in spec + MT contracts.
+topics:
+  - id: T-BK-FORMATS
+    file: 00-file-format-strategy.md
+    summary: >
+      File-format strategy. Verdict: do NOT adopt MD (.zprj/.zpac undocumented, zero open tooling)
+      or Daz (.duf frozen spec, reference-graph into paid content) native formats as authority.
+      Handshake-native typed authority; import lanes DXF-AAMA/GarmentCode/OBJ/ufbx-FBX/glTF (P1),
+      DSON read (P2); export lanes glTF primary, Alembic caches, USD strategic, OBJ day-1,
+      FBX deferred to ufbx_write maturity (Blender-bridge interim).
+  - id: T-BK-BEYOND-PARITY
+    file: 01-beyond-parity-game-suite.md
+    summary: >
+      Beyond-MD/Daz-parity requirements: competitive feature-mine (CC4/5, MetaHuman, HumGen3D,
+      MB-Lab, VRoid, Faceform, Texturing.xyz, ZBrush/Painter, VaM, Koikatsu, Skyrim adult modding,
+      UE Mutable/PhysBones) + GREQ-001..040 game-ready pipeline + PREQ-001..035 photoreal adult
+      rendering + AREQ-001..020 animation/retarget + SREQ-001..025 suite workflow requirements.
+  - id: T-BK-COVERAGE
+    file: 02-current-coverage-map.md
+    summary: >
+      Definitive WP-KERNEL-010 current-coverage baseline: 448-MT census + feature inventory,
+      Section 13 heading tree + normative scope, prior parity-review verdicts + unapplied
+      reshuffle notes, self-declared gaps/contradictions (FBX-write, 13.9 deferred-vs-MT tension,
+      DEFER-ANIM-001, missing canonical events), and the body/avatar status quo (the
+      BodyKit-shaped hole: no parametric mesh generation, no skinning, no soft tissue,
+      no skin materials, no avatar export).
+  - id: T-BK-OPERATOR-REQS
+    file: 03-operator-body-requirements.md
+    summary: >
+      Operator-stated BodyKit body requirements (OBR-001..004, verbatim intent 2026-07-08):
+      full multi-axis breast-shape space (volume/ptosis/firmness/profile incl. fake-plastic
+      implant look), shoulder width decoupled from bust, hips/thighs/midriff decoupled,
+      petite+huge-tits archetypes, oversized penis, obese/muscular/slender bodies,
+      Blender/UE export. Architecture implications: anti-ERC-link stance, skeletal-vs-tissue
+      split, per-body re-bakeable correctives, channel-derived collision proxies,
+      8 acceptance archetypes, per-channel measurement targeting.
+  - id: T-BK-MD-INVENTORY
+    file: 04-md-feature-inventory.md
+    summary: >
+      Independent exhaustive MD feature inventory (full 709-article manual corpus + release
+      notes MD 10 -> 2026.0), 14 areas, obscure-but-critical shortlist of 25.
+      Verified CLO-only negatives: DXF-AAMA, grading, seam allowance/notch/annotation,
+      colorways, offline renderer, print layout, down fill.
+  - id: T-BK-DAZ-REQS
+    file: 05-daz-bodykit-requirements.md
+    summary: >
+      Daz Studio exhaustive inventory (figure platform, morphs/ERC/JCM, rigging, fitting,
+      geografts incl. Golden Palace/Dicktator feature bars, physics, posing, materials,
+      content system, bridges, Premier) + REQ-001..044 extreme-body requirements +
+      skeleton/export contract (custom UE5-convention skeleton + breast/glute/genital chains) +
+      license findings (SMPL family DISQUALIFIED: porn prohibition verified; MakeHuman/MPFB2
+      CC0 verified; MB-Lab AGPL unusable; Genesis reuse prohibited).
+related:
+  - .GOV/reference/cloth_engine_research/ (original Tailor/Cloth research package, 17 topics)
+  - .GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/ (packet + 448 MT contracts)
+  - .GOV/spec/master-spec-v02.197/spec-modules/13-tailor-cloth-garment-engine.md (Section 13 law)
+updated_at: "2026-07-08"

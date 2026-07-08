@@ -1,0 +1,130 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-460",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-460.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-460.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-460.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-459"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement Fold Arrangement (CG-12, MD Fold Arrangement incl. symmetric folding): pre-simulation fold poses applied along internal fold lines (per-line target angle) at the arrangement stage so collars, plackets, lapels, and cuffs enter the first drape already folded, per Section 13.6 arrangement + 13.3 initial state.",
+    "allowed_paths": [
+      "tailor-solver/src/garment/",
+      "src/backend/handshake_core/src/tailor/garment.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "FoldArrangement records per internal fold line a pre-sim fold angle; mesh initial positions are rigidly folded about the line (hinge transform of the fold-side region) before substep 0.",
+      "Symmetric folding applies mirrored fold sets across a symmetry link (MT-453) in one op.",
+      "Collar fixture: shirt collar with two fold lines enters drape folded and settles without self-intersection where the unfolded control explodes (negative demonstration).",
+      "Fold arrangement composes with sublayer ordering (MT-457) and Superimpose (MT-461); state persists on the draft and replays from the ledger."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver garment::fold_arrangement_prefolds_initial_state"
+    ],
+    "risk_if_missed": "Without pre-folding, collars/plackets must be coaxed into position mid-sim by hand every run — the single most common MD workflow step for structured garments (obscure-critical #4)."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed receipts, and the 13.12 capture APIs; GUI exposure rides the existing Tailor panels and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the Tailor* KernelEventType family on the EventLedger per Section 13.11/13.14."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long sim/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "schema": "tailor.parity_review@2",
+  "pass": 2,
+  "reviewed_at_utc": "2026-07-08T00:00:00Z",
+  "reviewed_by": "KERNEL_BUILDER (operator-directed deep second-pass parity verification)",
+  "reviewed_against": "Independent external Marvelous Designer inventory mined from the full MD manual corpus (709 articles) + all release notes MD 10 -> 2026.0 (.GOV/reference/tailor_bodykit_research/04-md-feature-inventory.md), cross-checked against the 448-MT coverage map (.GOV/reference/tailor_bodykit_research/02-current-coverage-map.md) and Master Spec Section 13 (v02.197).",
+  "method": "First parity pass (MT-333..448) audited against the repo-internal feature map (cloth_engine_research/02-md-feature-map.md). This second pass audits against an INDEPENDENT exhaustive external inventory to catch blind spots shared by the internal map, plus the beyond-parity game/photoreal requirements research (01-beyond-parity-game-suite.md). Gap matrix + full reasoning: .GOV/reference/tailor_bodykit_research/06-gap-matrix-and-mt-plan.md Part A.",
+  "prior_state": {
+    "first_pass_mts": "MT-333..MT-448 (116)",
+    "verdict": "The first pass closed the internal-map gaps but the internal map under-represented ~29 workflow-critical MD features, concentrated in the obscure-but-critical tier (fold arrangement, sublayer ordering, turned seams/press, region interfacing, layer clones, interactive editing loop) and the game-lane export contracts."
+  },
+  "second_pass_additions": {
+    "range": "MT-449..MT-477",
+    "count": 29,
+    "by_group": { "GarmentAuthoring": 10, "Fabric": 3, "SolverCore": 2, "UvTexture": 3, "TrimRigid": 2, "Collision": 2, "ModelFirstApi": 1, "AutoFit": 1, "ProductionBridge": 3, "Animation": 1, "RenderViewportExport": 1 },
+    "gap_ids": "CG-01..CG-29 mapped 1:1 to MT-449..MT-477 in 06-gap-matrix-and-mt-plan.md Part A (each row cites the MD source feature and owning Section 13 anchor)"
+  },
+  "drift_corrections_applied": [
+    { "mt": "MT-259", "fix": "edit_panel -> canonical edit_garment (13.13.4 RFC 7396 merge patch, full GarmentSpec)" },
+    { "mt": "MT-260", "fix": "run_simulation -> canonical simulate_garment; SimulationReceipt as structuredContent per TAI-OVR-005" },
+    { "mt": "MT-261", "fix": "fetch_simulation_receipt (non-spec tool) -> canonical get_garment (spec + latest receipt read-back)" },
+    { "mt": "MT-269", "fix": "annotated NL-path-only; DiffXPBD drape-image path is MT-403 (13.13.10) - no conflation" },
+    { "mt": "MT-220", "fix": "tailor_uv_sets -> canonical four-table set (tailor_uv_islands, tailor_pbr_materials, tailor_graphic_layers, tailor_material_assignments) per 13.9 section 6" },
+    { "mt": "MT-419", "fix": "duplicate native FBX bake (violated 13.12 FBX-write prohibition) re-scoped to the Blender-bridge dense-auto-key FBX delivery path" },
+    { "mt": "MT-421", "fix": "duplicate native fbx_key_baker re-scoped to FBX delivery verification: no-native-writer negative guard, EXPORT_VALID fbx_bridge coverage, round-trip dense-key verification, ModelManual limitation, ufbx_write maturity debt note" }
+  ],
+  "spec_reconciliation_required_in_v02_198": [
+    "13.9 section 13 deferred list vs MT-380 (UV-space bake) / MT-385 (all-quad) / MT-390 (toon): revise to feature-gated in-scope",
+    "13.10 DEFER-ANIM-001 vs MT-412 (per-tack TackStrength tracks): revise deferral",
+    "13.10/13.12 FBX contradiction: FBX delivery = Blender-bridge lane only; native FBX writer remains prohibited; R-ANIM-039 maps to bridge path",
+    "13.14 canonical event list additions: TailorAvatarPoseGenerated, TailorAnimationImported, TailorTopstitchOptimized, TailorCaptureAnnotated, TAILOR_BODY_* family (BodyKit)",
+    "New normative clauses for CG-01..CG-29 features in their owning 13.x subsections"
+  ],
+  "intentional_not_applicable": [
+    { "feature": "Manual retopology face editor", "reason": "auto all-quad (MT-385) + Blender DCC lane cover; revisit post-V1" },
+    { "feature": "COLLADA import", "reason": "glTF/FBX/OBJ import lanes cover rigged-avatar ingestion" },
+    { "feature": "Maya .mc/.mcx cache", "reason": "MDD/PC2 (MT-442) + Alembic-shim cover cache interchange; Maya not a target DCC" },
+    { "feature": "LXO/Sansar/HTML-snapshot/Omniverse/CONNECT/CLO-SET", "reason": "third-party ecosystem surfaces, not core-sim/authoring parity" },
+    { "feature": "Substance SBSAR runtime", "reason": "proprietary runtime; procedural weave generator (MT-228) + AI texture gen (MT-388) cover the need" },
+    { "feature": "GUI chrome (hotkeys/layouts/rulers/snapping/palettes/tablet settings)", "reason": "native-shell WP-KERNEL-011 concerns + model-first API makes these projections, not engine features" },
+    { "feature": "Autosave/history windows", "reason": "EventLedger replay + panel/draft snapshots (MT-347/361) exceed MD checkpoints" },
+    { "feature": "USDZ export", "reason": "acceptance-level addition to MT-250 USD lane at implementation time" },
+    { "feature": "Down/padding fill", "reason": "CLO-only (not in MD); Pressure (MT-020) + Layer Clone (MT-452) is the MD-documented equivalent path" },
+    { "feature": "DXF-AAMA import, grading, seam-allowance tool, notch tool, annotation, colorways, offline render, print layout", "reason": "VERIFIED CLO-only, absent from MD itself; existing MTs already exceed MD here (DXF R12 export MT-443, SeamSpec allowance)" }
+  ],
+  "verdict": "With MT-449..MT-477 added and the 7 drift corrections applied, WP-KERNEL-010 Cloth covers every core-sim and authoring feature in the independent MD inventory except the recorded intentional N/A items, and exceeds MD in: DXF export, wetness physics, model-steerability (13.13), EventLedger replay, VAT/Chaos-Cloth/skin-weight game lanes, and adult-production physics hooks. Full parity claim remains conditional on implementation + validator verdicts; this review is authoring-level coverage, not runtime proof.",
+  "reconciliation_note": "Like the first pass, second-pass MTs use a nominal linear depends_on chain. The refinement MUST fold MT-449..477 into the clause-closure matrix, apply the v1 reshuffle notes plus the cross-references embedded in the new MT summaries (e.g., MT-457 before MT-460; MT-473 coordinates with MT-467; MT-474 before MT-477), and regenerate the final MT order via create-task-packet.mjs."
+}

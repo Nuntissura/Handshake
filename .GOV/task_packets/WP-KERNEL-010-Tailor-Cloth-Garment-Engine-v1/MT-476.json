@@ -1,0 +1,130 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-476",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-476.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-476.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-476.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-475"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement garment skin-weight binding export (CG-28, MD EveryWear core / 2025.2 skin-weight transfer; GREQ-019 + MOAT-7 partial): transfer body skeleton skinning weights to a draped garment mesh for non-simulated wear in engines, with per-garment-class projection profiles (tight/dress/skirt), rigidity-mask respect for hardware, and emission through glTF and FBX-bridge skeletal lanes.",
+    "allowed_paths": [
+      "tailor-solver/src/body/",
+      "src/backend/handshake_core/src/tailor/export/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "transfer_skin_weights(garment, avatar_skeleton, profile) projects per-vertex weights from the avatar body (nearest-surface + smoothing iterations) onto the draped garment; influence cap + renormalization per target (GREQ-004 coordination).",
+      "Garment-class profiles bias projection (skirt profile avoids leg-split weights - the classic autofit failure); trim/hardware vertices under rigidity masks bind rigidly to the dominant bone.",
+      "Skinned garment exports as skeletal mesh in glTF (skins) and via the FBX Blender-bridge; a UE-import smoke fixture proves the garment follows a test animation without simulation.",
+      "MOAT-7 note updated on MT-446: this MT delivers the core weight-transfer; full EveryWear-parity (masking brush UI, template rigging) remains post-v1 deferred."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver body::garment_weight_transfer_skirt_profile_no_leg_split"
+    ],
+    "risk_if_missed": "Game characters wear skinned clothing, not simulated cloth, for 90% of garments; without weight transfer every Tailor garment is render-only and the game lane (operator's stated later target) is blocked."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed receipts, and the 13.12 capture APIs; GUI exposure rides the existing Tailor panels and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the Tailor* KernelEventType family on the EventLedger per Section 13.11/13.14."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long sim/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

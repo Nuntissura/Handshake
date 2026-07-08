@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-269",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-08T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-269.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-269.md",
@@ -45,7 +45,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement the fabric estimation tool (natural-language fabric description -> nearest MAT- preset + normalized props).",
+    "summary": "Implement the fabric estimation tool (natural-language fabric description -> nearest MAT- preset + normalized props). NL path ONLY: the second, distinct DiffXPBD gradient-descent path from a target drape image (Master Spec 13.13.10) is MT-403; do not conflate the two paths in one implementation.",
     "allowed_paths": [
       "src/backend/handshake_core/src/tailor/model_api/tools/estimate_fabric.rs"
     ],

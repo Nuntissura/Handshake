@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-259",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-08T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-259.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-259.md",
@@ -45,18 +45,21 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement the edit_panel MCP tool (CRDT-safe panel edits by garment+panel id).",
+    "summary": "Implement the edit_garment MCP tool (canonical name per Master Spec 13.13.4; supersedes the narrower edit_panel working name): CRDT-safe edits to a draft garment via RFC 7396 JSON Merge Patch applied against the full GarmentSpec, addressed by garment id. Panel-level edits are expressed as merge patches touching /panels/ paths.",
     "allowed_paths": [
-      "src/backend/handshake_core/src/tailor/model_api/tools/edit_panel.rs"
+      "src/backend/handshake_core/src/tailor/model_api/tools/edit_garment.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Edits route through the kernel CRDT; concurrent edits merge deterministically."
+      "Tool is registered under the canonical MCP wire name edit_garment (13.13.4); no edit_panel tool name is exposed.",
+      "Accepts an RFC 7396 JSON Merge Patch against the full GarmentSpec (panels, seams, fabric, bindings), not only per-panel fields.",
+      "Edits route through the kernel CRDT; concurrent edits merge deterministically.",
+      "Rejects merge patches that would violate GarmentSpec schema (hsk.tailor.garment_spec@1) with a typed tool error, not a silent partial write."
     ],
     "proof_targets": [
-      "cargo test -p handshake_core tailor::model_api::edit_panel_crdt_safe"
+      "cargo test -p handshake_core tailor::model_api::edit_garment_merge_patch_crdt_safe"
     ],
-    "risk_if_missed": "Non-CRDT edits lose concurrent model/operator changes."
+    "risk_if_missed": "Non-CRDT edits lose concurrent model/operator changes; a non-canonical tool name (edit_panel) produces tool-not-found failures in model prompts and ModelManual drift against spec 13.13.4."
   },
   "hbr_obligations": [],
   "handoff": {

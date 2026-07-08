@@ -1,0 +1,133 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-462",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-462.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-462.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-462.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-461"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the interactive simulation session (CG-14, MD interactive editing + Quick/Advanced Pinching + Preserve-3D-on-2D-scale): a long-running cancellable sim job that continuously steps while accepting in-loop CRDT panel edits (warm-restart preserving drape), plus pinch drag manipulation with soft-selection falloff (shape, distance, power, surface-vs-straight distance, limit-to-pattern) as transient external forces, per Section 13.3 loop + 13.11 jobs + 13.13 leases.",
+    "allowed_paths": [
+      "tailor-solver/src/",
+      "src/backend/handshake_core/src/tailor/simulation/",
+      "src/backend/handshake_core/src/tailor/crdt_bridge/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "InteractiveSimSession job: runs continuous substeps at interactive budget (Normal preset), streams frames to the viewport (MT-238 path), honors scheduler leases/cancellation, and applies queued garment edits between substeps via incremental constraint rebuild for the touched panels only (no full reload).",
+      "2D panel edits during the session preserve the current drape: rest-state changes re-bind while world positions persist (covers MD 'Preserve 3D Garment Shape on 2D Scaling').",
+      "Pinch tool: grab particle set with soft-selection falloff and drag as a transient force/constraint; released cloth relaxes; falloff params typed and steerable via MCP (steer_simulation tool addition registered per 13.13 extension discipline).",
+      "Session state (running/paused, edit queue depth) exposed in RUNTIME status + TraceProjection; Argus can observe viewport updates headlessly; session end emits a standard SimulationReceipt.",
+      "Determinism note recorded: interactive sessions are exploratory (not promotion evidence); promotion still requires a clean deterministic run (13.15) — enforced by receipt flag interactive=true rejected by PromotionGate."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::simulation::interactive_session_applies_inloop_edits_warm",
+      "cargo test -p tailor-solver session::pinch_soft_selection_falloff_applies_and_relaxes"
+    ],
+    "risk_if_missed": "Interactive drape-and-tweak is THE core MD working loop; without it every adjustment is a batch job round-trip and both operators and models lose the tighten-loop-fix workflow (also blocks the pinch-based styling models need for micro-adjustments)."
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the Tailor* KernelEventType family on the EventLedger per Section 13.11/13.14."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long sim/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}
