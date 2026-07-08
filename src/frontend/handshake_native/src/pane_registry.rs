@@ -318,8 +318,11 @@ impl PaneRegistry {
 /// fixed kebab/dotted key (NOT a per-instance `pane-a`-style id) so the shell can `dock`/`show` the
 /// pane and a swarm agent can address it deterministically (AC-007 / PT-005). The pane is a Loom
 /// knowledge surface attached to the active block/document, so its record uses the existing
-/// [`PaneType::LoomBlock`] variant — no new `PaneType` variant is forked (that would ripple through
-/// every exhaustive `PaneType` match across the shell); the STABLE ADDRESS is this pane id string.
+/// [`PaneType::Placeholder`] label ([`crate::editor_pane_factories::OUTGOING_LINKS_PANE_LABEL`], the
+/// SAME key the live factory registration in `app.rs` mounts under) rather than forking a new
+/// `PaneType` variant (that would ripple through every exhaustive `PaneType` match across the shell)
+/// and rather than reusing `PaneType::LoomBlock` (which the MT-080 remediation proved hijacks every
+/// loom-block open); the STABLE ADDRESS is this pane id string.
 pub const OUTGOING_LINKS_PANE_ID: &str = "loom.outgoing_links";
 
 /// Register the WP-KERNEL-012 MT-062 Outgoing Links pane into `registry` under the stable
@@ -338,7 +341,12 @@ pub fn register_outgoing_links_pane(
     let pane_id: PaneId = Arc::from(OUTGOING_LINKS_PANE_ID);
     registry.insert(PaneRecord::new(
         pane_id.clone(),
-        PaneType::LoomBlock,
+        // Placeholder("Outgoing Links") — the SAME key the live `app.rs` factory registration mounts
+        // under (crate::editor_pane_factories::OUTGOING_LINKS_PANE_LABEL). NOT PaneType::LoomBlock: the
+        // MT-080 remediation moved the live pane off LoomBlock because that variant hijacked every
+        // loom-block open; this helper matches the live path so a future integrator calling it cannot
+        // reintroduce the hijack.
+        PaneType::Placeholder(crate::editor_pane_factories::OUTGOING_LINKS_PANE_LABEL.to_owned()),
         project_id,
         document_id,
         LockState::Unlocked,
@@ -920,6 +928,16 @@ mod tests {
             rec.content_id.as_deref(),
             Some("DOC-active"),
             "active document bound as pane content"
+        );
+        // The helper must use the SAME Placeholder("Outgoing Links") key the live app.rs factory
+        // mounts under — NOT PaneType::LoomBlock (the MT-080 hijack variant). This guards the helper
+        // against re-introducing the pane hijack if a future integrator wires it into the shell.
+        assert_eq!(
+            rec.pane_type,
+            PaneType::Placeholder(
+                crate::editor_pane_factories::OUTGOING_LINKS_PANE_LABEL.to_owned()
+            ),
+            "uses the live Placeholder(\"Outgoing Links\") key, not PaneType::LoomBlock"
         );
         let node = reg.accesskit_id(&pid).expect("accesskit id assigned");
         assert!(
