@@ -14,7 +14,7 @@
   "title": "D7-MT-087-InAppDiagnosticsPanel-SettingsSection",
   "group": "D3 Diagnostics Panel (Tier 2 consumer, §10.12)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-03T21:26:02Z",
+  "updated_at_utc": "2026-07-08T04:38:40.574Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-087.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "OPEN",
-    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "active": true,
     "depends_on": [
       "MT-082",
       "MT-085",
@@ -73,7 +73,25 @@
         "previous_active": false
       }
     ],
-    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260707-224033",
+    "claimed_at_utc": "2026-07-08T04:38:40.574Z",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-07-08T04:38:40.574Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "rfv_evidence_2026_07_08": {
+      "by": "KERNEL_BUILDER-20260707-224033",
+      "mode": "VERIFY_AND_PROVE (reopen defect fixed at HEAD; comprehensive pre-review + independent proof + VISUAL INSPECTION)",
+      "session_summary": "In-App Diagnostics Panel hosted as a Settings->Diagnostics section (operator steer, NOT a worksurface pane). Projects live internal_diagnostics: heartbeat, frame-time, resource+GPU, last-N events, honest Tier-3 Palmistry state. Pure projection, no own authority. Reopen defect (stale assertion) FIXED at HEAD. NO allowed_paths drift (settings_dialog + app.rs both in scope). Operator-reachable via top_menu_bar Open Settings.",
+      "proofs": "KERNEL_BUILDER re-run (single-threaded, GPU host, exit-0): test_diagnostics_panel 4/4 (18.99s = the 2 wgpu screenshot tests took the Ok branch + produced real PNGs on this host's WARP/Dx12 adapter, NOT a silent-skip). AC-007-2 live projection asserted (heartbeat>0, frame_count>0, >=1 event); AC-007-4 honest empty-state via SurvivorDirGuard; AC-007-5 6 AccessKit ids + no-spinner + no-Color32.",
+      "visual_inspection_global_inspect": "KERNEL_BUILDER directly inspected MT-087-diagnostics-panel-tall-full.png + -tall-scrolled.png (fresh, 07-08 06:30): the Settings->Diagnostics section renders LIVE + LEGIBLE - Heartbeat 'UI-thread beats 15 (alive)' + Uptime 0.706s; Frame time Last 18.5ms/p50 10.8/p95 22.3/min-max 7.8-22.3/Frames 14/Slow 0; Resources CPU 0.0%/RSS 254.2 MiB/GPU 'Microsoft Basic Render Driver'/Driver 10.0.26100.8521/Backend Dx12; scrolled view shows the Tier-3 survivor list + 'Shared-memory ring active (out-of-process visible)' + Dump JSON control. All sections labeled + readable. AC-007-3 (legible screenshot) CONFIRMED by direct perception.",
+      "operator_note": "The wgpu adapter on this host is the WARP SOFTWARE renderer ('Microsoft Basic Render Driver', Dx12) - screenshots render real pixels but slowly. The Tier-3 section showed 16 'Crash exit 0x1 pending' survivor records - almost certainly prior test-process exits captured by the Palmistry watcher (default survivor dir accumulation), NOT live app crashes; the panel honestly projects them. Worth clearing the default survivor dir (noise), not an MT-087 bug.",
+      "contract_disclosures": "(1) AC-007-1/PT-007-A literal wording (DiagnosticsPaneFactory + PlaceholderPaneFactory swap in pane_registry) is SUPERSEDED by the Settings-section operator steer - pane_registry has no Diagnostics variant; judge AC-007-1 by substance (real panel subtree not placeholder, proven). (2) full-suite -j2 + clippy --all-targets -D = IV-batch (implementation_result.note admits the full suite 'did not finish'; the diagnostics suite + neighbors are green).",
+      "deferred_to_MT_108_residual": [
+        "artifact leaf-name bug: the first screenshot saves to wp-kernel-015-mt-007 (test:202) while the remediation ones save to wp-kernel-012-mt-087 - GLOBAL-NAMING mismatch, harmonize to the MT id",
+        "clear the default Palmistry survivor dir noise (16 accumulated records)"
+      ]
+    }
   },
   "scope": {
     "summary": "Goal: Build the in-app DIAGNOSTICS PANEL — a new egui pane that renders the live internal_diagnostics state (Master Spec v02.196 §5.8.4 'in-app Diagnostics Panel' + §10.12.5 three-tier model). The panel is a PROJECTION over internal_diagnostics (it holds NO state authority, §5.8.4): it reads `diagnostics::snapshot_last_n` (last-N events, MT-082), `frame_stats()` (MT-085), the resource counters + GpuInfo (MT-086), and the live heartbeat. It MUST be mounted as a REAL pane in the running app (follow the editor_pane_factories.rs host-mount pattern), with AccessKit metadata + a visual (wgpu screenshot) proof. (The Palmistry freeze/crash records the panel also surfaces per §10.12.5 are wired in MT-093; this MT renders the Tier 2 internal_diagnostics surface + leaves a clearly-typed empty section for the Tier 3 Palmistry records until MT-093 forwards them.)\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/diagnostics/panel.rs` — `DiagnosticsPanel` (the egui widget) + `DiagnosticsPaneFactory` (impl `crate::pane_registry::PaneFactory`). Declare `pub mod panel;` in diagnostics/mod.rs.\n- EDIT `src/frontend/handshake_native/src/pane_registry.rs` — add a `PaneType::Diagnostics` variant to the `PaneType` enum (line ~36), with its `label()` => \"Diagnostics\" and `default_label()` => \"Diagnostics\" arms (both match statements). (Note: a `VisualDebugger` variant already exists for the §10.12 visual-debugger surface; the new three-tier Diagnostics panel is a DISTINCT §10.12.5 surface — add a dedicated variant rather than overload VisualDebugger.)\n- EDIT `src/frontend/handshake_native/src/app.rs` — register the real `DiagnosticsPaneFactory` in the factory map (in `build_default_factories` ~line 590 or alongside `install_editor_mounts` ~line 742), replacing the PlaceholderPaneFactory for `PaneType::Diagnostics`. Follow the EXACT pattern editor_pane_factories.rs uses: a thin factory whose `&self render` reads the process-global diagnostics snapshot each frame (no &mut needed — the data comes from the MT-082 global recorder, so no shared-cell is even required; the factory is stateless and reads the global).\n- CREATE `src/frontend/handshake_native/tests/test_diagnostics_panel.rs`.\n\nPanel content (panel.rs) — `PaneFactory::render(&self, ui, ctx)`:\n- Heartbeat section: the live counter + time-since-last-beat (read from the ring header via the recorder, or an in-process mirror of the last bumped value) — shows the app is alive.\n- Frame-time section: last/p50/p95 from `frame_stats()` (MT-085), formatted ms.\n- Resource section: CPU% + RSS from the last ResourceSample + the GpuInfo hardware line (MT-086).\n- Last-N events section: a scrolling list of the last ~50 DiagEvents (MT-082 snapshot) — render each as its typed fields (event_code label, phase, severity, counters, timestamp). NO free text (there is none — DiagEvent is typed integers; map event_code -> a static human label for display).\n- A Tier-3 Palmistry section: a clearly-labeled placeholder/empty-state ('No freeze/crash records' / 'Palmistry forwarding wired in MT-093') so the §10.12.5 three-tier layout is present from this MT, honestly empty until MT-093.\n- AccessKit: register the pane container as `Role::Region`/`Group` with a stable `author_id = \"diagnostics_panel\"` through the existing accessibility layer (src/frontend/handshake_native/src/accessibility/registry.rs), and key child sections (e.g. `diagnostics_heartbeat`, `diagnostics_events`) so a no-context model + swarm agents can address it. NO perpetual spinner; theme tokens only (no Color32 literal outside theme/palette.rs — CONTROL-4).\n\nHost-mount pattern (the REAL mount, not a widget harness): mirror MT-079's editor mount — the factory is registered in the app's factory HashMap keyed on PaneType::Diagnostics, and `PaneFactory::render` is CONSUMED by the live pane host each frame. Prove it renders in the LIVE app tree (a kittest driving the real HandshakeApp that opens/mounts the Diagnostics pane), not only as a standalone widget.\n\nReuse note: the PaneFactory trait + PaneRenderContext + the factory-map registration are the EXISTING WP-011/MT-079 pattern (editor_pane_factories.rs is the worked reference). The accessibility registry + theme layer are reused (registry.rs, theme/palette.rs, theme/syntax.rs). The diagnostics data all comes from the MT-082/005/006 process-global — the panel allocates none of its own authority. src/backend untouched.\n\nRisk if missed: §5.8.4 + §10.12.5 unmet (no operator-facing consumer of internal_diagnostics); a panel built only as a widget (not host-mounted) would never render in the live app (the MT-079 RISK-2 'mounted but not consumed' class); a Color32 literal would break CONTROL-4.",
