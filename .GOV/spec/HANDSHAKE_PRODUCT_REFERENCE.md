@@ -3,7 +3,7 @@
 Companion to the Master Spec (`SPEC_CURRENT.md`). Single-page entry point for models and humans.
 Every row links to a spec section. This file describes what Handshake IS — not roadmap status or WP backlog.
 
-**Pegged spec version:** `v02.197` (resolved via `SPEC_CURRENT.md`) · **updated_at:** `2026-06-28`
+**Pegged spec version:** `v02.198` (resolved via `SPEC_CURRENT.md`) · **updated_at:** `2026-07-09`
 
 > **REFERENCE ONLY.** This file is a navigation aid. All decisions, technical advice, and implementation guidance MUST be derived from the Master Spec (via `SPEC_CURRENT.md`), not from this summary. When in doubt, read the spec section referenced in the §ref column. Do not cite this file as authority for design choices.
 >
@@ -38,6 +38,7 @@ Handshake is also a shared-primitives product: tools should reuse the same Rust-
 | Code editor (canonical) | **Native Rust** tree-sitter / ropey / cosmic-text VS-Code-class editor (WP-KERNEL-012); legacy Monaco + Monarch is reference-only | §10.2 |
 | Spreadsheet engine | Wolf-Table + HyperFormula | §7.1.0, §2.2.1.13 |
 | Canvas | Handshake-native Studio/Canvas primitives; Excalidraw, tldraw, Milanote, Miro, and Figma are reference patterns, not the application substrate | §7.1.2, §6.3.3.5 |
+| Cloth & body simulation | `tailor-solver` workspace crate — XPBD cloth solver on WGSL/wgpu + rapier/parry rigid proxies, behind the `ClothSolver` trait; kernel binding via `handshake_core::tailor` (BodyKit geometry/soft-tissue in `tailor-solver/src/body/`) | §13.2, §13.3 |
 | Legacy frontend (reference-only — do not edit) | React + TypeScript + Tauri shell under `app/src`, retired as native parity lands | §1.1.3 |
 | Control-plane storage | PostgreSQL (primary runtime authority) | §2.3.13 |
 | Collaboration state | Yjs CRDTs and PostgreSQL-backed authoritative records | §1.1.3, §2.3.13 |
@@ -147,13 +148,34 @@ The 22 spec-grade engines (§11.8). Each is a stand-alone feature surface and fo
 
 ---
 
-## 5. Primitive Index
+## 5. Creative Modules
+
+Kernel-attached creative modules follow the atelier pattern: a `handshake_core` domain module bound to PostgreSQL/EventLedger authority, CRDT collaboration, the sandbox → validation → promotion lifecycle, and model lanes. They are feature surfaces above the kernel — not standalone applications and not plugins.
+
+### 5.1 Tailor — Cloth & BodyKit Creative Module
+
+Tailor is the Handshake-native creative module for garments AND parametric bodies: ONE module authority (Spec §13) with exactly TWO submodules. It ships as two compile units shared by both submodules — `handshake_core::tailor` (kernel-bound: authority storage, EventLedger emission, CRDT editing, sandbox dispatch, PromotionGate integration, model-lane binding, REST surface; BodyKit at `src/tailor/bodykit/`) and the standalone UI-agnostic `tailor-solver` workspace crate (XPBD on WGSL/wgpu, rapier/parry rigid proxies) reached only through the `ClothSolver` trait. UI surface: the Tailor pane (native shell pane type `tailor`) with a BodyKit tab.
+
+**Model-first is the defining differentiator** (§13.1, §13.13, §13.25): `GarmentSpec` (`hsk.tailor.garment_spec@1`) and `BodySpec` (`hsk.tailor.body_spec@1`) are the single types shared by the LLM output surface, the solver input surface, and the PostgreSQL authority JSONB column. A model-authored spec is never written directly to authority — it always passes sandbox → `TailorValidationDescriptor` (~35-check catalog) → PromotionGate. Every mutation emits `TAILOR_*` / `TAILOR_BODY_*` EventLedger events, and any authoring session is fully replayable from receipts alone.
+
+| Submodule | Feature ID | What it is | Key capabilities | Spec §ref |
+|---|---|---|---|---|
+| Cloth | FEAT-TAILOR-CLOTH | Garment-authoring + cloth-simulation engine (Marvelous-Designer-equivalent "detailer"); feature ceiling = MD 2026.0 verified against dual inventories | 2D sewing-pattern authoring (panels, darts, pleats, Bézier edges, grain, internal hole contours), seam constraints incl. M:N ratio gathering, anisotropic fabric models (weft/warp/shear/buckling; normalized [0,1] LLM surface), XPBD GPU solver with self/multi-layer/exaggerated-proportion collision, avatar binding + auto-fit/retargeting across body morphs, rigid trims (buttons, zippers, lacing, piping), UV-from-pattern (ARAP flatten, island packing, grain-accurate UVs) + PBR texturing, keyframeable properties + animation timeline, model-first MCP surface (six core tools + registered extensions), export lanes glTF/Alembic-shim/USD/OBJ (FBX via Blender bridge only) | §13.1–13.15 |
+| BodyKit | FEAT-TAILOR-BODYKIT | Parametric body engine replacing Daz Studio in the production pipeline; adult production (18+ subjects) is the primary lane, game/general 3D export the secondary lane | Decoupled region morph channels (e.g. breast volume/ptosis/firmness/profile independent of shoulders/hips/thighs/midriff), extreme body ranges by design, original base mesh + fail-closed license guards (SMPL/Genesis/dhdm prohibited), skeleton/skinning/posing with per-body re-baked RBF correctives + sim-to-corrective baking, unified-solver soft tissue, native genital modules (vulva/penis/anus/futa; gape + erection continuums, arousal controller), skin & texture system (UDIM, wet layers, biophysical tone), ARKit-52 face/expression baseline, model-first body API (`author_body` → `export_body`), Blender/UE export lanes, acceptance archetypes ARCH-A..H | §13.16–13.27 |
+
+- **Cloth bridge (§13.24):** BodyKit publishes parametric `tailor_avatars` rows plus auto-updating channel-derived collision proxies that Cloth drapes against; Cloth drapes/refits wardrobes onto BodyKit bodies including extreme archetypes (volume-aware auto-follow, garment fix dials, conform-wardrobe batch).
+- **Authority contracts (§13.14, §13.16):** §13.14 is the canonical authority for every Cloth type, field, unit, event, schema-id, table, migration, validation check, and promotion-equivalence rule; BodyKit contracts extend — never fork — that surface. `tailor_*` / `bodykit_*` PostgreSQL tables with prefixed string IDs (`GAR-`/`AVT-`/`BDY-`/`BRC-`/...), centimetres on LLM-facing surfaces / millimetres on solver-authority surfaces, no SQLite anywhere.
+- **Kernel integration (§13.11, §13.15, §13.27):** every simulation, refit, corrective bake, QA matrix, and export runs as a kernel scheduler job (leases, backpressure, cancellation) with Flight Recorder lifecycle events; cross-GPU-backend promotion equivalence uses `MeshComparator` tolerance (ε = 0.1 mm), not content-hash equality.
+
+---
+
+## 6. Primitive Index
 
 ~400+ primitives in Appendix 12.4 (`hs_primitive_tool_tech_matrix@2`). Each entry has: `primitive_id` (PRIM-*), `title`, `kind` (ts_interface / rust_struct / rust_enum / react_component / spec_schema / py_dataclass / rust_trait).
 
-Primitives are the atomic building blocks. The interaction matrix (§6) connects them to features and each other. Full index in spec Appendix 12.4.
+Primitives are the atomic building blocks. The interaction matrix (§7) connects them to features and each other. Full index in spec Appendix 12.4.
 
-### 5.1 Storage & Data
+### 6.1 Storage & Data
 
 | Primitive ID | Name | Kind |
 |---|---|---|
@@ -171,7 +193,7 @@ Primitives are the atomic building blocks. The interaction matrix (§6) connects
 | PRIM-QueryPlan | Retrieval execution plan | rust_struct |
 | PRIM-RetrievalTrace | Retrieval provenance record | rust_struct |
 
-### 5.2 Session & Execution
+### 6.2 Session & Execution
 
 | Primitive ID | Name | Kind |
 |---|---|---|
@@ -186,7 +208,7 @@ Primitives are the atomic building blocks. The interaction matrix (§6) connects
 | PRIM-WorkflowNodeExecution | Single node execution record | rust_struct |
 | PRIM-MicroTaskSummary | MT status snapshot | rust_struct |
 
-### 5.3 AI / LLM
+### 6.3 AI / LLM
 
 | Primitive ID | Name | Kind |
 |---|---|---|
@@ -200,7 +222,7 @@ Primitives are the atomic building blocks. The interaction matrix (§6) connects
 | PRIM-ContextBlockV1 | Single context block in envelope | spec_schema |
 | PRIM-LoadedSpecPromptPack | Resolved prompt pack | spec_schema |
 
-### 5.4 Governance & Workflow
+### 6.4 Governance & Workflow
 
 | Primitive ID | Name | Kind |
 |---|---|---|
@@ -214,7 +236,7 @@ Primitives are the atomic building blocks. The interaction matrix (§6) connects
 | PRIM-LocusSyncTaskBoardParams | Task board sync parameters | rust_struct |
 | PRIM-LocusOperation | Locus state mutation | rust_struct |
 
-### 5.5 UI / Presentation
+### 6.5 UI / Presentation
 
 | Primitive ID | Name | Kind |
 |---|---|---|
@@ -229,7 +251,7 @@ Primitives are the atomic building blocks. The interaction matrix (§6) connects
 | PRIM-WorkspaceSidebar | Workspace navigation | react_component |
 | PRIM-AiJobsDrawer | Job status drawer | react_component |
 
-### 5.6 Media & Content
+### 6.6 Media & Content
 
 | Primitive ID | Name | Kind |
 |---|---|---|
@@ -237,7 +259,7 @@ Primitives are the atomic building blocks. The interaction matrix (§6) connects
 | PRIM-LoomSearchFilters | Loom search parameters | rust_struct |
 | PRIM-LoomBlockSearchResult | Loom search result | rust_struct |
 
-### 5.7 Calendar & Temporal
+### 6.7 Calendar & Temporal
 
 | Primitive ID | Name | Kind |
 |---|---|---|
@@ -255,7 +277,7 @@ Primitives are the atomic building blocks. The interaction matrix (§6) connects
 | PRIM-CalendarSourceWritePolicy | Write policy enum | rust_enum |
 | PRIM-ActivitySpanBinding | Temporal activity binding | spec_schema |
 
-### 5.8 Tools & MCP
+### 6.8 Tools & MCP
 
 | Primitive ID | Name | Kind |
 |---|---|---|
@@ -272,11 +294,32 @@ Primitives are the atomic building blocks. The interaction matrix (§6) connects
 | PRIM-MexRuntimeError | MEX runtime error | rust_enum |
 | PRIM-AdapterError | Engine adapter error | rust_enum |
 
+### 6.9 Tailor (Cloth & BodyKit)
+
+| Primitive ID | Name | Kind |
+|---|---|---|
+| PRIM-GarmentSpec | GarmentSpec | rust_struct |
+| PRIM-ClothSolver | ClothSolver | rust_trait |
+| PRIM-SimulationReceipt | SimulationReceipt | rust_struct |
+| PRIM-TailorValidationDescriptor | TailorValidationDescriptor | rust_struct |
+| PRIM-ClothBodyProxy | ClothBodyProxy | rust_struct |
+| PRIM-TailorModelAdapter | TailorModelAdapter | rust_struct |
+| PRIM-GarmentAnimationDraft | GarmentAnimationDraftV1 | rust_struct |
+| PRIM-TailorExportPreset | ExportPreset (Tailor) | rust_struct |
+| PRIM-BodySpec | BodySpec | rust_struct |
+| PRIM-BodyChannel | BodyChannel (decoupled region channel) | rust_struct |
+| PRIM-BodyRecipe | BodyRecipe | rust_struct |
+| PRIM-BodyCorrectiveEngine | RBF pose-space corrective engine + sim-to-corrective baking | rust_struct |
+| PRIM-BodySoftTissue | BodySoftTissue (unified-solver region cages) | rust_struct |
+| PRIM-BodyGenitalModules | Genital modules (vulva/penis/anus, arousal controller) | rust_struct |
+| PRIM-BodyExportProfile | BodyExportProfile (BXP-) | rust_struct |
+| PRIM-BodyValidationReceipt | BodyValidationReceipt | rust_struct |
+
 > Full primitive index with ~400+ entries: Appendix 12.4 in Master Spec
 
 ---
 
-## 6. Force Multiplier Map
+## 7. Force Multiplier Map
 
 Designed-in pillar × pillar interactions. These are intentional architectural combinations tracked in the interaction matrix (Appendix 12.6, `hs_interaction_matrix@2`).
 
@@ -307,15 +350,18 @@ Designed-in pillar × pillar interactions. These are intentional architectural c
 | Native Editors × CKC | Code/Rich-text editors (WP-012), Studio/Atelier (CKC) | Editor content feeds governed creative extraction / CKC source patterns | (WP-012 interconnection) |
 | Stage × Studio | Stage, Studio | Captured web/media/HTML/3D artifacts can move into Studio for visual arrangement, annotation, design, photo/compositor work, and later Figma-like collaboration without duplicating storage or command authority | §10.13, §6.3.3.5 |
 | FR × internal_diagnostics × Palmistry | Flight Recorder (#1), internal_diagnostics (#23), Palmistry (#24) | Three-tier diagnostic model: business-event ledger (tier 1) supplemented by internal self-diagnostics (tier 2) and an external survives-crash watcher (tier 3); no tier replaces another | HBR-INT-009 |
+| Tailor BodyKit → Cloth | Tailor::BodyKit, Tailor::Cloth | BodyKit publishes parametric `tailor_avatars` rows + auto-updating channel-derived collision proxies that Cloth drapes against; garments carry fit data across the channel space (grow-into-garment refit) | IMX-TAILOR-01 |
+| Tailor Cloth → BodyKit | Tailor::Cloth, Tailor::BodyKit | Cloth drapes/refits wardrobes onto BodyKit bodies including extreme archetypes — volume-aware auto-follow, garment fix dials, conform-wardrobe batch; rigidity masks honored across projection and sim | IMX-TAILOR-02 |
+| Tailor × AI Job Model | Tailor (Cloth + BodyKit), Execution/Job Runtime, FR | Every Tailor simulation, refit, corrective bake, archetype QA matrix, and export executes on the kernel job scheduler (leases/backpressure/cancellation) with Flight Recorder lifecycle events; QA matrices persist as validation records | IMX-TAILOR-03, IMX-TAILOR-04 |
 
 > Full interaction matrix with 100+ edges: Appendix 12.6 in Master Spec.
 > Native-editor interconnection edges trace to the WP-KERNEL-012 `interconnection_contract`; canonical edge IDs are assigned in the spec interaction matrix as the native surfaces are spec-reconciled.
 
 ---
 
-## 7. Tool Surface
+## 8. Tool Surface
 
-### 7.1 Unified Tool Surface
+### 8.1 Unified Tool Surface
 
 All tool calls (MCP and native) route through the same governance gates: capability check → consent check → FR logging → execution → result capture.
 
@@ -328,8 +374,9 @@ All tool calls (MCP and native) route through the same governance gates: capabil
 | Dexterity / ModelLane launch | Internal model switching and launch kernel: all local, cloud/BYOK, CLI, human, subagent, and validator lanes enter through coordinator-owned ModelLane records, PostgreSQL/EventLedger persistence, and Flight Recorder correlation. IPC, schedules, and GUI controls are request sources only; `SwarmCoordinator::spawn_session` plus the Dexterity launch contract is launch authority. | §4.3.9.2.5 |
 | Dexterity cloud ProjectionPlan / ConsentReceipt | Cloud/BYOK lanes must resolve durable `ModelLaneCloudProjectionPlanRecord` and `ModelLaneCloudConsentReceiptRecord` authority before provider launch. `SwarmCoordinator::spawn_session` preflights consent before `factory.create`; missing, expired, mismatched, or revoked consent fails closed as `CX-MM-007`, records EventLedger evidence, suppresses provider calls, and keeps cloud output advisory until PromotionGate approval. Direct typed Flight Recorder `FR-EVT-CLOUD-*` emission is a follow-on wiring requirement and is not claimed wired by MT-006. | §4.3.9.2.5 |
 | Dexterity ContextBundle handoff | Local and cloud lanes speak through artifact-backed `ModelLaneContextBundleHandoff` records, not hidden provider memory or chat history. Source outputs must first bind a canonical artifact payload in PostgreSQL/EventLedger, then downstream lanes consume lane-addressed ContextBundles in EventLedger order through Dexterity APIs. CRDT handoffs require Yjs-compatible replay metadata, Loom refs require EventLedger/Flight Recorder evidence, and FEMS MemoryPack refs are bounded/reviewed/cloud-safe before cloud use. | §4.3.9.2.5 |
+| Tailor model-first tools | Garment + body authoring as governed MCP tools: `GarmentSpec`/`BodySpec` in, `SimulationReceipt` structured content back with stable finding codes and JSON-pointer `suggested_fix` (deterministic model self-correction loop). Cloth exposes six core tools + registered extensions (§13.13); BodyKit exposes the model-first body API `author_body` → `export_body` (§13.25). Model-authored specs always pass sandbox → `TailorValidationDescriptor` → PromotionGate before authority rows change. | §13.13, §13.25 |
 
-### 7.2 DCC Panels
+### 8.2 DCC Panels
 
 | Panel | What it shows | Spec §ref |
 |---|---|---|
@@ -345,7 +392,7 @@ All tool calls (MCP and native) route through the same governance gates: capabil
 | Tool Call Ledger | All governed tool invocations with timing and results | §10.11.5.13 |
 | Front End Memory Panel | Memory browser, write review, MemoryPack preview, conflict queue | §10.11.5.14 |
 
-### 7.3 Flight Recorder Event Families
+### 8.3 Flight Recorder Event Families
 
 | Family | Event codes | What it captures |
 |---|---|---|
@@ -362,7 +409,7 @@ All tool calls (MCP and native) route through the same governance gates: capabil
 
 ---
 
-## 8. Major Shipped Native Surfaces
+## 9. Major Shipped Native Surfaces
 
 Surfaces shipped against the canonical native-Rust frontend. The canonical build target is the `handshake-native` crate (`src/frontend/handshake_native/`); the legacy React/Tauri app under `app/src` is reference-only (do not edit).
 
