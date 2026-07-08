@@ -34,7 +34,7 @@
 use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use serde::Deserialize;
@@ -69,7 +69,10 @@ pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/knowledge/documents", post(create_document))
         .route("/knowledge/documents/import", post(import_document))
-        .route("/knowledge/documents/:document_id", get(load_document))
+        .route(
+            "/knowledge/documents/:document_id",
+            get(load_document).delete(delete_document),
+        )
         .route(
             "/knowledge/documents/:document_id/draft",
             get(load_document_draft)
@@ -767,6 +770,89 @@ async fn load_document(
         "document": document,
         "tree": tree,
         "code_nodes": code_nodes,
+    })))
+}
+
+/// DELETE /knowledge/documents/:document_id — SOFT delete (tombstone).
+///
+/// Preserves EventLedger lineage: the authority row is marked deleted (never
+/// dropped), the delete is recorded as a `KNOWLEDGE_RICH_DOCUMENT_DELETED`
+/// EventLedger receipt (who/when/why is auditable), and the document's knowledge
+/// SOURCE is marked stale so retrieval stops treating the deleted document's
+/// blocks as fresh authority. The document's knowledge ENTITY has no stale/
+/// lifecycle flag in the current schema, so the stale SOURCE (the index unit the
+/// pipeline re-reads) is the marking surface. Requires `DocumentAction::Write`.
+/// Additive: no frontend caller exists yet.
+async fn delete_document(
+    State(state): State<AppState>,
+    Path(document_id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = doc_context(&headers)?;
+    ctx.require(DocumentAction::Write)?;
+    let db = db_for(&state);
+
+    let document = db
+        .get_knowledge_rich_document(&document_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge rich document"))?;
+
+    // Record the delete receipt FIRST so the tombstone can reference it (the
+    // deleted_receipt_event_id FK targets kernel_event_ledger).
+    let receipt = record_receipt(
+        &db,
+        &ctx,
+        KernelEventType::KnowledgeRichDocumentDeleted,
+        &document.rich_document_id,
+        json!({
+            "event": "deleted",
+            "workspace_id": document.workspace_id,
+            "doc_version": document.doc_version,
+            "title": document.title,
+        }),
+    )
+    .await?;
+
+    // Soft-delete: mark the authority row deleted (never drop it). The
+    // append-only version history and EventLedger receipts remain intact.
+    sqlx::query(
+        r#"
+        UPDATE knowledge_rich_documents
+        SET deleted_at = NOW(),
+            deleted_receipt_event_id = $2,
+            updated_at = NOW()
+        WHERE rich_document_id = $1
+        "#,
+    )
+    .bind(&document.rich_document_id)
+    .bind(&receipt)
+    .execute(&state.postgres_pool)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?;
+
+    // Mark the document's knowledge SOURCE stale (the content-hash-tracked index
+    // unit) so the retrieval pipeline no longer serves the deleted blocks as
+    // fresh. Best-effort: a missing source (never indexed) is not an error.
+    let mut source_marked_stale = false;
+    if let Some(source) = db
+        .get_knowledge_source_by_document_id(&document.workspace_id, &document.rich_document_id)
+        .await
+        .map_err(storage_error)?
+    {
+        if !source.stale {
+            db.mark_knowledge_source_stale(&source.source_id)
+                .await
+                .map_err(storage_error)?;
+        }
+        source_marked_stale = true;
+    }
+
+    Ok(Json(json!({
+        "deleted": true,
+        "rich_document_id": document.rich_document_id,
+        "deleted_receipt_event_id": receipt,
+        "source_marked_stale": source_marked_stale,
     })))
 }
 

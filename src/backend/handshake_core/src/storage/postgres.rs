@@ -2273,6 +2273,7 @@ fn map_loom_canvas_placement(row: &PgRow) -> StorageResult<LoomCanvasPlacement> 
         h: row.get("h"),
         z_index: row.get("z_index"),
         group_id: row.get("group_id"),
+        is_text_card: row.get("is_text_card"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })
@@ -3413,7 +3414,9 @@ fn loom_block_graph_source_kind(content_type: &LoomBlockContentType) -> LoomSear
         LoomBlockContentType::Note
         | LoomBlockContentType::Journal
         | LoomBlockContentType::Canvas
-        | LoomBlockContentType::ViewDef => LoomSearchSourceKind::LoomBlock,
+        | LoomBlockContentType::ViewDef
+        | LoomBlockContentType::CkcMoodboard
+        | LoomBlockContentType::CkcCharacter => LoomSearchSourceKind::LoomBlock,
     }
 }
 
@@ -8417,7 +8420,7 @@ impl super::Database for PostgresDatabase {
         let placement_rows = sqlx::query(
             r#"
             SELECT placement_id, canvas_block_id, workspace_id, placed_block_id,
-                   x, y, w, h, z_index, group_id, created_at, updated_at
+                   x, y, w, h, z_index, group_id, is_text_card, created_at, updated_at
             FROM loom_canvas_placements
             WHERE workspace_id = $1 AND canvas_block_id = $2
             ORDER BY z_index ASC, created_at ASC, placement_id ASC
@@ -8544,11 +8547,11 @@ impl super::Database for PostgresDatabase {
             r#"
             INSERT INTO loom_canvas_placements (
                 placement_id, canvas_block_id, workspace_id, placed_block_id,
-                x, y, w, h, z_index, group_id, created_at, updated_at
+                x, y, w, h, z_index, group_id, is_text_card, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
             RETURNING placement_id, canvas_block_id, workspace_id, placed_block_id,
-                      x, y, w, h, z_index, group_id, created_at, updated_at
+                      x, y, w, h, z_index, group_id, is_text_card, created_at, updated_at
             "#,
         )
         .bind(&placement_id)
@@ -8561,6 +8564,7 @@ impl super::Database for PostgresDatabase {
         .bind(placement.h)
         .bind(placement.z_index)
         .bind(&placement.group_id)
+        .bind(placement.is_text_card)
         .fetch_one(&self.pool)
         .await?;
         map_loom_canvas_placement(&row)
@@ -8591,7 +8595,7 @@ impl super::Database for PostgresDatabase {
                 updated_at = NOW()
             WHERE workspace_id = $1 AND placement_id = $2
             RETURNING placement_id, canvas_block_id, workspace_id, placed_block_id,
-                      x, y, w, h, z_index, group_id, created_at, updated_at
+                      x, y, w, h, z_index, group_id, is_text_card, created_at, updated_at
             "#,
         )
         .bind(workspace_id)

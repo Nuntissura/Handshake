@@ -53,6 +53,14 @@ pub enum LoomBlockContentType {
     /// column. Reads run through the real Loom query backend; mutations route
     /// through the normal block/edge update paths with receipts.
     ViewDef,
+    /// WP-KERNEL-012 MT-046 (CKC): a CKC moodboard authored as a typed
+    /// LoomBlock. Distinct from `Note` so the frontend native editor can resolve
+    /// the moodboard surface directly instead of falling back to a note.
+    CkcMoodboard,
+    /// WP-KERNEL-012 MT-046 (CKC): a CKC character sheet authored as a typed
+    /// LoomBlock. Distinct from `Note` so the frontend native editor can resolve
+    /// the character surface directly instead of falling back to a note.
+    CkcCharacter,
 }
 
 impl LoomBlockContentType {
@@ -65,6 +73,8 @@ impl LoomBlockContentType {
             LoomBlockContentType::Journal => "journal",
             LoomBlockContentType::Canvas => "canvas",
             LoomBlockContentType::ViewDef => "view_def",
+            LoomBlockContentType::CkcMoodboard => "ckc_moodboard",
+            LoomBlockContentType::CkcCharacter => "ckc_character",
         }
     }
 }
@@ -81,6 +91,8 @@ impl FromStr for LoomBlockContentType {
             "journal" => Ok(LoomBlockContentType::Journal),
             "canvas" => Ok(LoomBlockContentType::Canvas),
             "view_def" => Ok(LoomBlockContentType::ViewDef),
+            "ckc_moodboard" => Ok(LoomBlockContentType::CkcMoodboard),
+            "ckc_character" => Ok(LoomBlockContentType::CkcCharacter),
             _ => Err(crate::storage::StorageError::Validation(
                 "invalid loom block content_type",
             )),
@@ -1386,6 +1398,12 @@ pub struct LoomCanvasPlacement {
     pub z_index: i32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group_id: Option<String>,
+    /// WP-KERNEL-012 MT-080 FIX A (CARD-ORIGIN): true when this placement was
+    /// created by the inline text-card editor (`create_canvas_card`), so the
+    /// frontend can restore an inline-editable text card across sessions. Generic
+    /// block references are false. Defaults false for pre-migration payloads.
+    #[serde(default)]
+    pub is_text_card: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -1402,6 +1420,9 @@ pub struct NewLoomCanvasPlacement {
     pub h: f64,
     pub z_index: i32,
     pub group_id: Option<String>,
+    /// True only for the inline text-card path (`create_canvas_card`); generic
+    /// block placement leaves this false.
+    pub is_text_card: bool,
 }
 
 /// Partial update for a placement (move / resize / group). `None` leaves a field
@@ -1714,5 +1735,58 @@ mod mt178_helper_tests {
         let (start, len) = loom_find_unlinked_term(text, "beta").expect("match");
         assert_eq!(start, 6);
         assert_eq!(len, 4);
+    }
+}
+
+/// WP-KERNEL-012 MT-046 (CKC): the two new CKC LoomBlock content types plus the
+/// migration that widens the DB CHECK constraint. Pure unit tests (no DB).
+#[cfg(test)]
+mod mt046_ckc_content_type_tests {
+    use super::LoomBlockContentType;
+    use std::str::FromStr;
+
+    #[test]
+    fn ckc_content_types_round_trip_as_str_and_from_str() {
+        for ty in [
+            LoomBlockContentType::CkcMoodboard,
+            LoomBlockContentType::CkcCharacter,
+        ] {
+            let s = ty.as_str();
+            let parsed = LoomBlockContentType::from_str(s).expect("from_str parses as_str");
+            assert_eq!(parsed, ty, "round-trip failed for {s}");
+        }
+        assert_eq!(LoomBlockContentType::CkcMoodboard.as_str(), "ckc_moodboard");
+        assert_eq!(LoomBlockContentType::CkcCharacter.as_str(), "ckc_character");
+    }
+
+    #[test]
+    fn ckc_content_types_serde_uses_snake_case() {
+        // The wire form (serde rename_all="snake_case") must match as_str so the
+        // frontend and the DB CHECK constraint agree on the literal.
+        let json = serde_json::to_string(&LoomBlockContentType::CkcMoodboard).unwrap();
+        assert_eq!(json, "\"ckc_moodboard\"");
+        let json = serde_json::to_string(&LoomBlockContentType::CkcCharacter).unwrap();
+        assert_eq!(json, "\"ckc_character\"");
+    }
+
+    #[test]
+    fn unknown_content_type_still_rejected() {
+        assert!(LoomBlockContentType::from_str("not_a_type").is_err());
+    }
+
+    #[test]
+    fn migration_0337_widens_check_to_include_ckc_types() {
+        // The migration must exist and admit both CKC content types so a
+        // loom_blocks INSERT with content_type in {ckc_moodboard, ckc_character}
+        // passes the loom_blocks_content_type_check constraint.
+        let up = include_str!("../../migrations/0337_loom_ckc_content_types.sql");
+        assert!(up.contains("loom_blocks_content_type_check"));
+        assert!(up.contains("'ckc_moodboard'"));
+        assert!(up.contains("'ckc_character'"));
+        let down = include_str!("../../migrations/0337_loom_ckc_content_types.down.sql");
+        // The down migration restores the pre-CKC allow-list (no CKC literals).
+        assert!(down.contains("loom_blocks_content_type_check"));
+        assert!(!down.contains("ckc_moodboard"));
+        assert!(!down.contains("ckc_character"));
     }
 }

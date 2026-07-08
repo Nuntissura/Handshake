@@ -3755,6 +3755,9 @@ async fn place_block_on_canvas(
                 h: payload.h,
                 z_index: payload.z_index.unwrap_or(0),
                 group_id: payload.group_id,
+                // Generic block reference (existing block placed on the canvas),
+                // not the inline text-card editor path.
+                is_text_card: false,
             },
         )
         .await
@@ -3820,6 +3823,9 @@ async fn create_canvas_card(
                 h: payload.h,
                 z_index: payload.z_index.unwrap_or(0),
                 group_id: None,
+                // Inline text-card editor origin: mark so the frontend restores
+                // an inline-editable text card across sessions (MT-080 FIX A).
+                is_text_card: true,
             },
         )
         .await

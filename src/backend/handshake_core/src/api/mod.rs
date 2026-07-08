@@ -4,6 +4,7 @@ use crate::AppState;
 
 pub mod atelier;
 pub mod bundles;
+pub mod calendar;
 pub mod canvases;
 pub mod debug_adapter;
 pub mod diagnostics;
@@ -17,6 +18,7 @@ pub mod knowledge_documents;
 pub mod knowledge_ingestion;
 pub mod knowledge_memory;
 pub mod knowledge_retrieval;
+pub mod locus;
 pub mod logs;
 pub mod loom;
 pub mod memory;
@@ -28,6 +30,8 @@ pub mod workspaces;
 
 pub fn routes(state: AppState) -> Router {
     let workspace_routes = workspaces::routes(state.clone());
+    let calendar_routes = calendar::routes(state.clone());
+    let locus_routes = locus::routes(state.clone());
     let canvas_routes = canvases::routes(state.clone());
     let job_routes = jobs::routes(state.clone());
     let loom_routes = loom::routes(state.clone());
@@ -53,6 +57,8 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state.clone());
 
     workspace_routes
+        .merge(calendar_routes)
+        .merge(locus_routes)
         .merge(canvas_routes)
         .merge(log_routes)
         .merge(job_routes)
