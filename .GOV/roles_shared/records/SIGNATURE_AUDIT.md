@@ -23,7 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
-| ilja040620261643 | Orchestrator | 2026-06-04 16:43 | Work packet creation: WP-KERNEL-005 | v02.189 | Approved after Technical Refinement (see .GOV/task_packets/WP-KERNEL-005/refinement.md ). |
+| ilja080720262117 | KERNEL_BUILDER | 2026-07-08 21:17 | Master Spec enrichment: v02.198 Section 13 two-submodule Tailor (Cloth 13.1-13.15 second-pass MD-parity reconciliation + BodyKit 13.16-13.27, anchors TAI-BK-001..240) for WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1 | v02.198 | Approved after deep MD-parity verification + BodyKit fold-in (research .GOV/reference/tailor_bodykit_research/; gap matrix + MT blueprint 06-gap-matrix-and-mt-plan.md). Signs the copy-first v02.197 -> v02.198 bundle bump. |
 | ilja150520260208 | Orchestrator | 2026-05-15 02:08 | Work packet creation: WP-KERNEL-003-Sandbox-Validation-Promotion-v1 | v02.185 | Approved after Technical Refinement (see .GOV/refinements/WP-KERNEL-003-Sandbox-Validation-Promotion-v1.md ). |
 | ilja140520260455 | Orchestrator | 2026-05-14 04:55 | Work packet creation: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 | v02.185 | Approved after Technical Refinement (see .GOV/refinements/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1.md ). |
 | ilja140520260015 | Orchestrator | 2026-05-14 00:15 | Work packet creation: WP-KERNEL-001-Event-Ledger-Session-Broker-v1 | v02.184 | Approved after Technical Refinement (see .GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/refinement.md ). |

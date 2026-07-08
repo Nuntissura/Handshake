@@ -39,7 +39,7 @@
     "activation_required": true,
     "user_signature_required": true,
     "refinement_required_before_execution": true,
-    "spec_status": "SECTION_13_TAILOR_EXPANDED_TO_TWO_SUBMODULES_IN_MASTER_SPEC_v02.198 (Cloth 13.1-13.15 + BodyKit 13.16-13.27; second-pass MD-parity reconciliation applied; first activation was v02.194 signed ilja170620261750; v02.198 bump authored 2026-07-08 per operator fold-in directive, OPERATOR SIGNATURE PENDING)",
+    "spec_status": "SECTION_13_TAILOR_EXPANDED_TO_TWO_SUBMODULES_IN_MASTER_SPEC_v02.198 (Cloth 13.1-13.15 + BodyKit 13.16-13.27; second-pass MD-parity reconciliation applied; first activation was v02.194 signed ilja170620261750; v02.198 bump authored 2026-07-08 per operator fold-in directive, SIGNED ilja080720262117 (2026-07-08 21:17), recorded in .GOV/roles_shared/records/SIGNATURE_AUDIT.md)",
     "next_in_build_order_after": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1 (start after WP-009 passes tests + validation)"
   },
   "microtasks": {

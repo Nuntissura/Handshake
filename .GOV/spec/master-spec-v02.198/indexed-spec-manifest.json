@@ -549,7 +549,7 @@
     "path": ".GOV/spec/master-spec-v02.198/spec-changelog.jsonl",
     "schema": "handshake.master_spec.changelog_entry@1",
     "required_on_version_change": true,
-    "sha256": "22ddd39f41c6c8ac404411c448c9d1dbcafd7bf66eba3433eb083ce8b57becf8",
+    "sha256": "d3497574fb035f8d2872d7bf6631b8a171548168caba686c4b0961205f2d300c",
     "entry_count": 111,
     "current_version_entry_present": true,
     "validation_status": "PASS_MT001_POST_REVIEW_HARDENED_SPEC_AND_PACKET_CHECKS",
