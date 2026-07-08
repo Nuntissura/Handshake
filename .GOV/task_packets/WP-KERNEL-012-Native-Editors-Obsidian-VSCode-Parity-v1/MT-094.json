@@ -14,7 +14,7 @@
   "title": "P6-MT-094-HandshakeLaunchesPalmistry-IpcHandshake",
   "group": "P1 Palmistry (Tier 3 external watcher)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-03T21:26:02Z",
+  "updated_at_utc": "2026-07-08T12:46:32.153Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-094.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "OPEN",
-    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "active": true,
     "depends_on": [
       "MT-082",
       "MT-089"
@@ -72,7 +72,21 @@
         "previous_active": false
       }
     ],
-    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260708-palmistry",
+    "claimed_at_utc": "2026-07-08T12:46:32.153Z",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-07-08T12:46:32.153Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "rfv_evidence_2026_07_08": {
+      "by": "KERNEL_BUILDER-20260708-palmistry",
+      "product_commit": "65f0b683 (palmistry crash-monitor hardening: hang-watchdog + lock-poison safety)",
+      "proof_run": "cargo test -p palmistry: 70 lib + 3 main + 55 integration PASS, 0 failed (default). Then --ignored (live-resource, spawns real palmistry.exe): cross_process_out_of_process_minidump_via_shipped_handler PASS, out_of_process_minidump_is_written_by_the_server_and_validates PASS (10.8s), live_palmistry_captures_minidump_from_really_crashed_client PASS + live_palmistry_confirms_freeze_of_frozen_handshake_shaped_child PASS (27.2s), live_minidump_is_covered_by_mt092_cross_process PASS, live_win32_probe_detects_pumping_and_blocked_window PASS (7.79s). ALL GREEN IN RUNTIME.",
+      "no_sqlite": "verified (grep-gate; POD ring, minidumper/minidump-writer)",
+      "mode": "VERIFY_AND_PROVE (runtime-proven)",
+      "session_summary": "Palmistry launcher (launch_palmistry_at, control_socket_name, ShutdownOutcome, ENV_PALMISTRY_EXE). Lock-poison hardening (main.rs 7 sites unwrap_or_else into_inner) + evidence-preservation fix (test_palmistry_launch stop self-deleting live-gate dirs), committed 65f0b683. Launcher PROVEN IN RUNTIME: the live GATE tests spawned the real 11MB palmistry.exe via the launcher and drove crash/freeze capture. handshake_native test_palmistry_launch GATE covered in the handshake-native diagnostics run.",
+      "needs_managed_resource_proof": "NONE — live-resource crash/freeze capture proven in runtime (palmistry-spawn batch green)."
+    }
   },
   "scope": {
     "summary": "Goal: Make HANDSHAKE LAUNCH palmistry.exe at startup and complete the startup IPC HANDSHAKE (Master Spec v02.196 §6.13.3 'launched WITH Handshake at startup' + §6.13.2). At Handshake startup, the native app spawns the sibling `palmistry` process, passes it the Handshake PID + session-id + ring backing-file path + control-socket name (the MT-089 inputs), and completes a startup handshake (Palmistry acks it is watching). This MUST honor HBR-QUIET (§6.13 cross-ref HBR-QUIET-003): the spawned Palmistry process must NOT steal foreground / pop a window / hijack input — it is a headless background watcher.\n\nLIFECYCLE-INVERSION LAUNCH CONSTRAINT (the HARD §6.13.3 contract on the launcher, from MT-089): the spawn MUST NOT add Palmistry to a Win32 Job Object with KILL_ON_JOB_CLOSE (and must not put it in a process group that dies with the parent). A normal `std::process::Command::spawn` on Windows does NOT add the child to the parent's job by default, BUT eframe/winit or a wrapping launcher might; the spawn must explicitly ensure Palmistry is a free-standing process that survives parent death (MT-089 AC-009-4 is the behavioral proof; this MT must spawn it in a way that preserves that). Document the spawn flags used (e.g. on Windows, DETACHED_PROCESS / CREATE_NO_WINDOW for quiet headless, and NOT adding it to a kill-on-close job).\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs` — `pub fn launch_palmistry(session: &DiagSession, ring_path: &Path, control_socket: &str) -> io::Result<PalmistryHandle>`. It resolves the palmistry.exe path RELATIVE to the running Handshake exe (`std::env::current_exe()` -> sibling `palmistry.exe`) — portable, no hardcoded path (the installer ships both binaries side by side; install_payload in handshake-native Cargo.toml already lists a two-binary layout — add palmistry.exe to that payload). Spawns it via `std::process::Command` with: the PID/session/ring/socket passed as env vars or args (matching MT-089's cli.rs intake), CREATE_NO_WINDOW + a detached/quiet flag (HBR-QUIET — no console window, no focus steal), stdout/stderr piped or to a log file (not inherited to steal the console). Returns a handle holding the child + the control-socket client for sending Shutdown later.\n- EDIT `src/frontend/handshake_native/src/main.rs` (or `app.rs` HandshakeApp::new) — call `launch_palmistry(...)` AFTER the ring writer is created (MT-082 install) + the session id is minted, EARLY in startup so the watcher is up before the app can freeze. Store the PalmistryHandle on HandshakeApp so a clean app shutdown sends the Shutdown control message (the §6.13.3 'closes only on explicit command' path — on a normal Handshake exit, send Shutdown so Palmistry exits cleanly + records NO crash). Graceful degradation: if palmistry.exe is missing or the spawn fails, log a tracing::warn + a typed BackendUnreachable-style diagnostic and CONTINUE (Handshake must run even without the watcher — the watcher is supplementary; never block startup on it).\n- The IPC HANDSHAKE: after spawn, Handshake connects to Palmistry's control socket (MT-089 control.rs) and exchanges a `HandshakeHello{ pid, session_id, ring_path }` / ack so both sides confirm the channel + the ring binding before the app proceeds. Bounded: if Palmistry does not ack within a short deadline, log + continue degraded (do not hang startup waiting on the watcher).\n- On clean Handshake shutdown (eframe on_exit / Drop): send the Shutdown control message so Palmistry exits cleanly (the clean-shutdown-is-not-a-crash path from MT-089/012).\n- CREATE `src/frontend/handshake_native/tests/test_palmistry_launch.rs`.\n\nTHE LAUNCH PROOF (the deliverable, §6.13.3): a test launches the real HandshakeApp startup path (or directly calls launch_palmistry against the built palmistry.exe) and asserts: (1) palmistry.exe is SPAWNED (a child process exists), (2) the startup HANDSHAKE completes (Palmistry acks over the control socket), (3) HBR-QUIET — the spawn used CREATE_NO_WINDOW / detached + no focus steal (verified via the spawn flags + the existing focus-audit approach — no SetForegroundWindow), (4) on a clean shutdown, Handshake sends Shutdown and Palmistry exits cleanly (no crash record), (5) graceful degradation — with palmistry.exe absent, Handshake still starts (the spawn failure is logged + degraded, startup not blocked).\n\nReuse note: the palmistry.exe path resolves via std::env::current_exe() (portable; the same approach installer self-check uses for bundled assets). HBR-QUIET / focus-safety is the EXISTING handshake-native discipline (quiet_mode/focus_guard.rs + the test_focus_audit_quiet.rs source scan + the CREATE_NO_WINDOW pattern already used for the MT-088 LSP subprocess spawn in this crate — reuse that exact spawn discipline). DiagSession (session id + ring path) is from MT-082. The control socket + HandshakeHello are MT-089. src/backend untouched.\n\nRisk if missed: Palmistry is never launched (the whole Tier 3 watcher is dormant — built but never started); OR a non-quiet spawn pops a console/steals focus (HBR-QUIET violation during model testing); OR the spawn adds Palmistry to a kill-on-close job, breaking the survives-parent-death inversion; OR a blocking handshake hangs Handshake startup waiting on the watcher (reintroducing a startup stall).",

@@ -14,7 +14,7 @@
   "title": "P5-MT-093-SurvivorStore-FlightRecorderForwarding",
   "group": "P1 Palmistry (Tier 3 external watcher)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-03T21:26:02Z",
+  "updated_at_utc": "2026-07-08T12:46:32.153Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-093.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "OPEN",
-    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "active": true,
     "depends_on": [
       "MT-090",
       "MT-091",
@@ -73,7 +73,21 @@
         "previous_active": false
       }
     ],
-    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260708-palmistry",
+    "claimed_at_utc": "2026-07-08T12:46:32.153Z",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-07-08T12:46:32.153Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "rfv_evidence_2026_07_08": {
+      "by": "KERNEL_BUILDER-20260708-palmistry",
+      "product_commit": "65f0b683 (palmistry crash-monitor hardening: hang-watchdog + lock-poison safety)",
+      "proof_run": "cargo test -p palmistry: 70 lib + 3 main + 55 integration PASS, 0 failed (default). Then --ignored (live-resource, spawns real palmistry.exe): cross_process_out_of_process_minidump_via_shipped_handler PASS, out_of_process_minidump_is_written_by_the_server_and_validates PASS (10.8s), live_palmistry_captures_minidump_from_really_crashed_client PASS + live_palmistry_confirms_freeze_of_frozen_handshake_shaped_child PASS (27.2s), live_minidump_is_covered_by_mt092_cross_process PASS, live_win32_probe_detects_pumping_and_blocked_window PASS (7.79s). ALL GREEN IN RUNTIME.",
+      "no_sqlite": "verified (grep-gate; POD ring, minidumper/minidump-writer)",
+      "mode": "VERIFY_AND_PROVE (runtime-proven)",
+      "session_summary": "Crash-survivor record store (from_crash/from_freeze/post_mortem/with_minidump, survivor-dir). test_survivor_store 7/7 green; survivor records emitted+validated during the live GATE runs.",
+      "needs_managed_resource_proof": "NONE — live-resource crash/freeze capture proven in runtime (palmistry-spawn batch green)."
+    }
   },
   "scope": {
     "summary": "Goal: Implement Palmistry's DURABLE SURVIVOR STORE + recovery-time FLIGHT-RECORDER FORWARDING (Master Spec v02.196 §6.13.7). On a detected freeze (MT-091) or crash (MT-092), Palmistry persists a durable LOCAL survivor record (the freeze/crash timeline: last heartbeat snapshot, last-N events, OS hung-window probe result, minidump file path) that outlives the Handshake process. When Handshake RECOVERS (restarts after a crash, or unfreezes), Palmistry FORWARDS the captured freeze/crash records into the Flight Recorder (Tier 1) via the EXISTING FR HTTP route (reuse-via-API) so the out-of-process evidence rejoins the governed business-event ledger + shows up in the Diagnostics Panel (MT-087). CRITICAL HONESTY GATE (§6.13.7 + the FR-kept-as-is constraint): if the existing FR ingestion route CANNOT accept the forwarded record, surface a TYPED BLOCKER (honest) — do NOT fake the forward, do NOT edit the FR, do NOT invent a new FR route (the FR is forbidden_paths).\n\nExact files to create/edit (inside the palmistry crate + a thin reuse seam):\n- CREATE `src/frontend/palmistry/src/survivor_store.rs` — the durable local store. A `SurvivorRecord` (typed allowlist: record kind = Freeze|Crash, session-id, timestamps, stale-duration, last-heartbeat counter/timestamp, last-N DiagEvents (typed), hung-window-probe result, minidump path, exit code — NO project content / free text) serialized as JSON to a durable local dir (reuse the same portable per-user data dir convention as MT-083's crash dir, e.g. dirs-resolved `data_local_dir()/handshake/palmistry/survivors/`). ATOMIC writes (temp+rename) so a record survives a Palmistry restart. The store outlives both Handshake AND a Palmistry restart (read existing records on Palmistry startup).\n- CREATE `src/frontend/palmistry/src/fr_forward.rs` — the recovery-time forwarder. It REUSES the EXISTING Flight Recorder HTTP route. VERIFIED ROUTE (do not invent): `POST http://127.0.0.1:37501/api/flight_recorder/runtime_chat_event` is the verified FR ingestion endpoint (confirmed in the Handshake-side event_emitter.rs which posts exactly there, building a `RuntimeChatEventV0_1` body; the route requires an `actor_id` and a non-nil session UUID). The forwarder builds a FR event body carrying ONLY the typed survivor fields (event code, timestamps, counters, minidump path string as a local reference — NO project content), posts it to the FR route via reqwest, and on success marks the survivor record forwarded (idempotent — do not double-forward). HONESTY: if the FR route does NOT accept the survivor shape (e.g. runtime_chat_event's schema cannot represent a freeze/crash record, or it rejects the actor_id, or the route is absent), the forwarder returns a TYPED BLOCKER (`FrForwardBlocker::SchemaIncompatible` / `RouteAbsent` / `Rejected{status}`) and the survivor record stays local + flagged 'forward pending — typed blocker', surfaced honestly; it MUST NOT fabricate a success and MUST NOT edit the FR. The coder VERIFIES against the running FR whether runtime_chat_event can carry the survivor payload; if it cannot, the typed blocker is the correct, honest outcome (and a follow-on/WP-016 item to add a proper FR ingestion shape — without touching the FR here).\n- WHO forwards (recovery detection): Palmistry detects Handshake recovery either (a) the heartbeat resumes advancing after a freeze (MT-091 recovery), or (b) a NEW Handshake instance reconnects to Palmistry's control socket / starts a new session (after a crash-restart). On either, drain the unforwarded survivor records and forward them. Forwarding can ALSO be initiated from the Handshake side on recovery (Handshake reads Palmistry's survivor store + posts to its own FR) — choose the simpler reliable path and document it; the constraint is the same: reuse the existing route, honest blocker if incompatible.\n- CREATE `src/frontend/palmistry/tests/test_survivor_store.rs` + `src/frontend/palmistry/tests/test_fr_forward.rs`.\n\nTYPED-ALLOWLIST (§6.13.8): the survivor record + the forwarded FR body carry NO project content, NO free text — only typed integers, enums, timestamps, and local file-path references (the minidump path is a local path string, not project data). A test asserts the survivor record + the forward body contain no free-text/content field.\n\nReuse note: the FR HTTP route is the EXISTING verified `POST /api/flight_recorder/runtime_chat_event` (event_emitter.rs is the in-repo reference for the exact body shape + actor_id/session requirements). reqwest is the client (palmistry already has serde_json; add reqwest if forwarding from the palmistry side, OR forward from the handshake-native side which already has reqwest + the FR client — choose + document). dirs for the portable store path. src/backend + the FR module are forbidden_paths (reuse-via-API only).\n\nRisk if missed: §6.13.7 unmet (out-of-process evidence never rejoins the ledger; the Diagnostics Panel Tier-3 section stays empty); OR (the dishonest failure) a faked forward that claims success when the FR cannot actually accept the record — which would hide the real integration gap and violate the no-fake-runtime + FR-kept-as-is constraints.",
