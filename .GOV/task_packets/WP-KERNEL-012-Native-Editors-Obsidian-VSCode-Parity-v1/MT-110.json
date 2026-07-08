@@ -4,7 +4,7 @@
   "title": "Rich-editor swarm-author AccessKit surface (SetValue/ReplaceSelectedText + wikilink-by-id)",
   "group": "E7",
   "created_at_utc": "2026-07-08T17:47:27.434Z",
-  "updated_at_utc": "2026-07-08T17:47:27.434Z",
+  "updated_at_utc": "2026-07-08T23:54:21.114Z",
   "origin": "Discovered by MT-043 (E7 SwarmEditProof) — the end-to-end swarm proof STOPs at STEP 3 (PROOF_FAIL) because the rich editor has NO swarm-edit AccessKit surface (the mirror of MT-080 code-editor SetValue/ReplaceSelectedText + consume_swarm_text_actions does not exist for the rich editor). MT-043 STEP 3 (add a backlink via the rich editor purely via AccessKit) cannot pass until this lands.",
   "scope": {
     "summary": "Give the rich/markdown editor the same out-of-process swarm-author AccessKit surface the code editor got in MT-080: the rich-editor text node advertises Action::SetValue + ReplaceSelectedText, a consume_swarm_text_actions-equivalent applies a dispatched SetValue(ActionData::Value)/ReplaceSelectedText to the rich DocJson model (through the MT-035 undo bus, not set_text-bypass), and a headless wikilink-target-by-id activation surface (an hsLink atom carrying a specific refValue) lets a swarm agent pick a wikilink target without a live search. No keystroke simulation; genuine AccessKit-by-id dispatch.",
@@ -37,9 +37,20 @@
     "MT-043"
   ],
   "lifecycle": {
-    "status": "OPEN",
-    "active": false,
-    "claimed_by": null,
-    "completed_by": null
+    "status": "READY_FOR_VALIDATION",
+    "active": true,
+    "claimed_by": "KERNEL_BUILDER-20260709-swarm",
+    "completed_by": null,
+    "claimed_at_utc": "2026-07-08T23:54:21.114Z",
+    "ready_for_validation_at_utc": "2026-07-08T23:54:21.114Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-09)",
+    "rfv_evidence_2026_07_09": {
+      "by": "KERNEL_BUILDER-20260709-swarm",
+      "mode": "IMPLEMENTED + proven (coder a36dc051 + KERNEL_BUILDER authoritative proof)",
+      "session_summary": "Rich/markdown editor SWARM-AUTHOR AccessKit surface (the MT-080 code-editor mirror), product commit 1a71d967. rich_editor_widget.rs: the rich-editor-root node (Role::TextInput, editable-only) advertises Action::SetValue + ReplaceSelectedText (:1259); consume_swarm_text_actions (:1737 <- show :1295) drains accesskit_action_requests and applies SetValue (whole-DocJson author via build_doc_from_swarm_text) / ReplaceSelectedText (caret insert via input_handler EditAction::Insert) THROUGH the MT-035 unified undo bus (record_rich_edit_undo) - undoable, emits swarm_undo_fired, NOT a set_text bypass; plain wikilink chips advertise SetValue (:3249) and a dispatched SetValue sets the hsLink atom ref_value via set_hs_link_ref_value (:1870) headless (no backend search).",
+      "proofs": "KERNEL_BUILDER authoritative (mt035): test_rich_swarm_author 4/0 - rich_root_node_advertises_swarm_edit_actions, rich_root_setvalue_dispatch_authors_doc_through_undo_bus (raw AccessKitActionRequest{SetValue, rich root, Value} mutates DocJson, bus depth==1, swarm_undo_fired>=1, bus.undo reverts), rich_root_replace_selected_text_inserts_at_caret, rich_wikilink_setvalue_by_id_sets_target_ref_value_headless. No scaffolding, reused existing primitives, no invented API.",
+      "unblocks": "MT-043 STEP 3 (swarm agent adds a backlink via the rich editor purely via AccessKit).",
+      "needs_managed_resource_proof": "NONE - the AccessKit surface + undo-bus routing proven in-process."
+    }
   }
 }
