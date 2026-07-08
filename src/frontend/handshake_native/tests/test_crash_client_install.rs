@@ -18,6 +18,7 @@
 
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 /// Resolve the built `handshake-native` binary (cargo sets CARGO_BIN_EXE for integration tests of a
 /// binary crate). This is the REAL binary under test.
@@ -32,13 +33,47 @@ fn handshake_native_bin() -> PathBuf {
 
 #[test]
 fn crash_client_install_signals_minidumper_and_dumps_out_of_process() {
-    let output = Command::new(handshake_native_bin())
+    // MT-092 hardening (must-fix, HANG RISK): the child's `--crash-client-selftest` drives a REAL
+    // `simulate_exception` -> `request_dump` -> out-of-process minidump. Under a headless / sandboxed host
+    // that roundtrip can DEADLOCK inside the child (the same failure the #[ignore]d real-host twins guard
+    // against), and a plain blocking `.output()` would then hang the DEFAULT `cargo test` lane FOREVER. A
+    // WATCHDOG spawns the child, waits a bounded time, and KILLS + fails fast on timeout so the lane can
+    // never hang — regardless of why the child stalled.
+    const WATCHDOG: Duration = Duration::from_secs(30);
+
+    let mut child = Command::new(handshake_native_bin())
         .arg("--crash-client-selftest")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .output()
-        .expect("run handshake-native --crash-client-selftest");
+        .spawn()
+        .expect("spawn handshake-native --crash-client-selftest");
+
+    // Bounded wait: poll `try_wait` until the child exits or the watchdog fires. The selftest prints a
+    // small JSON line and exits, so the piped stdout/stderr cannot fill and back-pressure the child within
+    // the bound; if a child ever DID stall on a full pipe, the watchdog still kills it (fail fast).
+    let start = Instant::now();
+    loop {
+        match child.try_wait().expect("poll crash-client selftest child") {
+            Some(_status) => break,
+            None => {
+                if start.elapsed() >= WATCHDOG {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    panic!(
+                        "watchdog: crash-client selftest exceeded {}s - likely headless deadlock \
+                         (killed the child so the default test lane does not hang)",
+                        WATCHDOG.as_secs()
+                    );
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        }
+    }
+    // The child exited within the bound; collect its captured output (returns immediately now).
+    let output = child
+        .wait_with_output()
+        .expect("collect handshake-native --crash-client-selftest output");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);

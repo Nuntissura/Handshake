@@ -508,7 +508,7 @@ impl Default for FreezeStatus {
 impl FreezeStatus {
     /// The live current freeze state.
     pub fn latest(&self) -> FreezeState {
-        *self.latest.lock().expect("freeze status mutex")
+        *self.latest.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Whether a freeze was ever CONFIRMED in this session (latched; survives a later recovery).
@@ -521,7 +521,7 @@ impl FreezeStatus {
         if state.is_frozen() {
             self.freeze_ever_confirmed.store(true, Ordering::SeqCst);
         }
-        *self.latest.lock().expect("freeze status mutex") = state;
+        *self.latest.lock().unwrap_or_else(|e| e.into_inner()) = state;
     }
 }
 
@@ -580,7 +580,7 @@ fn spawn_freeze_poll(
                         survivor_store::last_event_count(&last_events),
                         survivor_store::SurvivorProbeResult::NotResponding,
                     );
-                    match store.lock().expect("survivor store mutex").put(record) {
+                    match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
                         Ok(path) => tracing::warn!(
                             path = %path.display(),
                             "durable freeze survivor record persisted (§6.13.7); forward at recovery"
@@ -598,6 +598,18 @@ fn spawn_freeze_poll(
                     // MT-093 (AC-013-5): on the recovery edge (unfreeze), DRAIN the unforwarded survivor
                     // records and forward them to the Tier-1 Flight Recorder. Honest typed blocker if the
                     // existing route cannot carry the shape (the record stays pending — AC-013-4).
+                    //
+                    // WP-016 CO-OBLIGATION: before the FR route becomes Compatible, move drain_and_forward
+                    // OFF this freeze-poll thread (dedicated forwarding thread) — a blocking POST here
+                    // pauses freeze detection. TODAY this call is INERT: the FR route is Incompatible, so
+                    // the honesty gate inside `forward` returns a typed blocker BEFORE any network I/O, so
+                    // the drain never blocks. Once WP-016 makes the route Compatible, each pending record's
+                    // blocking POST (<=5s each) would stall THIS poll loop and pause freeze detection for
+                    // the whole drain. Deferred here (not moved to an ad-hoc per-edge thread) on purpose: a
+                    // correct fix is a SINGLE long-lived forwarding thread draining a channel; an ad-hoc
+                    // thread-per-recovery-edge would race two concurrent drains into a double-forward (both
+                    // read `unforwarded()` before either `mark_forwarded()`). Do the dedicated-thread move
+                    // as part of WP-016 when the route flips Compatible.
                     drain_and_forward(&store, &forwarder);
                 }
                 (false, FreezeState::Suspected { stale_ms }) => {
@@ -646,7 +658,7 @@ fn spawn_child_stall_poll(
                     &report,
                     survivor_store::last_event_count(&last_events),
                 );
-                match store.lock().expect("survivor store mutex").put(record) {
+                match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
                     Ok(path) => tracing::warn!(
                         path = %path.display(),
                         "durable child-stall survivor record persisted (§6.13.7/MT-106)"
@@ -671,7 +683,7 @@ fn drain_and_forward(store: &Arc<Mutex<SurvivorStore>>, forwarder: &FrForwarder)
     // Snapshot the pending records WITHOUT holding the store lock across the network post (so a slow FR
     // never blocks the freeze-poll loop on the lock).
     let pending = {
-        let guard = store.lock().expect("survivor store mutex");
+        let guard = store.lock().unwrap_or_else(|e| e.into_inner());
         guard.unforwarded()
     };
     if pending.is_empty() {
@@ -685,7 +697,7 @@ fn drain_and_forward(store: &Arc<Mutex<SurvivorStore>>, forwarder: &FrForwarder)
                 // FAITHFUL forward: mark the record forwarded idempotently (survives a restart).
                 match store
                     .lock()
-                    .expect("survivor store mutex")
+                    .unwrap_or_else(|e| e.into_inner())
                     .mark_forwarded(&stored.path)
                 {
                     Ok(_) => {
@@ -720,7 +732,7 @@ fn drain_and_forward(store: &Arc<Mutex<SurvivorStore>>, forwarder: &FrForwarder)
 fn put_crash_survivor(store: &Option<Arc<Mutex<SurvivorStore>>>, crash: &CrashRecord) {
     let Some(store) = store else { return };
     let record = survivor_store::SurvivorRecord::from_crash(crash);
-    match store.lock().expect("survivor store mutex").put(record) {
+    match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
         Ok(path) => tracing::warn!(
             path = %path.display(),
             "durable crash survivor record persisted (§6.13.7); forwarded at the next recovery"

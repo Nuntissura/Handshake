@@ -464,8 +464,9 @@ mod tests {
     /// context WITHOUT killing the test process), and asserts the shipped handler latched both a captured
     /// minidump AND the faulting thread id. (This is the in-crate, same-process complement to the
     /// cross-PROCESS binary proof in tests/test_crash_capture.rs::cross_process_*.)
-    #[test]
-    fn shipped_handler_captures_dump_and_thread_id_via_real_roundtrip() {
+    /// The blocking crash-roundtrip body, factored out of the `#[test]` below so a WATCHDOG can bound it
+    /// (under a headless / sandboxed host this real roundtrip can deadlock — see the test for why).
+    fn shipped_handler_roundtrip_body() {
         let pid = std::process::id();
         let nanos = std::time::SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -568,5 +569,42 @@ mod tests {
 
         let _ = std::fs::remove_file(&dump_path);
         let _ = std::fs::remove_file(&socket);
+    }
+
+    /// MT-092 hardening (must-fix, HANG RISK): drive the real crash roundtrip UNDER A WATCHDOG so the
+    /// DEFAULT `cargo test` lane can never hang. On a healthy host `shipped_handler_roundtrip_body`
+    /// completes in well under a second: `simulate_exception` -> `request_dump` -> the shipped handler's
+    /// `on_minidump_created` returns `LoopAction::Exit`, so `server_loop` ends and its join returns. But
+    /// under a HEADLESS / SANDBOXED host that roundtrip can DEADLOCK (the same failure the `#[ignore]d`
+    /// real-host twins in tests/test_crash_capture.rs guard against): `on_minidump_created` never runs,
+    /// the shutdown flag stays false, and `server_loop.join()` inside the body blocks FOREVER. Without a
+    /// bound that would hang the whole default suite for hours. So the body runs on a WORKER thread and a
+    /// channel `recv_timeout` bounds it: if it does not finish within 30s the test PANICS (fails fast)
+    /// instead of hanging. A leaked deadlocked worker is fine — Rust never joins detached threads, so the
+    /// test process still exits promptly after the run.
+    #[test]
+    fn shipped_handler_captures_dump_and_thread_id_via_real_roundtrip() {
+        const WATCHDOG: Duration = Duration::from_secs(30);
+        let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
+        let worker = std::thread::spawn(move || {
+            // `catch_unwind` so an assertion panic INSIDE the body is captured and re-raised on THIS test
+            // thread (not lost on the worker) — the test still fails on a real assertion, not just a hang.
+            let outcome =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(shipped_handler_roundtrip_body));
+            let _ = done_tx.send(());
+            outcome
+        });
+        match done_rx.recv_timeout(WATCHDOG) {
+            // Finished within the bound — propagate any assertion panic the body produced.
+            Ok(()) => match worker.join() {
+                Ok(Ok(())) => {}
+                Ok(Err(payload)) | Err(payload) => std::panic::resume_unwind(payload),
+            },
+            // Timed out — the roundtrip is (almost certainly) deadlocked on a headless host. FAIL FAST.
+            Err(_) => panic!(
+                "watchdog: crash roundtrip exceeded {}s - likely headless deadlock",
+                WATCHDOG.as_secs()
+            ),
+        }
     }
 }

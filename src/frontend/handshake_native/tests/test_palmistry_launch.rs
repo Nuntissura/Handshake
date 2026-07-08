@@ -352,9 +352,18 @@ fn live_spawn_handshake_then_clean_shutdown_no_crash() {
     );
 
     drop(writer);
-    // Best-effort cleanup of this run's artifacts (the assertions already read them).
-    for p in [&crash_json, &crash_dmp, &survivor_json, &ring_path] {
-        let _ = std::fs::remove_file(p);
-    }
+    // MT-094 hardening (must-fix): DO NOT delete this run's survivor / ring / crash artifacts. They are
+    // the DURABLE RECEIPT of the live handshake + clean-shutdown proof — the survivor record (classified
+    // CleanShutdown, asserted above) plus the ring the run mapped. A green `-- --include-ignored` run
+    // previously wiped them here, leaving an EMPTY external artifact dir — the exact "no durable proof"
+    // state the reopen distrusted. The artifacts live under the EXTERNAL Handshake_Artifacts/handshake-test
+    // root (CX-212E), NEVER repo-local, so keeping them does not trip assert_no_local_artifact_dir() below;
+    // each run uses a fresh unique session id, so kept receipts never collide. (crash_json / crash_dmp do
+    // not exist on a clean shutdown — asserted above — so there is nothing there to keep or delete.)
+    eprintln!(
+        "MT-094 live-proof receipts kept (durable, external): survivor={} ring={}",
+        survivor_json.display(),
+        ring_path.display()
+    );
     assert_no_local_artifact_dir();
 }
