@@ -332,7 +332,19 @@ async fn mt264_pgvector_semantic_and_hybrid() {
     let pg = pg_or_skip!();
     let ws = pg.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let llm = InMemoryLlmClient::new(String::new()).with_embedding_dim(768);
+    // MT-016: embeddings resolve through the registry-declared embedding model
+    // (never the chat model). Provide a 768-dim embedding-capable catalog so the
+    // configured model matches the index dimension and a real vector is written.
+    let catalog = model_catalog(vec![(
+        ModelId::new_v7(),
+        "emb-768",
+        ModelCapabilities {
+            supports_embedding: true,
+            embedding_dimension: Some(loom_search::LOOM_SEARCH_EMBEDDING_DIM),
+            ..Default::default()
+        },
+    )]);
+    let llm = CatalogEmbeddingClient::new(ModelId::new_v7().to_string(), catalog, 768);
 
     let canine = make_block(
         &pg.db,
@@ -798,10 +810,19 @@ async fn mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search() {
     let pg = pg_or_skip!();
     let ws = pg.create_workspace().await;
     let ctx = WriteContext::human(None);
-    // 896-dim model vs the index's 768 -> dimensionality mismatch.
-    let llm = InMemoryLlmClient::new(String::new())
-        .with_embedding_dim(896)
-        .with_declared_embedding_dim(768);
+    // Catalog DECLARES a 768-dim embedding model (matches the index), but the
+    // client actually RETURNS 896-dim vectors -> dimensionality mismatch that must
+    // DEGRADE (not hard-error) on reindex and search.
+    let catalog = model_catalog(vec![(
+        ModelId::new_v7(),
+        "emb-declared-768",
+        ModelCapabilities {
+            supports_embedding: true,
+            embedding_dimension: Some(loom_search::LOOM_SEARCH_EMBEDDING_DIM),
+            ..Default::default()
+        },
+    )]);
+    let llm = CatalogEmbeddingClient::new(ModelId::new_v7().to_string(), catalog, 896);
     let recorder = CapturingRecorder::default();
 
     let block = make_block(
