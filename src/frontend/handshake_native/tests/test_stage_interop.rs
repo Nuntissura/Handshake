@@ -720,6 +720,162 @@ fn no_sqlite_no_backend_edit() {
     println!("AC-007 gate OK: no sqlite/rusqlite, GET-only embed-back read, shared client reused, no backend route");
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// PT-066-OP / operator reopen item 4 — the LIVE embed-back leg surfaces EndpointAbsent to the operator.
+//
+// The library layer (fetch_stage_artifact + capture_and_embed_back + the round-trip surface) is proven
+// above. THIS proof closes the operator's reopen: pressing "Embed Stage Capture" in the REAL HandshakeApp
+// must actually RUN the embed-back read off-thread and leave the honest `EmbedBackEndpointAbsent` typed
+// blocker VISIBLE on the Stage round-trip surface — not a dead no-op. A mock backend answers the Stage
+// embed-back GET with 404 (the route is genuinely ABSENT), so the live off-thread read resolves to the
+// typed blocker deterministically without a real backend.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn embed_stage_capture_operator_path_surfaces_endpoint_absent() {
+    use handshake_native::app::{HandshakeApp, HealthDisplayState};
+    use handshake_native::backend_client::HealthInfo;
+    use handshake_native::stage_pane::{EmbedBackOutcome, StageContent};
+
+    // A mock backend that answers the embed-back GET with 404 (the Stage `/stage/artifacts/` route is
+    // ABSENT), so the LIVE off-thread read resolves to the honest EmbedBackEndpointAbsent typed blocker.
+    let (base_url, server) = spawn_mock(
+        "HTTP/1.1 404 Not Found",
+        serde_json::json!({"error": "no stage route in this build"}),
+    );
+
+    // A runtime-injected shell (so the shell's off-thread embed-back spawn has a handle), pointed at the
+    // mock server for the Stage embed-back read ONLY (production uses BACKEND_BASE_URL).
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("multi-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    app.set_stage_embed_back_base_url_for_test(&base_url);
+    // Seed routed content so the round-trip surface is a real round-trip (the embed-back button enabled).
+    app.mounted_stage()
+        .lock()
+        .unwrap()
+        .receive_routed_content(StageContent::Selection(
+            "routed selection".to_owned(),
+            "pane-rich:0-16".to_owned(),
+        ));
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    // OPERATOR ACTION: dispatch the "Embed Stage Capture" palette command through the REAL palette arm
+    // (the same arm a clicked/Enter-run palette row reaches). This sets the embed-back drain flag AND opens
+    // the Stage round-trip dock.
+    let fired = harness
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_EMBED_STAGE_CAPTURE);
+    assert!(
+        fired,
+        "operator route: the Embed Stage Capture palette command dispatched observably"
+    );
+
+    // Drive frames so the drain spawns the off-thread read, the mock answers 404, and the typed outcome
+    // lands on the SHARED Stage pane. Poll bounded until the blocker surfaces (the mock is a real socket).
+    let stage = harness.state().mounted_stage();
+    let mut outcome = None;
+    for _ in 0..120 {
+        harness.run_steps(2);
+        if let Some(o) = stage.lock().unwrap().last_embed_back.clone() {
+            outcome = Some(o);
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let outcome = outcome
+        .expect("operator reopen item 4: pressing Embed Stage Capture produced an embed-back outcome (no longer a dead no-op)");
+    match &outcome {
+        EmbedBackOutcome::EndpointAbsent { probed_path } => {
+            assert!(
+                probed_path.contains("/stage/artifacts/"),
+                "the typed blocker names the probed Stage embed-back route; got '{probed_path}'"
+            );
+            println!("PT-066-op typed blocker OK: EndpointAbsent(probed='{probed_path}')");
+        }
+        other => panic!(
+            "operator reopen item 4: the ABSENT Stage embed-back route must surface the honest \
+             EmbedBackEndpointAbsent typed blocker (never a fabricated success), got {other:?}"
+        ),
+    }
+    assert!(
+        stage
+            .lock()
+            .unwrap()
+            .has_embed_back_endpoint_absent_blocker(),
+        "the host surfaces the endpoint-absent blocker upward to the WP validator"
+    );
+
+    // The operator ENDS UP looking at the round-trip surface: its container node renders AND the
+    // empty-state banner (the addressable STAGE_EMBED_BACK_STATUS_AUTHOR_ID node) carries the EndpointAbsent
+    // summary in the live AccessKit tree.
+    use handshake_native::stage_pane::STAGE_EMBED_BACK_STATUS_AUTHOR_ID;
+    harness.run_steps(2);
+    let root = harness.root();
+    let container_present = root
+        .children_recursive()
+        .any(|n| n.accesskit_node().author_id() == Some(STAGE_PANE_AUTHOR_ID));
+    assert!(
+        container_present,
+        "operator route: the Stage round-trip surface (show_round_trip container '{STAGE_PANE_AUTHOR_ID}') \
+         renders after the operator opened Embed Stage Capture"
+    );
+    let banner = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some(STAGE_EMBED_BACK_STATUS_AUTHOR_ID))
+        .expect(
+            "operator route: the addressable embed-back status banner \
+             ('stage-embed-back-status') renders on the round-trip surface",
+        );
+    let banner_value = banner
+        .accesskit_node()
+        .value()
+        .map(|v| v.to_owned())
+        .unwrap_or_default();
+    assert!(
+        banner_value.contains("endpoint not present"),
+        "operator route: the EndpointAbsent empty-state banner is OPERATOR-VISIBLE (its node value names \
+         the typed blocker); got '{banner_value}'"
+    );
+
+    let req_line = server.join().unwrap();
+    assert!(
+        req_line.starts_with("GET ") && req_line.contains("/stage/artifacts/"),
+        "operator route: the live embed-back drain issued the GET at the documented route; got '{req_line}'"
+    );
+    println!(
+        "PT-066-op operator embed-back OK: CMD_EMBED_STAGE_CAPTURE -> live off-thread read ({req_line}) \
+         -> EndpointAbsent typed blocker surfaced on the round-trip banner"
+    );
+}
+
+/// LIVE variant: the SAME operator path against a REAL backend (managed PostgreSQL/EventLedger). GATED —
+/// the Stage `/stage/artifacts/` HTTP route is ABSENT even against a live handshake_core build (Stage =
+/// Pillar 17, no `/stage/` surface), so the live outcome is STILL `EmbedBackEndpointAbsent` — proven
+/// headlessly above via a mock 404. Run with `--ignored` once a real backend is up to confirm the same
+/// typed blocker surfaces end-to-end against the live API surface.
+#[test]
+#[ignore = "requires_pg: real backend / managed PostgreSQL/EventLedger (the /stage/ HTTP surface is absent; the mock-404 headless proof stands)"]
+fn embed_stage_capture_operator_path_live_pg() {
+    panic!(
+        "run against a live backend with --ignored: dispatch CMD_EMBED_STAGE_CAPTURE and assert the Stage \
+         pane's last_embed_back == EndpointAbsent (the /stage/ route is absent even live). Headless proof: \
+         embed_stage_capture_operator_path_surfaces_endpoint_absent."
+    );
+}
+
 // ── small AccessKit tree helpers (the proven MT-063 helpers) ──────────────────────────────────────
 
 /// The `{:?}` role string of the first node with `author_id`, if present.

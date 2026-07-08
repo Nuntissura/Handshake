@@ -315,9 +315,12 @@ const APP_COMMANDS: &[AppCommand] = &[
     // capture artifact (with its SHA-256 manifest provenance) and inserts it into the focused note/canvas
     // as an MT-014 embed NodeView. This is the NEW command this MT adds; the route-to-stage command
     // (`interop.route-to-stage`, above) is REUSED from MT-033, NOT duplicated (AC-005/MC-003). The Stage
-    // embed-back backend route is ABSENT in this build, so the runtime handler raises the typed blocker
-    // `StageInteropError::EmbedBackEndpointAbsent` and the Stage pane shows the empty-state — never a fake
-    // artifact. Enabled (palette-driven; no keybind — does NOT steal a VS Code binding).
+    // embed-back backend route is ABSENT in this build; dispatching this command (see the app's
+    // `CMD_EMBED_STAGE_CAPTURE` arm) flags the per-frame embed-back drain, which runs the read off the
+    // tokio runtime handle (`StageClient::production` -> `fetch_stage_artifact` ->
+    // `StagePane::capture_and_embed_back`) and surfaces the typed `StageInteropError::EmbedBackEndpointAbsent`
+    // blocker as the Stage round-trip pane's empty-state banner — never a fake artifact. Enabled
+    // (palette-driven; no keybind — does NOT steal a VS Code binding).
     AppCommand {
         id: "interop.embed-stage-capture",
         kind: CommandKind::App,

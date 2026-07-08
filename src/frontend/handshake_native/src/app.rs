@@ -836,6 +836,17 @@ pub struct HandshakeApp {
     /// frame content is routed in (so "Route to Stage" is observable, not a silent no-op). A future
     /// affordance / pane-close action can flip it back.
     stage_panel_open: bool,
+    /// WP-KERNEL-012 MT-066 REMEDIATION (operator reopen item 4 — the embed-back leg is now LIVE):
+    /// OPTIONAL test override for the Stage embed-back read client base URL. `None` in production, so the
+    /// `drive_secondary_mounts` embed-back drain builds `StageClient::production()` (the config-resolved
+    /// [`crate::backend_client::BACKEND_BASE_URL`] + the shared reqwest pool — the exact surface
+    /// `stage_interop` documents). A test points this at a mock server so the LIVE off-thread embed-back
+    /// fetch resolves deterministically (e.g. a 404 => the honest `EmbedBackEndpointAbsent` typed blocker)
+    /// without a real backend.
+    stage_embed_back_base_url: Option<String>,
+    /// WP-KERNEL-012 MT-066 REMEDIATION: guards the off-thread Stage embed-back read so a repeated
+    /// "Embed Stage Capture" press cannot stack duplicate in-flight probes; cleared when the read resolves.
+    stage_embed_back_in_flight: Arc<std::sync::atomic::AtomicBool>,
     /// WP-KERNEL-012 MT-036 REMEDIATION (workspace-rebind hardened): the workspace id the ONE
     /// native-editor event emitter is currently installed FOR on the shared InteractionBus (previously
     /// `set_event_emitter` had ZERO production callers, so every LIVE emit call site was a guaranteed
@@ -2192,6 +2203,8 @@ impl HandshakeApp {
             atelier_panel_open: false,
             stage_pane: stage_pane_shared,
             stage_panel_open: false,
+            stage_embed_back_base_url: None,
+            stage_embed_back_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             event_emitter_bound_ws: None,
             journal_bound_ws: None,
             calendar_fetched_ws: None,
@@ -2699,6 +2712,8 @@ impl HandshakeApp {
             atelier_panel_open: false,
             stage_pane: stage_pane_shared,
             stage_panel_open: false,
+            stage_embed_back_base_url: None,
+            stage_embed_back_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             event_emitter_bound_ws: None,
             journal_bound_ws: None,
             calendar_fetched_ws: None,
@@ -3226,24 +3241,38 @@ impl HandshakeApp {
                 .unwrap_or(false)
             }
             crate::interop::CMD_EMBED_STAGE_CAPTURE => {
-                // WP-KERNEL-012 MT-066 REMEDIATION: the Embed-Stage-Capture palette row previously fell
-                // through to the silent warn+false no-op (contradicting its catalog comment). Register the
-                // runtime handler (idempotent — the same WRAP-not-fork pattern route-to-stage uses) and
-                // dispatch the ONE named bus command. The Stage embed-back HTTP route is ABSENT in this
-                // build, so the handler surfaces the typed `EmbedBackEndpointAbsent` blocker on the shared
-                // Stage pane — an OBSERVABLE result, never a fake embed. Open the Stage bottom panel so
-                // the blocker/state is visible to the operator.
+                // WP-KERNEL-012 MT-066 REMEDIATION (operator reopen item 4 — the embed-back leg is now
+                // LIVE, no longer a dead-in-prod no-op). The "Embed Stage Capture" palette row:
+                //   (a) registers + dispatches the ONE named bus command (idempotent WRAP-not-fork, exactly
+                //       as route-to-stage does),
+                //   (b) sets `stage_embed_requested` so the per-frame `drive_secondary_mounts` embed-back
+                //       drain ACTUALLY RUNS the read off the tokio runtime handle
+                //       (StageClient::production -> fetch_stage_artifact -> StagePane::capture_and_embed_back),
+                //       delivering the typed outcome onto the SHARED Stage pane (the same flag the in-pane
+                //       "Capture -> Embed back" button sets — one drain, two triggers), and
+                //   (c) opens/focuses the Stage round-trip DOCK surface (StagePaneMount -> show_round_trip)
+                //       so the operator ENDS UP looking at the surface that renders the outcome banner.
+                // The Stage embed-back HTTP route is ABSENT in this build, so the honest live outcome is
+                // `EmbedBackOutcome::EndpointAbsent` — rendered as the empty-state banner on the round-trip
+                // surface, never a fabricated embed.
                 let bus = crate::interop::InteractionBus::get_or_init(ctx);
                 let dispatched = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
                     crate::interop::register_embed_stage_capture_command(bus);
                     bus.dispatch_command(ctx, crate::interop::CMD_EMBED_STAGE_CAPTURE)
                 })
                 .unwrap_or(false);
-                if dispatched {
-                    self.stage_panel_open = true;
-                    ctx.request_repaint();
-                }
-                dispatched
+                self.editor_mounts
+                    .secondary
+                    .stage_embed_requested
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                let opened = self.open_content_on_active_pane(
+                    crate::editor_pane_factories::placeholder_pane_type(
+                        crate::editor_pane_factories::STAGE_PANE_LABEL,
+                    ),
+                    None,
+                );
+                ctx.request_repaint();
+                dispatched || opened
             }
             // ── WP-KERNEL-012 E11 remediation wave: the `view.*` operator open routes for the previously
             // ORPHANED side panes. Each opens the named pane on the active work surface through the SAME
@@ -5020,6 +5049,14 @@ impl HandshakeApp {
     /// WP-KERNEL-012 MT-080: the Arc-shared Stage pane behind the MOUNTED Stage pane.
     pub fn mounted_stage(&self) -> Arc<Mutex<crate::stage_pane::StagePane>> {
         Arc::clone(&self.editor_mounts.secondary.stage)
+    }
+
+    /// WP-KERNEL-012 MT-066 REMEDIATION: point the LIVE Stage embed-back read at `base_url` (a test mock
+    /// server) so the operator-facing embed-back path resolves deterministically (e.g. a 404 => the honest
+    /// `EmbedBackEndpointAbsent` typed blocker) without a real backend. Production leaves this `None`, so
+    /// the drain builds `StageClient::production()` against the config-resolved `BACKEND_BASE_URL`.
+    pub fn set_stage_embed_back_base_url_for_test(&mut self, base_url: &str) {
+        self.stage_embed_back_base_url = Some(base_url.to_owned());
     }
 
     /// WP-KERNEL-012 MT-080: the Arc-shared manual pane search/selection state behind the MOUNTED manual
@@ -8500,6 +8537,72 @@ impl HandshakeApp {
     /// 4. **Relevant-memory nav** (AC-080-5 / MT-063). A "Go to source" click routes to the nav bus; the
     ///    FEMS read route is ABSENT, so the panel shows the `EndpointMissing` empty-state (surfaced once).
     /// 5. **Daily-journal date** (AC-080-5 / MT-067). A `DateNavigated` maps to `open_or_create_daily_note`.
+    /// WP-KERNEL-012 MT-066 REMEDIATION: resolve the MAIN-THREAD inputs for the off-thread Stage embed-back
+    /// read — the embed target, the artifact id to probe, and the live-pane snapshot — so the async task
+    /// carries only owned data. The target is the active editor pane (re-liveness-checked against the live
+    /// pane set inside `capture_and_embed_back`, RISK-007/MC-007). The Stage embed-back HTTP route is ABSENT
+    /// in this build, so the probe resolves to the typed `EmbedBackEndpointAbsent` blocker before any
+    /// insert; the target must therefore be LIVE so the blocker (not `TargetGone`) is what surfaces. The
+    /// probe id is DERIVED from the currently-staged round-trip content (never fabricated) and slugged to a
+    /// URL-path-safe segment.
+    fn stage_embed_back_inputs(&self) -> (crate::stage_pane::EmbedTarget, String, Vec<String>) {
+        let live_ids: Vec<String> = self
+            .tab_bar_states
+            .keys()
+            .map(|p| p.as_ref().to_owned())
+            .collect();
+        // Prefer the active pane; fall back to the first live pane so the target re-liveness check passes
+        // and the typed blocker (not TargetGone) surfaces on the absent route.
+        let target_pane = self
+            .active_pane
+            .as_ref()
+            .map(|p| p.as_ref().to_owned())
+            .or_else(|| live_ids.first().cloned())
+            .unwrap_or_else(|| "stage".to_owned());
+        let document_id = self
+            .active_rich_document_id()
+            .unwrap_or_else(|| "stage-embed-back".to_owned());
+        // Derive the probe artifact id from the staged round-trip content (the best available correlation;
+        // the absent route returns the same typed blocker regardless), slugged URL-path-safe.
+        let raw = self
+            .stage_pane
+            .lock()
+            .ok()
+            .map(|p| match &p.content {
+                crate::stage_pane::StageContent::Document(doc) => doc.rich_document_id.clone(),
+                crate::stage_pane::StageContent::Selection(_, src) => src.clone(),
+                crate::stage_pane::StageContent::AtelierItem(r) => r.display_label(),
+                crate::stage_pane::StageContent::Empty => "current".to_owned(),
+            })
+            .unwrap_or_else(|| "current".to_owned());
+        let slug: String = raw
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '-'
+                }
+            })
+            .collect();
+        let artifact_id = {
+            let trimmed = slug.trim_matches('-');
+            if trimmed.is_empty() {
+                "stage-capture".to_owned()
+            } else {
+                trimmed.to_owned()
+            }
+        };
+        (
+            crate::stage_pane::EmbedTarget::Note {
+                pane_id: target_pane,
+                document_id,
+            },
+            artifact_id,
+            live_ids,
+        )
+    }
+
     fn drive_secondary_mounts(&mut self, ctx: &egui::Context) {
         if self.capturing_snapshot {
             return;
@@ -8610,9 +8713,55 @@ impl HandshakeApp {
             // FocusCalendarEvent stays read-only (the /calendar/events route is the typed blocker — no fake).
         }
 
-        // The Stage embed-back request is the typed-blocker surface (the embed-back HTTP route is ABSENT);
-        // record it once as a perceivable repaint rather than a silent no-op or a faked embed.
+        // WP-KERNEL-012 MT-066 REMEDIATION (operator reopen item 4 — the embed-back leg is LIVE):
+        // when "Embed Stage Capture" fired (the palette command arm OR the in-pane "Capture -> Embed back"
+        // button both set `stage_embed_requested`), actually RUN the embed-back read off the tokio runtime
+        // handle and feed the typed outcome onto the SHARED Stage pane, mirroring the relevant-memory
+        // off-thread FEMS read below. The main-thread inputs (embed target, probe id, live-pane snapshot)
+        // are resolved first, then moved into the off-thread task. The Stage embed-back HTTP route is
+        // ABSENT in this build, so `fetch_stage_artifact` resolves to `EmbedBackEndpointAbsent`, which
+        // `capture_and_embed_back` records as `EmbedBackOutcome::EndpointAbsent` on the pane —
+        // `show_round_trip` then renders the empty-state banner. NO fabricated success; the route being
+        // absent IS the honest outcome. An in-flight guard prevents a repeated press from stacking probes.
         if stage_embed {
+            if let Some(rt) = self.runtime_handle.clone() {
+                if !self
+                    .stage_embed_back_in_flight
+                    .swap(true, std::sync::atomic::Ordering::AcqRel)
+                {
+                    let (target, artifact_id, live_ids) = self.stage_embed_back_inputs();
+                    let workspace = self.active_project_id.clone();
+                    let base_url = self.stage_embed_back_base_url.clone();
+                    let stage = Arc::clone(&self.stage_pane);
+                    let in_flight = Arc::clone(&self.stage_embed_back_in_flight);
+                    let repaint = ctx.clone();
+                    rt.spawn(async move {
+                        let client = match base_url {
+                            Some(url) => crate::interop::StageClient::with_base_url(url),
+                            None => crate::interop::StageClient::production(),
+                        };
+                        let fetch_result =
+                            client.fetch_stage_artifact(&workspace, &artifact_id).await;
+                        if let Ok(mut pane) = stage.lock() {
+                            pane.capture_and_embed_back(
+                                fetch_result,
+                                &target,
+                                |pid| live_ids.iter().any(|p| p.as_str() == pid),
+                                |_view, _target| {
+                                    // The Stage embed-back HTTP route is ABSENT in this build, so this
+                                    // success/insert branch is NEVER reached — the honest outcome is the
+                                    // typed `EmbedBackEndpointAbsent` blocker surfaced on the pane. When
+                                    // the Stage HTTP surface lands, the fetched MT-014 NodeView is inserted
+                                    // into `_target`'s document model here (a follow-on wire). No embed is
+                                    // fabricated now.
+                                },
+                            );
+                        }
+                        in_flight.store(false, std::sync::atomic::Ordering::Release);
+                        repaint.request_repaint();
+                    });
+                }
+            }
             ctx.request_repaint();
         }
 

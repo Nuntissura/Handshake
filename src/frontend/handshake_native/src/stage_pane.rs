@@ -47,6 +47,14 @@ pub const STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID: &str = "stage-capture-embed-back";
 /// routed note / selection / canvas node so a swarm agent can read what was routed.
 pub const STAGE_ROUTED_CONTENT_AUTHOR_ID: &str = "stage-routed-content";
 
+/// WP-KERNEL-012 MT-066 (E10) REMEDIATION (operator reopen item 4): stable AccessKit author_id for the
+/// embed-back STATUS line / typed-blocker empty-state banner (Role::Label) rendered by
+/// [`StagePane::show_round_trip`]. Its node value carries the [`EmbedBackOutcome::summary`] so an operator
+/// or swarm agent can READ the outcome — most importantly the `EmbedBackEndpointAbsent` typed blocker — as
+/// an addressable, perceivable surface rather than only internal state. `None` until an embed-back is
+/// attempted (then the banner + this node render).
+pub const STAGE_EMBED_BACK_STATUS_AUTHOR_ID: &str = "stage-embed-back-status";
+
 /// The content currently displayed in the Stage pane. The variant set is the MT-033 contract list
 /// (`Document(RichDocLoad) | Selection(text, document_id) | AtelierItem(AtelierRef)`). `Empty` is the
 /// default (nothing routed yet).
@@ -404,13 +412,25 @@ impl StagePane {
                     embed_back_pressed = true;
                 }
 
-                // The last embed-back outcome / typed-blocker empty-state.
+                // The last embed-back outcome / typed-blocker empty-state. Emitted as an ADDRESSABLE
+                // AccessKit node (STAGE_EMBED_BACK_STATUS_AUTHOR_ID, Role::Label) whose value is the outcome
+                // summary, so the operator / a swarm agent can READ the outcome — most importantly the
+                // EmbedBackEndpointAbsent typed blocker — as a perceivable surface, not only internal state.
                 if let Some(outcome) = &self.last_embed_back {
                     let color = match outcome {
                         EmbedBackOutcome::Embedded { .. } => palette.text,
                         _ => palette.text_subtle,
                     };
-                    ui.colored_label(color, outcome.summary());
+                    let status_summary = outcome.summary();
+                    let status_resp = ui.colored_label(color, status_summary.clone());
+                    let status_author = STAGE_EMBED_BACK_STATUS_AUTHOR_ID.to_owned();
+                    ui.ctx()
+                        .accesskit_node_builder(status_resp.id, move |node| {
+                            node.set_role(accesskit::Role::Label);
+                            node.set_author_id(status_author.clone());
+                            node.set_label("Stage embed-back status".to_owned());
+                            node.set_value(status_summary.clone());
+                        });
                 }
             })
             .response;
