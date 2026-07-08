@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-520",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-520.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-520.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-520.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-519"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement pose authority and the pose library per Section 13.18 (BK-18.3, TAI-BK-064), closing AREQ-003: BodyPoseAsset (BPA-) stores per-bone transforms PLUS the morph context (authored_channels snapshot and active pins); applying a pose to a body with different channel values re-solves in morph context via IK retarget over the target body's proportions — never a raw transform copy. Saves emit TailorBodyPoseAssetSaved; applications emit TailorBodyPoseApplied.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/bodykit/pose.rs",
+      "src/backend/handshake_core/src/tailor/bodykit/storage.rs",
+      "tailor-solver/src/body/ik.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "BodyPoseAsset matches the TAI-BK-064 shape: pose_asset_id \"BPA-{uuid_v7}\", name, skeleton_version, bone_transforms (BTreeMap<String, PoseBoneTransform>, mm/quaternions), authored_channels snapshot, pins (Vec<IkPin>); persisted via guarded storage with ledger events.",
+      "apply_pose(body_id, pose_asset_id) re-solves when the target body's channel map differs from authored_channels: pinned contact bones are used as IK re-solve anchors over the target proportions; a raw-copy code path for mismatched contexts does not exist (negative test).",
+      "Retarget proof: a pose authored on the neutral body applied to a petite + breast_volume 3.0 body keeps feet on the ground plane and hands within tolerance of their authored relative targets (proportion-adjusted assertions).",
+      "Skeleton version mismatch between pose and body is a typed rejection (TAI-BK-058 compatibility law).",
+      "TailorBodyPoseAssetSaved and TailorBodyPoseApplied are registered in the tailor.body family and emitted with pose/body ids; replaying the events reproduces the final pose state (TAI-BK-072)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::bodykit::pose::apply_resolves_in_morph_context_not_raw_copy"
+    ],
+    "risk_if_missed": "Raw-copied pose transforms are why Daz pose products break on non-default bodies (feet floating, hands interpenetrating); without morph-context re-solve, the pose library is useless across the operator's wildly varied archetypes — which is the entire production population."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed TAILOR_BODY_* receipts, and the 13.12 capture APIs; operator/model GUI exposure rides the BodyKit panes (13.27) and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the TAILOR_BODY_* KernelEventType family on the EventLedger per Section 13.16 (extends the 13.14 canonical list)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long generation/bake/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

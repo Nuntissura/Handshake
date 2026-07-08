@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-484",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-484.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-484.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-484.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-483"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement original base mesh asset ingest per Section 13.16 (BK-16.5 base mesh/topology contract/license law): load the commissioned/original watertight quad-dominant base body mesh as a versioned artifact validated against the topology contract on ingest. The one-time MakeHuman CC0 GUI-export bootstrap reference is the ONLY permitted external lineage (license-verified CC0); SMPL-family and Genesis-derived payloads are prohibited inputs refused at this boundary (05-daz license findings).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/bodykit/base_mesh.rs",
+      "src/backend/handshake_core/src/tailor/bodykit/storage.rs",
+      "tailor-solver/src/body/mesh.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "ingest_base_mesh(path, license_tag, version) loads OBJ/glTF geometry into a typed BaseMesh (mm vertices, quad-dominant face list, UV set refs), assigns a versioned artifact id, and persists via guarded bodykit storage with a tailor.body ledger event.",
+      "Ingest runs the MT-485 topology contract validator and fails closed (no row written) when the contract fails; rejection is BodyKitError::TopologyContract with per-check findings.",
+      "Ingest requires an explicit license_tag; 'makehuman_cc0_bootstrap' is accepted for the one-time reference import, SMPL/Genesis/dhdm lineage tags are rejected (enforced via the MT-488 guard once it lands; ingest calls the guard hook).",
+      "Vertex count, face count, and a content hash persist with the version so every later morph asset can assert the exact base mesh version it was authored against."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::bodykit::base_mesh::ingest_versions_and_fails_closed_on_bad_topology"
+    ],
+    "risk_if_missed": "An unversioned or unvalidated base mesh leaves every morph delta unanchored (vertex-order drift corrupts all channels — the Daz unimesh lesson), and a lineage slip here poisons the commercial adult product legally: SMPL's license prohibits pornographic use outright."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed TAILOR_BODY_* receipts, and the 13.12 capture APIs; operator/model GUI exposure rides the BodyKit panes (13.27) and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the TAILOR_BODY_* KernelEventType family on the EventLedger per Section 13.16 (extends the 13.14 canonical list)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long generation/bake/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

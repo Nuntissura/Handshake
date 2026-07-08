@@ -2,8 +2,8 @@
   "schema": "tailor.mt_index@1",
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "generated_at_utc": "2026-07-08T00:00:00Z",
-  "total": 477,
-  "range": "MT-001..MT-477",
+  "total": 653,
+  "range": "MT-001..MT-653",
   "core_section_13_range": "MT-001..MT-332",
   "md_parity_additions_range": "MT-333..MT-448",
   "by_group": {
@@ -19,10 +19,24 @@
     "ModelFirstApi": 35,
     "Animation": 36,
     "AutoFit": 32,
-    "ProductionBridge": 33
+    "ProductionBridge": 33,
+    "BkFoundation": 14,
+    "BkChannels": 22,
+    "BkSkeleton": 14,
+    "BkCorrectives": 10,
+    "BkSoftTissue": 8,
+    "BkGenitals": 16,
+    "BkSkin": 14,
+    "BkFace": 8,
+    "BkClothBridge": 10,
+    "BkModelApi": 14,
+    "BkExport": 18,
+    "BkGui": 10,
+    "BkBodiesQA": 10,
+    "BkGovernance": 8
   },
   "parity_review": "_PARITY_REVIEW.json",
-  "note": "Authoritative index of EVERY WP-KERNEL-010 microtask so none is forgotten. Each MT-NNN.json in this folder is the per-task contract (hsk.microtask_contract@1). 332 core Section-13 MTs + 116 Marvelous-Designer parity MTs (MT-333..448, first pass vs internal feature map) + 29 second-pass parity MTs (MT-449..477, authored 2026-07-08 from the independent external MD inventory in .GOV/reference/tailor_bodykit_research/). group is derived from the MT number range for MT-001..332; parity MTs carry explicit group fields.",
+  "note": "Authoritative index of EVERY WP-KERNEL-010 microtask so none is forgotten (hsk.microtask_contract@1 per file). Composition: 332 core Section-13 Cloth MTs (MT-001..332) + 116 first-pass MD parity MTs (MT-333..448) + 29 second-pass parity MTs (MT-449..477, independent external MD inventory) + 176 BodyKit submodule MTs (MT-478..653, 14 groups, governed by spec 13.16-13.27). Cloth groups on MT-001..332 derive group from number range; parity + BodyKit MTs carry explicit group fields.",
   "microtasks": [
     {
       "mt_id": "MT-001",
@@ -4314,7 +4328,1592 @@
       ],
       "status": "PENDING",
       "summary": "Implement VAT (vertex animation texture) export of simulated caches (CG-29, GREQ-021 beyond-MD game lane): bake per-frame vertex positions/normals of a cached garment sim into position+normal textures with a metadata JSON (frame count, bounds, fps, loop flag), for GPU playback in UE/Unity where runtime cloth is too costly, ho"
+    },
+    {
+      "mt_id": "MT-478",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-477"
+      ],
+      "status": "PENDING",
+      "summary": "Scaffold the BodyKit kernel module per Section 13.16 (BK-16.1 scope/submodule framing): create src/tailor/bodykit/ with mod.rs, a typed BodyKitError enum, and event/schema constants (EVENT_FAMILY_TAILOR_BODY = \"tailor.body\" matching the 13."
+    },
+    {
+      "mt_id": "MT-479",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-478"
+      ],
+      "status": "PENDING",
+      "summary": "Define the canonical BodySpec type (schema id hsk.tailor.body_spec@1) per Section 13.16 (BK-16.2), closing the REQ-043 stable-addressable-parameter foundation: a serde+schemars struct holding the channels map (stable snake_case channel key "
+    },
+    {
+      "mt_id": "MT-480",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-479"
+      ],
+      "status": "PENDING",
+      "summary": "Author the bodykit_bodies (BDY-) and bodykit_recipes (BRC-) PostgreSQL migrations per Section 13.16 (BK-16.3 storage authority/canonical DDL): TEXT primary keys with prefixed uuid_v7, NOT NULL event_ledger_event_id per ARCH-036/TAI-OVR-014,"
+    },
+    {
+      "mt_id": "MT-481",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-480"
+      ],
+      "status": "PENDING",
+      "summary": "Author the bodykit_morph_assets (BMA-) and bodykit_channel_registry (BCH-) migrations per Section 13.16 (BK-16.3): morph assets store sparse delta payload refs, region mask refs, multi-key track metadata (key_pct positions 0/50/100/200/300 "
+    },
+    {
+      "mt_id": "MT-482",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-481"
+      ],
+      "status": "PENDING",
+      "summary": "Author the bodykit_skeleton_defs (BSK-), bodykit_skin_materials (BSM-), and bodykit_export_profiles (BXP-) migrations per Section 13.16 (BK-16.3), completing the BodyKit authority table set: versioned skeleton definitions for 13.18 (TAI-BK-"
+    },
+    {
+      "mt_id": "MT-483",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-482"
+      ],
+      "status": "PENDING",
+      "summary": "Register the TAILOR_BODY_* KernelEventType additions per Section 13.16 (BK-16.4 EventLedger additions) and the 13.14 canonical event list: TailorBodyCreated, TailorBodyChannelChanged, TailorBodyRecipeSaved, TailorBodyCorrectiveBaked, Tailor"
+    },
+    {
+      "mt_id": "MT-484",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-483"
+      ],
+      "status": "PENDING",
+      "summary": "Implement original base mesh asset ingest per Section 13.16 (BK-16.5 base mesh/topology contract/license law): load the commissioned/original watertight quad-dominant base body mesh as a versioned artifact validated against the topology con"
+    },
+    {
+      "mt_id": "MT-485",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-484"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the base-mesh topology contract validator per Section 13.16 (BK-16.5), published as the BODY_TOPOLOGY_VALID ValidationDescriptor: watertight closed manifold, single connected component, quad-dominance threshold, region-mask comple"
+    },
+    {
+      "mt_id": "MT-486",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-485"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the region mask authority per Section 13.16 (BK-16.5): canonical named vertex-region masks (breast_l/r, glute_l/r, thigh_inner_l/r, thigh_outer_l/r, shoulder_l/r, midriff_belly, hand_l/r, foot_l/r, arm_l/r, leg_l/r, neck, head, ge"
+    },
+    {
+      "mt_id": "MT-487",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-486"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the SubD cage architecture in the solver body module per Section 13.16 (BK-16.5): the base mesh is a Catmull-Clark subdivision cage with per-level evaluation (view level vs bake level), plus an OPEN multi-resolution delta storage "
+    },
+    {
+      "mt_id": "MT-488",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-487"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the license guard tripwire per Section 13.16 (BK-16.5 license law) and the 05-daz license findings: fail-closed rejection of SMPL/SMPL-X/STAR, .dhdm, and Genesis-derived payloads at every morph/mesh import boundary using magic-byt"
+    },
+    {
+      "mt_id": "MT-489",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-488"
+      ],
+      "status": "PENDING",
+      "summary": "Add the BodyKit REST routes to the Tailor API per Section 13.16 (BK-16.6 API surface): bodies CRUD, recipes CRUD, channel value get/set, and export trigger under the existing tailor router in src/api/tailor.rs, returning typed JSON navigabl"
+    },
+    {
+      "mt_id": "MT-490",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-489"
+      ],
+      "status": "PENDING",
+      "summary": "Implement BodySpec persistence glue per Section 13.16 (BK-16.3/BK-16.4): storage_glue writes use the event-before-row CTE pattern (ledger event insert and authority row insert in one transaction, event first), and EventLedger replay reconst"
+    },
+    {
+      "mt_id": "MT-491",
+      "group": "BkFoundation",
+      "depends_on": [
+        "MT-490"
+      ],
+      "status": "PENDING",
+      "summary": "BkFoundation integration test per Section 13.16 (BK-16.7 validation binding): one end-to-end kernel test that creates a body, sets multiple channel values through the API layer, saves a recipe, then replays the body from the EventLedger and"
+    },
+    {
+      "mt_id": "MT-492",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-491"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the channel registry core per Section 13.17 (BK-17.1, TAI-BK-031/032), closing REQ-043: the canonical BodyChannel type (channel_id BCH-, stable snake_case channel_key, kind Skeletal|Tissue, group_key, region_mask_ref, ChannelRange"
+    },
+    {
+      "mt_id": "MT-493",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-492"
+      ],
+      "status": "PENDING",
+      "summary": "Implement sparse morph delta storage and application with multi-key tracks per Section 13.17 (BK-17.2, TAI-BK-033), closing REQ-009: every tissue channel is a sequence of sculpted keys at 0/50/100/200/300% of design nominal (key_pct on body"
+    },
+    {
+      "mt_id": "MT-494",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-493"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the channel stacking evaluator with volume-preservation post-pass per Section 13.17 (BK-17.2, TAI-BK-035), closing REQ-007: ordered evaluation (skeletal channels -> tissue morph stack -> volume-preservation post-pass (delta-mush c"
+    },
+    {
+      "mt_id": "MT-495",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-494"
+      ],
+      "status": "PENDING",
+      "summary": "Implement region-mask write enforcement per Section 13.17 (BK-17.1, TAI-BK-029/030), closing REQ-001/REQ-002 — the decoupling law made mechanical: a channel MUST NOT write outside its declared region mask, proven zero-tolerance by the BODY_"
+    },
+    {
+      "mt_id": "MT-496",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-495"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the explicit coupling-link graph per Section 13.17 (BK-17.1, TAI-BK-036), closing REQ-003 and OBR architecture implication 1: CouplingLink {link_id, source_channel_key, target_channel_key, piecewise-linear curve, enabled} stored i"
+    },
+    {
+      "mt_id": "MT-497",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-496"
+      ],
+      "status": "PENDING",
+      "summary": "Author breast channel group A (placement/size) per Section 13.17 (BK-17.3, TAI-BK-037), closing OBR-001: registered channels breast_volume (small -> extreme large beyond natural-population prior, design_max 3.0), breast_projection, breast_p"
+    },
+    {
+      "mt_id": "MT-498",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-497"
+      ],
+      "status": "PENDING",
+      "summary": "Author breast channel group B (shape/character) per Section 13.17 (BK-17.3, TAI-BK-038/039/040), closing OBR-001's full-space reachability: breast_ptosis (perky -> natural droop, gravity-real at every size), breast_firmness (0.0 natural sof"
+    },
+    {
+      "mt_id": "MT-499",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-498"
+      ],
+      "status": "PENDING",
+      "summary": "Author the nipple/areola sub-module channels per Section 13.17 (BK-17.3, TAI-BK-041), closing REQ-010's nipple/areola sub-module bar: nipple_size, nipple_puff, nipple_direction, areola_diameter as registered Tissue channels over nipple/areo"
+    },
+    {
+      "mt_id": "MT-500",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-499"
+      ],
+      "status": "PENDING",
+      "summary": "Author the shoulder frame channels per Section 13.17 (BK-17.3, TAI-BK-042), closing OBR-002 verbatim: shoulder_frame_width (Skeletal: clavicle length/frame) and shoulder_softness (Tissue: deltoid/trap muscle-tone softening), fully independe"
+    },
+    {
+      "mt_id": "MT-501",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-500"
+      ],
+      "status": "PENDING",
+      "summary": "Author the hip channels per Section 13.17 (BK-17.3, TAI-BK-043), closing OBR-003's hip clause: hip_bone_width (Skeletal: pelvis frame width, separate from glute volume/shape and from every breast/shoulder channel) and pelvis_tilt (Skeletal:"
+    },
+    {
+      "mt_id": "MT-502",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-501"
+      ],
+      "status": "PENDING",
+      "summary": "Author the glute channel group per Section 13.17 (BK-17.3, TAI-BK-044), closing REQ-012: glute_volume (round ass as its own channel), glute_roundness, glute_lift, glute_width, hip_dip_fill, glute_crease_sharpness — all Tissue channels over "
+    },
+    {
+      "mt_id": "MT-503",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-502"
+      ],
+      "status": "PENDING",
+      "summary": "Author the thigh/leg channels per Section 13.17 (BK-17.3, TAI-BK-045), closing REQ-013 and OBR-004's long-legs target: thigh_girth_inner and thigh_girth_outer as split Tissue axes, thigh_gap, calf_girth, and leg_length as a Skeletal/Tissue "
+    },
+    {
+      "mt_id": "MT-504",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-503"
+      ],
+      "status": "PENDING",
+      "summary": "Author the midriff/waist channels per Section 13.17 (BK-17.3, TAI-BK-046), closing OBR-003's midriff clause: waist_circumference, belly_size, torso_length — each independent of bust and hip channels. Skinny midriff + huge tits (petite under"
+    },
+    {
+      "mt_id": "MT-505",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-504"
+      ],
+      "status": "PENDING",
+      "summary": "Author the belly/fat distribution channel group per Section 13.17 (BK-17.3, TAI-BK-047), closing REQ-014 (obese/fat bodies to production quality): belly_apron (overhang), fat_rolls (count + position sub-channels), love_handles, back_fat, ar"
+    },
+    {
+      "mt_id": "MT-506",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-505"
+      ],
+      "status": "PENDING",
+      "summary": "Author the muscle channel group per Section 13.17 (BK-17.3, TAI-BK-048), closing REQ-015: per muscle group, three separate axes — muscle_mass_* (geometry via multi-key tracks), muscle_definition_* (detail-map weight consumed by the 13.22 sk"
+    },
+    {
+      "mt_id": "MT-507",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-506"
+      ],
+      "status": "PENDING",
+      "summary": "Author the skinny/slender channels per Section 13.17 (BK-17.3, TAI-BK-049), closing REQ-016: subcutaneous_fat (removal toward skeletal visibility), rib_visibility, hip_bone_visibility — each with EXPLICIT exclusion of the breast and glute m"
+    },
+    {
+      "mt_id": "MT-508",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-507"
+      ],
+      "status": "PENDING",
+      "summary": "Author the extremity and frame detail channels per Section 13.17 (BK-17.3, TAI-BK-050), closing OBR-004's small-hands archetype axis: hand_scale and foot_scale (Skeletal, per-bone scale through the 13.18 lane) plus neck_girth and arm_girth "
+    },
+    {
+      "mt_id": "MT-509",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-508"
+      ],
+      "status": "PENDING",
+      "summary": "Author the height and global frame channels per Section 13.17 (BK-17.3, TAI-BK-051), closing REQ-005: height decomposed into limb/torso ratio channels (leg_length, torso_length, arm_length, overall_scale) rather than a single uniform scale,"
+    },
+    {
+      "mt_id": "MT-510",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-509"
+      ],
+      "status": "PENDING",
+      "summary": "Author the masc/fem continuum channel per Section 13.17 (BK-17.3, TAI-BK-052), following the Genesis-9 single-unimesh pattern and the beyond-parity cross-blend finding: masc_fem_continuum exposes gender as a continuous axis over the ONE bas"
+    },
+    {
+      "mt_id": "MT-511",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-510"
+      ],
+      "status": "PENDING",
+      "summary": "Author the region-pair compensation morphs per Section 13.17 (BK-17.4, TAI-BK-053), closing REQ-006: breast x ribcage seam, glute x thigh crease, and belly x hip overlap compensation authored as gated pair-correctives (kind='compensation' o"
+    },
+    {
+      "mt_id": "MT-512",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-511"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the measurement solver per Section 13.17 (BK-17.4, TAI-BK-054), closing SREQ-009 and OBR implication 6: numeric targets in centimetres (bust_circ_cm, waist_circ_cm, hip_circ_cm, shoulder_width_cm, penis_length_cm, ...) solved to c"
+    },
+    {
+      "mt_id": "MT-513",
+      "group": "BkChannels",
+      "depends_on": [
+        "MT-512"
+      ],
+      "status": "PENDING",
+      "summary": "Implement seeded randomization per Section 13.17 (BK-17.4, TAI-BK-055), closing SREQ-007/008: whole-body, per-region, and per-channel randomization scopes with plausibility-weighted distributions and deterministic seeds — the same (seed, sc"
+    },
+    {
+      "mt_id": "MT-514",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-513"
+      ],
+      "status": "PENDING",
+      "summary": "Define the canonical BodyKit skeleton per Section 13.18 (BK-18.1, TAI-BK-057/058), closing the Part-3 skeleton contract and AREQ-014 stability: a custom skeleton UE5-compatible by construction (pelvis, spine_01..spine_05, neck_01, head, cla"
+    },
+    {
+      "mt_id": "MT-515",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-514"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-bone scale channels with child-propagation control per Section 13.18 (BK-18.1, TAI-BK-059), closing REQ-021: limb LENGTH and limb THICKNESS are independent parameters exposed as safe Skeletal channel axes (13.17 kind Skeletal)"
+    },
+    {
+      "mt_id": "MT-516",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-515"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the skinning weights authority per Section 13.18 (BK-18.2, TAI-BK-060), closing REQ-020: linear blend skinning (LBS) weights on the base mesh are the authority (weights_artifact_ref, chosen for engine parity), with an optional dua"
+    },
+    {
+      "mt_id": "MT-517",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-516"
+      ],
+      "status": "PENDING",
+      "summary": "Implement automatic joint re-derivation from mesh landmarks per Section 13.18 (BK-18.2, TAI-BK-061), closing REQ-017: joint centers, endpoints, and orientations re-derive from landmark rules (landmark_rules_json) on EVERY channel change, in"
+    },
+    {
+      "mt_id": "MT-518",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-517"
+      ],
+      "status": "PENDING",
+      "summary": "Implement canonical-space skinning weight re-projection at extremes per Section 13.18 (BK-18.2, TAI-BK-062), closing REQ-019: weights are defined once in canonical (neutral) space and re-projected onto the deformed surface as regions grow, "
+    },
+    {
+      "mt_id": "MT-519",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-518"
+      ],
+      "status": "PENDING",
+      "summary": "Implement full-body IK posing with pins per Section 13.18 (BK-18.3, TAI-BK-063), closing the Daz Active-Pose parity gap and AREQ-017: hands, feet, and knees pinnable while dragging any other part, reusing the existing FABRIK/2-bone solver l"
+    },
+    {
+      "mt_id": "MT-520",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-519"
+      ],
+      "status": "PENDING",
+      "summary": "Implement pose authority and the pose library per Section 13.18 (BK-18.3, TAI-BK-064), closing AREQ-003: BodyPoseAsset (BPA-) stores per-bone transforms PLUS the morph context (authored_channels snapshot and active pins); applying a pose to"
+    },
+    {
+      "mt_id": "MT-521",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-520"
+      ],
+      "status": "PENDING",
+      "summary": "Implement multi-actor pose assets per Section 13.18 (BK-18.3, TAI-BK-065), closing AREQ-002/013: MultiActorPoseAsset aligns 2+ bodies by relative root transforms against a shared stage anchor (floor-plane origin, forward +Y stage space), so"
+    },
+    {
+      "mt_id": "MT-522",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-521"
+      ],
+      "status": "PENDING",
+      "summary": "Implement pose symmetry mirroring, pose blending, and puppeteer-style proximity blending per Section 13.18 (BK-18.3, TAI-BK-066), closing the Daz parity row: L/R pose mirror, deterministic two-pose blend, and N-pose proximity blending (pupp"
+    },
+    {
+      "mt_id": "MT-523",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-522"
+      ],
+      "status": "PENDING",
+      "summary": "Implement BVH/FBX/glTF mocap ingestion with bone-map presets per Section 13.18 (BK-18.3, TAI-BK-067), closing AREQ-004 and GREQ-036: skeletal animation ingest with named bone-map presets (Mixamo, Rokoko, UE, Unity, Daz, VRM naming conventio"
+    },
+    {
+      "mt_id": "MT-524",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-523"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the retarget engine per Section 13.18 (BK-18.3, TAI-BK-068), closing AREQ-005/019: chain-based mapping (spine chain, limb chains, digit chains) between arbitrary skeletons with an explicit retarget base pose, bake-to-target output"
+    },
+    {
+      "mt_id": "MT-525",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-524"
+      ],
+      "status": "PENDING",
+      "summary": "Implement jiggle-bone secondary-motion chain generation per Section 13.18 (BK-18.4, TAI-BK-069), closing GREQ-023: secondary-motion bone chains for breasts, glutes, belly, cock, and balls generated MECHANICALLY from region masks + channel s"
+    },
+    {
+      "mt_id": "MT-526",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-525"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the engine-agnostic physics-config sidecar per Section 13.18 (BK-18.4, TAI-BK-070), closing GREQ-024: a JSON sidecar accompanying every rigged body with per-region stiffness/damping/gravity/limit parameters keyed by jiggle chain, "
+    },
+    {
+      "mt_id": "MT-527",
+      "group": "BkSkeleton",
+      "depends_on": [
+        "MT-526"
+      ],
+      "status": "PENDING",
+      "summary": "Implement twist/roll bone generation as a per-export-profile option and root-motion conventions per engine per Section 13.18 (BK-18.4, TAI-BK-071), closing GREQ-037/038: the authority skeleton always carries its twist bones (deletion prohib"
+    },
+    {
+      "mt_id": "MT-528",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-527"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the RBF pose-space deformation engine (spec 13.19; PREQ-015): corrective shapes stored as example points in joint-rotation pose space and interpolated by an RBF solver with ramp-in weighting, evaluated in the tailor-solver body mo"
+    },
+    {
+      "mt_id": "MT-529",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-528"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the corrective authoring pipeline (spec 13.19; REQ-039 Morph Loader Pro parity): sculpt-import of corrective shapes from OBJ/glTF with reverse-deformation filtering that subtracts the current channel stack plus skinning at the aut"
+    },
+    {
+      "mt_id": "MT-530",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-529"
+      ],
+      "status": "PENDING",
+      "summary": "Implement sim-to-corrective baking, the signature BodyKit corrective architecture (spec 13.19; REQ-018 basis, PREQ-017 solver link): pose the body at sampled extreme poses, run the BkSoftTissue solver to settle, and bake the skinned-vs-simu"
+    },
+    {
+      "mt_id": "MT-531",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-530"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-body corrective re-bake (spec 13.19; REQ-018): sim-baked correctives regenerate for the CURRENT channel configuration via channel-state hashing, so extreme decoupled channel combos keep deforming correctly under pose after any"
+    },
+    {
+      "mt_id": "MT-532",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-531"
+      ],
+      "status": "PENDING",
+      "summary": "Author the porn-range pose QA corrective set (spec 13.19; PREQ-014): full thigh spread, deep squat, legs-behind-head, deep spinal arch, and hip thrust as versioned pose assets registered as corrective sample points, sim-to-corrective baked "
+    },
+    {
+      "mt_id": "MT-533",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-532"
+      ],
+      "status": "PENDING",
+      "summary": "Implement compression/contact shapes (spec 13.19; PREQ-016): butt-on-surface flattening, thigh-against-torso squash, and grip dimples as reusable proximity-driven correctives with typed ramp profiles, composing with pose-space RBF correctiv"
+    },
+    {
+      "mt_id": "MT-534",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-533"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the proximity/contact driver (spec 13.19; PREQ-018/019 foundation): a typed ProximityDriver sampling surface distance and signed penetration depth from a designated penetrator or contact collider to a receiver region (including ca"
+    },
+    {
+      "mt_id": "MT-535",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-534"
+      ],
+      "status": "PENDING",
+      "summary": "Implement corrective export baking (spec 13.19; Part-3 export contract, GREQ-026): JCM-equivalents baked as pose-space-named blendshapes (e.g. jcm_thigh_fwd_90_l) plus a machine-readable JSON driver sidecar mapping bone channels to morph cu"
+    },
+    {
+      "mt_id": "MT-536",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-535"
+      ],
+      "status": "PENDING",
+      "summary": "Implement UE Pose Driver and Blender shape-key-driver generator emission from the MT-535 driver sidecar (spec 13.19; GREQ-026/032, Diffeomorphic Auto-JCM precedent): generated per-export companion scripts/assets that rebuild corrective driv"
+    },
+    {
+      "mt_id": "MT-537",
+      "group": "BkCorrectives",
+      "depends_on": [
+        "MT-536"
+      ],
+      "status": "PENDING",
+      "summary": "Implement corrective validation (spec 13.19 validation clause; PREQ-014, REQ-018): register the BODY_POSE_RANGE_VALID descriptor in the 13.15 runner proving the acceptance-archetype x QA-pose matrix renders without collapse, pinch, or inter"
+    },
+    {
+      "mt_id": "MT-538",
+      "group": "BkSoftTissue",
+      "depends_on": [
+        "MT-537"
+      ],
+      "status": "PENDING",
+      "summary": "Implement body soft-tissue regions in tailor-solver (spec 13.20; REQ-028, PREQ-017): volume-preserving XPBD soft-body on low-res region cages (breasts L/R, glutes L/R, belly) driving the base-mesh surface via cage deformation, as a SoftBody"
+    },
+    {
+      "mt_id": "MT-539",
+      "group": "BkSoftTissue",
+      "depends_on": [
+        "MT-538"
+      ],
+      "status": "PENDING",
+      "summary": "Implement firmness-channel-driven soft-tissue parameters (spec 13.20; OBR-001 physics link): natural-soft vs implant-rigid motion derived mechanically from the breast/glute firmness channels via documented mapping curves onto XPBD complianc"
+    },
+    {
+      "mt_id": "MT-540",
+      "group": "BkSoftTissue",
+      "depends_on": [
+        "MT-539"
+      ],
+      "status": "PENDING",
+      "summary": "Implement soft-tissue collision vs hands, props, and cloth in the unified collision world (spec 13.20; REQ-028 squish clause, VaM quality bar): region cages collide with body-part colliders, imported prop colliders, and cloth so breasts/glu"
+    },
+    {
+      "mt_id": "MT-541",
+      "group": "BkSoftTissue",
+      "depends_on": [
+        "MT-540"
+      ],
+      "status": "PENDING",
+      "summary": "Implement autocollider generation from region masks plus channel state (spec 13.20; GREQ-025, VaM autocollider pattern): capsule/sphere collider sets per body region derived mechanically from current channel values, regenerating on channel "
+    },
+    {
+      "mt_id": "MT-542",
+      "group": "BkSoftTissue",
+      "depends_on": [
+        "MT-541"
+      ],
+      "status": "PENDING",
+      "summary": "Implement bake-to-keyframes (spec 13.20; PREQ-020): soft-tissue simulation results baked to jiggle-bone keyframe curves (MT-525 chains) via least-squares curve fitting, so renders, exports, and engine consumers replay soft-tissue motion wit"
+    },
+    {
+      "mt_id": "MT-543",
+      "group": "BkSoftTissue",
+      "depends_on": [
+        "MT-542"
+      ],
+      "status": "PENDING",
+      "summary": "Implement gravity-direction rest-shape solving (spec 13.20; OBR-001 ptosis interaction): settled rest shapes computed per gravity direction relative to torso orientation (lying/leaning/standing rest shapes) plus counter-gravity neutralizati"
+    },
+    {
+      "mt_id": "MT-544",
+      "group": "BkSoftTissue",
+      "depends_on": [
+        "MT-543"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the soft-tissue determinism envelope and settle gate (spec 13.20; REQ-028 discipline, reusing the cloth MeshComparator/settlement policy): settle termination on the existing settlement policy types with a max-iteration guard, plus"
+    },
+    {
+      "mt_id": "MT-545",
+      "group": "BkSoftTissue",
+      "depends_on": [
+        "MT-544"
+      ],
+      "status": "PENDING",
+      "summary": "BkSoftTissue integration test (spec 13.20 acceptance; OBR-001, REQ-028): archetype (a) petite + extreme-large perky natural breasts runs the full lane end to end - cage generation, autocolliders, gravity settle, jiggle impulse, deterministi"
+    },
+    {
+      "mt_id": "MT-546",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-545"
+      ],
+      "status": "PENDING",
+      "summary": "Implement genital region topology in the BASE mesh (spec 13.21; PREQ-011, REQ-029 foundation): vulva, penis, and anus regions live in the single base topology with no geograft seam anywhere, with toggleable genital-region SubD resolution (h"
+    },
+    {
+      "mt_id": "MT-547",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-546"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the region-graft mechanism for third-party anatomy extensions (spec 13.21; REQ-029, DSON-graft-equivalent made Handshake-native): vertex_pairs weld maps plus hidden_polys region replacement with channel-delta projection onto graft"
+    },
+    {
+      "mt_id": "MT-548",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-547"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the vulva channel group (spec 13.21; REQ-031 Golden Palace bar): labia inner/outer size, labia spread, clitoris size and hood, mons volume, and inner/outer labia balance as decoupled multi-key channels masked strictly to the vulva"
+    },
+    {
+      "mt_id": "MT-549",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-548"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the vulva rig and gape system (spec 13.21; REQ-031 Golden Palace huge-gape bar): rigged labia and vaginal canal (labia bone set + canal ring chain per MT-514), open/close/gape dials as pose+morph composites reaching extreme gape w"
+    },
+    {
+      "mt_id": "MT-550",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-549"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the penis module mesh and rig (spec 13.21; REQ-030 Dicktator bar): full pose chain penis_01..05 base-to-glans plus scrotum rig per the MT-514 skeleton definition, posable through the complete flaccid-to-erect arc without candy-wra"
+    },
+    {
+      "mt_id": "MT-551",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-550"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the penis channel group (spec 13.21; REQ-030 plus the operator oversized-penis requirement, OBR-004): length, girth, curve, taper, glans size, foreskin state continuum, vein intensity (displacement-driven), and scrotum size/tightn"
+    },
+    {
+      "mt_id": "MT-552",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-551"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the erection continuum (spec 13.21; REQ-032, SOS pattern, GREQ-034): flaccid-to-erect as a single 0..1 pose+morph composite (bone-chain arc plus engorgement girth, glans/vein prominence, scrotum tightening) with a rigid/floppy per"
+    },
+    {
+      "mt_id": "MT-553",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-552"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the anus module (spec 13.21; PREQ-012): anus position, gape states (closed to extreme gape as multi-key pose+morph composites with manifold interior), and pucker detail channels, present on all bodies via the base topology, with t"
+    },
+    {
+      "mt_id": "MT-554",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-553"
+      ],
+      "status": "PENDING",
+      "summary": "Implement futa/mixed anatomy support (spec 13.21; REQ-035): female body plus penis module coexistence in one BodySpec genital config with isolated channel namespaces, watertight composite mesh, and zero cross-module conflicts - archetype (h"
+    },
+    {
+      "mt_id": "MT-555",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-554"
+      ],
+      "status": "PENDING",
+      "summary": "Implement genital JCM/corrective coverage (spec 13.21; REQ-022): erection sweep, insertion poses, and extreme spread sample sets baked through the BkCorrectives engine with per-size re-bake (MT-531) so oversized cocks and extreme gapes defo"
+    },
+    {
+      "mt_id": "MT-556",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-555"
+      ],
+      "status": "PENDING",
+      "summary": "Implement orifice penetration correctives (spec 13.21; PREQ-019): stretch/conform morphs on the vaginal, anal, and oral orifices driven by penetrator proximity and depth via the MT-534 ProximityDriver - the orifice opening conforms to penet"
+    },
+    {
+      "mt_id": "MT-557",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-556"
+      ],
+      "status": "PENDING",
+      "summary": "Implement genital collision proxies and soft-tissue coupling for insertion scenes (spec 13.21; REQ-034): penis shaft/glans capsule chains and orifice canal colliders generated from genital channel state via the MT-541 generator, with option"
+    },
+    {
+      "mt_id": "MT-558",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-557"
+      ],
+      "status": "PENDING",
+      "summary": "Implement seamless genital skin blending (spec 13.21/13.22 boundary; REQ-033, PREQ-010): the genital UDIM tile blends automatically with body skin - albedo/normal sampled from the body across the boundary band and genital maps re-derived - "
+    },
+    {
+      "mt_id": "MT-559",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-558"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the arousal controller (spec 13.21; PREQ-013): a single arousal channel 0..1 driving flush/engorgement color via the hemoglobin map (MT-565), genital-region wetness ramp (MT-568), nipple erection morphs, labia/clitoris engorgement"
+    },
+    {
+      "mt_id": "MT-560",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-559"
+      ],
+      "status": "PENDING",
+      "summary": "Implement genital modular export attachments (spec 13.21/13.26 boundary; GREQ-033): an export option splitting genital regions into a separate mesh with own bones and material plus body-seam weld data so game lanes can attach/detach anatomy"
+    },
+    {
+      "mt_id": "MT-561",
+      "group": "BkGenitals",
+      "depends_on": [
+        "MT-560"
+      ],
+      "status": "PENDING",
+      "summary": "BkGenitals integration test (spec 13.21 acceptance; REQ-030/031/035, PREQ-011/019): archetypes (f) muscular and (g) slender male run the oversized-cock erection sweep end to end, archetype (a) runs the vulva gape range with penetration smok"
+    },
+    {
+      "mt_id": "MT-562",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-561"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the UV layout authority (spec 13.22; PREQ-007/027): UDIM tiles (head/torso/limbs/genitals) published as a stable versioned target with per-tile texel-density priorities - genital, areola/nipple, and face tiles at hero px/cm tier -"
+    },
+    {
+      "mt_id": "MT-563",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-562"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the skin material system (spec 13.22; PREQ-005/006): SkinMaterial rows (BSM- table per MT-482) carrying the PBR slot set plus SSS parameters with Cycles random-walk reference defaults and a documented UE Subsurface Profile mapping"
+    },
+    {
+      "mt_id": "MT-564",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-563"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the layered texture stack, the LIE equivalent (spec 13.22; REQ-038, PREQ-034): ordered non-destructive layers (decals, tattoos, makeup, region fixes) with masks, blend modes, and opacity per UDIM tile, plus a deterministic bake-on"
+    },
+    {
+      "mt_id": "MT-565",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-564"
+      ],
+      "status": "PENDING",
+      "summary": "Implement biophysical tone parameters (spec 13.22; PREQ-004): melanin/hemoglobin/specular utility maps from which albedo is DERIVED - tone changes re-derive the albedo rather than RGB-tinting it - with the hemoglobin map doubling as the flu"
+    },
+    {
+      "mt_id": "MT-566",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-565"
+      ],
+      "status": "PENDING",
+      "summary": "Implement three-band displacement (spec 13.22; PREQ-001, Texturing.xyz convention): secondary/tertiary/micro displacement channel-packed (R/G/B) with per-band weight controls and per-region overrides, compositing to single displacement for "
+    },
+    {
+      "mt_id": "MT-567",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-566"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the micro/detail normal layer with region masks plus cavity/specular-occlusion support (spec 13.22; PREQ-002/003): tiling detail normals with per-region tiling scale and intensity, a cavity map slot modulating specular for real-ti"
+    },
+    {
+      "mt_id": "MT-568",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-567"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the wet layer stack (spec 13.22; PREQ-008/009): independent sweat, oil, and water/lube/saliva layers as clearcoat-style specular lobes (IOR ~1.33, low roughness defaults) with droplet/drip normal detail, coverage driven by region "
+    },
+    {
+      "mt_id": "MT-569",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-568"
+      ],
+      "status": "PENDING",
+      "summary": "Implement dynamic body wrinkle/fold maps (spec 13.22; PREQ-028, CC 4.2 one-wrinkle-for-all pattern): pose-driven tension/compression strain computed per region drives blend weights of authored wrinkle normal maps (neck folds, waist compress"
+    },
+    {
+      "mt_id": "MT-570",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-569"
+      ],
+      "status": "PENDING",
+      "summary": "Implement UV strain compensation (spec 13.22; REQ-036, PREQ-025): detect per-face texel stretch/compression under extreme channel states and auto-correct detail-map tiling/weights or apply per-channel UV adjustment so microdetail density st"
+    },
+    {
+      "mt_id": "MT-571",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-570"
+      ],
+      "status": "PENDING",
+      "summary": "Implement texture-follows-morph re-projection (spec 13.22; PREQ-026, the stated differentiator): anchor-defined albedo features (areolas, tan lines, decals) re-project to correct positions and scales under drastic proportion change - areola"
+    },
+    {
+      "mt_id": "MT-572",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-571"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the HD multi-res detail lane (spec 13.22; REQ-037/040): open multi-res sparse deltas on the MT-487 SubD cage - explicitly NO .dhdm, license guard enforced - with HD authoring open to all users via the MT-529 import pipeline, bakin"
+    },
+    {
+      "mt_id": "MT-573",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-572"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the skin bake pipeline (spec 13.22; GREQ-040, PREQ-034): the full stack - tone derivation, layers, detail normals, wet layers, wrinkle statics, displacement bands - flattens deterministically to portable PBR texture sets per expor"
+    },
+    {
+      "mt_id": "MT-574",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-573"
+      ],
+      "status": "PENDING",
+      "summary": "Implement body/pubic hair region groom hooks (spec 13.22; PREQ-021/022): density masks (pubic, chest, arms, brows) plus groom attachment metadata (region anchors, surface-binding refs) that survive channel morphs - strand authoring itself i"
+    },
+    {
+      "mt_id": "MT-575",
+      "group": "BkSkin",
+      "depends_on": [
+        "MT-574"
+      ],
+      "status": "PENDING",
+      "summary": "BkSkin integration test (spec 13.22 acceptance; REQ-033/036, PREQ-004/008/025/026): full tone sweep including dark skins with seamless genital blend (GENITAL_BLEND_VALID green per tone), wet-layer bake through the MT-573 pipeline, and extre"
+    },
+    {
+      "mt_id": "MT-576",
+      "group": "BkFace",
+      "depends_on": [
+        "MT-575"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the face channel set (spec 13.23; OBR decouple law applied to the face, REQ-001/002 lineage): brow, eye, nose, mouth/lips, jaw, and cheek region channels - decoupled, multi-key, same channel architecture as the body - plus the hyb"
+    },
+    {
+      "mt_id": "MT-577",
+      "group": "BkFace",
+      "depends_on": [
+        "MT-576"
+      ],
+      "status": "PENDING",
+      "summary": "Author the ARKit-52 blendshape set as the guaranteed baseline (spec 13.23; AREQ-007): all 52 shapes with exact Apple naming present on every face, enforced by a validator, plus a FACS-style extended set with deterministic bidirectional ARKi"
+    },
+    {
+      "mt_id": "MT-578",
+      "group": "BkFace",
+      "depends_on": [
+        "MT-577"
+      ],
+      "status": "PENDING",
+      "summary": "Author the arousal expression library (spec 13.23; PREQ-030): ahegao (eye-roll + tongue-out + flush hook), bitten lip, eye-roll, open-mouth O, and gasp/moan faces as layerable expression assets beyond ARKit-52 extremes, composing over ANY i"
+    },
+    {
+      "mt_id": "MT-579",
+      "group": "BkFace",
+      "depends_on": [
+        "MT-578"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the eye realism stack (spec 13.23; PREQ-029): cornea refraction geometry with IOR parameter, wetness meniscus mesh at the lid contact line, and eye control channels (gaze, pupil dilation, iris size/color hooks, wetness amount) at "
+    },
+    {
+      "mt_id": "MT-580",
+      "group": "BkFace",
+      "depends_on": [
+        "MT-579"
+      ],
+      "status": "PENDING",
+      "summary": "Implement expression correctives (spec 13.23; CC Facial-Profile-Editor pattern, REQ-018 lineage): canned expressions re-solve per-face when identity channels move past documented thresholds - corrective deltas per expression via the MT-528 "
+    },
+    {
+      "mt_id": "MT-581",
+      "group": "BkFace",
+      "depends_on": [
+        "MT-580"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the viseme track ingest hook (spec 13.23; AREQ-009/010): an editable VisemeTrack timeline TYPE (time-stamped viseme ids, weights, co-articulation blend params) mapped to ARKit mouth shapes with reserved non-speech moan/gasp ids, a"
+    },
+    {
+      "mt_id": "MT-582",
+      "group": "BkFace",
+      "depends_on": [
+        "MT-581"
+      ],
+      "status": "PENDING",
+      "summary": "Implement face export (spec 13.23/13.26 boundary; AREQ-007, the Daz FACS-export-gap fix): every skeletal export lane emits the ARKit-52 blendshapes with exact names by default, the FACS extended set optionally per profile, expression assets"
+    },
+    {
+      "mt_id": "MT-583",
+      "group": "BkFace",
+      "depends_on": [
+        "MT-582"
+      ],
+      "status": "PENDING",
+      "summary": "BkFace integration test (spec 13.23 acceptance; AREQ-007/010, PREQ-030): the ARKit-52 set drives archetype faces through a glTF round-trip (names plus deformation samples verified), arousal expressions layer with a viseme track on an archet"
+    },
+    {
+      "mt_id": "MT-584",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-583"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the parametric avatar writer per Section 13.24 (BodyKit<->Cloth contract): BodyKit publishes tailor_avatars rows with source_kind='parametric' and morph_params_json carrying the full channel state, plus the 25-measurement extracti"
+    },
+    {
+      "mt_id": "MT-585",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-584"
+      ],
+      "status": "PENDING",
+      "summary": "Implement channel-derived collision proxies per Section 13.24 (REQ-023): capsule/sphere/SDF body proxies generated mechanically from channel state via the MT-541 autocollider lane, with multi-sphere breast decomposition whose sphere count/r"
+    },
+    {
+      "mt_id": "MT-586",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-585"
+      ],
+      "status": "PENDING",
+      "summary": "Implement grow-into-garment fitting per Section 13.24 (REQ-024): the community dForce-timeline trick made native — a RefitMode extension that runs the cloth sim while ramping body channels from neutral to target, so extreme bodies (huge tit"
+    },
+    {
+      "mt_id": "MT-587",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-586"
+      ],
+      "status": "PENDING",
+      "summary": "Implement volume-aware garment auto-follow per Section 13.24 (REQ-025): fitted garments inherit body channel changes via volume-aware projection (cage/harmonic-style binding), not closest-point projection, eliminating the classic Daz autofi"
+    },
+    {
+      "mt_id": "MT-588",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-587"
+      ],
+      "status": "PENDING",
+      "summary": "Implement garment fix dials per Section 13.24 (REQ-027, Fit Control made native): auto-generated per-region ease/expand adjustment channels on every fitted garment so operators and models can fix poke-through or tightness on extreme bodies "
+    },
+    {
+      "mt_id": "MT-589",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-588"
+      ],
+      "status": "PENDING",
+      "summary": "Honor rigidity masks across BOTH projection and simulation per Section 13.24 (REQ-026): garment hardware (buttons, buckles, underwire, zippers) under rigidity masks binds rigidly during auto-follow projection and is treated as rigid cluster"
+    },
+    {
+      "mt_id": "MT-590",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-589"
+      ],
+      "status": "PENDING",
+      "summary": "Implement fit-across-morph-space per Section 13.24 (SREQ-013, the MetaHuman adaptive-clothing / BodySlide conform contract): garments store fit targets sampled over channel-space points and auto-interpolate a fit for any body, so one author"
+    },
+    {
+      "mt_id": "MT-591",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-590"
+      ],
+      "status": "PENDING",
+      "summary": "Implement conform-wardrobe batch per Section 13.24 (SREQ-014, BodySlide batch-build pattern): a one-call operation that refits an entire outfit library to a target body as parallel Handshake jobs with leases, backpressure, and per-garment r"
+    },
+    {
+      "mt_id": "MT-592",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-591"
+      ],
+      "status": "PENDING",
+      "summary": "Wire the pose-driven drape QA hook per Section 13.24: a matrix runner that drapes seeded archetype bodies against the starter garment set under QA poses and persists machine-readable per-cell results, providing the execution substrate the B"
+    },
+    {
+      "mt_id": "MT-593",
+      "group": "BkClothBridge",
+      "depends_on": [
+        "MT-592"
+      ],
+      "status": "PENDING",
+      "summary": "BkClothBridge integration test per Section 13.24: archetype (a) — petite frame + extreme-large perky natural tits — wearing the starter bra and dress, proving proxy generation, grow-into-garment drape, refit after a channel change, fix-dial"
+    },
+    {
+      "mt_id": "MT-594",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-593"
+      ],
+      "status": "PENDING",
+      "summary": "Implement BodyModelAdapter per Section 13.25 (model-first body authoring, TAI-OVR-001 parity for bodies): a ModelAdapter implementation that accepts a ContextBundle carrying the current BodySpec, channel registry, and NL constraints and ret"
+    },
+    {
+      "mt_id": "MT-595",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-594"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the author_body MCP tool per Section 13.25: canonical wire name author_body takes an NL body description (plus optional seed/constraints) and produces a BodySpec draft through the non-bypassable sandbox -> validate -> promote life"
+    },
+    {
+      "mt_id": "MT-596",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-595"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the edit_body MCP tool per Section 13.25: canonical wire name edit_body applies an RFC 7396 JSON merge patch to a BodySpec draft, decomposing channel edits into CRDT-safe per-channel ops while preserving channel isolation — a patc"
+    },
+    {
+      "mt_id": "MT-597",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-596"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the get_body MCP tool per Section 13.25: canonical wire name get_body returns the typed BodySpec (cm on the LLM surface), the latest BodyValidationReceipt, and visual capture references, giving a no-context model everything needed"
+    },
+    {
+      "mt_id": "MT-598",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-597"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the solve_measurements MCP tool per Section 13.25: canonical wire name solve_measurements takes numeric targets in cm (bust_circ, waist_circ, shoulder_width, penis_length, ...) and solves channel values via the MT-512 measurement "
+    },
+    {
+      "mt_id": "MT-599",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-598"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the randomize_body MCP tool per Section 13.25: canonical wire name randomize_body performs seeded, scoped randomization (whole_body | region | channel) with plausibility-weighted distributions and deterministic seeds, plus batch v"
+    },
+    {
+      "mt_id": "MT-600",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-599"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the pose_body MCP tool per Section 13.25: canonical wire name pose_body turns an NL pose description or pose-library reference into a BodyPose applied via the full-body IK lane (MT-519/520, reusing the MT-399/404 Cloth avatar-pose"
+    },
+    {
+      "mt_id": "MT-601",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-600"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the configure_genitals MCP tool per Section 13.25: canonical wire name configure_genitals applies a typed genital configuration — module enable, cock channels including the erection continuum and rigid/floppy state, pussy spread/g"
+    },
+    {
+      "mt_id": "MT-602",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-601"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the export_body MCP tool per Section 13.25: canonical wire name export_body triggers a profile-driven export (BXP- profile id) as a scheduled job and returns the export manifest plus the machine-readable EXPORT_BODY_VALID validati"
+    },
+    {
+      "mt_id": "MT-603",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-602"
+      ],
+      "status": "PENDING",
+      "summary": "Implement BodyValidationReceipt per Section 13.25: the typed receipt hsk.tailor.body_validation_receipt@1 carrying decouple violations, topology failures, pose-range failures, and export budget breaches, each finding paired with a suggested"
+    },
+    {
+      "mt_id": "MT-604",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-603"
+      ],
+      "status": "PENDING",
+      "summary": "Integrate body visual capture per Section 13.25: capture_view works on the body viewport with named camera presets, persisting CAP- rows in the existing tailor_captures store correlated to body id and channel-state hash, plus the model anno"
+    },
+    {
+      "mt_id": "MT-605",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-604"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the BodyRecipe system per Section 13.25 (SREQ-001/002/019): BRC- recipes with save/load/diff/partial-apply and separable shape/skin/genital/physics layers — 'take her breasts, keep my face' as a first-class operation, with the dir"
+    },
+    {
+      "mt_id": "MT-606",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-605"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the recipe share format per Section 13.25 (SREQ-004/005/006/022, Koikatsu-card pattern): a PNG-embedded recipe card whose image is a render of the body, carrying a dependency manifest (asset ID@version refs with resolve-or-warn), "
+    },
+    {
+      "mt_id": "MT-607",
+      "group": "BkModelApi",
+      "depends_on": [
+        "MT-606"
+      ],
+      "status": "PENDING",
+      "summary": "Prove parallel swarm body authoring per Section 13.25 (HBR-SWARM parity with the garment lane, SREQ-020): N concurrent agent sessions author and edit bodies through the MCP tools with scheduler leases, per-op attribution, and clean cancella"
+    },
+    {
+      "mt_id": "MT-608",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-607"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the export profile system per Section 13.26: typed BXP- profile rows for blender_gltf, blender_fbx_bridge, ue_fbx_bridge, ue_gltf, vrm, usd, and obj, each carrying an EXACT units/axis contract (ue_fbx_bridge: 1 unit = 1 cm, Z-up/X"
+    },
+    {
+      "mt_id": "MT-609",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-608"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the skeletal mesh export core per Section 13.26 via the glTF writer (the PRIMARY lane per the file-format strategy): skinned body with skeleton, skinning weights, and selected morph targets chosen by morph-export-rules, validating"
+    },
+    {
+      "mt_id": "MT-610",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-609"
+      ],
+      "status": "PENDING",
+      "summary": "Implement FBX delivery via the Blender-bridge ONLY per Section 13.26 and the file-format strategy verdict: reuse the MT-419 bridge pattern (glTF -> headless Blender -> FBX) for the body skeletal lane including blendshapes; a native FBX writ"
+    },
+    {
+      "mt_id": "MT-611",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-610"
+      ],
+      "status": "PENDING",
+      "summary": "Emit the corrective/driver sidecar with every skeletal export per Section 13.26 (Part-3 contract, GREQ-026): baked pose-space-named JCM blendshapes (jcm_thigh_fwd_90_l) plus the machine-readable driver sidecar JSON (bone channel -> morph cu"
+    },
+    {
+      "mt_id": "MT-612",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-611"
+      ],
+      "status": "PENDING",
+      "summary": "Export erection and gape as BOTH pose assets and blendshapes per Section 13.26 (REQ-032, GREQ-034): the erection continuum ships as a bone-pose asset set on the genital chains AND as baked blendshapes per profile, gape states likewise, so e"
+    },
+    {
+      "mt_id": "MT-613",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-612"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the pre-welded single-mesh export option per Section 13.26 (Part-3 contract, Diffeomorphic merge parity): genital modules welded into the body via the vertex_pairs weld map, boundary-blended textures baked into unified sets, and o"
+    },
+    {
+      "mt_id": "MT-614",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-613"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the UE export profile per Section 13.26 (GREQ-005/006/007): ue_fbx_bridge emits Manny/Quinn-compatible bone naming with the ik_* bone set, an IK Rig chain-definition JSON plus IK Retargeter asset data, and selectable T0/A-pose ref"
+    },
+    {
+      "mt_id": "MT-615",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-614"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the Unity and VRM export profiles per Section 13.26 (GREQ-029/030): Unity humanoid-avatar-compatible rig mapping with quality-tier influence handling, and VRM export with humanoid bone mapping, blendshape clips including the ARKit"
+    },
+    {
+      "mt_id": "MT-616",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-615"
+      ],
+      "status": "PENDING",
+      "summary": "Implement USD body export per Section 13.26 behind the usd-export cargo feature (the STRATEGIC lane per the file-format strategy): UsdSkel skeleton plus blendshapes, with feature-off builds compiling clean and the lane documented as seconda"
+    },
+    {
+      "mt_id": "MT-617",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-616"
+      ],
+      "status": "PENDING",
+      "summary": "Implement LOD chain generation per Section 13.26 (GREQ-001..003): decimation that preserves skinning through every level, per-LOD bone reduction (weld minor bones, influence-threshold pruning) with morph transfer to reduced LODs, and a conf"
+    },
+    {
+      "mt_id": "MT-618",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-617"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-profile skinning influence caps per Section 13.26 (GREQ-004): 4 (legacy/mobile), 8 (UE default), 12 (UE practical cap), and unlimited (UE Unlimited Bone Influences flag), with clamp-and-renormalize semantics and a per-vertex a"
+    },
+    {
+      "mt_id": "MT-619",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-618"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the high-to-low bake pipeline per Section 13.26 (GREQ-008/009): normal, AO, curvature, and displacement baked from the SubD+HD authority body onto the export mesh with bake groups preventing cross-projection, plus the optional pos"
+    },
+    {
+      "mt_id": "MT-620",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-619"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the per-profile UV strategy per Section 13.26 (GREQ-010/031, PREQ-027): UDIM tile passthrough for offline-render profiles versus single-tile 0-1 atlas repack with material merge for game profiles, preserving genital/areola hero te"
+    },
+    {
+      "mt_id": "MT-621",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-620"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-profile texture conformance per Section 13.26 (GREQ-039/040): MikkTSpace tangent space, per-target normal-map green-channel flip (+Y/-Y), correct sRGB/linear tagging per slot, ORM channel-packing presets, and per-platform text"
+    },
+    {
+      "mt_id": "MT-622",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-621"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the machine-readable export validation report per Section 13.26 (GREQ-035): a per-target checklist (influence caps, blendshape counts, bone counts, material counts, texture sizes, LODs, unit/axis checks) emitted as a typed artifac"
+    },
+    {
+      "mt_id": "MT-623",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-622"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the DSON read-only import lane per Section 13.26 (file-format strategy P2 verdict): migrate user-owned Daz characters by reading .duf/.dsf morph dials from the user's own Daz library and proposing BodyKit channel mappings — NO .dh"
+    },
+    {
+      "mt_id": "MT-624",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-623"
+      ],
+      "status": "PENDING",
+      "summary": "Build the Blender/UE round-trip verification harness per Section 13.26 (REQ-044): headless Blender scripts and UE-import checks that verify morphs, skeleton, correctives, scale, and orientation survive each export lane — with the Daz-bridge"
+    },
+    {
+      "mt_id": "MT-625",
+      "group": "BkExport",
+      "depends_on": [
+        "MT-624"
+      ],
+      "status": "PENDING",
+      "summary": "BkExport integration test per Section 13.26: the full archetype set exported through every seeded BXP- profile with EXPORT_BODY_VALID green per cell, round-trip verification passing on the ue_fbx_bridge and blender_gltf lanes, and determini"
+    },
+    {
+      "mt_id": "MT-626",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-625"
+      ],
+      "status": "PENDING",
+      "summary": "Register the BodyKit editor pane in the native shell per Section 13.27 GUI clauses (CX-503D1): extend the existing 'tailor' pane type with a BodyKit tab, every control carrying a stable author_id so Argus and parallel models can address the"
+    },
+    {
+      "mt_id": "MT-627",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-626"
+      ],
+      "status": "PENDING",
+      "summary": "Build the channel slider panels per Section 13.27 GUI clauses: sliders grouped by region (breasts, shoulders, hips, glutes, thighs, midriff, hands/feet, genitals, face) with numeric entry, designed over-range indication (past 100% is shown,"
+    },
+    {
+      "mt_id": "MT-628",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-627"
+      ],
+      "status": "PENDING",
+      "summary": "Build the archetype/recipe browser panel per Section 13.27 GUI clauses: thumbnail grid of BRC- recipes with tags, one-click apply, and layer/region-scoped blend (partial apply) — the seeded ARCH-A..ARCH-H recipes visible and appliable, surf"
+    },
+    {
+      "mt_id": "MT-629",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-628"
+      ],
+      "status": "PENDING",
+      "summary": "Build the measurement panel per Section 13.27 GUI clauses: live measurement readout (cm) updating on every channel change plus numeric targeting entry that solves through the MT-512/598 measurement solver, with residual/infeasibility feedba"
+    },
+    {
+      "mt_id": "MT-630",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-629"
+      ],
+      "status": "PENDING",
+      "summary": "Build the coupling-graph inspector panel per Section 13.27 GUI clauses: view, disable, and author the explicit coupling links of MT-496 — every runtime-active link visible with named edges and per-edge disable, proving in the UI that NO hid"
+    },
+    {
+      "mt_id": "MT-631",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-630"
+      ],
+      "status": "PENDING",
+      "summary": "Build the pose editor UI hooks per Section 13.27 GUI clauses: draggable IK pin handles (hands/feet/knees) driving the MT-519 full-body IK, a pose library browser applying BodyPose assets with morph-context re-solve, and the multi-actor alig"
+    },
+    {
+      "mt_id": "MT-632",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-631"
+      ],
+      "status": "PENDING",
+      "summary": "Build the genital config panel per Section 13.27 GUI clauses: cock/pussy/anus channel sliders at the same grain as every other region — no special-casing, no extra friction — plus erection state (continuum + rigid/floppy), gape dials includ"
+    },
+    {
+      "mt_id": "MT-633",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-632"
+      ],
+      "status": "PENDING",
+      "summary": "Integrate the body viewport per Section 13.27 GUI clauses: reuse the Tailor wgpu viewport with body render pipelines — skin preview shading (SSS approximation) plus heatmap overlay modes for skinning weights, UV strain, and decouple-violati"
+    },
+    {
+      "mt_id": "MT-634",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-633"
+      ],
+      "status": "PENDING",
+      "summary": "Establish full Argus coverage per Section 13.27 GUI clauses (HBR-VIS): inspect, steer, and screenshot every BodyKit pane headlessly, with a persisted capture matrix that includes archetype edge states (ARCH-A extreme tits, ARCH-F oversized "
+    },
+    {
+      "mt_id": "MT-635",
+      "group": "BkGui",
+      "depends_on": [
+        "MT-634"
+      ],
+      "status": "PENDING",
+      "summary": "BkGui integration test per Section 13.27 GUI clauses: a no-context model drives a complete channel-edit -> capture -> verify loop through Argus alone — discover the pane from the accesskit tree, set a breast-volume channel to an over-range "
+    },
+    {
+      "mt_id": "MT-636",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-635"
+      ],
+      "status": "PENDING",
+      "summary": "Build the archetype seeding framework per Section 13.27 acceptance archetypes: the 8 operator acceptance archetypes seed as deterministic BRC- recipes (pure channel-value sets with stable ids), idempotently re-seedable, each carrying the EX"
+    },
+    {
+      "mt_id": "MT-637",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-636"
+      ],
+      "status": "PENDING",
+      "summary": "Seed and prove archetype ARCH-A per Section 13.27 acceptance archetypes — the operator's signature build: petite frame + extreme-large perky natural tits + narrow soft shoulders + narrow hips + small hands + long legs + round ass + narrow t"
+    },
+    {
+      "mt_id": "MT-638",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-637"
+      ],
+      "status": "PENDING",
+      "summary": "Seed and prove archetypes ARCH-B and ARCH-C per Section 13.27 acceptance archetypes: ARCH-B — extreme-large fake/plastic round implant look on a slender frame (the bolt-on aesthetic as a designed, first-class target per OBR-001); ARCH-C — s"
+    },
+    {
+      "mt_id": "MT-639",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-638"
+      ],
+      "status": "PENDING",
+      "summary": "Seed and prove archetypes ARCH-D and ARCH-E per Section 13.27 acceptance archetypes: ARCH-D — large natural droopy tits on a fat/obese female body (REQ-014 fat-distribution channels at production quality); ARCH-E — obese male build; both me"
+    },
+    {
+      "mt_id": "MT-640",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-639"
+      ],
+      "status": "PENDING",
+      "summary": "Seed and prove archetypes ARCH-F, ARCH-G, and ARCH-H per Section 13.27 acceptance archetypes: ARCH-F — muscular male + oversized cock; ARCH-G — slender male + oversized cock (proving genital channels independent of body mass); ARCH-H — futa"
+    },
+    {
+      "mt_id": "MT-641",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-640"
+      ],
+      "status": "PENDING",
+      "summary": "Run the decouple-proof validation suite per Section 13.27 (the BODY_DECOUPLE_VALID matrix, REQ-001/002 proven at scale): every archetype x every channel group proves zero cross-region coupling — per-channel deltas confined to declared masks"
+    },
+    {
+      "mt_id": "MT-642",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-641"
+      ],
+      "status": "PENDING",
+      "summary": "Run the pose-range QA matrix per Section 13.27 (BODY_POSE_RANGE_VALID, PREQ-014): all 8 archetypes x the porn-range QA pose set (full thigh spread, deep squat, legs-behind-head, deep arch, hip thrust from MT-532) with per-body re-baked corr"
+    },
+    {
+      "mt_id": "MT-643",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-642"
+      ],
+      "status": "PENDING",
+      "summary": "Run the drape QA matrix per Section 13.27: all 8 archetypes x the starter garment set draped through the BkClothBridge hook (MT-592), gated on FIT and NO_INTERPENETRATION per cell with proxy freshness verified — the Cloth<->BodyKit contract"
+    },
+    {
+      "mt_id": "MT-644",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-643"
+      ],
+      "status": "PENDING",
+      "summary": "Run the export QA matrix per Section 13.27: all 8 archetypes x all seeded BXP- export profiles with EXPORT_BODY_VALID green per cell and the MT-624 round-trip harness executed on the ue_fbx_bridge and blender_gltf lanes for every archetype "
+    },
+    {
+      "mt_id": "MT-645",
+      "group": "BkBodiesQA",
+      "depends_on": [
+        "MT-644"
+      ],
+      "status": "PENDING",
+      "summary": "Produce the visual QA capture set per Section 13.27: an Argus-driven capture matrix per archetype (front/side/three-quarter neutral, pose extremes, genital closeups where relevant) persisted as CAP- rows correlated to recipe id and channel-"
+    },
+    {
+      "mt_id": "MT-646",
+      "group": "BkGovernance",
+      "depends_on": [
+        "MT-645"
+      ],
+      "status": "PENDING",
+      "summary": "Register the BodyKit ValidationDescriptor catalog per Section 13.27: BODY_TOPOLOGY_VALID, BODY_DECOUPLE_VALID, BODY_POSE_RANGE_VALID, EXPORT_BODY_VALID, GENITAL_BLEND_VALID, and LICENSE_GUARD wired into the 13.15 validation runner with corr"
+    },
+    {
+      "mt_id": "MT-647",
+      "group": "BkGovernance",
+      "depends_on": [
+        "MT-646"
+      ],
+      "status": "PENDING",
+      "summary": "Bind BodyKit to the PromotionGate per Section 13.27: body and recipe promotion route exclusively through the gate with MeshComparator-class equivalence between the sandbox result and the promoted artifact, CPROM idempotency, and structural "
+    },
+    {
+      "mt_id": "MT-648",
+      "group": "BkGovernance",
+      "depends_on": [
+        "MT-647"
+      ],
+      "status": "PENDING",
+      "summary": "Implement BodyKit CRDT semantics per Section 13.27: channel edits as CRDT ops with LWW per channel id, competing whole-body proposals held as separate drafts (never silently merged), and the ai_edit_proposal lane carrying attributed model p"
+    },
+    {
+      "mt_id": "MT-649",
+      "group": "BkGovernance",
+      "depends_on": [
+        "MT-648"
+      ],
+      "status": "PENDING",
+      "summary": "Bind BodyKit to the kernel sandbox per Section 13.27: model-authored body generation and validation execute in the kernel sandbox at process tier with fs-only capabilities — network and process-spawn attempts fail closed — and sandbox run r"
+    },
+    {
+      "mt_id": "MT-650",
+      "group": "BkGovernance",
+      "depends_on": [
+        "MT-649"
+      ],
+      "status": "PENDING",
+      "summary": "Integrate BodyKit work with the job scheduler per Section 13.27: generation, corrective/skin bakes, and exports run as typed Handshake JOBS honoring leases, backpressure, and cancellation, with event-before-row discipline on cancellation an"
+    },
+    {
+      "mt_id": "MT-651",
+      "group": "BkGovernance",
+      "depends_on": [
+        "MT-650"
+      ],
+      "status": "PENDING",
+      "summary": "Author the UserManual BodyKit chapter per Section 13.27 (HBR-MAN + CX-982): purpose, channel workflow including decoupling and over-range, genital configuration in direct language, export profiles and round-trip, recipe save/share, all 8 MC"
+    },
+    {
+      "mt_id": "MT-652",
+      "group": "BkGovernance",
+      "depends_on": [
+        "MT-651"
+      ],
+      "status": "PENDING",
+      "summary": "Hydrate the HBR matrix for all BodyKit MTs per Section 13.27: INT/SWARM/VIS/QUIET/MAN/STOP rows populated for MT-478..653 with evidence references (swarm proof MT-607, Argus matrices MT-634/645, manual MT-651), gaps recorded as typed deferr"
+    },
+    {
+      "mt_id": "MT-653",
+      "group": "BkGovernance",
+      "depends_on": [
+        "MT-652"
+      ],
+      "status": "PENDING",
+      "summary": "BodyKit end-to-end lifecycle test per Section 13.27 — the full loop, no-context provable: NL description -> author_body -> channel edits -> configure_genitals -> corrective re-bake -> garment drape via the Cloth bridge -> export through ue_"
     }
   ],
-  "second_pass_parity_range": "MT-449..MT-477"
+  "second_pass_parity_range": "MT-449..MT-477",
+  "bodykit_submodule_range": "MT-478..MT-653"
 }

@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-499",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-499.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-499.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-499.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-498"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Author the nipple/areola sub-module channels per Section 13.17 (BK-17.3, TAI-BK-041), closing REQ-010's nipple/areola sub-module bar: nipple_size, nipple_puff, nipple_direction, areola_diameter as registered Tissue channels over nipple/areola sub-masks of the breast regions, plus the areola color-zone hook consumed by the 13.22 skin layer stack (hook contract only here; skin implementation lands in BkSkin).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/bodykit/channels/nipple_areola.rs",
+      "tailor-solver/src/body/channels.rs",
+      "src/backend/handshake_core/src/tailor/bodykit/region_masks.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Nipple/areola sub-masks (nipple_l/r, areola_l/r) are added to the region mask authority as declared sub-regions of breast_l/r (declared overlap, MT-486 allowed_overlaps).",
+      "Channels nipple_size, nipple_puff, nipple_direction, areola_diameter are registered with multi-key tracks and L/R asymmetry sub-channels; sweeps pass BODY_DECOUPLE_VALID against the nipple/areola masks.",
+      "AreolaColorZoneHook is a typed contract (region ref + diameter-driven UV zone descriptor) exported for the 13.22 skin stack; a unit test proves the zone descriptor tracks areola_diameter changes.",
+      "Nipple channels remain functional when breast group A/B channels are at extremes: a combined test dials breast_volume=3.0 + nipple channels at max and asserts mesh quality in the nipple region.",
+      "Nipple erection is NOT a direct channel here; the registry row documents it as arousal-controller-driven (13.21 hook) plus direct dialing per TAI-BK-041."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver body::channels::nipple_areola_subchannels_decoupled_at_breast_extremes"
+    ],
+    "risk_if_missed": "Nipple/areola control is a hard production requirement for adult close-up framing (Breastacular ships 60+ nipple morphs as its market bar); without sub-module channels that survive extreme breast dials, hero shots need sculpt fixes per body — exactly the Daz workflow BodyKit replaces."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed TAILOR_BODY_* receipts, and the 13.12 capture APIs; operator/model GUI exposure rides the BodyKit panes (13.27) and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the TAILOR_BODY_* KernelEventType family on the EventLedger per Section 13.16 (extends the 13.14 canonical list)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long generation/bake/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

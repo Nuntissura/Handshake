@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-512",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-512.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-512.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-512.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-511"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the measurement solver per Section 13.17 (BK-17.4, TAI-BK-054), closing SREQ-009 and OBR implication 6: numeric targets in centimetres (bust_circ_cm, waist_circ_cm, hip_circ_cm, shoulder_width_cm, penis_length_cm, ...) solved to channel values WITHIN the target's own region group without touching channels of any other region; solve results are ordinary channel edits (events, CRDT, validation), and unreachable targets return a typed nearest-achievable result, never a silent clamp.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/bodykit/measurement_solver.rs",
+      "tailor-solver/src/body/measure.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "solve_measurements(body_id, targets: BTreeMap<String, f64 cm>) resolves each named target to the channels of its owning region group only; the returned SolveResult lists per-target: solved channel edits, achieved value, and status Achieved | NearestAchievable { achieved_cm } | UnknownTarget.",
+      "Measurement extraction reuses the tailor-solver extractor lane (13.7 §7.1 measurement rows) against the evaluated body mesh; solver iterates channel values (bounded iterations, documented tolerance) until the extracted measurement meets the target within tolerance.",
+      "Region isolation proof: solving bust_circ_cm changes only 'breast' group channels — a post-solve assertion shows all other groups' channel values bit-identical.",
+      "Targets beyond designed range return NearestAchievable with the closest achievable value (design_max clamp is reported, not silent).",
+      "Applied solves emit ordinary TailorBodyChannelChanged events per edited channel (solver produces no privileged write path)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::bodykit::measurement_solver::bust_target_solves_within_breast_group_only",
+      "cargo test -p tailor-solver body::measure::extraction_convergence_within_tolerance"
+    ],
+    "risk_if_missed": "Numeric targeting is the LLM-workflow contract ('make bust Y cm') — without region-isolated solving, a measurement request perturbs unrelated regions and silently violates the decoupling law, making model-driven batch body generation untrustworthy."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed TAILOR_BODY_* receipts, and the 13.12 capture APIs; operator/model GUI exposure rides the BodyKit panes (13.27) and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the TAILOR_BODY_* KernelEventType family on the EventLedger per Section 13.16 (extends the 13.14 canonical list)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long generation/bake/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

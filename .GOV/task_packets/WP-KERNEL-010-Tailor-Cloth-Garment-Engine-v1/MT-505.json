@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-505",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-505.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-505.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-505.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-504"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Author the belly/fat distribution channel group per Section 13.17 (BK-17.3, TAI-BK-047), closing REQ-014 (obese/fat bodies to production quality): belly_apron (overhang), fat_rolls (count + position sub-channels), love_handles, back_fat, arm_fat, thigh_fat, double_chin — with male and female fat-distribution preset LINK SETS shipped as recipes over the coupling graph (MT-496), never baked coupling.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/bodykit/channels/fat.rs",
+      "tailor-solver/src/body/channels.rs",
+      "src/backend/handshake_core/src/tailor/bodykit/storage.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Channels belly_apron, fat_rolls_count, fat_rolls_position, love_handles, back_fat, arm_fat, thigh_fat, double_chin registered as Tissue over their respective masks (midriff_belly, arm_l/r, thigh masks, neck/head boundary for double_chin), each with multi-key tracks.",
+      "M/F fat-distribution presets exist as named CouplingLink sets persisted as BRC- recipes (e.g. 'fat_distribution_female' mapping belly_size -> thigh_fat/love_handles curves); applying a preset creates inspectable links, and BODY_DECOUPLE_VALID stays green because links only write channel values.",
+      "Full-range sweeps of every fat channel pass BODY_DECOUPLE_VALID with breast and glute masks explicitly asserted unaffected (fat channels do not inflate breasts/glutes).",
+      "Obese sample (archetypes d/e basis): belly_apron, fat_rolls, love_handles, back_fat all at max evaluates artifact-free with no self-intersection at roll creases.",
+      "arm_fat/thigh_fat sweeps leave muscle-mask deltas untouched (fat vs muscle axis separation groundwork for MT-506)."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver body::channels::fat_group_max_obese_build_artifact_free"
+    ],
+    "risk_if_missed": "Fat/obese M+F bodies are explicit operator production targets (OBR-004), and Daz needs 41-morph third-party packs to approximate them; baked fat-coupling instead of recipe link sets would silently violate the decoupling law for every heavy build."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed TAILOR_BODY_* receipts, and the 13.12 capture APIs; operator/model GUI exposure rides the BodyKit panes (13.27) and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the TAILOR_BODY_* KernelEventType family on the EventLedger per Section 13.16 (extends the 13.14 canonical list)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long generation/bake/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

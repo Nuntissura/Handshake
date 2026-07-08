@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-653",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-653.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-653.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-653.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-652"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "BodyKit end-to-end lifecycle test per Section 13.27 — the full loop, no-context provable: NL description -> author_body -> channel edits -> configure_genitals -> corrective re-bake -> garment drape via the Cloth bridge -> export through ue_fbx_bridge and blender_gltf -> every descriptor green -> EventLedger replay reconstructs identical state, driven exclusively through MCP tools.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/tailor_bodykit_lifecycle_e2e.rs",
+      "src/backend/handshake_core/src/tailor/bodykit/mod.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "One test drives the complete chain through MCP tools ONLY (no internal API shortcuts): author_body from an NL description -> edit_body channel adjustments toward an archetype-(a)-class build -> configure_genitals (arousal + state sweep on a futa variant leg) -> corrective re-bake job -> starter-garment drape via the Cloth bridge -> export_body on ue_fbx_bridge and blender_gltf.",
+      "All applicable descriptors report green at their stages: BODY_TOPOLOGY_VALID, BODY_DECOUPLE_VALID, BODY_POSE_RANGE_VALID (QA pose smoke), GENITAL_BLEND_VALID, EXPORT_BODY_VALID, LICENSE_GUARD untripped.",
+      "EventLedger replay from genesis reconstructs the identical final BodySpec, avatar row, recipe, and export manifest hashes (TAI-OVR-007 parity proven for the whole BodyKit lifecycle).",
+      "The flow is executable by a no-context model: every step's inputs derive from prior tool outputs plus the UserManual chapter — asserted by the test using only documented wire contracts.",
+      "The test runs in the CI long lane within budget; each stage emits its Flight Recorder events (verified event sequence)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor_bodykit_lifecycle_e2e::nl_to_export_full_loop_replay_identical"
+    ],
+    "risk_if_missed": "All 176 BodyKit MTs pass individually while the assembled lifecycle breaks at a seam nobody owns — the exact integration failure mode packet-level tests exist to catch, on the module the operator's production pipeline will stand on."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed TAILOR_BODY_* receipts, and the 13.12 capture APIs; operator/model GUI exposure rides the BodyKit panes (13.27) and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the TAILOR_BODY_* KernelEventType family on the EventLedger per Section 13.16 (extends the 13.14 canonical list)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long generation/bake/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-521",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-521.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-521.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-521.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-520"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement multi-actor pose assets per Section 13.18 (BK-18.3, TAI-BK-065), closing AREQ-002/013: MultiActorPoseAsset aligns 2+ bodies by relative root transforms against a shared stage anchor (floor-plane origin, forward +Y stage space), so couple and group sex poses — cowgirl, doggy, missionary, threesome spit-roast arrangements — are placeable as ONE asset; applying re-solves each actor slot in its own body's morph context while preserving relative alignment and declared contact constraints.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/bodykit/pose.rs",
+      "src/backend/handshake_core/src/tailor/bodykit/storage.rs",
+      "tailor-solver/src/body/ik.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "MultiActorPoseAsset matches TAI-BK-065: pose_asset_id BPA-, actors (Vec<ActorPoseSlot>, each a full BodyPoseAsset plus root transform relative to the stage anchor), stage_anchor (StageAnchor: floor-plane origin, forward +Y); persisted and event-backed like single poses.",
+      "apply_multi_actor(assignments: Vec<(actor_slot, body_id)>) re-solves each slot in its own body's morph context (MT-520 lane) while preserving the relative root alignment; a two-body doggy fixture applied to (neutral, neutral) and to (petite+extreme-breasts, muscular-male) keeps the declared pelvis-to-pelvis relative transform within tolerance in both castings.",
+      "Declared contact constraints (typed ContactConstraint: bone pair + max separation) are honored during re-solve; violated constraints report typed findings instead of silently drifting.",
+      "Actor slots are assignable to any body whose skeleton version matches; mismatches are typed rejections; slots may not share a body id.",
+      "Stage-anchor math: re-rooting the whole asset (move/rotate on the stage) transforms all actors rigidly with contacts intact."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::bodykit::pose::multi_actor_alignment_survives_body_swaps"
+    ],
+    "risk_if_missed": "Couple/group poses stored per-body with no relative alignment must be re-staged by hand every casting change — the production-killing Daz workflow for multi-actor sex scenes; without contact-preserving re-solve, swapping an actor breaks every penetration/contact alignment in the scene."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed TAILOR_BODY_* receipts, and the 13.12 capture APIs; operator/model GUI exposure rides the BodyKit panes (13.27) and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the TAILOR_BODY_* KernelEventType family on the EventLedger per Section 13.16 (extends the 13.14 canonical list)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long generation/bake/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

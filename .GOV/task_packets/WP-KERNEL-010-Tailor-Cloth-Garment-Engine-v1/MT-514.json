@@ -1,0 +1,133 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-514",
+  "created_at_utc": "2026-07-08T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-514.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-514.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-514.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-513"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Define the canonical BodyKit skeleton per Section 13.18 (BK-18.1, TAI-BK-057/058), closing the Part-3 skeleton contract and AREQ-014 stability: a custom skeleton UE5-compatible by construction (pelvis, spine_01..spine_05, neck_01, head, clavicle_l/r, upperarm_l/r, lowerarm_l/r, hand_l/r, thigh_l/r, calf_l/r, foot_l/r, ball_l/r, upperarm_twist_01_l-style twist bones) EXTENDED with first-class breast_l/r, glute_l/r, belly chains and full genital chains (penis_01..penis_05, scrotum_l/r, labia bone set, anus) as plain exportable bones — stored as a versioned bodykit_skeleton_defs (BSK-) row; ik_* bones are NOT in the authority skeleton (UE export profile only).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/bodykit/skeleton.rs",
+      "tailor-solver/src/body/skeleton.rs",
+      "src/backend/handshake_core/src/tailor/bodykit/storage.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "SkeletonDef type holds the bone tree (name, parent, rest transform mm, orientation convention) and serializes to the bodykit_skeleton_defs skeleton_json layout; the canonical v1 skeleton is seeded with the exact UE5-overlap names and the extension chains listed in TAI-BK-057.",
+      "A conformance test asserts the seeded skeleton contains: all UE5-overlap names, twist bones for upperarm/lowerarm/thigh/calf, breast_l/r chains, glute_l/r, belly chain, penis_01..penis_05, scrotum_l/r, the labia bone set, and anus — and contains zero bones matching ik_*.",
+      "Versioning law (TAI-BK-058): rename/restructure attempts against an existing version are rejected without a major version bump; additive chain extension requires a minor bump; every dependent artifact type carries a skeleton_version field.",
+      "Bone naming validation: snake_case with _l/_r side suffix convention enforced on insert.",
+      "Skeleton loads into the solver as a typed pose-ready hierarchy (parent indices resolved, no cycles)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::bodykit::skeleton::canonical_v1_bone_set_and_versioning_law",
+      "cargo test -p tailor-solver body::skeleton::hierarchy_loads_acyclic_with_resolved_parents"
+    ],
+    "risk_if_missed": "The skeleton is the content-compatibility contract for every pose asset, corrective, weight map, and export profile; an unstable or SMPL/Genesis-shaped skeleton would either legally poison the product or force UE-side rig surgery on every export — the Daz-bridge pain list BodyKit exists to delete."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Backend/solver scope: behavior is observable via TraceProjection, typed TAILOR_BODY_* receipts, and the 13.12 capture APIs; operator/model GUI exposure rides the BodyKit panes (13.27) and is validated there."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED",
+      "reason": "Emits/extends the TAILOR_BODY_* KernelEventType family on the EventLedger per Section 13.16 (extends the 13.14 canonical list)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long generation/bake/export runs get child-stall watch coverage in the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}
