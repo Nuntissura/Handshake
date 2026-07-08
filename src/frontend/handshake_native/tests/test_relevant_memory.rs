@@ -1,25 +1,26 @@
 //! Relevant Memory (FEMS interop) proofs — WP-KERNEL-012 MT-063 (cluster E9).
 //!
 //! This suite proves the READ-ONLY FEMS retrieval-capsule consumer end to end at the widget/client
-//! level (fixture JSON + an in-process mock server + egui_kittest), which is what is provable NOW. The
-//! live FEMS read endpoint is ABSENT in the current handshake_core build (the DESIGNED primary path),
-//! so the typed-blocker + empty-state path is the production reality; the live fetch against a real FEMS
-//! route is `NEEDS_MANAGED_RESOURCE_PROOF` and not asserted here.
+//! level (the backend's own FEMS item serialization + an in-process mock server + egui_kittest). The
+//! FEMS read route SHIPPED in MT-109 (`GET /workspaces/{id}/memory/pack`, returning the real
+//! `ace::MemoryPack`, or a 200 EMPTY pack when none is stored), so a successful decode is the production
+//! primary path and the 404 typed-blocker is a genuine fallback. The end-to-end fetch against the LIVE
+//! managed-PG MT-109 route is `NEEDS_MANAGED_RESOURCE_PROOF` and not asserted here (no backend started).
 //!
-//! PROOF-POSTURE GATE (must_fix #3): the decode/round-trip tests below feed IMPLEMENTER-AUTHORED JSON
-//! matching the contract-dictated client model into the client's OWN deserializer over an in-process
-//! mock `TcpListener`. They are FIXTURE-ONLY proof of transport + typed-blocker + defensive clamp +
-//! tolerant decode + render/AccessKit — they are NOT interop proof against the real FEMS resource and
-//! MUST NOT be read as backend-aligned. The client model is currently FIXTURE-ALIGNED, NOT
-//! backend-aligned: it diverges from the only `MemoryPack` the backend produces (`crate::ace::MemoryPack`
-//! / `MemoryPackItem` / `FemsSourceRef`: `memory_id` not `id`, free-form `memory_class` incl. `"working"`
-//! not a 3-variant `kind`, `source_refs` not `source`, required `token_estimate`, no `truncated`/
-//! `context_key`). That shape drift is a CONTRACT DEFECT surfaced as a typed blocker to the WP validator/
-//! orchestrator (see `src/fems/memory_client.rs` module docs). The IN-SCOPE hardening here is the
-//! tolerance floor: `fetch_decodes_capsule_with_unknown_class` proves an unknown/future `memory_class`
-//! is skipped (not fatal) through the full fetch+decode path.
+//! INTEROP PROOF: `golden_backend_ace_pack_decodes_with_live_provenance` loads the backend's OWN FEMS
+//! item serialization (`src/backend/.../fixtures/memory_capsule_e2e/sample_fems_items.json`,
+//! `memory_id`/`item_id` + `memory_class` + `source_refs`) and decodes it through the SAME deserializer
+//! `fetch_pack` uses. This is the backend-shape interop proof the old self-shaped `id`/`kind`/`source`
+//! mock never gave: the old model fails that fixture with `missing field id`. The in-process mock
+//! `TcpListener` proves transport + the 404 typed-blocker fallback + the defensive <=24 clamp + tolerant
+//! decode + render/AccessKit; the client model is now ALIGNED to `ace::MemoryPack`
+//! (`memory_id`/`memory_class`/`source_refs`, required `token_estimate` u32, `"working"` tolerated) while
+//! still accepting the legacy self-shaped form so those widget fixtures stay valid.
 //!
 //! Proof map:
+//! - INTEROP: `golden_backend_ace_pack_decodes_with_live_provenance` decodes the backend's real FEMS
+//!   item serialization (30 items -> 26 known-kind, 4 `"working"` skipped -> clamp 24) with LIVE
+//!   provenance resolved from `source_refs` (non-disabled source links).
 //! - PT-001 / AC-001 / AC-002: `fetch_pack` over the mock server decodes episodic+semantic+procedural
 //!   items; a 30-item response clamps to 24 with `truncated=true`. (`fetch_live_*` tests.)
 //! - PT-004 / AC-005: a 404 from the mock maps to `MemoryClientError::EndpointMissing` (the typed
@@ -44,7 +45,8 @@ use egui_kittest::Harness;
 use serde_json::{json, Value};
 
 use handshake_native::fems::memory_client::{
-    MemoryClient, MemoryClientError, MemoryContext, MemoryKind, MemoryPack, MemorySource,
+    clamp_pack_items, MemoryClient, MemoryClientError, MemoryContext, MemoryKind, MemoryPack,
+    MemorySource,
 };
 use handshake_native::fems::relevant_memory_panel::{
     mem_item_author_id, mem_source_author_id, FnNavigationBus, MemoryNavTarget,
@@ -187,6 +189,89 @@ fn seeded_pack() -> MemoryPack {
 
 fn dark() -> handshake_native::theme::HsPalette {
     HsTheme::Dark.palette()
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// INTEROP — the REAL backend `ace::MemoryPack` item serialization decodes with LIVE provenance.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// The backend's OWN FEMS item serialization, embedded at compile time (read-only; `src/backend` is
+/// frozen). This is the golden decode input: the real `ace::MemoryPack` item shape
+/// (`item_id`/`memory_id` + `memory_class` + `source_refs`), NOT a self-shaped client mock.
+const BACKEND_FEMS_ITEMS_FIXTURE: &str = include_str!(
+    "../../../backend/handshake_core/tests/fixtures/memory_capsule_e2e/sample_fems_items.json"
+);
+
+#[test]
+fn golden_backend_ace_pack_decodes_with_live_provenance() {
+    // INTEROP PROOF (the whole point of the MT-063 re-model): decode the backend's REAL FEMS item
+    // serialization through the SAME deserializer `fetch_pack` uses (`MemoryPack`'s
+    // `deserialize_tolerant_items`). The OLD self-shaped client model (`id`/`kind`/`source`) could NOT
+    // decode this fixture — its `RawMemoryItem` requires `id` and `kind`, but the backend emits
+    // `item_id`/`memory_id` + `memory_class`, so `serde_json::from_str::<MemoryPack>` failed with
+    // `missing field id`, and every non-empty real capsule surfaced a red Decode error. The re-modeled
+    // client aligns to `ace::MemoryPack` (`memory_id`/`memory_class`/`source_refs`) so real capsules
+    // decode AND resolve LIVE provenance from `source_refs`.
+    let mut pack: MemoryPack = serde_json::from_str(BACKEND_FEMS_ITEMS_FIXTURE)
+        .expect("the REAL backend ace::MemoryPack item shape must decode through the client deserializer");
+
+    // The fixture carries 30 items; 4 use the `working` class (not one of the three rendered kinds) and
+    // are TOLERATED — skipped with a logged warning, never a whole-capsule failure (must_fix #2). That
+    // leaves 26 known-kind items decoded (episodic/semantic/procedural).
+    assert_eq!(
+        pack.items.len(),
+        26,
+        "26 known-kind items decode from the real backend pack (4 `working` items skipped, not fatal)"
+    );
+    for working_id in [
+        "mt147-validator-scratchpad-hbr-matrix-gap",
+        "mt147-validator-scratchpad-pending-row",
+        "mt147-validator-scratchpad-trace-todo",
+        "mt147-validator-scratchpad-false-positive-risk",
+    ] {
+        assert!(
+            pack.items.iter().all(|i| i.id != working_id),
+            "the `working`-class item {working_id} must be skipped, not decoded"
+        );
+    }
+
+    // LIVE provenance: every decoded real item resolved a `source_refs` pointer into a navigable source,
+    // so its "Go to source" link is ENABLED (non-disabled). Under the OLD single-`source` model these
+    // items had no `source` object at all -> every provenance link would have been dead/disabled.
+    assert!(
+        pack.items.iter().all(|i| i.is_navigable()),
+        "every real item resolves a source_ref provenance pointer -> navigable (non-disabled link)"
+    );
+    assert!(
+        pack.items
+            .iter()
+            .all(|i| MemoryNavTarget::from_source(&i.source).is_some()),
+        "provenance resolves to a concrete MemoryNavTarget for every real item"
+    );
+
+    // The <=24 defensive clamp still applies over the real backend shape (26 -> 24, truncated, drop 2).
+    let dropped = clamp_pack_items(&mut pack);
+    assert_eq!(pack.items.len(), 24, "clamped to exactly 24 client-side");
+    assert!(pack.truncated, "truncated must be set after the defensive clamp");
+    assert_eq!(dropped, 2, "26 known-kind items -> 24 drops 2");
+
+    // The grouped render iterates the three rendered kinds; all decoded items land in one of them.
+    let grouped = pack.items_of_kind(MemoryKind::Episodic).count()
+        + pack.items_of_kind(MemoryKind::Semantic).count()
+        + pack.items_of_kind(MemoryKind::Procedural).count();
+    assert_eq!(
+        grouped,
+        pack.items.len(),
+        "every clamped item is one of the three rendered kinds (grouped render is total)"
+    );
+
+    println!(
+        "INTEROP OK: real backend ace::MemoryPack items decoded ({} known-kind, 4 working skipped) -> \
+         clamped to {} (dropped {}), all provenance LIVE from source_refs",
+        26,
+        pack.items.len(),
+        dropped
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

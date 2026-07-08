@@ -2,15 +2,18 @@
 //!
 //! This subtree is the editors' READ-ONLY consumer of the FEMS (Pillar 12) retrieval capsule:
 //!
-//! - [`memory_client`] — the typed read client + the deserialized Pillar 12 [`memory_client::MemoryPack`]
-//!   model (3 kinds: episodic/semantic/procedural; provenance-first source; <=24 items hard-capped
-//!   client-side; <=500 token advisory budget). It reuses the WP-011 `backend_client` shared reqwest
-//!   pool + base URL (no second HTTP stack) and returns the typed blocker
-//!   [`memory_client::MemoryClientError::EndpointMissing`] when the FEMS read route is absent — the
-//!   DESIGNED primary path in the current handshake_core build, where the route does not exist (MT-063).
+//! - [`memory_client`] — the typed read client + the deserialized [`memory_client::MemoryPack`] model,
+//!   ALIGNED to the real backend `ace::MemoryPack` item shape (`memory_id`/`memory_class`/`source_refs`;
+//!   3 rendered kinds episodic/semantic/procedural with any other/future class such as `"working"`
+//!   tolerated; provenance resolved from `source_refs`; <=24 items hard-capped client-side; the pack's
+//!   required `token_estimate` u32 surfaced against the <=500 advisory budget). It reuses the WP-011
+//!   `backend_client` shared reqwest pool + base URL (no second HTTP stack). The FEMS read route SHIPPED
+//!   in MT-109 (`GET /workspaces/{id}/memory/pack`, returns the real pack or a 200 empty pack), so a
+//!   successful decode is the primary path; [`memory_client::MemoryClientError::EndpointMissing`] is
+//!   retained as a genuine 404 fallback (a real backend can still 404) (MT-063).
 //! - [`relevant_memory_panel`] — the egui "Relevant Memory" side panel that renders the capsule
 //!   provenance-first (grouped by kind, a "Go to source" affordance per item routed through the MT-030
-//!   navigation seam) and shows a calm empty-state banner for the `EndpointMissing` typed blocker.
+//!   navigation seam) and shows a calm empty-state banner for the `EndpointMissing` 404 typed blocker.
 //!
 //! MT-064 (memory-write proposals) and MT-065 (end-to-end proof against real PostgreSQL/EventLedger)
 //! build ON this read-only consumer. The live pane dock (`app.rs` pane factory) + the MT-031

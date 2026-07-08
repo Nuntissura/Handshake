@@ -21,49 +21,43 @@
 //! resolve to a concrete editor target. An item with NO resolvable source still renders, but its source
 //! link is disabled (RISK-003/MC-003) — see [`MemorySource::validate`] / [`MemoryItem::is_navigable`].
 //!
-//! ## The FEMS read endpoint is ABSENT in this handshake_core build (the DESIGNED primary path)
+//! ## The FEMS read endpoint EXISTS in this handshake_core build (MT-109 shipped it)
 //!
-//! The contract names `GET /workspaces/{workspace_id}/memory/pack?context=...` as the existing FEMS read
-//! route. A read-only verification of `src/backend/handshake_core` (the KERNEL_BUILDER gate 2026-06-25)
-//! found that this route DOES NOT EXIST in the current build: handshake_core exposes the
-//! knowledge-graph memory reads (`/knowledge/memory/claims|conflicts|facts|entities|visual-debug`) and
-//! an INTERNAL `MemoryPack` builder (`ace/`, `memory/builder.rs`), but NO HTTP retrieval-capsule read
-//! route. FEMS (Pillar 12) is a separate system not yet wired into the frozen handshake_core HTTP
-//! surface. Per the contract's PRIMARY designed path, [`MemoryClient::fetch_pack`] therefore returns
-//! [`MemoryClientError::EndpointMissing`] (the TYPED BLOCKER variant) on a 404 / feature-absent sentinel
-//! — it does NOT add the route, does NOT rewrite the backend, and does NOT panic or silently no-op
-//! (RISK-001, RISK-005/MC-002, AC-005). The panel maps `EndpointMissing` to a calm empty-state banner
-//! and surfaces the blocker upward so the WP validator sees it. The client/model/parsing/clamp are all
-//! proven against FIXTURE JSON regardless of whether the live endpoint exists; the live fetch (if the
-//! route is ever added) is `NEEDS_MANAGED_RESOURCE_PROOF`.
+//! The contract names `GET /workspaces/{workspace_id}/memory/pack?context=...` as the FEMS read route.
+//! MT-109 SHIPPED that route (`src/backend/handshake_core/src/api/memory.rs`): it returns the REAL
+//! `ace::MemoryPack` JSON and, when no pack is stored yet, a well-formed EMPTY pack (200) — NOT a 404 —
+//! so an empty capsule is never mistaken for a missing route. This client is therefore modeled to DECODE
+//! the real `ace::MemoryPack` item shape directly. [`MemoryClientError::EndpointMissing`] is retained
+//! ONLY as a genuine 404 fallback (a real backend can still 404 — an unrouted build, a mis-configured
+//! base URL, a workspace the route rejects); it is NOT "the designed primary path". On a 404
+//! [`MemoryClient::fetch_pack`] returns that typed blocker (never a panic, never a silent no-op —
+//! RISK-001, RISK-005/MC-002, AC-005), the panel renders a calm banner, and the blocker is surfaced
+//! upward so the WP validator sees it. The end-to-end fetch against the LIVE managed-PG MT-109 route is
+//! proven separately (`NEEDS_MANAGED_RESOURCE_PROOF`; no backend is started here).
 //!
-//! ## CONTRACT-vs-BACKEND SHAPE DRIFT — this model is FIXTURE-ALIGNED, NOT yet backend-aligned (TYPED BLOCKER)
+//! ## This model is ALIGNED to the real backend shape (`ace::MemoryPack`)
 //!
-//! IMPORTANT for whoever wires the live FEMS route: the [`MemoryPack`] / [`MemoryItem`] / [`MemorySource`]
-//! model below is the shape the MT-063 contract DICTATED (`id`/`kind`/`source{uri,document_id,byte_range,
-//! event_id}`/`truncated`/`context_key`). It does NOT match the only `MemoryPack` the backend actually
-//! produces today — `crate::ace::MemoryPack` / `MemoryPackItem` / `FemsSourceRef` — which uses
-//! `memory_id` (not `id`), a free-form `memory_class: String` (not a 3-variant `kind`, and the builder
-//! already emits a 4th class `"working"`), `source_refs: Vec<FemsSourceRef>` (not a single `source`),
-//! a REQUIRED `token_estimate: u32`, and has NO `truncated`/`context_key`. If a FEMS read route is later
-//! added that returns the real `ace::MemoryPack` JSON verbatim, [`MemoryClient::fetch_pack`]'s
-//! `resp.json::<MemoryPack>()` would FAIL to decode the differently-shaped item objects. This is a
-//! CONTRACT DEFECT surfaced as a TYPED BLOCKER to the WP validator / orchestrator: aligning the client
-//! model to the real `ace::MemoryPack` shape (or amending the MT contract to the real Pillar-12 shape)
-//! is an orchestrator decision — `src/backend` is frozen read-only and the coder does not re-model
-//! unilaterally. The IN-SCOPE hardening applied here is the must_fix #2 FLOOR: the `kind`/`memory_class`
-//! decode is now TOLERANT (an unknown/future class such as `"working"` is skipped with a logged warning
-//! instead of hard-failing the whole capsule — see [`deserialize_tolerant_items`]), so a single
-//! unknown-class item can never zero out all relevant memory.
+//! [`RawMemoryItem`] decodes the exact fields the backend emits: `memory_id` -> the client
+//! [`MemoryItem::id`] (the FEMS item corpus emits the same canonical pointer under `item_id`, accepted as
+//! a serde alias), the free-form `memory_class` -> one of the three rendered [`MemoryKind`]s (any
+//! other/future class — e.g. the builder's `"working"` — is TOLERATED: skipped with a logged warning,
+//! never a whole-capsule decode failure, see [`deserialize_tolerant_items`]), the human `summary`, and
+//! the provenance array `source_refs: Vec<FemsSourceRef>` resolved into a navigable [`MemorySource`] (the
+//! first non-empty canonical pointer `id` becomes the nav `uri`) so "Go to source" links are LIVE for
+//! real items. The pack-level required `token_estimate` (`u32`) surfaces as the advisory <=500-token
+//! budget signal (never recomputed). The legacy self-shaped `id`/`kind`/`source{...}` form is STILL
+//! accepted (serde aliases on the id/kind fields + a fallback single-`source` object) so the widget /
+//! transport / clamp / AccessKit fixtures keep proving those contracts unchanged.
 //!
-//! ## Proof posture: the mock round-trip is FIXTURE-ONLY, NOT managed-resource interop proof
+//! ## Proof posture: golden backend-shape decode + mock transport; live managed-PG fetch is separate
 //!
-//! The decode/round-trip tests (in `tests/test_relevant_memory.rs` + the unit tests below) feed
-//! implementer-authored JSON matching THIS model into THIS model's deserializer over an in-process mock
-//! `TcpListener`. They prove transport + the typed-blocker + the defensive clamp + the AccessKit/render
-//! contract — they do NOT prove interop against the real FEMS resource (`NEEDS_MANAGED_RESOURCE_PROOF`,
-//! Spec-Realism sub-rule 2) and MUST NOT be read by the validator as backend-aligned interop proof while
-//! the shape drift above stands.
+//! The decode tests in `tests/test_relevant_memory.rs` include a GOLDEN decode of the backend's own FEMS
+//! item serialization (`tests/fixtures/memory_capsule_e2e/sample_fems_items.json`) through THIS
+//! deserializer, proving the client decodes the real `ace::MemoryPack` item shape with LIVE provenance —
+//! the old `id`/`kind`/`source` model could NOT (it fails with `missing field id`). The in-process mock
+//! `TcpListener` proves transport + the 404 typed-blocker fallback + the defensive <=24 clamp + the
+//! render/AccessKit contract. The end-to-end fetch against the running managed-PG MT-109 route stays
+//! `NEEDS_MANAGED_RESOURCE_PROOF` (batched separately).
 //!
 //! ## Reuse, no second HTTP stack (RISK-006/MC-005)
 //!
@@ -232,51 +226,112 @@ impl MemoryItem {
     }
 }
 
-/// The raw wire form of one capsule item, used ONLY for tolerant decode. `kind` is a free-form String
-/// here (matching the real backend's free-form `memory_class`) so an unknown/future class does NOT fail
-/// the serde decode of the whole capsule; the conversion to a typed [`MemoryItem`] in
-/// [`MemoryPack`]'s items deserializer drops (and logs) any item whose class is not one of the three
-/// rendered [`MemoryKind`]s (must_fix #2).
+/// The raw wire form of one capsule item, used ONLY for tolerant decode. It is modeled on the REAL
+/// backend `ace::MemoryPackItem`: the id field decodes `memory_id` (the FEMS item corpus emits the same
+/// pointer under `item_id`, and the legacy self-shaped fixtures use `id` — both accepted as serde
+/// aliases); the kind field decodes the free-form `memory_class` (legacy `kind` accepted as an alias) so
+/// an unknown/future class does NOT fail the serde decode of the whole capsule; provenance decodes the
+/// backend's `source_refs: Vec<FemsSourceRef>` array AND the legacy single `source` object. The
+/// conversion to a typed [`MemoryItem`] in [`MemoryPack`]'s items deserializer drops (and logs) any item
+/// whose class is not one of the three rendered [`MemoryKind`]s (must_fix #2).
 #[derive(Debug, Clone, Deserialize)]
 struct RawMemoryItem {
+    /// The item id. Primary wire key is the backend's `memory_id`; `item_id` (the FEMS item corpus) and
+    /// `id` (legacy self-shaped fixtures) are accepted as aliases so both the real pack and the widget
+    /// fixtures decode into the same client id.
+    #[serde(rename = "memory_id", alias = "item_id", alias = "id")]
     id: String,
+    /// The memory class. Primary wire key is the backend's free-form `memory_class`; the legacy `kind`
+    /// key is accepted as an alias. Mapped to a rendered [`MemoryKind`] (or skipped) in [`Self::into_typed`].
+    #[serde(rename = "memory_class", alias = "kind")]
     kind: String,
     summary: String,
+    /// The legacy single provenance object (self-shaped fixtures/tests). Used verbatim when it is
+    /// navigable; otherwise provenance is resolved from [`Self::source_refs`].
     #[serde(default)]
     source: MemorySource,
+    /// The REAL backend provenance array (`ace::FemsSourceRef`). Resolved into a navigable
+    /// [`MemorySource`] when the legacy `source` object is absent/non-navigable.
+    #[serde(default)]
+    source_refs: Vec<RawSourceRef>,
+    /// Advisory retrieval score (present in the FEMS item corpus; the real `ace::MemoryPackItem` has no
+    /// per-item score, so `None` there).
     #[serde(default)]
     score: Option<f32>,
 }
 
+/// The raw wire form of one backend provenance pointer (`ace::FemsSourceRef`). Only the canonical `id`
+/// pointer is needed to build a nav target; the other FemsSourceRef fields (`kind`/`hash`/`selector`/
+/// `created_at`/`classification`) are carried by the backend but ignored here (serde skips unknown
+/// fields). `id` is defaulted so a malformed/empty ref degrades to non-navigable rather than failing the
+/// whole capsule decode.
+#[derive(Debug, Clone, Deserialize)]
+struct RawSourceRef {
+    #[serde(default)]
+    id: String,
+}
+
 impl RawMemoryItem {
-    /// Convert to a typed [`MemoryItem`], or `None` if the wire `kind` is not one of the three rendered
-    /// kinds (an unknown/future class — e.g. the backend's `"working"`). `None` items are skipped + logged
-    /// by the caller rather than failing the whole capsule decode.
+    /// Convert to a typed [`MemoryItem`], or `None` if the wire `memory_class` is not one of the three
+    /// rendered kinds (an unknown/future class — e.g. the backend's `"working"`). `None` items are
+    /// skipped + logged by the caller rather than failing the whole capsule decode. Provenance is
+    /// resolved provenance-first: the legacy single `source` object wins when navigable, otherwise the
+    /// backend `source_refs` array is resolved (first non-empty canonical pointer id -> nav `uri`).
     fn into_typed(self) -> Option<MemoryItem> {
         let kind = MemoryKind::from_wire(&self.kind)?;
+        let source = if self.source.validate() {
+            self.source
+        } else {
+            resolve_source_from_refs(&self.source_refs)
+        };
         Some(MemoryItem {
             id: self.id,
             kind,
             summary: self.summary,
-            source: self.source,
+            source,
             score: self.score,
         })
     }
 }
 
-/// The deserialized retrieval capsule (the Pillar 12 MemoryPack). `token_estimate` is ADVISORY metadata
-/// surfaced by the client (never recomputed); `truncated` is `true` if the client clamped the item list
-/// to [`MEMORY_PACK_MAX_ITEMS`] after decode (or if the server already marked it truncated).
+/// Resolve a navigable [`MemorySource`] from the backend's `source_refs` array (`ace::FemsSourceRef`).
+/// The FemsSourceRef `id` is the canonical provenance pointer (a resolvable string such as `loom://...`,
+/// `hbr://...`, `packet://...`, or a doc-block id); the FIRST ref with a non-empty id becomes the nav
+/// `uri` (the highest-precedence `MemoryNavTarget` the panel resolves), making "Go to source" LIVE for
+/// real items. An empty array (or all-empty ids) yields a non-navigable source -> the row renders a
+/// DISABLED source link (RISK-003/MC-003), never a dead/clickable one.
+fn resolve_source_from_refs(refs: &[RawSourceRef]) -> MemorySource {
+    for r in refs {
+        let id = r.id.trim();
+        if !id.is_empty() {
+            return MemorySource {
+                uri: Some(id.to_string()),
+                ..Default::default()
+            };
+        }
+    }
+    MemorySource::default()
+}
+
+/// The deserialized retrieval capsule. This decodes the REAL backend `ace::MemoryPack` JSON: only the
+/// fields the editors surface (`items`, `token_estimate`) are modeled; the other backend pack-level
+/// fields (`schema_version`/`pack_id`/`generated_at`/`determinism_mode`/`memory_policy`/`scope_refs`/
+/// `budgets`/`memory_pack_hash`/`warnings`) are IGNORED by serde (the client does not deny unknown
+/// fields). `token_estimate` is ADVISORY metadata surfaced by the client (never recomputed); `truncated`
+/// is `true` if the client clamped the item list to [`MEMORY_PACK_MAX_ITEMS`] after decode (or if the
+/// server already marked it truncated). `truncated`/`context_key` are client-only bookkeeping the
+/// backend pack does not carry (they default).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct MemoryPack {
     /// The capsule items (already clamped to <=24 by [`MemoryClient::fetch_pack`]). Decoded via
-    /// [`deserialize_tolerant_items`]: an item whose `kind` is outside the three rendered kinds (an
-    /// unknown/future `memory_class` such as the backend builder's `"working"`) is SKIPPED with a logged
+    /// [`deserialize_tolerant_items`]: an item whose `memory_class` is outside the three rendered kinds
+    /// (an unknown/future class such as the backend builder's `"working"`) is SKIPPED with a logged
     /// warning rather than aborting the whole capsule decode (must_fix #2).
     #[serde(default, deserialize_with = "deserialize_tolerant_items")]
     pub items: Vec<MemoryItem>,
-    /// The advisory total token estimate the server reported (<=500 by the Pillar 12 budget). Surfaced
-    /// as metadata; the client never recomputes it.
+    /// The advisory total token estimate (<=500 by the Pillar 12 budget). The backend `ace::MemoryPack`
+    /// emits this as a REQUIRED `u32`, which decodes here as `Some(u32)`; the legacy fixtures / empty
+    /// packs that omit it decode as `None`. Surfaced as metadata; the client never recomputes it.
     #[serde(default)]
     pub token_estimate: Option<u32>,
     /// True if the item list was truncated (by the server OR the client's defensive clamp).
@@ -562,9 +617,11 @@ impl MemoryClient {
     /// single GET and never a write verb (RISK-008/MC-007, AC-006).
     ///
     /// Behavior contract:
-    /// - A 404 (or feature-absent sentinel) maps to [`MemoryClientError::EndpointMissing`] — the TYPED
-    ///   BLOCKER, never a panic or silent no-op (RISK-001, RISK-005/MC-002, AC-005). This is the DESIGNED
-    ///   PRIMARY PATH in the current build, where the route does not exist.
+    /// - A 404 maps to [`MemoryClientError::EndpointMissing`] — the TYPED BLOCKER, never a panic or silent
+    ///   no-op (RISK-001, RISK-005/MC-002, AC-005). This is a GENUINE FALLBACK, not the primary path: the
+    ///   shipped MT-109 route normally returns a 200 pack (a populated pack, or a well-formed EMPTY pack
+    ///   when none is stored yet), so a 404 means the route is genuinely unreachable (an unrouted build, a
+    ///   mis-configured base URL, or a workspace the route rejects).
     /// - A success body is decoded into a [`MemoryPack`], then the item list is DEFENSIVELY CLAMPED to
     ///   [`MEMORY_PACK_MAX_ITEMS`] regardless of what the server returned (truncate + `truncated=true` +
     ///   a logged warning — RISK-002/MC-001, AC-002).
@@ -597,9 +654,10 @@ impl MemoryClient {
             .map_err(|e| MemoryClientError::Transport(e.to_string()))?;
         let status = resp.status();
 
-        // The TYPED BLOCKER: a 404 means the documented FEMS read route is absent in this build. This is
-        // the DESIGNED primary path (FEMS = Pillar 12, separate from the frozen handshake_core HTTP
-        // surface). Surface it as the typed blocker — never panic, never silently no-op.
+        // The TYPED BLOCKER fallback: the shipped MT-109 route normally returns 200 (a populated OR a
+        // well-formed empty pack), so a 404 means the FEMS read route is genuinely unreachable in this
+        // build (unrouted, a bad base URL, or a workspace the route rejects). Surface it as the typed
+        // blocker — never panic, never silently no-op.
         if status == reqwest::StatusCode::NOT_FOUND {
             return Err(MemoryClientError::EndpointMissing { probed_path: path });
         }

@@ -25,8 +25,10 @@
 //!
 //! ## Empty-state / typed-blocker (RISK-005/MC-002, AC-005)
 //!
-//! When the panel holds the typed blocker [`MemoryClientError::EndpointMissing`] (the DESIGNED primary
-//! path in this build — the FEMS read route is absent), it renders a calm empty-state banner
+//! The primary path is a successfully decoded pack (the FEMS read route SHIPPED in MT-109 and returns a
+//! populated pack, or a 200 EMPTY pack when none is stored yet). When the panel instead holds the typed
+//! blocker [`MemoryClientError::EndpointMissing`] — a GENUINE 404 fallback (a real backend can still 404:
+//! an unrouted build, a bad base URL, or a rejected workspace) — it renders a calm empty-state banner
 //! ("Relevant Memory unavailable — FEMS read endpoint not present in this build") instead of the list,
 //! and exposes the blocker via [`RelevantMemoryPanel::blocker`] / [`RelevantMemoryPanel::take_blocker`]
 //! so the host surfaces it upward to the WP validator. It NEVER panics and NEVER silently no-ops. When
