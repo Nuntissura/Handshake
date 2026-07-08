@@ -22,7 +22,7 @@
   "title": "B1-MT-107-BackendLaunchContractValidator-ManagedPgTestHarness-ReScope",
   "group": "E6",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-07-03T21:26:02Z",
+  "updated_at_utc": "2026-07-08T15:44:46.747Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-107.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,12 +35,12 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "OPEN",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-101"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
     "remediation_appendage": "Backend re-scope proofs running (launch-contract units, managed-PG bootstrap, PG-bound model_run tests); operator waiver disposition for the forbidden-path breach required before RFV.",
     "open_repair_plan_2026_07_03": {
@@ -83,7 +83,20 @@
     ],
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
-    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "claimed_by": "KERNEL_BUILDER-20260708-diag",
+    "claimed_at_utc": "2026-07-08T15:44:46.747Z",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-07-08T15:44:46.747Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "rfv_evidence_2026_07_08": {
+      "by": "KERNEL_BUILDER-20260708-diag",
+      "mode": "OPERATOR WAIVER GRANTED (2026-07-08)",
+      "session_summary": "MT-107 owned the backend-change breach: 12 backend files (src/backend/handshake_core) committed under MT-101 which forbade backend edits. Operator explicitly GRANTED the waiver ('back end code can be changed. waiver granted.') 2026-07-08 AND relaxed the backend-only constraint for the WP.",
+      "accepted_files": "12 files: managed_postgres.rs (embedded PG lifecycle, port 5544, CREATE_NO_WINDOW, disk-agnostic), storage/tests.rs (fail-closed PG-only harness), workflows.rs (workflow hub), api/jobs.rs (FEMS job kinds), workspace_safety.rs (session-worktree registry + git lock), knowledge_ingestion/allowlist.rs (fail-closed deny .git/.ssh/secrets/.env/.pem), user_manual/seed.rs (idempotent seeder), + storage/postgres.rs/api/loom.rs/api/workspaces.rs fmt. Scoping agent a8f037fc confirmed ALL coherent + security-sane, nothing half-wired (only note: managed-PG data-dir contention is machine-local).",
+      "proofs": "Backend compiles + the accepted routes proven on managed PG by WP-KERNEL-009 MT-109 (commit 415f2e81 \"backend routes proven on managed PG\"). MT-109 + the WP live-PG batch depend on these files. Recovery commit 3bf307a8.",
+      "needs_managed_resource_proof": "Backend-side live behavior covered by the live-PG batch (MT-109 already proved routes on managed PG)."
+    }
   },
   "scope": {
     "summary": "Re-scope and own the backend work that rode into recovery commit 3bf307a8 under MT-101 whose contract forbids src/backend/**. Owns: (1) validate_native_workspace_model_launch_contract in workflows.rs - marker-gated fail-closed validation of native workspace model_run launches (launch_surface=handshake_native, launch_mode=workspace_model_session, session_id/wrapper required, workspace_folder==working_dir, provider==backend) plus 7 pure unit tests; (2) api/jobs.rs model_run lane changes incl. workflow_run pre-creation and legacy null-binding repair; (3) managed_postgres.rs remediation - default pgdata under ../Handshake_Artifacts/handshake-product/managed_pgdata, ensure_running wait/adopt when postmaster.pid exists but pg_isready is not yet ready (double pg_ctl start race fix); (4) storage/postgres.rs postgres_test_base_url bootstrap of managed PostgreSQL when POSTGRES_TEST_URL/DATABASE_URL absent; (5) managed-PG auto-boot test harness adoption across backend test files plus DuckDbFlightRecorder to NoopTestRecorder swap in workflows tests; (6) session worktrees default to ../Handshake_Artifacts/handshake-tool/session_worktrees. GLOBAL-SCOPE-005 disclosure: this work was performed by the prior session as cross-cutting PostgreSQL recovery attached to the MT-101 continuation, violating MT-101 forbidden_paths; this MT is the governed re-scope so the Operator has one place to waive or reject it. Full touched-file list is enumerated in commit 3bf307a8 message and packet status_sync notes.",
