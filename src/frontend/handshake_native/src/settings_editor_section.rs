@@ -41,7 +41,7 @@
 
 use egui::accesskit;
 
-use crate::code_editor::keymap::CodeEditorAction;
+use crate::code_editor::keymap::{CodeEditorAction, KeyBinding};
 use crate::code_editor::{resolve_scope_color, HighlightScope, Keymap};
 use crate::rich_editor::formatting::FormattingCommand;
 use crate::workspace_settings::{
@@ -78,30 +78,31 @@ pub const EDITOR_KEYBIND_ROW_AUTHOR_ID_PREFIX: &str = "settings-keybind-row-";
 /// Author_id prefix for a per-action editor keybinding Reset button.
 pub const EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX: &str = "settings-keybind-reset-";
 
-// ── Honest live-effect disclosure (WP-KERNEL-012 wave-5, item 2 / the MT-072 open item) ───────────────
+// ── Live-effect disclosure (WP-KERNEL-012 wave-6, S6 item 3 / the MT-072 open item, RESOLVED) ──────────
 //
-// Two Editor-section controls PERSIST + round-trip through PUT/GET /workspaces/:id/settings but do NOT yet
-// take effect on the LIVE mounted code editor: editor_font_size (the mounted `CodeEditorPanel` exposes no
-// live font-size slot — see `app::HandshakeApp::sync_editor_prefs_to_panel`) and the Custom syntax palette
-// (the code editor's `scope_to_color` draws from the active theme's `HsSyntaxTokens`, not the persisted
-// palette). Wiring the live effect is a code_editor/panel.rs + editor-mount change OUTSIDE this UI lane's
-// scope, so rather than present a silent no-op these controls render an HONEST typed-state note. This is the
-// "render them with an honest 'restart to apply' / typed state" path, with the inert item declared inline.
+// Both Editor-section controls now PERSIST + round-trip through PUT/GET /workspaces/:id/settings AND take
+// effect on mounted editors: editor_font_size is threaded into the code panel's live font-size slot
+// (`CodeEditorPanel::set_font_size`) and the rich document state's live font-size slot
+// (`RichEditorState::set_editor_font_size`) via `app::HandshakeApp::sync_editor_prefs_to_panel`, so it
+// resizes running editor body text. A Custom syntax palette is threaded into the code panel
+// (`CodeEditorPanel::set_syntax_palette`), so the code editor's highlight colors resolve through the live
+// `resolve_scope_color` — a Custom swatch edit repaints the running code pane and minimap rows. The notes
+// below are now a LIVE-effect disclosure (honest about what applies live AND the small disclosed gutter
+// sizing follow-up), NOT an inert "not yet wired" note.
 
-/// Honest typed-state note shown under the editor font-size control (it persists but does not resize the
-/// running editor yet). Distinct substring `no live font-size slot` is asserted by the section test.
+/// Live-effect note shown under the editor font-size control. Distinct substring `resizes the mounted code
+/// editor and rich editor` is asserted by the section test.
 pub const EDITOR_FONT_SIZE_LIVE_EFFECT_NOTE: &str =
-    "Persisted to workspace settings. The mounted code editor has no live font-size slot yet, so this does \
-     not resize the running editor (pending editor host wiring). Tab size, insert spaces, word wrap, and \
-     render whitespace DO apply live.";
+    "Applied live: this resizes the mounted code editor and rich editor document text (and is persisted to \
+     workspace settings). The code gutter line-number glyph size is a small pending follow-up. Tab size, \
+     insert spaces, word wrap, and render whitespace DO apply live to the code editor.";
 
-/// Honest typed-state note shown under the syntax palette (Custom colors persist + preview live, but the
-/// running code pane still draws from the theme). Distinct substring `active theme's syntax tokens` is
+/// Live-effect note shown under the syntax palette. Distinct substring `repaints the mounted code editor` is
 /// asserted by the section test.
 pub const SYNTAX_PALETTE_LIVE_EFFECT_NOTE: &str =
-    "Persisted; the preview swatches above update live. The mounted code editor still draws with the active \
-     theme's syntax tokens, so Custom palette colors are not yet applied to the running code pane (pending \
-     editor host wiring).";
+    "Applied live in Custom mode: a swatch edit repaints the mounted code editor's highlight colors (and is \
+     persisted). Custom mode also repaints minimap syntax rows; Muted/Standard keep the theme's syntax tokens \
+     on the running pane.";
 
 /// The stable author_id for a Custom syntax swatch for `scope`.
 pub fn syntax_swatch_author_id(scope: HighlightScope) -> String {
@@ -166,7 +167,7 @@ pub fn editor_action_catalog() -> Vec<EditorAction> {
         let default_chord = default_keymap
             .bindings_for_action(*action)
             .first()
-            .map(|b| crate::code_editor::keymap_settings::KeymapSettings::chord_to_str(&b.chord))
+            .map(format_keybinding_default)
             .unwrap_or_default();
         catalog.push(EditorAction {
             id: format!("{CODE_ACTION_ID_PREFIX}{bare_id}"),
@@ -191,6 +192,17 @@ pub fn editor_action_catalog() -> Vec<EditorAction> {
     }
 
     catalog
+}
+
+fn format_keybinding_default(binding: &KeyBinding) -> String {
+    let first = crate::code_editor::keymap_settings::KeymapSettings::chord_to_str(&binding.chord);
+    match binding.second {
+        Some(second) => format!(
+            "{first} {}",
+            crate::code_editor::keymap_settings::KeymapSettings::chord_to_str(&second)
+        ),
+        None => first,
+    }
 }
 
 /// The rich-editor command catalog: each [`FormattingCommand`] paired with a display label and its
@@ -360,8 +372,8 @@ impl EditorSettingsSection {
             set_author_id_and_label(ui, dv.id, EDITOR_FONT_SIZE_AUTHOR_ID, "Editor font size");
             changed |= dv.changed();
         });
-        // Honest typed-state: the font size persists but the live editor does not resize yet (declared
-        // inert rather than a silent no-op).
+        // S6 item 3: the font size now applies live to the mounted editor (row height + glyphs); the note
+        // discloses that plus the small gutter sizing follow-up.
         ui.label(
             egui::RichText::new(EDITOR_FONT_SIZE_LIVE_EFFECT_NOTE)
                 .small()
@@ -529,8 +541,8 @@ impl EditorSettingsSection {
             }
         });
 
-        // Honest typed-state: Custom colors persist + the preview swatches below update live, but the
-        // mounted code editor still draws from the theme tokens (declared inert rather than a silent no-op).
+        // S6 item 3: in Custom mode the palette now applies live to the mounted code editor and minimap rows
+        // via resolve_scope_color.
         ui.label(
             egui::RichText::new(SYNTAX_PALETTE_LIVE_EFFECT_NOTE)
                 .small()

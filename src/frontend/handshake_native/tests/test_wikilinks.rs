@@ -768,7 +768,11 @@ fn mt068_atom_layout_consumes_chip_label_space() {
     //    with no chip overlay) keeps the run visible. Metrics/plain text identical between modes.
     let covered = layout_block_atoms(&block, &palette, 800.0, false, AtomPaint::ChipCovered);
     assert_eq!(covered.plain_text, layout.plain_text, "identical metrics");
-    assert_eq!(covered.job.sections.len(), 3, "three runs: text, atom, text");
+    assert_eq!(
+        covered.job.sections.len(),
+        3,
+        "three runs: text, atom, text"
+    );
     assert_eq!(
         covered.job.sections[1].format.color,
         egui::Color32::TRANSPARENT,
@@ -888,8 +892,8 @@ fn mt020_live_wikilink_confirm_undo_restores_pre_insert_doc_and_ordering() {
     }
     // The confirm recorded on the UNIFIED bus (2 entries: the typing + the confirm).
     let bus = InteractionBus::get_or_init(&harness.ctx);
-    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
-        .expect("bus lock");
+    let depth =
+        InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
     assert_eq!(
         depth, 2,
         "MT-020: the atom insert recorded its own bus entry (typing + confirm)"
@@ -937,9 +941,7 @@ fn mt020_live_wikilink_confirm_undo_restores_pre_insert_doc_and_ordering() {
             "undo #2 removed the inserted atom"
         );
         let now_json =
-            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
-                &st.doc,
-            );
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
         assert_eq!(
             now_json, pre_insert_json,
             "MT-020: undo restored the EXACT pre-insert doc (trigger text `[[Hi` included)"
@@ -1035,8 +1037,8 @@ fn mt020_live_remove_embed_undo_restores_the_transclusion() {
     }
     // ...and on the MT-035 unified bus (ONE entry for the removal).
     let bus = InteractionBus::get_or_init(&harness.ctx);
-    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
-        .expect("bus lock");
+    let depth =
+        InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
     assert_eq!(
         depth, 1,
         "the remove-embed recorded exactly one unified-bus undo entry"
@@ -1064,9 +1066,7 @@ fn mt020_live_remove_embed_undo_restores_the_transclusion() {
             "Ctrl+Z restored the removed transclusion embed"
         );
         let now_json =
-            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
-                &st.doc,
-            );
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
         assert_eq!(
             now_json, pre_remove_json,
             "undo restored the EXACT pre-remove doc"

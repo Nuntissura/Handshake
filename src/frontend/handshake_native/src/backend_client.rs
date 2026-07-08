@@ -6,6 +6,7 @@
 use crate::error::AppError;
 use crate::layout_persistence::{LayoutError, LayoutTransport};
 use serde_json::Value;
+use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
@@ -114,6 +115,15 @@ pub const MODEL_SESSION_LAUNCH_IPC_CHANNEL: &str = "kernel_swarm_spawn_session";
 
 /// Source owner of the reachable IPC command for direct repo-folder model session spawn.
 pub const MODEL_SESSION_LAUNCH_IPC_OWNER: &str = "app/src-tauri/src/commands/swarm_runtime.rs";
+
+/// The local GGUF/runtime load channel that exists only in the legacy Tauri command layer. A native
+/// local-provider model-session launch must name this exact missing bridge until a native HTTP route
+/// exists or a live operator-surface proof shows the model is loaded/running through another real path.
+pub const MODEL_SESSION_LOCAL_MODEL_LOAD_IPC_CHANNEL: &str = "kernel_model_runtime_load";
+
+/// Source owner of the reachable IPC command for local model runtime loading.
+pub const MODEL_SESSION_LOCAL_MODEL_LOAD_IPC_OWNER: &str =
+    "app/src-tauri/src/commands/model_runtime.rs";
 
 #[cfg(target_os = "windows")]
 const DEFAULT_TERMINAL_SHELL: &str = "pwsh.exe";
@@ -586,11 +596,23 @@ impl fmt::Display for ModelSessionLaunchError {
             Self::EndpointMissing {
                 ipc_channel,
                 ipc_owner,
+                request,
                 ..
-            } => write!(
-                f,
-                "EndpointMissing: direct repo-folder model session spawn with wrapper is IPC-only via {ipc_channel} in {ipc_owner}"
-            ),
+            } => {
+                write!(
+                    f,
+                    "EndpointMissing: direct repo-folder model session spawn with wrapper is IPC-only via {ipc_channel} in {ipc_owner}"
+                )?;
+                if request.provider == ModelSessionProvider::Local {
+                    write!(
+                        f,
+                        "; LocalModelLoadEndpointMissing: local model load is IPC-only via {} in {}; no native HTTP local-model load route is exposed to the Rust frontend",
+                        MODEL_SESSION_LOCAL_MODEL_LOAD_IPC_CHANNEL,
+                        MODEL_SESSION_LOCAL_MODEL_LOAD_IPC_OWNER
+                    )?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -604,9 +626,10 @@ fn model_session_jobs_request(
     let backend = request.provider.as_str();
     // MT-101 REMEDIATION: an operator launch carries NO governed-work attribution (previously every
     // launch was hardcoded wp_id=WP-KERNEL-012/mt_id=MT-101 — misattributing operator sessions as WP
-    // work), NO canned prompt (the session's real prompt comes from the operator's session messages,
-    // never a baked-in string), and NO `simulate_duration_ms` knob (a simulation control has no place
-    // in a production launch). The backend treats all three as optional (`string_opt`/`u64_opt`).
+    // work), NO canned prompt (this is a promptless session bootstrap; operator messages must arrive
+    // through a real follow-up message path, never a baked-in string), and NO `simulate_duration_ms` knob
+    // (a simulation control has no place in a production launch). The backend treats all three as
+    // optional (`string_opt`/`u64_opt`).
     let mut job_inputs = serde_json::json!({
         "launch_surface": "handshake_native",
         "launch_mode": "workspace_model_session",
@@ -2347,8 +2370,32 @@ pub struct CanvasBoardData {
     pub zoom: f32,
 }
 
+/// The created placement payload returned by the verified canvas creation routes:
+/// `POST .../placements` returns a `LoomCanvasPlacement` directly, while `POST .../cards` wraps it under
+/// `placement`. This compact DTO carries only the fields the native host needs to register the MT-035
+/// compensating undo.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreatedCanvasPlacement {
+    pub placement_id: String,
+    pub placed_block_id: String,
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+}
+
+impl CreatedCanvasPlacement {
+    pub fn geometry(&self) -> (f64, f64, f64, f64) {
+        (self.x, self.y, self.w, self.h)
+    }
+}
+
 /// One-slot delivery cell for an off-thread `getCanvasBoard` fetch result.
 pub type CanvasBoardCell = Arc<Mutex<Option<Result<CanvasBoardData, String>>>>;
+
+/// One-slot delivery cell for a canvas creation result whose response body carries the created
+/// placement id. Non-create mutations still use [`CanvasBoardOpCell`] because their body is not needed.
+pub type CanvasBoardCreateCell = Arc<Mutex<Option<Result<CreatedCanvasPlacement, String>>>>;
 
 /// One-slot delivery cell for an off-thread canvas MUTATION (place/card/viewport/group/remove/edge)
 /// result. `Ok(())` on a 2xx (the board re-fetches), `Err(msg)` the failure. Same shape as
@@ -2605,7 +2652,11 @@ impl CanvasBoardClient {
     /// `api/loom.rs`, route `/workspaces/:ws/loom/canvas-visual-edges/:visual_edge_id`). A RemoveEdge
     /// whose id is NOT a board visual edge routes to
     /// [`remove_semantic_edge_request`](Self::remove_semantic_edge_request) instead.
-    pub fn remove_visual_edge_request(&self, workspace_id: &str, visual_edge_id: &str) -> RequestSpec {
+    pub fn remove_visual_edge_request(
+        &self,
+        workspace_id: &str,
+        visual_edge_id: &str,
+    ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Delete,
             url: format!(
@@ -2685,6 +2736,19 @@ impl CanvasBoardClient {
             }
         });
     }
+
+    /// Send a placement/card creation request off-thread and deliver the created placement payload.
+    /// This is deliberately separate from [`dispatch`](Self::dispatch): only creation routes need the
+    /// response body so the shell can register a precise compensating undo for the backend-minted id.
+    pub fn dispatch_created_placement(&self, spec: RequestSpec, cell: CanvasBoardCreateCell) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = send_canvas_created_placement(&client, &spec).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
 }
 
 /// The board-state schema id the backend stamps on the canvas viewport JSONB (mirrors
@@ -2706,6 +2770,21 @@ async fn send_canvas_mutation(
         HttpMethod::Delete => delete_expect_success(client, &spec.url).await,
         HttpMethod::Get => Err(AppError::Http("GET is not a mutation".to_owned())),
     }
+}
+
+async fn send_canvas_created_placement(
+    client: &reqwest::Client,
+    spec: &RequestSpec,
+) -> Result<CreatedCanvasPlacement, AppError> {
+    if spec.method != HttpMethod::Post {
+        return Err(AppError::Http(
+            "created-placement dispatch only supports POST".to_owned(),
+        ));
+    }
+    let empty = serde_json::json!({});
+    let body = spec.body.as_ref().unwrap_or(&empty);
+    let value = post_json_expect_value(client, &spec.url, body, Duration::from_secs(5)).await?;
+    created_canvas_placement_from_response(&value)
 }
 
 /// `GET {url}` and parse the verified `LoomCanvasBoardView` into a [`CanvasBoardData`]. Placements
@@ -2768,6 +2847,37 @@ fn placement_from_json(p: &serde_json::Value) -> Option<CanvasPlacementCard> {
         .and_then(|x| x.as_str())
         .map(ToOwned::to_owned);
     Some(card)
+}
+
+/// Parse the response body of either canvas creation route into the placement payload the host needs for
+/// compensating undo registration. Accepts both verified shapes:
+/// - `POST .../placements` -> `LoomCanvasPlacement`
+/// - `POST .../cards` -> `{ block, rich_document_id, placement: LoomCanvasPlacement }`
+pub fn created_canvas_placement_from_response(
+    value: &serde_json::Value,
+) -> Result<CreatedCanvasPlacement, AppError> {
+    let placement = value.get("placement").unwrap_or(value);
+    let string_field = |field: &str| {
+        placement
+            .get(field)
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| AppError::Parse(format!("canvas placement response missing {field}")))
+    };
+    let number_field = |field: &str| {
+        placement
+            .get(field)
+            .and_then(|x| x.as_f64())
+            .ok_or_else(|| AppError::Parse(format!("canvas placement response missing {field}")))
+    };
+    Ok(CreatedCanvasPlacement {
+        placement_id: string_field("placement_id")?,
+        placed_block_id: string_field("placed_block_id")?,
+        x: number_field("x")?,
+        y: number_field("y")?,
+        w: number_field("w")?,
+        h: number_field("h")?,
+    })
 }
 
 /// Parse one verified `LoomCanvasVisualEdge` JSON object into a [`VisualEdge`]. Returns `None` when any
@@ -2842,7 +2952,7 @@ use crate::graph::folder_tree::{FolderRow, LeafBlock};
 /// [`crate::graph::folder_tree::LoomFolderTree`] builds its forest from. `Ok` carries the rows (possibly
 /// empty -> the "No folders" empty state, AC7); `Err(msg)` a failure the view surfaces as an error
 /// banner + Retry (AC8) instead of crashing.
-pub type FolderListCell = Arc<Mutex<Option<Result<Vec<FolderRow>, String>>>>;
+pub type FolderListCell = Arc<Mutex<Option<(String, Result<Vec<FolderRow>, String>)>>>;
 
 /// The externally-meaningful result of a folder-children fetch: the leaf [`LeafBlock`] list for one
 /// expanded folder. `Ok` carries the blocks (possibly empty); `Err(msg)` a failure the node surfaces.
@@ -2934,10 +3044,11 @@ impl LoomFolderClient {
     pub fn fetch_folders(&self, workspace_id: &str, cell: FolderListCell) {
         let spec = self.list_folders_request(workspace_id);
         let client = self.client.clone();
+        let workspace_id = workspace_id.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_folder_rows(&client, &spec.url).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                *slot = Some((workspace_id, result.map_err(|e| e.to_string())));
             }
         });
     }
@@ -3061,18 +3172,19 @@ async fn fetch_folder_leaves(
 // WP-KERNEL-012 MT-023 Loom TAG-HUB transport (REUSE — extends the MT-021/022 Loom read surface).
 //
 // VERIFIED READ-ONLY against `src/backend/handshake_core/src/{api,storage}/loom.rs` (the running
-// backend), NOT taken from the MT-023 contract body — whose assumed surface (`views/all?content_type=
-// tag_hub` list filter, `views/all?tag_ids={id}` member query, a `content_json` hub description) does
-// NOT exist (the MT-022/023 "verify, don't trust the contract" lesson). The REAL tag authority is the
-// dedicated tag-hub API (MT-182 "tags as first-class blocks"):
+// backend), NOT taken from the MT-023 contract body. The generic `views/all?content_type=tag_hub` and
+// `views/all?tag_ids={id}` filters exist, but the dedicated tag authority for this surface is the
+// stronger MT-182 tag-hub API (tags as first-class blocks):
 //   - GET  /workspaces/:ws/loom/tags                       -> Vec<LoomBlock> (every `tag_hub` block; the
 //     flat list the panel renders. Because this route ALREADY returns only tag hubs, RISK-5's
 //     client-side content_type fallback is unnecessary — there is no `content_type` filter to fall back
 //     from). Supports `limit`/`offset` (default 100, capped 500).
 //   - GET  /workspaces/:ws/loom/tags/:tag_block_id         -> LoomTagHub { block, sub_tags,
-//     tagged_blocks, backlink_count } (the hub page: title from block.title, members from tagged_blocks).
+//     tagged_blocks, backlink_count } (the exact hub page/count source: title from block.title, members
+//     from tagged_blocks).
 //   - GET  /workspaces/:ws/loom/tags/:tag_block_id/blocks  -> Vec<LoomBlock> (members; supports
-//     `include_subtags`/`limit`/`offset`). The exact member-count + member-list source.
+//     `include_subtags`/`limit`/`offset`; default 100, capped 500). Direct route/live proof source, not
+//     the exact list badge count source.
 //   - POST /workspaces/:ws/loom/edges  body { source_block_id, target_block_id, edge_type:"tag",
 //     created_by:"user" } -> LoomEdge (tag a block with a hub). The backend HARD-rejects a non-tag_hub
 //     target with HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB, so the hub is ALWAYS the edge TARGET and the
@@ -3085,25 +3197,41 @@ async fn fetch_folder_leaves(
 // on the handshake_core crate; the parsed shapes are the widget's own graph::tags_panel types.
 //
 // AC6 / RISK-2 / MC-2 (the no-fixed-sleep correction): `tag_block` spawns the POST and delivers the
-// outcome into a `ScmReceiptCell`; the HOST awaits THAT delivery and only THEN re-queries the members
-// via `fetch_members`. There is NO 100ms sleep — the re-query is gated on the edge-create RESPONSE.
+// outcome into a `TagEdgeReceiptCell`; the HOST awaits THAT delivery and only THEN re-queries the hub
+// detail/members. There is NO 100ms sleep — the re-query is gated on the edge-create RESPONSE.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 use crate::graph::tags_panel::{AddTagCandidate, HubMember, TagEntry};
 
 /// The externally-meaningful result of a tag-list fetch: the flat [`TagEntry`] list the
 /// [`crate::graph::tags_panel::LoomTagsPanel`] renders. `Ok` carries the entries (possibly empty -> the
-/// "No tags" empty state, AC8); `Err(msg)` a failure the panel surfaces as an error banner + Retry.
-pub type TagListCell = Arc<Mutex<Option<Result<Vec<TagEntry>, String>>>>;
+/// "No tags" empty state, AC8); `Err(msg)` a failure the panel surfaces as an error banner + Retry. The
+/// leading workspace id and request sequence let the host discard stale async deliveries after a project
+/// switch or retry.
+pub type TagListDelivery = (String, u64, Result<Vec<TagEntry>, String>);
+pub type TagListCell = Arc<Mutex<VecDeque<TagListDelivery>>>;
 
 /// The externally-meaningful result of a hub-detail fetch: `(title, members)` for the hub page. `Ok`
-/// carries the resolved title + member list; `Err(msg)` a failure the hub page surfaces.
-pub type TagHubDetailCell = Arc<Mutex<Option<Result<(String, Vec<HubMember>), String>>>>;
+/// carries the resolved title + member list; `Err(msg)` a failure the hub page surfaces. The workspace +
+/// hub id + request sequence tuple lets the host reject stale responses from an older hub/page request.
+pub type TagHubDetailDelivery = (
+    String,
+    String,
+    u64,
+    Result<(String, Vec<HubMember>), String>,
+);
+pub type TagHubDetailCell = Arc<Mutex<VecDeque<TagHubDetailDelivery>>>;
 
 /// The externally-meaningful result of an add-tag candidate search: the candidate blocks to tag. `Ok`
 /// carries the candidates (possibly empty); `Err(msg)` a failure (the popup shows nothing rather than
-/// crashing).
-pub type AddTagCandidatesCell = Arc<Mutex<Option<Result<Vec<AddTagCandidate>, String>>>>;
+/// crashing). The workspace + query + request sequence tuple lets the host reject stale candidate lists.
+pub type AddTagCandidatesDelivery = (String, String, u64, Result<Vec<AddTagCandidate>, String>);
+pub type AddTagCandidatesCell = Arc<Mutex<VecDeque<AddTagCandidatesDelivery>>>;
+
+/// The externally-meaningful result of a tag-edge POST. The workspace + hub id + request sequence live in
+/// the same FIFO delivery as the receipt, so a stale POST can never consume a newer side-slot context.
+pub type TagEdgeReceiptDelivery = (String, String, u64, Result<(), String>);
+pub type TagEdgeReceiptCell = Arc<Mutex<VecDeque<TagEdgeReceiptDelivery>>>;
 
 /// REST client for the VERIFIED Loom tag-hub surface (MT-182 backend) the MT-023 tags panel binds: list
 /// tag hubs, load a hub's detail + members, search for taggable blocks, and create a `tag` edge. Mirrors
@@ -3223,12 +3351,23 @@ impl LoomTagClient {
     /// Fetch the workspace's tag-hub list off the UI thread, delivering the parsed entries into `cell`
     /// (the initial AC1 load). The host sets `loading=true` before calling and clears it on delivery.
     pub fn fetch_tags(&self, workspace_id: &str, cell: TagListCell) {
+        self.fetch_tags_with_sequence(workspace_id, 0, cell);
+    }
+
+    /// Sequence-attributed tag-list fetch for host-driven UI state. Older deliveries for the same
+    /// workspace are dropped by the host when a retry or workspace rebound supersedes them.
+    pub fn fetch_tags_with_sequence(&self, workspace_id: &str, sequence: u64, cell: TagListCell) {
         let spec = self.list_tags_request(workspace_id);
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_tag_entries(&client, &spec.url).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                slot.push_back((
+                    delivered_workspace,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
@@ -3236,45 +3375,98 @@ impl LoomTagClient {
     /// Fetch one hub's detail (title + members) off the UI thread, delivering into `cell` (AC4). Parses
     /// the verified `LoomTagHub` shape: title from `block.title`, members from `tagged_blocks`.
     pub fn fetch_hub_detail(&self, workspace_id: &str, tag_block_id: &str, cell: TagHubDetailCell) {
+        self.fetch_hub_detail_with_sequence(workspace_id, tag_block_id, 0, cell);
+    }
+
+    /// Sequence-attributed hub-detail fetch for host-driven UI state. The host tracks the latest
+    /// sequence per `(workspace, hub)` so an older retry/open/count refresh cannot overwrite newer state.
+    pub fn fetch_hub_detail_with_sequence(
+        &self,
+        workspace_id: &str,
+        tag_block_id: &str,
+        sequence: u64,
+        cell: TagHubDetailCell,
+    ) {
         let spec = self.tag_detail_request(workspace_id, tag_block_id);
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
+        let delivered_hub = tag_block_id.to_owned();
         let fallback_id = tag_block_id.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_tag_hub_detail(&client, &spec.url, &fallback_id).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                slot.push_back((
+                    delivered_workspace,
+                    delivered_hub,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
 
-    /// Fetch a hub's members off the UI thread, delivering into `cell`. Used for the lazy list
-    /// member-count resolution AND the AC6 post-tag member refresh (the host calls this AFTER the
-    /// tag-edge POST response resolves — no fixed sleep).
+    /// Fetch a hub's members off the UI thread, delivering into `cell`. Used by live route proofs; the
+    /// host uses `fetch_hub_detail_with_sequence` for list badge backfill because this route is capped.
     pub fn fetch_members(&self, workspace_id: &str, tag_block_id: &str, cell: TagHubDetailCell) {
+        self.fetch_members_with_sequence(workspace_id, tag_block_id, 0, cell);
+    }
+
+    /// Sequence-attributed member-list fetch. This route is intentionally not used for exact list badge
+    /// counts because the backend caps it; it remains useful for direct route verification.
+    pub fn fetch_members_with_sequence(
+        &self,
+        workspace_id: &str,
+        tag_block_id: &str,
+        sequence: u64,
+        cell: TagHubDetailCell,
+    ) {
         let spec = self.list_members_request(workspace_id, tag_block_id);
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
+        let delivered_hub = tag_block_id.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_tag_members(&client, &spec.url, &spec.query).await;
             if let Ok(mut slot) = cell.lock() {
                 // The member-list route carries no hub title; deliver an empty title so the host keeps
                 // its existing title and replaces only the members.
-                *slot = Some(
+                slot.push_back((
+                    delivered_workspace,
+                    delivered_hub,
+                    sequence,
                     result
                         .map(|m| (String::new(), m))
                         .map_err(|e| e.to_string()),
-                );
+                ));
             }
         });
     }
 
     /// Search for candidate blocks to tag off the UI thread, delivering into `cell` (the add-tag popup).
     pub fn search_blocks(&self, workspace_id: &str, q: &str, cell: AddTagCandidatesCell) {
+        self.search_blocks_with_sequence(workspace_id, q, 0, cell);
+    }
+
+    /// Sequence-attributed candidate search for host-driven UI state.
+    pub fn search_blocks_with_sequence(
+        &self,
+        workspace_id: &str,
+        q: &str,
+        sequence: u64,
+        cell: AddTagCandidatesCell,
+    ) {
         let spec = self.search_blocks_request(workspace_id, q);
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
+        let delivered_query = q.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_add_tag_candidates(&client, &spec.url, &spec.query).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                slot.push_back((
+                    delivered_workspace,
+                    delivered_query,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
@@ -3287,24 +3479,44 @@ impl LoomTagClient {
         workspace_id: &str,
         source_block_id: &str,
         hub_block_id: &str,
-        cell: ScmReceiptCell,
+        cell: TagEdgeReceiptCell,
+    ) {
+        self.tag_block_with_sequence(workspace_id, source_block_id, hub_block_id, 0, cell);
+    }
+
+    /// Sequence-attributed tag-edge POST for host-driven UI state. The host suppresses stale error
+    /// banners when a newer add-tag attempt for the same hub has superseded this request.
+    pub fn tag_block_with_sequence(
+        &self,
+        workspace_id: &str,
+        source_block_id: &str,
+        hub_block_id: &str,
+        sequence: u64,
+        cell: TagEdgeReceiptCell,
     ) {
         let spec = self.tag_block_request(workspace_id, source_block_id, hub_block_id);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
+        let delivered_hub = hub_block_id.to_owned();
         self.runtime.spawn(async move {
             let result = post_expect_success(&client, &spec.url, &body).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                slot.push_back((
+                    delivered_workspace,
+                    delivered_hub,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
 }
 
 /// Parse one verified `tag_hub` `LoomBlock` JSON object into a [`TagEntry`]. `title` falls back to the
-/// block id when null/empty. `member_count` starts as `None` (the list never blocks on per-tag fetches;
-/// the host resolves the exact count lazily on hub open). Returns `None` only when the block has no
-/// `block_id` (a malformed row is skipped, not faked).
+/// block id when null/empty. `member_count` uses explicit backend-provided member evidence when present;
+/// exact tagged members still load on hub open. Returns `None` only when the block has no `block_id` (a
+/// malformed row is skipped, not faked).
 fn block_to_tag_entry(block: &serde_json::Value) -> Option<TagEntry> {
     let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
     let title = block
@@ -3313,7 +3525,31 @@ fn block_to_tag_entry(block: &serde_json::Value) -> Option<TagEntry> {
         .filter(|s| !s.trim().is_empty())
         .unwrap_or(&block_id)
         .to_owned();
-    Some(TagEntry::new(block_id, title, None))
+    Some(TagEntry::new(block_id, title, tag_member_count_hint(block)))
+}
+
+fn count_value_to_u32(value: &serde_json::Value) -> Option<u32> {
+    value
+        .as_u64()
+        .and_then(|n| u32::try_from(n).ok())
+        .or_else(|| value.as_i64().and_then(|n| u32::try_from(n).ok()))
+}
+
+fn count_field(block: &serde_json::Value, key: &str) -> Option<u32> {
+    block
+        .get("derived")
+        .and_then(|d| d.get(key))
+        .and_then(count_value_to_u32)
+        .or_else(|| block.get(key).and_then(count_value_to_u32))
+}
+
+fn tag_member_count_hint(block: &serde_json::Value) -> Option<u32> {
+    count_field(block, "member_count").or_else(|| {
+        block
+            .get("tagged_blocks")
+            .and_then(|blocks| blocks.as_array())
+            .and_then(|blocks| u32::try_from(blocks.len()).ok())
+    })
 }
 
 /// Parse one verified `LoomBlock` JSON object into a hub-page [`HubMember`]. Mirrors the folder-tree
@@ -5014,6 +5250,8 @@ pub struct LoomSearchBlock {
     pub block_id: String,
     pub content_type: String,
     #[serde(default)]
+    pub document_id: Option<String>,
+    #[serde(default)]
     pub title: Option<String>,
 }
 
@@ -5548,14 +5786,51 @@ async fn put_json(
 // save primitives the module's off-thread pipeline calls.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// A loaded rich document's verified fields the replace pipeline consumes.
+/// A loaded rich document's verified fields the native editor consumes.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RichDocBody {
     pub document_id: String,
+    pub workspace_id: String,
     pub doc_version: u64,
     pub title: String,
     pub content_json: serde_json::Value,
     pub crdt_document_id: Option<String>,
+    pub authority_label: String,
+    pub owner_actor_kind: Option<String>,
+    pub owner_actor_id: Option<String>,
+    pub project_ref: Option<String>,
+    pub folder_ref: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+fn required_doc_string(doc: &serde_json::Value, field: &str) -> Result<String, AppError> {
+    doc.get(field)
+        .and_then(|x| x.as_str())
+        .map(str::to_owned)
+        .ok_or_else(|| AppError::Parse(format!("document.{field} missing or not a string")))
+}
+
+fn optional_doc_string(doc: &serde_json::Value, field: &str) -> Result<Option<String>, AppError> {
+    match doc.get(field) {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(value) => value
+            .as_str()
+            .map(|s| Some(s.to_owned()))
+            .ok_or_else(|| AppError::Parse(format!("document.{field} is not a string/null"))),
+    }
+}
+
+fn required_doc_u64(doc: &serde_json::Value, field: &str) -> Result<u64, AppError> {
+    doc.get(field)
+        .and_then(|x| x.as_u64())
+        .ok_or_else(|| AppError::Parse(format!("document.{field} missing or not a u64")))
+}
+
+fn required_doc_value(doc: &serde_json::Value, field: &str) -> Result<serde_json::Value, AppError> {
+    doc.get(field)
+        .cloned()
+        .ok_or_else(|| AppError::Parse(format!("document.{field} missing")))
 }
 
 /// The outcome of one document save: the receipt event id, or a typed conflict / error.
@@ -5749,9 +6024,9 @@ impl RichDocClient {
     }
 
     /// `GET /knowledge/documents/{id}` -> the verified `{document:{..}}` body, narrowed into a
-    /// [`RichDocBody`] for the replace pipeline. DELEGATES to the consolidated MT-037 client (ONE wire
+    /// [`RichDocBody`] for the native editor. DELEGATES to the consolidated MT-037 client (ONE wire
     /// load path — the REUSE-NOT-DUPLICATE gate); the rich [`crate::backend::knowledge_documents::
-    /// DocumentLoadResponse`] is narrowed here to the four fields the pipeline reads. A non-success
+    /// DocumentLoadResponse`] is narrowed here to the fields the editor/runtime consumes. A non-success
     /// status or parse failure is an [`AppError`].
     pub async fn load_document(&self, document_id: &str) -> Result<RichDocBody, AppError> {
         let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_operator(
@@ -5765,25 +6040,19 @@ impl RichDocClient {
             .map_err(|e| AppError::Http(e.to_string()))?;
         let doc = &resp.document;
         Ok(RichDocBody {
-            document_id: doc
-                .get("rich_document_id")
-                .and_then(|x| x.as_str())
-                .unwrap_or(document_id)
-                .to_owned(),
-            doc_version: doc.get("doc_version").and_then(|x| x.as_u64()).unwrap_or(0),
-            title: doc
-                .get("title")
-                .and_then(|x| x.as_str())
-                .unwrap_or("")
-                .to_owned(),
-            content_json: doc
-                .get("content_json")
-                .cloned()
-                .unwrap_or_else(|| serde_json::json!({ "type": "doc", "content": [] })),
-            crdt_document_id: doc
-                .get("crdt_document_id")
-                .and_then(|x| x.as_str())
-                .map(str::to_owned),
+            document_id: required_doc_string(doc, "rich_document_id")?,
+            workspace_id: required_doc_string(doc, "workspace_id")?,
+            doc_version: required_doc_u64(doc, "doc_version")?,
+            title: required_doc_string(doc, "title")?,
+            content_json: required_doc_value(doc, "content_json")?,
+            crdt_document_id: optional_doc_string(doc, "crdt_document_id")?,
+            authority_label: required_doc_string(doc, "authority_label")?,
+            owner_actor_kind: optional_doc_string(doc, "owner_actor_kind")?,
+            owner_actor_id: optional_doc_string(doc, "owner_actor_id")?,
+            project_ref: optional_doc_string(doc, "project_ref")?,
+            folder_ref: optional_doc_string(doc, "folder_ref")?,
+            created_at: required_doc_string(doc, "created_at")?,
+            updated_at: required_doc_string(doc, "updated_at")?,
         })
     }
 
@@ -7219,7 +7488,51 @@ mod tests {
         );
     }
 
-    // ── LoomTagClient: add-tag candidate parser (verified /loom/search response shape) ────────────────
+    // ── LoomTagClient: tag-list and add-tag parsers (verified backend response shapes) ────────────────
+
+    #[test]
+    fn tag_entries_do_not_label_backlink_count_as_member_count() {
+        let entry = block_to_tag_entry(&serde_json::json!({
+            "block_id": "tag-rust",
+            "title": "Rust",
+            "derived": {
+                "backlink_count": 4
+            }
+        }))
+        .expect("tag row parses");
+
+        assert_eq!(
+            entry.member_count,
+            None,
+            "AC1: backlink_count includes non-member backlinks and must not be labeled as member_count"
+        );
+    }
+
+    #[test]
+    fn tag_entries_parse_member_count_from_explicit_member_evidence() {
+        let explicit = block_to_tag_entry(&serde_json::json!({
+            "block_id": "tag-rust",
+            "title": "Rust",
+            "member_count": 4
+        }))
+        .expect("tag row parses");
+        assert_eq!(explicit.member_count, Some(4));
+
+        let tagged_blocks = block_to_tag_entry(&serde_json::json!({
+            "block_id": "tag-design",
+            "title": "Design",
+            "tagged_blocks": [
+                { "block_id": "member-1" },
+                { "block_id": "member-2" }
+            ]
+        }))
+        .expect("tag row parses");
+        assert_eq!(
+            tagged_blocks.member_count,
+            Some(2),
+            "tagged_blocks.len() is exact member evidence"
+        );
+    }
 
     /// AC6 / Spec-Realism Gate: the add-tag candidate parser MUST read the VERIFIED `/loom/search` shape
     /// `Vec<LoomBlockSearchResult>` = `[{ "block": { "block_id", "title" }, "score" }]` — `block_id`/`title`
@@ -7352,5 +7665,25 @@ mod tests {
             }
             other => panic!("expected Applied, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn rich_doc_body_required_metadata_is_not_defaulted_blank() {
+        let doc = serde_json::json!({
+            "rich_document_id": "KRD-1",
+            "workspace_id": "WS-1",
+            "title": "T",
+            "doc_version": 1,
+            "content_json": {"type": "doc", "content": []},
+            "created_at": "2026-06-29T09:00:00Z",
+            "updated_at": "2026-06-29T10:00:00Z"
+        });
+
+        let error = required_doc_string(&doc, "authority_label")
+            .expect_err("missing required metadata must fail instead of rendering a blank badge");
+        assert!(
+            error.to_string().contains("authority_label"),
+            "parse error names the missing field: {error}"
+        );
     }
 }

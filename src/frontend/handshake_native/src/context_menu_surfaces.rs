@@ -46,7 +46,7 @@
 //!   is fixed and seeded), so these are disclosed future-target items too.
 //!
 //! The items that DO map to a real action are enabled: tab close / close-others / close-all,
-//! pin/unpin, pop-out; pane-header lock/unlock + pop-out; project-tab activate.
+//! pin/unpin, pop-out; pane-header lock/unlock + pop-out when the pane is docked; project-tab activate.
 //!
 //! ## Stable ids
 //!
@@ -202,6 +202,16 @@ pub enum PaneHeaderMenuAction {
 /// would leave a blank window) — though `pane.close` is a future-target item regardless, the
 /// last-pane guard is encoded so it stays correct when close-pane is wired.
 pub fn pane_header_context_items(locked: bool, is_last_pane: bool) -> Vec<ContextMenuItem> {
+    pane_header_context_items_with_popout(locked, is_last_pane, true)
+}
+
+/// Variant for detached pop-out headers: the header still offers lock/unlock, but "Pop Out Pane" is
+/// disabled because the pane is already detached and the caller cannot pop it out a second time.
+pub fn pane_header_context_items_with_popout(
+    locked: bool,
+    is_last_pane: bool,
+    pop_out_enabled: bool,
+) -> Vec<ContextMenuItem> {
     let lock_label = if locked { "Unlock Pane" } else { "Lock Pane" };
     let close_item =
         ContextMenuItem::action(pane_ids::CLOSE, "Close Pane").disabled(if is_last_pane {
@@ -209,6 +219,12 @@ pub fn pane_header_context_items(locked: bool, is_last_pane: bool) -> Vec<Contex
         } else {
             "Close pane is a future surface (fixed 2x2 grid)"
         });
+    let pop_out_item = if pop_out_enabled {
+        ContextMenuItem::action(pane_ids::POP_OUT, "Pop Out Pane")
+    } else {
+        ContextMenuItem::action(pane_ids::POP_OUT, "Pop Out Pane")
+            .disabled("Pane is already popped out")
+    };
     ContextMenu::new("pane")
         .item(ContextMenuItem::action(pane_ids::LOCK, lock_label))
         .separator()
@@ -238,7 +254,7 @@ pub fn pane_header_context_items(locked: bool, is_last_pane: bool) -> Vec<Contex
                 .disabled("Set pane type is a future surface"),
         )
         .separator()
-        .item(ContextMenuItem::action(pane_ids::POP_OUT, "Pop Out Pane"))
+        .item(pop_out_item)
         .item(close_item)
         .into_items()
 }
@@ -1881,6 +1897,14 @@ mod tests {
         let close = last.iter().find(|i| i.id == pane_ids::CLOSE).unwrap();
         assert!(!close.enabled);
         assert_eq!(close.disabled_reason, Some("Cannot close the only pane"));
+    }
+
+    #[test]
+    fn pane_popout_disabled_when_header_already_in_popout() {
+        let items = pane_header_context_items_with_popout(false, false, false);
+        let pop_out = items.iter().find(|i| i.id == pane_ids::POP_OUT).unwrap();
+        assert!(!pop_out.enabled);
+        assert_eq!(pop_out.disabled_reason, Some("Pane is already popped out"));
     }
 
     /// Project activate is disabled for the already-active project, enabled otherwise.

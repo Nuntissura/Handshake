@@ -24,9 +24,9 @@ use egui::accesskit;
 use crate::accessibility::emit_interactive_node;
 
 use super::interaction_bus::{
-    command_list_item_author_id, default_keybind_for, ClipboardPayload, CommandDescriptor,
-    EditorSurfaceKind, InteractionBus, SharedSelection, CMD_COMMAND_PALETTE, CMD_COPY, CMD_CUT,
-    CMD_FIND, CMD_PASTE, CMD_SELECT_ALL, COMMAND_PALETTE_SEARCH_AUTHOR_ID,
+    command_list_item_author_id, default_keybind_for, ClipboardCommand, ClipboardPayload,
+    CommandDescriptor, EditorSurfaceKind, InteractionBus, SharedSelection, CMD_COMMAND_PALETTE,
+    CMD_COPY, CMD_CUT, CMD_FIND, CMD_PASTE, CMD_SELECT_ALL, COMMAND_PALETTE_SEARCH_AUTHOR_ID,
     COMMAND_PALETTE_TRIGGER_AUTHOR_ID,
 };
 use crate::pane_registry::PaneId;
@@ -89,18 +89,28 @@ fn standard_handler(id: &str) -> super::interaction_bus::CommandHandler {
         // Copy/Cut: cache the bus's current shared selection as a clipboard payload (the cross-pane
         // channel every pane reads on Paste). A non-empty selection becomes a real cached payload; an
         // empty selection is a safe no-effect (nothing to copy), not a fake success.
-        CMD_COPY | CMD_CUT => Arc::new(|_ctx, bus| {
-            let selection = bus.shared_selection().clone();
-            if let Some(payload) = surface_clipboard_payload(&selection) {
-                bus.cache_clipboard(payload);
+        CMD_COPY | CMD_CUT => {
+            let command = if id == CMD_COPY {
+                ClipboardCommand::Copy
+            } else {
+                ClipboardCommand::Cut
+            };
+            Arc::new(move |ctx, bus| {
+                let selection = bus.shared_selection().clone();
+                if let Some(payload) = surface_clipboard_payload(&selection) {
+                    bus.cache_clipboard(payload);
+                }
+                if bus.request_clipboard_command(command) {
+                    ctx.request_repaint();
+                }
+            })
+        }
+        // Paste: stage a one-shot request for the focused pane, which drains the command and mutates its
+        // own buffer. The generic command remains surface-agnostic without being a read-only no-op.
+        CMD_PASTE => Arc::new(|ctx, bus| {
+            if bus.request_clipboard_command(ClipboardCommand::Paste) {
+                ctx.request_repaint();
             }
-        }),
-        // Paste: the request point. The focused pane reads `bus.clipboard_read()` in its render path and
-        // inserts into its own buffer; the handler records that a paste was requested by leaving the cache
-        // intact (a generic handler cannot reach a concrete pane buffer). Non-empty body = not a no-op.
-        CMD_PASTE => Arc::new(|_ctx, bus| {
-            // Touch the cache read so the dispatch is observable; the pane performs the buffer insert.
-            let _ = bus.clipboard_read().is_some();
         }),
         // SelectAll / Find: surface intents. A generic handler clears any stale shared selection so the
         // focused pane re-publishes its full/zero selection next frame; the pane's keybind path performs
@@ -378,7 +388,7 @@ mod tests {
     /// moves text — the no-fake-behavior / no-deferred-live rule.
     #[test]
     fn copy_handler_caches_shared_selection_not_noop() {
-        use super::super::interaction_bus::CMD_COPY;
+        use super::super::interaction_bus::{ClipboardCommand, CMD_COPY};
         let ctx = egui::Context::default();
         let mut bus = InteractionBus::new();
         register_standard_commands(&mut bus, EditorSurfaceKind::Code);
@@ -400,6 +410,48 @@ mod tests {
             bus.clipboard_read_text().as_deref(),
             Some("hello"),
             "the Copy handler cached the shared selection (real side effect, not a no-op)"
+        );
+        assert_eq!(
+            bus.take_clipboard_command_for(&pane("pane-rich")),
+            None,
+            "a different pane cannot drain the focused pane's staged command"
+        );
+        assert_eq!(
+            bus.take_clipboard_command_for(&pane("pane-code")),
+            Some(ClipboardCommand::Copy),
+            "Copy also stages a focused-pane command for the mounted pane to materialize"
+        );
+        assert_eq!(
+            bus.take_clipboard_command_for(&pane("pane-code")),
+            None,
+            "the staged Copy command is one-shot"
+        );
+    }
+
+    /// Paste is also not a read-only dispatch: it stages a one-shot command for the focused pane, and no
+    /// other pane can drain it.
+    #[test]
+    fn paste_handler_stages_focused_pane_command() {
+        use super::super::interaction_bus::{ClipboardCommand, CMD_PASTE};
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        register_standard_commands(&mut bus, EditorSurfaceKind::RichText);
+        bus.set_focus_owner(pane("pane-rich"));
+        assert!(bus.dispatch_command(&ctx, CMD_PASTE), "Paste dispatched");
+        assert_eq!(
+            bus.take_clipboard_command_for(&pane("pane-code")),
+            None,
+            "a different pane cannot drain Paste"
+        );
+        assert_eq!(
+            bus.take_clipboard_command_for(&pane("pane-rich")),
+            Some(ClipboardCommand::Paste),
+            "Paste stages a focused-pane command for the mounted pane to consume"
+        );
+        assert_eq!(
+            bus.take_clipboard_command_for(&pane("pane-rich")),
+            None,
+            "the staged Paste command is one-shot"
         );
     }
 }

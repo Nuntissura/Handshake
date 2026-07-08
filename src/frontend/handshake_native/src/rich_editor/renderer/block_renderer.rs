@@ -56,6 +56,31 @@ pub fn paint_block(
     caret_offset: Option<usize>,
     bold_available: bool,
 ) -> BlockPaint {
+    paint_block_with_base(
+        painter,
+        block,
+        top_left,
+        content_width,
+        palette,
+        caret_offset,
+        bold_available,
+        line_layout::BASE_FONT_SIZE,
+    )
+}
+
+/// [`paint_block`] with an explicit live rich-editor base font size.
+#[allow(clippy::too_many_arguments)]
+pub fn paint_block_with_base(
+    painter: &egui::Painter,
+    block: &BlockNode,
+    top_left: egui::Pos2,
+    content_width: f32,
+    palette: &HsPalette,
+    caret_offset: Option<usize>,
+    bold_available: bool,
+    base_font_size: f32,
+) -> BlockPaint {
+    let base_font_size = line_layout::resolved_base_font_size(base_font_size);
     match block.kind {
         NodeKind::Paragraph | NodeKind::Heading(_) => paint_inline_block(
             painter,
@@ -66,6 +91,7 @@ pub fn paint_block(
             caret_offset,
             0.0,
             bold_available,
+            base_font_size,
         ),
         NodeKind::Blockquote => paint_blockquote(
             painter,
@@ -75,6 +101,7 @@ pub fn paint_block(
             palette,
             caret_offset,
             bold_available,
+            base_font_size,
         ),
         NodeKind::CodeBlock => paint_code_block(
             painter,
@@ -84,6 +111,7 @@ pub fn paint_block(
             palette,
             caret_offset,
             bold_available,
+            base_font_size,
         ),
         NodeKind::BulletList | NodeKind::OrderedList => paint_list(
             painter,
@@ -92,6 +120,7 @@ pub fn paint_block(
             content_width,
             palette,
             bold_available,
+            base_font_size,
         ),
         NodeKind::Table => paint_table(
             painter,
@@ -100,9 +129,10 @@ pub fn paint_block(
             content_width,
             palette,
             bold_available,
+            base_font_size,
         ),
         NodeKind::HorizontalRule => {
-            paint_horizontal_rule(painter, top_left, content_width, palette)
+            paint_horizontal_rule(painter, top_left, content_width, palette, base_font_size)
         }
         // Atoms / structural-only kinds that are not a top-level paint target in the
         // vertical slice render nothing and consume a single gap so layout stays sane.
@@ -210,6 +240,7 @@ fn paint_inline_block(
     caret_offset: Option<usize>,
     indent: f32,
     bold_available: bool,
+    base_font_size: f32,
 ) -> BlockPaint {
     let origin = egui::pos2(top_left.x + indent, top_left.y);
     let wrap_width = (content_width - indent).max(1.0);
@@ -218,18 +249,25 @@ fn paint_inline_block(
     // is the IDENTITY (AC6), so we keep the EXACT existing LTR path (single-format multi-section job with
     // native caret CCursor mapping) byte-for-byte unchanged — no regression to MT-075/077. Only an RTL
     // base (Hebrew/Arabic) takes the bidi-reordered + right-aligned path.
-    let bidi = line_layout::layout_block_bidi(block, palette, wrap_width, bold_available);
+    let bidi = line_layout::layout_block_bidi_with_base(
+        block,
+        palette,
+        wrap_width,
+        bold_available,
+        base_font_size,
+    );
     if !bidi.base.is_rtl() {
         // WP-KERNEL-012 MT-068 (chip glyph-overlap fix): the TOP-LEVEL paragraph/heading paint is the
         // path `paint_one_wikilink_chip` overlays, so hsLink atom runs lay out ChipCovered
         // (transparent — the chip's pill + label are the only visible glyphs over the exact span).
         // Nested list/quote/code/table content keeps `layout_block` (Visible) — no chip overlay there.
-        let layout = line_layout::layout_block_atoms(
+        let layout = line_layout::layout_block_atoms_with_base(
             block,
             palette,
             wrap_width,
             bold_available,
             line_layout::AtomPaint::ChipCovered,
+            base_font_size,
         );
         let galley = painter.layout_job(layout.job);
         let height = galley.rect.height();
@@ -275,7 +313,7 @@ fn paint_inline_block(
         // content's right edge), painted in the subtle theme color.
         let note_galley = painter.layout(
             format!("⚠ {}", lim.note),
-            FontId::proportional(line_layout::BASE_FONT_SIZE * 0.8),
+            FontId::proportional(base_font_size * 0.8),
             palette.text_subtle,
             wrap_width,
         );
@@ -313,6 +351,7 @@ fn paint_blockquote(
     palette: &HsPalette,
     caret_offset: Option<usize>,
     bold_available: bool,
+    base_font_size: f32,
 ) -> BlockPaint {
     // Resolve the inner inline block to render (first block child), else the quote itself.
     let inner = block
@@ -321,9 +360,15 @@ fn paint_blockquote(
         .find_map(Child::as_block)
         .unwrap_or(block);
     let wrap_width = (content_width - BLOCKQUOTE_INDENT_PTS).max(1.0);
-    let layout = line_layout::layout_block(inner, palette, wrap_width, bold_available);
+    let layout = line_layout::layout_block_with_base(
+        inner,
+        palette,
+        wrap_width,
+        bold_available,
+        base_font_size,
+    );
     let galley = painter.layout_job(layout.job);
-    let text_height = galley.rect.height().max(line_layout::BASE_FONT_SIZE);
+    let text_height = galley.rect.height().max(base_font_size);
 
     // Tinted background behind the whole quote (theme accent_soft — a real theme token).
     let bg_rect = Rect::from_min_size(top_left, Vec2::new(content_width, text_height));
@@ -353,11 +398,18 @@ fn paint_code_block(
     palette: &HsPalette,
     caret_offset: Option<usize>,
     bold_available: bool,
+    base_font_size: f32,
 ) -> BlockPaint {
     let wrap_width = (content_width - 2.0 * CODE_PADDING_PTS).max(1.0);
-    let layout = line_layout::layout_block(block, palette, wrap_width, bold_available);
+    let layout = line_layout::layout_block_with_base(
+        block,
+        palette,
+        wrap_width,
+        bold_available,
+        base_font_size,
+    );
     let galley = painter.layout_job(layout.job);
-    let inner_height = galley.rect.height().max(line_layout::BASE_FONT_SIZE);
+    let inner_height = galley.rect.height().max(base_font_size);
     let box_height = inner_height + 2.0 * CODE_PADDING_PTS;
 
     let box_rect = Rect::from_min_size(top_left, Vec2::new(content_width, box_height));
@@ -392,6 +444,7 @@ fn paint_list(
     content_width: f32,
     palette: &HsPalette,
     bold_available: bool,
+    base_font_size: f32,
 ) -> BlockPaint {
     let ordered = matches!(block.kind, NodeKind::OrderedList);
     let mut y = top_left.y;
@@ -408,7 +461,7 @@ fn paint_list(
             prefix_pos,
             egui::Align2::LEFT_TOP,
             &prefix,
-            FontId::proportional(line_layout::BASE_FONT_SIZE),
+            FontId::proportional(base_font_size),
             palette.text_subtle,
         );
         // Paint the item content (its first inline child block, else the item itself).
@@ -418,15 +471,21 @@ fn paint_list(
             .find_map(Child::as_block)
             .unwrap_or(item);
         let wrap_width = (content_width - LIST_INDENT_PTS).max(1.0);
-        let layout = line_layout::layout_block(inner, palette, wrap_width, bold_available);
+        let layout = line_layout::layout_block_with_base(
+            inner,
+            palette,
+            wrap_width,
+            bold_available,
+            base_font_size,
+        );
         let galley = painter.layout_job(layout.job);
-        let h = galley.rect.height().max(line_layout::BASE_FONT_SIZE);
+        let h = galley.rect.height().max(base_font_size);
         let origin = egui::pos2(top_left.x + LIST_INDENT_PTS, y);
         painter.galley(origin, galley, palette.text);
         y += h;
         number += 1;
     }
-    let height = (y - top_left.y).max(line_layout::BASE_FONT_SIZE);
+    let height = (y - top_left.y).max(base_font_size);
     BlockPaint {
         height: height + BLOCK_GAP_PTS,
         caret_galley: None,
@@ -444,6 +503,7 @@ fn paint_table(
     content_width: f32,
     palette: &HsPalette,
     bold_available: bool,
+    base_font_size: f32,
 ) -> BlockPaint {
     let rows: Vec<&BlockNode> = block.children.iter().filter_map(Child::as_block).collect();
     if rows.is_empty() {
@@ -459,7 +519,7 @@ fn paint_table(
         .unwrap_or(1)
         .max(1);
     let col_w = content_width / cols as f32;
-    let row_h = line_layout::BASE_FONT_SIZE + 8.0;
+    let row_h = base_font_size + 8.0;
     let mut y = top_left.y;
     for row in &rows {
         let cells: Vec<&BlockNode> = row.children.iter().filter_map(Child::as_block).collect();
@@ -481,7 +541,13 @@ fn paint_table(
                 .iter()
                 .find_map(Child::as_block)
                 .unwrap_or(cell);
-            let layout = line_layout::layout_block(inner, palette, col_w - 6.0, bold_available);
+            let layout = line_layout::layout_block_with_base(
+                inner,
+                palette,
+                col_w - 6.0,
+                bold_available,
+                base_font_size,
+            );
             let galley = cell_painter.layout_job(layout.job);
             cell_painter.galley(egui::pos2(x + 3.0, y + 4.0), galley, palette.text);
         }
@@ -500,8 +566,9 @@ fn paint_horizontal_rule(
     top_left: egui::Pos2,
     content_width: f32,
     palette: &HsPalette,
+    base_font_size: f32,
 ) -> BlockPaint {
-    let y = top_left.y + line_layout::BASE_FONT_SIZE / 2.0;
+    let y = top_left.y + base_font_size / 2.0;
     painter.line_segment(
         [
             egui::pos2(top_left.x, y),
@@ -510,7 +577,7 @@ fn paint_horizontal_rule(
         Stroke::new(1.0, palette.border),
     );
     BlockPaint {
-        height: line_layout::BASE_FONT_SIZE + BLOCK_GAP_PTS,
+        height: base_font_size + BLOCK_GAP_PTS,
         caret_galley: None,
     }
 }
@@ -527,9 +594,30 @@ pub fn paint_caret(
     palette: &HsPalette,
     visible: bool,
 ) {
+    paint_caret_with_base(
+        painter,
+        galley,
+        origin,
+        caret,
+        palette,
+        visible,
+        line_layout::BASE_FONT_SIZE,
+    );
+}
+
+pub fn paint_caret_with_base(
+    painter: &egui::Painter,
+    galley: &egui::Galley,
+    origin: egui::Pos2,
+    caret: &DocCaret,
+    palette: &HsPalette,
+    visible: bool,
+    base_font_size: f32,
+) {
     if !caret.collapsed || !visible {
         return;
     }
+    let base_font_size = line_layout::resolved_base_font_size(base_font_size);
     let max = galley.job.text.chars().count();
     let clamped = caret.char_offset().min(max);
     let cursor = egui::epaint::text::cursor::CCursor::new(clamped);
@@ -537,10 +625,7 @@ pub fn paint_caret(
     let local = galley.pos_from_cursor(cursor);
     let caret_rect = Rect::from_min_size(
         egui::pos2(origin.x + local.min.x, origin.y + local.min.y),
-        Vec2::new(
-            CARET_WIDTH_PTS,
-            local.height().max(line_layout::BASE_FONT_SIZE),
-        ),
+        Vec2::new(CARET_WIDTH_PTS, local.height().max(base_font_size)),
     );
     painter.rect_filled(caret_rect, 0.0, palette.text);
 }

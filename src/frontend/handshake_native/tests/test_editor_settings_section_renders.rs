@@ -163,29 +163,32 @@ fn editor_controls_expose_stable_accesskit_author_ids() {
     }
 }
 
-// ── WP-KERNEL-012 wave-5 (item 2): inert live-effect controls render an HONEST typed-state note ───────
+// ── WP-KERNEL-012 wave-6 (S6 item 3): the font-size + Custom palette controls render an HONEST LIVE-effect
+//    note (the MT-072 inert follow-up is now wired: both apply to the mounted editor) ────────────────────
 #[test]
-fn editor_settings_inert_controls_show_honest_typed_state() {
-    // The editor font-size + Custom syntax palette PERSIST + round-trip but do NOT yet take effect on the
-    // mounted code editor (font: no live font-size slot; palette: the code pane draws theme tokens). Rather
-    // than a silent no-op, each control renders an inline HONEST typed-state note. Prove the note is live in
-    // the AccessKit tree (a no-context operator/model sees the disclosure, not a lying "it works" control).
+fn editor_settings_controls_show_honest_live_effect_note() {
+    // S6 item 3 resolved the MT-072 typed follow-up: editor_font_size now resizes the mounted code editor
+    // plus rich editor document text, and a Custom syntax palette repaints code/minimap syntax rows (see
+    // `HandshakeApp::sync_editor_prefs_to_panel`). The inline notes are now a LIVE-effect disclosure
+    // (honest about what applies live AND the small gutter sizing follow-up). Prove the updated note is live
+    // in the AccessKit tree (a no-context operator/model reads the real disclosure, not the stale
+    // "not yet wired" text).
     {
         let harness = open_settings_searched("editor", SyntaxPaletteMode::Standard);
         assert!(
             harness
-                .query_by_label_contains("no live font-size slot")
+                .query_by_label_contains("resizes the mounted code editor and rich editor")
                 .is_some(),
-            "item 2: the font-size control must render an honest typed-state note (declared inert), not a silent no-op"
+            "S6 item 3: the font-size control must render its LIVE-effect note (it now resizes the running editor)"
         );
     }
     {
         let harness = open_settings_searched("syntax", SyntaxPaletteMode::Custom);
         assert!(
             harness
-                .query_by_label_contains("active theme's syntax tokens")
+                .query_by_label_contains("repaints the mounted code editor")
                 .is_some(),
-            "item 2: the syntax palette must render an honest typed-state note about its inert live draw"
+            "S6 item 3: the syntax palette must render its LIVE-effect note (a Custom swatch repaints the running pane)"
         );
     }
 }

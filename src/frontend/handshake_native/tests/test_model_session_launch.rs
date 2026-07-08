@@ -175,7 +175,10 @@ fn capture_server_collecting_delayed(
     let base_url = format!("http://{}", listener.local_addr().expect("local addr"));
     let join = std::thread::spawn(move || {
         let mut captured = Vec::new();
-        let mut deadline = Instant::now() + Duration::from_secs(5);
+        // WGPU/kittest startup can exceed five seconds in the full parallel Rust test harness before
+        // the AccessKit click reaches this server. Keep the pre-first-request window bounded but long
+        // enough that the capture server does not exit before the product gets a chance to POST.
+        let mut deadline = Instant::now() + Duration::from_secs(30);
         while captured.len() < max_requests {
             match listener.accept() {
                 Ok((mut stream, _)) => {
@@ -227,6 +230,38 @@ fn wait_for_model_session_result(
         }
         std::thread::sleep(Duration::from_millis(25));
     }
+}
+
+fn assert_operator_launch_has_no_governed_or_simulated_inputs(inputs: &serde_json::Value) {
+    assert!(
+        inputs.get("wp_id").is_none(),
+        "operator launch must not carry a wp_id (misattribution)"
+    );
+    assert!(
+        inputs.get("mt_id").is_none(),
+        "operator launch must not carry an mt_id (misattribution)"
+    );
+    assert!(
+        inputs.get("prompt").is_none(),
+        "operator launch must not bake a canned prompt into job_inputs"
+    );
+    assert!(
+        inputs.get("simulate_duration_ms").is_none(),
+        "production launch must not carry a simulation knob"
+    );
+}
+
+fn assert_native_workspace_model_launch_contract(inputs: &serde_json::Value) {
+    assert_eq!(
+        inputs["launch_surface"],
+        serde_json::json!("handshake_native"),
+        "native model-session jobs must mark the launch surface for backend contract validation"
+    );
+    assert_eq!(
+        inputs["launch_mode"],
+        serde_json::json!("workspace_model_session"),
+        "native model-session jobs must mark the workspace-session launch mode"
+    );
 }
 
 fn dispatch_foreground_safe_step(
@@ -366,6 +401,7 @@ fn foreground_safe_navigation_launch_posts_jobs_and_surfaces_status() {
         captured.body["job_inputs"]["working_dir"],
         serde_json::json!("D:/Projects/Handshake/repo")
     );
+    assert_native_workspace_model_launch_contract(&captured.body["job_inputs"]);
     assert_eq!(
         captured.body["job_inputs"]["model_id"],
         serde_json::json!("qwen2.5-coder:7b")
@@ -374,6 +410,7 @@ fn foreground_safe_navigation_launch_posts_jobs_and_surfaces_status() {
         captured.body["job_inputs"]["wrapper"],
         serde_json::json!("repo-folder-wrapper-v1")
     );
+    assert_operator_launch_has_no_governed_or_simulated_inputs(&captured.body["job_inputs"]);
     let captured_session_id = captured.body["job_inputs"]["session_id"]
         .as_str()
         .expect("captured session_id is a string");
@@ -404,6 +441,10 @@ fn foreground_safe_navigation_launch_posts_jobs_and_surfaces_status() {
     assert!(status.contains("NEEDS_MANAGED_RESOURCE_PROOF"));
     assert!(status.contains("EndpointMissing kernel_swarm_spawn_session"));
     assert!(
+        status.contains("kernel_model_runtime_load"),
+        "local-provider status must name the missing IPC-only local model load route: {status}"
+    );
+    assert!(
         !harness.state().model_session_launch_pending_for_test(),
         "pending flag clears after the foreground-safe /jobs result drains"
     );
@@ -422,6 +463,10 @@ fn foreground_safe_navigation_launch_posts_jobs_and_surfaces_status() {
     assert!(label.contains("Model session: /jobs job job-mt101-fgsafe"));
     assert!(label.contains("workflow workflow-mt101-fgsafe"));
     assert!(label.contains(&format!("session {captured_session_id}")));
+    assert!(
+        label.contains("kernel_model_runtime_load"),
+        "AccessKit status must expose the local-load blocker: {label}"
+    );
 
     let image = harness.render().unwrap_or_else(|e| {
         panic!("HBR-VIS: MT-101 foreground-safe post-submit screenshot render is required: {e}")
@@ -473,6 +518,7 @@ fn model_session_launch_request_builds_real_jobs_post_with_explicit_fields() {
         "folder-only launch must not invent a doc_id"
     );
     let inputs = &body["job_inputs"];
+    assert_native_workspace_model_launch_contract(inputs);
     assert_eq!(
         inputs["session_id"],
         serde_json::json!("session-mt101-local")
@@ -496,22 +542,7 @@ fn model_session_launch_request_builds_real_jobs_post_with_explicit_fields() {
     // MT-101 REMEDIATION: an OPERATOR launch carries NO governed-work attribution (previously every
     // launch was hardcoded to WP-KERNEL-012/MT-101 — misattribution), no canned prompt, and no
     // simulation knob. All three keys must be ABSENT from the wire body.
-    assert!(
-        inputs.get("wp_id").is_none(),
-        "operator launch must not carry a wp_id (misattribution)"
-    );
-    assert!(
-        inputs.get("mt_id").is_none(),
-        "operator launch must not carry an mt_id (misattribution)"
-    );
-    assert!(
-        inputs.get("prompt").is_none(),
-        "operator launch must not bake a canned prompt into job_inputs"
-    );
-    assert!(
-        inputs.get("simulate_duration_ms").is_none(),
-        "production launch must not carry a simulation knob"
-    );
+    assert_operator_launch_has_no_governed_or_simulated_inputs(inputs);
 }
 
 #[test]
@@ -645,6 +676,11 @@ fn model_session_direct_spawn_records_local_replay_gaps_without_fake_runtime_bin
 
     let err = ModelSessionLaunchClient::direct_spawn_workspace("http://127.0.0.1:37501", &request)
         .expect_err("direct spawn is IPC-only, not a fake session");
+    let err_text = err.to_string();
+    assert!(
+        err_text.contains("kernel_model_runtime_load"),
+        "local-provider blocker must name the IPC-only local model load channel, not only direct spawn: {err_text}"
+    );
     match err {
         ModelSessionLaunchError::EndpointMissing { request, .. } => {
             assert_eq!(request.session_id, "session-mt101-local-replay");
@@ -673,7 +709,10 @@ fn model_session_launch_command_is_addressable_and_enabled() {
     assert_eq!(row.stable_id, MODEL_SESSION_LAUNCH_WORKSPACE_STABLE_ID);
     assert_eq!(row.label, "Model Session: Launch in Workspace Folder");
     assert!(!row.disabled);
-    assert!(!effective_disabled(row, true));
+    assert!(!effective_disabled(
+        row,
+        handshake_native::command_registry::EditorMenuEnableContext::unavailable()
+    ));
     assert!(row.description.contains("POST /jobs"));
     assert!(row.description.contains("EndpointMissing"));
     assert!(row.description.contains("Tauri IPC-only"));
@@ -787,6 +826,7 @@ fn launch_dialog_posts_jobs_on_the_wire_and_surfaces_honest_status() {
         captured.body["job_inputs"]["working_dir"],
         serde_json::json!("D:/Projects/Handshake/repo")
     );
+    assert_native_workspace_model_launch_contract(&captured.body["job_inputs"]);
     let captured_session_id = captured.body["job_inputs"]["session_id"]
         .as_str()
         .expect("captured session_id is a string");
@@ -802,6 +842,7 @@ fn launch_dialog_posts_jobs_on_the_wire_and_surfaces_honest_status() {
         captured.body["job_inputs"]["wrapper"],
         serde_json::json!("repo-folder-wrapper-v1")
     );
+    assert_operator_launch_has_no_governed_or_simulated_inputs(&captured.body["job_inputs"]);
 
     for _ in 0..20 {
         harness.run();
@@ -831,6 +872,10 @@ fn launch_dialog_posts_jobs_on_the_wire_and_surfaces_honest_status() {
     assert!(status.contains("NEEDS_MANAGED_RESOURCE_PROOF"));
     assert!(status.contains("EndpointMissing kernel_swarm_spawn_session"));
     assert!(
+        status.contains("kernel_model_runtime_load"),
+        "local-provider status must name the missing IPC-only local model load route: {status}"
+    );
+    assert!(
         status.contains(&format!(
             "{base_url}{MODEL_SESSION_DIRECT_SPAWN_PROBED_PATH}"
         )),
@@ -859,6 +904,10 @@ fn launch_dialog_posts_jobs_on_the_wire_and_surfaces_honest_status() {
     );
     assert!(label.contains(&format!("session {captured_session_id}")));
     assert!(label.contains("EndpointMissing kernel_swarm_spawn_session"));
+    assert!(
+        label.contains("kernel_model_runtime_load"),
+        "AccessKit status must expose the local-load blocker: {label}"
+    );
     let (_, _, inline_label) = nodes
         .iter()
         .find(|(author_id, _, _)| author_id == MODEL_SESSION_LAUNCH_INLINE_STATUS_AUTHOR_ID)
@@ -891,6 +940,75 @@ fn launch_dialog_posts_jobs_on_the_wire_and_surfaces_honest_status() {
     assert!(
         saved,
         "HBR-VIS: post-submit model-session status screenshot PNG saved"
+    );
+}
+
+#[test]
+fn launch_dialog_posts_cloud_jobs_without_governed_or_running_claim() {
+    let _test_guard = model_session_test_guard();
+    let _guard = wgpu_guard();
+    let rt = runtime();
+    let (base_url, captured) = capture_server(
+        r#"{"job_id":"job-mt101-cloud","id":"workflow-mt101-cloud","status":"queued"}"#,
+    );
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test(&base_url, rt.handle().clone());
+    app.set_model_session_launch_dialog_for_test(ModelSessionLaunchDialogState {
+        provider: ModelSessionProvider::Cloud,
+        workspace_folder: "D:/Projects/Handshake/repo".to_owned(),
+        model_id: "gpt-5.4".to_owned(),
+        wrapper: "repo-folder-wrapper-v1".to_owned(),
+    });
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 700.0))
+        .wgpu()
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+    harness.get_by_label("Launch model session").click();
+    harness.run();
+
+    let captured = captured.join().expect("captured cloud POST /jobs");
+    assert_eq!(
+        captured.request_line,
+        format!("POST {MODEL_SESSION_JOBS_PATH} HTTP/1.1")
+    );
+    let inputs = &captured.body["job_inputs"];
+    assert_native_workspace_model_launch_contract(inputs);
+    assert_eq!(inputs["model_provider"], serde_json::json!("cloud"));
+    assert_eq!(inputs["backend"], serde_json::json!("cloud"));
+    assert_eq!(inputs["model_id"], serde_json::json!("gpt-5.4"));
+    assert_eq!(
+        inputs["wrapper"],
+        serde_json::json!("repo-folder-wrapper-v1")
+    );
+    assert_operator_launch_has_no_governed_or_simulated_inputs(inputs);
+
+    for _ in 0..20 {
+        harness.run();
+        if harness
+            .state()
+            .model_session_launch_status_for_test()
+            .is_some_and(|s| s.contains("Model session: /jobs job job-mt101-cloud"))
+        {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    }
+
+    let status = harness
+        .state()
+        .model_session_launch_status_for_test()
+        .expect("cloud model-session status exists");
+    assert!(status.contains("Model session: /jobs job job-mt101-cloud"));
+    assert!(status.contains("workflow workflow-mt101-cloud"));
+    assert!(status.contains("NEEDS_MANAGED_RESOURCE_PROOF"));
+    assert!(
+        !status.contains("model running") && !status.contains("loaded/running"),
+        "cloud /jobs creation must not be advertised as live model execution: {status}"
+    );
+    assert!(
+        !status.contains("kernel_model_runtime_load"),
+        "cloud-provider status must not report the local GGUF load blocker: {status}"
     );
 }
 

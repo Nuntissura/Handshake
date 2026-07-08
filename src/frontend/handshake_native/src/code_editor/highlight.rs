@@ -149,24 +149,14 @@ impl HighlightScope {
 /// Every mode resolves EVERY scope to a concrete color: there is no gap and no panic on any
 /// `HighlightScope` lookup (AC-004 — a test iterates all variants for all three modes).
 ///
-/// TYPED FOLLOW-UP BLOCKER (panel.rs + minimap.rs are OUTSIDE MT-072's allowed_paths, and unlike the
-/// editor-prefs + code-keymap wiring there is NO public `&self` seam on the mounted panel to inject the
-/// palette into the per-frame render): the live render call sites
-/// `code_editor::panel::scope_to_color(scope, &HsSyntaxTokens)` (panel.rs single-line + multi-line draw
-/// paths) and `minimap::scope_to_color` still read the theme's fixed `HsSyntaxTokens`, so a Custom
-/// swatch edit changes THIS seam's resolved color (proven live in the MT tests) but does NOT yet repaint
-/// the running editor. Routing those render sites through `resolve_scope_color(scope, &syntax_palette)`
-/// requires editing panel.rs/minimap.rs (a render-call-site change with no settings-flow seam to route
-/// through), which is the editor-highlight wiring follow-up packet recorded in the MT handoff. AC-003 is
-/// therefore SEAM-PROVEN (this function reacts live), NOT live-proven at the editor surface; the WP
-/// validator must record AC-003 as seam-only, not GREEN. This function is the seam that follow-up routes
-/// through, and it is directly proven live here + in the MT tests.
+/// LIVE RENDER NOTE (wave-6 hardening): the mounted code-panel body and minimap now install the active
+/// [`SyntaxPalette`] from the shell and call this resolver for Custom-mode scope colors. A Custom swatch
+/// edit therefore repaints the running code body and minimap rows instead of proving only this seam.
 ///
 /// (Contrast: editor PREFS — tab size / insert-spaces / render-whitespace / word-wrap — and the CODE
 /// keybinding overrides ARE wired into the live editor in `app.rs` via the panel's existing public
 /// `set_indent_settings` / `set_render_whitespace` / `set_wrap_*` / `reload_keymap_from_settings`
-/// setters, so those are live-proven. Only the syntax-color render path, the editor FONT SIZE — no panel
-/// slot — and RICH keybinding overrides — no live rich keymap seam — remain typed follow-up blockers.)
+/// setters, so those are live-proven. Rich keybinding overrides still have no live rich keymap seam.)
 pub fn resolve_scope_color(
     scope: HighlightScope,
     palette: &crate::workspace_settings::SyntaxPalette,

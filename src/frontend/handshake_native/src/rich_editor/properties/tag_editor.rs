@@ -105,8 +105,12 @@ pub fn tag_editor(ui: &mut egui::Ui, state: &mut PropertiesState, palette: &HsPa
                     accesskit::Role::TextInput,
                     "tag-new-input",
                 );
-                resp.request_focus();
-                let commit = resp.lost_focus();
+                if state.new_tag_focus_pending {
+                    resp.request_focus();
+                    state.new_tag_focus_pending = false;
+                }
+                let enter = resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                let commit = resp.lost_focus() || enter;
                 if commit {
                     // Add the typed tag (no-op for blank/duplicate) and close the input.
                     if !buf.trim().is_empty() {
@@ -127,6 +131,7 @@ pub fn tag_editor(ui: &mut egui::Ui, state: &mut PropertiesState, palette: &HsPa
                 );
                 if add.clicked() {
                     state.new_tag_input = Some(String::new());
+                    state.new_tag_focus_pending = true;
                 }
             }
         }

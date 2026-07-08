@@ -24,12 +24,14 @@
 //!   (reached the shell) — no event left unrouted.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::code_editor::lsp_client::{LspClient, LspServerConfig};
 use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
@@ -534,7 +536,9 @@ fn editor_action_nodes_present_in_live_shell_tree() {
         ids.contains("editor.code.save"),
         "MT-041: the LIVE app tree carries the canonical 'editor.code.save' action node (registry \
          installed at mount, not kittest-only); got editor.* subset {:?}",
-        ids.iter().filter(|i| i.starts_with("editor.")).collect::<Vec<_>>()
+        ids.iter()
+            .filter(|i| i.starts_with("editor."))
+            .collect::<Vec<_>>()
     );
     assert!(
         ids.contains("editor.rich.save"),
@@ -592,4 +596,196 @@ fn lsp_attach_state_is_typed_after_runtime_bind() {
              never NotProbed"
         ),
     }
+}
+
+/// The shipped `HandshakeApp::new(cc)` path owns a runtime from construction, so it must also run the
+/// MT-008 LSP probe without relying on the test-only `set_runtime_handle` seam.
+#[test]
+fn lsp_attach_state_is_typed_after_production_constructor() {
+    use handshake_native::app::LspAttachState;
+
+    let harness: Harness<HandshakeApp> =
+        Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
+    let app = harness.state();
+    let panel = app.mounted_code_panel();
+    match app.lsp_attach_state() {
+        LspAttachState::Attached { command } => {
+            assert!(
+                !command.is_empty(),
+                "MT-008: production Attached carries a command"
+            );
+            assert!(
+                panel.lsp_client().is_configured(),
+                "MT-008: production constructor installed a configured LSP client"
+            );
+            println!("MT-008 production constructor attach state: Attached via '{command}'");
+        }
+        LspAttachState::Absent {
+            language_id,
+            probed_command,
+        } => {
+            assert_eq!(language_id, "rust");
+            assert_eq!(probed_command, "rust-analyzer");
+            assert!(
+                !panel.lsp_client().is_configured(),
+                "MT-008: production Absent leaves the graceful disabled client"
+            );
+            println!(
+                "MT-008 production constructor attach state: typed Absent after probing \
+                 '{probed_command}'"
+            );
+        }
+        LspAttachState::NotProbed => {
+            panic!("MT-008: production HandshakeApp::new(cc) must probe LSP during construction")
+        }
+    }
+}
+
+/// A mounted, file-backed code pane pushes `didOpen` on first frame and `didChange` after the buffer
+/// version changes. This proves the live app drive loop reaches MT-008 document sync; it is gated by
+/// actual LSP discovery so hosts without rust-analyzer report a typed skip rather than faking a server.
+#[test]
+fn lsp_file_backed_document_sync_watermark_advances_on_open_and_change() {
+    use handshake_native::app::LspAttachState;
+
+    let (app, _rt) = editor_shell();
+    let panel = app.mounted_code_panel();
+    match app.lsp_attach_state() {
+        LspAttachState::Attached { command } => {
+            println!("MT-008 doc sync proof using discovered LSP command '{command}'");
+        }
+        LspAttachState::Absent {
+            language_id,
+            probed_command,
+        } => {
+            eprintln!(
+                "SKIP (typed): MT-008 doc sync proof needs a discovered LSP server; \
+                 language_id={language_id}, probed_command={probed_command}"
+            );
+            return;
+        }
+        LspAttachState::NotProbed => panic!("MT-008: shell must probe before document sync"),
+    }
+
+    let ext_dir = external_artifact_dir("wp-kernel-012-mt-008");
+    std::fs::create_dir_all(&ext_dir).expect("create MT-008 external artifact dir");
+    let source_path = ext_dir.join(format!("mt-008-lsp-sync-proof-{}.rs", std::process::id()));
+    std::fs::write(&source_path, "fn main() {}\n").expect("write LSP proof source");
+    panel.load_file(source_path.to_string_lossy());
+    panel.set_text("fn main() {}\n");
+    let open_version = panel.buffer_version_for_test();
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    let (open_uri, synced_open_version) = harness
+        .state()
+        .lsp_doc_sync_watermark()
+        .expect("MT-008: didOpen watermark after file-backed frame");
+    assert!(
+        open_uri.starts_with("file:///"),
+        "MT-008: didOpen uses a file URI, got {open_uri}"
+    );
+    assert_eq!(
+        synced_open_version, open_version,
+        "MT-008: didOpen watermark records the current buffer version"
+    );
+
+    panel.set_text("fn main() {\n    let x = 1;\n}\n");
+    let change_version = panel.buffer_version_for_test();
+    harness.run_steps(3);
+    let (change_uri, synced_change_version) = harness
+        .state()
+        .lsp_doc_sync_watermark()
+        .expect("MT-008: didChange watermark after edit");
+    assert_eq!(
+        change_uri, open_uri,
+        "MT-008: didChange stays on the same URI"
+    );
+    assert_eq!(
+        synced_change_version, change_version,
+        "MT-008: didChange advances the document-sync watermark after buffer_version changes"
+    );
+}
+
+/// App-level deterministic proof for the reopened MT-008 defect: the shipped host frame pump does not
+/// merely advance a watermark; it sends the actual LSP `textDocument/didOpen` and
+/// `textDocument/didChange` notifications through the mounted panel's real LSP transport.
+#[test]
+fn lsp_file_backed_document_sync_sends_didopen_didchange_notifications() {
+    fn read_lsp_request(
+        rt: &tokio::runtime::Runtime,
+        client: &LspClient,
+        label: &str,
+    ) -> serde_json::Value {
+        rt.block_on(async {
+            tokio::time::timeout(
+                std::time::Duration::from_secs(2),
+                client.read_test_request(),
+            )
+            .await
+            .unwrap_or_else(|_| panic!("MT-008: timed out waiting for {label} LSP frame"))
+            .unwrap_or_else(|| panic!("MT-008: missing {label} LSP frame"))
+        })
+    }
+
+    let (mut app, rt) = editor_shell();
+    let client = Arc::new(LspClient::new(LspServerConfig::command("in-memory-lsp")));
+    let _server_write = rt.block_on(async { client.install_test_transport() });
+    app.install_mounted_code_lsp_client_for_test(Arc::clone(&client), "in-memory-lsp");
+
+    let panel = app.mounted_code_panel();
+    let ext_dir = external_artifact_dir("wp-kernel-012-mt-008");
+    std::fs::create_dir_all(&ext_dir).expect("create MT-008 external artifact dir");
+    let source_path = ext_dir.join(format!("mt-008-lsp-frame-proof-{}.rs", std::process::id()));
+    std::fs::write(&source_path, "fn main() {}\n").expect("write LSP frame proof source");
+    panel.load_file(source_path.to_string_lossy());
+    panel.set_text("fn main() {}\n");
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    let open = read_lsp_request(&rt, &client, "didOpen");
+    assert_eq!(
+        open.get("method").and_then(|v| v.as_str()),
+        Some("textDocument/didOpen"),
+        "MT-008: host pump sent didOpen, got {open}"
+    );
+    let open_doc = &open["params"]["textDocument"];
+    assert!(
+        open_doc["uri"]
+            .as_str()
+            .is_some_and(|uri| uri.starts_with("file:///")),
+        "MT-008: didOpen carries a file URI, got {open_doc}"
+    );
+    assert_eq!(
+        open_doc["languageId"].as_str(),
+        Some("rust"),
+        "MT-008: didOpen carries the mounted code pane language"
+    );
+    assert_eq!(
+        open_doc["text"].as_str(),
+        Some("fn main() {}\n"),
+        "MT-008: didOpen carries the current buffer text"
+    );
+
+    panel.set_text("fn main() {\n    let x = 1;\n}\n");
+    let change_version = panel.buffer_version_for_test();
+    harness.run_steps(3);
+    let change = read_lsp_request(&rt, &client, "didChange");
+    assert_eq!(
+        change.get("method").and_then(|v| v.as_str()),
+        Some("textDocument/didChange"),
+        "MT-008: host pump sent didChange, got {change}"
+    );
+    assert_eq!(
+        change["params"]["textDocument"]["version"].as_i64(),
+        Some(change_version as i64),
+        "MT-008: didChange carries the buffer_version observed by the host"
+    );
+    assert_eq!(
+        change["params"]["contentChanges"][0]["text"].as_str(),
+        Some("fn main() {\n    let x = 1;\n}\n"),
+        "MT-008: didChange carries the changed full document text"
+    );
 }

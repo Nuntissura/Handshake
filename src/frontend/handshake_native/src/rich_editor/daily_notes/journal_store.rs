@@ -75,19 +75,6 @@ impl JournalBlock {
     }
 }
 
-/// The `RichDocLoad` envelope (`GET /knowledge/documents/{id}` returns `{ document, tree, code_nodes }`).
-/// The journal panel needs the document id + version (for save) + the content_json (to render).
-#[derive(Debug, Clone, Deserialize)]
-struct RichDocLoadEnvelope {
-    document: RichDocumentBody,
-}
-
-/// The create-document response envelope (`POST /knowledge/documents` → `{ document, save_receipt_event_id }`).
-#[derive(Debug, Clone, Deserialize)]
-struct CreateDocEnvelope {
-    document: RichDocumentBody,
-}
-
 /// The subset of the backend `RichDocument` (api.ts lines 3028-3048) the journal panel consumes: the
 /// id, the monotonic version (the MT-020 save seam's `expected_version`), and the `content_json` the
 /// MT-012 renderer paints. `#[serde(default)]` on `content_json` so a never-saved document (null body)
@@ -179,28 +166,51 @@ pub trait JournalBackend: Send + Sync {
     ) -> JournalFuture<'a, JournalDocLoad>;
 }
 
-/// The production [`JournalBackend`]: a thin wrapper over a `reqwest::Client` against the verified
-/// backend endpoints, mapping HTTP status to the typed [`JournalError`] vocabulary. REUSES the existing
-/// reqwest 0.12 + rustls stack from `backend_client` — NO new HTTP crate. Read/write of the EXISTING
-/// loom-journal + knowledge-document APIs only; no backend code is touched.
+/// The production [`JournalBackend`]: a thin wrapper over the verified Loom journal endpoint plus the
+/// consolidated knowledge-documents client for linked document load/create. The Loom route intentionally
+/// sends no identity headers (verified in `backend::loom`), while every `/knowledge/documents/*` request
+/// goes through [`crate::backend::knowledge_documents::KnowledgeDocumentsClient`] so the required
+/// `x-hsk-*` identity headers are attached. Read/write of the EXISTING APIs only; no backend code is
+/// touched.
 #[derive(Clone)]
 pub struct ReqwestJournalBackend {
     client: reqwest::Client,
+    document_client: crate::backend::knowledge_documents::KnowledgeDocumentsClient,
     base_url: String,
+    session_run_id: String,
 }
 
 impl ReqwestJournalBackend {
     /// Build a backend client against `base_url` (e.g. `backend_client::BACKEND_BASE_URL`).
     pub fn new(base_url: impl Into<String>) -> Self {
+        let base_url = base_url.into();
+        let client = reqwest::Client::new();
         Self {
-            client: reqwest::Client::new(),
-            base_url: base_url.into(),
+            document_client:
+                crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
+                    client.clone(),
+                    base_url.clone(),
+                ),
+            client,
+            base_url,
+            session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
         }
     }
 
     /// The production client against the hardcoded backend base URL.
     pub fn production() -> Self {
-        Self::new(crate::backend_client::BACKEND_BASE_URL)
+        let base_url = crate::backend_client::BACKEND_BASE_URL.to_owned();
+        let client = crate::backend_client::shared_http_client();
+        Self {
+            document_client:
+                crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
+                    client.clone(),
+                    base_url.clone(),
+                ),
+            client,
+            base_url,
+            session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
+        }
     }
 
     /// The REST base this client talks to.
@@ -215,18 +225,63 @@ impl ReqwestJournalBackend {
         )
     }
 
+    #[cfg(test)]
     fn document_url(&self, document_id: &str) -> String {
         format!("{}/knowledge/documents/{}", self.base_url, document_id)
     }
 
+    #[cfg(test)]
     fn create_document_url(&self) -> String {
         format!("{}/knowledge/documents", self.base_url)
+    }
+
+    fn read_headers(
+        &self,
+        document_id: &str,
+    ) -> crate::backend::knowledge_documents::HskDocumentHeaders {
+        crate::backend::knowledge_documents::HskDocumentHeaders::for_read(
+            self.session_run_id.clone(),
+            document_id,
+        )
+    }
+
+    fn write_headers(
+        &self,
+        document_id: &str,
+    ) -> crate::backend::knowledge_documents::HskDocumentHeaders {
+        crate::backend::knowledge_documents::HskDocumentHeaders::for_operator(
+            self.session_run_id.clone(),
+            document_id,
+        )
     }
 }
 
 /// Map a non-success HTTP status to a short `"HTTP {code}"` reason carried by the typed error.
 fn status_reason(status: u16, what: &str) -> String {
     format!("{what} returned HTTP {status}")
+}
+
+fn document_client_error_to_journal_error(
+    error: crate::backend::knowledge_documents::KnowledgeDocumentsError,
+    operation: &str,
+) -> JournalError {
+    let msg = error.to_string();
+    match operation {
+        "load" => JournalError::DocLoadFailed(msg),
+        "create" => JournalError::CreateFailed(msg),
+        "save" => JournalError::SaveFailed(msg),
+        _ => JournalError::OpenFailed(msg),
+    }
+}
+
+fn parse_loaded_document(value: serde_json::Value) -> Result<RichDocumentBody, JournalError> {
+    serde_json::from_value(value)
+        .map_err(|e| JournalError::DocLoadFailed(format!("load body invalid: {e}")))
+}
+
+fn parse_created_document(value: serde_json::Value) -> Result<RichDocumentBody, JournalError> {
+    serde_json::from_value(value)
+        .map_err(|e| JournalError::CreateFailed(format!("create body invalid: {e}")))
 }
 
 impl JournalBackend for ReqwestJournalBackend {
@@ -261,29 +316,16 @@ impl JournalBackend for ReqwestJournalBackend {
     }
 
     fn load_document<'a>(&'a self, document_id: &'a str) -> JournalFuture<'a, JournalDocLoad> {
-        let url = self.document_url(document_id);
-        let client = self.client.clone();
+        let client = self.document_client.clone();
+        let headers = self.read_headers(document_id);
         let document_id = document_id.to_owned();
         Box::pin(async move {
-            let response = client
-                .get(&url)
-                .timeout(std::time::Duration::from_secs(5))
-                .send()
+            let parsed = client
+                .load_document(&headers, &document_id)
                 .await
-                .map_err(|e| JournalError::DocLoadFailed(format!("load failed: {e}")))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(JournalError::DocLoadFailed(status_reason(
-                    status.as_u16(),
-                    &format!("document '{document_id}'"),
-                )));
-            }
-            let parsed: RichDocLoadEnvelope = response
-                .json()
-                .await
-                .map_err(|e| JournalError::DocLoadFailed(format!("load body invalid: {e}")))?;
+                .map_err(|e| document_client_error_to_journal_error(e, "load"))?;
             Ok(JournalDocLoad {
-                body: parsed.document,
+                body: parse_loaded_document(parsed.document)?,
             })
         })
     }
@@ -293,36 +335,25 @@ impl JournalBackend for ReqwestJournalBackend {
         workspace_id: &'a str,
         title: &'a str,
     ) -> JournalFuture<'a, JournalDocLoad> {
-        let url = self.create_document_url();
-        let client = self.client.clone();
+        let client = self.document_client.clone();
         let workspace_id = workspace_id.to_owned();
         let title = title.to_owned();
+        let headers = self.write_headers("journal-create");
         Box::pin(async move {
-            let body = serde_json::json!({
-                "workspace_id": workspace_id,
-                "title": title,
-                "content_json": serde_json::Value::Null,
-            });
-            let response = client
-                .post(&url)
-                .timeout(std::time::Duration::from_secs(5))
-                .json(&body)
-                .send()
+            let body = crate::backend::knowledge_documents::CreateDocumentRequest {
+                workspace_id,
+                title,
+                content_json: Some(serde_json::Value::Null),
+                schema_version: None,
+                project_ref: None,
+                folder_ref: None,
+            };
+            let parsed = client
+                .create_document(&headers, &body)
                 .await
-                .map_err(|e| JournalError::CreateFailed(format!("create failed: {e}")))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(JournalError::CreateFailed(status_reason(
-                    status.as_u16(),
-                    "create document",
-                )));
-            }
-            let parsed: CreateDocEnvelope = response
-                .json()
-                .await
-                .map_err(|e| JournalError::CreateFailed(format!("create body invalid: {e}")))?;
+                .map_err(|e| document_client_error_to_journal_error(e, "create"))?;
             Ok(JournalDocLoad {
-                body: parsed.document,
+                body: parse_created_document(parsed.document)?,
             })
         })
     }
@@ -344,26 +375,42 @@ pub trait JournalSaveSeam: Send + Sync {
     ) -> JournalFuture<'a, u64>;
 }
 
-/// The production save seam: `PUT /knowledge/documents/{id}/save` with `{ expected_version, content_json }`
-/// (the VERIFIED `saveRichDocument` body, api.ts lines 3245-3263). Reuses the existing reqwest stack.
+/// The production save seam: `PUT /knowledge/documents/{id}/save` with `{ expected_version,
+/// content_json }` (the VERIFIED `saveRichDocument` body, api.ts lines 3245-3263). Reuses the
+/// consolidated knowledge-documents client so required `x-hsk-*` headers and the one conflict semantic
+/// are not forked.
 #[derive(Clone)]
 pub struct ReqwestSaveSeam {
-    client: reqwest::Client,
+    client: crate::backend::knowledge_documents::KnowledgeDocumentsClient,
     base_url: String,
+    session_run_id: String,
 }
 
 impl ReqwestSaveSeam {
     /// Build a save seam against `base_url`.
     pub fn new(base_url: impl Into<String>) -> Self {
+        let base_url = base_url.into();
         Self {
-            client: reqwest::Client::new(),
-            base_url: base_url.into(),
+            client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_base_url(
+                base_url.clone(),
+            ),
+            base_url,
+            session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
         }
     }
 
     /// The production save seam against the hardcoded backend base URL.
     pub fn production() -> Self {
-        Self::new(crate::backend_client::BACKEND_BASE_URL)
+        Self {
+            client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::production(),
+            base_url: crate::backend_client::BACKEND_BASE_URL.to_owned(),
+            session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
+        }
+    }
+
+    /// The REST base this seam talks to.
+    pub fn base_url(&self) -> &str {
+        &self.base_url
     }
 }
 
@@ -374,34 +421,27 @@ impl JournalSaveSeam for ReqwestSaveSeam {
         expected_version: u64,
         content_json: serde_json::Value,
     ) -> JournalFuture<'a, u64> {
-        let url = format!("{}/knowledge/documents/{}/save", self.base_url, document_id);
         let client = self.client.clone();
+        let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_operator(
+            self.session_run_id.clone(),
+            document_id,
+        );
+        let document_id = document_id.to_owned();
         Box::pin(async move {
-            let body = serde_json::json!({
-                "expected_version": expected_version,
-                "content_json": content_json,
-            });
+            let body = crate::backend::knowledge_documents::SaveDocumentRequest {
+                expected_version: i64::try_from(expected_version).unwrap_or(i64::MAX),
+                content_json,
+                crdt_document_id: None,
+                crdt_snapshot_id: None,
+                promotion_receipt_event_id: None,
+            };
             let response = client
-                .put(&url)
-                .timeout(std::time::Duration::from_secs(5))
-                .json(&body)
-                .send()
+                .save_document(&headers, &document_id, &body)
                 .await
-                .map_err(|e| JournalError::SaveFailed(format!("save failed: {e}")))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(JournalError::SaveFailed(status_reason(
-                    status.as_u16(),
-                    "save document",
-                )));
-            }
-            let v: serde_json::Value = response
-                .json()
-                .await
-                .map_err(|e| JournalError::SaveFailed(format!("save body invalid: {e}")))?;
-            let new_version = v
-                .get("document")
-                .and_then(|d| d.get("doc_version"))
+                .map_err(|e| document_client_error_to_journal_error(e, "save"))?;
+            let new_version = response
+                .document
+                .get("doc_version")
                 .and_then(|x| x.as_u64())
                 .unwrap_or(expected_version.saturating_add(1));
             Ok(new_version)
@@ -504,6 +544,18 @@ impl JournalReady {
     /// True when the journal block has NO linked document yet (the "Start writing" empty state).
     pub fn needs_document(&self) -> bool {
         self.doc.is_none()
+    }
+
+    /// True when the editor has a document but the Loom journal block still has no matching durable
+    /// `document_id` link. The current backend can create a rich document, but its Loom-block PATCH
+    /// shape cannot set `document_id`; the UI must disclose that instead of pretending the block was
+    /// durably linked.
+    pub fn document_link_missing(&self) -> bool {
+        match (&self.block.document_id, &self.doc) {
+            (Some(block_doc), Some(doc)) => block_doc != &doc.rich_document_id,
+            (None, Some(_)) => true,
+            _ => false,
+        }
     }
 }
 
@@ -728,7 +780,11 @@ impl JournalStore {
                         ready.is_creating = false;
                         match result {
                             Ok(body) => {
-                                ready.block.document_id = Some(body.rich_document_id.clone());
+                                // Backend gap: `PATCH /loom/blocks/:id` cannot set `document_id`, so
+                                // a blank daily-journal block cannot be durably linked client-side.
+                                // Keep the created document usable in this editor session, but do not
+                                // falsify the Loom block's in-memory `document_id`; the UI surfaces
+                                // `document_link_missing()` as a typed visible gap.
                                 ready.doc = Some(body);
                             }
                             Err(kind) => {
@@ -1092,7 +1148,19 @@ mod tests {
             !ready.needs_document(),
             "the created document fills the Ready state"
         );
-        assert_eq!(ready.block.document_id.as_deref(), Some("KRD-NEW"));
+        assert_eq!(
+            ready.doc.as_ref().map(|d| d.rich_document_id.as_str()),
+            Some("KRD-NEW")
+        );
+        assert_eq!(
+            ready.block.document_id, None,
+            "backend PATCH /loom/blocks cannot set document_id, so the Loom block must not be \
+             falsified as durably linked"
+        );
+        assert!(
+            ready.document_link_missing(),
+            "the UI must surface the missing durable journal-block link"
+        );
         assert!(!ready.is_creating);
     }
 

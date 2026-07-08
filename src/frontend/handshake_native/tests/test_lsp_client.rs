@@ -14,9 +14,17 @@
 //! emits one error diagnostic frame (the MT impl-note minimal stdio mock, without spawning a real OS
 //! process so the test is deterministic + fast + focus-safe).
 
+use std::sync::Arc;
+
+use handshake_native::code_editor::gutter::{DiagnosticSeverity, GutterMarker, GutterMarkerKind};
+#[cfg(windows)]
+use handshake_native::code_editor::lsp_client::{
+    lsp_focus_safe_creation_flags_for_test, LSP_CREATE_NO_WINDOW_FLAG,
+};
 use handshake_native::code_editor::lsp_client::{
     published_diagnostics_from_lsp, LspClient, LspServerConfig,
 };
+use handshake_native::code_editor::CodeEditorPanel;
 
 /// AC-004: a client built with NO server config is not configured + not running.
 #[test]
@@ -37,6 +45,20 @@ fn lsp_client_graceful_unconfigured_is_not_running() {
     assert!(
         !configured.is_running(),
         "configured but not spawned until did_open"
+    );
+}
+
+/// HBR-QUIET / RISK-001: on Windows, LSP subprocesses must be created without a console window so model
+/// work never steals operator focus. The production spawn path reads this named option before
+/// `Command::spawn`.
+#[test]
+#[cfg(windows)]
+fn lsp_spawn_option_uses_create_no_window() {
+    assert_eq!(LSP_CREATE_NO_WINDOW_FLAG, 0x0800_0000);
+    assert_eq!(
+        lsp_focus_safe_creation_flags_for_test(),
+        LSP_CREATE_NO_WINDOW_FLAG,
+        "MT-008: production LSP spawn uses the named CREATE_NO_WINDOW option"
     );
 }
 
@@ -216,6 +238,132 @@ fn lsp_reader_skips_malformed_lines_then_routes_valid_frame() {
         assert_eq!(published.uri, "file:///ok.rs");
         assert_eq!(published.diagnostics[0].severity, 2);
         println!("RISK-003: malformed lines skipped; valid frame still routed");
+    });
+}
+
+/// AC-008: the client notification channel is not enough by itself. This drives the same framed
+/// `publishDiagnostics` reader into a mounted `CodeEditorPanel` and proves `drain_lsp_diagnostics`
+/// maps it onto the editor gutter marker store that the live UI renders.
+#[test]
+fn lsp_publish_diagnostics_notification_reaches_panel_gutter() {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    rt.block_on(async {
+        let panel = CodeEditorPanel::new("fn main() {}\n", "rs");
+        panel.set_file_path("mock.rs");
+        let client = Arc::new(LspClient::disabled());
+        let (client_read, mut mock_write) = tokio::io::duplex(8192);
+        client.spawn_reader_for_test(client_read);
+        panel.set_lsp_client(Arc::clone(&client));
+
+        let notification = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/publishDiagnostics",
+            "params": {
+                "uri": "file:///mock.rs",
+                "diagnostics": [{
+                    "range": {
+                        "start": { "line": 1, "character": 0 },
+                        "end": { "line": 1, "character": 5 }
+                    },
+                    "severity": 2,
+                    "message": "unused variable"
+                }]
+            }
+        });
+        use tokio::io::AsyncWriteExt;
+        mock_write
+            .write_all(&LspClient::frame_message_for_test(&notification))
+            .await
+            .expect("write publishDiagnostics frame");
+        mock_write.flush().await.expect("flush publishDiagnostics");
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+        let count = panel
+            .drain_lsp_diagnostics()
+            .expect("AC-008: panel drained the publishDiagnostics notification");
+        assert_eq!(count, 1, "AC-008: one gutter marker pushed");
+        let markers = panel.diagnostic_markers();
+        assert_eq!(
+            markers.len(),
+            1,
+            "AC-008: panel gutter now stores the marker"
+        );
+        assert_eq!(markers[0].line, 1, "AC-008: LSP line maps to gutter line");
+        assert_eq!(markers[0].message, "unused variable");
+        assert_eq!(
+            markers[0].kind,
+            GutterMarkerKind::Diagnostic(DiagnosticSeverity::Warning),
+            "AC-008: severity 2 maps to a warning gutter marker"
+        );
+        println!(
+            "AC-008 panel gutter proof: publishDiagnostics routed to CodeEditorPanel marker store"
+        );
+    });
+}
+
+/// AC-008 hardening: a language server may publish diagnostics for multiple files through one client.
+/// The panel must not let a different document's notification replace this file's gutter state.
+#[test]
+fn lsp_publish_diagnostics_ignores_non_matching_document_uri() {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    rt.block_on(async {
+        let panel = CodeEditorPanel::new("fn main() {}\n", "rs");
+        panel.set_file_path("mock.rs");
+        panel.push_diagnostics(vec![GutterMarker::diagnostic(
+            0,
+            DiagnosticSeverity::Error,
+            "existing marker",
+        )]);
+        let client = Arc::new(LspClient::disabled());
+        let (client_read, mut mock_write) = tokio::io::duplex(8192);
+        client.spawn_reader_for_test(client_read);
+        panel.set_lsp_client(Arc::clone(&client));
+
+        let wrong_document = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/publishDiagnostics",
+            "params": {
+                "uri": "file:///other.rs",
+                "diagnostics": [{
+                    "range": {
+                        "start": { "line": 1, "character": 0 },
+                        "end": { "line": 1, "character": 5 }
+                    },
+                    "severity": 2,
+                    "message": "wrong file warning"
+                }]
+            }
+        });
+        use tokio::io::AsyncWriteExt;
+        mock_write
+            .write_all(&LspClient::frame_message_for_test(&wrong_document))
+            .await
+            .expect("write non-matching publishDiagnostics frame");
+        mock_write
+            .flush()
+            .await
+            .expect("flush non-matching publishDiagnostics");
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+        assert_eq!(
+            panel.drain_lsp_diagnostics(),
+            None,
+            "AC-008 hardening: non-matching URI is drained but not applied"
+        );
+        let markers = panel.diagnostic_markers();
+        assert_eq!(markers.len(), 1);
+        assert_eq!(markers[0].line, 0);
+        assert_eq!(markers[0].message, "existing marker");
+        assert_eq!(
+            markers[0].kind,
+            GutterMarkerKind::Diagnostic(DiagnosticSeverity::Error)
+        );
     });
 }
 

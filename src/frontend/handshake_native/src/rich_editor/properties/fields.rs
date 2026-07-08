@@ -12,7 +12,8 @@ use crate::rich_editor::properties::metadata_client::{
     ClipboardSink, PropertiesRuntime, SaveState,
 };
 use crate::rich_editor::properties::{
-    format_iso_local, PropertiesState, DOC_ID_FIELD_AUTHOR_ID, TITLE_FIELD_AUTHOR_ID,
+    format_iso_local, PropertiesState, DOC_ID_FIELD_AUTHOR_ID, FOLDER_REF_FIELD_AUTHOR_ID,
+    PROJECT_REF_FIELD_AUTHOR_ID, TITLE_FIELD_AUTHOR_ID,
 };
 use crate::theme::HsPalette;
 
@@ -97,6 +98,74 @@ pub fn title_field(
         SaveState::Idle | SaveState::Saved => {}
     }
     dispatched
+}
+
+/// Render the EDITABLE project-ref field, dispatching the verified `/move` endpoint on blur/Enter.
+/// Empty text clears the project ref; unchanged text does not dispatch.
+pub fn project_ref_field(
+    ui: &mut egui::Ui,
+    state: &mut PropertiesState,
+    runtime: &mut PropertiesRuntime,
+    palette: &HsPalette,
+) -> bool {
+    state.begin_project_ref_edit();
+    let mut buf = state.project_ref_edit.take().unwrap_or_default();
+    let resp = ui.add(
+        egui::TextEdit::singleline(&mut buf)
+            .desired_width(180.0)
+            .hint_text("Project ref"),
+    );
+    state.project_ref_edit = Some(buf);
+    emit_node_author(
+        ui.ctx(),
+        resp.id,
+        accesskit::Role::TextInput,
+        PROJECT_REF_FIELD_AUTHOR_ID,
+    );
+    if resp.lost_focus() {
+        if let Some(project_ref) = state.commit_project_ref_edit() {
+            runtime.dispatch_move(
+                &state.doc_metadata.rich_document_id,
+                Some(project_ref),
+                None,
+            );
+            return true;
+        }
+    }
+    ui.colored_label(palette.text_subtle, "editable");
+    false
+}
+
+/// Render the EDITABLE folder-ref field, dispatching the verified `/move` endpoint on blur/Enter.
+/// Empty text clears the folder ref; unchanged text does not dispatch.
+pub fn folder_ref_field(
+    ui: &mut egui::Ui,
+    state: &mut PropertiesState,
+    runtime: &mut PropertiesRuntime,
+    palette: &HsPalette,
+) -> bool {
+    state.begin_folder_ref_edit();
+    let mut buf = state.folder_ref_edit.take().unwrap_or_default();
+    let resp = ui.add(
+        egui::TextEdit::singleline(&mut buf)
+            .desired_width(180.0)
+            .hint_text("Folder ref"),
+    );
+    state.folder_ref_edit = Some(buf);
+    emit_node_author(
+        ui.ctx(),
+        resp.id,
+        accesskit::Role::TextInput,
+        FOLDER_REF_FIELD_AUTHOR_ID,
+    );
+    if resp.lost_focus() {
+        if let Some(folder_ref) = state.commit_folder_ref_edit() {
+            runtime.dispatch_move(&state.doc_metadata.rich_document_id, None, Some(folder_ref));
+            return true;
+        }
+    }
+    ui.colored_label(palette.text_subtle, "editable");
+    false
 }
 
 /// Render the READ-ONLY document-id field: a monospace label that copies the id to the clipboard when

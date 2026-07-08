@@ -365,6 +365,28 @@ fn disabled_leaves_render_but_do_not_fire() {
     );
 }
 
+#[test]
+fn edit_menu_exposes_code_folding_leaves() {
+    let mut harness = shell_harness();
+    harness.run();
+    harness.get_by_label("EDIT").click();
+    harness.run();
+
+    let nodes = live_author_nodes(&harness);
+    for leaf in [
+        "menu.edit.fold-region",
+        "menu.edit.unfold-region",
+        "menu.edit.fold-all",
+        "menu.edit.unfold-all",
+    ] {
+        let found = nodes
+            .iter()
+            .find(|(author, _, _)| author == leaf)
+            .unwrap_or_else(|| panic!("folding EDIT-menu leaf {leaf} missing: {nodes:?}"));
+        assert_eq!(found.1, "MenuItem", "{leaf} role is MenuItem");
+    }
+}
+
 // ── MT-025 preservation: every OPEN menu leaf is an addressable (author_id-carrying) node ───────────
 
 /// With the GO menu OPEN, every menu leaf in the live tree carries an author_id (the MT-025
@@ -447,9 +469,13 @@ fn menubar_widget_returns_command_palette_action() {
         bottom_drawer_open: false,
         has_active_tab: true,
         editor_available: true,
+        active_code_editor: true,
+        active_rich_editor: true,
         editor_can_undo: true,
         editor_can_redo: true,
         editor_can_paste: true,
+        editor_can_nav_back: true,
+        editor_can_nav_forward: true,
     };
     use std::sync::{Arc, Mutex};
     let captured: Arc<Mutex<Option<handshake_native::top_menu_bar::MenuBarAction>>> =

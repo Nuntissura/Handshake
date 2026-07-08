@@ -862,6 +862,41 @@ fn client_create_card_body() {
     assert_eq!(body.get("h").and_then(|x| x.as_f64()), Some(120.0));
 }
 
+#[test]
+fn created_canvas_placement_response_parses_place_and_card_shapes() {
+    use handshake_native::backend_client::created_canvas_placement_from_response;
+
+    let placed = created_canvas_placement_from_response(&serde_json::json!({
+        "placement_id": "LCP-place",
+        "placed_block_id": "blk-place",
+        "x": 10.0,
+        "y": 20.0,
+        "w": 200.0,
+        "h": 120.0,
+    }))
+    .expect("direct place response parses");
+    assert_eq!(placed.placement_id, "LCP-place");
+    assert_eq!(placed.placed_block_id, "blk-place");
+    assert_eq!(placed.geometry(), (10.0, 20.0, 200.0, 120.0));
+
+    let card = created_canvas_placement_from_response(&serde_json::json!({
+        "block": { "block_id": "blk-card" },
+        "rich_document_id": "doc-card",
+        "placement": {
+            "placement_id": "LCP-card",
+            "placed_block_id": "blk-card",
+            "x": 40.0,
+            "y": 50.0,
+            "w": 220.0,
+            "h": 140.0,
+        }
+    }))
+    .expect("create-card response parses through nested placement");
+    assert_eq!(card.placement_id, "LCP-card");
+    assert_eq!(card.placed_block_id, "blk-card");
+    assert_eq!(card.geometry(), (40.0, 50.0, 220.0, 140.0));
+}
+
 /// W3 (MT-026 remediation) wire-capture: the `RemoveEdge` host arm's route SPLIT — a board-local
 /// visual-edge id deletes via the verified `DELETE .../loom/canvas-visual-edges/:id`
 /// (`remove_canvas_visual_edge` in `handshake_core` `api/loom.rs`); a semantic loom-edge id via the
@@ -909,8 +944,7 @@ fn host_remove_edge_route_choice_visual_vs_semantic() {
     let visual = HandshakeApp::route_remove_edge_spec(&c, "ws1", &visual_edge_ids, "ve-1");
     assert_eq!(visual.method, HttpMethod::Delete);
     assert_eq!(
-        visual.url,
-        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-visual-edges/ve-1",
+        visual.url, "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-visual-edges/ve-1",
         "a board-local visual-edge id MUST route through the canvas visual-edge DELETE"
     );
     assert!(visual.body.is_none(), "visual-edge DELETE is bodyless");
@@ -919,8 +953,7 @@ fn host_remove_edge_route_choice_visual_vs_semantic() {
     let semantic = HandshakeApp::route_remove_edge_spec(&c, "ws1", &visual_edge_ids, "loom-edge-9");
     assert_eq!(semantic.method, HttpMethod::Delete);
     assert_eq!(
-        semantic.url,
-        "http://127.0.0.1:37501/workspaces/ws1/loom/edges/loom-edge-9",
+        semantic.url, "http://127.0.0.1:37501/workspaces/ws1/loom/edges/loom-edge-9",
         "a non-visual (semantic loom) edge id MUST route through the loom-edges DELETE"
     );
     assert!(semantic.body.is_none(), "semantic-edge DELETE is bodyless");

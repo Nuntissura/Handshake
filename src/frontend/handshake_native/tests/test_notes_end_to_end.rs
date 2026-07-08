@@ -324,10 +324,17 @@ fn missing_document_response(document_id: &str) -> (&'static str, serde_json::Va
 fn document_record(document_id: &str, doc: &ServerDocState) -> serde_json::Value {
     serde_json::json!({
         "rich_document_id": document_id,
+        "workspace_id": "WS-mt099",
         "doc_version": doc.doc_version,
         "title": doc.title.clone(),
         "content_json": doc.content_json.clone(),
         "crdt_document_id": null,
+        "authority_label": "draft",
+        "owner_actor_kind": "operator",
+        "owner_actor_id": "handshake-native-editor",
+        "project_ref": "PRJ-mt099",
+        "folder_ref": null,
+        "created_at": "2026-06-29T09:00:00Z",
         "updated_at": "2026-06-29T10:00:00Z"
     })
 }
@@ -977,9 +984,9 @@ fn draft_recovery_banner_restores_draft_through_mounted_pane_on_second_open() {
     wait_for_requests(
         &server,
         |requests| {
-            requests
-                .iter()
-                .any(|r| r.method == "GET" && r.path == format!("/knowledge/documents/{DOC_ID}/draft"))
+            requests.iter().any(|r| {
+                r.method == "GET" && r.path == format!("/knowledge/documents/{DOC_ID}/draft")
+            })
         },
         Duration::from_secs(5),
     );
@@ -1002,7 +1009,11 @@ fn draft_recovery_banner_restores_draft_through_mounted_pane_on_second_open() {
     );
 
     // The mounted pane shows the 'Draft recovery' banner (the operator-visible AC surface).
-    wait_for_author_node(&mut harness, "draft-recovery-banner", Duration::from_secs(5));
+    wait_for_author_node(
+        &mut harness,
+        "draft-recovery-banner",
+        Duration::from_secs(5),
+    );
     assert!(
         find_author_node_exists(&harness, "draft-restore"),
         "the banner offers the Restore-draft button"

@@ -239,12 +239,20 @@ impl PaneUndoRing {
         Some(action)
     }
 
+    pub fn peek_undo(&self) -> Option<&UndoAction> {
+        self.ring.back()
+    }
+
     /// Pop the most recently undone action for redo (moving it back to the undo stack). `None` when
     /// nothing to redo. The caller invokes the popped action's `redo_fn` / `redo_async_fn`.
     pub fn pop_redo(&mut self) -> Option<UndoAction> {
         let action = self.redo_ring.pop_back()?;
         self.ring.push_back(action.clone());
         Some(action)
+    }
+
+    pub fn peek_redo(&self) -> Option<&UndoAction> {
+        self.redo_ring.back()
     }
 
     /// Replace the MOST RECENT undo entry in place (MT-035 typing-coalescing — RISK-1 / MC-1). Used by
@@ -337,11 +345,19 @@ impl CrossPaneUndoRing {
         Some(action)
     }
 
+    pub fn peek_undo(&self) -> Option<&UndoAction> {
+        self.ring.back()
+    }
+
     /// Pop the most recently undone cross-pane action for redo.
     pub fn pop_redo(&mut self) -> Option<UndoAction> {
         let action = self.redo_ring.pop_back()?;
         self.ring.push_back(action.clone());
         Some(action)
+    }
+
+    pub fn peek_redo(&self) -> Option<&UndoAction> {
+        self.redo_ring.back()
     }
 
     /// Number of cross-pane actions available to undo.
@@ -408,9 +424,25 @@ impl UnifiedUndoScope {
         self.pane_rings.get_mut(pane_id)?.pop_undo()
     }
 
+    pub fn local_undo_requires_runtime(&self, pane_id: &PaneId) -> bool {
+        self.pane_rings
+            .get(pane_id)
+            .and_then(PaneUndoRing::peek_undo)
+            .map(|action| action.undo_async_fn.is_some())
+            .unwrap_or(false)
+    }
+
     /// Pop the most recently undone local action for `pane_id` for redo.
     pub fn pop_redo_local(&mut self, pane_id: &PaneId) -> Option<UndoAction> {
         self.pane_rings.get_mut(pane_id)?.pop_redo()
+    }
+
+    pub fn local_redo_requires_runtime(&self, pane_id: &PaneId) -> bool {
+        self.pane_rings
+            .get(pane_id)
+            .and_then(PaneUndoRing::peek_redo)
+            .map(|action| action.redo_async_fn.is_some())
+            .unwrap_or(false)
     }
 
     /// Replace `pane_id`'s most recent local undo entry in place (MT-035 typing-coalescing — RISK-1 /
@@ -433,9 +465,23 @@ impl UnifiedUndoScope {
         self.cross_pane_ring.pop_undo()
     }
 
+    pub fn cross_pane_undo_requires_runtime(&self) -> bool {
+        self.cross_pane_ring
+            .peek_undo()
+            .map(|action| action.undo_async_fn.is_some())
+            .unwrap_or(false)
+    }
+
     /// Pop the most recently undone cross-pane action for redo.
     pub fn pop_redo_cross_pane(&mut self) -> Option<UndoAction> {
         self.cross_pane_ring.pop_redo()
+    }
+
+    pub fn cross_pane_redo_requires_runtime(&self) -> bool {
+        self.cross_pane_ring
+            .peek_redo()
+            .map(|action| action.redo_async_fn.is_some())
+            .unwrap_or(false)
     }
 
     /// The number of undoable actions in `pane_id`'s local ring (the "Undo ({n})" indicator — AC-6).

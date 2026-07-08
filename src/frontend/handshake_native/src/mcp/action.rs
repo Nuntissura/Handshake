@@ -47,6 +47,10 @@ pub const MAX_ACTIONS_PER_BURST: usize = 16;
 pub enum UiAction {
     /// Activate the widget (egui `Action::Click` — buttons, toggles, tabs).
     Click,
+    /// Activate the widget with a JSON payload carried as `ActionData::Value`. This is how
+    /// parameterized KnowledgeActionRegistry controls such as `collection.sort` and
+    /// `collection.kanban-move` are driven through the same `click_widget` transport.
+    ClickWithPayload { payload: String },
     /// Move keyboard focus to the widget (egui `Action::Focus`).
     Focus,
     /// Set a text widget's value. egui 0.33 has no `SetValue` action for text inputs (see the module
@@ -66,7 +70,7 @@ impl UiAction {
     /// primitive).
     pub fn accesskit_action(&self) -> accesskit::Action {
         match self {
-            UiAction::Click => accesskit::Action::Click,
+            UiAction::Click | UiAction::ClickWithPayload { .. } => accesskit::Action::Click,
             UiAction::Focus | UiAction::SetValue { .. } | UiAction::Select => {
                 accesskit::Action::Focus
             }
@@ -79,6 +83,16 @@ impl UiAction {
     pub fn text_payload(&self) -> Option<&str> {
         match self {
             UiAction::SetValue { text } => Some(text.as_str()),
+            _ => None,
+        }
+    }
+
+    /// AccessKit action data carried by payload-capable actions.
+    pub fn accesskit_data(&self) -> Option<accesskit::ActionData> {
+        match self {
+            UiAction::ClickWithPayload { payload } => Some(accesskit::ActionData::Value(
+                payload.clone().into_boxed_str(),
+            )),
             _ => None,
         }
     }
@@ -174,7 +188,7 @@ pub fn build_action_request(target: accesskit::NodeId, action: &UiAction) -> Act
         request: accesskit::ActionRequest {
             action: action.accesskit_action(),
             target,
-            data: None,
+            data: action.accesskit_data(),
         },
         text_payload: action.text_payload().map(|t| t.to_owned()),
     }

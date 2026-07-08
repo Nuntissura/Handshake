@@ -23,10 +23,12 @@ use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::code_editor::HighlightScope;
 use handshake_native::settings_dialog::SettingsOutcome;
+use handshake_native::theme::HsTheme;
 use handshake_native::workspace_settings::{
     EditorPrefs, RenderWhitespaceMode, SettingsTransport, SettingsTransportError, SyntaxPalette,
-    WordWrapMode,
+    SyntaxPaletteMode, WordWrapMode,
 };
 use serde_json::Value;
 
@@ -238,15 +240,14 @@ fn editor_prefs_change_persists_via_existing_put_and_reloads() {
     );
 }
 
-// ── AC-001 (LIVE side) / MT-072 note 87: editor prefs WIRE INTO the running MT-079 code panel ────────
+// ── AC-001 (LIVE side) / MT-072 note 87: editor prefs WIRE INTO the mounted editors ────────────────
 //
 // Persistence (above) proves the blob is PUT. This proves the WIRE-INTO-LIVE half: applying an
 // EditorPrefsChanged outcome (and loading prefs from a stored blob) drives the live mounted
-// `CodeEditorPanel` — tab size / insert-spaces / render-whitespace / word-wrap reflect the new values in
-// the same frame, NOT only the persisted struct. (editor_font_size has no panel slot today — typed
-// follow-up blocker — so it is intentionally NOT asserted on the panel here.)
+// `CodeEditorPanel` and rich editor state — tab size / insert-spaces / render-whitespace / word-wrap /
+// editor_font_size reflect the new values in the same frame, NOT only the persisted struct.
 #[test]
-fn editor_prefs_change_drives_the_live_code_panel() {
+fn editor_prefs_change_drives_the_live_mounted_editors() {
     let transport = StubSettingsTransport::with_loaded(None);
     let handle = leak_runtime_handle();
     let mut app = ok_app();
@@ -271,6 +272,20 @@ fn editor_prefs_change_drives_the_live_code_panel() {
         "baseline render-whitespace OFF"
     );
     assert!(!panel0.is_wrap_enabled(), "baseline word-wrap OFF");
+    {
+        let expected = harness
+            .state()
+            .workspace_settings()
+            .editor_prefs
+            .editor_font_size;
+        let rich = harness.state().mounted_rich_state();
+        let rich = rich.lock().unwrap_or_else(|e| e.into_inner());
+        assert_eq!(
+            rich.editor_font_size(),
+            expected,
+            "baseline rich editor font size follows workspace settings"
+        );
+    }
 
     // Apply a full editor-prefs change through the same wired outcome the live controls produce.
     let new_prefs = EditorPrefs {
@@ -305,6 +320,71 @@ fn editor_prefs_change_drives_the_live_code_panel() {
         panel.wrap_config().wrap_column,
         Some(100),
         "MT-072 note 87: BoundedColumn(100) sets the live wrap column"
+    );
+    assert_eq!(
+        panel.font_size(),
+        18.0,
+        "wave-6 S6 item 3: editor_font_size resizes the live code panel, not only the saved blob"
+    );
+    {
+        let rich = harness.state().mounted_rich_state();
+        let rich = rich.lock().unwrap_or_else(|e| e.into_inner());
+        assert_eq!(
+            rich.editor_font_size(),
+            18.0,
+            "wave-6 S6 item 3: editor_font_size resizes the live rich editor, not only the saved blob"
+        );
+    }
+}
+
+#[test]
+fn syntax_palette_change_drives_the_live_code_panel_immediately() {
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport);
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+
+    let syntax = HsTheme::Dark.palette().syntax;
+    let panel = harness.state().mounted_code_panel();
+    assert_eq!(
+        panel.resolve_highlight_color(HighlightScope::Keyword, &syntax),
+        syntax.keyword,
+        "baseline keyword color comes from the active theme before a Custom palette is applied"
+    );
+
+    let mut custom = SyntaxPalette {
+        mode: SyntaxPaletteMode::Custom,
+        custom: Default::default(),
+    };
+    custom.set_custom(HighlightScope::Keyword.scope_key(), [200, 30, 30, 255]);
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::SyntaxPaletteChanged(custom));
+    harness.run();
+    let panel = harness.state().mounted_code_panel();
+    assert_eq!(
+        panel.resolve_highlight_color(HighlightScope::Keyword, &syntax),
+        egui::Color32::from_rgba_unmultiplied(200, 30, 30, 255),
+        "wave-6 S6 item 3: SyntaxPaletteChanged repaints the mounted panel immediately"
+    );
+
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::SyntaxPaletteChanged(
+            SyntaxPalette::default(),
+        ));
+    harness.run();
+    let panel = harness.state().mounted_code_panel();
+    assert_eq!(
+        panel.resolve_highlight_color(HighlightScope::Keyword, &syntax),
+        syntax.keyword,
+        "Custom -> Standard clears the live Custom override immediately"
     );
 }
 

@@ -62,7 +62,7 @@ use thiserror::Error;
 use crate::backend_client::{
     LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response, BACKEND_BASE_URL,
 };
-use crate::code_editor::code_nav::CodeNavClient;
+use crate::code_editor::code_nav::{CodeNavClient, CodeSymbolNavProjection};
 use crate::error::AppError;
 
 /// The backend `ref_kind` a code cross-reference `hsLink` atom carries (the discriminator the
@@ -118,8 +118,8 @@ pub enum CrossRefError {
     /// No workspace bound — a notes search resolves workspace state and needs a workspace id.
     #[error("no workspace context: code<->note cross-reference needs a workspace id")]
     NoWorkspace,
-    /// The symbol entity id was empty (nothing to resolve).
-    #[error("empty symbol id: no symbol entity id to resolve")]
+    /// The symbol reference was empty (nothing to resolve).
+    #[error("empty symbol ref: no code symbol reference to resolve")]
     EmptySymbol,
     /// The backend resolved the symbol but it carried no definition span (no file/line to jump to).
     /// The chip renders as `unresolved` (greyed) without crashing — AC-4 / RISK pt(e).
@@ -208,15 +208,22 @@ pub struct NoteRef {
 }
 
 impl NoteRef {
-    /// Build a [`NoteRef`] from a loom search-v2 hit. The block id is the openable reference; the title
-    /// falls back to the block id; the excerpt is the FTS highlight with the literal `<mark>`/`</mark>`
-    /// markers stripped (the panel renders plain text, never raw HTML).
+    /// Build a [`NoteRef`] from a loom search-v2 hit. Prefer the backend `document_id` when it is
+    /// present because `open-document` targets rich documents, not arbitrary matched block ids. The
+    /// block id remains the hit/de-dupe key; the title falls back to the block id; the excerpt is the
+    /// FTS highlight with literal `<mark>`/`</mark>` markers stripped.
     pub fn from_hit(hit: LoomSearchV2Hit) -> Self {
         let block_id = hit.block.block_id.clone();
+        let document_id = hit
+            .block
+            .document_id
+            .clone()
+            .filter(|id| !id.trim().is_empty())
+            .unwrap_or_else(|| block_id.clone());
         let document_title = hit.block.display_title().to_owned();
         let excerpt = strip_mark_tags(&hit.highlight);
         Self {
-            document_id: block_id.clone(),
+            document_id,
             block_id,
             document_title,
             excerpt,
@@ -253,41 +260,29 @@ pub fn percent_encode_symbol(s: &str) -> String {
     out
 }
 
-/// Resolve a code-symbol entity id to a [`CodeRef`] (file path + 0-based line span) via the EXISTING
-/// code-nav backend (`GET /knowledge/code/symbols/:entity_id`, reusing [`CodeNavClient`]).
-///
-/// Direction (A) note->code: clicking a `[[code:…]]` chip dispatches `open-code-symbol` with the
-/// symbol entity id; the navigator calls this to learn WHERE to jump. The actual jump-to-line lands
-/// when the code pane is mounted (E11/MT-069) — this resolves the target HONESTLY; it never fakes a
-/// jump into a non-existent pane.
-///
-/// Errors:
-/// - empty id -> [`CrossRefError::EmptySymbol`] (no round-trip),
-/// - 404 / empty projection -> [`CrossRefError::NotFound`] (drives the greyed `unresolved` chip, AC-4),
-/// - resolved but no definition span -> [`CrossRefError::NoDefinition`] (also unresolved),
-/// - transport failure -> [`CrossRefError::Backend`].
-pub async fn resolve_code_ref(symbol_entity_id: &str) -> Result<CodeRef, CrossRefError> {
-    resolve_code_ref_with(&CodeNavClient::production(), symbol_entity_id).await
+fn parse_path_symbol_ref(symbol_ref: &str) -> Option<(&str, &str)> {
+    let (raw_path, raw_name) = symbol_ref.rsplit_once('#')?;
+    let path = raw_path
+        .rsplit_once(':')
+        .map(|(_, path)| path)
+        .unwrap_or(raw_path)
+        .trim();
+    let name = raw_name.trim();
+    if path.is_empty() || name.is_empty() {
+        None
+    } else {
+        Some((path, name))
+    }
 }
 
-/// [`resolve_code_ref`] against an explicit [`CodeNavClient`] (a test points it at a live backend; the
-/// percent-encoding of the entity id is performed INSIDE the client's `get_symbol`, so this is the
-/// single resolution path the production helper also uses).
-pub async fn resolve_code_ref_with(
-    client: &CodeNavClient,
-    symbol_entity_id: &str,
+fn code_ref_from_symbol(
+    requested_ref: &str,
+    symbol: CodeSymbolNavProjection,
 ) -> Result<CodeRef, CrossRefError> {
-    if symbol_entity_id.trim().is_empty() {
-        return Err(CrossRefError::EmptySymbol);
-    }
-    let response = client.get_symbol(symbol_entity_id).await?;
-    let symbol = response.symbol;
-    // An absent symbol comes back as a default (empty) projection (the `get_symbol` graceful path) —
-    // treat an empty entity id / key with no definition as not-found so the chip greys out (AC-4).
     let definition = symbol
         .definition
         .as_ref()
-        .ok_or_else(|| CrossRefError::NoDefinition(symbol_entity_id.to_owned()))?;
+        .ok_or_else(|| CrossRefError::NoDefinition(requested_ref.to_owned()))?;
     let (line_start, line_end) = match (definition.line_start, definition.line_end) {
         (Some(start), end) if start >= 1 => {
             let s = (start - 1) as u32; // 1-based backend -> 0-based editor.
@@ -297,9 +292,8 @@ pub async fn resolve_code_ref_with(
                 .unwrap_or(s);
             (s, e)
         }
-        _ => return Err(CrossRefError::NoDefinition(symbol_entity_id.to_owned())),
+        _ => return Err(CrossRefError::NoDefinition(requested_ref.to_owned())),
     };
-    // Prefer the definition's own source id; fall back to extracting the path from the symbol key.
     let file_path = definition
         .source_id
         .clone()
@@ -307,12 +301,75 @@ pub async fn resolve_code_ref_with(
         .or_else(|| crate::code_editor::code_nav::symbol_file_path(&symbol.symbol_key))
         .unwrap_or_default();
     Ok(CodeRef {
-        symbol_entity_id: symbol_entity_id.to_owned(),
+        symbol_entity_id: if symbol.symbol_entity_id.trim().is_empty() {
+            requested_ref.to_owned()
+        } else {
+            symbol.symbol_entity_id
+        },
         symbol_key: symbol.symbol_key,
         file_path,
         line_start,
         line_end,
     })
+}
+
+/// Resolve a code-symbol entity id to a [`CodeRef`] (file path + 0-based line span) via the EXISTING
+/// code-nav backend (`GET /knowledge/code/symbols/:entity_id`, reusing [`CodeNavClient`]). For
+/// hand-authored `path#Symbol` refs, callers that have workspace context should use
+/// [`resolve_code_ref_with_workspace`] so the backend lookup route can bind `workspace_id`, `path`, and
+/// `name`.
+///
+/// Direction (A) note->code: clicking a `[[code:…]]` chip dispatches `open-code-symbol` with the
+/// symbol reference; the navigator calls this to learn WHERE to jump. The actual jump-to-line lands
+/// when the code pane is mounted (E11/MT-069) — this resolves the target HONESTLY; it never fakes a
+/// jump into a non-existent pane.
+///
+/// Errors:
+/// - empty ref -> [`CrossRefError::EmptySymbol`] (no round-trip),
+/// - 404 / empty projection -> [`CrossRefError::NotFound`] (drives the greyed `unresolved` chip, AC-4),
+/// - resolved but no definition span -> [`CrossRefError::NoDefinition`] (also unresolved),
+/// - transport failure -> [`CrossRefError::Backend`].
+pub async fn resolve_code_ref(symbol_ref: &str) -> Result<CodeRef, CrossRefError> {
+    resolve_code_ref_with(&CodeNavClient::production(), symbol_ref).await
+}
+
+/// [`resolve_code_ref`] against an explicit [`CodeNavClient`] (a test points it at a live backend; the
+/// percent-encoding of the entity id is performed INSIDE the client's `get_symbol`, so this is the
+/// single resolution path the production helper also uses).
+pub async fn resolve_code_ref_with(
+    client: &CodeNavClient,
+    symbol_ref: &str,
+) -> Result<CodeRef, CrossRefError> {
+    resolve_code_ref_with_workspace(client, "", symbol_ref).await
+}
+
+/// Resolve a code ref with workspace context. Entity ids keep using `get_symbol`; hand-authored
+/// `path#Symbol` refs use the existing lookup route's `workspace_id` + `path` + `name` filters and then
+/// resolve to the returned symbol projection.
+pub async fn resolve_code_ref_with_workspace(
+    client: &CodeNavClient,
+    workspace_id: &str,
+    symbol_ref: &str,
+) -> Result<CodeRef, CrossRefError> {
+    let symbol_ref = symbol_ref.trim();
+    if symbol_ref.is_empty() {
+        return Err(CrossRefError::EmptySymbol);
+    }
+    if let Some((path, name)) = parse_path_symbol_ref(symbol_ref) {
+        if workspace_id.trim().is_empty() {
+            return Err(CrossRefError::NoWorkspace);
+        }
+        let mut matches = client
+            .lookup_symbols_by_name_path(workspace_id, name, path, 1)
+            .await?;
+        let symbol = matches
+            .pop()
+            .ok_or_else(|| CrossRefError::NotFound(symbol_ref.to_owned()))?;
+        return code_ref_from_symbol(symbol_ref, symbol);
+    }
+
+    let response = client.get_symbol(symbol_ref).await?;
+    code_ref_from_symbol(symbol_ref, response.symbol)
 }
 
 /// Find the notes (rich documents) that reference a code symbol, the code->notes direction. Reuses the
@@ -645,6 +702,7 @@ mod tests {
             block: LoomSearchBlock {
                 block_id: block_id.to_owned(),
                 content_type: content_type.to_owned(),
+                document_id: None,
                 title: title.map(str::to_owned),
             },
             score: 1.0,
@@ -685,6 +743,29 @@ mod tests {
         );
         let titled = NoteRef::from_hit(hit("BLK-2", Some("My Note"), "document", ""));
         assert_eq!(titled.document_title, "My Note");
+    }
+
+    #[test]
+    fn note_ref_from_hit_uses_backend_document_id_when_present() {
+        let hit: LoomSearchV2Hit = serde_json::from_value(serde_json::json!({
+            "block": {
+                "block_id": "BLK-7",
+                "document_id": "DOC-7",
+                "content_type": "note",
+                "title": "Design notes"
+            },
+            "score": 1.0,
+            "highlight": "uses <mark>MyStruct</mark> here"
+        }))
+        .expect("backend search-v2 hit JSON should deserialize");
+        let note = NoteRef::from_hit(hit);
+        assert_eq!(note.block_id, "BLK-7");
+        assert_eq!(
+            note.document_id, "DOC-7",
+            "real search-v2 hits open the rich document id, not the matched block id"
+        );
+        assert_eq!(note.document_title, "Design notes");
+        assert_eq!(note.excerpt, "uses MyStruct here");
     }
 
     #[test]

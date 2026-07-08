@@ -20,9 +20,11 @@
 //!
 //! ## Backend reality (Spec-Realism Gate / MT-008/015/020/022 pattern)
 //!
-//! AC-2 (create rich doc -> non-empty block_id parses as a LoomBlockAddr), AC-3 (doc A wikilink to B ->
-//! B's backlinks include A), and AC-6 (content_hash READ matches the saved JSON's canonical SHA-256) are
-//! the `#[ignore]`d `*_live_pg` integration tests, gated behind the `integration` feature. Absent a
+//! AC-2 (create rich doc -> non-empty block_id parses as a LoomBlockAddr), AC-3's currently exposed
+//! backend source-route shape (doc A lists its forward wikilink edge to B; target-B inbound/reverse
+//! backlinks remain `BACKEND_SHAPE_GAP_INBOUND_BACKLINK_ROUTE` / `NEEDS_MANAGED_RESOURCE_PROOF` until the
+//! backend exposes that route), and AC-6 (content_hash READ matches the saved JSON's canonical SHA-256)
+//! are the `#[ignore]`d `*_live_pg` integration tests, gated behind the `integration` feature. Absent a
 //! seeded backend they are NEEDS_MANAGED_RESOURCE_PROOF (run with
 //! `cargo test --features integration --test test_loom_address -- --ignored` against a live handshake_core
 //! on 127.0.0.1:37501). They NEVER fake PG. The KERNEL_BUILDER gate established `content_hash` is
@@ -42,6 +44,8 @@ use std::sync::{Arc, Mutex};
 use egui_kittest::kittest::{By, NodeT, Queryable};
 use egui_kittest::Harness;
 
+use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
+use handshake_native::backend_client::HealthInfo;
 use handshake_native::graph::canvas_board::{
     placement_author_id, CanvasPlacementCard, LoomCanvasBoard,
 };
@@ -49,6 +53,9 @@ use handshake_native::interop::interaction_bus::{InteractionBus, CMD_OPEN_DOCUME
 use handshake_native::loom_address::{loom_uri, parse_loom_uri, ContentHash, LoomBlockAddr};
 use handshake_native::loom_graph::{
     loom_node_author_id, GraphNode, LoomGraphColors, LoomGraphSurface,
+};
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
 use handshake_native::rich_editor::wikilinks::backlinks_panel::{
     dispatch_backlink_open, entry_author_id, render_backlinks_panel, PANEL_AUTHOR_ID,
@@ -77,6 +84,44 @@ fn assert_no_local_artifact_dir() {
             local.display()
         );
     }
+}
+
+fn live_editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build multi-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+
+    let registry = app.pane_registry();
+    let mut guard = registry.lock().expect("registry");
+    guard.insert(PaneRecord::new(
+        PaneId::from("pane-a"),
+        PaneType::CodeSymbol,
+        DEFAULT_PROJECT_ID,
+        None,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    guard.insert(PaneRecord::new(
+        PaneId::from("pane-b"),
+        PaneType::LoomWikiPage,
+        DEFAULT_PROJECT_ID,
+        None,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    drop(guard);
+
+    (app, runtime)
 }
 
 /// Serialize the `.wgpu()` screenshot tests (the documented Windows-wgpu concurrent-device hazard).
@@ -246,6 +291,205 @@ fn backlink_click_fires_open_document() {
     );
     let _ = ctx_for_click; // (the click routed through the real ctx in build_ui)
     println!("AC-4/PT-4: backlink-row click fired OpenDocument on the shared bus for DOC-A");
+}
+
+#[test]
+fn backlink_open_document_drains_through_live_shell() {
+    let (app, _rt) = live_editor_shell();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let dispatched = InteractionBus::with_try_lock(&bus, |bus| {
+        bus.register_open_document_command();
+        bus.open_document(&harness.ctx, "DOC-LIVE-SHELL")
+    })
+    .unwrap_or(false);
+    assert!(
+        dispatched,
+        "AC-4 live-shell: OpenDocument command dispatches on the app bus"
+    );
+    assert_eq!(
+        InteractionBus::with_try_lock(&bus, |bus| bus.pending_navigation().map(str::to_owned))
+            .flatten()
+            .as_deref(),
+        Some("DOC-LIVE-SHELL"),
+        "AC-4 live-shell: backlink/open-document staged the document before the shell drain"
+    );
+
+    harness.run_steps(2);
+
+    assert!(
+        InteractionBus::with_try_lock(&bus, |bus| bus.pending_navigation().is_none())
+            .unwrap_or(false),
+        "AC-4 live-shell: HandshakeApp::drive_ckc_interop drained pending_navigation"
+    );
+    assert_eq!(
+        harness.state().active_pane().map(|p| p.as_ref()),
+        Some("pane-b"),
+        "AC-4 live-shell: drained OpenDocument routed through ShellNavigator into the Notes pane"
+    );
+    assert!(
+        harness.state().quick_switcher_nav_status().is_none(),
+        "AC-4 live-shell: ShellNavigator OpenDocument landed on a real surface"
+    );
+    println!(
+        "AC-4 live-shell: pending OpenDocument drained into ShellNavigator for DOC-LIVE-SHELL"
+    );
+}
+
+#[test]
+fn mounted_backlink_event_routes_through_bus_and_live_shell() {
+    use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
+    use handshake_native::rich_editor::wikilinks::inline_view::EditorEvent;
+
+    let (mut app, _rt) = live_editor_shell();
+    let opened = app.open_document("DOC-BACKLINK-BEFORE");
+    assert!(
+        matches!(opened, NavDispatchOutcome::Opened { .. }),
+        "precondition: open_document mounts the Notes editor; got {opened:?}"
+    );
+    let rich_state = app.mounted_rich_state();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+
+    rich_state
+        .lock()
+        .unwrap()
+        .pending_events
+        .push(EditorEvent::BacklinkActivated {
+            source_document_id: "DOC-FROM-BACKLINK".to_owned(),
+        });
+    assert_eq!(
+        rich_state.lock().unwrap().pending_events.len(),
+        1,
+        "precondition: mounted rich editor queued a BacklinkActivated event"
+    );
+
+    harness.run_steps(1);
+
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    assert_eq!(
+        InteractionBus::with_try_lock(&bus, |bus| bus.pending_navigation().map(str::to_owned))
+            .flatten()
+            .as_deref(),
+        Some("DOC-FROM-BACKLINK"),
+        "AC-4 live-shell: mounted BacklinkActivated staged CMD_OPEN_DOCUMENT before shell drain"
+    );
+    let pane_b = PaneId::from("pane-b");
+    let active_tab_before_drain = harness
+        .state()
+        .tab_bar_states()
+        .get(&pane_b)
+        .and_then(|bar| bar.active())
+        .expect("pane-b active tab before drain");
+    assert_eq!(
+        active_tab_before_drain.content_id.as_deref(),
+        Some("DOC-BACKLINK-BEFORE"),
+        "AC-4 live-shell: direct ShellNavigator bypass did not open the backlink in the staging frame"
+    );
+
+    harness.run_steps(2);
+
+    assert!(
+        rich_state.lock().unwrap().pending_events.is_empty(),
+        "AC-4 live-shell: mounted rich pending_events drained"
+    );
+    assert!(
+        InteractionBus::with_try_lock(&bus, |bus| bus.pending_navigation().is_none())
+            .unwrap_or(false),
+        "AC-4 live-shell: CMD_OPEN_DOCUMENT pending_navigation drained by drive_ckc_interop"
+    );
+    assert_eq!(
+        harness.state().active_pane(),
+        Some(&pane_b),
+        "AC-4 live-shell: backlink event opened/focused the mounted Notes pane"
+    );
+    let active_tab = harness
+        .state()
+        .tab_bar_states()
+        .get(&pane_b)
+        .and_then(|bar| bar.active())
+        .expect("pane-b active tab");
+    assert_eq!(
+        active_tab.content_id.as_deref(),
+        Some("DOC-FROM-BACKLINK"),
+        "AC-4 live-shell: mounted BacklinkActivated routed through CMD_OPEN_DOCUMENT into ShellNavigator"
+    );
+    assert!(
+        harness.state().quick_switcher_nav_status().is_none(),
+        "AC-4 live-shell: routed backlink event landed without a typed nav error"
+    );
+    println!(
+        "AC-4 live-shell: mounted BacklinkActivated -> dispatch_backlink_open -> CMD_OPEN_DOCUMENT -> ShellNavigator"
+    );
+}
+
+#[test]
+fn mounted_backlink_event_retries_when_bus_is_contended() {
+    use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
+    use handshake_native::rich_editor::wikilinks::inline_view::EditorEvent;
+
+    let (mut app, _rt) = live_editor_shell();
+    let opened = app.open_document("DOC-BACKLINK-BEFORE");
+    assert!(
+        matches!(opened, NavDispatchOutcome::Opened { .. }),
+        "precondition: open_document mounts the Notes editor; got {opened:?}"
+    );
+    let rich_state = app.mounted_rich_state();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let bus_guard = bus.lock().expect("hold bus for contention");
+    rich_state
+        .lock()
+        .unwrap()
+        .pending_events
+        .push(EditorEvent::BacklinkActivated {
+            source_document_id: "DOC-RETRY-BACKLINK".to_owned(),
+        });
+    harness.run_steps(1);
+
+    assert!(
+        rich_state.lock().unwrap().pending_events.is_empty(),
+        "retry proof: the mounted rich event queue drained even while the bus was contended"
+    );
+    assert!(
+        harness
+            .state()
+            .quick_switcher_nav_status()
+            .unwrap_or_default()
+            .contains("retrying"),
+        "retry proof: contended bus surfaces a retrying status, not a silent drop"
+    );
+    drop(bus_guard);
+
+    harness.run_steps(1);
+    assert_eq!(
+        InteractionBus::with_try_lock(&bus, |bus| bus.pending_navigation().map(str::to_owned))
+            .flatten()
+            .as_deref(),
+        Some("DOC-RETRY-BACKLINK"),
+        "retry proof: once the bus is free, the queued backlink stages CMD_OPEN_DOCUMENT"
+    );
+
+    harness.run_steps(2);
+    let pane_b = PaneId::from("pane-b");
+    let active_tab = harness
+        .state()
+        .tab_bar_states()
+        .get(&pane_b)
+        .and_then(|bar| bar.active())
+        .expect("pane-b active tab after retry drain");
+    assert_eq!(
+        active_tab.content_id.as_deref(),
+        Some("DOC-RETRY-BACKLINK"),
+        "retry proof: retried backlink opens through the live shell drain"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -498,6 +742,41 @@ fn with_rich_doc_headers(rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder
         .header("x-hsk-session-run-id", "MT-032-integration")
 }
 
+#[cfg(feature = "integration")]
+fn required_doc_field(doc: &serde_json::Value, field: &str) -> String {
+    doc.get(field)
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| panic!("live PG document response missing required '{field}': {doc}"))
+        .to_owned()
+}
+
+#[cfg(feature = "integration")]
+fn rich_document_id(doc: &serde_json::Value) -> String {
+    required_doc_field(doc, "rich_document_id")
+}
+
+#[cfg(feature = "integration")]
+fn optional_loom_block_id(doc: &serde_json::Value) -> Option<&str> {
+    doc.get("block_id")
+        .or_else(|| doc.get("loom_block_id"))
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+}
+
+#[cfg(feature = "integration")]
+fn require_loom_block_id(doc: &serde_json::Value, ac: &str, rich_document_id: &str) -> String {
+    optional_loom_block_id(doc)
+        .unwrap_or_else(|| {
+            panic!(
+                "{ac}: BACKEND_SHAPE_GAP_NO_RICH_DOC_LOOM_BLOCK_ID: created rich document \
+                 {rich_document_id} has no block_id/loom_block_id in the live backend response; \
+                 do not mark MT-032 live Loom-block addressability proven from this response"
+            )
+        })
+        .to_owned()
+}
+
 /// AC-2: creating a rich document on the live backend yields a non-empty block_id that parses as a valid
 /// LoomBlockAddr, and GET backlinks for it returns 200.
 #[test]
@@ -516,7 +795,8 @@ fn live_pg_create_doc_block_id_is_addressable() {
             "type": "doc",
             "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "hello" }] }]
         })).await.expect("create rich document");
-        let block_id = doc.get("block_id").and_then(|x| x.as_str()).unwrap_or_default().to_owned();
+        let rich_document_id = rich_document_id(&doc);
+        let block_id = require_loom_block_id(&doc, "AC-2", &rich_document_id);
         assert!(!block_id.is_empty(), "AC-2: the created document has a non-empty block_id");
 
         // The block_id forms a valid loom:// address (round-trip).
@@ -525,8 +805,7 @@ fn live_pg_create_doc_block_id_is_addressable() {
         assert_eq!(parse_loom_uri(&addr.to_uri()), Some(addr.clone()), "AC-2: block_id parses as a LoomBlockAddr");
 
         // GET backlinks returns 200 (an empty list for a fresh doc — never an error banner).
-        let doc_id = doc.get("document_id").and_then(|x| x.as_str()).unwrap_or(&block_id).to_owned();
-        let url = format!("{LIVE_BASE_URL}/knowledge/documents/{doc_id}/backlinks");
+        let url = format!("{LIVE_BASE_URL}/knowledge/documents/{rich_document_id}/backlinks");
         let resp = with_rich_doc_headers(client.get(&url)).send().await.expect("backlinks request");
         assert_eq!(resp.status().as_u16(), 200, "AC-2: GET backlinks returns 200");
 
@@ -537,11 +816,14 @@ fn live_pg_create_doc_block_id_is_addressable() {
     });
 }
 
-/// AC-3: doc A with a wikilink [[doc_B]], saved, makes B's backlinks include A.
+/// AC-3 backend-shape probe: doc A with a wikilink to B is exposed by the current backend on A's
+/// forward/source backlink route. The MT contract's target-B inbound backlink proof remains
+/// BACKEND_SHAPE_GAP_INBOUND_BACKLINK_ROUTE / NEEDS_MANAGED_RESOURCE_PROOF until the backend exposes a
+/// reverse/inbound lookup.
 #[test]
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live handshake_core on 127.0.0.1:37501 (cargo test --features integration -- --ignored)"]
 #[cfg(feature = "integration")]
-fn live_pg_backlink_appears_for_wikilink() {
+fn live_pg_forward_backlink_route_exposes_wikilink_backend_shape() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let client = reqwest::Client::new();
@@ -551,8 +833,7 @@ fn live_pg_backlink_appears_for_wikilink() {
         let doc_b = create_rich_document(&client, &workspace_id, "MT-032 AC-3 B", serde_json::json!({
             "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "target" }] }]
         })).await.expect("create B");
-        let b_id = doc_b.get("document_id").and_then(|x| x.as_str()).unwrap_or_default().to_owned();
-        let b_block = doc_b.get("block_id").and_then(|x| x.as_str()).unwrap_or_default().to_owned();
+        let b_id = rich_document_id(&doc_b);
 
         // The backend backlink extractor (knowledge_document/backlink.rs) recognizes `hsLink` ONLY as an
         // inline content NODE (it matches `obj["type"] == "hsLink"` and recurses into `content` children);
@@ -565,22 +846,45 @@ fn live_pg_backlink_appears_for_wikilink() {
                 "type": "paragraph",
                 "content": [
                     { "type": "text", "text": "see " },
-                    { "type": "hsLink", "attrs": { "refKind": "note", "refValue": b_block, "label": "target" } }
+                    { "type": "hsLink", "attrs": { "refKind": "note", "refValue": b_id, "label": "target" } }
                 ]
             }]
         })).await.expect("create A linking B");
-        let a_id = doc_a.get("document_id").and_then(|x| x.as_str()).unwrap_or_default().to_owned();
+        let a_id = rich_document_id(&doc_a);
 
-        // GET B's backlinks: it includes a backlink whose source is A.
-        let url = format!("{LIVE_BASE_URL}/knowledge/documents/{b_id}/backlinks");
-        let resp = with_rich_doc_headers(client.get(&url)).send().await.expect("backlinks request");
-        assert_eq!(resp.status().as_u16(), 200, "AC-3: backlinks 200");
+        // Persist and read A's FORWARD backlinks. The live route is explicitly
+        // `/knowledge/documents/{source}/backlinks`; inbound/reverse lookups are not exposed here.
+        let rebuild_url = format!("{LIVE_BASE_URL}/knowledge/documents/{a_id}/backlinks");
+        let resp = with_rich_doc_headers(client.post(&rebuild_url))
+            .send()
+            .await
+            .expect("rebuild backlinks request");
+        assert_eq!(resp.status().as_u16(), 200, "AC-3 shape: rebuild source backlinks 200");
         let parsed: BacklinksResponse = resp.json().await.expect("backlinks body");
+        assert_eq!(parsed.source_document_id, a_id, "AC-3 shape: response is keyed by source document A");
         assert!(
-            parsed.backlinks.iter().any(|bl| bl.source_document_id == a_id),
-            "AC-3: B's backlinks include A (source_document_id == {a_id})"
+            parsed.backlinks.iter().any(|bl| {
+                bl.source_document_id == a_id && bl.link_kind == "wikilink" && bl.target == b_id
+            }),
+            "AC-3 shape: A's forward backlinks include a wikilink edge to B ({b_id})"
         );
-        println!("AC-3(LIVE): B backlinks include A");
+
+        let list_url = format!("{LIVE_BASE_URL}/knowledge/documents/{a_id}/backlinks");
+        let resp = with_rich_doc_headers(client.get(&list_url))
+            .send()
+            .await
+            .expect("list backlinks request");
+        assert_eq!(resp.status().as_u16(), 200, "AC-3 shape: list source backlinks 200");
+        let listed: BacklinksResponse = resp.json().await.expect("listed backlinks body");
+        assert!(
+            listed.backlinks.iter().any(|bl| {
+                bl.source_document_id == a_id && bl.link_kind == "wikilink" && bl.target == b_id
+            }),
+            "AC-3 shape: GET A's forward backlinks includes the persisted wikilink edge to B ({b_id})"
+        );
+        println!(
+            "AC-3(LIVE shape): A forward backlinks include B; target-B inbound route remains BACKEND_SHAPE_GAP_INBOUND_BACKLINK_ROUTE"
+        );
     });
 }
 
@@ -600,24 +904,37 @@ fn live_pg_content_hash_read_matches_canonical() {
         });
         let doc = create_rich_document(&client, &workspace_id, "MT-032 AC-6 doc", content.clone())
             .await.expect("create doc");
-        let block_id = doc.get("block_id").and_then(|x| x.as_str()).unwrap_or_default().to_owned();
+        let rich_document_id = rich_document_id(&doc);
+        let local = ContentHash::of_content_json(&content);
+        let rich_doc_hash = required_doc_field(&doc, "content_sha256");
+        assert_eq!(
+            rich_doc_hash,
+            local.as_str(),
+            "AC-6 setup: backend RichDocument content_sha256 matches local canonical SHA-256"
+        );
+        let block_id = require_loom_block_id(&doc, "AC-6", &rich_document_id);
 
         // READ the block (getLoomBlock) and read its backend-computed content_hash.
         let url = format!("{LIVE_BASE_URL}/workspaces/{workspace_id}/loom/blocks/{block_id}");
         let resp = client.get(&url).send().await.expect("getLoomBlock");
         assert_eq!(resp.status().as_u16(), 200);
         let v: serde_json::Value = resp.json().await.expect("loom block body");
-        if let Some(hash) = v.get("content_hash").and_then(|x| x.as_str()).filter(|s| !s.is_empty()) {
-            // The backend hash equals the local canonical SHA-256 of the saved content_json (the backend
-            // computes it server-side; this READS it — no client-side write).
-            let local = ContentHash::of_content_json(&content);
-            assert_eq!(hash, local.as_str(), "AC-6: backend content_hash matches local canonical SHA-256");
-            println!("AC-6(LIVE): backend content_hash matches local canonical hash {hash}");
-        } else {
-            // The block carried no content_hash field; that is an honest backend-shape fact, recorded —
-            // never a fabricated pass. (The pure determinism half is proven in content_hash_deterministic_at_boundary.)
-            println!("AC-6(LIVE): backend LoomBlock carried no content_hash field (typed-gap; recorded honestly)");
-        }
+        let hash = v
+            .get("content_hash")
+            .and_then(|x| x.as_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| {
+                panic!(
+                    "AC-6: BACKEND_SHAPE_GAP_NO_LOOM_CONTENT_HASH: getLoomBlock({block_id}) \
+                     returned no content_hash; do not mark MT-032 backend content_hash proof green"
+                )
+            });
+        assert_eq!(
+            hash,
+            local.as_str(),
+            "AC-6: backend LoomBlock content_hash matches local canonical SHA-256"
+        );
+        println!("AC-6(LIVE): backend LoomBlock content_hash matches local canonical hash {hash}");
     });
 }
 
@@ -663,5 +980,9 @@ async fn create_rich_document(
     if !resp.status().is_success() {
         return None;
     }
-    resp.json().await.ok()
+    resp.json::<serde_json::Value>()
+        .await
+        .ok()?
+        .get("document")
+        .cloned()
 }

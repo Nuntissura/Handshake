@@ -64,6 +64,41 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
 }
 
+fn changed_pixels_in_rect(
+    before: &image::RgbaImage,
+    after: &image::RgbaImage,
+    rect: egui::Rect,
+) -> u32 {
+    assert_eq!(
+        before.dimensions(),
+        after.dimensions(),
+        "pixel-region comparison requires matching image dimensions"
+    );
+    let width = before.width();
+    let height = before.height();
+    let x0 = rect.min.x.floor().max(0.0) as u32;
+    let y0 = rect.min.y.floor().max(0.0) as u32;
+    let x1 = rect.max.x.ceil().max(0.0).min(width as f32) as u32;
+    let y1 = rect.max.y.ceil().max(0.0).min(height as f32) as u32;
+    assert!(
+        x0 < x1 && y0 < y1,
+        "pixel-region comparison rect must intersect the rendered image ({rect:?}, image={width}x{height})"
+    );
+
+    let before_raw = before.as_raw();
+    let after_raw = after.as_raw();
+    let mut changed = 0u32;
+    for y in y0..y1 {
+        for x in x0..x1 {
+            let offset = ((y * width + x) * 4) as usize;
+            if before_raw[offset..offset + 4] != after_raw[offset..offset + 4] {
+                changed += 1;
+            }
+        }
+    }
+    changed
+}
+
 /// Assert no repo-local `test_output/` directory exists under the crate (AC-006 artifact hygiene).
 /// Artifacts go to the external root ONLY; a stray `test_output/` is a hygiene regression.
 fn assert_no_local_test_output() {
@@ -519,6 +554,10 @@ fn scroll_mid_virtualizes() {
         harness.query_by_label("line 0").is_some(),
         "at the top, the 'line 0' label must be on screen ({top_visible:?})"
     );
+    let top_line0_rect = harness.get_by_label("line 0").rect();
+    let top_image = harness
+        .render()
+        .expect("PT-003: top screenshot render must be available for pixel baseline");
 
     // Now scroll to line 100 (uses the measured line height) and re-run.
     panel.scroll_to_line(100);
@@ -597,36 +636,38 @@ fn scroll_mid_virtualizes() {
         visible.start
     );
 
-    // Save the scroll-mid PNG to the EXTERNAL artifact root ONLY (AC-006).
-    match harness.render() {
-        Ok(image) => {
-            let ext_dir = external_artifact_dir("wp-kernel-012-mt-002");
-            let _ = std::fs::create_dir_all(&ext_dir);
-            let png_path = ext_dir.join("MT-002-scroll-mid.png");
-            let saved = image.save(&png_path).is_ok();
-            // The image is non-empty and renders content (colored numbered lines).
-            assert!(
-                image.width() > 0 && image.height() > 0,
-                "scroll-mid image is non-empty"
-            );
-            println!(
-                "PT-003 scroll-mid: {}x{} saved={saved} ({}); painted {} lines; visible={:?} \
-                 (egui's actual row_range; line 0 proven absent, every in-range label present)",
-                image.width(),
-                image.height(),
-                png_path.display(),
-                mid_stats.frame_lines_rendered,
-                visible,
-            );
-        }
-        Err(e) => {
-            println!(
-                "BLOCKER(non-fatal): scroll-mid screenshot render unavailable (no wgpu adapter): {e}. \
-                 The virtualization/label structural proof (line 100 region visible, line 0 not) \
-                 passed; the PNG is a GPU-host item."
-            );
-        }
-    }
+    // Save the scroll-mid PNG to the EXTERNAL artifact root ONLY (AC-006). The MT names this screenshot
+    // as a proof artifact, so render/save failure is a real proof failure rather than a soft warning.
+    let image = harness.render().expect(
+        "PT-003: scroll-mid screenshot render must be available for the named proof artifact",
+    );
+    let ext_dir = external_artifact_dir("wp-kernel-012-mt-002");
+    std::fs::create_dir_all(&ext_dir).expect("PT-003: create external MT-002 artifact directory");
+    let png_path = ext_dir.join("MT-002-scroll-mid.png");
+    image
+        .save(&png_path)
+        .unwrap_or_else(|e| panic!("PT-003: save {} failed: {e}", png_path.display()));
+    // The image is non-empty and renders content (colored numbered lines).
+    assert!(
+        image.width() > 0 && image.height() > 0,
+        "scroll-mid image is non-empty"
+    );
+    let changed_line0_pixels = changed_pixels_in_rect(&top_image, &image, top_line0_rect);
+    assert!(
+        changed_line0_pixels > 0,
+        "AC-003 pixel proof: the original line-0 row region must change after scrolling to line 100"
+    );
+    println!(
+        "PT-003 scroll-mid: {}x{} saved=true ({}); painted {} lines; visible={:?}; \
+         changed_line0_pixels={} (egui's actual row_range; line 0 proven absent, every in-range \
+         label present)",
+        image.width(),
+        image.height(),
+        png_path.display(),
+        mid_stats.frame_lines_rendered,
+        visible,
+        changed_line0_pixels,
+    );
 
     assert_no_local_test_output();
 }
@@ -765,11 +806,7 @@ fn painted_row_pitch_equals_geometry_unit_and_gutter_rows() {
         let g = panel
             .gutter_breakpoint_pos_for_line(n)
             .unwrap_or_else(|| panic!("gutter row for line {n} painted"));
-        let body_center = harness
-            .get_by_label(&format!("line {n}"))
-            .rect()
-            .center()
-            .y;
+        let body_center = harness.get_by_label(&format!("line {n}")).rect().center().y;
         assert!(
             (g.y - body_center).abs() < 0.25,
             "MT-007: gutter row {n} center y {:.3} must align with painted body row center {body_center:.3}",

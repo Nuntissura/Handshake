@@ -670,6 +670,75 @@ fn ac06_dispatch_kanban_move_emits_cardmove_tag_shape() {
     println!("AC-042-06: collection.kanban-move dispatch emitted the CardMove tag-edge request shape (add=[done], remove=[todo])");
 }
 
+#[test]
+fn ac06_dispatch_collection_sort_and_open_block_emit_events() {
+    let mut h = build_harness();
+    h.harness.run();
+    h.harness.run();
+
+    let sort = find_node(&h.harness.root(), "collection.sort").expect("collection.sort present");
+    h.harness.event(click_event(
+        sort.node_id,
+        Some(r#"{"field":"title","direction":"desc"}"#),
+    ));
+    h.harness.run();
+    h.harness.run();
+    {
+        let events = h.collection_events.lock().unwrap();
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                BlockViewEvent::Sort { sort }
+                    if sort.field.as_str() == "title" && sort.direction.as_str() == "desc"
+            )),
+            "collection.sort payload should emit a backend-driven Sort event; got {events:?}"
+        );
+    }
+
+    let block_id = h
+        .collection
+        .lock()
+        .unwrap()
+        .results
+        .as_ref()
+        .unwrap()
+        .blocks[0]
+        .block_id
+        .clone();
+    let open = find_node(&h.harness.root(), "collection.open-block")
+        .expect("collection.open-block present");
+    let payload = format!(r#"{{"block_id":"{block_id}"}}"#);
+    h.harness.event(click_event(open.node_id, Some(&payload)));
+    h.harness.run();
+    h.harness.run();
+    {
+        let events = h.collection_events.lock().unwrap();
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                BlockViewEvent::OpenBlock { block_id: b } if b == &block_id
+            )),
+            "collection.open-block payload should emit OpenBlock for {block_id}; got {events:?}"
+        );
+    }
+
+    let row_author = collection_row_author_id(&block_id);
+    let row = find_node(&h.harness.root(), &row_author)
+        .unwrap_or_else(|| panic!("collection row '{row_author}' present"));
+    h.harness.event(click_event(row.node_id, None));
+    h.harness.run();
+    h.harness.run();
+    let events = h.collection_events.lock().unwrap();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            BlockViewEvent::OpenBlock { block_id: b } if b == &block_id
+        )),
+        "collection.row.* click should emit OpenBlock for {block_id}; got {events:?}"
+    );
+    println!("AC-042-06: collection.sort, collection.open-block, and collection.row.* dispatch through the real AccessKit payload path");
+}
+
 // ── AC-042-07: dispatch graph.add-edge {source_id,target_id} -> AddEdge event (createLoomEdge shape) ──
 
 #[test]

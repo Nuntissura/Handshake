@@ -14,8 +14,8 @@ use handshake_native::backend_client::{
     TERMINAL_LAUNCH_IPC_OWNER, TERMINAL_LAUNCH_PROBED_PATH,
 };
 use handshake_native::command_registry::{
-    all_commands, effective_disabled, CommandKind, CMD_TERMINAL_OPEN_WORKSPACE,
-    TERMINAL_OPEN_WORKSPACE_STABLE_ID,
+    all_commands, effective_disabled, CommandKind, EditorMenuEnableContext,
+    CMD_TERMINAL_OPEN_WORKSPACE, TERMINAL_OPEN_WORKSPACE_STABLE_ID,
 };
 
 fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String, Option<String>)> {
@@ -74,7 +74,10 @@ fn terminal_launch_command_is_addressable_and_runs_to_blocker_status() {
     assert_eq!(row.stable_id, TERMINAL_OPEN_WORKSPACE_STABLE_ID);
     assert_eq!(row.label, "Terminal: Open in Workspace Folder");
     assert!(!row.disabled);
-    assert!(!effective_disabled(row, true));
+    assert!(!effective_disabled(
+        row,
+        EditorMenuEnableContext::unavailable()
+    ));
     assert!(row.description.contains("EndpointMissing"));
     assert!(row.description.contains("/terminal/sessions"));
     assert!(row.description.contains("Tauri IPC-only"));

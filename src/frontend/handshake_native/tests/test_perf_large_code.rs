@@ -486,7 +486,7 @@ fn perf_lc07_minimap() {
 
     // MEASURED: compute the per-row colors for the whole 10k-line file (the glyph-layout pass).
     let t0 = Instant::now();
-    let row_colors = Minimap::compute_row_colors(&buffer, &spans, painted_rows, ratio, true);
+    let row_colors = Minimap::compute_row_colors(&buffer, &spans, painted_rows, ratio, true, None);
     let elapsed_ms = t0.elapsed().as_millis();
 
     // The minimap must COVER all 10000 buffer lines: the last buffer line maps to the last row, and the

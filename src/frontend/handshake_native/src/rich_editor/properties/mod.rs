@@ -69,6 +69,12 @@ pub const PANEL_AUTHOR_ID: &str = "properties-panel";
 /// The AccessKit author_id for the editable title field.
 pub const TITLE_FIELD_AUTHOR_ID: &str = "properties-title";
 
+/// The AccessKit author_id for the editable project-ref field.
+pub const PROJECT_REF_FIELD_AUTHOR_ID: &str = "properties-project-ref";
+
+/// The AccessKit author_id for the editable folder-ref field.
+pub const FOLDER_REF_FIELD_AUTHOR_ID: &str = "properties-folder-ref";
+
 /// The AccessKit author_id for the read-only document-id (click-to-copy) label.
 pub const DOC_ID_FIELD_AUTHOR_ID: &str = "properties-doc-id";
 
@@ -96,6 +102,10 @@ pub struct PropertiesState {
     /// The in-progress title edit buffer. `None` until the operator focuses the title field; `Some`
     /// while editing. Committing (Enter / focus-lost with a change) sets `pending_save` and clears it.
     pub title_edit: Option<String>,
+    /// The in-progress project-ref edit buffer. Empty string means clear; `None` means unchanged.
+    pub project_ref_edit: Option<String>,
+    /// The in-progress folder-ref edit buffer. Empty string means clear; `None` means unchanged.
+    pub folder_ref_edit: Option<String>,
     /// The LOCAL-ONLY tag list. The backend `RichDocument` has NO tags field (MC-002), so add/remove
     /// mutate this in-memory list and are NEVER persisted; the panel shows a visible backend-gap banner.
     pub tags: Vec<String>,
@@ -106,6 +116,9 @@ pub struct PropertiesState {
     /// The in-progress NEW-tag input buffer (the add affordance). `None` when not adding; `Some` while
     /// the inline tag TextEdit is open.
     pub new_tag_input: Option<String>,
+    /// True for the first frame after opening the new-tag input, so the TextEdit gets focus once without
+    /// stealing focus on every later frame and blocking blur commits.
+    pub new_tag_focus_pending: bool,
 }
 
 impl PropertiesState {
@@ -114,9 +127,12 @@ impl PropertiesState {
         Self {
             doc_metadata,
             title_edit: None,
+            project_ref_edit: None,
+            folder_ref_edit: None,
             tags: Vec::new(),
             pending_save: false,
             new_tag_input: None,
+            new_tag_focus_pending: false,
         }
     }
 
@@ -145,6 +161,44 @@ impl PropertiesState {
         true
     }
 
+    /// Begin editing the project ref, seeding the buffer from the loaded metadata.
+    pub fn begin_project_ref_edit(&mut self) {
+        if self.project_ref_edit.is_none() {
+            self.project_ref_edit = Some(self.doc_metadata.project_ref.clone().unwrap_or_default());
+        }
+    }
+
+    /// Commit the in-progress project-ref edit. Returns `Some(None)` to clear, `Some(Some(v))` to set,
+    /// and `None` when no backend mutation is needed.
+    pub fn commit_project_ref_edit(&mut self) -> Option<Option<String>> {
+        let edited = self.project_ref_edit.take()?;
+        let next = normalize_optional_ref(&edited);
+        if next == self.doc_metadata.project_ref {
+            return None;
+        }
+        self.doc_metadata.project_ref = next.clone();
+        Some(next)
+    }
+
+    /// Begin editing the folder ref, seeding the buffer from the loaded metadata.
+    pub fn begin_folder_ref_edit(&mut self) {
+        if self.folder_ref_edit.is_none() {
+            self.folder_ref_edit = Some(self.doc_metadata.folder_ref.clone().unwrap_or_default());
+        }
+    }
+
+    /// Commit the in-progress folder-ref edit. Returns `Some(None)` to clear, `Some(Some(v))` to set,
+    /// and `None` when no backend mutation is needed.
+    pub fn commit_folder_ref_edit(&mut self) -> Option<Option<String>> {
+        let edited = self.folder_ref_edit.take()?;
+        let next = normalize_optional_ref(&edited);
+        if next == self.doc_metadata.folder_ref {
+            return None;
+        }
+        self.doc_metadata.folder_ref = next.clone();
+        Some(next)
+    }
+
     /// Add a tag to the LOCAL-ONLY list (MC-002: never persisted). Trims, ignores blank/duplicate tags,
     /// and returns true when a tag was appended.
     pub fn add_tag(&mut self, tag: impl Into<String>) -> bool {
@@ -169,7 +223,39 @@ impl PropertiesState {
     pub fn set_metadata(&mut self, doc_metadata: DocMetadata) {
         self.doc_metadata = doc_metadata;
         self.title_edit = None;
+        self.project_ref_edit = None;
+        self.folder_ref_edit = None;
         self.pending_save = false;
+        self.new_tag_input = None;
+        self.new_tag_focus_pending = false;
+    }
+}
+
+fn normalize_optional_ref(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_owned())
+    }
+}
+
+impl From<&crate::backend_client::RichDocBody> for DocMetadata {
+    fn from(doc: &crate::backend_client::RichDocBody) -> Self {
+        Self {
+            rich_document_id: doc.document_id.clone(),
+            workspace_id: doc.workspace_id.clone(),
+            title: doc.title.clone(),
+            doc_version: doc.doc_version,
+            authority_label: doc.authority_label.clone(),
+            owner_actor_kind: doc.owner_actor_kind.clone(),
+            owner_actor_id: doc.owner_actor_id.clone(),
+            project_ref: doc.project_ref.clone(),
+            folder_ref: doc.folder_ref.clone(),
+            crdt_document_id: doc.crdt_document_id.clone(),
+            created_at: doc.created_at.clone(),
+            updated_at: doc.updated_at.clone(),
+        }
     }
 }
 
@@ -260,6 +346,38 @@ mod tests {
             st.title_edit.is_none(),
             "the edit buffer is cleared after commit"
         );
+    }
+
+    #[test]
+    fn commit_project_and_folder_refs_emit_move_payloads() {
+        let mut st = PropertiesState::new(meta());
+
+        st.begin_project_ref_edit();
+        st.project_ref_edit = Some(" PRJ-2 ".into());
+        assert_eq!(
+            st.commit_project_ref_edit(),
+            Some(Some("PRJ-2".into())),
+            "a changed project ref is normalized into a /move set payload"
+        );
+        assert_eq!(st.doc_metadata.project_ref.as_deref(), Some("PRJ-2"));
+
+        st.begin_folder_ref_edit();
+        st.folder_ref_edit = Some("   ".into());
+        assert_eq!(
+            st.commit_folder_ref_edit(),
+            None,
+            "clearing an already-empty folder ref is not a backend mutation"
+        );
+
+        st.doc_metadata.folder_ref = Some("FOLDER-1".into());
+        st.begin_folder_ref_edit();
+        st.folder_ref_edit = Some("   ".into());
+        assert_eq!(
+            st.commit_folder_ref_edit(),
+            Some(None),
+            "blank folder text clears an existing backend folder ref"
+        );
+        assert_eq!(st.doc_metadata.folder_ref, None);
     }
 
     #[test]

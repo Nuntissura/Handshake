@@ -55,11 +55,11 @@ pub mod calendar_interop;
 pub mod locus_interop;
 
 pub use interaction_bus::{
-    command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardPayload,
-    CommandBus, CommandDescriptor, CommandHandler, EditorSurfaceKind, InteractionBus,
-    SharedSelection, CMD_COMMAND_PALETTE, CMD_COPY, CMD_CUT, CMD_EMBED_STAGE_CAPTURE, CMD_FIND,
-    CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT, CMD_OPEN_LOCUS_REF, CMD_PASTE, CMD_REDO,
-    CMD_ROUTE_TO_STAGE, CMD_SELECT_ALL, CMD_UNDO, CMD_UNDO_CROSS_PANE,
+    command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardCommand,
+    ClipboardPayload, CommandBus, CommandDescriptor, CommandHandler, EditorSurfaceKind,
+    InteractionBus, SharedSelection, CMD_COMMAND_PALETTE, CMD_COPY, CMD_CUT,
+    CMD_EMBED_STAGE_CAPTURE, CMD_FIND, CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT, CMD_OPEN_LOCUS_REF,
+    CMD_PASTE, CMD_REDO, CMD_ROUTE_TO_STAGE, CMD_SELECT_ALL, CMD_UNDO, CMD_UNDO_CROSS_PANE,
     COMMAND_LIST_ITEM_AUTHOR_PREFIX, COMMAND_PALETTE_SEARCH_AUTHOR_ID,
     COMMAND_PALETTE_TRIGGER_AUTHOR_ID, INTERACTION_BUS_KEY,
 };

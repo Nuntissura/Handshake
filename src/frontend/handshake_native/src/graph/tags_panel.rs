@@ -14,31 +14,33 @@
 //!
 //! ## Backend reality (Spec-Realism Gate — the MT-008/021/022 "verify, don't trust the contract" rule)
 //!
-//! The MT-023 contract body assumed a `GET /loom/views/all?content_type=tag_hub` filter, a
-//! `views/all?tag_ids={id}` member query, and a `content_json` hub description. Verified READ-ONLY
-//! against the running backend (`src/backend/handshake_core/src/{api,storage}/loom.rs`), NONE of those is
-//! the real surface — exactly the MT-022 folder lesson again. The REAL tag authority is a dedicated
-//! tag-hub API (MT-182 "tags as first-class blocks"):
+//! The MT-023 contract body assumed generic `GET /loom/views/all?content_type=tag_hub` and
+//! `views/all?tag_ids={id}` filters plus a `content_json` hub description. Verified READ-ONLY against
+//! the running backend (`src/backend/handshake_core/src/{api,storage}/loom.rs`): the generic view filters
+//! exist, but the stronger, dedicated authority for this surface is the tag-hub API (MT-182 "tags as
+//! first-class blocks"):
 //!   - `GET  /workspaces/{ws}/loom/tags`                       -> `Vec<LoomBlock>` (every `tag_hub`
-//!     block; the flat list the panel renders — the contract's `views/all?content_type=tag_hub` does NOT
-//!     exist, so RISK-5's "client-side content_type filter fallback" is moot: this route already returns
-//!     ONLY tag hubs).
+//!     block; the flat list the panel renders. RISK-5's "client-side content_type filter fallback" is
+//!     unnecessary here because this route already returns ONLY tag hubs).
 //!   - `GET  /workspaces/{ws}/loom/tags/{tag_block_id}`        -> `LoomTagHub` `{ block, sub_tags,
 //!     tagged_blocks, backlink_count }` (the hub page: title from `block.title`, members from
 //!     `tagged_blocks` — there is NO `content_json` description column, so the hub "description" is the
 //!     verified field set, never a fabricated one).
-//!   - `GET  /workspaces/{ws}/loom/tags/{tag_block_id}/blocks` -> `Vec<LoomBlock>` (members; supports
-//!     `include_subtags`, `limit`, `offset`; the lazy member-count + member-list source).
+//!   - `GET  /workspaces/{ws}/loom/tags/{tag_block_id}/blocks` -> `Vec<LoomBlock>` (capped member
+//!     page; supports `include_subtags`, `limit`, `offset`; used for direct route/live proofs, not exact
+//!     list badge counts).
 //!   - `POST /workspaces/{ws}/loom/edges` body `{ source_block_id, target_block_id, edge_type:"tag",
 //!     created_by:"user" }` -> `LoomEdge` (tag a block with a hub; the backend HARD-rejects a non-tag_hub
 //!     target with `HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB`, so the hub is always the edge TARGET).
 //!
 //! ## Member count (RISK-1 / MC-1: no N+1)
 //!
-//! Each tag-hub `LoomBlock` carries `derived.tag_count` server-side, but that is the count of tags ON the
-//! block, not members OF the hub. The member count is `tagged_blocks.len()` from the hub detail. To avoid
-//! an N+1 storm on the list, the list rows show the count the host resolves lazily (it may be 0 until the
-//! hub is opened); the EXACT member count is loaded on hub open. The list never blocks on per-tag fetches.
+//! Each tag-hub `LoomBlock` carries server-side derived counts. `derived.tag_count` is the count of tags
+//! ON the block, and `backlink_count` can include non-member backlinks, so neither is labeled as the
+//! member count. When the list response carries explicit `member_count` or `tagged_blocks.len()`, the row
+//! uses that exact member evidence; otherwise the host resolves the count through `GET /loom/tags/{id}`
+//! detail and updates the badge asynchronously. The exact member list is loaded on hub open from
+//! `tagged_blocks`; the capped `/blocks` member page remains a direct route/live proof surface.
 //!
 //! ## Repaint discipline (the MT-015 idle-repaint lesson)
 //!

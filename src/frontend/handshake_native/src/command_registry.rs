@@ -72,6 +72,40 @@ pub struct AppCommand {
     pub disabled: bool,
 }
 
+/// Per-frame command availability for MT-069 editor-menu palette rows. This is intentionally richer than
+/// a single "some editor exists" boolean: mounted editors prove the product has editor surfaces, but
+/// target-sensitive commands must still require the correct active editor target for this frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EditorMenuEnableContext {
+    pub editor_available: bool,
+    pub active_code_editor: bool,
+    pub active_rich_editor: bool,
+    pub editor_can_undo: bool,
+    pub editor_can_redo: bool,
+    pub editor_can_paste: bool,
+    pub editor_can_nav_back: bool,
+    pub editor_can_nav_forward: bool,
+}
+
+impl EditorMenuEnableContext {
+    pub const fn unavailable() -> Self {
+        Self {
+            editor_available: false,
+            active_code_editor: false,
+            active_rich_editor: false,
+            editor_can_undo: false,
+            editor_can_redo: false,
+            editor_can_paste: false,
+            editor_can_nav_back: false,
+            editor_can_nav_forward: false,
+        }
+    }
+
+    fn active_editor(self) -> bool {
+        self.active_code_editor || self.active_rich_editor
+    }
+}
+
 pub const CMD_TERMINAL_OPEN_WORKSPACE: &str = "terminal.open-workspace";
 pub const TERMINAL_OPEN_WORKSPACE_STABLE_ID: &str = "hs-terminal-palette-open-workspace";
 pub const CMD_MODEL_SESSION_LAUNCH_WORKSPACE: &str = "model-session.launch-workspace";
@@ -446,6 +480,56 @@ const APP_COMMANDS: &[AppCommand] = &[
         stable_id: "hs-view-palette-diff-merge",
         disabled: false,
     },
+    // ── WP-KERNEL-012 wave-6 (S6 item 1): OPERATOR OPEN routes for the CORE native-editor surfaces that
+    // had a mounted pane but NO palette/menu open command. Each opens the named editor pane on the active
+    // work surface through the SAME `open_content_on_active_pane` primitive the other `view.*` routes use;
+    // no fake commands (each PaneType has a live host-mounted factory from MT-079/080). These make the
+    // editor surfaces reachable from the operator-facing VIEW > Open Editor Surfaces menu section.
+    AppCommand {
+        id: CMD_VIEW_CODE_EDITOR,
+        kind: CommandKind::App,
+        label: "View: Code Editor",
+        description: "Open the native code editor pane (Monaco-parity) on the active work surface.",
+        keywords: &["view", "code", "editor", "monaco", "source", "pane"],
+        stable_id: "hs-view-palette-code-editor",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_RICH_NOTE,
+        kind: CommandKind::App,
+        label: "View: Rich Note",
+        description: "Open the rich-text Notes editor pane (Obsidian/Notion-parity) on the active work surface.",
+        keywords: &["view", "rich", "note", "notes", "wiki", "obsidian", "editor", "pane"],
+        stable_id: "hs-view-palette-rich-note",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_CANVAS,
+        kind: CommandKind::App,
+        label: "View: Canvas",
+        description: "Open the Loom canvas board pane (freeform canvas / atelier surface).",
+        keywords: &["view", "canvas", "board", "atelier", "freeform", "pane"],
+        stable_id: "hs-view-palette-canvas",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_LOOM_SEARCH,
+        kind: CommandKind::App,
+        label: "View: Loom Search",
+        description: "Open the LoomSearchV2 pane (full-text + structured Loom search).",
+        keywords: &["view", "loom", "search", "find", "query", "pane"],
+        stable_id: "hs-view-palette-loom-search",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_FIND_IN_FILES,
+        kind: CommandKind::App,
+        label: "View: Find in Files",
+        description: "Open the Find-in-Files workspace-search pane.",
+        keywords: &["view", "find", "files", "workspace", "search", "grep", "pane"],
+        stable_id: "hs-view-palette-find-in-files",
+        disabled: false,
+    },
 ];
 
 // ── WP-KERNEL-012 E11 remediation wave: stable `view.*` open-command ids ─────────────────────────────
@@ -460,6 +544,12 @@ pub const CMD_VIEW_FOLDERS: &str = "view.folders";
 pub const CMD_VIEW_OUTGOING_LINKS: &str = "view.outgoing-links";
 pub const CMD_VIEW_JOURNAL: &str = "view.journal";
 pub const CMD_VIEW_DIFF_MERGE: &str = "view.diff-merge";
+// ── WP-KERNEL-012 wave-6 (S6 item 1): CORE native-editor surface open-command ids ────────────────────
+pub const CMD_VIEW_CODE_EDITOR: &str = "view.code-editor";
+pub const CMD_VIEW_RICH_NOTE: &str = "view.rich-note";
+pub const CMD_VIEW_CANVAS: &str = "view.canvas";
+pub const CMD_VIEW_LOOM_SEARCH: &str = "view.loom-search";
+pub const CMD_VIEW_FIND_IN_FILES: &str = "view.find-in-files";
 
 // ── WP-KERNEL-012 MT-069 (E11 menu wire-up): the editor FILE/EDIT/GO menu + palette command ids ──────
 //
@@ -491,6 +581,10 @@ pub const CMD_EDITOR_FIND_IN_FILES: &str = "editor.find.findInFiles";
 pub const CMD_EDITOR_REPLACE_IN_FILES: &str = "editor.find.replaceInFiles";
 pub const CMD_EDITOR_EDIT_TOGGLE_COMMENT: &str = "editor.edit.toggleComment";
 pub const CMD_EDITOR_EDIT_FORMAT_DOCUMENT: &str = "editor.edit.formatDocument";
+pub const CMD_EDITOR_FOLD_AT_CURSOR: &str = "editor.fold.atCursor";
+pub const CMD_EDITOR_UNFOLD_AT_CURSOR: &str = "editor.fold.unfoldAtCursor";
+pub const CMD_EDITOR_FOLD_ALL: &str = "editor.fold.all";
+pub const CMD_EDITOR_UNFOLD_ALL: &str = "editor.fold.unfoldAll";
 pub const CMD_WORKBENCH_SHOW_COMMANDS: &str = "workbench.action.showCommands";
 pub const CMD_WORKBENCH_QUICK_OPEN: &str = "workbench.action.quickOpen";
 // GO (code-navigation): MT-069 REMEDIATION — the code-nav shell commands are now REGISTERED against the
@@ -526,7 +620,8 @@ pub fn is_go_nav_pending(id: &str) -> bool {
 /// the MT-031 InteractionBus / MT-020 save path); none re-implements editor logic. Enabled at the catalog
 /// level (`disabled: false`); the per-frame ENABLE PREDICATE (an editor pane is the focusable target) is
 /// applied by the menu bar + palette via [`editor_menu_commands_enabled`] so a stale-state row is honest.
-/// The GO-nav rows are NOT in this catalog: they stay disabled placeholders in the GO menu (AC-003).
+/// The GO-nav rows are included in this catalog after MT-069 because their owners now route to the
+/// mounted code panel; genuinely-unowned future GO ids belong in [`EDITOR_GO_NAV_PENDING_IDS`].
 const EDITOR_MENU_COMMANDS: &[AppCommand] = &[
     editor_menu_cmd(
         CMD_EDITOR_FILE_NEW,
@@ -647,6 +742,30 @@ const EDITOR_MENU_COMMANDS: &[AppCommand] = &[
         "Editor: Format Document",
         &["format", "document", "edit", "editor"],
         "hs-editor-menu-edit-format-document",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FOLD_AT_CURSOR,
+        "Editor: Fold Region",
+        &["fold", "collapse", "region", "code", "editor"],
+        "hs-editor-menu-fold-at-cursor",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_UNFOLD_AT_CURSOR,
+        "Editor: Unfold Region",
+        &["unfold", "expand", "region", "code", "editor"],
+        "hs-editor-menu-unfold-at-cursor",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FOLD_ALL,
+        "Editor: Fold All Regions",
+        &["fold", "collapse", "all", "regions", "code", "editor"],
+        "hs-editor-menu-fold-all",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_UNFOLD_ALL,
+        "Editor: Unfold All Regions",
+        &["unfold", "expand", "all", "regions", "code", "editor"],
+        "hs-editor-menu-unfold-all",
     ),
     editor_menu_cmd(
         CMD_WORKBENCH_SHOW_COMMANDS,
@@ -871,15 +990,51 @@ pub fn filtered_commands(query: &str) -> Vec<&'static AppCommand> {
 }
 
 /// WP-KERNEL-012 MT-069: apply the per-frame ENABLE PREDICATE to a catalog command, returning the
-/// effective disabled state the palette/menu should render this frame. A [`CommandKind::EditorMenu`]
-/// command is enabled only when `editor_available` (an editor pane is the focusable/active target) — the
-/// honest precondition the contract requires (no fake-enabled rows when no editor is mounted). All other
-/// kinds keep their static `disabled` flag. Centralizing this keeps the palette and the menu bar reading
-/// ONE predicate so they never diverge (RISK-006: stale enable state).
-pub fn effective_disabled(cmd: &AppCommand, editor_available: bool) -> bool {
+/// effective disabled state the palette/menu should render this frame. EditorMenu commands are
+/// command-specific: Save needs the active editor target, Save As/export need the active rich target,
+/// code navigation needs the active code target, and workbench openers stay globally runnable. All other
+/// kinds keep their static `disabled` flag. Centralizing this keeps palette and menu enablement aligned.
+pub fn effective_disabled(cmd: &AppCommand, ctx: EditorMenuEnableContext) -> bool {
     match cmd.kind {
-        CommandKind::EditorMenu => cmd.disabled || !editor_available,
+        CommandKind::EditorMenu => cmd.disabled || !editor_menu_command_enabled(cmd.id, ctx),
         _ => cmd.disabled,
+    }
+}
+
+pub fn editor_menu_command_enabled(command_id: &str, ctx: EditorMenuEnableContext) -> bool {
+    match command_id {
+        CMD_WORKBENCH_SHOW_COMMANDS | CMD_WORKBENCH_QUICK_OPEN => true,
+        CMD_EDITOR_FILE_NEW | CMD_EDITOR_FILE_SAVE | CMD_EDITOR_FILE_SAVE_ALL => {
+            ctx.active_editor()
+        }
+        CMD_EDITOR_FILE_SAVE_AS
+        | CMD_EDITOR_FILE_EXPORT_HTML
+        | CMD_EDITOR_FILE_EXPORT_MD
+        | CMD_EDITOR_FILE_EXPORT_TXT
+        | CMD_EDITOR_FILE_EXPORT_JSON => ctx.active_rich_editor,
+        CMD_EDITOR_EDIT_UNDO => ctx.active_editor() && ctx.editor_can_undo,
+        CMD_EDITOR_EDIT_REDO => ctx.active_editor() && ctx.editor_can_redo,
+        CMD_EDITOR_EDIT_CUT | CMD_EDITOR_EDIT_COPY => ctx.active_editor(),
+        CMD_EDITOR_EDIT_PASTE => ctx.active_editor() && ctx.editor_can_paste,
+        CMD_EDITOR_EDIT_SELECT_ALL => ctx.active_code_editor,
+        CMD_EDITOR_FIND_FIND | CMD_EDITOR_FIND_REPLACE => ctx.active_editor(),
+        CMD_EDITOR_FIND_IN_FILES | CMD_EDITOR_REPLACE_IN_FILES => ctx.active_editor(),
+        CMD_EDITOR_EDIT_TOGGLE_COMMENT
+        | CMD_EDITOR_EDIT_FORMAT_DOCUMENT
+        | CMD_EDITOR_FOLD_AT_CURSOR
+        | CMD_EDITOR_UNFOLD_AT_CURSOR
+        | CMD_EDITOR_FOLD_ALL
+        | CMD_EDITOR_UNFOLD_ALL => ctx.active_code_editor,
+        CMD_EDITOR_GO_BACK => ctx.active_code_editor && ctx.editor_can_nav_back,
+        CMD_EDITOR_GO_FORWARD => ctx.active_code_editor && ctx.editor_can_nav_forward,
+        CMD_EDITOR_GO_NEXT_DIAGNOSTIC
+        | CMD_EDITOR_GO_PREV_DIAGNOSTIC
+        | CMD_EDITOR_GO_SYMBOL_IN_FILE
+        | CMD_EDITOR_GO_TO_DEFINITION
+        | CMD_EDITOR_GO_TO_REFERENCES
+        | CMD_EDITOR_GO_TO_SYMBOL
+        | CMD_EDITOR_GO_TO_LINE => ctx.active_code_editor,
+        _ => ctx.editor_available && ctx.active_editor(),
     }
 }
 
@@ -990,21 +1145,73 @@ mod tests {
         }
     }
 
-    /// MT-069 enable predicate: an EditorMenu command is disabled when no editor pane is available and
-    /// enabled when one is; non-editor-menu commands ignore the predicate (keep their static flag).
+    /// MT-069 enable predicate: EditorMenu commands are command-specific. Mounted editor panes are not
+    /// enough for target-sensitive commands; Save needs an active editor, Save As/export need active rich,
+    /// and code nav needs active code.
     #[test]
-    fn editor_menu_commands_gated_by_editor_available() {
+    fn editor_menu_commands_gated_by_active_target_context() {
+        let unavailable = EditorMenuEnableContext::unavailable();
+        let code = EditorMenuEnableContext {
+            editor_available: true,
+            active_code_editor: true,
+            ..EditorMenuEnableContext::unavailable()
+        };
+        let rich = EditorMenuEnableContext {
+            editor_available: true,
+            active_rich_editor: true,
+            ..EditorMenuEnableContext::unavailable()
+        };
+        let mounted_but_not_active = EditorMenuEnableContext {
+            editor_available: true,
+            ..EditorMenuEnableContext::unavailable()
+        };
         let save = all_commands()
             .iter()
             .find(|c| c.id == CMD_EDITOR_FILE_SAVE)
             .unwrap();
         assert!(
-            effective_disabled(save, false),
-            "Editor Save disabled when no editor pane is available"
+            effective_disabled(save, mounted_but_not_active),
+            "Editor Save disabled when editors are mounted but no editor is active"
         );
         assert!(
-            !effective_disabled(save, true),
-            "Editor Save enabled when an editor pane is available"
+            !effective_disabled(save, code),
+            "Editor Save enabled for active code editor"
+        );
+        assert!(
+            !effective_disabled(save, rich),
+            "Editor Save enabled for active rich editor"
+        );
+        let save_as = all_commands()
+            .iter()
+            .find(|c| c.id == CMD_EDITOR_FILE_SAVE_AS)
+            .unwrap();
+        assert!(
+            effective_disabled(save_as, code),
+            "Editor Save As disabled for active code editor"
+        );
+        assert!(
+            !effective_disabled(save_as, rich),
+            "Editor Save As enabled for active rich editor"
+        );
+        let go_to_definition = all_commands()
+            .iter()
+            .find(|c| c.id == CMD_EDITOR_GO_TO_DEFINITION)
+            .unwrap();
+        assert!(
+            !effective_disabled(go_to_definition, code),
+            "Go to Definition enabled for active code editor"
+        );
+        assert!(
+            effective_disabled(go_to_definition, rich),
+            "Go to Definition disabled for active rich editor"
+        );
+        let quick_open = all_commands()
+            .iter()
+            .find(|c| c.id == CMD_WORKBENCH_QUICK_OPEN)
+            .unwrap();
+        assert!(
+            !effective_disabled(quick_open, unavailable),
+            "Quick Open remains globally runnable"
         );
         // A disabled rich-text Editor command stays disabled regardless of editor availability.
         let bold = all_commands()
@@ -1012,7 +1219,7 @@ mod tests {
             .find(|c| c.id == "editor.format.bold")
             .unwrap();
         assert!(
-            effective_disabled(bold, true),
+            effective_disabled(bold, rich),
             "rich-text Bold stays disabled (needs an active doc)"
         );
         // An App command is never gated by the editor predicate.
@@ -1021,7 +1228,7 @@ mod tests {
             .find(|c| c.id == "theme.toggle")
             .unwrap();
         assert!(
-            !effective_disabled(theme, false),
+            !effective_disabled(theme, unavailable),
             "App command ignores the editor predicate"
         );
     }
@@ -1057,6 +1264,10 @@ mod tests {
             CMD_EDITOR_REPLACE_IN_FILES,
             CMD_EDITOR_EDIT_TOGGLE_COMMENT,
             CMD_EDITOR_EDIT_FORMAT_DOCUMENT,
+            CMD_EDITOR_FOLD_AT_CURSOR,
+            CMD_EDITOR_UNFOLD_AT_CURSOR,
+            CMD_EDITOR_FOLD_ALL,
+            CMD_EDITOR_UNFOLD_ALL,
             CMD_WORKBENCH_SHOW_COMMANDS,
             CMD_WORKBENCH_QUICK_OPEN,
             CMD_EDITOR_GO_TO_DEFINITION,
@@ -1074,7 +1285,7 @@ mod tests {
                 "menu command id '{expected}' present: {menu_ids:?}"
             );
         }
-        assert_eq!(menu_ids.len(), 31, "exactly 31 EditorMenu commands");
+        assert_eq!(menu_ids.len(), 35, "exactly 35 EditorMenu commands");
         // MT-069 REMEDIATION: no GO id is pending anymore (the code-nav commands are registered).
         assert!(
             EDITOR_GO_NAV_PENDING_IDS.is_empty(),

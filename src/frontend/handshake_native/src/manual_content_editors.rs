@@ -27,8 +27,9 @@
 //!   * Locus — `outgoing.panel` / `outgoing.section.resolved` / `outgoing.section.unresolved`
 //!     ([`crate::rich_editor::wikilinks::outgoing_links_panel`]) — the locus-ref chip lives inline.
 //! - Every documented `mcp_tool` is one of the FOUR REAL [`crate::mcp::tools`] methods:
-//!   `list_widgets` / `click_widget` / `set_value` / `screenshot`. The contract's invented
-//!   `gui.invoke_action` / `gui.read_state` are NOT used.
+//!   `list_widgets` / `click_widget` / `set_value` / `screenshot`. These are the current MCP method names
+//!   for the Argus verbs (`argus.inspect`, `argus.click`, `argus.set_value`, `argus.screenshot`); the
+//!   contract's invented `gui.invoke_action` / `gui.read_state` are NOT used.
 //!
 //! ## Honest interop-edge gap note (RISK-007)
 //!
@@ -96,6 +97,8 @@ pub const WP_SURFACE_HEADINGS: &[&str] = &[
     "Code Editor",
     "Rich Text Editor",
     "Knowledge Graph",
+    "Folder Tree",
+    "Tags and Tag Hubs",
     "Canvas",
     "Search",
     "Wikilinks and Backlinks",
@@ -117,6 +120,71 @@ pub const INFERENCE_LAB_PALETTE_AUTHOR_ID: &str =
 pub const FLIGHT_RECORDER_MENU_AUTHOR_ID: &str = "menu.run.flight-recorder";
 pub const FLIGHT_RECORDER_PALETTE_AUTHOR_ID: &str = "command-palette.option.hs-flight-palette-open";
 pub const SETTINGS_DIAGNOSTICS_SECTION_AUTHOR_ID: &str = "settings.section.diagnostics";
+pub const VIEW_OPEN_CODE_EDITOR_MENU_AUTHOR_ID: &str = "menu.view.open-code-editor";
+pub const VIEW_OPEN_RICH_NOTE_MENU_AUTHOR_ID: &str = "menu.view.open-rich-note";
+pub const VIEW_OPEN_KNOWLEDGE_GRAPH_MENU_AUTHOR_ID: &str = "menu.view.open-knowledge-graph";
+pub const VIEW_OPEN_FOLDERS_MENU_AUTHOR_ID: &str = "menu.view.open-folders";
+pub const VIEW_OPEN_TAGS_MENU_AUTHOR_ID: &str = "menu.view.open-tags";
+pub const VIEW_OPEN_BLOCK_COLLECTIONS_MENU_AUTHOR_ID: &str = "menu.view.open-block-collections";
+pub const VIEW_OPEN_CANVAS_MENU_AUTHOR_ID: &str = "menu.view.open-canvas";
+pub const VIEW_OPEN_LOOM_SEARCH_MENU_AUTHOR_ID: &str = "menu.view.open-loom-search";
+pub const VIEW_OPEN_FIND_IN_FILES_MENU_AUTHOR_ID: &str = "menu.view.open-find-in-files";
+pub const VIEW_OPEN_QUICK_SWITCHER_MENU_AUTHOR_ID: &str = "menu.view.open-quick-switcher";
+pub const VIEW_OPEN_DAILY_JOURNAL_MENU_AUTHOR_ID: &str = "menu.view.open-daily-journal";
+pub const VIEW_OPEN_DIFF_EDITOR_MENU_AUTHOR_ID: &str = "menu.view.open-diff-editor";
+pub const VIEW_OPEN_CODE_EDITOR_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-code-editor";
+pub const VIEW_OPEN_RICH_NOTE_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-rich-note";
+pub const VIEW_OPEN_KNOWLEDGE_GRAPH_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-graph";
+pub const VIEW_OPEN_FOLDERS_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-folders";
+pub const VIEW_OPEN_TAGS_PALETTE_AUTHOR_ID: &str = "command-palette.option.hs-view-palette-tags";
+pub const VIEW_OPEN_CANVAS_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-canvas";
+pub const VIEW_OPEN_LOOM_SEARCH_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-loom-search";
+pub const VIEW_OPEN_FIND_IN_FILES_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-find-in-files";
+pub const VIEW_OPEN_QUICK_SWITCHER_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-editor-menu-quick-open";
+pub const VIEW_OPEN_DAILY_JOURNAL_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-journal";
+pub const VIEW_OPEN_DIFF_EDITOR_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-diff-merge";
+pub const CONFLICT_KEEP_YOURS_AUTHOR_ID: &str =
+    crate::rich_editor::save::conflict_ui::CONFLICT_KEEP_YOURS_AUTHOR_ID;
+pub const CONFLICT_KEEP_SERVER_AUTHOR_ID: &str =
+    crate::rich_editor::save::conflict_ui::CONFLICT_KEEP_SERVER_AUTHOR_ID;
+pub const CONFLICT_OPEN_MERGE_AUTHOR_ID: &str =
+    crate::rich_editor::save::conflict_ui::CONFLICT_OPEN_MERGE_AUTHOR_ID;
+pub const CONFLICT_KEEP_YOURS_CONFIRM_AUTHOR_ID: &str =
+    crate::rich_editor::save::conflict_ui::CONFLICT_KEEP_YOURS_CONFIRM_AUTHOR_ID;
+pub const DRAFT_BANNER_AUTHOR_ID: &str =
+    crate::rich_editor::save::conflict_ui::DRAFT_BANNER_AUTHOR_ID;
+pub const DRAFT_RESTORE_AUTHOR_ID: &str =
+    crate::rich_editor::save::conflict_ui::DRAFT_RESTORE_AUTHOR_ID;
+pub const DRAFT_DISCARD_AUTHOR_ID: &str =
+    crate::rich_editor::save::conflict_ui::DRAFT_DISCARD_AUTHOR_ID;
+pub const RICH_EDITOR_EXPORT_BUTTON_AUTHOR_ID: &str =
+    crate::rich_editor::renderer::rich_editor_widget::RichEditorWidget::EXPORT_BUTTON_AUTHOR_ID;
+pub const EXPORT_FORMAT_PICKER_AUTHOR_ID: &str =
+    crate::rich_editor::save::conflict_ui::EXPORT_PICKER_AUTHOR_ID;
+pub const GRAPH_MODE_LOCAL_AUTHOR_ID: &str = crate::graph::MODE_LOCAL_AUTHOR_ID;
+pub const GRAPH_MODE_GLOBAL_AUTHOR_ID: &str = crate::graph::MODE_GLOBAL_AUTHOR_ID;
+pub const GRAPH_ZOOM_IN_AUTHOR_ID: &str = crate::graph::ZOOM_IN_AUTHOR_ID;
+pub const GRAPH_ZOOM_OUT_AUTHOR_ID: &str = crate::graph::ZOOM_OUT_AUTHOR_ID;
+pub const GRAPH_RELAYOUT_AUTHOR_ID: &str = crate::graph::RELAYOUT_AUTHOR_ID;
+pub const GRAPH_NODE_AUTHOR_ID_PATTERN: &str = "graph.node.{block_id}";
+pub const FOLDER_TREE_NODE_AUTHOR_ID_PATTERN: &str = "folder-tree.node.{folder_id}";
+pub const FOLDER_TREE_COLOR_AUTHOR_ID_PATTERN: &str = "folder-tree.color.{folder_id}";
+pub const FOLDER_TREE_RETRY_AUTHOR_ID: &str = crate::graph::RETRY_AUTHOR_ID;
+pub const TAGS_SEARCH_AUTHOR_ID: &str = crate::graph::tags_panel::SEARCH_AUTHOR_ID;
+pub const TAG_ROW_AUTHOR_ID_PATTERN: &str = "tags.row.{block_id}";
+pub const TAG_HUB_TITLE_AUTHOR_ID_PATTERN: &str = "tag-hub.title.{block_id}";
+pub const TAG_HUB_MEMBER_AUTHOR_ID_PATTERN: &str = "tag-hub.member.{block_id}";
+pub const TAG_HUB_ADD_TAG_AUTHOR_ID_PATTERN: &str = "tag-hub.add-tag.{block_id}";
 
 /// Build the native-editors manual section: the eight GLOBAL-BUILD-MANUAL topics, an interop topic
 /// naming all four cross-pillar edges, and the `author_id -> MCP tool` agent-tool reference.
@@ -190,6 +258,8 @@ pub fn editors_manual_section() -> ManualSection {
         ("Code Editor", code_editor_body()),
         ("Rich Text Editor", rich_text_editor_body()),
         ("Knowledge Graph", knowledge_graph_body()),
+        ("Folder Tree", folder_tree_body()),
+        ("Tags and Tag Hubs", tags_and_tag_hubs_body()),
         ("Canvas", canvas_body()),
         ("Search", search_body()),
         ("Wikilinks and Backlinks", wikilinks_backlinks_body()),
@@ -233,7 +303,8 @@ CANVAS board, and the knowledge surfaces (folder tree / backlinks / outgoing lin
 Chat is input-ready but backend-blocked in this build: sending returns ChatSendError::EndpointMissing and \
 does not append a fabricated assistant reply. Every pane is addressable by a stable AccessKit author_id and \
 steerable by the MCP swarm tools. A swarm agent discovers controls with list_widgets, drives \
-a button with click_widget{target:<author_id>}, types into a field with set_value{target,value}, and sees \
+a button with click_widget{target:<author_id>} or a parameterized control with \
+click_widget{target:<author_id>,payload:{...}}, types into a field with set_value{target,value}, and sees \
 the pixels with screenshot — no screen-scraping and no keyboard simulation."
         .to_owned()
 }
@@ -254,7 +325,9 @@ with graph.add-edge. Sketch on the canvas: add a card with canvas.add-card, plac
 canvas.place-block, connect with canvas.add-edge. Drive FEMS: the relevant-memory-panel shows the \
 retrieval capsule; propose a memory write with the fems-propose-dialog and confirm with \
 fems-propose-confirm (NEVER an editor-direct commit). Move a selection between panes: select in code, \
-copy (Ctrl+C), focus the rich pane, paste (Ctrl+V) — the shared clipboard + command/event bus carries it. \
+copy (Ctrl+C, menu.edit.copy, or command-palette.option.hs-editor-menu-edit-copy), focus the rich pane, \
+paste (Ctrl+V, menu.edit.paste, or command-palette.option.hs-editor-menu-edit-paste) — the shared \
+clipboard + command/event bus carries the in-session payload. \
 Jump from a knowledge backlink to its target: click a wikilink chip or an outgoing.resolved.* row. Open \
 the command palette (Ctrl+Shift+P, command-palette.dialog) and run a command by typing into \
 command-palette.search. Use Runtime Chat: read runtime-chat-status for the current EndpointMissing \
@@ -324,13 +397,15 @@ fems-propose-confirm), never an editor-direct commit."
 
 fn common_failure_modes_body() -> String {
     "A pane fails to mount (the docking layout could not place the tile, or the host-mount carry MT-080 is \
-not yet live). The clipboard daemon is missing on a headless CI runner so a copy/paste no-ops. A pane_id \
-is stale after the pane was closed, so a stored swarm reference points at a node that is gone (deletion is \
-signalled by ABSENCE from the AccessKit tree, not a tombstone). An AccessKit node is not found by an agent \
-because its backing widget is not rendered this frame (a transient control like find-next while the find \
-panel is closed is marked present=false and suppressed). The backend persistence API returns a typed error \
-(e.g. a knowledge-document save conflict, or a FEMS/Stage/Calendar/Locus route that is EndpointMissing in \
-the current handshake_core build). Runtime Chat send also returns EndpointMissing in this build; this is the \
+not yet live). The OS clipboard daemon can be absent on a headless CI runner, so the external system \
+clipboard mirror may not update; same-session editor copy/paste still uses the InteractionBus clipboard \
+cache and is not a no-op for mounted editor panes. A pane_id is stale after the pane was closed, so a \
+stored swarm reference points at a node that is gone (deletion is signalled by ABSENCE from the AccessKit \
+tree, not a tombstone). An AccessKit node is not found by an agent because its backing widget is not \
+rendered this frame (a transient control like find-next while the find panel is closed is marked \
+present=false and suppressed). The backend persistence API returns a typed error (e.g. a \
+knowledge-document save conflict, or a FEMS/Stage/Calendar/Locus route that is EndpointMissing in the \
+current handshake_core build). Runtime Chat send also returns EndpointMissing in this build; this is the \
 expected typed blocker, not a spinner or silent failure."
         .to_owned()
 }
@@ -392,7 +467,11 @@ The shell opens a LoomWikiPage tab with the document id, performs GET /knowledge
 content_json into the rich-editor document model, and binds SaveManager / DraftManager to that id and \
 doc_version. Editing is live in the rich editor: type into the Notes pane, use editor.rich.format-bold, \
 editor.rich.format-italic, editor.rich.insert-slash-command, wikilinks, backlinks, and properties exactly \
-like the Obsidian-class note surface. Save through Ctrl+S, FILE > Save, or editor.rich.save. The authoritative \
+like the Obsidian-class note surface. The Properties header is default-collapsed above the note body; expand \
+properties-header to reach properties-title (POST /knowledge/documents/:id/rename), \
+properties-project-ref and properties-folder-ref (POST /knowledge/documents/:id/move), properties-doc-id \
+click-to-copy, properties-tags, and the visible 'Editor chip tags are local-only' banner for \
+the note-body chip editor path; persisted Loom tag hubs are covered by the Tags and Tag Hubs topic. Save through Ctrl+S, FILE > Save, or editor.rich.save. The authoritative \
 save route is PUT /knowledge/documents/:id/save with expected_version and content_json; drafts use \
 GET/PUT/DELETE /knowledge/documents/:id/draft for crash recovery. Reopening the same note invalidates stale \
 mounted state and issues a fresh GET, so a no-context model should trust the reopened document and the \
@@ -428,16 +507,21 @@ model-session-launch.folder, model-session-launch.model, model-session-launch.wr
 model-session-launch.start, model-session-launch.cancel, and model-session-launch.inline-status. \
 Submitting issues a real POST /jobs body with job_kind=model_run, protocol_id=protocol-default, no doc_id \
 for a folder-only launch, and job_inputs carrying session_id, workspace_id, workspace_folder, working_dir, \
-model_provider, model_id, backend, wrapper, wp_id, and mt_id. The same session_id is preserved in \
+model_provider, model_id, backend, and wrapper. MT-101 remediation: operator launches omit wp_id, mt_id, \
+prompt, and simulate_duration_ms; governed-work attribution is present only when a governed launch surface \
+sets it explicitly. The launch is a promptless session bootstrap; operator messages must arrive through a \
+real follow-up message path, not a canned prompt in job_inputs. The same session_id is preserved in \
 model-session-launch-status for state recovery. That proves job creation plus durable model-session \
 correlation; live local or cloud execution remains NEEDS_MANAGED_RESOURCE_PROOF until a managed \
 handshake_core returns runtime state. \
 The direct repo-folder-bound session spawn with wrapper remains IPC-only via kernel_swarm_spawn_session in \
-app/src-tauri/src/commands/swarm_runtime.rs, so the native frontend surfaces \
-model-session-launch-status with EndpointMissing kernel_swarm_spawn_session rather than fabricating a \
-running model, local GGUF load, or cloud run result. A model must not fabricate a session id as proof of \
-runtime state; the request session_id is correlation only until a managed backend returns runtime proof. \
-A model must not claim 'model running' state unless a managed backend returns that runtime proof. \
+app/src-tauri/src/commands/swarm_runtime.rs, and local GGUF load remains IPC-only via kernel_model_runtime_load \
+in app/src-tauri/src/commands/model_runtime.rs. For Local provider launches, model-session-launch-status must \
+therefore include LocalModelLoadEndpointMissing kernel_model_runtime_load unless a real managed backend has \
+returned loaded/running local-model proof through a native route. The native frontend surfaces these blockers \
+rather than fabricating a running model, local GGUF load, or cloud run result. A model must not fabricate a \
+session id as proof of runtime state; the request session_id is correlation only until a managed backend returns \
+runtime proof. A model must not claim 'model running' state unless a managed backend returns that runtime proof. \
 Inference Lab remains available at menu.run.inference-lab \
 for broader model inspection, but it is not the MT-101 launch path. Settings -> Model Session exposes \
 settings.model-session.open-launch, which closes Settings and opens this same one-shot dialog; the initial \
@@ -561,13 +645,28 @@ fn code_editor_body() -> String {
     "The Code Editor is the VS Code-parity native code pane (PaneType::CodeSymbol, seeded as pane-a on the \
 default worksurface). Open a file from the project tree (left-rail.activity.files) or Quick Switcher; the \
 buffer mounts with syntax highlighting, line numbers/gutter diagnostics, code folding, a minimap, and a \
-symbol outline. Editing parity: multi-cursor (editor.code.multi-cursor-add / editor.code.multi-cursor-clear), \
+symbol outline. Large files are virtualized automatically: the scroll area paints only the visible row range, \
+so there is no operator setting to enable 100000-line handling. Editing parity: multi-cursor (editor.code.multi-cursor-add / editor.code.multi-cursor-clear), \
 find + replace (editor.code.find-open Ctrl+F, editor.code.replace-open, with editor.code.find-toggle-case/ \
 -word/-regex), Format Document (editor.code.format, Alt+Shift+F), and language selection \
-(editor.code.language-picker-open). Code navigation is LSP-backed and reachable from the GO menu or keys: \
-Go to Definition (F12), Go to References (Shift+F12), Go to Symbol in File (Ctrl+Shift+O), Go to Line \
-(Ctrl+G), and jump Back/Forward (Alt+Left / Alt+Right). Save with editor.code.save (Ctrl+S); the buffer \
-persists through the handshake_core backend client onto PostgreSQL/EventLedger, never bypassing handshake_core. \
+(editor.code.language-picker-open). Folding uses gutter triangles (code_editor_fold_target_0), the fold node \
+code_editor_fold_0 with Expand/Collapse actions, EDIT menu leaves menu.edit.fold-region / \
+menu.edit.unfold-region / menu.edit.fold-all / menu.edit.unfold-all, palette commands editor.fold.atCursor / \
+editor.fold.unfoldAtCursor / editor.fold.all / editor.fold.unfoldAll, Ctrl+Shift+[ / Ctrl+Shift+] for the \
+region at cursor, and Ctrl+K Ctrl+0 / Ctrl+K Ctrl+J for Fold All / Unfold All; a collapsed region renders its ellipsis summary \
+    label while hidden body rows are absent. Code intelligence attaches a discovered language server when one is \
+    available and otherwise stays in a typed graceful absent state. Completion opens from Ctrl+Space or trigger \
+    characters into code_editor_completion_popup with code_editor_completion_item_{n}; hover dwell opens \
+    code_editor_hover with the symbol name and go-to-definition link; LSP publishDiagnostics is URI-scoped before \
+    it reaches the gutter. The Handshake code-nav fallback uses /knowledge/code/symbols and related routes; \
+    backend-populated completion/hover content requires an indexed PostgreSQL workspace and is honestly treated \
+    as NEEDS_MANAGED_RESOURCE_PROOF when no indexed workspace is seeded. Code navigation is reachable from the GO \
+    menu or keys: Go to Definition (F12), Go to References (Shift+F12), Go to Symbol in File (Ctrl+Shift+O), Go to Line \
+    (Ctrl+G), and jump Back/Forward (Alt+Left / Alt+Right). Plain typing, IME commits, Backspace/Delete, \
+paste/cut, completion accept, and whole-buffer edits record into the MT-035 focused-pane undo ring; Ctrl+Z, \
+menu.edit.undo, and the header indicator undo-count-{pane_id} all read the same shared InteractionBus depth. \
+Save with editor.code.save (Ctrl+S); the buffer \
+    persists through the handshake_core backend client onto PostgreSQL/EventLedger, never bypassing handshake_core. \
 The bottom status bar exposes the editor segments status-bar-language-mode / status-bar-eol / \
 status-bar-indent / status-bar-encoding / status-bar-render-whitespace. Indent width, tabs-vs-spaces, word \
 wrap, and render-whitespace are driven live from Settings -> Editor (see the Editor Settings topic)."
@@ -588,20 +687,89 @@ is per-document and reuses the ONE MT-011 document model (no second render path)
 (Ctrl+S) or FILE > Save; the authoritative route is PUT /knowledge/documents/:id/save with expected_version \
 and content_json, and drafts use GET/PUT/DELETE /knowledge/documents/:id/draft for crash recovery. All \
 persistence is handshake_core PostgreSQL/EventLedger; reopening a note re-GETs the authoritative document \
-rather than trusting a cached editor buffer."
+rather than trusting a cached editor buffer. Save conflicts render conflict-dialog with conflict-keep-yours, \
+conflict-keep-server, conflict-keep-yours-confirm, and conflict-open-merge; the evidence posture is \
+Flight Recorder/EventLedger plus internal_diagnostics and Palmistry per HBR-INT-009. Draft recovery renders \
+draft-recovery-banner when the second open serves a non-null GET /knowledge/documents/:id/draft response; \
+draft-restore loads the recovered content into the editor without canonical-saving it, and draft-discard \
+clears the draft through DELETE /knowledge/documents/:id/draft. Wikilinks, tags, embeds, transclusions, and \
+code refs insert inline atoms through Step::InsertInlineChild with a pushed history receipt, so Ctrl+Z restores \
+the exact pre-insert content before later text undo. Export starts at rich-editor-export-button and opens \
+export-format-picker for HTML/MD/TXT/JSON output."
         .to_owned()
 }
 
 fn knowledge_graph_body() -> String {
-    "The Knowledge Graph (Loom graph view) renders the block/note link graph for the workspace. Pan with \
-graph.pan-left / graph.pan-right, zoom with graph.zoom-in / graph.zoom-out, open a node into its editor with \
-graph.open-node, and connect blocks with graph.add-edge. The Link-depth control re-queries the backend \
-GET /loom/graph-search?backlink_depth=N and replaces the node/edge set for the chosen depth, so an operator \
-can widen or narrow the neighbourhood live. Open the graph SURFACE by running 'View: Graph' from the Command \
-Palette (Ctrl+Shift+P; command id view.graph) or by selecting the CKC/MAIN module that lists it; direct \
-opening from the menu bar routes through that same command. Graph reads/writes go through handshake_core \
-(PostgreSQL/EventLedger) via the Loom graph-search + block routes, never bypassing handshake_core. A swarm \
-agent discovers the graph controls with list_widgets and drives them with click_widget{target:<author_id>}."
+    "The Knowledge Graph (Loom graph view) renders the block/note link graph for the workspace. Open the \
+graph SURFACE from VIEW > Knowledge Graph (menu.view.open-knowledge-graph), the Command Palette option \
+command-palette.option.hs-view-palette-graph, or command id view.graph. The mounted pane performs its initial \
+fetch when the Graph View pane is visible, drains the shared backend delivery cell into LoomGraphView::set_graph, \
+and refreshes the same mounted view after graph mutations. Global mode uses graph.mode.global and \
+GET /workspaces/{id}/loom/views/all. Local mode uses graph.mode.local and \
+GET /workspaces/{id}/loom/graph-search?q={title}&backlink_depth=N&limit=200. The Link-depth/backlink_depth \
+control re-queries Local mode for the chosen depth. Zoom with graph.zoom.in / graph.zoom.out; pan by dragging \
+the empty canvas or by the catalog actions graph.pan-left / graph.pan-right; click graph.relayout to restart \
+layout; open a rendered node by clicking its dynamic AccessKit id graph.node.{block_id}; the legacy catalog \
+action graph.open-node is the registry action shape for node-open automation. ModeChanged re-fetches Local or \
+Global data through the LoomGraphClient. AddEdge and RemoveEdge dispatch the existing /loom/edges backend \
+mutation requests and then re-fetch the graph; no graph read or write bypasses handshake_core. Empty workspaces \
+show 0 nodes. Backend failures stay visible as Graph error: ... instead of clearing the surface. Populated live \
+Global/Local proof requires a seeded Handshake-managed PostgreSQL/EventLedger backend and is typed \
+NEEDS_MANAGED_RESOURCE_PROOF until that resource is available. Recovery: use list_widgets to verify the \
+toolbar and graph.node.* ids, switch graph.mode.local / graph.mode.global to re-query, click graph.relayout \
+after layout confusion, seed or restart the backend when the live graph is empty, retry the view, and inspect \
+internal_diagnostics if Graph error: remains."
+        .to_owned()
+}
+
+fn folder_tree_body() -> String {
+    "The Folder Tree is the native Obsidian-style folder surface for Loom blocks. Open it from VIEW > Open \
+Folders (menu.view.open-folders), the Command Palette option \
+command-palette.option.hs-view-palette-folders, or command id view.folders. The mounted pane is the real \
+PaneType::Placeholder(\"Folders\") host, backed by LoomFolderTree, not a placeholder. When the Folders pane \
+is visible the host performs GET /workspaces/{id}/loom/folders, builds the folder forest, and renders each \
+folder row as folder-tree.node.{folder_id}; each folder color swatch is \
+folder-tree.color.{folder_id}. Expand a folder to emit FolderTreeEvent::ExpandFolder; the host sets a \
+bounded loading state and lazily fetches its children with GET \
+/workspaces/{id}/loom/folders/{folder_id}/blocks?limit=100. Click a folder or child block to emit \
+FolderTreeEvent::OpenFolder or FolderTreeEvent::OpenBlock, which routes through the same shell \
+open_content_on_active_pane path as other Loom navigation. Right-click a folder row and choose Change color, \
+or click its swatch shortcut, to open the picker; choosing a color emits FolderTreeEvent::ChangeColor and \
+the host sends PATCH /workspaces/{id}/loom/folders/{folder_id} with only {\"color\":\"#rrggbb\"}, so name, \
+sort, and parent fields are not clobbered. Empty workspaces show No folders. Backend failures stay visible \
+with folder-tree.retry as a Retry button; clicking it emits FolderTreeEvent::Retry and re-runs the folder \
+list fetch. Populated live folder, child, and recolor persistence proof requires a seeded \
+Handshake-managed PostgreSQL/EventLedger backend and remains NEEDS_MANAGED_RESOURCE_PROOF until that \
+resource is available. A model should use list_widgets to enumerate folder-tree.node.* and \
+folder-tree.color.* ids, click_widget on folder-tree.retry after an error, click_widget on a swatch or row \
+context path for Change color, and screenshot the tree when verifying swatch color or hierarchy."
+        .to_owned()
+}
+
+fn tags_and_tag_hubs_body() -> String {
+    "Tags and Tag Hubs are the native Obsidian-style tag navigation surface for Loom blocks. Open it from \
+VIEW > Open Tags (menu.view.open-tags), the Command Palette option \
+command-palette.option.hs-view-palette-tags, or command id view.tags. The mounted pane is \
+PaneType::Placeholder(\"Tags\") backed by LoomTagsPanel plus an optional LoomTagHubPanel, not a placeholder. \
+When visible, the host performs GET /workspaces/{id}/loom/tags and renders the filter box tags.search plus \
+one row per tag hub as tags.row.{block_id}. Each row shows the hub title and an exact member count when the \
+list response or GET /workspaces/{id}/loom/tags/{tag_block_id} detail provides member evidence; the exact \
+member list is loaded when a tag hub opens. Type into tags.search to prefix-filter tag titles. \
+Click a tag row to emit TagsPanelEvent::OpenTag and open that tag hub page in the same pane. The hub page \
+loads GET /workspaces/{id}/loom/tags/{tag_block_id}, renders tag-hub.title.{block_id}, lists member blocks \
+as tag-hub.member.{block_id}, and opens a member through the same shell LoomBlock navigation path. The Add \
+tag to block button tag-hub.add-tag.{block_id} opens an in-process popup, searches with \
+GET /workspaces/{id}/loom/search?q={query}&limit=20, and selecting a candidate POSTs \
+/workspaces/{id}/loom/edges with edge_type='tag', source_block_id as the selected block, target_block_id as \
+the hub, and created_by='user'; the host re-queries the hub only after the POST response resolves, with no \
+fixed sleep. Switching projects clears the previous workspace's tag rows, search text, open hub, queued \
+events, and stale async deliveries before refetching, so a no-context model should trust the active \
+workspace in the visible pane rather than cached row text. Empty workspaces show No tags. Live AC1/AC4/AC6 \
+proof requires a seeded Handshake-managed PostgreSQL/EventLedger backend with tag_hub blocks, members, and \
+a taggable block, and remains NEEDS_MANAGED_RESOURCE_PROOF until that managed resource is available. A \
+model should use list_widgets for tags.search / tags.row.* / tag-hub.member.*, set_value on tags.search to \
+filter, click_widget on a tag row or member row to navigate, and screenshot the pane when verifying counts \
+or hub membership."
         .to_owned()
 }
 
@@ -609,10 +777,14 @@ fn canvas_body() -> String {
     "The Canvas is the free-form spatial board (PaneType::AtelierEditor / the CKC atelier surface) for \
 arranging Loom blocks and text cards. Add a text card with canvas.add-card, place an existing Loom block with \
 canvas.place-block, and connect items with canvas.add-edge; cards can be resized, grouped into sections, and \
-edited inline. Each mutation (resize, section assignment, inline text edit) emits a typed canvas event that \
-the host turns into the real backend call — a PATCH of the placement (position/size/group) or a card \
-create/edit — followed by a getCanvasBoard refresh, all through the handshake_core canvas routes on \
-PostgreSQL/EventLedger. Open the canvas from the CKC module or the Command Palette; the editor never \
+edited inline when the card-edit route exists. Each persisted mutation (placement/card creation, resize, \
+section assignment, visual edge, remove placement) emits a typed canvas event that the host turns into the \
+real backend call — POST/PATCH/DELETE through the handshake_core canvas routes — followed by a \
+getCanvasBoard refresh, all on PostgreSQL/EventLedger. Creation responses carry the backend-minted \
+placement id; the host registers a cross-pane MT-035 compensating undo, so Ctrl+Shift+Z removes that \
+created placement with DELETE /workspaces/{id}/loom/canvas-placements/{placement_id} and redo re-places \
+the same block geometry. Inline text-card edit remains a typed blocker when the required persistence route \
+is absent. Open the canvas from the CKC module or the Command Palette; the editor never \
 bypasses handshake_core. A no-context model reads the board with list_widgets + screenshot and drives cards \
 with click_widget / set_value."
         .to_owned()
@@ -638,35 +810,75 @@ fn wikilinks_backlinks_body() -> String {
 autocomplete (seeded from the Loom title index via GET /loom/graph-search), pick a target, and a resolvable \
 link chip is inserted; a link to a title that does not exist yet offers create-from-unresolved, which POSTs a \
 new note through the knowledge create backend. Clicking a wikilink chip navigates to its target through the \
-MT-030 ShellNavigator (open_document / open_loom_block). The Outgoing Links pane (outgoing.panel) lists the \
+MT-030 ShellNavigator (open_document / open_loom_block). Code references are the code branch of the same \
+hsLink atom: /code-ref opens code-symbol-search with input code-symbol-search-input, selecting a backend \
+lookup result inserts a chip addressed as code-ref-chip-{symbol_entity_id}, and clicking that chip dispatches \
+open-code-symbol / CMD_OPEN_CODE_SYMBOL through dispatch_code_ref_open. Hand-authored \
+[[code:path/to/file.rs#MyStruct]] carries path#Symbol in the same ref_value; when the live shell drains \
+take_pending_code_symbol in HandshakeApp::drive_ckc_interop, ShellNavigator::open_code_symbol resolves \
+entity ids through GET /knowledge/code/symbols/{symbol_entity_id} and resolves path#Symbol refs through \
+lookup_symbols_by_name_path / GET /knowledge/code/symbols?workspace_id=&name=&path=&limit=1, then loads \
+the returned source_id into the mounted Code Editor and scrolls until the visible line range contains \
+line_start. A deleted or no-definition symbol renders an \
+unresolved chip and surfaces a typed navigation/backend status instead of crashing. The Code Editor reverse \
+edge is NoteRefsPanel: note-refs-panel lists rich documents mentioning the current symbol, keeps block_id as \
+the matched hit identity, rows are dynamic note-ref-{document_id} ListItems, and clicking a row dispatches \
+CMD_OPEN_DOCUMENT with document_id through the shared InteractionBus so the shell opens the mounted Notes \
+pane. The Outgoing Links pane (outgoing.panel) lists the \
 active note's links bucketed into outgoing.section.resolved and outgoing.section.unresolved; clicking a \
 resolved row jumps to that document/block. Backlinks (which notes point AT this one) surface through the same \
-knowledge routes. All link/backlink data lives in handshake_core (PostgreSQL/EventLedger) via the Loom + \
-knowledge-documents routes. A swarm agent reads the panel with list_widgets and follows a link with \
-click_widget{target:'outgoing.section.resolved'} (or the specific row id)."
+knowledge routes. The reused MT-015 backlinks panel emits backlinks-panel and backlinks-refresh, and each \
+loaded row emits backlink-{source_document_id}; clicking a row dispatches interop.open-document \
+(CMD_OPEN_DOCUMENT) via EditorEvent::BacklinkActivated -> dispatch_backlink_open, stages pending_navigation \
+on the shared InteractionBus, and the live shell drain HandshakeApp::drive_ckc_interop routes that target \
+through ShellNavigator::open_document into the mounted Notes pane. Everything-is-a-block addressing is \
+loom://{workspace_id}/{block_id} through loom_address.rs; \
+canvas placements with placed_block_id show the loom:// chip, graph nodes expose loom:// plus backlink count, \
+and content_hash is read from the backend LoomBlock / ContentHash::from_backend rather than PATCHed by the \
+client. Managed-resource proofs for live rich-document block_id, computed backlinks, and backend content_hash \
+are NEEDS_MANAGED_RESOURCE_PROOF against Handshake-managed PostgreSQL; when the backend omits a Loom block id \
+or content_hash the proof must report that typed backend-shape gap, not pass green. HBR-INT posture for \
+this editor navigation: Flight Recorder/EventLedger = NOT_APPLICABLE-with-reason for local tab navigation \
+that does not mutate authority; internal_diagnostics = DEFERRED-with-reason until the diagnostic tier ships; \
+Palmistry = DEFERRED-with-reason until the external watcher tier ships. All link/backlink data \
+lives in handshake_core (PostgreSQL/EventLedger) via the Loom + knowledge-documents routes. A swarm agent reads \
+the panel with list_widgets and follows a link with click_widget{target:'outgoing.section.resolved'} (or the \
+specific backlink-{source_document_id} row id)."
         .to_owned()
 }
 
 fn daily_journal_body() -> String {
-    "The Daily Journal is the date-addressed note surface (daily-journal-panel). The date header \
-(daily-journal-date-header) selects a day and opens-or-creates that day's note; the calendar-event chip \
-(daily-journal-calendar-event-chip) binds a note to a Calendar (Pillar 2) event, and the activity strip \
-(daily-journal-activity-strip) shows a read-only day activity overview. Selecting a date fires the MT-030 \
-date-selected signal, which opens or creates the daily note; the authoritative write is PUT /loom/journals/:date \
-on handshake_core (PostgreSQL/EventLedger). HONEST STATE: the live PUT /loom/journals/:date round-trip is \
-NEEDS_MANAGED_RESOURCE_PROOF against a managed backend, and the CalendarEvent chip + activity strip stay in a \
-typed EndpointUnavailable empty-state until a backend packet exposes the /calendar/events + \
-/calendar/activity-spans routes — the surface is real and drivable, the cross-edge is honestly gated, never a \
-fabricated entry."
+    "The Daily Journal is the date-addressed note surface. Open it from VIEW > Open Daily Journal \
+(menu.view.open-daily-journal), the command palette command view.journal, the left rail Notes button, or an \
+Agenda drawer card; the real app route mounts PaneType::LoomDailyJournal and exposes the editor root \
+journal-panel-root. The MT-067 calendar strip remains addressable as daily-journal-panel: \
+daily-journal-date-header selects a day, daily-journal-calendar-event-chip links to a Calendar event, and \
+daily-journal-activity-strip shows a read-only day overview. The MT-019 editor surface opens or creates the \
+selected day's Loom journal block with PUT /workspaces/:workspace_id/loom/journals/:date, loads a linked \
+RichDocument from GET /knowledge/documents/:id when the block has document_id, offers journal-start-writing \
+when no document exists, and saves through PUT /knowledge/documents/:id/save after the 3-second idle debounce \
+or Ctrl+S. Knowledge-document load/create/save calls carry the x-hsk-* document headers. HONEST STATE: the live \
+PUT /loom/journals/:date round-trip is NEEDS_MANAGED_RESOURCE_PROOF against a managed backend. If Start writing \
+creates a rich document but the backend cannot durably attach it to the Loom block, the editor keeps the session \
+document visible and surfaces journal-document-link-gap instead of pretending the block has a persisted \
+document_id. The CalendarEvent chip + activity strip stay in a typed EndpointUnavailable empty-state until a \
+backend packet exposes the /calendar/events + /calendar/activity-spans routes — the surface is real and \
+drivable, the cross-edge is honestly gated, never a fabricated entry."
         .to_owned()
 }
 
 fn diff_and_merge_body() -> String {
-    "The Diff and Merge editor shows a two-buffer comparison for the mounted rich document. Open it by running \
-'View: Diff/Merge' from the Command Palette (command id view.diff-merge). When the mounted document's \
+    "The Diff and Merge editor shows VS Code-style side-by-side and inline diffs, plus a three-pane \
+base/local/remote merge view with Accept Local, Accept Remote, and Accept Both buttons. Open it by running \
+'View: Diff/Merge' from the Command Palette (command id view.diff-merge), clicking VIEW > Open Diff Editor \
+(menu.view.open-diff-editor), or clicking the conflict dialog's Open merge button (conflict-open-merge). When the mounted document's \
 SaveManager is sitting in a save CONFLICT (the local buffer versus the server revision — the two real buffers \
 the shell holds), the pane constructs and shows that real diff; otherwise it opens on an HONEST empty state \
-('open one from a conflict dialog or the palette') rather than pretending to have a diff. Resolving a conflict \
+('open one from a conflict dialog or the palette') rather than pretending to have a diff. Side-by-side diff \
+scrolling follows the live user-scrolled pane through the diff line map, diff tints are positioned from the \
+current visible top line, and inputs over 10k lines dispatch their line diff through a background worker before \
+publishing blocks back to the pane. Visual proof must be real screenshot/pixel evidence; a missing GPU render is \
+not accepted as a passed screenshot proof. Resolving a conflict \
 reloads the newer revision and re-saves through PUT /knowledge/documents/:id/save on handshake_core \
 (PostgreSQL/EventLedger). This is the native equivalent of a VS Code diff/merge view; it never writes to a \
 database directly."
@@ -694,21 +906,31 @@ Alt+<first letter>: FILE (menu-file), EDIT (menu-edit), VIEW (menu-view), GO (me
 HELP (menu-help). FILE opens/creates and persists documents: New Document (editor.file.new), Save \
 (menu.file.save, Ctrl+S), Save All, Save As, Export Document HTML/MD/TXT/JSON, Close Tab, Quit. EDIT drives the \
 focused editor: Undo/Redo (menu.edit.undo / menu.edit.redo — the ONE MT-035 unified stack shared with the \
-keyboard), Cut/Copy/Paste/Select All, Toggle Comment, Format Document, Find (Ctrl+F), Replace (Ctrl+H), Find \
+keyboard and the pane header undo-count-{pane_id} indicator), Cut/Copy/Paste/Select All, Toggle Comment, Format Document, Find (Ctrl+F), Replace (Ctrl+H), Find \
 in Files (menu.edit.find-all, Ctrl+Shift+F), Replace in Files, plus Command Palette and Quick Switcher. GO \
-navigates: Quick Switcher (menu.go.quick-switcher, Ctrl+P), Command Palette (menu.go.command-palette, \
-Ctrl+Shift+P), Next/Previous Pane, Go to Next/Previous Problem (F8 / Shift+F8), Back/Forward (Alt+Left / \
-Alt+Right), Go to Symbol in File (Ctrl+Shift+O), Go to Definition (F12), Go to References (Shift+F12), Go to \
-Symbol in Workspace (Ctrl+T), and Go to Line (Ctrl+G). RUN launches operational surfaces: Open Swarm Board, \
+    navigates: Quick Switcher (menu.go.quick-switcher, Ctrl+P; palette row \
+  command-palette.option.hs-editor-menu-quick-open, command id workbench.action.quickOpen), Command Palette \
+  (menu.go.command-palette, Ctrl+Shift+P), Next/Previous Pane, Go to Next/Previous Problem (F8 / Shift+F8), \
+  Back/Forward (Alt+Left / Alt+Right), Go to Symbol in File (Ctrl+Shift+O), Go to Definition (F12), Go to \
+  References (Shift+F12), Go to Symbol in Workspace (Ctrl+T), and Go to Line (Ctrl+G). VIEW opens mounted \
+  native-editor surfaces directly \
+  from the Open Editor Surfaces section: menu.view.open-code-editor, menu.view.open-rich-note, \
+  menu.view.open-knowledge-graph, menu.view.open-folders, menu.view.open-tags, menu.view.open-block-collections, menu.view.open-canvas, menu.view.open-loom-search, \
+  menu.view.open-find-in-files, menu.view.open-quick-switcher, menu.view.open-daily-journal, and \
+  menu.view.open-diff-editor. The pane-opening entries dispatch the same open command ids the Command Palette uses \
+  (view.code-editor, view.rich-note, view.graph, view.folders, view.tags, view.block-collections, view.canvas, view.loom-search, view.find-in-files, \
+  view.journal, view.diff-merge). Quick Switcher uses menu.view.open-quick-switcher to open the same overlay \
+  reached by the palette command workbench.action.quickOpen; the palette rows are \
+  command-palette.option.hs-view-palette-code-editor, command-palette.option.hs-view-palette-rich-note, \
+  command-palette.option.hs-view-palette-graph, command-palette.option.hs-view-palette-folders, \
+  command-palette.option.hs-view-palette-tags, command-palette.option.hs-view-palette-canvas, command-palette.option.hs-view-palette-loom-search, \
+  command-palette.option.hs-view-palette-find-in-files, command-palette.option.hs-editor-menu-quick-open, \
+  command-palette.option.hs-view-palette-journal, and command-palette.option.hs-view-palette-diff-merge. A model can click the menu item or run the palette \
+  command and reach the same mounted pane or overlay. RUN launches operational surfaces: Open Swarm Board, \
 Open Inference Lab, Open Flight Recorder, Launch Model Session in Workspace Folder \
 (menu.run.model-session-launch), and Open Terminal in Workspace Folder (menu.run.terminal). HELP opens the \
 User Manual, Settings, and About. Every enabled item dispatches its REAL command by id through the one shell \
-dispatcher and every disabled item is honestly greyed with a reason (no lying-enabled entries). NOTE for \
-opening editor SURFACES directly: the menu bar dispatches editor COMMANDS, while the surface-open commands \
-(View: Graph = view.graph, View: Journal = view.journal, View: Diff/Merge = view.diff-merge, View: Collections \
-= view.block-collections) are run from the Command Palette (Ctrl+Shift+P) or the module switcher; a direct \
-menu-bar entry for those surface opens is a pending shell-routing enhancement, so today the Command Palette is \
-the canonical one-stop place to open Graph, Canvas, Daily Journal, and Diff/Merge."
+dispatcher and every disabled item is honestly greyed with a reason (no lying-enabled entries)."
         .to_owned()
 }
 
@@ -724,20 +946,23 @@ payload and persist through PUT /workspaces/:id/settings (handshake_core Postgre
 dialog GETs them back — the workspace-settings row is the only authority and there is no second settings store. \
 LIVE-EFFECT STATE (honest): tab size, \
 insert spaces, word wrap, render whitespace, and code keybinding overrides apply LIVE to the mounted code \
-editor (via the shell's sync-to-panel path). Editor font size and the Custom syntax palette PERSIST and \
-round-trip, and the Settings preview updates live, but the mounted code editor does not yet apply a live font \
-size (the code panel exposes no font-size slot) or repaint with Custom palette colors (its draw reads the theme \
-syntax tokens) — those two are a typed pending host-wiring item disclosed in the control itself, not a silent \
-no-op. Rich-editor keybinding overrides persist but have no live rich keymap seam yet."
+editor (via the shell's sync-to-panel path). Editor font size also applies LIVE to the mounted code editor and \
+rich editor: a font-size change resizes the running code rows/glyph advance and rich document text layout on the \
+next frame. A Custom syntax \
+palette also repaints the mounted code editor and minimap syntax rows through the live highlight resolver, while \
+Muted and Standard keep the theme syntax tokens. Cosmetic scope edge: gutter line numbers still use their base \
+sizing, so they are not part of the live font-size claim. Rich-editor keybinding overrides persist but \
+have no live rich keymap seam yet."
         .to_owned()
 }
 
 fn agent_tool_reference_body() -> String {
     "The agent-vision / steering index pairs every addressable editor/knowledge/FEMS/interop action with \
-the REAL MCP swarm tool that drives it. The four tools are: list_widgets (discover the live AccessKit \
-tree), click_widget{target:<author_id>} (activate a button/toggle/row), set_value{target,value} (type \
-into a text field), and screenshot (capture the pixels). Read the structured rows in the pane below; each \
-row is author_id -> mcp_tool for a real, live-registered control."
+the REAL MCP swarm tool that drives it. The four tools are: list_widgets (Argus inspect: discover the live \
+AccessKit tree), click_widget{target:<author_id>} (Argus click: activate a button/toggle/row), \
+set_value{target,value} (Argus set_value: type into a text field), and screenshot (Argus screenshot: \
+capture the pixels). Read the structured rows in the pane below; each row is author_id -> mcp_tool for a \
+real, live-registered control."
         .to_owned()
 }
 
@@ -778,6 +1003,230 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             action_label: "Search the manual",
             mcp_tool: "set_value",
             description: "set_value{target:'manual-search', value:'<keyword>'} filters manual topics.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_CODE_EDITOR_MENU_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Open Code Editor from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-code-editor'} opens the mounted native code editor pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_RICH_NOTE_MENU_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Open Rich Note from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-rich-note'} opens the mounted rich Notes editor pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_KNOWLEDGE_GRAPH_MENU_AUTHOR_ID,
+            surface: ManualSurface::Graph,
+            action_label: "Open Knowledge Graph from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-knowledge-graph'} opens the mounted knowledge graph pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_FOLDERS_MENU_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Folders from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-folders'} opens the mounted Loom folder-tree pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_TAGS_MENU_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Tags from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-tags'} opens the mounted Loom tags and tag-hub pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_BLOCK_COLLECTIONS_MENU_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Block Collections from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-block-collections'} opens the mounted block-collections pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_CANVAS_MENU_AUTHOR_ID,
+            surface: ManualSurface::Canvas,
+            action_label: "Open Canvas from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-canvas'} opens the mounted Loom canvas pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_LOOM_SEARCH_MENU_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Loom Search from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-loom-search'} opens the mounted Loom search pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_FIND_IN_FILES_MENU_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Open Find in Files from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-find-in-files'} opens the mounted workspace search pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_QUICK_SWITCHER_MENU_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Quick Switcher from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-quick-switcher'} opens the quick switcher overlay.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_DAILY_JOURNAL_MENU_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Daily Journal from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-daily-journal'} opens the mounted daily journal pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_DIFF_EDITOR_MENU_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Open Diff Editor from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-diff-editor'} opens the mounted Diff/Merge editor pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_CODE_EDITOR_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Open Code Editor from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-code-editor'} opens the same native code editor pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_RICH_NOTE_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Open Rich Note from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-rich-note'} opens the same rich Notes editor pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_KNOWLEDGE_GRAPH_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Graph,
+            action_label: "Open Knowledge Graph from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-graph'} opens the same knowledge graph pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_FOLDERS_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Folders from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-folders'} opens the same Loom folder-tree pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_TAGS_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Tags from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-tags'} opens the same Loom tags and tag-hub pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_CANVAS_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Canvas,
+            action_label: "Open Canvas from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-canvas'} opens the same Loom canvas pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_LOOM_SEARCH_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Loom Search from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-loom-search'} opens the same Loom search pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_FIND_IN_FILES_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Open Find in Files from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-find-in-files'} opens the same workspace search pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_QUICK_SWITCHER_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Quick Switcher from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-editor-menu-quick-open'} opens the same quick switcher overlay after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_DAILY_JOURNAL_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Daily Journal from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-journal'} opens the same mounted daily journal pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_DIFF_EDITOR_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Open Diff Editor from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-diff-merge'} opens the same mounted Diff/Merge editor pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: CONFLICT_KEEP_YOURS_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Resolve a save conflict by keeping the local document",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'conflict-keep-yours'} selects the local buffer in the SaveManager conflict dialog.",
+        },
+        AgentToolRow {
+            author_id: CONFLICT_KEEP_SERVER_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Resolve a save conflict by keeping the server document",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'conflict-keep-server'} reloads the newer server revision from the SaveManager conflict dialog.",
+        },
+        AgentToolRow {
+            author_id: CONFLICT_OPEN_MERGE_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Open a conflict merge diff from the conflict dialog",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'conflict-open-merge'} opens the mounted Diff/Merge editor pane for the current SaveManager conflict.",
+        },
+        AgentToolRow {
+            author_id: CONFLICT_KEEP_YOURS_CONFIRM_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Confirm keeping the local document after conflict warning",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'conflict-keep-yours-confirm'} confirms the secondary keep-yours warning before the retry save.",
+        },
+        AgentToolRow {
+            author_id: DRAFT_BANNER_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Read the draft recovery banner",
+            mcp_tool: "list_widgets",
+            description: "list_widgets surfaces draft-recovery-banner when GET /knowledge/documents/:id/draft returns a recoverable draft.",
+        },
+        AgentToolRow {
+            author_id: DRAFT_RESTORE_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Restore recovered rich-document draft content",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'draft-restore'} loads the recovered draft into the mounted editor without canonical-saving it.",
+        },
+        AgentToolRow {
+            author_id: DRAFT_DISCARD_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Discard recovered rich-document draft content",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'draft-discard'} clears the recoverable draft through the draft manager.",
+        },
+        AgentToolRow {
+            author_id: RICH_EDITOR_EXPORT_BUTTON_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Open the rich-document export picker",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'rich-editor-export-button'} opens the MT-020 export format picker.",
+        },
+        AgentToolRow {
+            author_id: EXPORT_FORMAT_PICKER_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Read rich-document export format choices",
+            mcp_tool: "list_widgets",
+            description: "list_widgets surfaces export-format-picker and its HTML/MD/TXT/JSON export choices.",
         },
         AgentToolRow {
             author_id: crate::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID,
@@ -991,6 +1440,16 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         },
     ];
 
+    for &author_id in crate::top_menu_bar::EDITOR_MENU_LEAF_AUTHOR_IDS {
+        rows.push(AgentToolRow {
+            author_id,
+            surface: editor_menu_leaf_surface(author_id),
+            action_label: "Use an operator editor menu leaf",
+            mcp_tool: "click_widget",
+            description: "Open the matching FILE, EDIT, or GO dropdown, then click_widget targets this real menu leaf by author_id.",
+        });
+    }
+
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────
     // Both momentary Buttons and ToggleButtons are ACTIVATED by a click (a toggle carries its toggled
     // state separately), so every code action is driven by click_widget{target:<author_id>}.
@@ -1017,7 +1476,43 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         });
     }
 
-    // ── Graph controls (GRAPH_CONTROL_CATALOG) ───────────────────────────────────────────────────────
+    // ── Graph controls (mounted LoomGraphView toolbar + GRAPH_CONTROL_CATALOG) ──────────────────────
+    for (author_id, action_label, description) in [
+        (
+            GRAPH_MODE_LOCAL_AUTHOR_ID,
+            "Switch graph to Local mode",
+            "click_widget{target:graph.mode.local} switches to the focused-block neighbourhood and re-fetches /loom/graph-search.",
+        ),
+        (
+            GRAPH_MODE_GLOBAL_AUTHOR_ID,
+            "Switch graph to Global mode",
+            "click_widget{target:graph.mode.global} switches to workspace-wide graph data and re-fetches /loom/views/all.",
+        ),
+        (
+            GRAPH_ZOOM_IN_AUTHOR_ID,
+            "Zoom graph in",
+            "click_widget{target:graph.zoom.in} increases the Loom graph zoom level.",
+        ),
+        (
+            GRAPH_ZOOM_OUT_AUTHOR_ID,
+            "Zoom graph out",
+            "click_widget{target:graph.zoom.out} decreases the Loom graph zoom level.",
+        ),
+        (
+            GRAPH_RELAYOUT_AUTHOR_ID,
+            "Relayout graph",
+            "click_widget{target:graph.relayout} restarts the graph layout after a data or layout change.",
+        ),
+    ] {
+        rows.push(AgentToolRow {
+            author_id,
+            surface: ManualSurface::Graph,
+            action_label,
+            mcp_tool: "click_widget",
+            description,
+        });
+    }
+
     for entry in GRAPH_CONTROL_CATALOG {
         rows.push(AgentToolRow {
             author_id: entry.author_id,
@@ -1027,6 +1522,22 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             description: "click_widget{target:<author_id>} drives this Loom graph control.",
         });
     }
+
+    // ── Folder-tree controls (mounted LoomFolderTree static controls; dynamic rows are documented by pattern)
+    rows.push(AgentToolRow {
+        author_id: FOLDER_TREE_RETRY_AUTHOR_ID,
+        surface: ManualSurface::Knowledge,
+        action_label: "Retry folder-tree load",
+        mcp_tool: "click_widget",
+        description: "click_widget{target:'folder-tree.retry'} retries GET /workspaces/{id}/loom/folders after the mounted folder tree shows an error.",
+    });
+    rows.push(AgentToolRow {
+        author_id: TAGS_SEARCH_AUTHOR_ID,
+        surface: ManualSurface::Knowledge,
+        action_label: "Filter tags",
+        mcp_tool: "set_value",
+        description: "set_value{target:'tags.search', value:'<prefix>'} filters the mounted tag-hub list by title prefix.",
+    });
 
     // ── Canvas controls (CANVAS_CONTROL_CATALOG) ─────────────────────────────────────────────────────
     for entry in CANVAS_CONTROL_CATALOG {
@@ -1041,12 +1552,17 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
 
     // ── Collection controls (COLLECTION_CONTROL_CATALOG) ─────────────────────────────────────────────
     for entry in COLLECTION_CONTROL_CATALOG {
+        let description = if entry.parameterized {
+            "click_widget{target:<author_id>, payload:{...}} drives this parameterized block-collection control."
+        } else {
+            "click_widget{target:<author_id>} drives this block-collection control."
+        };
         rows.push(AgentToolRow {
             author_id: entry.author_id,
             surface: ManualSurface::Knowledge,
             action_label: entry.label,
             mcp_tool: "click_widget",
-            description: "click_widget{target:<author_id>} drives this block-collection control.",
+            description,
         });
     }
 
@@ -1117,6 +1633,27 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             "list_widgets surfaces the daily-journal-panel (daily-note <-> CalendarEvent binding).",
     });
     rows.push(AgentToolRow {
+        author_id: crate::rich_editor::daily_notes::journal_panel::JOURNAL_ROOT_ID,
+        surface: ManualSurface::Knowledge,
+        action_label: "Daily Journal editor root",
+        mcp_tool: "list_widgets",
+        description: "list_widgets surfaces journal-panel-root after view.journal mounts the bound journal editor.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::rich_editor::daily_notes::journal_panel::START_WRITING_ID,
+        surface: ManualSurface::Knowledge,
+        action_label: "Daily Journal start writing",
+        mcp_tool: "click_widget",
+        description: "click_widget{target:'journal-start-writing'} creates the session RichDocument for a blank daily journal block.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::rich_editor::daily_notes::journal_panel::LINK_GAP_ID,
+        surface: ManualSurface::Knowledge,
+        action_label: "Daily Journal missing durable link banner",
+        mcp_tool: "list_widgets",
+        description: "list_widgets surfaces journal-document-link-gap when a created session document cannot be durably linked to the Loom block.",
+    });
+    rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: the daily-note date header",
@@ -1137,6 +1674,32 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         action_label: "Calendar edge: read-only ActivitySpan strip",
         mcp_tool: "list_widgets",
         description: "list_widgets surfaces the daily-journal-activity-strip (read-only correlation; route gated).",
+    });
+
+    // ── Code<->note interop edge (MT-034) ────────────────────────────────────────────────────────────
+    rows.push(AgentToolRow {
+        author_id: crate::rich_editor::slash_commands::CODE_SYMBOL_SEARCH_AUTHOR_ID,
+        surface: ManualSurface::RichText,
+        action_label: "Code refs: read the code-symbol search dialog",
+        mcp_tool: "list_widgets",
+        description:
+            "list_widgets surfaces code-symbol-search; result rows insert code-ref-chip-{symbol_entity_id}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::rich_editor::slash_commands::CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
+        surface: ManualSurface::RichText,
+        action_label: "Code refs: filter code symbols",
+        mcp_tool: "set_value",
+        description:
+            "set_value{target:'code-symbol-search-input', value:'<symbol>'} filters backend code-symbol lookup results.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::code_editor::note_refs_panel::PANEL_AUTHOR_ID,
+        surface: ManualSurface::Code,
+        action_label: "Code refs: inspect notes mentioning the current symbol",
+        mcp_tool: "list_widgets",
+        description:
+            "list_widgets surfaces note-refs-panel; dynamic note-ref-{document_id} rows open the mounted Notes pane.",
     });
 
     // ── Locus interop edge (Pillar 6) ────────────────────────────────────────────────────────────────
@@ -1165,8 +1728,43 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         description:
             "list_widgets reveals outgoing.section.unresolved rows (Locus read route gated).",
     });
+    rows.push(AgentToolRow {
+        author_id: crate::rich_editor::wikilinks::backlinks_panel::PANEL_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Backlinks edge: the backlinks panel",
+        mcp_tool: "list_widgets",
+        description:
+            "list_widgets surfaces backlinks-panel; rows are dynamic backlink-{source_document_id} links.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::rich_editor::wikilinks::backlinks_panel::REFRESH_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Backlinks edge: refresh backlinks",
+        mcp_tool: "click_widget",
+        description:
+            "click_widget{target:'backlinks-refresh'} refreshes the current document backlinks list.",
+    });
 
     rows
+}
+
+fn editor_menu_leaf_surface(author_id: &str) -> ManualSurface {
+    match author_id {
+        "menu.file.save-as"
+        | "menu.file.export-html"
+        | "menu.file.export-md"
+        | "menu.file.export-txt"
+        | "menu.file.export-json" => ManualSurface::RichText,
+        "menu.edit.command-palette"
+        | "menu.edit.quick-switcher"
+        | crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL => ManualSurface::Knowledge,
+        crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION
+        | crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES
+        | crate::command_registry::CMD_EDITOR_GO_TO_LINE => ManualSurface::Code,
+        id if id.starts_with("menu.edit.") || id.starts_with("menu-go-") => ManualSurface::Code,
+        id if id.starts_with("menu.file.") => ManualSurface::Knowledge,
+        _ => ManualSurface::Knowledge,
+    }
 }
 
 /// Map a code action_id to the corresponding `editor.code.<action>` `&'static str` literal. The literals

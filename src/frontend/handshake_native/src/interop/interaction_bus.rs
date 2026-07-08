@@ -231,6 +231,17 @@ pub enum ClipboardPayload {
     RichContent { mime: String, bytes: Vec<u8> },
 }
 
+/// One focused-pane clipboard command staged by the command bus for a mounted pane to consume.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClipboardCommand {
+    /// Copy the focused pane's current selection.
+    Copy,
+    /// Cut the focused pane's current selection.
+    Cut,
+    /// Paste the shared clipboard into the focused pane.
+    Paste,
+}
+
 impl ClipboardPayload {
     /// The plain-text projection written to the OS clipboard. A `LoomBlockRef`/`AtelierRef` projects to
     /// its URI string (so even a plain-text-only consumer gets an addressable reference); `RichContent`
@@ -350,6 +361,9 @@ pub struct InteractionBus {
     /// The in-memory richest-variant clipboard cache: the cross-pane Paste reads THIS first so a
     /// `LoomBlockRef`/`AtelierRef` survives a round-trip the plain-text OS clipboard would flatten.
     clipboard_cache: Option<ClipboardPayload>,
+    /// A one-shot clipboard command request staged by a generic bus command. The focused pane drains it
+    /// and performs the buffer-specific edit, so `CMD_PASTE` is no longer a read-only cache touch.
+    pending_clipboard_command: Option<(PaneId, ClipboardCommand)>,
     /// Whether the command palette modal is open. Drives the EXISTING `command_palette.rs` modal
     /// (WRAP-not-fork: the bus owns the open FLAG; the modal renders it). The shell reads this.
     command_palette_open: bool,
@@ -411,6 +425,7 @@ impl InteractionBus {
             focus_owner: None,
             commands: CommandBus::default(),
             clipboard_cache: None,
+            pending_clipboard_command: None,
             command_palette_open: false,
             event_sender: None,
             pending_navigation: None,
@@ -560,6 +575,28 @@ impl InteractionBus {
     /// by a text surface that consumes only `PlainText`).
     pub fn clipboard_read_text(&self) -> Option<String> {
         self.clipboard_cache.as_ref().map(|p| p.as_plain_text())
+    }
+
+    /// Stage a one-shot clipboard command for the current focus owner. Returns `false` when no pane owns
+    /// focus, so a generic command can request repaint without fabricating a target.
+    pub fn request_clipboard_command(&mut self, command: ClipboardCommand) -> bool {
+        let Some(pane_id) = self.focus_owner.clone() else {
+            return false;
+        };
+        self.pending_clipboard_command = Some((pane_id, command));
+        true
+    }
+
+    /// Drain a staged clipboard command only for its owning focused pane. A different pane leaves the
+    /// request intact so a render-order race cannot hand Paste to the wrong surface.
+    pub fn take_clipboard_command_for(&mut self, pane_id: &PaneId) -> Option<ClipboardCommand> {
+        match self.pending_clipboard_command.as_ref() {
+            Some((target, _)) if target == pane_id => self
+                .pending_clipboard_command
+                .take()
+                .map(|(_, command)| command),
+            _ => None,
+        }
     }
 
     // ── Command bus (WRAP the registry) ──────────────────────────────────────────────────────────────
@@ -940,11 +977,14 @@ impl InteractionBus {
     /// (POLICY-4) — by dispatching `undo_async_fn` onto the installed runtime. Returns:
     /// - `Some(UndoResult)` when an action was popped and invoked (sync result, or a `dispatched_async`
     ///   acknowledgement for the async path), and
-    /// - `None` when the focused pane's ring is empty (the caller may then try [`Self::undo_cross_pane`]).
+    /// - `None` when the focused pane's ring is empty.
     ///
     /// A `Some(result)` whose `!result.ok` should be logged by the caller to the Flight Recorder
     /// (MT-036); this method never panics on a failed undo.
     pub fn undo(&mut self, pane_id: &PaneId) -> Option<UndoResult> {
+        if self.undo_scope.local_undo_requires_runtime(pane_id) && !self.can_dispatch_async() {
+            return Some(Self::missing_undo_runtime_result());
+        }
         let action = self.undo_scope.pop_undo_local(pane_id)?;
         Some(self.invoke_undo(action))
     }
@@ -953,6 +993,9 @@ impl InteractionBus {
     /// undone action and re-applies it (sync `redo_fn`, or async `redo_async_fn` for canvas). `None`
     /// when nothing to redo.
     pub fn redo(&mut self, pane_id: &PaneId) -> Option<UndoResult> {
+        if self.undo_scope.local_redo_requires_runtime(pane_id) && !self.can_dispatch_async() {
+            return Some(Self::missing_undo_runtime_result());
+        }
         let action = self.undo_scope.pop_redo_local(pane_id)?;
         Some(self.invoke_redo(action))
     }
@@ -961,12 +1004,18 @@ impl InteractionBus {
     /// invokes its undo (sync or, for a canvas placement, the async compensating call — POLICY-4).
     /// `None` when the cross-pane ring is empty.
     pub fn undo_cross_pane(&mut self) -> Option<UndoResult> {
+        if self.undo_scope.cross_pane_undo_requires_runtime() && !self.can_dispatch_async() {
+            return Some(Self::missing_undo_runtime_result());
+        }
         let action = self.undo_scope.pop_undo_cross_pane()?;
         Some(self.invoke_undo(action))
     }
 
     /// CROSS-PANE redo. Pops the most recently undone cross-pane action and re-applies it.
     pub fn redo_cross_pane(&mut self) -> Option<UndoResult> {
+        if self.undo_scope.cross_pane_redo_requires_runtime() && !self.can_dispatch_async() {
+            return Some(Self::missing_undo_runtime_result());
+        }
         let action = self.undo_scope.pop_redo_cross_pane()?;
         Some(self.invoke_redo(action))
     }
@@ -996,6 +1045,16 @@ impl InteractionBus {
         }
     }
 
+    fn can_dispatch_async(&self) -> bool {
+        self.undo_runtime.is_some()
+    }
+
+    fn missing_undo_runtime_result() -> UndoResult {
+        UndoResult::err(
+            "no tokio runtime installed for canvas compensating undo (set_undo_runtime not called)",
+        )
+    }
+
     /// Dispatch a POLICY-4 async compensating closure onto the installed runtime (off the egui frame
     /// thread — HBR-QUIET). Returns a `dispatched_async` acknowledgement on success, or a typed "no
     /// runtime" failure when none is installed (a headless test) — never a fabricated success.
@@ -1010,17 +1069,15 @@ impl InteractionBus {
                 });
                 UndoResult::dispatched_async()
             }
-            None => UndoResult::err(
-                "no tokio runtime installed for canvas compensating undo (set_undo_runtime not called)",
-            ),
+            None => Self::missing_undo_runtime_result(),
         }
     }
 
     /// Register the three unified-undo commands on the cross-pane command bus so they appear in the
     /// command palette AND match their keybinds (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z). The handlers read the
-    /// CURRENT focus owner from the locked bus and dispatch local-first (Ctrl+Z falls back to the
-    /// cross-pane ring when the focused pane has nothing to undo — the user's mental model of "undo my
-    /// last thing"). Idempotent (last registration wins). Call once when the first editor pane mounts.
+    /// CURRENT focus owner from the locked bus: Ctrl+Z/Ctrl+Y are local-only for the focused pane
+    /// (POLICY-1), while Ctrl+Shift+Z owns the cross-pane ring (POLICY-2). Idempotent (last registration
+    /// wins). Call once when the first editor pane mounts.
     pub fn register_undo_commands(&mut self) {
         self.register_command(CommandDescriptor {
             id: CMD_UNDO,
@@ -1029,14 +1086,11 @@ impl InteractionBus {
             keywords: vec!["undo".to_owned(), "revert".to_owned()],
             keybind: default_keybind_for(CMD_UNDO),
             handler: Arc::new(|ctx, bus| {
-                // Local-first (POLICY-1): undo the focused pane's last action; fall back to the
-                // cross-pane ring so Ctrl+Z always reverts the user's most recent thing.
-                let undone = match bus.focus_owner().cloned() {
-                    Some(pane_id) => bus.undo(&pane_id).is_some(),
-                    None => false,
-                };
-                if !undone {
-                    bus.undo_cross_pane();
+                // POLICY-1: Ctrl+Z is focused-pane local undo only. Cross-pane undo is intentionally a
+                // separate Ctrl+Shift+Z command so a focused empty local ring cannot consume a canvas or
+                // route-to-stage action by accident.
+                if let Some(pane_id) = bus.focus_owner().cloned() {
+                    bus.undo(&pane_id);
                 }
                 ctx.request_repaint();
             }),
@@ -1048,12 +1102,8 @@ impl InteractionBus {
             keywords: vec!["redo".to_owned()],
             keybind: default_keybind_for(CMD_REDO),
             handler: Arc::new(|ctx, bus| {
-                let redone = match bus.focus_owner().cloned() {
-                    Some(pane_id) => bus.redo(&pane_id).is_some(),
-                    None => false,
-                };
-                if !redone {
-                    bus.redo_cross_pane();
+                if let Some(pane_id) = bus.focus_owner().cloned() {
+                    bus.redo(&pane_id);
                 }
                 ctx.request_repaint();
             }),

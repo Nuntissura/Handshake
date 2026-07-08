@@ -32,7 +32,7 @@
 //!   Close Tab               ENABLED  -> CloseActiveTab (closes the active pane's active tab)
 //!   Quit                    ENABLED  -> QuitApp (sends the viewport Close command)
 //! EDIT  (all DISABLED — needs the editor surface, a future MT)
-//!   Undo Ctrl+Z / Redo Ctrl+Shift+Z / Cut Ctrl+X / Copy Ctrl+C / Paste Ctrl+V
+//!   Undo Ctrl+Z / Redo Ctrl+Y / Cut Ctrl+X / Copy Ctrl+C / Paste Ctrl+V
 //!   Find / Replace Ctrl+F / Find in All Documents Ctrl+Shift+F
 //! VIEW
 //!   Theme: Dark / Theme: Light  (✔ on current) ENABLED -> ToggleTheme (flat checkmark items)
@@ -44,6 +44,18 @@
 //!   Toggle Bottom Panel     ENABLED -> ToggleBottomPanel (bottom stash drawer, MT-014)
 //!   ──────
 //!   Reset Layout            ENABLED -> ResetLayout (confirm-then-reset; MC7)
+//!   ────── Open Editor Surfaces (WP-KERNEL-012 wave-6 — real OPEN routes for the mounted editors)
+//!   Open Code Editor        ENABLED -> OpenViewSurface(view.code-editor)   opens PaneType::CodeSymbol
+//!   Open Rich Note          ENABLED -> OpenViewSurface(view.rich-note)     opens PaneType::LoomWikiPage
+//!   Open Knowledge Graph    ENABLED -> OpenViewSurface(view.graph)         opens the Graph View pane
+//!   Open Folders            ENABLED -> OpenViewSurface(view.folders)       opens the Loom folder tree
+//!   Open Block Collections  ENABLED -> OpenViewSurface(view.block-collections) opens saved views
+//!   Open Canvas             ENABLED -> OpenViewSurface(view.canvas)        opens PaneType::AtelierEditor
+//!   Open Loom Search        ENABLED -> OpenViewSurface(view.loom-search)   opens PaneType::LoomSearchV2
+//!   Open Find in Files      ENABLED -> OpenViewSurface(view.find-in-files) opens PaneType::FindInFiles
+//!   Open Quick Switcher Ctrl+P ENABLED -> OpenQuickSwitcher (the WP-011 overlay opener)
+//!   Open Daily Journal      ENABLED -> OpenViewSurface(view.journal)       opens PaneType::LoomDailyJournal
+//!   Open Diff Editor        ENABLED -> OpenViewSurface(view.diff-merge)    opens the Diff/Merge pane
 //! GO
 //!   Quick Switcher  Ctrl+P        ENABLED -> OpenQuickSwitcher (sets quick_switcher_open; UI = MT-016)
 //!   Command Palette Ctrl+Shift+P  ENABLED -> OpenCommandPalette (sets command_palette_open; UI = MT-016)
@@ -122,6 +134,47 @@ pub const GO_SYMBOL_IN_FILE_AUTHOR_ID: &str = "menu-go-symbol-in-file";
 /// WP-KERNEL-012 MT-101 RUN-menu launch leaf. It opens the compact in-app model-session launch dialog;
 /// the actual reachable backend path is `POST /jobs`, and direct repo-folder spawn remains IPC-only.
 pub const MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID: &str = "menu.run.model-session-launch";
+
+/// WP-KERNEL-012 MT-069/HBR-MAN: operator-facing FILE/EDIT/GO editor leaves that the UserManual documents
+/// as `author_id -> tool` rows. Kept separate from [`SWARM_ACCESSIBLE_ACTIONS`] because some entries are
+/// document-mutating, but they are still real menu leaves discoverable while their dropdown is open.
+pub const EDITOR_MENU_LEAF_AUTHOR_IDS: &[&str] = &[
+    "menu.file.new-document",
+    "menu.file.save",
+    "menu.file.save-all",
+    "menu.file.save-as",
+    "menu.file.export-html",
+    "menu.file.export-md",
+    "menu.file.export-txt",
+    "menu.file.export-json",
+    "menu.edit.undo",
+    "menu.edit.redo",
+    "menu.edit.cut",
+    "menu.edit.copy",
+    "menu.edit.paste",
+    "menu.edit.select-all",
+    "menu.edit.toggle-comment",
+    crate::code_editor::FORMAT_DOCUMENT_MENU_AUTHOR_ID,
+    "menu.edit.fold-region",
+    "menu.edit.unfold-region",
+    "menu.edit.fold-all",
+    "menu.edit.unfold-all",
+    "menu.edit.find-replace",
+    "menu.edit.replace",
+    "menu.edit.find-all",
+    "menu.edit.replace-all",
+    "menu.edit.command-palette",
+    "menu.edit.quick-switcher",
+    GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
+    GO_PREV_DIAGNOSTIC_AUTHOR_ID,
+    GO_BACK_AUTHOR_ID,
+    GO_FORWARD_AUTHOR_ID,
+    GO_SYMBOL_IN_FILE_AUTHOR_ID,
+    crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION,
+    crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES,
+    crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL,
+    crate::command_registry::CMD_EDITOR_GO_TO_LINE,
+];
 
 /// The disclosed reason shown on the disabled MT-052 GO-menu editor-navigation leaves until the editor is
 /// host-mounted (E11 MT-069), matching the MT-050 disabled-until-mounted precedent.
@@ -266,6 +319,13 @@ pub enum MenuBarAction {
     ToggleFileDrawer, // disabled in MT-015 (no native file drawer yet)
     ToggleBottomPanel,
     ResetLayout,
+    /// WP-KERNEL-012 wave-6 (S6 item 1): OPEN a native-editor surface pane on the active work surface by
+    /// dispatching the carried `view.*` command id through the shell's ONE `dispatch_palette_action`
+    /// path (the SAME primitive the command palette uses), so the VIEW > Open Editor Surfaces menu
+    /// entries and the palette open the exact same mounted pane (no forked open logic). The carried id is
+    /// a `crate::command_registry::CMD_VIEW_*` open command; each has a live host-mounted factory, so the
+    /// entry is a REAL open, never a dead/lying-enabled entry.
+    OpenViewSurface(&'static str),
     // GO
     OpenQuickSwitcher,
     OpenCommandPalette,
@@ -296,6 +356,19 @@ pub enum MenuBarAction {
 pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     "menu.go.command-palette",
     "menu.go.quick-switcher",
+    // WP-KERNEL-012 wave-6: non-destructive VIEW open routes for mounted native-editor surfaces.
+    "menu.view.open-code-editor",
+    "menu.view.open-rich-note",
+    "menu.view.open-knowledge-graph",
+    "menu.view.open-folders",
+    "menu.view.open-tags",
+    "menu.view.open-block-collections",
+    "menu.view.open-canvas",
+    "menu.view.open-loom-search",
+    "menu.view.open-find-in-files",
+    "menu.view.open-quick-switcher",
+    "menu.view.open-daily-journal",
+    "menu.view.open-diff-editor",
     "menu.run.swarm-board",
     MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID,
     "menu.run.inference-lab",
@@ -331,6 +404,12 @@ pub struct MenuBarState {
     /// Copy/Select All/Find/Replace/Find in Files/Toggle Comment/Format Document. When `false` those items
     /// render DISABLED (honest, not fake-enabled).
     pub editor_available: bool,
+    /// WP-KERNEL-012 MT-069: true when the active/focused editor target is the mounted Code editor. Drives
+    /// code-only actions such as Toggle Comment, Format Document, in-file Find/Replace, and GO navigation.
+    pub active_code_editor: bool,
+    /// WP-KERNEL-012 MT-069: true when the active/focused editor target is the mounted rich Notes editor.
+    /// Drives rich-only actions such as Save As and Export Document formats.
+    pub active_rich_editor: bool,
     /// WP-KERNEL-012 MT-069: true when the MT-035 unified-undo scope reports an undoable action for the
     /// focused pane (or the cross-pane ring) — the live ENABLE PREDICATE for EDIT > Undo (VS Code semantics:
     /// Undo enabled only when there is something to undo).
@@ -449,13 +528,14 @@ impl MenuBar {
                 // (MT-079 host-mounted the editors). Each dispatches its real editor command by id through
                 // the shared shell dispatcher; enabled only when an editor pane is the focusable target. The
                 // WP-011 AccessKit author_ids (`menu.file.*`) are REUSED (flip to enabled, no new id minted).
-                let ed = self.state.editor_available;
+                let active = self.state.active_code_editor || self.state.active_rich_editor;
+                let rich = self.state.active_rich_editor;
                 self.item(
                     ui,
                     "menu.file.new-document",
                     "New Document",
                     Some("Ctrl+N"),
-                    ed,
+                    active,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_NEW),
                     action,
                 );
@@ -472,7 +552,7 @@ impl MenuBar {
                     "menu.file.save",
                     "Save",
                     Some("Ctrl+S"),
-                    ed,
+                    active,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE),
                     action,
                 );
@@ -481,7 +561,7 @@ impl MenuBar {
                     "menu.file.save-all",
                     "Save All",
                     Some("Ctrl+K S"),
-                    ed,
+                    active,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE_ALL),
                     action,
                 );
@@ -490,7 +570,7 @@ impl MenuBar {
                     "menu.file.save-as",
                     "Save As…",
                     Some("Ctrl+Shift+S"),
-                    ed,
+                    rich,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE_AS),
                     action,
                 );
@@ -502,7 +582,7 @@ impl MenuBar {
                     "menu.file.export-html",
                     "Export Document: HTML",
                     None,
-                    ed,
+                    rich,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_FILE_EXPORT_HTML,
                     ),
@@ -513,7 +593,7 @@ impl MenuBar {
                     "menu.file.export-md",
                     "Export Document: Markdown",
                     None,
-                    ed,
+                    rich,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_FILE_EXPORT_MD,
                     ),
@@ -524,7 +604,7 @@ impl MenuBar {
                     "menu.file.export-txt",
                     "Export Document: Text",
                     None,
-                    ed,
+                    rich,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_FILE_EXPORT_TXT,
                     ),
@@ -535,7 +615,7 @@ impl MenuBar {
                     "menu.file.export-json",
                     "Export Document: JSON",
                     None,
-                    ed,
+                    rich,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_FILE_EXPORT_JSON,
                     ),
@@ -569,7 +649,8 @@ impl MenuBar {
                 // the keyboard path uses; Cut/Copy/Paste/Select All to the MT-031 shared clipboard; Find/
                 // Replace to the focused editor's find family. Enable predicates are LIVE (RISK-006): Undo
                 // only when `can_undo`, Redo only when `can_redo`, Paste only when the clipboard has content.
-                let ed = self.state.editor_available;
+                let active = self.state.active_code_editor || self.state.active_rich_editor;
+                let code = self.state.active_code_editor;
                 self.item(
                     ui,
                     "menu.edit.undo",
@@ -583,7 +664,7 @@ impl MenuBar {
                     ui,
                     "menu.edit.redo",
                     "Redo",
-                    Some("Ctrl+Shift+Z"),
+                    Some("Ctrl+Y"),
                     self.state.editor_can_redo,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_REDO),
                     action,
@@ -594,7 +675,7 @@ impl MenuBar {
                     "menu.edit.cut",
                     "Cut",
                     Some("Ctrl+X"),
-                    ed,
+                    active,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_CUT),
                     action,
                 );
@@ -603,7 +684,7 @@ impl MenuBar {
                     "menu.edit.copy",
                     "Copy",
                     Some("Ctrl+C"),
-                    ed,
+                    active,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_COPY),
                     action,
                 );
@@ -621,7 +702,7 @@ impl MenuBar {
                     "menu.edit.select-all",
                     "Select All",
                     Some("Ctrl+A"),
-                    ed,
+                    code,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_EDIT_SELECT_ALL,
                     ),
@@ -630,14 +711,14 @@ impl MenuBar {
                 ui.separator();
                 // WP-KERNEL-012 MT-051 / MT-050: Toggle Comment + Format Document. The Format Document leaf
                 // KEEPS its MT-050 AccessKit author_id (`FORMAT_DOCUMENT_MENU_AUTHOR_ID`); it now dispatches
-                // the real editor.edit.formatDocument command when an editor pane is the target (RISK-007:
+                // the real editor.edit.formatDocument command when the code editor is active (RISK-007:
                 // no new menu infra, the existing leaf flips to enabled).
                 self.item(
                     ui,
                     "menu.edit.toggle-comment",
                     "Toggle Comment",
                     Some("Ctrl+/"),
-                    ed,
+                    code,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_EDIT_TOGGLE_COMMENT,
                     ),
@@ -648,10 +729,50 @@ impl MenuBar {
                     crate::code_editor::FORMAT_DOCUMENT_MENU_AUTHOR_ID,
                     "Format Document",
                     Some("Alt+Shift+F"),
-                    ed,
+                    code,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_EDIT_FORMAT_DOCUMENT,
                     ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.fold-region",
+                    "Fold Region",
+                    Some("Ctrl+Shift+["),
+                    code,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_FOLD_AT_CURSOR,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.unfold-region",
+                    "Unfold Region",
+                    Some("Ctrl+Shift+]"),
+                    code,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_UNFOLD_AT_CURSOR,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.fold-all",
+                    "Fold All",
+                    Some("Ctrl+K Ctrl+0"),
+                    code,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FOLD_ALL),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.unfold-all",
+                    "Unfold All",
+                    Some("Ctrl+K Ctrl+J"),
+                    code,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_UNFOLD_ALL),
                     action,
                 );
                 ui.separator();
@@ -660,7 +781,7 @@ impl MenuBar {
                     "menu.edit.find-replace",
                     "Find",
                     Some("Ctrl+F"),
-                    ed,
+                    active,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_FIND),
                     action,
                 );
@@ -669,7 +790,7 @@ impl MenuBar {
                     "menu.edit.replace",
                     "Replace",
                     Some("Ctrl+H"),
-                    ed,
+                    active,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_REPLACE),
                     action,
                 );
@@ -678,7 +799,7 @@ impl MenuBar {
                     "menu.edit.find-all",
                     "Find in Files",
                     Some("Ctrl+Shift+F"),
-                    ed,
+                    active,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_IN_FILES),
                     action,
                 );
@@ -687,7 +808,7 @@ impl MenuBar {
                     "menu.edit.replace-all",
                     "Replace in Files",
                     Some("Ctrl+Shift+H"),
-                    ed,
+                    active,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_REPLACE_IN_FILES,
                     ),
@@ -802,6 +923,128 @@ impl MenuBar {
                     MenuBarAction::ResetLayout,
                     action,
                 );
+                ui.separator();
+                // ── WP-KERNEL-012 wave-6 (S6 item 1): OPEN EDITOR SURFACES ─────────────────────────────
+                // The operator-facing entries that actually OPEN this WP's mounted native-editor panes on
+                // the active work surface. WP-011 shipped VIEW with only theme/mode/drawer toggles, so
+                // there was NO menu-bar path to open the code editor / rich note / knowledge graph /
+                // folders / tags / block collections / canvas / Loom search / find-in-files / quick
+                // switcher / daily journal / diff editor.
+                // Each entry dispatches a REAL open: the `Open*` surfaces route a `view.*` command through
+                // the shell's `dispatch_palette_action` (the SAME `open_content_on_active_pane` primitive
+                // the module switcher + palette use); Quick Switcher reuses the WP-011 overlay opener. No
+                // dead/disabled/lying-enabled entries — every target has a live host-mounted factory.
+                ui.label(egui::RichText::new("Open Editor Surfaces").weak().small());
+                self.item(
+                    ui,
+                    "menu.view.open-code-editor",
+                    "Open Code Editor",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_CODE_EDITOR),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-rich-note",
+                    "Open Rich Note",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_RICH_NOTE),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-knowledge-graph",
+                    "Open Knowledge Graph",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_GRAPH),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-folders",
+                    "Open Folders",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_FOLDERS),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-tags",
+                    "Open Tags",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_TAGS),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-block-collections",
+                    "Open Block Collections",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(
+                        crate::command_registry::CMD_VIEW_BLOCK_COLLECTIONS,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-canvas",
+                    "Open Canvas",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_CANVAS),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-loom-search",
+                    "Open Loom Search",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_LOOM_SEARCH),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-find-in-files",
+                    "Open Find in Files",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_FIND_IN_FILES),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-quick-switcher",
+                    "Open Quick Switcher",
+                    Some("Ctrl+P"),
+                    true,
+                    MenuBarAction::OpenQuickSwitcher,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-daily-journal",
+                    "Open Daily Journal",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_JOURNAL),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.open-diff-editor",
+                    "Open Diff Editor",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_DIFF_MERGE),
+                    action,
+                );
             }
             MenuId::Go => {
                 self.item(
@@ -848,13 +1091,13 @@ impl MenuBar {
                 // path the F8/Shift+F8/Alt+Left/Alt+Right keymap chords reach (RISK-007: no forked nav
                 // logic). Back/Forward reflect the live `can_navigate_back`/`can_navigate_forward` jump
                 // history state (no fake-enable — MT-050 precedent). Author_ids are unchanged.
-                let ed = self.state.editor_available;
+                let code = self.state.active_code_editor;
                 self.item(
                     ui,
                     GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
                     "Go to Next Problem",
                     Some("F8"),
-                    ed,
+                    code,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_GO_NEXT_DIAGNOSTIC,
                     ),
@@ -865,7 +1108,7 @@ impl MenuBar {
                     GO_PREV_DIAGNOSTIC_AUTHOR_ID,
                     "Go to Previous Problem",
                     Some("Shift+F8"),
-                    ed,
+                    code,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_GO_PREV_DIAGNOSTIC,
                     ),
@@ -876,7 +1119,7 @@ impl MenuBar {
                     GO_BACK_AUTHOR_ID,
                     "Back",
                     Some("Alt+Left"),
-                    ed && self.state.editor_can_nav_back,
+                    code && self.state.editor_can_nav_back,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_GO_BACK),
                     action,
                 );
@@ -885,7 +1128,7 @@ impl MenuBar {
                     GO_FORWARD_AUTHOR_ID,
                     "Forward",
                     Some("Alt+Right"),
-                    ed && self.state.editor_can_nav_forward,
+                    code && self.state.editor_can_nav_forward,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_GO_FORWARD),
                     action,
                 );
@@ -897,7 +1140,7 @@ impl MenuBar {
                     GO_SYMBOL_IN_FILE_AUTHOR_ID,
                     "Go to Symbol in File…",
                     Some("Ctrl+Shift+O"),
-                    ed,
+                    code,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_GO_SYMBOL_IN_FILE,
                     ),
@@ -914,7 +1157,7 @@ impl MenuBar {
                     crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION,
                     "Go to Definition",
                     Some("F12"),
-                    ed,
+                    code,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION,
                     ),
@@ -925,7 +1168,7 @@ impl MenuBar {
                     crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES,
                     "Go to References",
                     Some("Shift+F12"),
-                    ed,
+                    code,
                     MenuBarAction::EditorCommand(
                         crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES,
                     ),
@@ -936,7 +1179,7 @@ impl MenuBar {
                     crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL,
                     "Go to Symbol in Workspace…",
                     Some("Ctrl+T"),
-                    true,
+                    code,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL),
                     action,
                 );
@@ -945,7 +1188,7 @@ impl MenuBar {
                     crate::command_registry::CMD_EDITOR_GO_TO_LINE,
                     "Go to Line…",
                     Some("Ctrl+G"),
-                    ed,
+                    code,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_GO_TO_LINE),
                     action,
                 );
@@ -1662,6 +1905,8 @@ mod tests {
             bottom_drawer_open: false,
             has_active_tab: true,
             editor_available: true,
+            active_code_editor: true,
+            active_rich_editor: true,
             editor_can_undo: true,
             editor_can_redo: true,
             editor_can_paste: true,
@@ -1707,6 +1952,7 @@ mod tests {
                 MenuBarAction::OpenSettings => "settings",
                 MenuBarAction::ShowAbout => "about",
                 MenuBarAction::EditorCommand(_) => "editor-command",
+                MenuBarAction::OpenViewSurface(_) => "open-view-surface",
             }
         }
         // Spot-check a representative sample so the match is also exercised at runtime.
@@ -1804,12 +2050,33 @@ mod tests {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID));
-        // 8 base overlay/navigation actions + the 4 MT-052 GO-menu editor-navigation leaves.
+        // 8 base overlay/navigation actions + 12 wave-6 VIEW open-surface leaves + the 4 MT-052 GO-menu
+        // editor-navigation leaves.
         assert_eq!(
             SWARM_ACCESSIBLE_ACTIONS.len(),
-            12,
+            24,
             "all overlay/navigation actions listed"
         );
+        // Wave-6 VIEW menu surface opens are swarm-discoverable and non-destructive.
+        for id in [
+            "menu.view.open-code-editor",
+            "menu.view.open-rich-note",
+            "menu.view.open-knowledge-graph",
+            "menu.view.open-folders",
+            "menu.view.open-tags",
+            "menu.view.open-block-collections",
+            "menu.view.open-canvas",
+            "menu.view.open-loom-search",
+            "menu.view.open-find-in-files",
+            "menu.view.open-quick-switcher",
+            "menu.view.open-daily-journal",
+            "menu.view.open-diff-editor",
+        ] {
+            assert!(
+                SWARM_ACCESSIBLE_ACTIONS.contains(&id),
+                "{id} is swarm-accessible"
+            );
+        }
         // MT-052 GO-menu editor navigation is swarm-discoverable.
         for id in [
             GO_NEXT_DIAGNOSTIC_AUTHOR_ID,

@@ -131,6 +131,54 @@ fn live_author_id_set() -> HashSet<String> {
     for entry in COLLECTION_CONTROL_CATALOG {
         set.insert(entry.author_id.to_owned());
     }
+    // Conditionally rendered editor/knowledge controls that are verified in their own focused tests
+    // but are not part of the always-mounted static registry in this audit harness.
+    set.insert(
+        handshake_native::rich_editor::save::conflict_ui::CONFLICT_KEEP_YOURS_AUTHOR_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::save::conflict_ui::CONFLICT_KEEP_SERVER_AUTHOR_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::save::conflict_ui::CONFLICT_KEEP_YOURS_CONFIRM_AUTHOR_ID
+            .to_owned(),
+    );
+    set.insert(handshake_native::rich_editor::save::conflict_ui::DRAFT_BANNER_AUTHOR_ID.to_owned());
+    set.insert(
+        handshake_native::rich_editor::save::conflict_ui::DRAFT_RESTORE_AUTHOR_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::save::conflict_ui::DRAFT_DISCARD_AUTHOR_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::renderer::rich_editor_widget::RichEditorWidget::EXPORT_BUTTON_AUTHOR_ID
+            .to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::save::conflict_ui::EXPORT_PICKER_AUTHOR_ID.to_owned(),
+    );
+    set.insert(handshake_native::graph::MODE_LOCAL_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::graph::MODE_GLOBAL_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::graph::ZOOM_IN_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::graph::ZOOM_OUT_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::graph::RELAYOUT_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::graph::folder_tree::RETRY_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::graph::tags_panel::SEARCH_AUTHOR_ID.to_owned());
+    set.insert(
+        handshake_native::rich_editor::daily_notes::journal_panel::JOURNAL_ROOT_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::daily_notes::journal_panel::START_WRITING_ID.to_owned(),
+    );
+    set.insert(handshake_native::rich_editor::daily_notes::journal_panel::LINK_GAP_ID.to_owned());
+    set.insert(
+        handshake_native::rich_editor::slash_commands::CODE_SYMBOL_SEARCH_AUTHOR_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::slash_commands::CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID
+            .to_owned(),
+    );
+    set.insert(handshake_native::code_editor::note_refs_panel::PANEL_AUTHOR_ID.to_owned());
 
     // FEMS fixed ids.
     set.insert(handshake_native::fems::RELEVANT_MEMORY_PANEL_AUTHOR_ID.to_owned());
@@ -171,6 +219,12 @@ fn live_author_id_set() -> HashSet<String> {
     set.insert(
         handshake_native::rich_editor::wikilinks::outgoing_links_panel::UNRESOLVED_SECTION_AUTHOR_ID
             .to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::wikilinks::backlinks_panel::PANEL_AUTHOR_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::wikilinks::backlinks_panel::REFRESH_AUTHOR_ID.to_owned(),
     );
 
     // Manual pane's own search box id (documented as a Knowledge surface row).
@@ -331,11 +385,29 @@ fn id_audit_no_documented_author_id_missing_from_live_registry() {
 
     let rows = agent_tool_rows();
     let mut orphans: Vec<&str> = Vec::new();
+    let dynamic_menu_leaves: HashSet<&str> =
+        handshake_native::top_menu_bar::EDITOR_MENU_LEAF_AUTHOR_IDS
+            .iter()
+            .copied()
+            .collect();
     for row in &rows {
         if row.author_id == handshake_native::manual_content_editors::TERMINAL_MENU_AUTHOR_ID {
             // The terminal leaf is dynamic: it exists only while the RUN menu is open. MT-100 proves its
             // click path with a live Run-menu kittest and terminal-launch-status, so this static registry
             // audit does not seed the same literal the manual row documents.
+            continue;
+        }
+        if row.author_id == handshake_native::manual_content_editors::CONFLICT_OPEN_MERGE_AUTHOR_ID
+        {
+            // The conflict dialog leaf is dynamic: it exists only while the mounted rich SaveManager is
+            // in Conflict. test_menu_wireup::conflict_dialog_open_merge_button_opens_real_diff proves the
+            // live AccessKit node and click path, so this static registry audit does not seed it.
+            continue;
+        }
+        if dynamic_menu_leaves.contains(row.author_id) {
+            // FILE/EDIT/GO editor leaves are dynamic menu-popup nodes, so the static registry must not
+            // seed them from the documentation list. MT-069's live menu-render proof opens the dropdowns
+            // and asserts these author_ids exist as MenuItem nodes.
             continue;
         }
         if !live.contains(row.author_id) {

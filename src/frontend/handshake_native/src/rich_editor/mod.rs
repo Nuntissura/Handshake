@@ -62,7 +62,8 @@ pub mod wikilinks;
 pub mod interop_adapter {
     use crate::interop::adapters::register_standard_commands;
     use crate::interop::interaction_bus::{
-        ClipboardPayload, EditorSurfaceKind, InteractionBus, SharedSelection,
+        default_keybind_for, ClipboardCommand, ClipboardPayload, EditorSurfaceKind, InteractionBus,
+        SharedSelection, CMD_COPY, CMD_CUT, CMD_PASTE,
     };
     use crate::pane_registry::PaneId;
     use crate::rich_editor::properties::metadata_client::ClipboardSink;
@@ -130,6 +131,154 @@ pub mod interop_adapter {
     /// cross-pane variant as text, when present.
     pub fn paste_text_from_bus(bus: &InteractionBus) -> Option<String> {
         bus.clipboard_read_text().filter(|t| !t.is_empty())
+    }
+
+    /// Consume the live rich pane's Ctrl/Cmd+C/X/V shortcuts and route them through the shared bus. This
+    /// is the keyboard counterpart to the host menu/palette dispatch and uses the real mounted document
+    /// state for both selection materialization and paste insertion.
+    pub fn drive_clipboard_shortcuts_in_render(
+        ui: &egui::Ui,
+        bus: &std::sync::Arc<std::sync::Mutex<InteractionBus>>,
+        state: &std::sync::Arc<
+            std::sync::Mutex<crate::rich_editor::renderer::rich_editor_widget::RichEditorState>,
+        >,
+        pane_id: PaneId,
+        has_focus: bool,
+    ) -> bool {
+        if !has_focus {
+            return false;
+        }
+
+        let consume = |command_id: &str| {
+            default_keybind_for(command_id)
+                .is_some_and(|shortcut| ui.input_mut(|i| i.consume_shortcut(&shortcut)))
+        };
+        let sink =
+            crate::rich_editor::properties::metadata_client::EguiClipboard::new(ui.ctx().clone());
+
+        if let Some(command) =
+            InteractionBus::with_try_lock(bus, |b| b.take_clipboard_command_for(&pane_id)).flatten()
+        {
+            match command {
+                ClipboardCommand::Copy => {
+                    let text = {
+                        let Ok(state) = state.lock() else {
+                            return false;
+                        };
+                        state.selected_text().map(|(_, _, _, text)| text)
+                    };
+                    let Some(text) = text else {
+                        return false;
+                    };
+                    return InteractionBus::with_try_lock(bus, |b| {
+                        register(b);
+                        b.set_focus_owner(pane_id.clone());
+                        copy_text_to_bus(b, &text, &sink)
+                    })
+                    .unwrap_or(false);
+                }
+                ClipboardCommand::Cut => {
+                    let text = {
+                        let Ok(state) = state.lock() else {
+                            return false;
+                        };
+                        state.selected_text().map(|(_, _, _, text)| text)
+                    };
+                    let Some(text) = text else {
+                        return false;
+                    };
+                    let copied = InteractionBus::with_try_lock(bus, |b| {
+                        register(b);
+                        b.set_focus_owner(pane_id.clone());
+                        copy_text_to_bus(b, &text, &sink)
+                    })
+                    .unwrap_or(false);
+                    if !copied {
+                        return false;
+                    }
+                    let Ok(mut state) = state.lock() else {
+                        return false;
+                    };
+                    return state.delete_selection_for_host();
+                }
+                ClipboardCommand::Paste => {
+                    let text = InteractionBus::with_try_lock(bus, |b| {
+                        register(b);
+                        b.set_focus_owner(pane_id.clone());
+                        paste_text_from_bus(b)
+                    })
+                    .flatten();
+                    let Some(text) = text else {
+                        return false;
+                    };
+                    let Ok(mut state) = state.lock() else {
+                        return false;
+                    };
+                    return state.insert_plain_text_for_host(&text);
+                }
+            }
+        }
+
+        if consume(CMD_COPY) {
+            let text = {
+                let Ok(state) = state.lock() else {
+                    return false;
+                };
+                state.selected_text().map(|(_, _, _, text)| text)
+            };
+            let Some(text) = text else {
+                return false;
+            };
+            return InteractionBus::with_try_lock(bus, |b| {
+                register(b);
+                b.set_focus_owner(pane_id.clone());
+                copy_text_to_bus(b, &text, &sink)
+            })
+            .unwrap_or(false);
+        }
+
+        if consume(CMD_CUT) {
+            let text = {
+                let Ok(state) = state.lock() else {
+                    return false;
+                };
+                state.selected_text().map(|(_, _, _, text)| text)
+            };
+            let Some(text) = text else {
+                return false;
+            };
+            let copied = InteractionBus::with_try_lock(bus, |b| {
+                register(b);
+                b.set_focus_owner(pane_id.clone());
+                copy_text_to_bus(b, &text, &sink)
+            })
+            .unwrap_or(false);
+            if !copied {
+                return false;
+            }
+            let Ok(mut state) = state.lock() else {
+                return false;
+            };
+            return state.delete_selection_for_host();
+        }
+
+        if consume(CMD_PASTE) {
+            let text = InteractionBus::with_try_lock(bus, |b| {
+                register(b);
+                b.set_focus_owner(pane_id.clone());
+                paste_text_from_bus(b)
+            })
+            .flatten();
+            let Some(text) = text else {
+                return false;
+            };
+            let Ok(mut state) = state.lock() else {
+                return false;
+            };
+            return state.insert_plain_text_for_host(&text);
+        }
+
+        false
     }
 
     /// Publish the rich editor's current selection to the shared bus + register its command set — the

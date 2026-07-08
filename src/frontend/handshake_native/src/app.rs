@@ -11,6 +11,7 @@ use base64::Engine as _;
 use crate::accessibility::{self, ChromeWidget};
 use crate::atelier_side_panel::AtelierSidePanel;
 use crate::backend_client::{self, HealthInfo, WorkbenchLayoutClient, HEALTH_URL};
+use crate::code_editor::code_nav::CodeNavClient;
 use crate::code_editor::keymap::CodeEditorAction;
 use crate::code_editor::panel::CodeEditorPanel;
 use crate::editor_pane_factories::{
@@ -44,6 +45,17 @@ use crate::top_menu_bar::{
     EditorMetaSegmentState, EditorSegmentAction, EditorStatusSegments, MenuBar, MenuBarAction,
     MenuBarState,
 };
+
+type CodeRefNavCell =
+    Arc<Mutex<Option<(String, Result<crate::interop::cross_ref::CodeRef, String>)>>>;
+
+struct PendingCanvasPlacementCreateUndo {
+    cell: crate::backend_client::CanvasBoardCreateCell,
+    client: Arc<crate::backend_client::CanvasBoardClient>,
+    workspace_id: String,
+    canvas_block_id: String,
+    description: String,
+}
 
 /// Stable AccessKit id for the theme-toggle button. egui maps `accesskit::NodeId` directly
 /// from an `egui::Id`'s u64 value (egui 0.33 `Id::accesskit_id`), so a fixed-value `Id`
@@ -223,6 +235,12 @@ pub enum LspAttachState {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ActiveEditorTarget {
+    Code,
+    Rich,
+}
+
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
     rt: tokio::runtime::Runtime,
@@ -350,6 +368,16 @@ pub struct HandshakeApp {
     /// the host drive loop. `None` until the first `didOpen`. A uri change re-opens (didOpen); a
     /// buffer_version bump on the same uri pushes a full-text `didChange`.
     lsp_doc_sync: Option<(String, u64)>,
+    /// WP-KERNEL-012 MT-034: backend client used by ShellNavigator::open_code_symbol to resolve a
+    /// clicked code-ref symbol id into a concrete file + definition line. Kept at app level because the
+    /// ShellNavigator trait method is synchronous while the backend resolve is spawned off-thread.
+    code_ref_nav_client: CodeNavClient,
+    /// WP-KERNEL-012 MT-034: delivery cell for the async code-ref resolve. The UI thread drains it and
+    /// applies `load_file + navigate_to_line` to the mounted code panel, so the egui thread never blocks
+    /// on the backend and stale responses can be ignored by symbol id.
+    code_ref_nav_cell: CodeRefNavCell,
+    /// The symbol id most recently handed to `open_code_symbol` and awaiting resolution.
+    code_ref_nav_pending: Option<String>,
     /// WP-KERNEL-012 MT-069 REMEDIATION: optional synchronous export file-save sink (TEST SEAM). `None`
     /// in production (exports go through the NativeFileSaveSink rfd dialog on a dedicated thread); a
     /// kittest installs a [`crate::rich_editor::save::conflict_ui::PathFileSaveSink`] so an export click
@@ -552,6 +580,10 @@ pub struct HandshakeApp {
     /// the hit title (the trait arms take only ids per the MT-030 contract signature). `Some` only for
     /// the duration of one `dispatch_target` call; `None` otherwise.
     nav_pending_label: Option<String>,
+    /// MT-032 retry queue: a mounted rich-editor backlink click has already left `pending_events`, so if
+    /// the shared command bus is briefly contended we retry next frame instead of dropping the click or
+    /// bypassing `CMD_OPEN_DOCUMENT` with a direct `ShellNavigator` call.
+    pending_backlink_open_retry: VecDeque<String>,
     /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
     settings_open: bool,
     /// Monotonic counter incremented each time [`settings_open`](Self::settings_open) flips from closed
@@ -837,6 +869,16 @@ pub struct HandshakeApp {
     /// every post-mutation reconcile/rollback re-fetch) resolve into; the per-frame feed drain applies
     /// a delivered board via `LoomCanvasBoard::set_board`.
     canvas_data_cell: crate::backend_client::CanvasBoardCell,
+    /// WP-KERNEL-012 MT-026 REMEDIATION: generation-stamped in-flight `getLoomBlock` live-title
+    /// resolves for the mounted canvas placements. `getCanvasBoard` returns reference placements only;
+    /// every fresh board load bumps the generation and resolves each distinct `placed_block_id` so cards
+    /// render live titles/content types instead of permanent `(stale reference)` labels.
+    canvas_live_block_generation: u64,
+    canvas_live_block_cells: Vec<(u64, crate::backend_client::LiveBlockCell)>,
+    /// WP-KERNEL-012 MT-035/026 REMEDIATION: in-flight canvas creation results whose JSON response
+    /// carries a backend-minted placement id. Draining an `Ok` registers the MT-035 compensating undo;
+    /// errors use the same board-error + re-fetch path as generic mutations.
+    canvas_create_cells: Vec<PendingCanvasPlacementCreateUndo>,
     /// WP-KERNEL-012 MT-026 REMEDIATION: the in-flight canvas mutation (PATCH/POST/DELETE) result
     /// cells. Each frame the feed drain reads the RESOLVED ones (previously the results were dispatched
     /// into throwaway cells and never read): `Ok(())` reconciles by re-fetching the board; `Err` logs
@@ -1050,11 +1092,16 @@ struct SecondaryMountHandles {
     tags_events: Arc<Mutex<Vec<crate::editor_pane_factories::TagsPaneEvent>>>,
     tags_fetched: std::sync::atomic::AtomicBool,
     tag_list_cell: crate::backend_client::TagListCell,
+    tag_list_seq: std::sync::atomic::AtomicU64,
     tag_hub_cell: crate::backend_client::TagHubDetailCell,
+    tag_hub_seq: std::sync::atomic::AtomicU64,
+    tag_hub_latest: Mutex<HashMap<(String, String), u64>>,
     tag_candidates_cell: crate::backend_client::AddTagCandidatesCell,
-    tag_edge_cell: crate::backend_client::ScmReceiptCell,
-    /// The hub block id an in-flight tag-edge POST re-queries on delivery.
-    tag_edge_hub: Arc<Mutex<Option<String>>>,
+    tag_candidates_seq: std::sync::atomic::AtomicU64,
+    tag_candidates_latest: Mutex<HashMap<(String, String), u64>>,
+    tag_edge_cell: crate::backend_client::TagEdgeReceiptCell,
+    tag_edge_seq: std::sync::atomic::AtomicU64,
+    tag_edge_latest: Mutex<HashMap<(String, String), u64>>,
 
     /// MT-024: the sidebar panel (pins/favorites/backlinks/unlinked/breadcrumbs) + its queue + cells.
     sidebar_panel: Arc<Mutex<crate::graph::sidebar_panel::LoomSidebarPanel>>,
@@ -1062,16 +1109,21 @@ struct SecondaryMountHandles {
     sidebar_fetched: std::sync::atomic::AtomicBool,
     sidebar_pins_cell: crate::backend_client::SidebarBlockListCell,
     sidebar_favorites_cell: crate::backend_client::SidebarBlockListCell,
+    sidebar_backlinks_cell: crate::backend_client::SidebarBacklinksCell,
+    sidebar_unlinked_cell: crate::backend_client::SidebarUnlinkedCell,
     sidebar_action_cell: crate::backend_client::DrawerActionCell,
     /// The (kind, block_id) of the in-flight pin/favorite removal, so the receipt drain can emit the
     /// `ShellEvent::BookmarkRemoved` + re-fetch the right section.
-    sidebar_action_in_flight: Arc<Mutex<Option<(crate::graph::sidebar_panel::SectionKind, String)>>>,
+    sidebar_action_in_flight:
+        Arc<Mutex<Option<(crate::graph::sidebar_panel::SectionKind, String)>>>,
 
     /// MT-027: the block-collections view + its outbound queue + delivery cells.
     collection_view: Arc<Mutex<crate::graph::block_collection_view::BlockCollectionView>>,
     collection_events: Arc<Mutex<Vec<crate::graph::block_collection_view::BlockViewEvent>>>,
     collection_record_cell: crate::backend_client::BlockViewRecordCell,
     collection_results_cell: crate::backend_client::BlockViewResultsCell,
+    collection_pending_results:
+        Mutex<Option<crate::graph::block_collection_view::BlockViewResults>>,
     collection_op_cell: crate::backend_client::BlockViewOpCell,
 
     /// MT-056: the outline panel (renders over the SAME mounted rich state).
@@ -1093,8 +1145,7 @@ struct SecondaryMountHandles {
     /// In-flight lazy child-block fetches: (folder_id, delivery cell) pairs polled each frame.
     folder_children_cells: Arc<Mutex<Vec<(String, crate::backend_client::FolderChildrenCell)>>>,
     /// In-flight recolor PATCHes: (folder_id, hex, receipt cell) polled each frame.
-    folder_recolor_cells:
-        Arc<Mutex<Vec<(String, String, crate::backend_client::ScmReceiptCell)>>>,
+    folder_recolor_cells: Arc<Mutex<Vec<(String, String, crate::backend_client::ScmReceiptCell)>>>,
 
     /// MT-009: the diff/merge pane slot (None => honest empty state).
     diff_slot: Arc<Mutex<Option<Arc<crate::code_editor::DiffEditorPanel>>>>,
@@ -1113,6 +1164,41 @@ struct SecondaryMountHandles {
     /// pane (canvas / graph / block collections).
     knowledge_registry:
         Arc<Mutex<crate::accessibility::knowledge_action_registry::KnowledgeActionRegistry>>,
+}
+
+fn next_async_sequence(counter: &std::sync::atomic::AtomicU64) -> u64 {
+    counter
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        .wrapping_add(1)
+}
+
+fn register_latest_async_sequence(
+    latest: &Mutex<HashMap<(String, String), u64>>,
+    workspace: &str,
+    key: &str,
+    sequence: u64,
+) {
+    if let Ok(mut latest) = latest.lock() {
+        latest.insert((workspace.to_owned(), key.to_owned()), sequence);
+    }
+}
+
+fn async_sequence_is_latest(
+    latest: &Mutex<HashMap<(String, String), u64>>,
+    workspace: &str,
+    key: &str,
+    sequence: u64,
+) -> bool {
+    latest
+        .lock()
+        .map(|latest| {
+            latest
+                .get(&(workspace.to_owned(), key.to_owned()))
+                .copied()
+                .unwrap_or(0)
+                == sequence
+        })
+        .unwrap_or(false)
 }
 
 /// Build the pane factory map AND install the CONCRETE [`LoomSearchV2PaneFactory`] over its placeholder
@@ -1359,8 +1445,7 @@ fn install_secondary_mounts(
         ),
     ));
     let daily_journal_events = Arc::new(Mutex::new(Vec::new()));
-    let journal_slot: crate::editor_pane_factories::SharedJournalPanel =
-        Arc::new(Mutex::new(None));
+    let journal_slot: crate::editor_pane_factories::SharedJournalPanel = Arc::new(Mutex::new(None));
     map.insert(
         PaneType::LoomDailyJournal,
         Box::new(DailyJournalPaneMount::new(
@@ -1536,22 +1621,31 @@ fn install_secondary_mounts(
         tags_hub,
         tags_events,
         tags_fetched: std::sync::atomic::AtomicBool::new(false),
-        tag_list_cell: Arc::new(Mutex::new(None)),
-        tag_hub_cell: Arc::new(Mutex::new(None)),
-        tag_candidates_cell: Arc::new(Mutex::new(None)),
-        tag_edge_cell: Arc::new(Mutex::new(None)),
-        tag_edge_hub: Arc::new(Mutex::new(None)),
+        tag_list_cell: Arc::new(Mutex::new(VecDeque::new())),
+        tag_list_seq: std::sync::atomic::AtomicU64::new(0),
+        tag_hub_cell: Arc::new(Mutex::new(VecDeque::new())),
+        tag_hub_seq: std::sync::atomic::AtomicU64::new(0),
+        tag_hub_latest: Mutex::new(HashMap::new()),
+        tag_candidates_cell: Arc::new(Mutex::new(VecDeque::new())),
+        tag_candidates_seq: std::sync::atomic::AtomicU64::new(0),
+        tag_candidates_latest: Mutex::new(HashMap::new()),
+        tag_edge_cell: Arc::new(Mutex::new(VecDeque::new())),
+        tag_edge_seq: std::sync::atomic::AtomicU64::new(0),
+        tag_edge_latest: Mutex::new(HashMap::new()),
         sidebar_panel,
         sidebar_events,
         sidebar_fetched: std::sync::atomic::AtomicBool::new(false),
         sidebar_pins_cell: Arc::new(Mutex::new(None)),
         sidebar_favorites_cell: Arc::new(Mutex::new(None)),
+        sidebar_backlinks_cell: Arc::new(Mutex::new(None)),
+        sidebar_unlinked_cell: Arc::new(Mutex::new(None)),
         sidebar_action_cell: Arc::new(Mutex::new(None)),
         sidebar_action_in_flight: Arc::new(Mutex::new(None)),
         collection_view,
         collection_events,
         collection_record_cell: Arc::new(Mutex::new(None)),
         collection_results_cell: Arc::new(Mutex::new(None)),
+        collection_pending_results: Mutex::new(None),
         collection_op_cell: Arc::new(Mutex::new(None)),
         outline_panel,
         wiki_bound,
@@ -1952,6 +2046,9 @@ impl HandshakeApp {
             last_editor_command: None,
             lsp_attach: LspAttachState::NotProbed,
             lsp_doc_sync: None,
+            code_ref_nav_client: CodeNavClient::production(),
+            code_ref_nav_cell: Arc::new(Mutex::new(None)),
+            code_ref_nav_pending: None,
             export_save_sink: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
@@ -2004,6 +2101,7 @@ impl HandshakeApp {
             quick_switcher_recents_error: None,
             quick_switcher_nav_status: None,
             nav_pending_label: None,
+            pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
             settings_open_count: 0,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
@@ -2101,12 +2199,19 @@ impl HandshakeApp {
             graph_data_cell: Arc::new(Mutex::new(None)),
             canvas_fetched_ws: None,
             canvas_data_cell: Arc::new(Mutex::new(None)),
+            canvas_live_block_generation: 0,
+            canvas_live_block_cells: Vec::new(),
+            canvas_create_cells: Vec::new(),
             canvas_op_cells: Vec::new(),
             graph_op_cells: Vec::new(),
             outgoing_links_raw: Vec::new(),
             outgoing_links_index_watermark: None,
         };
         app.spawn_mcp_server();
+        // WP-KERNEL-012 MT-008 REMEDIATION: normal production construction already owns a tokio
+        // runtime handle, so it must probe and install the mounted code pane's real LSP client here.
+        // `set_runtime_handle` covers injected-runtime shells; this covers the shipped `new(cc)` path.
+        app.attach_lsp_for_mounted_code_pane();
         // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics): the REQUIRED LIVE call site (AC-002-4 / the
         // Spec-Realism anti-dead-code gate). A NORMAL launch records exactly one PaneMounted startup
         // marker through the OPEN `record()` API, so a real DiagEvent lands in the ring + in-process
@@ -2447,6 +2552,9 @@ impl HandshakeApp {
             last_editor_command: None,
             lsp_attach: LspAttachState::NotProbed,
             lsp_doc_sync: None,
+            code_ref_nav_client: CodeNavClient::production(),
+            code_ref_nav_cell: Arc::new(Mutex::new(None)),
+            code_ref_nav_pending: None,
             export_save_sink: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
@@ -2504,6 +2612,7 @@ impl HandshakeApp {
             quick_switcher_recents_error: None,
             quick_switcher_nav_status: None,
             nav_pending_label: None,
+            pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
             settings_open_count: 0,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
@@ -2597,6 +2706,9 @@ impl HandshakeApp {
             graph_data_cell: Arc::new(Mutex::new(None)),
             canvas_fetched_ws: None,
             canvas_data_cell: Arc::new(Mutex::new(None)),
+            canvas_live_block_generation: 0,
+            canvas_live_block_cells: Vec::new(),
+            canvas_create_cells: Vec::new(),
             canvas_op_cells: Vec::new(),
             graph_op_cells: Vec::new(),
             outgoing_links_raw: Vec::new(),
@@ -3207,10 +3319,11 @@ impl HandshakeApp {
             }
             crate::command_registry::CMD_VIEW_DIFF_MERGE => {
                 // WP-KERNEL-012 MT-009 REMEDIATION: the palette route now CONSTRUCTS a real diff when
-                // the mounted rich document's SaveManager sits in a save CONFLICT (local vs server —
-                // the two real buffers the shell holds); otherwise it opens the pane on the honest
-                // empty state ("open one from a conflict dialog or the palette"). Previously this only
-                // opened the pane and `diff_slot` was NEVER populated (a permanent empty state).
+                // the mounted rich document's SaveManager sits in a save CONFLICT (server vs local —
+                // the two real buffers the shell holds); otherwise it clears any previous diff and opens
+                // the pane on the honest empty state ("open one from a conflict dialog or the palette").
+                // Previously this only opened the pane and `diff_slot` was NEVER populated (a permanent
+                // empty state), and a later no-conflict open could leave a stale prior diff visible.
                 self.open_diff_from_save_conflict();
                 self.open_content_on_active_pane(
                     crate::editor_pane_factories::placeholder_pane_type(
@@ -3218,6 +3331,25 @@ impl HandshakeApp {
                     ),
                     None,
                 )
+            }
+            // ── WP-KERNEL-012 wave-6 (S6 item 1): the CORE native-editor surface open routes. Each opens
+            // its real host-mounted editor pane on the active work surface through the SAME
+            // `open_content_on_active_pane` primitive every other open route uses (MT-079/080 registered
+            // the live factories over these PaneTypes, so none is a placeholder no-op).
+            crate::command_registry::CMD_VIEW_CODE_EDITOR => {
+                self.open_content_on_active_pane(PaneType::CodeSymbol, None)
+            }
+            crate::command_registry::CMD_VIEW_RICH_NOTE => {
+                self.open_content_on_active_pane(PaneType::LoomWikiPage, None)
+            }
+            crate::command_registry::CMD_VIEW_CANVAS => {
+                self.open_content_on_active_pane(PaneType::AtelierEditor, None)
+            }
+            crate::command_registry::CMD_VIEW_LOOM_SEARCH => {
+                self.open_content_on_active_pane(PaneType::LoomSearchV2, None)
+            }
+            crate::command_registry::CMD_VIEW_FIND_IN_FILES => {
+                self.open_content_on_active_pane(PaneType::FindInFiles, None)
             }
             // WP-KERNEL-012 MT-069 (E11 menu wire-up): the editor FILE/EDIT menu + palette commands MT-079
             // host-mounted. Route through the ONE shared dispatcher the menu bar also calls, so the palette
@@ -3275,10 +3407,7 @@ impl HandshakeApp {
     /// wires them up without forking the editor-pane mount logic.
     fn dispatch_editor_command(&mut self, ctx: &egui::Context, command_id: &str) -> bool {
         use crate::command_registry as cr;
-        use crate::interop::{
-            InteractionBus, CMD_COPY, CMD_CUT, CMD_FIND, CMD_PASTE, CMD_REDO, CMD_SELECT_ALL,
-            CMD_UNDO,
-        };
+        use crate::interop::{InteractionBus, CMD_REDO, CMD_UNDO};
 
         // GO-nav ids whose owner has not yet registered the live code-nav command: a typed logged no-op
         // (never a panic), keeping the item honestly inert until its owner MT lands (AC-003 / MC-003).
@@ -3317,48 +3446,92 @@ impl HandshakeApp {
             | cr::CMD_EDITOR_EDIT_PASTE
             | cr::CMD_EDITOR_EDIT_SELECT_ALL
             | cr::CMD_EDITOR_FIND_FIND => {
-                let bus_cmd = match command_id {
-                    cr::CMD_EDITOR_EDIT_CUT => CMD_CUT,
-                    cr::CMD_EDITOR_EDIT_COPY => CMD_COPY,
-                    cr::CMD_EDITOR_EDIT_PASTE => CMD_PASTE,
-                    cr::CMD_EDITOR_EDIT_SELECT_ALL => CMD_SELECT_ALL,
-                    _ => CMD_FIND,
-                };
-                let bus = InteractionBus::get_or_init(ctx);
-                let dispatched = InteractionBus::with_try_lock(&bus, |b| {
-                    // Register the standard clipboard/find command set (idempotent) so the dispatch reaches
-                    // a real handler even before a pane registered them on mount.
-                    crate::interop::adapters::register_standard_commands(
-                        b,
-                        crate::interop::EditorSurfaceKind::Code,
-                    );
-                    b.dispatch_command(ctx, bus_cmd)
-                })
-                .unwrap_or(false);
+                let active_target = self.active_editor_target(ctx);
+                match (active_target, command_id) {
+                    (Some(ActiveEditorTarget::Code), cr::CMD_EDITOR_EDIT_SELECT_ALL) => {
+                        self.editor_mounts.code_panel.dispatch_action(
+                            crate::code_editor::keymap::CodeEditorAction::SelectAll,
+                        );
+                        ctx.request_repaint();
+                        return true;
+                    }
+                    (Some(ActiveEditorTarget::Code), cr::CMD_EDITOR_FIND_FIND) => {
+                        self.editor_mounts.code_panel.dispatch_action(
+                            crate::code_editor::keymap::CodeEditorAction::OpenFind,
+                        );
+                        ctx.request_repaint();
+                        return true;
+                    }
+                    (Some(ActiveEditorTarget::Rich), cr::CMD_EDITOR_FIND_FIND) => {
+                        if let Ok(mut state) = self.editor_mounts.rich_state.lock() {
+                            state.open_find_replace_for_host(false);
+                        }
+                        ctx.request_repaint();
+                        return true;
+                    }
+                    (Some(ActiveEditorTarget::Rich), cr::CMD_EDITOR_EDIT_SELECT_ALL) => {
+                        tracing::info!(
+                            "editor Select All for rich editor is not registered yet; no-op"
+                        );
+                        return false;
+                    }
+                    (Some(_), _) => {}
+                    (None, _) => {
+                        tracing::info!(
+                            "editor command {command_id} requires an active editor target; no-op"
+                        );
+                        return false;
+                    }
+                }
+                let active_target = active_target.expect("active editor target was checked above");
+                let dispatched =
+                    self.dispatch_clipboard_editor_command(ctx, active_target, command_id);
                 ctx.request_repaint();
                 dispatched
             }
             // ── Find/Replace in Files -> the MT-029 FindInFiles workspace-search surface pane ──
-            cr::CMD_EDITOR_FIND_REPLACE => {
-                // In-doc Replace shares the focused editor's find/replace family; dispatch the bus Find
-                // intent (the focused editor opens its find/replace bar in its render path). One substrate.
-                let bus = InteractionBus::get_or_init(ctx);
-                let dispatched = InteractionBus::with_try_lock(&bus, |b| {
-                    crate::interop::adapters::register_standard_commands(
-                        b,
-                        crate::interop::EditorSurfaceKind::Code,
-                    );
-                    b.dispatch_command(ctx, CMD_FIND)
-                })
-                .unwrap_or(false);
-                ctx.request_repaint();
-                dispatched
-            }
+            cr::CMD_EDITOR_FIND_REPLACE => match self.active_editor_target(ctx) {
+                Some(ActiveEditorTarget::Code) => {
+                    self.editor_mounts
+                        .code_panel
+                        .dispatch_action(crate::code_editor::keymap::CodeEditorAction::OpenReplace);
+                    ctx.request_repaint();
+                    true
+                }
+                Some(ActiveEditorTarget::Rich) => {
+                    if let Ok(mut state) = self.editor_mounts.rich_state.lock() {
+                        state.open_find_replace_for_host(true);
+                    }
+                    ctx.request_repaint();
+                    true
+                }
+                None => {
+                    tracing::info!("editor Replace requires an active editor target; no-op");
+                    false
+                }
+            },
             cr::CMD_EDITOR_FIND_IN_FILES | cr::CMD_EDITOR_REPLACE_IN_FILES => {
+                if self.active_editor_target(ctx).is_none() {
+                    tracing::info!(
+                        "editor command {command_id} requires an active editor target; no-op"
+                    );
+                    return false;
+                }
                 self.open_content_on_active_pane(PaneType::FindInFiles, None)
             }
-            // ── Toggle Comment / Format Document -> the focused code editor's REAL transform ──────────────
-            cr::CMD_EDITOR_EDIT_TOGGLE_COMMENT | cr::CMD_EDITOR_EDIT_FORMAT_DOCUMENT => {
+            // ── Focused code-editor transforms/folds -> the mounted panel's real action dispatcher ────────
+            cr::CMD_EDITOR_EDIT_TOGGLE_COMMENT
+            | cr::CMD_EDITOR_EDIT_FORMAT_DOCUMENT
+            | cr::CMD_EDITOR_FOLD_AT_CURSOR
+            | cr::CMD_EDITOR_UNFOLD_AT_CURSOR
+            | cr::CMD_EDITOR_FOLD_ALL
+            | cr::CMD_EDITOR_UNFOLD_ALL => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 // Route the intent to the SAME `dispatch_action` entry the code editor's keymap reaches:
                 // `ToggleComment` -> MT-051 `apply_line_transform(line_ops::toggle_comment)` (a real,
                 // observable buffer mutation), `FormatDocument` -> MT-050 `request_format_document` (arms a
@@ -3367,10 +3540,26 @@ impl HandshakeApp {
                 // transform; it dispatches the editor's own command id to the mounted code panel
                 // (`dispatch_action` takes `&self` via interior mutability), so menu + keymap share ONE path
                 // (MC-001 / RISK-001). This is NOT a bare repaint — the editor buffer/request actually moves.
-                let action = if command_id == cr::CMD_EDITOR_EDIT_TOGGLE_COMMENT {
-                    crate::code_editor::keymap::CodeEditorAction::ToggleComment
-                } else {
-                    crate::code_editor::keymap::CodeEditorAction::FormatDocument
+                let action = match command_id {
+                    cr::CMD_EDITOR_EDIT_TOGGLE_COMMENT => {
+                        crate::code_editor::keymap::CodeEditorAction::ToggleComment
+                    }
+                    cr::CMD_EDITOR_EDIT_FORMAT_DOCUMENT => {
+                        crate::code_editor::keymap::CodeEditorAction::FormatDocument
+                    }
+                    cr::CMD_EDITOR_FOLD_AT_CURSOR => {
+                        crate::code_editor::keymap::CodeEditorAction::FoldAtCursor
+                    }
+                    cr::CMD_EDITOR_UNFOLD_AT_CURSOR => {
+                        crate::code_editor::keymap::CodeEditorAction::UnfoldAtCursor
+                    }
+                    cr::CMD_EDITOR_FOLD_ALL => {
+                        crate::code_editor::keymap::CodeEditorAction::FoldAll
+                    }
+                    cr::CMD_EDITOR_UNFOLD_ALL => {
+                        crate::code_editor::keymap::CodeEditorAction::UnfoldAll
+                    }
+                    _ => unreachable!("matched code-editor command ids above"),
                 };
                 self.editor_mounts.code_panel.dispatch_action(action);
                 ctx.request_repaint();
@@ -3383,18 +3572,28 @@ impl HandshakeApp {
                 // untouched) rich document. Now: a focused code pane routes ONLY to the code pane's
                 // host-save channel (its honest typed carry state — `last_editor_command` records the
                 // dispatch; the code document WRITE remains the documented typed carry, never a silent
-                // rich save in its place). A focused rich/Notes pane (or no code focus) reaches the REAL
-                // MT-020 SaveManager save entry, exactly as before.
-                if self.focused_pane_is_code_editor(ctx) {
-                    self.editor_mounts.code_panel.request_save_for_host();
-                } else {
-                    self.invoke_editor_save();
-                }
+                // rich save in its place). A focused rich/Notes pane reaches the REAL MT-020 SaveManager
+                // save entry; no active editor target is a logged no-op rather than a wrong-pane save.
+                let saved = match self.active_editor_target(ctx) {
+                    Some(ActiveEditorTarget::Code) => {
+                        self.editor_mounts.code_panel.request_save_for_host();
+                        true
+                    }
+                    Some(ActiveEditorTarget::Rich) => self.invoke_editor_save(),
+                    None => {
+                        tracing::info!("editor Save requires an active editor target; no-op");
+                        false
+                    }
+                };
                 ctx.request_repaint();
-                true
+                saved
             }
             // ── Save All -> both substrates (the "all" semantics: rich SaveManager + code channel) ───
             cr::CMD_EDITOR_FILE_SAVE_ALL => {
+                if self.active_editor_target(ctx).is_none() {
+                    tracing::info!("editor Save All requires an active editor target; no-op");
+                    return false;
+                }
                 self.invoke_editor_save();
                 self.editor_mounts.code_panel.request_save_for_host();
                 ctx.request_repaint();
@@ -3406,6 +3605,12 @@ impl HandshakeApp {
                 // `export_document` -> the NativeFileSaveSink rfd save dialog), NOT a silent same-id
                 // SaveManager PUT (the pre-remediation lying-enabled path). Opening the picker is the
                 // same entry the rich editor's own export affordance uses (one export substrate).
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Rich) {
+                    tracing::info!(
+                        "editor Save As requires an active rich editor document target; no-op"
+                    );
+                    return false;
+                }
                 if let Ok(mut state) = self.editor_mounts.rich_state.lock() {
                     state.export_picker_open = true;
                 }
@@ -3414,29 +3619,67 @@ impl HandshakeApp {
             }
             // ── Export Document (HTML/MD/TXT/JSON) -> the REAL export path (MT-069 REMEDIATION) ──────
             cr::CMD_EDITOR_FILE_EXPORT_HTML => {
-                self.export_active_document(crate::rich_editor::save::export::ExportFormat::HtmlReferenceLinked);
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Rich) {
+                    tracing::info!(
+                        "editor Export HTML requires an active rich editor document target; no-op"
+                    );
+                    return false;
+                }
+                let exported = self.export_active_document(
+                    crate::rich_editor::save::export::ExportFormat::HtmlReferenceLinked,
+                );
                 ctx.request_repaint();
-                true
+                exported
             }
             cr::CMD_EDITOR_FILE_EXPORT_MD => {
-                self.export_active_document(crate::rich_editor::save::export::ExportFormat::Markdown);
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Rich) {
+                    tracing::info!(
+                        "editor Export Markdown requires an active rich editor document target; no-op"
+                    );
+                    return false;
+                }
+                let exported = self.export_active_document(
+                    crate::rich_editor::save::export::ExportFormat::Markdown,
+                );
                 ctx.request_repaint();
-                true
+                exported
             }
             cr::CMD_EDITOR_FILE_EXPORT_TXT => {
-                self.export_active_document(crate::rich_editor::save::export::ExportFormat::PlainText);
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Rich) {
+                    tracing::info!(
+                        "editor Export Text requires an active rich editor document target; no-op"
+                    );
+                    return false;
+                }
+                let exported = self.export_active_document(
+                    crate::rich_editor::save::export::ExportFormat::PlainText,
+                );
                 ctx.request_repaint();
-                true
+                exported
             }
             cr::CMD_EDITOR_FILE_EXPORT_JSON => {
-                self.export_active_document(crate::rich_editor::save::export::ExportFormat::ProseMirrorJson);
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Rich) {
+                    tracing::info!(
+                        "editor Export JSON requires an active rich editor document target; no-op"
+                    );
+                    return false;
+                }
+                let exported = self.export_active_document(
+                    crate::rich_editor::save::export::ExportFormat::ProseMirrorJson,
+                );
                 ctx.request_repaint();
-                true
+                exported
             }
             // ── GO code-navigation -> the MOUNTED code panel's own dispatch entry (MT-069 REMEDIATION) ──
             // Each routes to `CodeEditorPanel::dispatch_action` — the SAME arm the F8/Shift+F8/Alt+Left/
             // Alt+Right/F12/Shift+F12/Ctrl+G/Ctrl+Shift+O keymap chords reach (one nav substrate, no fork).
             cr::CMD_EDITOR_GO_NEXT_DIAGNOSTIC => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 self.editor_mounts.code_panel.dispatch_action(
                     crate::code_editor::keymap::CodeEditorAction::GoToNextDiagnostic,
                 );
@@ -3444,6 +3687,12 @@ impl HandshakeApp {
                 true
             }
             cr::CMD_EDITOR_GO_PREV_DIAGNOSTIC => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 self.editor_mounts.code_panel.dispatch_action(
                     crate::code_editor::keymap::CodeEditorAction::GoToPrevDiagnostic,
                 );
@@ -3451,6 +3700,12 @@ impl HandshakeApp {
                 true
             }
             cr::CMD_EDITOR_GO_BACK => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 self.editor_mounts
                     .code_panel
                     .dispatch_action(crate::code_editor::keymap::CodeEditorAction::NavigateBack);
@@ -3458,6 +3713,12 @@ impl HandshakeApp {
                 true
             }
             cr::CMD_EDITOR_GO_FORWARD => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 self.editor_mounts
                     .code_panel
                     .dispatch_action(crate::code_editor::keymap::CodeEditorAction::NavigateForward);
@@ -3465,6 +3726,12 @@ impl HandshakeApp {
                 true
             }
             cr::CMD_EDITOR_GO_SYMBOL_IN_FILE => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 self.editor_mounts.code_panel.dispatch_action(
                     crate::code_editor::keymap::CodeEditorAction::GoToSymbolInFile,
                 );
@@ -3472,6 +3739,12 @@ impl HandshakeApp {
                 true
             }
             cr::CMD_EDITOR_GO_TO_DEFINITION => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 self.editor_mounts
                     .code_panel
                     .dispatch_action(crate::code_editor::keymap::CodeEditorAction::GoToDefinition);
@@ -3479,6 +3752,12 @@ impl HandshakeApp {
                 true
             }
             cr::CMD_EDITOR_GO_TO_REFERENCES => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 self.editor_mounts
                     .code_panel
                     .dispatch_action(crate::code_editor::keymap::CodeEditorAction::ShowReferences);
@@ -3486,6 +3765,12 @@ impl HandshakeApp {
                 true
             }
             cr::CMD_EDITOR_GO_TO_LINE => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 self.editor_mounts
                     .code_panel
                     .dispatch_action(crate::code_editor::keymap::CodeEditorAction::GoToLine);
@@ -3493,6 +3778,12 @@ impl HandshakeApp {
                 true
             }
             cr::CMD_EDITOR_GO_TO_SYMBOL => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
                 // Workspace-wide symbol search: the MT-030 global quick switcher IS the workspace
                 // search surface (Ctrl+T semantics) — one global search substrate, no second palette.
                 self.open_quick_switcher();
@@ -3500,6 +3791,10 @@ impl HandshakeApp {
                 true
             }
             cr::CMD_EDITOR_FILE_NEW => {
+                if self.active_editor_target(ctx).is_none() {
+                    tracing::info!("editor New Document requires an active editor target; no-op");
+                    return false;
+                }
                 // New Document: open a fresh Notes/rich editor pane (the document model the menu item names).
                 self.open_content_on_active_pane(PaneType::LoomWikiPage, None)
             }
@@ -3746,26 +4041,37 @@ impl HandshakeApp {
         )
     }
 
+    /// Clear the mounted diff/merge slot so the registered Diff/Merge pane renders its honest empty state
+    /// instead of a stale conflict diff from a previous open.
+    fn clear_diff_panel(&self) {
+        if let Ok(mut slot) = self.editor_mounts.secondary.diff_slot.lock() {
+            *slot = None;
+        }
+    }
+
     /// WP-KERNEL-012 MT-009 REMEDIATION: when the mounted rich document's SaveManager sits in a save
-    /// CONFLICT, build the REAL local-vs-server diff into `diff_slot` (deterministic pretty-JSON
+    /// CONFLICT, build the REAL server-vs-local diff into `diff_slot` (deterministic pretty-JSON
     /// projections of the two content trees — the two real buffers the shell holds; base is unknown to
     /// the save protocol, so this is the honest TWO-way diff, not a fabricated three-way). Returns
-    /// `true` when a conflict diff was installed; `false` (no slot write) when no conflict is open.
+    /// `true` when a conflict diff was installed; `false` after clearing the mounted diff slot when no
+    /// conflict is open.
     ///
-    /// NOTE (out-of-lane carry): the conflict DIALOG's own "Open merge" button
-    /// (`conflict-open-merge`, rendered inside `rich_editor/save/conflict_ui.rs`) still shows the
-    /// "Merge not yet available" note — adding a `ConflictOutcome::OpenMerge` variant there is
-    /// rich_editor-owned. The shell-side route below is the seam that wiring will call; until then the
-    /// operator route to the SAME real diff is the palette `View: Diff / Merge` command.
+    /// WP-KERNEL-012 wave-6 (S6 item 2): the conflict DIALOG's own "Open merge" button
+    /// (`conflict-open-merge`, in `rich_editor/save/conflict_ui.rs`) now reaches this route: the button
+    /// raises an egui-memory request, and [`drive_editor_mounts`](Self::drive_editor_mounts) drains it
+    /// each frame and calls this, so the dialog's Open-merge and the palette `View: Diff / Merge` open the
+    /// SAME real server-vs-local diff. (A `ConflictOutcome::OpenMerge` enum variant would force a match arm
+    /// in the rich pane host, which is out of this lane — the memory signal keeps the wiring in-lane.)
     fn open_diff_from_save_conflict(&mut self) -> bool {
         use crate::rich_editor::save::save_manager::SaveState;
-        let (local_text, server_text) = {
+        let (server_text, local_text) = {
             let state = self
                 .editor_mounts
                 .rich_state
                 .lock()
                 .unwrap_or_else(|p| p.into_inner());
             let Some(save) = state.save.as_ref() else {
+                self.clear_diff_panel();
                 return false;
             };
             match &save.state {
@@ -3777,21 +4083,26 @@ impl HandshakeApp {
                     server,
                     local_content,
                 } => {
-                    let server_text = server
-                        .content_json
-                        .as_ref()
-                        .and_then(|v| serde_json::to_string_pretty(v).ok())
-                        .unwrap_or_default();
+                    let server_text = serde_json::to_string_pretty(
+                        server
+                            .content_json
+                            .as_ref()
+                            .unwrap_or(&serde_json::Value::Null),
+                    )
+                    .unwrap_or_else(|_| "null".to_owned());
                     let local_text =
                         serde_json::to_string_pretty(local_content).unwrap_or_default();
-                    (local_text, server_text)
+                    (server_text, local_text)
                 }
-                _ => return false,
+                _ => {
+                    self.clear_diff_panel();
+                    return false;
+                }
             }
         };
-        let local = crate::code_editor::TextBuffer::new(&local_text);
         let server = crate::code_editor::TextBuffer::new(&server_text);
-        self.open_diff(local, server, "json")
+        let local = crate::code_editor::TextBuffer::new(&local_text);
+        self.open_diff(server, local, "json")
     }
 
     /// WP-KERNEL-012 MT-009 REMEDIATION: the mounted diff/merge slot (test observability — a kittest
@@ -3814,6 +4125,7 @@ impl HandshakeApp {
         if let Ok(mut state) = self.editor_mounts.rich_state.lock() {
             state.save = None;
             state.draft = None;
+            state.clear_properties_context();
         }
         if let Ok(mut slot) = self.rich_doc_load_cell.lock() {
             slot.retain(|(_, id, _)| id != document_id);
@@ -3837,9 +4149,15 @@ impl HandshakeApp {
             .as_ref()
             .map(|draft| draft.document_id() != expected_document_id)
             .unwrap_or(false);
-        if save_mismatch || draft_mismatch {
+        let properties_mismatch = state
+            .properties
+            .as_ref()
+            .map(|props| props.doc_metadata.rich_document_id != expected_document_id)
+            .unwrap_or(false);
+        if save_mismatch || draft_mismatch || properties_mismatch {
             state.save = None;
             state.draft = None;
+            state.clear_properties_context();
         }
     }
 
@@ -4027,6 +4345,10 @@ impl HandshakeApp {
         draft.check_on_mount();
         state.draft = Some(draft);
         state.set_embed_context(self.active_project_id.clone(), runtime.clone());
+        state.set_properties_context(
+            crate::rich_editor::properties::metadata_client::DocMetadata::from(&doc),
+            runtime.clone(),
+        );
         state.set_wikilink_context(self.active_project_id.clone(), document_id.clone(), runtime);
         drop(state);
         // WP-KERNEL-012 MT-062 REMEDIATION: the outgoing-links RESOLVER-INDEX FEED, driven from the
@@ -4056,6 +4378,16 @@ impl HandshakeApp {
         Ok(())
     }
 
+    /// MT-017 regression seam: drive the REAL rich-document load installer from an integration test
+    /// without requiring a live backend. This delegates to [`Self::apply_loaded_rich_document`] so the
+    /// same production code path installs save/draft/embed/wikilink/properties context.
+    pub fn apply_loaded_rich_document_for_test(
+        &mut self,
+        doc: backend_client::RichDocBody,
+    ) -> Result<(), String> {
+        self.apply_loaded_rich_document(doc)
+    }
+
     /// WP-KERNEL-012 MT-069 test seam: dispatch a command id through the REAL `dispatch_palette_action`
     /// path the live palette Run outcome uses, so the menu-wireup proofs drive the production dispatch
     /// (menu + palette share ONE dispatcher) without re-implementing it. Returns the dispatch's observable
@@ -4068,6 +4400,16 @@ impl HandshakeApp {
         // each arm to RUN without panicking, which a fresh context satisfies.
         let ctx = egui::Context::default();
         self.dispatch_palette_action(&ctx, command_id)
+    }
+
+    /// Test seam variant for proofs that depend on the live frame's focus owner, clipboard, and command
+    /// bus state. This reaches the exact production dispatcher without replacing the frame context.
+    pub fn dispatch_palette_action_for_test_with_ctx(
+        &mut self,
+        ctx: &egui::Context,
+        command_id: &str,
+    ) -> bool {
+        self.dispatch_palette_action(ctx, command_id)
     }
 
     /// Whether the quick-switcher overlay is requested open (MT-015 GO menu / Ctrl+P; overlay UI is
@@ -4271,6 +4613,33 @@ impl HandshakeApp {
         self.search_rail_query.lock().ok().and_then(|q| q.clone())
     }
 
+    /// WP-KERNEL-012 MT-008 test/diagnostic seam: install a supplied configured LSP client on the mounted
+    /// code pane and mark the host attach state as `Attached`. This does not discover or spawn anything;
+    /// it lets app-level tests drive the REAL `drive_lsp_document_sync` pump against an in-memory
+    /// transport and observe the exact `didOpen`/`didChange` frames the host schedules.
+    pub fn install_mounted_code_lsp_client_for_test(
+        &mut self,
+        client: Arc<crate::code_editor::lsp_client::LspClient>,
+        command: impl Into<String>,
+    ) {
+        self.editor_mounts.code_panel.set_lsp_client(client);
+        self.lsp_doc_sync = None;
+        self.lsp_attach = LspAttachState::Attached {
+            command: command.into(),
+        };
+    }
+
+    /// WP-KERNEL-012 MT-034 test seam: point both the mounted code panel and the shell-level
+    /// open-code-symbol resolver at the same code-nav backend. Production uses
+    /// [`CodeNavClient::production`]; kittests use this to prove the live shell route against an
+    /// in-process HTTP server without touching the managed PG gate.
+    pub fn install_mounted_code_nav_client_for_test(&mut self, client: CodeNavClient) {
+        self.editor_mounts
+            .code_panel
+            .set_code_nav_client(client.clone());
+        self.code_ref_nav_client = client;
+    }
+
     /// WP-KERNEL-012 MT-079: the Arc-shared code panel behind the MOUNTED code pane (the AC-079-3 proof
     /// drives this SAME panel — e.g. seeds a unified-undo entry then dispatches Undo through the bus and
     /// observes the panel state mutate).
@@ -4295,10 +4664,50 @@ impl HandshakeApp {
     /// WP-KERNEL-012 W3 (MT-026 remediation): the Arc-shared canvas BOARD state behind the mounted
     /// canvas pane (the wire-capture proofs seed `visual_edges`/workspace on the SAME board the host
     /// routing reads, e.g. the RemoveEdge visual-vs-semantic route split).
-    pub fn mounted_canvas_board(
-        &self,
-    ) -> Arc<Mutex<crate::graph::canvas_board::LoomCanvasBoard>> {
+    pub fn mounted_canvas_board(&self) -> Arc<Mutex<crate::graph::canvas_board::LoomCanvasBoard>> {
         Arc::clone(&self.editor_mounts.secondary.canvas_board)
+    }
+
+    /// WP-KERNEL-012 MT-027: the Arc-shared block collection view behind the mounted collection pane.
+    pub fn mounted_block_collection_view(
+        &self,
+    ) -> Arc<Mutex<crate::graph::block_collection_view::BlockCollectionView>> {
+        Arc::clone(&self.editor_mounts.secondary.collection_view)
+    }
+
+    /// WP-KERNEL-012 MT-027: the outbound event queue the mounted collection pane drains into the host.
+    pub fn mounted_block_collection_events(
+        &self,
+    ) -> Arc<Mutex<Vec<crate::graph::block_collection_view::BlockViewEvent>>> {
+        Arc::clone(&self.editor_mounts.secondary.collection_events)
+    }
+
+    /// WP-KERNEL-012 MT-027 test seam: inject a resolved collection mutation result into the same cell
+    /// the host drains after `BlockViewClient` completes.
+    pub fn deliver_block_collection_op_for_test(&self, result: Result<String, String>) {
+        if let Ok(mut cell) = self.editor_mounts.secondary.collection_op_cell.lock() {
+            *cell = Some(result);
+        }
+    }
+
+    /// WP-KERNEL-012 MT-027 test seam: inject a loaded block-view definition into the mounted host drain.
+    pub fn deliver_block_collection_record_for_test(
+        &self,
+        result: Result<crate::backend_client::BlockViewRecordData, String>,
+    ) {
+        if let Ok(mut cell) = self.editor_mounts.secondary.collection_record_cell.lock() {
+            *cell = Some(result);
+        }
+    }
+
+    /// WP-KERNEL-012 MT-027 test seam: inject block-view query results into the mounted host drain.
+    pub fn deliver_block_collection_results_for_test(
+        &self,
+        result: Result<crate::graph::block_collection_view::BlockViewResults, String>,
+    ) {
+        if let Ok(mut cell) = self.editor_mounts.secondary.collection_results_cell.lock() {
+            *cell = Some(result);
+        }
     }
 
     /// WP-KERNEL-012 W3 (MT-026 remediation): how many canvas mutation op cells are currently
@@ -4307,7 +4716,67 @@ impl HandshakeApp {
     /// count of the host dispatches an event batch produced — a drained-queue assertion alone cannot
     /// distinguish "routed to a dispatch" from "swallowed by a dead catch-all" (the W2 audit finding).
     pub fn canvas_op_cells_in_flight(&self) -> usize {
-        self.canvas_op_cells.len()
+        self.canvas_op_cells.len() + self.canvas_create_cells.len()
+    }
+
+    /// WP-KERNEL-012 MT-026: inject a `getCanvasBoard` delivery into the same cell the host frame drain
+    /// reads. This is a test seam for the mounted app path, not a widget shortcut.
+    pub fn deliver_canvas_board_for_test(
+        &self,
+        result: Result<crate::backend_client::CanvasBoardData, String>,
+    ) {
+        if let Ok(mut cell) = self.canvas_data_cell.lock() {
+            *cell = Some(result);
+        }
+    }
+
+    /// WP-KERNEL-012 MT-035: inject a resolved canvas create response into the same pending-create drain
+    /// production uses after `dispatch_created_placement` returns. This keeps the host proof off a live
+    /// PostgreSQL dependency while still exercising the real frame drain and shared InteractionBus.
+    pub fn deliver_canvas_created_placement_for_test(
+        &mut self,
+        workspace_id: impl Into<String>,
+        canvas_block_id: impl Into<String>,
+        result: crate::backend_client::CreatedCanvasPlacement,
+        description: impl Into<String>,
+    ) -> Result<(), String> {
+        let Some(rt) = self.runtime_handle.clone() else {
+            return Err(
+                "runtime handle is required for canvas compensating undo client".to_owned(),
+            );
+        };
+        let cell = Arc::new(Mutex::new(Some(Ok(result))));
+        self.canvas_create_cells
+            .push(PendingCanvasPlacementCreateUndo {
+                cell,
+                client: Arc::new(crate::backend_client::CanvasBoardClient::production(rt)),
+                workspace_id: workspace_id.into(),
+                canvas_block_id: canvas_block_id.into(),
+                description: description.into(),
+            });
+        Ok(())
+    }
+
+    /// WP-KERNEL-012 MT-026: the current generation for canvas live-block title resolves.
+    pub fn canvas_live_block_generation_for_test(&self) -> u64 {
+        self.canvas_live_block_generation
+    }
+
+    /// WP-KERNEL-012 MT-026: unresolved live-block cells the mounted app host is still tracking.
+    pub fn canvas_live_block_cells_in_flight_for_test(&self) -> usize {
+        self.canvas_live_block_cells.len()
+    }
+
+    /// WP-KERNEL-012 MT-026: inject a generation-stamped `getLoomBlock` delivery into the same live-block
+    /// cell drain production uses after `getCanvasBoard` loads reference placements.
+    pub fn deliver_canvas_live_block_for_test(
+        &mut self,
+        generation: u64,
+        placed_block_id: impl Into<String>,
+        result: Result<crate::backend_client::LiveBlock, String>,
+    ) {
+        let cell = Arc::new(Mutex::new(Some((placed_block_id.into(), result))));
+        self.canvas_live_block_cells.push((generation, cell));
     }
 
     /// WP-KERNEL-012 MT-080: the Arc-shared graph view behind the MOUNTED graph pane (the AC-080-3 proof
@@ -4323,6 +4792,206 @@ impl HandshakeApp {
         &self,
     ) -> Arc<Mutex<Vec<crate::graph::graph_view::GraphEvent>>> {
         Arc::clone(&self.editor_mounts.secondary.graph_events)
+    }
+
+    /// WP-KERNEL-012 MT-022: the Arc-shared folder tree behind the MOUNTED Folders pane. The MT-022 host
+    /// proof seeds this same tree, enqueues events through [`mounted_folder_events_for_test`], and asserts
+    /// `drive_folder_pane` applies expand/recolor/retry/open routing.
+    pub fn mounted_folder_tree_for_test(
+        &self,
+    ) -> Arc<Mutex<crate::graph::folder_tree::LoomFolderTree>> {
+        Arc::clone(&self.editor_mounts.secondary.folder_tree)
+    }
+
+    /// WP-KERNEL-012 MT-022: the Arc-shared outbound folder-tree event queue drained by
+    /// `drive_folder_pane`.
+    pub fn mounted_folder_events_for_test(
+        &self,
+    ) -> Arc<Mutex<Vec<crate::graph::folder_tree::FolderTreeEvent>>> {
+        Arc::clone(&self.editor_mounts.secondary.folder_events)
+    }
+
+    /// WP-KERNEL-012 MT-023: the Arc-shared tags panel behind the mounted Tags pane. Host-mount
+    /// proofs seed this state and assert `drive_tags_pane` keeps it keyed to the active workspace.
+    pub fn mounted_tags_panel_for_test(
+        &self,
+    ) -> Arc<Mutex<crate::graph::tags_panel::LoomTagsPanel>> {
+        Arc::clone(&self.editor_mounts.secondary.tags_panel)
+    }
+
+    /// WP-KERNEL-012 MT-023: the Arc-shared optional tag-hub page behind the mounted Tags pane.
+    pub fn mounted_tags_hub_for_test(
+        &self,
+    ) -> Arc<Mutex<Option<crate::graph::tags_panel::LoomTagHubPanel>>> {
+        Arc::clone(&self.editor_mounts.secondary.tags_hub)
+    }
+
+    /// WP-KERNEL-012 MT-023: the outbound tags event queue drained by `drive_tags_pane`.
+    pub fn mounted_tags_events_for_test(
+        &self,
+    ) -> Arc<Mutex<Vec<crate::editor_pane_factories::TagsPaneEvent>>> {
+        Arc::clone(&self.editor_mounts.secondary.tags_events)
+    }
+
+    /// WP-KERNEL-012 MT-024: the Arc-shared sidebar panel behind the mounted Sidebar pane. Host proofs
+    /// assert that active-block binding and async deliveries mutate this SAME state the pane renders.
+    pub fn mounted_sidebar_panel_for_test(
+        &self,
+    ) -> Arc<Mutex<crate::graph::sidebar_panel::LoomSidebarPanel>> {
+        Arc::clone(&self.editor_mounts.secondary.sidebar_panel)
+    }
+
+    /// WP-KERNEL-012 MT-024: the outbound sidebar event queue drained by `drive_sidebar_pane`.
+    pub fn mounted_sidebar_events_for_test(
+        &self,
+    ) -> Arc<Mutex<Vec<crate::graph::sidebar_panel::SidebarEvent>>> {
+        Arc::clone(&self.editor_mounts.secondary.sidebar_events)
+    }
+
+    /// WP-KERNEL-012 MT-024: prepare a deterministic active-block Backlinks/Unlinked reload without
+    /// spawning HTTP. Returns the generation stamps tests must use when injecting cell deliveries.
+    pub fn prepare_sidebar_active_block_for_test(
+        &self,
+        block_id: impl AsRef<str>,
+    ) -> Option<(u64, u64)> {
+        self.prepare_sidebar_active_block(&self.active_project_id, block_id.as_ref())
+    }
+
+    /// WP-KERNEL-012 MT-024: inject a generation-stamped Backlinks delivery into the mounted host drain.
+    pub fn deliver_sidebar_backlinks_for_test(
+        &self,
+        generation: u64,
+        result: Result<Vec<crate::graph::sidebar_panel::BacklinkRow>, String>,
+    ) {
+        if let Ok(mut cell) = self.editor_mounts.secondary.sidebar_backlinks_cell.lock() {
+            *cell = Some((generation, result));
+        }
+    }
+
+    /// WP-KERNEL-012 MT-024: inject a generation-stamped Unlinked delivery into the mounted host drain.
+    pub fn deliver_sidebar_unlinked_for_test(
+        &self,
+        generation: u64,
+        result: Result<Vec<crate::graph::sidebar_panel::UnlinkedRow>, String>,
+    ) {
+        if let Ok(mut cell) = self.editor_mounts.secondary.sidebar_unlinked_cell.lock() {
+            *cell = Some((generation, result));
+        }
+    }
+
+    /// WP-KERNEL-012 MT-023: inject a tag-hub async delivery into the mounted host drain. Tests use this
+    /// to prove stale deliveries cannot overwrite a newer valid delivery before the next frame.
+    pub fn deliver_tag_hub_detail_for_test(
+        &self,
+        workspace_id: impl Into<String>,
+        hub_id: impl Into<String>,
+        result: Result<(String, Vec<crate::graph::tags_panel::HubMember>), String>,
+    ) {
+        let workspace_id = workspace_id.into();
+        let hub_id = hub_id.into();
+        let sequence = self.register_tag_hub_request_for_test(&workspace_id, &hub_id);
+        self.deliver_tag_hub_detail_with_sequence_for_test(workspace_id, hub_id, sequence, result);
+    }
+
+    /// WP-KERNEL-012 MT-023: mark a tag-hub request as the newest request for a workspace + hub.
+    pub fn register_tag_hub_request_for_test(
+        &self,
+        workspace_id: impl AsRef<str>,
+        hub_id: impl AsRef<str>,
+    ) -> u64 {
+        let sequence = next_async_sequence(&self.editor_mounts.secondary.tag_hub_seq);
+        register_latest_async_sequence(
+            &self.editor_mounts.secondary.tag_hub_latest,
+            workspace_id.as_ref(),
+            hub_id.as_ref(),
+            sequence,
+        );
+        sequence
+    }
+
+    /// WP-KERNEL-012 MT-023: inject a sequence-attributed tag-hub async delivery into the mounted host
+    /// drain. Tests use this to prove older same-key deliveries cannot overwrite newer hub state.
+    pub fn deliver_tag_hub_detail_with_sequence_for_test(
+        &self,
+        workspace_id: impl Into<String>,
+        hub_id: impl Into<String>,
+        sequence: u64,
+        result: Result<(String, Vec<crate::graph::tags_panel::HubMember>), String>,
+    ) {
+        if let Ok(mut cell) = self.editor_mounts.secondary.tag_hub_cell.lock() {
+            cell.push_back((workspace_id.into(), hub_id.into(), sequence, result));
+        }
+    }
+
+    /// WP-KERNEL-012 MT-023: inject a tag-edge async receipt into the mounted host drain. Tests use
+    /// this to prove stale add-tag responses cannot update a different open tag hub.
+    pub fn deliver_tag_edge_receipt_for_test(
+        &self,
+        workspace_id: impl Into<String>,
+        hub_id: impl Into<String>,
+        result: Result<(), String>,
+    ) {
+        let workspace_id = workspace_id.into();
+        let hub_id = hub_id.into();
+        let sequence = self.register_tag_edge_request_for_test(&workspace_id, &hub_id);
+        self.deliver_tag_edge_receipt_with_sequence_for_test(
+            workspace_id,
+            hub_id,
+            sequence,
+            result,
+        );
+    }
+
+    /// WP-KERNEL-012 MT-023: mark a tag-edge POST as the newest add-tag request for a workspace + hub.
+    pub fn register_tag_edge_request_for_test(
+        &self,
+        workspace_id: impl AsRef<str>,
+        hub_id: impl AsRef<str>,
+    ) -> u64 {
+        let sequence = next_async_sequence(&self.editor_mounts.secondary.tag_edge_seq);
+        register_latest_async_sequence(
+            &self.editor_mounts.secondary.tag_edge_latest,
+            workspace_id.as_ref(),
+            hub_id.as_ref(),
+            sequence,
+        );
+        sequence
+    }
+
+    /// WP-KERNEL-012 MT-023: inject a sequence-attributed tag-edge async receipt into the mounted host
+    /// drain. Tests use this to prove superseded same-key errors cannot overwrite newer state.
+    pub fn deliver_tag_edge_receipt_with_sequence_for_test(
+        &self,
+        workspace_id: impl Into<String>,
+        hub_id: impl Into<String>,
+        sequence: u64,
+        result: Result<(), String>,
+    ) {
+        if let Ok(mut cell) = self.editor_mounts.secondary.tag_edge_cell.lock() {
+            cell.push_back((workspace_id.into(), hub_id.into(), sequence, result));
+        }
+    }
+
+    /// WP-KERNEL-012 MT-022: unresolved lazy child-fetch delivery cells created by mounted
+    /// `ExpandFolder` routing. Used only to prove the host dispatched a real folder-block fetch path.
+    pub fn folder_child_cells_in_flight_for_test(&self) -> usize {
+        self.editor_mounts
+            .secondary
+            .folder_children_cells
+            .lock()
+            .map(|cells| cells.len())
+            .unwrap_or(0)
+    }
+
+    /// WP-KERNEL-012 MT-022: unresolved recolor PATCH delivery cells created by mounted `ChangeColor`
+    /// routing. Used only to prove the host dispatched a real folder recolor path.
+    pub fn folder_recolor_cells_in_flight_for_test(&self) -> usize {
+        self.editor_mounts
+            .secondary
+            .folder_recolor_cells
+            .lock()
+            .map(|cells| cells.len())
+            .unwrap_or(0)
     }
 
     /// WP-KERNEL-012 MT-080: the Arc-shared outgoing-links nav queue behind the MOUNTED outgoing-links pane
@@ -4359,6 +5028,204 @@ impl HandshakeApp {
         Arc::clone(&self.editor_mounts.secondary.manual_state)
     }
 
+    fn pane_type_for(&self, pane_id: &PaneId) -> Option<PaneType> {
+        self.tab_bar_states
+            .get(pane_id)
+            .and_then(|bar| bar.active())
+            .map(|tab| tab.pane_type.clone())
+            .or_else(|| {
+                self.pane_registry
+                    .lock()
+                    .ok()
+                    .and_then(|reg| reg.get(pane_id).map(|record| record.pane_type.clone()))
+            })
+    }
+
+    fn editor_target_for_pane_type(pane_type: &PaneType) -> Option<ActiveEditorTarget> {
+        match pane_type {
+            PaneType::CodeSymbol => Some(ActiveEditorTarget::Code),
+            PaneType::LoomWikiPage => Some(ActiveEditorTarget::Rich),
+            _ => None,
+        }
+    }
+
+    fn focused_editor_target(&self, ctx: &egui::Context) -> Option<ActiveEditorTarget> {
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let focus_owner: Option<PaneId> =
+            crate::interop::InteractionBus::with_try_lock(&bus, |b| b.focus_owner().cloned())
+                .flatten();
+        let focus_owner = focus_owner?;
+        self.editor_target_for_pane(&focus_owner)
+    }
+
+    fn active_editor_target(&self, ctx: &egui::Context) -> Option<ActiveEditorTarget> {
+        if let Some(target) = self.focused_editor_target(ctx) {
+            return Some(target);
+        }
+        if let Some(pane_id) = self.active_pane.as_ref() {
+            return self.editor_target_for_pane(pane_id);
+        }
+        None
+    }
+
+    fn active_editor_pane_id(
+        &self,
+        ctx: &egui::Context,
+        target: ActiveEditorTarget,
+    ) -> Option<PaneId> {
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        if let Some(pane_id) =
+            crate::interop::InteractionBus::with_try_lock(&bus, |b| b.focus_owner().cloned())
+                .flatten()
+                .filter(|pane_id| self.editor_target_for_pane(pane_id) == Some(target))
+        {
+            return Some(pane_id);
+        }
+        if let Some(pane_id) = self.active_pane.as_ref() {
+            if self.editor_target_for_pane(pane_id) == Some(target) {
+                return Some(pane_id.clone());
+            }
+        }
+        None
+    }
+
+    fn dispatch_clipboard_editor_command(
+        &mut self,
+        ctx: &egui::Context,
+        target: ActiveEditorTarget,
+        command_id: &str,
+    ) -> bool {
+        use crate::command_registry as cr;
+        match (target, command_id) {
+            (ActiveEditorTarget::Code, cr::CMD_EDITOR_EDIT_COPY) => {
+                self.copy_code_selection_to_bus(ctx, false)
+            }
+            (ActiveEditorTarget::Code, cr::CMD_EDITOR_EDIT_CUT) => {
+                self.copy_code_selection_to_bus(ctx, true)
+            }
+            (ActiveEditorTarget::Code, cr::CMD_EDITOR_EDIT_PASTE) => self.paste_bus_into_code(ctx),
+            (ActiveEditorTarget::Rich, cr::CMD_EDITOR_EDIT_COPY) => {
+                self.copy_rich_selection_to_bus(ctx, false)
+            }
+            (ActiveEditorTarget::Rich, cr::CMD_EDITOR_EDIT_CUT) => {
+                self.copy_rich_selection_to_bus(ctx, true)
+            }
+            (ActiveEditorTarget::Rich, cr::CMD_EDITOR_EDIT_PASTE) => self.paste_bus_into_rich(ctx),
+            _ => false,
+        }
+    }
+
+    fn copy_code_selection_to_bus(&mut self, ctx: &egui::Context, cut: bool) -> bool {
+        let Some(pane_id) = self.active_editor_pane_id(ctx, ActiveEditorTarget::Code) else {
+            return false;
+        };
+        let panel = Arc::clone(&self.editor_mounts.code_panel);
+        let sink = crate::rich_editor::properties::metadata_client::EguiClipboard::new(ctx.clone());
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let copied = crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+            crate::code_editor::interop_adapter::register(b);
+            crate::code_editor::interop_adapter::copy_to_bus(b, &panel, pane_id.clone(), &sink)
+        })
+        .unwrap_or(false);
+        if !copied || !cut {
+            return copied;
+        }
+
+        let before = panel.buffer();
+        let deleted = panel.delete_text();
+        if deleted > 0 {
+            let after = panel.buffer();
+            let pane_id_for_undo = pane_id.clone();
+            crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                crate::code_editor::interop_adapter::push_code_edit_undo(
+                    b,
+                    pane_id_for_undo,
+                    &panel,
+                    before,
+                    after,
+                    "code: cut",
+                );
+            });
+        }
+        copied
+    }
+
+    fn paste_bus_into_code(&mut self, ctx: &egui::Context) -> bool {
+        let Some(pane_id) = self.active_editor_pane_id(ctx, ActiveEditorTarget::Code) else {
+            return false;
+        };
+        let panel = Arc::clone(&self.editor_mounts.code_panel);
+        let before = panel.buffer();
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let applied = crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+            crate::code_editor::interop_adapter::register(b);
+            crate::code_editor::interop_adapter::paste_from_bus(b, &panel)
+        })
+        .unwrap_or(0);
+        if applied == 0 {
+            return false;
+        }
+        let after = panel.buffer();
+        crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+            crate::code_editor::interop_adapter::push_code_edit_undo(
+                b,
+                pane_id,
+                &panel,
+                before,
+                after,
+                "code: paste",
+            );
+        });
+        true
+    }
+
+    fn copy_rich_selection_to_bus(&mut self, ctx: &egui::Context, cut: bool) -> bool {
+        let text = {
+            let Ok(state) = self.editor_mounts.rich_state.lock() else {
+                return false;
+            };
+            state.selected_text().map(|(_, _, _, text)| text)
+        };
+        let Some(text) = text else {
+            return false;
+        };
+        let sink = crate::rich_editor::properties::metadata_client::EguiClipboard::new(ctx.clone());
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let copied = crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+            crate::rich_editor::interop_adapter::register(b);
+            crate::rich_editor::interop_adapter::copy_text_to_bus(b, &text, &sink)
+        })
+        .unwrap_or(false);
+        if copied && cut {
+            if let Ok(mut state) = self.editor_mounts.rich_state.lock() {
+                let _ = state.delete_selection_for_host();
+            }
+        }
+        copied
+    }
+
+    fn paste_bus_into_rich(&mut self, ctx: &egui::Context) -> bool {
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let text = crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+            crate::rich_editor::interop_adapter::register(b);
+            crate::rich_editor::interop_adapter::paste_text_from_bus(b)
+        })
+        .flatten();
+        let Some(text) = text else {
+            return false;
+        };
+        let Ok(mut state) = self.editor_mounts.rich_state.lock() else {
+            return false;
+        };
+        state.insert_plain_text_for_host(&text)
+    }
+
+    fn editor_target_for_pane(&self, pane_id: &PaneId) -> Option<ActiveEditorTarget> {
+        self.pane_type_for(pane_id)
+            .as_ref()
+            .and_then(Self::editor_target_for_pane_type)
+    }
+
     /// WP-KERNEL-012 MT-071: whether the FOCUSED pane this frame is the mounted code editor
     /// (`PaneType::CodeSymbol`). Reads the MT-035 [`InteractionBus`](crate::interop::InteractionBus)
     /// focus owner (the SAME focus seam the unified-undo enable predicates use) and resolves it against
@@ -4366,21 +5233,7 @@ impl HandshakeApp {
     /// moment a non-code pane takes focus (AC-005) and never carry stale editor metadata. A contended bus
     /// lock or poisoned registry fails closed (no segments this frame, re-evaluated next frame).
     fn focused_pane_is_code_editor(&self, ctx: &egui::Context) -> bool {
-        let bus = crate::interop::InteractionBus::get_or_init(ctx);
-        let focus_owner: Option<PaneId> =
-            crate::interop::InteractionBus::with_try_lock(&bus, |b| b.focus_owner().cloned())
-                .flatten();
-        let Some(focus_owner) = focus_owner else {
-            return false;
-        };
-        self.pane_registry
-            .lock()
-            .map(|reg| {
-                reg.get(&focus_owner)
-                    .map(|record| matches!(record.pane_type, PaneType::CodeSymbol))
-                    .unwrap_or(false)
-            })
-            .unwrap_or(false)
+        self.focused_editor_target(ctx) == Some(ActiveEditorTarget::Code)
     }
 
     /// WP-KERNEL-012 MT-071: the live editor file-metadata snapshot for the status-bar segments, or
@@ -4570,6 +5423,12 @@ impl HandshakeApp {
         let pane_id = self
             .navigator_existing_tab_pane(&pane_type, &content_id)
             .or_else(|| self.navigator_target_pane(&pane_type))?;
+        let sidebar_block_to_bind =
+            if matches!(pane_type, PaneType::LoomBlock) && !content_id.is_empty() {
+                Some(content_id.clone())
+            } else {
+                None
+            };
         let doc_to_reload = if matches!(pane_type, PaneType::LoomWikiPage) && !content_id.is_empty()
         {
             Some(content_id.clone())
@@ -4591,7 +5450,62 @@ impl HandshakeApp {
         if let Some(document_id) = doc_to_reload.as_deref() {
             self.invalidate_rich_document_load(document_id);
         }
+        if let Some(block_id) = sidebar_block_to_bind.as_deref() {
+            let workspace = self.active_project_id.clone();
+            self.bind_sidebar_active_block(&workspace, block_id);
+        }
         Some(surface)
+    }
+
+    fn block_collections_pane_type() -> PaneType {
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::BLOCK_COLLECTIONS_PANE_LABEL,
+        )
+    }
+
+    fn bind_block_collection_view(&mut self, view_block_id: &str) {
+        let view_block_id = view_block_id.trim();
+        if view_block_id.is_empty() {
+            return;
+        }
+        let workspace = self.active_project_id.clone();
+        let sec = &self.editor_mounts.secondary;
+        if let Ok(mut cell) = sec.collection_record_cell.lock() {
+            *cell = None;
+        }
+        if let Ok(mut cell) = sec.collection_results_cell.lock() {
+            *cell = None;
+        }
+        if let Ok(mut pending) = sec.collection_pending_results.lock() {
+            *pending = None;
+        }
+        if let Ok(mut cell) = sec.collection_op_cell.lock() {
+            *cell = None;
+        }
+        if let Ok(mut view) = sec.collection_view.lock() {
+            view.bind_loading_view(workspace.clone(), view_block_id.to_owned());
+        }
+        let Some(rt) = self.runtime_handle.clone() else {
+            if let Ok(mut view) = sec.collection_view.lock() {
+                view.set_error(
+                    "no runtime bound (headless shell): block collection load unavailable",
+                );
+            }
+            return;
+        };
+        let client = crate::backend_client::BlockViewClient::production(rt);
+        client.fetch_view(
+            &workspace,
+            view_block_id,
+            Arc::clone(&sec.collection_record_cell),
+        );
+        client.query_results(
+            &workspace,
+            view_block_id,
+            200,
+            0,
+            Arc::clone(&sec.collection_results_cell),
+        );
     }
 
     /// Target pane for navigation-bus opens. If the operator has focused a pane, route there. If no
@@ -5427,19 +6341,18 @@ impl HandshakeApp {
         );
     }
 
-    /// Open the pane a drawer card links to (AC-023-12): Agenda → the daily-journal pane, Lists/Notes →
-    /// a Loom-block collection pane. Routes through the same `open_content_on_active_pane` primitive the
-    /// command palette / menu navigation use, so the card opens a REAL pane (not a fake nav).
+    /// Open the pane a drawer card links to (AC-023-12): Agenda -> the daily-journal pane, Lists -> the
+    /// block-collections pane, Notes -> the Loom-block pane. Routes through the same
+    /// `open_content_on_active_pane` primitive the command palette / menu navigation use, so the card
+    /// opens a REAL pane (not a fake nav).
     fn open_drawer_card_pane(&mut self, kind: crate::stash_shelf::DrawerCardKind) -> bool {
         use crate::stash_shelf::DrawerCardKind;
         match kind {
             DrawerCardKind::Agenda => {
                 self.open_content_on_active_pane(PaneType::LoomDailyJournal, None)
             }
-            // Lists/Notes open the Loom-block collection pane; the content_id carries the content_type
-            // filter the collection pane reads (its filtered content lands with the pane-content WP).
             DrawerCardKind::Lists => {
-                self.open_content_on_active_pane(PaneType::LoomBlock, Some("view_def".to_owned()))
+                self.open_content_on_active_pane(Self::block_collections_pane_type(), None)
             }
             DrawerCardKind::Notes => {
                 self.open_content_on_active_pane(PaneType::LoomBlock, Some("note".to_owned()))
@@ -5599,16 +6512,30 @@ impl HandshakeApp {
     /// - `word_wrap` -> [`CodeEditorPanel::set_wrap_enabled`] + [`CodeEditorPanel::set_wrap_column`]
     ///   (`Off` => disabled; `On` => enabled, viewport-edge wrap; `BoundedColumn(n)` => enabled at `n`).
     ///
-    /// `editor_font_size` is NOT applied here: the mounted [`CodeEditorPanel`] exposes no font-size slot
-    /// today, so wiring it would require an editor-mount/panel.rs change OUTSIDE this MT's allowed_paths.
-    /// That sub-field is the typed follow-up blocker recorded in the MT handoff (the pref still persists +
-    /// round-trips; only its live application is deferred).
+    /// WP-KERNEL-012 wave-6 (S6 item 3): `editor_font_size` AND the Custom `syntax_palette` are now
+    /// applied live. `editor_font_size` -> [`CodeEditorPanel::set_font_size`] resizes the running code
+    /// editor body (row height + glyphs) and [`RichEditorState::set_editor_font_size`] resizes rich
+    /// document body/layout text with no restart; the Custom `syntax_palette` ->
+    /// [`CodeEditorPanel::set_syntax_palette`] routes the highlight-run colors through the live
+    /// [`resolve_scope_color`](crate::code_editor::resolve_scope_color) resolver so a Custom swatch edit
+    /// repaints the running code editor and minimap syntax rows. (The code GUTTER line-number glyph size
+    /// still reads the base size: `code_editor/gutter.rs` is a small disclosed cosmetic follow-up, NOT a
+    /// silent no-op.)
     fn sync_editor_prefs_to_panel(&self) {
         use crate::workspace_settings::WordWrapMode;
         let prefs = &self.workspace_settings.editor_prefs;
         let panel = &self.editor_mounts.code_panel;
         panel.set_indent_settings(prefs.tab_size as usize, prefs.insert_spaces);
         panel.set_render_whitespace(prefs.render_whitespace.draws_whitespace());
+        // S6 item 3: LIVE font size + Custom syntax palette on mounted editors.
+        panel.set_font_size(prefs.editor_font_size);
+        panel.set_syntax_palette(self.workspace_settings.syntax_palette.clone());
+        let mut rich_state = self
+            .editor_mounts
+            .rich_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        rich_state.set_editor_font_size(prefs.editor_font_size);
         match prefs.word_wrap {
             WordWrapMode::Off => {
                 panel.set_wrap_enabled(false);
@@ -5735,6 +6662,12 @@ impl HandshakeApp {
             }
             O::SyntaxPaletteChanged(palette) => {
                 self.workspace_settings.syntax_palette = palette;
+                // WIRE-INTO-LIVE (wave-6 S6 item 3): a Custom swatch edit, and a Custom -> Standard/Muted
+                // switch, must repaint/clear the mounted code panel immediately, not only after an
+                // unrelated prefs sync or settings reload.
+                self.editor_mounts
+                    .code_panel
+                    .set_syntax_palette(self.workspace_settings.syntax_palette.clone());
                 self.schedule_settings_save();
                 true
             }
@@ -6026,10 +6959,23 @@ impl HandshakeApp {
             backend_client::ModelSessionLaunchError::EndpointMissing {
                 ipc_channel,
                 probed_url,
+                request,
                 ..
-            } => format!(
-                "Model session: EndpointMissing {ipc_channel} (direct spawn with wrapper is IPC-only; probed {probed_url})"
-            ),
+            } => {
+                let local_load = if request.provider == backend_client::ModelSessionProvider::Local
+                {
+                    format!(
+                        "; LocalModelLoadEndpointMissing {} (local GGUF load is IPC-only in {}; no native HTTP local-model load route)",
+                        backend_client::MODEL_SESSION_LOCAL_MODEL_LOAD_IPC_CHANNEL,
+                        backend_client::MODEL_SESSION_LOCAL_MODEL_LOAD_IPC_OWNER
+                    )
+                } else {
+                    String::new()
+                };
+                format!(
+                    "Model session: EndpointMissing {ipc_channel} (direct spawn with wrapper is IPC-only; probed {probed_url}){local_load}"
+                )
+            }
             backend_client::ModelSessionLaunchError::InvalidRequest { field, reason } => {
                 format!("Model session: InvalidRequest {field}: {reason}")
             }
@@ -6467,6 +7413,13 @@ impl HandshakeApp {
             MenuBarAction::EditorCommand(command_id) => {
                 self.dispatch_editor_command(ctx, command_id)
             }
+            // WP-KERNEL-012 wave-6 (S6 item 1): a VIEW > Open Editor Surfaces entry OPENS its mounted
+            // editor pane by routing the carried `view.*` open command through the ONE shared
+            // `dispatch_palette_action` path the command palette also calls, so the menu open and the
+            // palette open reach the SAME `open_content_on_active_pane` primitive (no forked open logic).
+            MenuBarAction::OpenViewSurface(command_id) => {
+                self.dispatch_palette_action(ctx, command_id)
+            }
             // ── Disabled in MT-015 (target surface is a future MT) — leaves render disabled, so these
             //    are unreachable; handled as explicit no-ops to keep the match honest + exhaustive. ──
             MenuBarAction::NewDocument
@@ -6550,7 +7503,7 @@ impl HandshakeApp {
             .and_then(|p| self.tab_bar_states.get(&p))
             .map(|bar| bar.active().is_some())
             .unwrap_or(false);
-        let editor_available = self.editor_available();
+        let editor_enable = self.editor_menu_enable_context(ctx);
         MenuBarState {
             theme_is_dark: self.current_theme == HsTheme::Dark,
             view_mode_is_nsfw: self.view_mode == ViewMode::Nsfw,
@@ -6558,15 +7511,38 @@ impl HandshakeApp {
             bottom_drawer_open: self.bottom_drawer_open,
             has_active_tab,
             // MT-069 editor enable predicates (live, read from the shared substrate).
-            editor_available,
-            editor_can_undo: editor_available && self.editor_can_undo(ctx),
-            editor_can_redo: editor_available && self.editor_can_redo(ctx),
-            editor_can_paste: editor_available && self.editor_can_paste(ctx),
+            editor_available: editor_enable.editor_available,
+            active_code_editor: editor_enable.active_code_editor,
+            active_rich_editor: editor_enable.active_rich_editor,
+            editor_can_undo: editor_enable.editor_can_undo,
+            editor_can_redo: editor_enable.editor_can_redo,
+            editor_can_paste: editor_enable.editor_can_paste,
             // MT-069 REMEDIATION: GO > Back/Forward reflect the LIVE jump-history state of the mounted
             // code panel (VS Code semantics — no fake-enable).
-            editor_can_nav_back: editor_available
+            editor_can_nav_back: editor_enable.editor_can_nav_back,
+            editor_can_nav_forward: editor_enable.editor_can_nav_forward,
+        }
+    }
+
+    fn editor_menu_enable_context(
+        &self,
+        ctx: &egui::Context,
+    ) -> crate::command_registry::EditorMenuEnableContext {
+        let editor_available = self.editor_available();
+        let active_editor_target = self.active_editor_target(ctx);
+        let active_code_editor = active_editor_target == Some(ActiveEditorTarget::Code);
+        let active_rich_editor = active_editor_target == Some(ActiveEditorTarget::Rich);
+        let active_editor = active_code_editor || active_rich_editor;
+        crate::command_registry::EditorMenuEnableContext {
+            editor_available,
+            active_code_editor,
+            active_rich_editor,
+            editor_can_undo: active_editor && self.editor_can_undo(ctx),
+            editor_can_redo: active_editor && self.editor_can_redo(ctx),
+            editor_can_paste: active_editor && self.editor_can_paste(ctx),
+            editor_can_nav_back: active_code_editor
                 && self.editor_mounts.code_panel.can_navigate_back(),
-            editor_can_nav_forward: editor_available
+            editor_can_nav_forward: active_code_editor
                 && self.editor_mounts.code_panel.can_navigate_forward(),
         }
     }
@@ -7137,6 +8113,45 @@ impl HandshakeApp {
         }
     }
 
+    fn dispatch_backlink_open_through_bus(
+        &mut self,
+        ctx: &egui::Context,
+        source_document_id: &str,
+    ) -> bool {
+        let event = crate::rich_editor::wikilinks::inline_view::EditorEvent::BacklinkActivated {
+            source_document_id: source_document_id.to_owned(),
+        };
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let dispatched = crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+            b.register_open_document_command();
+            crate::rich_editor::wikilinks::backlinks_panel::dispatch_backlink_open(ctx, b, &event)
+        })
+        .flatten();
+        if dispatched.is_none() {
+            self.quick_switcher_nav_status = Some(format!(
+                "Backlink open '{source_document_id}': OpenDocument bus unavailable; retrying"
+            ));
+            return false;
+        }
+        true
+    }
+
+    fn retry_pending_backlink_open_events(&mut self, ctx: &egui::Context) {
+        if self.pending_backlink_open_retry.is_empty() {
+            return;
+        }
+        let mut pending = std::mem::take(&mut self.pending_backlink_open_retry);
+        while let Some(source_document_id) = pending.pop_front() {
+            if !self.dispatch_backlink_open_through_bus(ctx, &source_document_id) {
+                self.pending_backlink_open_retry
+                    .push_back(source_document_id);
+                self.pending_backlink_open_retry.extend(pending);
+                ctx.request_repaint();
+                return;
+            }
+        }
+    }
+
     /// WP-KERNEL-012 MT-033 (E5 — CKC embeds / drag-in + route-to-Stage): the live shell wiring that makes
     /// the MT-033 melt-together surfaces REACHABLE in the running product.
     ///
@@ -7182,6 +8197,16 @@ impl HandshakeApp {
         if self.capturing_snapshot {
             return;
         }
+        self.retry_pending_backlink_open_events(ctx);
+
+        // ── WP-KERNEL-012 wave-6 (S6 item 2 / MT-009 wire-up): the rich-editor save-conflict dialog's
+        // "Open merge" button raises a request in egui memory (it cannot reach `diff_slot` from the rich
+        // pane host). Drain it here and build the REAL server-vs-local diff into `diff_slot`, opening the
+        // Diff/Merge pane — the same route the palette `View: Diff / Merge` command uses. Once per click.
+        if crate::rich_editor::save::conflict_ui::take_open_merge_request(ctx) {
+            self.open_diff_from_save_conflict();
+            ctx.request_repaint();
+        }
 
         // ── 1. Code command channel (Save / Undo / Redo / OpenCommandPalette) ───────────────────────
         let mut commands = Vec::new();
@@ -7196,13 +8221,11 @@ impl HandshakeApp {
             // (when a code command actually arrives) rather than every frame.
             //
             // Honest scope note (RISK-080-2 / MC-080-5): this wires the UNDO half of AC-080-4 (set_undo_
-            // runtime + register_undo_commands + Ctrl+Z/Ctrl+Y -> bus.undo/redo, proven below). The FR-emit
-            // half — `crate::event_emitter::*::emit_code_edit` (debounced 2s) and
-            // `crate::interop::render_undo_count_indicator` — is NOT wired into this live loop this run:
-            // `emit_code_edit` has no live call site (its helper is unit-proven only; see its DEFERRED-live-
-            // wiring docstring) and the undo-count indicator is rendered only by the test bin. Both are
-            // explicit deferred typed carries (NOT faked, NOT a live-loop fire) so the residual E11 FR-emit
-            // work stays precisely scoped — the host does NOT claim emit_code_edit fires here.
+            // runtime + register_undo_commands + Ctrl+Z/Ctrl+Y -> bus.undo/redo, proven below). The
+            // undo-count indicator is now rendered by the live pane headers from the same bus depth.
+            // The residual FR-emit half — `crate::event_emitter::*::emit_code_edit` (debounced 2s) — still
+            // has no live call site here (its helper is unit-proven only; see its DEFERRED-live-wiring
+            // docstring), so the host does NOT claim emit_code_edit fires from this drain.
             if let Some(rt) = self.runtime_handle.clone() {
                 crate::interop::InteractionBus::with_try_lock(&bus, |b| {
                     b.set_undo_runtime(rt);
@@ -7282,15 +8305,12 @@ impl HandshakeApp {
                                 resolved,
                             };
                             let bus = crate::interop::InteractionBus::get_or_init(ctx);
-                            let staged =
-                                crate::interop::InteractionBus::with_try_lock(&bus, |b| {
-                                    b.register_open_code_symbol_command();
-                                    crate::interop::cross_ref::dispatch_code_ref_open(
-                                        ctx, b, &event,
-                                    );
-                                    b.take_pending_code_symbol()
-                                })
-                                .flatten();
+                            let staged = crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                                b.register_open_code_symbol_command();
+                                crate::interop::cross_ref::dispatch_code_ref_open(ctx, b, &event);
+                                b.take_pending_code_symbol()
+                            })
+                            .flatten();
                             match staged {
                                 Some(symbol_entity_id) => {
                                     crate::quick_switcher::ShellNavigator::open_code_symbol(
@@ -7314,15 +8334,12 @@ impl HandshakeApp {
                                 resolved,
                             };
                             let bus = crate::interop::InteractionBus::get_or_init(ctx);
-                            let staged =
-                                crate::interop::InteractionBus::with_try_lock(&bus, |b| {
-                                    b.register_open_locus_ref_command();
-                                    crate::interop::cross_ref::dispatch_locus_ref_open(
-                                        ctx, b, &event,
-                                    );
-                                    b.take_pending_locus_ref()
-                                })
-                                .flatten();
+                            let staged = crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                                b.register_open_locus_ref_command();
+                                crate::interop::cross_ref::dispatch_locus_ref_open(ctx, b, &event);
+                                b.take_pending_locus_ref()
+                            })
+                            .flatten();
                             let target = staged.unwrap_or_else(|| ref_value.clone());
                             match crate::interop::locus_interop::parse_locus_ref(&target) {
                                 Some(locus) => match locus.kind {
@@ -7353,13 +8370,14 @@ impl HandshakeApp {
                     ctx.request_repaint();
                 }
                 EditorEvent::BacklinkActivated { source_document_id } => {
-                    self.nav_pending_label = Some(source_document_id.clone());
-                    let outcome = crate::quick_switcher::ShellNavigator::open_document(
-                        self,
-                        &source_document_id,
-                    );
-                    self.nav_pending_label = None;
-                    self.surface_nav_outcome(&outcome);
+                    // MT-032: backlink rows use the same named command path as NoteRefs and tests:
+                    // EditorEvent::BacklinkActivated -> dispatch_backlink_open -> CMD_OPEN_DOCUMENT
+                    // -> InteractionBus.pending_navigation -> drive_ckc_interop -> ShellNavigator.
+                    // Do not direct-open here, or the shared command bus becomes test-only again.
+                    if !self.dispatch_backlink_open_through_bus(ctx, &source_document_id) {
+                        self.pending_backlink_open_retry
+                            .push_back(source_document_id);
+                    }
                     ctx.request_repaint();
                 }
                 EditorEvent::TransclusionOpenRequested { ref_value } => {
@@ -7392,7 +8410,11 @@ impl HandshakeApp {
         // (the off-thread `POST /knowledge/documents` via the MT-037 binding, duplicate-in-flight
         // guarded — MC-001; the outcome lands in the create cell the mounted rich render drains, which
         // also inserts the new title into the shared resolver index). No second create path is forked.
-        if let Some(title) = self.editor_mounts.code_panel.take_pending_create_note_link() {
+        if let Some(title) = self
+            .editor_mounts
+            .code_panel
+            .take_pending_create_note_link()
+        {
             let dispatched = self
                 .editor_mounts
                 .rich_state
@@ -7650,9 +8672,44 @@ impl HandshakeApp {
         let tags_type = crate::editor_pane_factories::placeholder_pane_type(
             crate::editor_pane_factories::TAGS_PANE_LABEL,
         );
+        let tags_visible = self.any_tab_of_type(&tags_type);
 
-        // Initial fetch (once per shell) when the pane first becomes visible.
-        if self.any_tab_of_type(&tags_type)
+        if tags_visible {
+            let workspace_changed = sec
+                .tags_panel
+                .lock()
+                .map(|panel| panel.workspace_id != workspace)
+                .unwrap_or(false);
+            if workspace_changed {
+                if let Ok(mut panel) = sec.tags_panel.lock() {
+                    *panel = crate::graph::tags_panel::LoomTagsPanel::new(workspace.to_owned());
+                }
+                if let Ok(mut hub) = sec.tags_hub.lock() {
+                    *hub = None;
+                }
+                sec.tags_fetched
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
+                if let Ok(mut cell) = sec.tag_list_cell.lock() {
+                    cell.clear();
+                }
+                if let Ok(mut cell) = sec.tag_hub_cell.lock() {
+                    cell.clear();
+                }
+                if let Ok(mut cell) = sec.tag_candidates_cell.lock() {
+                    cell.clear();
+                }
+                if let Ok(mut cell) = sec.tag_edge_cell.lock() {
+                    cell.clear();
+                }
+                if let Ok(mut events) = sec.tags_events.lock() {
+                    events.clear();
+                }
+                ctx.request_repaint();
+            }
+        }
+
+        // Initial fetch (once per visible workspace) when the pane first becomes visible.
+        if tags_visible
             && !sec
                 .tags_fetched
                 .swap(true, std::sync::atomic::Ordering::Relaxed)
@@ -7663,8 +8720,10 @@ impl HandshakeApp {
                     p.loading = true;
                     p.error = None;
                 }
-                crate::backend_client::LoomTagClient::production(rt).fetch_tags(
+                let sequence = next_async_sequence(&sec.tag_list_seq);
+                crate::backend_client::LoomTagClient::production(rt).fetch_tags_with_sequence(
                     workspace,
+                    sequence,
                     Arc::clone(&sec.tag_list_cell),
                 );
             } else {
@@ -7675,23 +8734,91 @@ impl HandshakeApp {
         }
 
         // Poll the list / hub-detail / candidates / edge-receipt cells (non-blocking).
-        if let Some(result) = sec.tag_list_cell.lock().ok().and_then(|mut c| c.take()) {
-            if let Ok(mut p) = sec.tags_panel.lock() {
-                match result {
-                    Ok(tags) => p.set_tags(tags),
-                    Err(e) => {
-                        p.loading = false;
-                        p.error = Some(e);
+        let tag_list_deliveries: Vec<_> = sec
+            .tag_list_cell
+            .lock()
+            .map(|mut c| c.drain(..).collect())
+            .unwrap_or_default();
+        for (delivered_workspace, delivered_sequence, result) in tag_list_deliveries {
+            let latest_sequence = sec.tag_list_seq.load(std::sync::atomic::Ordering::Relaxed);
+            if delivered_workspace == workspace && delivered_sequence == latest_sequence {
+                if let Ok(mut p) = sec.tags_panel.lock() {
+                    match result {
+                        Ok(tags) => {
+                            let count_targets: Vec<String> = tags
+                                .iter()
+                                .filter(|tag| tag.member_count.is_none())
+                                .map(|tag| tag.block_id.clone())
+                                .collect();
+                            p.set_tags(tags);
+                            if let Some(rt) = self.runtime_handle.clone() {
+                                let client = crate::backend_client::LoomTagClient::production(rt);
+                                for tag_id in count_targets {
+                                    let sequence = next_async_sequence(&sec.tag_hub_seq);
+                                    register_latest_async_sequence(
+                                        &sec.tag_hub_latest,
+                                        workspace,
+                                        &tag_id,
+                                        sequence,
+                                    );
+                                    client.fetch_hub_detail_with_sequence(
+                                        workspace,
+                                        &tag_id,
+                                        sequence,
+                                        Arc::clone(&sec.tag_hub_cell),
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            p.loading = false;
+                            p.error = Some(e);
+                        }
                     }
                 }
+            } else if delivered_workspace != workspace {
+                sec.tags_fetched
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
             }
             ctx.request_repaint();
         }
-        if let Some(result) = sec.tag_hub_cell.lock().ok().and_then(|mut c| c.take()) {
+        let tag_hub_deliveries: Vec<_> = sec
+            .tag_hub_cell
+            .lock()
+            .map(|mut c| c.drain(..).collect())
+            .unwrap_or_default();
+        for (delivered_workspace, delivered_hub, delivered_sequence, result) in tag_hub_deliveries {
+            let delivery_is_latest = async_sequence_is_latest(
+                &sec.tag_hub_latest,
+                &delivered_workspace,
+                &delivered_hub,
+                delivered_sequence,
+            );
+            if delivered_workspace == workspace && delivery_is_latest {
+                if let Ok((_, members)) = &result {
+                    if let Ok(mut panel) = sec.tags_panel.lock() {
+                        if let Ok(count) = u32::try_from(members.len()) {
+                            panel.set_member_count(&delivered_hub, count);
+                        }
+                    }
+                }
+            }
             if let Ok(mut hub) = sec.tags_hub.lock() {
-                if let Some(h) = hub.as_mut() {
+                if let Some(h) = hub.as_mut().filter(|h| {
+                    h.workspace_id == delivered_workspace
+                        && delivered_workspace == workspace
+                        && h.block_id == delivered_hub
+                        && delivery_is_latest
+                }) {
                     match result {
-                        Ok((title, members)) => h.set_detail(title, members),
+                        Ok((title, members)) => {
+                            let title = if title.trim().is_empty() {
+                                h.title.clone()
+                            } else {
+                                title
+                            };
+                            h.set_detail(title, members);
+                        }
                         Err(e) => {
                             h.loading = false;
                             h.error = Some(e);
@@ -7701,14 +8828,27 @@ impl HandshakeApp {
             }
             ctx.request_repaint();
         }
-        if let Some(result) = sec
+        let candidate_deliveries: Vec<_> = sec
             .tag_candidates_cell
             .lock()
-            .ok()
-            .and_then(|mut c| c.take())
+            .map(|mut c| c.drain(..).collect())
+            .unwrap_or_default();
+        for (delivered_workspace, delivered_query, delivered_sequence, result) in
+            candidate_deliveries
         {
+            let delivery_is_latest = async_sequence_is_latest(
+                &sec.tag_candidates_latest,
+                &delivered_workspace,
+                &delivered_query,
+                delivered_sequence,
+            );
             if let Ok(mut hub) = sec.tags_hub.lock() {
-                if let Some(h) = hub.as_mut() {
+                if let Some(h) = hub.as_mut().filter(|h| {
+                    h.workspace_id == delivered_workspace
+                        && delivered_workspace == workspace
+                        && h.add_search == delivered_query
+                        && delivery_is_latest
+                }) {
                     match result {
                         Ok(candidates) => h.set_add_candidates(candidates),
                         Err(e) => h.error = Some(e),
@@ -7717,21 +8857,55 @@ impl HandshakeApp {
             }
             ctx.request_repaint();
         }
-        if let Some(result) = sec.tag_edge_cell.lock().ok().and_then(|mut c| c.take()) {
+        let tag_edge_deliveries: Vec<_> = sec
+            .tag_edge_cell
+            .lock()
+            .map(|mut c| c.drain(..).collect())
+            .unwrap_or_default();
+        for (delivered_workspace, hub_id, delivered_sequence, result) in tag_edge_deliveries {
             // The tag-edge POST resolved: re-query the hub members AFTER the response (AC6 — no fixed
-            // sleep). A failure surfaces on the hub error banner.
-            let hub_id = sec.tag_edge_hub.lock().ok().and_then(|mut h| h.take());
-            match (result, hub_id, self.runtime_handle.clone()) {
-                (Ok(()), Some(hub_id), Some(rt)) => {
-                    crate::backend_client::LoomTagClient::production(rt).fetch_hub_detail(
+            // sleep). A failure surfaces only on the matching open hub error banner.
+            let current_hub_matches = sec
+                .tags_hub
+                .lock()
+                .map(|hub| {
+                    hub.as_ref()
+                        .map(|h| h.workspace_id == delivered_workspace && h.block_id == hub_id)
+                        .unwrap_or(false)
+                })
+                .unwrap_or(false);
+            if delivered_workspace != workspace || !current_hub_matches {
+                continue;
+            }
+            match (result, self.runtime_handle.clone()) {
+                (Ok(()), Some(rt)) => {
+                    let sequence = next_async_sequence(&sec.tag_hub_seq);
+                    register_latest_async_sequence(
+                        &sec.tag_hub_latest,
                         workspace,
                         &hub_id,
-                        Arc::clone(&sec.tag_hub_cell),
+                        sequence,
                     );
+                    crate::backend_client::LoomTagClient::production(rt)
+                        .fetch_hub_detail_with_sequence(
+                            workspace,
+                            &hub_id,
+                            sequence,
+                            Arc::clone(&sec.tag_hub_cell),
+                        );
                 }
-                (Err(e), _, _) => {
+                (Err(e), _)
+                    if async_sequence_is_latest(
+                        &sec.tag_edge_latest,
+                        &delivered_workspace,
+                        &hub_id,
+                        delivered_sequence,
+                    ) =>
+                {
                     if let Ok(mut hub) = sec.tags_hub.lock() {
-                        if let Some(h) = hub.as_mut() {
+                        if let Some(h) = hub.as_mut().filter(|h| {
+                            h.workspace_id == delivered_workspace && h.block_id == hub_id
+                        }) {
                             h.error = Some(e);
                         }
                     }
@@ -7763,11 +8937,20 @@ impl HandshakeApp {
                         *hub = Some(h);
                     }
                     if let Some(rt) = self.runtime_handle.clone() {
-                        crate::backend_client::LoomTagClient::production(rt).fetch_hub_detail(
+                        let sequence = next_async_sequence(&sec.tag_hub_seq);
+                        register_latest_async_sequence(
+                            &sec.tag_hub_latest,
                             workspace,
                             &block_id,
-                            Arc::clone(&sec.tag_hub_cell),
+                            sequence,
                         );
+                        crate::backend_client::LoomTagClient::production(rt)
+                            .fetch_hub_detail_with_sequence(
+                                workspace,
+                                &block_id,
+                                sequence,
+                                Arc::clone(&sec.tag_hub_cell),
+                            );
                     }
                     ctx.request_repaint();
                 }
@@ -7778,8 +8961,13 @@ impl HandshakeApp {
                             p.loading = true;
                             p.error = None;
                         }
+                        let sequence = next_async_sequence(&sec.tag_list_seq);
                         crate::backend_client::LoomTagClient::production(rt)
-                            .fetch_tags(workspace, Arc::clone(&sec.tag_list_cell));
+                            .fetch_tags_with_sequence(
+                                workspace,
+                                sequence,
+                                Arc::clone(&sec.tag_list_cell),
+                            );
                     }
                 }
                 TagsPaneEvent::Hub(TagHubEvent::OpenMember { block_id }) => {
@@ -7789,11 +8977,20 @@ impl HandshakeApp {
                 TagsPaneEvent::Hub(TagHubEvent::AddTagSearch { query }) => {
                     if let Some(rt) = self.runtime_handle.clone() {
                         let sec = &self.editor_mounts.secondary;
-                        crate::backend_client::LoomTagClient::production(rt).search_blocks(
+                        let sequence = next_async_sequence(&sec.tag_candidates_seq);
+                        register_latest_async_sequence(
+                            &sec.tag_candidates_latest,
                             workspace,
                             &query,
-                            Arc::clone(&sec.tag_candidates_cell),
+                            sequence,
                         );
+                        crate::backend_client::LoomTagClient::production(rt)
+                            .search_blocks_with_sequence(
+                                workspace,
+                                &query,
+                                sequence,
+                                Arc::clone(&sec.tag_candidates_cell),
+                            );
                     }
                 }
                 TagsPaneEvent::Hub(TagHubEvent::AddTagSelected { source_block_id }) => {
@@ -7804,15 +9001,21 @@ impl HandshakeApp {
                         .ok()
                         .and_then(|h| h.as_ref().map(|h| h.block_id.clone()));
                     if let (Some(hub_id), Some(rt)) = (hub_id, self.runtime_handle.clone()) {
-                        if let Ok(mut slot) = sec.tag_edge_hub.lock() {
-                            *slot = Some(hub_id.clone());
-                        }
-                        crate::backend_client::LoomTagClient::production(rt).tag_block(
+                        let sequence = next_async_sequence(&sec.tag_edge_seq);
+                        register_latest_async_sequence(
+                            &sec.tag_edge_latest,
                             workspace,
-                            &source_block_id,
                             &hub_id,
-                            Arc::clone(&sec.tag_edge_cell),
+                            sequence,
                         );
+                        crate::backend_client::LoomTagClient::production(rt)
+                            .tag_block_with_sequence(
+                                workspace,
+                                &source_block_id,
+                                &hub_id,
+                                sequence,
+                                Arc::clone(&sec.tag_edge_cell),
+                            );
                     }
                 }
                 TagsPaneEvent::Hub(TagHubEvent::Retry) => {
@@ -7829,11 +9032,20 @@ impl HandshakeApp {
                                 h.error = None;
                             }
                         }
-                        crate::backend_client::LoomTagClient::production(rt).fetch_hub_detail(
+                        let sequence = next_async_sequence(&sec.tag_hub_seq);
+                        register_latest_async_sequence(
+                            &sec.tag_hub_latest,
                             workspace,
                             &hub_id,
-                            Arc::clone(&sec.tag_hub_cell),
+                            sequence,
                         );
+                        crate::backend_client::LoomTagClient::production(rt)
+                            .fetch_hub_detail_with_sequence(
+                                workspace,
+                                &hub_id,
+                                sequence,
+                                Arc::clone(&sec.tag_hub_cell),
+                            );
                     }
                 }
                 TagsPaneEvent::BackToList => {
@@ -7844,6 +9056,89 @@ impl HandshakeApp {
                 }
             }
         }
+    }
+
+    /// MT-024 REMEDIATION: bind a LoomBlock tab/open route to the mounted sidebar's per-active-block
+    /// sections. Backlinks and Unlinked are scoped to the active block, so the host owns the block id,
+    /// generation bump, loading state, and backend dispatch.
+    fn bind_sidebar_active_block(&self, workspace: &str, block_id: &str) {
+        if block_id.is_empty() {
+            return;
+        }
+        let Some(rt) = self.runtime_handle.clone() else {
+            if let Ok(mut panel) = self.editor_mounts.secondary.sidebar_panel.lock() {
+                panel.workspace_id = workspace.to_owned();
+                panel.active_block_id = Some(block_id.to_owned());
+                panel.set_error(
+                    crate::graph::sidebar_panel::SectionKind::Backlinks,
+                    "Runtime unavailable; cannot load backlinks.",
+                );
+                panel.set_error(
+                    crate::graph::sidebar_panel::SectionKind::Unlinked,
+                    "Runtime unavailable; cannot load unlinked mentions.",
+                );
+            }
+            return;
+        };
+        if let Some((backlinks_generation, unlinked_generation)) =
+            self.prepare_sidebar_active_block(workspace, block_id)
+        {
+            self.dispatch_sidebar_active_block_fetches(
+                workspace,
+                block_id,
+                backlinks_generation,
+                unlinked_generation,
+                rt,
+            );
+        }
+    }
+
+    /// Prepare a mounted sidebar active-block reload and return the generation stamps the async fetches
+    /// must carry. Used by production binding and by deterministic host tests that inject cell results.
+    fn prepare_sidebar_active_block(&self, workspace: &str, block_id: &str) -> Option<(u64, u64)> {
+        if block_id.is_empty() {
+            return None;
+        }
+        let sec = &self.editor_mounts.secondary;
+        let mut panel = sec.sidebar_panel.lock().ok()?;
+        let changed = panel.active_block_id.as_deref() != Some(block_id);
+        panel.workspace_id = workspace.to_owned();
+        panel.active_block_id = Some(block_id.to_owned());
+        if changed {
+            panel.backlinks.clear();
+            panel.unlinked.clear();
+        }
+        panel.set_loading(crate::graph::sidebar_panel::SectionKind::Backlinks);
+        panel.set_loading(crate::graph::sidebar_panel::SectionKind::Unlinked);
+        let backlinks_generation =
+            panel.bump_generation(crate::graph::sidebar_panel::SectionKind::Backlinks);
+        let unlinked_generation =
+            panel.bump_generation(crate::graph::sidebar_panel::SectionKind::Unlinked);
+        Some((backlinks_generation, unlinked_generation))
+    }
+
+    fn dispatch_sidebar_active_block_fetches(
+        &self,
+        workspace: &str,
+        block_id: &str,
+        backlinks_generation: u64,
+        unlinked_generation: u64,
+        rt: tokio::runtime::Handle,
+    ) {
+        let sec = &self.editor_mounts.secondary;
+        let client = crate::backend_client::LoomSidebarClient::production(rt);
+        client.fetch_backlinks(
+            workspace,
+            block_id,
+            backlinks_generation,
+            Arc::clone(&sec.sidebar_backlinks_cell),
+        );
+        client.fetch_unlinked(
+            workspace,
+            block_id,
+            unlinked_generation,
+            Arc::clone(&sec.sidebar_unlinked_cell),
+        );
     }
 
     /// MT-024 REMEDIATION: initial pins/favorites fetch on first visibility, cell polls, the
@@ -7876,12 +9171,7 @@ impl HandshakeApp {
             }
         }
 
-        if let Some(result) = sec
-            .sidebar_pins_cell
-            .lock()
-            .ok()
-            .and_then(|mut c| c.take())
-        {
+        if let Some(result) = sec.sidebar_pins_cell.lock().ok().and_then(|mut c| c.take()) {
             if let Ok(mut p) = sec.sidebar_panel.lock() {
                 match result {
                     Ok(pins) => p.set_pins(pins),
@@ -7904,6 +9194,46 @@ impl HandshakeApp {
             }
             ctx.request_repaint();
         }
+        if let Some((generation, result)) = sec
+            .sidebar_backlinks_cell
+            .lock()
+            .ok()
+            .and_then(|mut c| c.take())
+        {
+            let mut applied = false;
+            if let Ok(mut p) = sec.sidebar_panel.lock() {
+                if generation == p.current_generation(SectionKind::Backlinks) {
+                    match result {
+                        Ok(backlinks) => p.set_backlinks(backlinks),
+                        Err(e) => p.set_error(SectionKind::Backlinks, e),
+                    }
+                    applied = true;
+                }
+            }
+            if applied {
+                ctx.request_repaint();
+            }
+        }
+        if let Some((generation, result)) = sec
+            .sidebar_unlinked_cell
+            .lock()
+            .ok()
+            .and_then(|mut c| c.take())
+        {
+            let mut applied = false;
+            if let Ok(mut p) = sec.sidebar_panel.lock() {
+                if generation == p.current_generation(SectionKind::Unlinked) {
+                    match result {
+                        Ok(unlinked) => p.set_unlinked(unlinked),
+                        Err(e) => p.set_error(SectionKind::Unlinked, e),
+                    }
+                    applied = true;
+                }
+            }
+            if applied {
+                ctx.request_repaint();
+            }
+        }
 
         // Receipt of an in-flight pin/favorite removal: emit BookmarkRemoved (the half-wired event_bus
         // seam the audit named — project_tree consumes but nothing emitted) + re-fetch the section so
@@ -7922,9 +9252,10 @@ impl HandshakeApp {
             if let Some((section, block_id)) = in_flight {
                 match result {
                     Ok(()) => {
-                        self.event_bus_tx.send(crate::event_bus::ShellEvent::BookmarkRemoved {
-                            block_id: block_id.clone(),
-                        });
+                        self.event_bus_tx
+                            .send(crate::event_bus::ShellEvent::BookmarkRemoved {
+                                block_id: block_id.clone(),
+                            });
                     }
                     Err(e) => {
                         if let Ok(mut p) = self.editor_mounts.secondary.sidebar_panel.lock() {
@@ -8010,14 +9341,39 @@ impl HandshakeApp {
                                     Arc::clone(&sec.sidebar_favorites_cell),
                                 );
                             }
-                            // Backlinks/Unlinked are per-active-block sections; the shell has no bound
-                            // active-block context yet (a typed carry, not a fake): disclose honestly.
-                            other => {
-                                if let Ok(mut p) = sec.sidebar_panel.lock() {
-                                    p.set_error(
-                                        other,
-                                        "No active block context bound yet (host carry)",
-                                    );
+                            SectionKind::Backlinks | SectionKind::Unlinked => {
+                                let reload = sec.sidebar_panel.lock().ok().and_then(|mut p| {
+                                    let active_block_id = match p.active_block_id.clone() {
+                                        Some(id) if !id.is_empty() => id,
+                                        _ => {
+                                            p.set_error(
+                                                section,
+                                                "Open a Loom block to load this section.",
+                                            );
+                                            return None;
+                                        }
+                                    };
+                                    p.workspace_id = workspace.to_owned();
+                                    p.set_loading(section);
+                                    let generation = p.bump_generation(section);
+                                    Some((active_block_id, generation))
+                                });
+                                if let Some((active_block_id, generation)) = reload {
+                                    match section {
+                                        SectionKind::Backlinks => client.fetch_backlinks(
+                                            workspace,
+                                            &active_block_id,
+                                            generation,
+                                            Arc::clone(&sec.sidebar_backlinks_cell),
+                                        ),
+                                        SectionKind::Unlinked => client.fetch_unlinked(
+                                            workspace,
+                                            &active_block_id,
+                                            generation,
+                                            Arc::clone(&sec.sidebar_unlinked_cell),
+                                        ),
+                                        _ => {}
+                                    }
                                 }
                             }
                         }
@@ -8035,8 +9391,37 @@ impl HandshakeApp {
         let folders_type = crate::editor_pane_factories::placeholder_pane_type(
             crate::editor_pane_factories::FOLDER_TREE_PANE_LABEL,
         );
+        let folders_visible = self.any_tab_of_type(&folders_type);
 
-        if self.any_tab_of_type(&folders_type)
+        if folders_visible {
+            let workspace_changed = sec
+                .folder_tree
+                .lock()
+                .map(|tree| tree.workspace_id != workspace)
+                .unwrap_or(false);
+            if workspace_changed {
+                if let Ok(mut tree) = sec.folder_tree.lock() {
+                    *tree = crate::graph::folder_tree::LoomFolderTree::new(workspace.to_owned());
+                }
+                sec.folder_fetched
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
+                if let Ok(mut cell) = sec.folder_list_cell.lock() {
+                    *cell = None;
+                }
+                if let Ok(mut cells) = sec.folder_children_cells.lock() {
+                    cells.clear();
+                }
+                if let Ok(mut cells) = sec.folder_recolor_cells.lock() {
+                    cells.clear();
+                }
+                if let Ok(mut events) = sec.folder_events.lock() {
+                    events.clear();
+                }
+                ctx.request_repaint();
+            }
+        }
+
+        if folders_visible
             && !sec
                 .folder_fetched
                 .swap(true, std::sync::atomic::Ordering::Relaxed)
@@ -8055,22 +9440,33 @@ impl HandshakeApp {
             }
         }
 
-        if let Some(result) = sec.folder_list_cell.lock().ok().and_then(|mut c| c.take()) {
-            if let Ok(mut t) = sec.folder_tree.lock() {
-                match result {
-                    Ok(rows) => t.set_folders(&rows),
-                    Err(e) => {
-                        t.loading = false;
-                        t.error = Some(e);
+        if let Some((delivered_workspace, result)) =
+            sec.folder_list_cell.lock().ok().and_then(|mut c| c.take())
+        {
+            if delivered_workspace != workspace {
+                sec.folder_fetched
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
+                ctx.request_repaint();
+            } else {
+                if let Ok(mut t) = sec.folder_tree.lock() {
+                    match result {
+                        Ok(rows) => t.set_folders(&rows),
+                        Err(e) => {
+                            t.loading = false;
+                            t.error = Some(e);
+                        }
                     }
                 }
+                ctx.request_repaint();
             }
-            ctx.request_repaint();
         }
 
         // Poll in-flight lazy child-block fetches (retain unresolved).
         {
-            let resolved: Vec<(String, Result<Vec<crate::graph::folder_tree::LeafBlock>, String>)> = {
+            let resolved: Vec<(
+                String,
+                Result<Vec<crate::graph::folder_tree::LeafBlock>, String>,
+            )> = {
                 let mut cells = match sec.folder_children_cells.lock() {
                     Ok(c) => c,
                     Err(p) => p.into_inner(),
@@ -8310,7 +9706,11 @@ impl HandshakeApp {
         // Poll the overlay-save receipt: success finishes the save + re-fetches the projection (AC3);
         // failure keeps the buffer + surfaces the inline save error (AC5).
         if let Some(result) = sec.wiki_save_cell.lock().ok().and_then(|mut c| c.take()) {
-            let pid = sec.wiki_save_in_flight.lock().ok().and_then(|mut s| s.take());
+            let pid = sec
+                .wiki_save_in_flight
+                .lock()
+                .ok()
+                .and_then(|mut s| s.take());
             if let Ok(mut bound) = sec.wiki_bound.lock() {
                 if let Some((bound_pid, panel)) = bound.as_mut() {
                     match result {
@@ -8375,60 +9775,80 @@ impl HandshakeApp {
                                 crate::graph::block_collection_view::BlockViewDefinition::of_kind(
                                     kind,
                                 );
-                            let spec = client.create_view_request(workspace, &title, &def);
-                            client.dispatch(
-                                spec,
-                                title.clone(),
+                            if let Ok(mut v) = sec.collection_view.lock() {
+                                v.in_flight = true;
+                                v.status = "Creating view…".to_owned();
+                            }
+                            client.create_view(
+                                workspace,
+                                &title,
+                                &def,
                                 Arc::clone(&sec.collection_op_cell),
                             );
                         }
                         continue;
                     }
-                    let spec = match other {
-                        BlockViewEvent::Sort { sort } => definition.as_mut().map(|def| {
-                            def.sort = Some(sort);
-                            client.update_view_request(workspace, &view_block_id, def)
-                        }),
-                        BlockViewEvent::KindChange { kind } => definition.as_mut().map(|def| {
-                            def.kind = kind;
-                            client.update_view_request(workspace, &view_block_id, def)
-                        }),
-                        BlockViewEvent::DateRange { date_from, date_to } => {
-                            definition.as_mut().map(|def| {
-                                def.query.date_from = date_from;
-                                def.query.date_to = date_to;
-                                client.update_view_request(workspace, &view_block_id, def)
-                            })
-                        }
-                        BlockViewEvent::CardMove {
-                            block_id,
-                            add_tags,
-                            remove_tags,
-                        } => Some(client.card_move_request(
-                            workspace,
-                            &block_id,
-                            &add_tags,
-                            &remove_tags,
-                        )),
+                    match other {
                         BlockViewEvent::CreateView { title, kind } => {
                             let def =
                                 crate::graph::block_collection_view::BlockViewDefinition::of_kind(
                                     kind,
                                 );
-                            Some(client.create_view_request(workspace, &title, &def))
+                            if let Ok(mut v) = sec.collection_view.lock() {
+                                v.in_flight = true;
+                                v.status = "Creating view…".to_owned();
+                            }
+                            client.create_view(
+                                workspace,
+                                &title,
+                                &def,
+                                Arc::clone(&sec.collection_op_cell),
+                            );
                         }
-                        BlockViewEvent::OpenBlock { .. } => None, // handled above
-                    };
-                    if let Some(spec) = spec {
-                        if let Ok(mut v) = sec.collection_view.lock() {
-                            v.in_flight = true;
-                            v.status = "Applying…".to_owned();
+                        other => {
+                            let spec = match other {
+                                BlockViewEvent::Sort { sort } => definition.as_mut().map(|def| {
+                                    def.sort = Some(sort);
+                                    client.update_view_request(workspace, &view_block_id, def)
+                                }),
+                                BlockViewEvent::KindChange { kind } => {
+                                    definition.as_mut().map(|def| {
+                                        def.kind = kind;
+                                        client.update_view_request(workspace, &view_block_id, def)
+                                    })
+                                }
+                                BlockViewEvent::DateRange { date_from, date_to } => {
+                                    definition.as_mut().map(|def| {
+                                        def.query.date_from = date_from;
+                                        def.query.date_to = date_to;
+                                        client.update_view_request(workspace, &view_block_id, def)
+                                    })
+                                }
+                                BlockViewEvent::CardMove {
+                                    block_id,
+                                    add_tags,
+                                    remove_tags,
+                                } => Some(client.card_move_request(
+                                    workspace,
+                                    &block_id,
+                                    &add_tags,
+                                    &remove_tags,
+                                )),
+                                BlockViewEvent::CreateView { .. }
+                                | BlockViewEvent::OpenBlock { .. } => None,
+                            };
+                            if let Some(spec) = spec {
+                                if let Ok(mut v) = sec.collection_view.lock() {
+                                    v.in_flight = true;
+                                    v.status = "Applying…".to_owned();
+                                }
+                                client.dispatch(
+                                    spec,
+                                    view_block_id.clone(),
+                                    Arc::clone(&sec.collection_op_cell),
+                                );
+                            }
                         }
-                        client.dispatch(
-                            spec,
-                            view_block_id.clone(),
-                            Arc::clone(&sec.collection_op_cell),
-                        );
                     }
                 }
             }
@@ -8446,15 +9866,24 @@ impl HandshakeApp {
         {
             let sec = &self.editor_mounts.secondary;
             match result {
-                Ok(_) => {
-                    let view_block_id = sec
+                Ok(resolved_view_block_id) => {
+                    let current_view_block_id = sec
                         .collection_view
                         .lock()
                         .map(|v| v.view_block_id.clone())
                         .unwrap_or_default();
+                    let view_block_id = if resolved_view_block_id.is_empty() {
+                        current_view_block_id
+                    } else {
+                        resolved_view_block_id
+                    };
                     if let (false, Some(rt)) =
                         (view_block_id.is_empty(), self.runtime_handle.clone())
                     {
+                        if let Ok(mut v) = sec.collection_view.lock() {
+                            v.view_block_id = view_block_id.clone();
+                            v.loading = true;
+                        }
                         let client = crate::backend_client::BlockViewClient::production(rt);
                         client.fetch_view(
                             workspace,
@@ -8483,6 +9912,7 @@ impl HandshakeApp {
         }
 
         // Deliver a resolved definition + results pair into the view (set_loaded clears in-flight).
+        // The two HTTP calls resolve independently, so hold either half until both are present.
         let record = sec
             .collection_record_cell
             .lock()
@@ -8512,14 +9942,39 @@ impl HandshakeApp {
             .ok()
             .and_then(|mut c| c.take());
         if let Some(result) = results {
-            if let Ok(mut v) = sec.collection_view.lock() {
-                match result {
-                    Ok(results) => {
-                        if let Some(def) = v.definition.clone() {
-                            v.set_loaded(def, results);
-                        }
+            match result {
+                Ok(results) => {
+                    if let Ok(mut pending) = sec.collection_pending_results.lock() {
+                        *pending = Some(results);
                     }
-                    Err(e) => v.set_error(e),
+                }
+                Err(e) => {
+                    if let Ok(mut v) = sec.collection_view.lock() {
+                        v.set_error(e);
+                    }
+                    if let Ok(mut pending) = sec.collection_pending_results.lock() {
+                        *pending = None;
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+        let pending_results = sec
+            .collection_pending_results
+            .lock()
+            .ok()
+            .and_then(|mut pending| pending.take());
+        if let Some(results) = pending_results {
+            let mut installed = false;
+            if let Ok(mut v) = sec.collection_view.lock() {
+                if let Some(def) = v.definition.clone() {
+                    v.set_loaded(def, results.clone());
+                    installed = true;
+                }
+            }
+            if !installed {
+                if let Ok(mut pending) = sec.collection_pending_results.lock() {
+                    *pending = Some(results);
                 }
             }
             ctx.request_repaint();
@@ -8563,7 +10018,10 @@ impl HandshakeApp {
                 }
             }
         }
-        if sec.fr_fetch.is_resolved() && !sec.fr_delivered.swap(true, std::sync::atomic::Ordering::Relaxed)
+        if sec.fr_fetch.is_resolved()
+            && !sec
+                .fr_delivered
+                .swap(true, std::sync::atomic::Ordering::Relaxed)
         {
             if let Ok(mut pane) = sec.fr_pane.lock() {
                 pane.load_now();
@@ -8724,7 +10182,15 @@ impl HandshakeApp {
         let Some(rt) = self.runtime_handle.clone() else {
             return; // No runtime: a headless shell cannot dispatch off-thread mutations (graceful no-op).
         };
-        let client = crate::backend_client::CanvasBoardClient::production(rt);
+        enum CanvasDispatch {
+            Mutation(crate::backend_client::RequestSpec),
+            CreatedPlacement {
+                spec: crate::backend_client::RequestSpec,
+                description: &'static str,
+            },
+        }
+
+        let client = Arc::new(crate::backend_client::CanvasBoardClient::production(rt));
         let (workspace_id, canvas_block_id, visual_edge_ids) =
             match self.editor_mounts.secondary.canvas_board.lock() {
                 Ok(b) => (
@@ -8743,9 +10209,14 @@ impl HandshakeApp {
             // NodeMenu/TextCardEditBlocked dispatch nothing). Exhaustive match — a future CanvasEvent
             // kind fails compilation here instead of silently draining into a dead catch-all (the W2
             // audit finding this remediation closes).
-            let specs: Vec<crate::backend_client::RequestSpec> = match event {
+            let dispatches: Vec<CanvasDispatch> = match event {
                 CanvasEvent::ResizePlacement { placement_id, w, h } => {
-                    vec![client.resize_request(&workspace_id, &placement_id, w as f64, h as f64)]
+                    vec![CanvasDispatch::Mutation(client.resize_request(
+                        &workspace_id,
+                        &placement_id,
+                        w as f64,
+                        h as f64,
+                    ))]
                 }
                 // WP-KERNEL-012 MT-070: a confirmed canvas-node context-menu entry routes through the
                 // MT-070 navigation bus (`node_navigation_target` -> `dispatch`) — not a backend op.
@@ -8758,73 +10229,94 @@ impl HandshakeApp {
                 CanvasEvent::AssignSection {
                     placement_id,
                     group_id,
-                } => vec![match group_id {
+                } => vec![CanvasDispatch::Mutation(match group_id {
                     Some(gid) => client.group_request(&workspace_id, &placement_id, &gid),
                     None => client.clear_group_request(&workspace_id, &placement_id),
-                }],
+                })],
                 CanvasEvent::PlaceBlock {
                     placed_block_id,
                     x,
                     y,
-                } => vec![client.place_block_request(
-                    &workspace_id,
-                    &canvas_block_id,
-                    &placed_block_id,
-                    x as f64,
-                    y as f64,
-                    DEFAULT_CARD_W as f64,
-                    DEFAULT_CARD_H as f64,
-                )],
-                CanvasEvent::AddCard { title, x, y } => vec![client.create_card_request(
-                    &workspace_id,
-                    &canvas_block_id,
-                    &title,
-                    x as f64,
-                    y as f64,
-                    DEFAULT_CARD_W as f64,
-                    DEFAULT_CARD_H as f64,
-                )],
+                } => vec![CanvasDispatch::CreatedPlacement {
+                    spec: client.place_block_request(
+                        &workspace_id,
+                        &canvas_block_id,
+                        &placed_block_id,
+                        x as f64,
+                        y as f64,
+                        DEFAULT_CARD_W as f64,
+                        DEFAULT_CARD_H as f64,
+                    ),
+                    description: "canvas: place block",
+                }],
+                CanvasEvent::AddCard { title, x, y } => vec![CanvasDispatch::CreatedPlacement {
+                    spec: client.create_card_request(
+                        &workspace_id,
+                        &canvas_block_id,
+                        &title,
+                        x as f64,
+                        y as f64,
+                        DEFAULT_CARD_W as f64,
+                        DEFAULT_CARD_H as f64,
+                    ),
+                    description: "canvas: add card",
+                }],
                 CanvasEvent::Group {
                     placement_ids,
                     group_id,
                 } => placement_ids
                     .iter()
-                    .map(|pid| client.group_request(&workspace_id, pid, &group_id))
+                    .map(|pid| {
+                        CanvasDispatch::Mutation(client.group_request(
+                            &workspace_id,
+                            pid,
+                            &group_id,
+                        ))
+                    })
                     .collect(),
                 CanvasEvent::RemovePlacement { placement_id } => {
-                    vec![client.remove_placement_request(&workspace_id, &placement_id)]
+                    vec![CanvasDispatch::Mutation(
+                        client.remove_placement_request(&workspace_id, &placement_id),
+                    )]
                 }
                 CanvasEvent::SemanticEdge {
                     source_block_id,
                     target_block_id,
-                } => vec![client.semantic_edge_request(
+                } => vec![CanvasDispatch::Mutation(client.semantic_edge_request(
                     &workspace_id,
                     &source_block_id,
                     &target_block_id,
-                )],
+                ))],
                 CanvasEvent::VisualEdgeAdded {
                     from_placement_id,
                     to_placement_id,
-                } => vec![client.visual_edge_request(
+                } => vec![CanvasDispatch::Mutation(client.visual_edge_request(
                     &workspace_id,
                     &canvas_block_id,
                     &from_placement_id,
                     &to_placement_id,
-                )],
+                ))],
                 CanvasEvent::RemoveEdge { edge_id } => {
                     // A board-local visual edge (the id is in the board's own visual_edges projection)
                     // deletes via the canvas visual-edge route; anything else is a semantic loom edge.
                     // The single `contains` check lives in `route_remove_edge_spec` so a host-routing
                     // test pins the CHOICE the host dispatches (W4 review MAJOR).
-                    vec![Self::route_remove_edge_spec(
+                    vec![CanvasDispatch::Mutation(Self::route_remove_edge_spec(
                         &client,
                         &workspace_id,
                         &visual_edge_ids,
                         &edge_id,
-                    )]
+                    ))]
                 }
-                CanvasEvent::ViewportChanged { pan_x, pan_y, zoom } => vec![client
-                    .viewport_request(&workspace_id, &canvas_block_id, pan_x, pan_y, zoom)],
+                CanvasEvent::ViewportChanged { pan_x, pan_y, zoom } => {
+                    vec![CanvasDispatch::Mutation(client.viewport_request(
+                        &workspace_id,
+                        &canvas_block_id,
+                        pan_x,
+                        pan_y,
+                        zoom,
+                    ))]
+                }
                 CanvasEvent::TextCardEditBlocked {
                     placement_id,
                     attempted_route,
@@ -8845,17 +10337,34 @@ impl HandshakeApp {
                     vec![]
                 }
             };
-            for spec in specs {
+            for dispatch in dispatches {
                 // MT-026 REMEDIATION: keep the op cell so the RESULT is read (previously a throwaway
                 // cell — a failed PATCH was indistinguishable from a success and the optimistic value
                 // stuck). The feed drain (`drive_graph_and_canvas_feeds`) re-fetches the board when the
                 // op resolves: on `Ok` the persisted geometry/group replaces the optimistic value; on
                 // `Err` the SAME re-fetch is the rollback to server truth (+ the typed failure is
                 // logged).
-                let cell: crate::backend_client::CanvasBoardOpCell =
-                    std::sync::Arc::new(std::sync::Mutex::new(None));
-                client.dispatch(spec, std::sync::Arc::clone(&cell));
-                self.canvas_op_cells.push(cell);
+                match dispatch {
+                    CanvasDispatch::Mutation(spec) => {
+                        let cell: crate::backend_client::CanvasBoardOpCell =
+                            Arc::new(Mutex::new(None));
+                        client.dispatch(spec, Arc::clone(&cell));
+                        self.canvas_op_cells.push(cell);
+                    }
+                    CanvasDispatch::CreatedPlacement { spec, description } => {
+                        let cell: crate::backend_client::CanvasBoardCreateCell =
+                            Arc::new(Mutex::new(None));
+                        client.dispatch_created_placement(spec, Arc::clone(&cell));
+                        self.canvas_create_cells
+                            .push(PendingCanvasPlacementCreateUndo {
+                                cell,
+                                client: Arc::clone(&client),
+                                workspace_id: workspace_id.clone(),
+                                canvas_block_id: canvas_block_id.clone(),
+                                description: description.to_owned(),
+                            });
+                    }
+                }
                 dispatched_any = true;
             }
         }
@@ -9040,8 +10549,9 @@ impl HandshakeApp {
             .active_pane
             .clone()
             .unwrap_or_else(|| std::sync::Arc::from("editor-node-menu"));
-        match crate::context_menu_surfaces::node_navigation_target(action, &pane_id, node_id, note_id)
-        {
+        match crate::context_menu_surfaces::node_navigation_target(
+            action, &pane_id, node_id, note_id,
+        ) {
             Some(target) => match crate::navigation_bus::dispatch(self, &target) {
                 Ok(()) => self.quick_switcher_nav_status = None,
                 Err(err) => self.quick_switcher_nav_status = Some(err.message()),
@@ -9089,6 +10599,93 @@ impl HandshakeApp {
         client.dispatch(spec, std::sync::Arc::clone(&cell));
         self.graph_op_cells.push(cell);
         ctx.request_repaint();
+    }
+
+    fn queue_canvas_live_block_resolves(
+        &mut self,
+        workspace_id: &str,
+        placements: &[crate::graph::canvas_board::CanvasPlacementCard],
+        ctx: &egui::Context,
+    ) {
+        self.canvas_live_block_generation = self.canvas_live_block_generation.wrapping_add(1);
+        self.canvas_live_block_cells.clear();
+        if workspace_id.trim().is_empty() {
+            return;
+        }
+        let Some(rt) = self.runtime_handle.clone() else {
+            return;
+        };
+
+        let generation = self.canvas_live_block_generation;
+        let client = crate::backend_client::CanvasBoardClient::production(rt);
+        let mut seen = std::collections::BTreeSet::new();
+        for placed_block_id in placements
+            .iter()
+            .map(|p| p.placed_block_id.trim())
+            .filter(|id| !id.is_empty())
+        {
+            if !seen.insert(placed_block_id.to_owned()) {
+                continue;
+            }
+            let cell: crate::backend_client::LiveBlockCell = Arc::new(Mutex::new(None));
+            client.resolve_block(workspace_id, placed_block_id, Arc::clone(&cell));
+            self.canvas_live_block_cells.push((generation, cell));
+        }
+        if !self.canvas_live_block_cells.is_empty() {
+            ctx.request_repaint();
+        }
+    }
+
+    fn drain_canvas_live_block_cells(&mut self, ctx: &egui::Context) {
+        if self.canvas_live_block_cells.is_empty() {
+            return;
+        }
+
+        let latest_generation = self.canvas_live_block_generation;
+        let mut unresolved = Vec::new();
+        let mut changed = false;
+        for (generation, cell) in std::mem::take(&mut self.canvas_live_block_cells) {
+            let delivered = cell.lock().ok().and_then(|mut c| c.take());
+            match delivered {
+                Some((placed_block_id, result)) if generation == latest_generation => {
+                    if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
+                        let mut matched = false;
+                        for card in board
+                            .placements
+                            .iter_mut()
+                            .filter(|p| p.placed_block_id == placed_block_id)
+                        {
+                            matched = true;
+                            match &result {
+                                Ok((title, content_type, content_hash)) => {
+                                    card.live_title = title.clone();
+                                    card.live_content_type = Some(content_type.clone());
+                                    card.loom_content_hash = content_hash.clone();
+                                }
+                                Err(_) => {
+                                    card.live_title = None;
+                                    card.live_content_type = None;
+                                    card.loom_content_hash = None;
+                                }
+                            }
+                        }
+                        changed |= matched;
+                    }
+                    if let Err(msg) = result {
+                        tracing::warn!(
+                            "canvas live-block resolve failed for {placed_block_id}: {msg}"
+                        );
+                    }
+                }
+                Some(_) => {}
+                None if generation == latest_generation => unresolved.push((generation, cell)),
+                None => {}
+            }
+        }
+        self.canvas_live_block_cells = unresolved;
+        if changed {
+            ctx.request_repaint();
+        }
     }
 
     /// WP-KERNEL-012 MT-021/026/060/062 REMEDIATION: the per-frame DATA FEED for the mounted graph +
@@ -9201,13 +10798,19 @@ impl HandshakeApp {
             self.graph_op_cells = unresolved;
             if resolved_any {
                 if let Some(rt) = self.runtime_handle.clone() {
-                    let refetch = self.editor_mounts.secondary.graph_view.lock().ok().map(|v| {
-                        (
-                            v.workspace_id.clone(),
-                            v.mode.clone(),
-                            v.controls.link_depth,
-                        )
-                    });
+                    let refetch = self
+                        .editor_mounts
+                        .secondary
+                        .graph_view
+                        .lock()
+                        .ok()
+                        .map(|v| {
+                            (
+                                v.workspace_id.clone(),
+                                v.mode.clone(),
+                                v.controls.link_depth,
+                            )
+                        });
                     if let Some((ws, mode, depth)) = refetch {
                         if !ws.is_empty() {
                             let client = crate::backend_client::LoomGraphClient::production(rt);
@@ -9237,19 +10840,19 @@ impl HandshakeApp {
             && self.canvas_fetched_ws.as_deref() != Some(workspace.as_str())
         {
             if let Some(rt) = self.runtime_handle.clone() {
-                let canvas_block_id = self
-                    .editor_mounts
-                    .secondary
-                    .canvas_board
-                    .lock()
-                    .ok()
-                    .map(|mut b| {
-                        // WORKSPACE-REBIND: key the board to the ACTIVE workspace (the canvas block id
-                        // stays the stable per-workspace default until a specific canvas is opened).
-                        b.workspace_id = workspace.clone();
-                        b.error = None;
-                        b.canvas_block_id.clone()
-                    });
+                let canvas_block_id =
+                    self.editor_mounts
+                        .secondary
+                        .canvas_board
+                        .lock()
+                        .ok()
+                        .map(|mut b| {
+                            // WORKSPACE-REBIND: key the board to the ACTIVE workspace (the canvas block id
+                            // stays the stable per-workspace default until a specific canvas is opened).
+                            b.workspace_id = workspace.clone();
+                            b.error = None;
+                            b.canvas_block_id.clone()
+                        });
                 if let Some(canvas_block_id) = canvas_block_id {
                     let client = crate::backend_client::CanvasBoardClient::production(rt);
                     client.fetch_board(
@@ -9266,9 +10869,12 @@ impl HandshakeApp {
         // ── Canvas: drain the board cell -> set_board (applies initial load + every reconcile) ───────
         let delivered = self.canvas_data_cell.lock().ok().and_then(|mut c| c.take());
         if let Some(result) = delivered {
+            let mut resolve_after_board = None;
             if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
                 match result {
                     Ok(data) => {
+                        let workspace_id = board.workspace_id.clone();
+                        let placements_for_resolve = data.placements.clone();
                         board.set_board(
                             data.placements,
                             data.visual_edges,
@@ -9276,6 +10882,7 @@ impl HandshakeApp {
                             data.zoom,
                         );
                         board.error = None;
+                        resolve_after_board = Some((workspace_id, placements_for_resolve));
                     }
                     Err(msg) => {
                         // Typed error on the board's own surface (rendered as "Canvas error: …").
@@ -9283,13 +10890,67 @@ impl HandshakeApp {
                     }
                 }
             }
+            if let Some((workspace_id, placements)) = resolve_after_board {
+                self.queue_canvas_live_block_resolves(&workspace_id, &placements, ctx);
+            }
             ctx.request_repaint();
         }
 
+        self.drain_canvas_live_block_cells(ctx);
+
         // ── Canvas: read resolved mutation results -> re-fetch (reconcile Ok / ROLLBACK Err) ─────────
-        if !self.canvas_op_cells.is_empty() {
-            let mut unresolved = Vec::new();
+        if !self.canvas_create_cells.is_empty() || !self.canvas_op_cells.is_empty() {
             let mut resolved_any = false;
+
+            let mut create_unresolved = Vec::new();
+            for pending in std::mem::take(&mut self.canvas_create_cells) {
+                match pending.cell.lock().ok().and_then(|mut c| c.take()) {
+                    Some(Ok(created)) => {
+                        let retry = created.clone();
+                        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+                        let registered =
+                            crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                                if let Some(rt) = self.runtime_handle.clone() {
+                                    bus.set_undo_runtime(rt);
+                                }
+                                bus.register_undo_commands();
+                                crate::graph::interop_adapter::push_canvas_placement_undo(
+                                    bus,
+                                    Arc::clone(&pending.client),
+                                    pending.workspace_id.clone(),
+                                    pending.canvas_block_id.clone(),
+                                    created.placement_id.clone(),
+                                    created.placed_block_id.clone(),
+                                    created.geometry(),
+                                    pending.description.clone(),
+                                );
+                            })
+                            .is_some();
+                        if registered {
+                            resolved_any = true;
+                        } else {
+                            if let Ok(mut slot) = pending.cell.lock() {
+                                *slot = Some(Ok(retry));
+                            }
+                            create_unresolved.push(pending);
+                            ctx.request_repaint();
+                        }
+                    }
+                    Some(Err(msg)) => {
+                        tracing::warn!(
+                            "canvas creation failed (re-fetching board = rollback of the optimistic value): {msg}"
+                        );
+                        if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
+                            board.error = Some(msg);
+                        }
+                        resolved_any = true;
+                    }
+                    None => create_unresolved.push(pending),
+                }
+            }
+            self.canvas_create_cells = create_unresolved;
+
+            let mut unresolved = Vec::new();
             for cell in std::mem::take(&mut self.canvas_op_cells) {
                 match cell.lock().ok().and_then(|mut c| c.take()) {
                     Some(Ok(())) => resolved_any = true,
@@ -9383,11 +11044,110 @@ impl HandshakeApp {
         }
     }
 
+    /// MT-034 note->code consumer: resolve the symbol id off the egui thread so a clicked code-ref chip
+    /// can land on the mounted code editor's real file/line without blocking the frame. The synchronous
+    /// [`ShellNavigator::open_code_symbol`] arm opens/focuses the tab immediately; this worker supplies
+    /// the file path + line jump on a later frame.
+    fn start_code_ref_navigation(&mut self, symbol_entity_id: &str) {
+        let Some(runtime) = self.runtime_handle.clone() else {
+            tracing::warn!(
+                symbol_entity_id,
+                "open-code-symbol requested before a runtime was installed; tab opened without resolve"
+            );
+            return;
+        };
+        self.code_ref_nav_pending = Some(symbol_entity_id.to_owned());
+        if let Ok(mut slot) = self.code_ref_nav_cell.lock() {
+            *slot = None;
+        }
+        let client = self.code_ref_nav_client.clone();
+        let cell = Arc::clone(&self.code_ref_nav_cell);
+        let symbol = symbol_entity_id.to_owned();
+        let workspace_id = {
+            let mounted_workspace = self.editor_mounts.code_panel.workspace_id();
+            if !mounted_workspace.trim().is_empty() {
+                mounted_workspace
+            } else if self.active_project_id.trim().is_empty() {
+                DEFAULT_PROJECT_ID.to_owned()
+            } else {
+                self.active_project_id.clone()
+            }
+        };
+        let wake_ctx = self.frame_ctx.clone();
+        runtime.spawn(async move {
+            let resolved = crate::interop::cross_ref::resolve_code_ref_with_workspace(
+                &client,
+                &workspace_id,
+                &symbol,
+            )
+            .await
+            .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((symbol, resolved));
+            }
+            if let Some(ctx) = wake_ctx {
+                ctx.request_repaint();
+            }
+        });
+    }
+
+    /// MT-034 note->code consumer: apply a resolved code-ref target on the UI thread. If the resolved
+    /// file is readable from the current runtime root, load its text; otherwise keep the existing buffer
+    /// and still navigate to the resolved line. That preserves the verified route without assuming every
+    /// backend `source_id` is a local filesystem path.
+    fn drain_code_ref_navigation(&mut self, ctx: &egui::Context) {
+        let delivered = self
+            .code_ref_nav_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        let Some((symbol_entity_id, resolved)) = delivered else {
+            return;
+        };
+        if self.code_ref_nav_pending.as_deref() != Some(symbol_entity_id.as_str()) {
+            tracing::debug!(
+                symbol_entity_id,
+                pending = ?self.code_ref_nav_pending,
+                "ignoring stale open-code-symbol resolve"
+            );
+            return;
+        }
+        self.code_ref_nav_pending = None;
+        match resolved {
+            Ok(code_ref) => {
+                let panel = &self.editor_mounts.code_panel;
+                if !code_ref.file_path.trim().is_empty() {
+                    panel.load_file(code_ref.file_path.clone());
+                    if let Ok(text) = std::fs::read_to_string(&code_ref.file_path) {
+                        panel.set_text(&text);
+                    }
+                }
+                panel.navigate_to_line(code_ref.line_start as usize);
+                self.quick_switcher_nav_status = None;
+                tracing::info!(
+                    symbol_entity_id = %code_ref.symbol_entity_id,
+                    file = %code_ref.file_path,
+                    line_start = code_ref.line_start,
+                    "open-code-symbol resolved to mounted code pane"
+                );
+                ctx.request_repaint();
+            }
+            Err(error) => {
+                tracing::warn!(symbol_entity_id, %error, "open-code-symbol resolve failed");
+                self.quick_switcher_nav_status = Some(format!(
+                    "Code symbol resolve failed for {symbol_entity_id}: {error}"
+                ));
+                ctx.request_repaint();
+            }
+        }
+    }
+
     /// HBR-QUIET: no foreground window is popped; both surfaces are docked panels drawn inside the frame.
     fn drive_ckc_interop(&mut self, ctx: &egui::Context) {
         // A snapshot-capture pass must NOT consume the bus (the real frame owns the drain), or a routed
         // item would be lost to the throwaway capture context (the `drain_shell_events` guard pattern).
         if !self.capturing_snapshot {
+            self.drain_code_ref_navigation(ctx);
             let bus = crate::interop::InteractionBus::get_or_init(ctx);
             // WP-KERNEL-012 MT-032/034/068 REMEDIATION: drain ALL FOUR pending nav seams each frame
             // (previously only the stage-content drain existed; the navigation / code-symbol / locus
@@ -9591,7 +11351,17 @@ impl HandshakeApp {
         let Some(target) = self.module_target_pane() else {
             return false;
         };
+        let sidebar_block_to_bind = if matches!(pane_type, PaneType::LoomBlock) {
+            content_id.as_ref().filter(|id| !id.is_empty()).cloned()
+        } else {
+            None
+        };
         let doc_to_reload = if matches!(pane_type, PaneType::LoomWikiPage) {
+            content_id.as_ref().filter(|id| !id.is_empty()).cloned()
+        } else {
+            None
+        };
+        let collection_to_bind = if pane_type == Self::block_collections_pane_type() {
             content_id.as_ref().filter(|id| !id.is_empty()).cloned()
         } else {
             None
@@ -9601,12 +11371,20 @@ impl HandshakeApp {
             let mut tab = TabState::new(pane_type);
             tab.content_id = content_id;
             bar.insert_tab(tab);
-            if let Some(document_id) = doc_to_reload.as_deref() {
-                self.invalidate_rich_document_load(document_id);
-            }
-            return true;
+        } else {
+            return false;
         }
-        false
+        if let Some(document_id) = doc_to_reload.as_deref() {
+            self.invalidate_rich_document_load(document_id);
+        }
+        if let Some(block_id) = sidebar_block_to_bind.as_deref() {
+            let workspace = self.active_project_id.clone();
+            self.bind_sidebar_active_block(&workspace, block_id);
+        }
+        if let Some(view_block_id) = collection_to_bind.as_deref() {
+            self.bind_block_collection_view(view_block_id);
+        }
+        true
     }
 
     /// Reset the live work-surface layout to the seeded default for `project_id` (MT-011), the native
@@ -11047,11 +12825,10 @@ impl HandshakeApp {
                         );
                         let ring = emitter.error_ring().clone();
                         let bus = crate::interop::InteractionBus::get_or_init(ctx);
-                        let installed =
-                            crate::interop::InteractionBus::with_try_lock(&bus, |b| {
-                                b.set_event_emitter(emitter);
-                            })
-                            .is_some();
+                        let installed = crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                            b.set_event_emitter(emitter);
+                        })
+                        .is_some();
                         if installed {
                             if let Ok(mut pane) = self.editor_mounts.secondary.fr_pane.lock() {
                                 *pane = crate::flight_recorder_pane::FlightRecorderPane::new(
@@ -11153,6 +12930,34 @@ impl HandshakeApp {
         if save_chord {
             self.dispatch_palette_action(ctx, crate::command_registry::CMD_EDITOR_FILE_SAVE);
             ctx.request_repaint();
+        }
+
+        // MT-031: active-editor clipboard fallback for model-driven keyboard paths. A real focused pane
+        // consumes Ctrl/Cmd+C/X/V in its own render path; this top-level fallback only fires when no egui
+        // widget currently owns focus, so it does not steal paste from text inputs, the command palette,
+        // the quick switcher, or settings. It lets an out-of-process agent target the active editor pane
+        // and send the standard clipboard chord without depending on fragile child-widget focus state.
+        let editor_clipboard_fallback = !suppress_global_chords
+            && !self.command_palette_open
+            && !self.quick_switcher_open
+            && self.active_editor_target(ctx).is_some()
+            && ctx.memory(|m| m.focused().is_none());
+        if editor_clipboard_fallback {
+            let clipboard_command =
+                if ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::C)) {
+                    Some(crate::command_registry::CMD_EDITOR_EDIT_COPY)
+                } else if ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::X)) {
+                    Some(crate::command_registry::CMD_EDITOR_EDIT_CUT)
+                } else if ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::V)) {
+                    Some(crate::command_registry::CMD_EDITOR_EDIT_PASTE)
+                } else {
+                    None
+                };
+            if let Some(command_id) = clipboard_command {
+                if self.dispatch_editor_command(ctx, command_id) {
+                    ctx.request_repaint();
+                }
+            }
         }
 
         let menu_state = self.menu_bar_state(ctx);
@@ -11454,6 +13259,23 @@ impl HandshakeApp {
             lock_hover_bg: palette.accent_soft,
             locked_accent: palette.accent,
         };
+        let undo_counts: HashMap<PaneId, usize> = {
+            let pane_ids = registry
+                .lock()
+                .map(|guard| guard.pane_ids())
+                .unwrap_or_default();
+            let bus = crate::interop::InteractionBus::get_or_init(ctx);
+            crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                pane_ids
+                    .into_iter()
+                    .map(|pane_id| {
+                        let count = b.local_undo_count(&pane_id);
+                        (pane_id, count)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+        };
         // The placeholder tile's label + Merge Back button paint with the active theme's text token.
         let placeholder_text = palette.text;
 
@@ -11475,6 +13297,8 @@ impl HandshakeApp {
                 tab_colors,
                 active_module,
                 header_colors,
+                &palette,
+                &undo_counts,
                 &mut lock_requests,
                 &mut pop_out_requests,
                 |pane_id| popped_out.contains(pane_id),
@@ -11597,6 +13421,7 @@ impl HandshakeApp {
                 .unwrap_or_else(|| pane_id.as_ref().to_owned());
             popout_title_for(&label)
         };
+        let mut popout_lock_requests: Vec<PaneId> = Vec::new();
         let _merged_back = self
             .popout_manager
             .show_all(ctx, title_for, |ctx, _class, pane_id| {
@@ -11610,8 +13435,25 @@ impl HandshakeApp {
                     tab_colors,
                     active_module,
                     header_colors,
+                    &palette,
+                    &undo_counts,
+                    &mut popout_lock_requests,
                 );
             });
+        if !popout_lock_requests.is_empty() {
+            let mut registry = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
+            for pane_id in popout_lock_requests {
+                if let Some(record) = registry.get_mut(&pane_id) {
+                    record.lock_state = match record.lock_state {
+                        LockState::Locked => LockState::Unlocked,
+                        LockState::Unlocked => LockState::Locked,
+                    };
+                }
+            }
+        }
 
         // ── Command palette overlay (MT-016) ────────────────────────────────────────────────────────
         // Rendered LAST (after the menu bar, the title/project strips, the left rail, the central pane
@@ -11620,13 +13462,13 @@ impl HandshakeApp {
         // PaletteOutcome the shell dispatches into the existing state-mutation paths (same split as the
         // MT-015 menu bar). The shell owns the open flag, so a Run/Close outcome clears it here.
         if self.command_palette_open {
-            // MT-069: pass the live editor-available predicate so the EditorMenu palette rows are enabled
-            // only when an editor pane is the focusable target (no fake-enabled rows when none is mounted).
-            let editor_available = self.editor_available();
+            // MT-069: pass the live command-specific editor enable context so wrong-target EditorMenu
+            // palette rows are disabled even when editor panes are mounted.
+            let editor_menu_enable = self.editor_menu_enable_context(ctx);
             let outcome = crate::command_palette::show(
                 ctx,
                 self.command_palette_open_count,
-                editor_available,
+                editor_menu_enable,
             );
             match outcome {
                 crate::command_palette::PaletteOutcome::Run(command_id) => {
@@ -11738,6 +13580,9 @@ impl HandshakeApp {
         tab_colors: TabBarColors,
         active_module: ModuleId,
         header_colors: PaneHeaderColors,
+        header_palette: &crate::theme::HsPalette,
+        undo_counts: &HashMap<PaneId, usize>,
+        popout_lock_requests: &mut Vec<PaneId>,
     ) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let guard = registry.lock().expect("pane registry mutex poisoned");
@@ -11775,8 +13620,8 @@ impl HandshakeApp {
             );
 
             // MT-013 header: active-tab title binding + lock control (parity with the docked pane). The
-            // lock click inside a pop-out is reconciled by a later cross-window mutation MT (same as the
-            // tab interactions below); here the header is rendered for binding + accessibility parity.
+            // pop-out header disables "Pop Out Pane" because the pane is already detached, and collects
+            // lock toggles for the parent frame to apply after the viewport callback returns.
             {
                 let active_tab_label: String = tab_bar_states
                     .get(pane_id)
@@ -11791,16 +13636,21 @@ impl HandshakeApp {
                 header_ui.set_clip_rect(header_rect);
                 // A popped-out pane is by definition not the only pane (it detached FROM the grid), so
                 // `is_last_pane=false`; its header context menu's Close Pane stays future-target/disabled
-                // either way. Header interactions inside a pop-out are reconciled by a later cross-window
-                // MT (same as the tab interactions below); here the header is rendered for binding parity.
-                let _resp = PaneHeader::show(
+                // either way.
+                let resp = PaneHeader::show(
                     &mut header_ui,
                     pane_id.as_ref(),
                     &active_tab_label,
                     locked,
                     false,
                     header_colors,
+                    undo_counts.get(pane_id).copied().unwrap_or(0),
+                    header_palette,
+                    false,
                 );
+                if resp.lock_toggled {
+                    popout_lock_requests.push(pane_id.clone());
+                }
             }
 
             if let Some(tab_state) = tab_bar_states.get(pane_id) {
@@ -11877,6 +13727,27 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
         }
     }
 
+    fn open_block_collection_view(
+        &mut self,
+        view_block_id: &str,
+    ) -> crate::quick_switcher::NavDispatchOutcome {
+        let label = self
+            .nav_pending_label
+            .clone()
+            .unwrap_or_else(|| view_block_id.to_owned());
+        match self.open_navigator_tab(
+            Self::block_collections_pane_type(),
+            view_block_id.to_owned(),
+            &label,
+        ) {
+            Some(surface) => {
+                self.bind_block_collection_view(view_block_id);
+                crate::quick_switcher::NavDispatchOutcome::Opened { surface }
+            }
+            None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
+        }
+    }
+
     fn open_code_symbol(
         &mut self,
         symbol_entity_id: &str,
@@ -11890,7 +13761,10 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
             .clone()
             .unwrap_or_else(|| symbol_entity_id.to_owned());
         match self.open_navigator_tab(PaneType::CodeSymbol, symbol_entity_id.to_owned(), &label) {
-            Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
+            Some(surface) => {
+                self.start_code_ref_navigation(symbol_entity_id);
+                crate::quick_switcher::NavDispatchOutcome::Opened { surface }
+            }
             None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
         }
     }

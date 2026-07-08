@@ -754,7 +754,7 @@ pub const CANVAS_CONTROL_CATALOG: &[ControlEntry] = &[
     },
 ];
 
-/// The COLLECTION global controls (scope.summary collection action list).
+/// The COLLECTION global controls that dispatch to implemented live behavior.
 pub const COLLECTION_CONTROL_CATALOG: &[ControlEntry] = &[
     ControlEntry {
         author_id: "collection.sort",
@@ -762,29 +762,9 @@ pub const COLLECTION_CONTROL_CATALOG: &[ControlEntry] = &[
         parameterized: true,
     },
     ControlEntry {
-        author_id: "collection.filter",
-        label: "Filter collection",
-        parameterized: true,
-    },
-    ControlEntry {
         author_id: "collection.kanban-move",
         label: "Move kanban card between lanes",
         parameterized: true,
-    },
-    ControlEntry {
-        author_id: "collection.calendar-next",
-        label: "Calendar next period",
-        parameterized: false,
-    },
-    ControlEntry {
-        author_id: "collection.calendar-prev",
-        label: "Calendar previous period",
-        parameterized: false,
-    },
-    ControlEntry {
-        author_id: "collection.calendar-today",
-        label: "Calendar today",
-        parameterized: false,
     },
     ControlEntry {
         author_id: "collection.open-block",
@@ -1076,11 +1056,7 @@ mod tests {
             .collect();
         for want in [
             "collection.sort",
-            "collection.filter",
             "collection.kanban-move",
-            "collection.calendar-next",
-            "collection.calendar-prev",
-            "collection.calendar-today",
             "collection.open-block",
         ] {
             assert!(coll.contains(&want), "collection catalog missing '{want}'");

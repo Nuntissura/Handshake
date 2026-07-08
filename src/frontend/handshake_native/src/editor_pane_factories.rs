@@ -1218,10 +1218,9 @@ impl PaneFactory for FolderTreePaneMount {
 // ── MT-009: Diff / merge editor pane (own key — no CodeSymbol collision) ─────────────────────────────
 
 /// WP-KERNEL-012 MT-009 REMEDIATION: the live DIFF/MERGE pane, registered over its OWN key
-/// `PaneType::Placeholder("Diff Merge")`. The widget's own `DiffEditorPaneFactory::pane_type()` returns
-/// `PaneType::CodeSymbol`, which would REPLACE the mounted code editor if registered directly — this
-/// mount gives the diff surface its own registry key instead (the factory-map key routes rendering; the
-/// inner `pane_type()` is never used for routing here). The slot holds the currently-open
+/// `PaneType::Placeholder("Diff Merge")`. The widget's own `DiffEditorPaneFactory::pane_type()` uses
+/// the same placeholder key, so direct registration and the shell mount both avoid replacing the mounted
+/// code editor. The slot holds the currently-open
 /// [`crate::code_editor::DiffEditorPanel`] (set by the shell's open-diff/open-merge routes); an empty
 /// slot renders an honest empty state, never a fake diff.
 pub struct DiffMergePaneMount {

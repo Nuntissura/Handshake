@@ -26,6 +26,8 @@
 //! needs a live Handshake-managed backend on 127.0.0.1:37501 with a seeded workspace; absent that, it is
 //! NEEDS_MANAGED_RESOURCE_PROOF (run with `--features integration -- --ignored` against a live backend).
 
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -38,11 +40,12 @@ use handshake_native::rich_editor::daily_notes::date_nav::{
     DateNav, CALENDAR_TOGGLE_ID, DATE_DISPLAY_ID, NEXT_DAY_ID, PREV_DAY_ID, TODAY_ID,
 };
 use handshake_native::rich_editor::daily_notes::journal_panel::{
-    JournalPaneFactory, JournalPanelState, JournalPanelWidget, RETRY_ID, START_WRITING_ID,
+    JournalPaneFactory, JournalPanelState, JournalPanelWidget, JOURNAL_ROOT_ID, LINK_GAP_ID,
+    RETRY_ID, START_WRITING_ID,
 };
 use handshake_native::rich_editor::daily_notes::journal_store::{
     JournalBackend, JournalBlock, JournalDocLoad, JournalError, JournalFuture, JournalReady,
-    JournalSaveSeam, JournalStore, RichDocumentBody,
+    JournalSaveSeam, JournalStore, ReqwestJournalBackend, ReqwestSaveSeam, RichDocumentBody,
 };
 use handshake_native::theme::HsTheme;
 
@@ -74,6 +77,129 @@ static WGPU_SERIAL_GUARD: Mutex<()> = Mutex::new(());
 
 fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
     WGPU_SERIAL_GUARD.lock().unwrap_or_else(|p| p.into_inner())
+}
+
+#[derive(Debug)]
+struct CapturedRequest {
+    request_line: String,
+    headers: std::collections::HashMap<String, String>,
+    body: String,
+}
+
+fn spawn_capture_server(
+    status_line: &'static str,
+    body: serde_json::Value,
+) -> (String, std::thread::JoinHandle<CapturedRequest>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind MT-019 capture server");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{addr}");
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept MT-019 request");
+        let captured = read_one_request(&mut stream);
+        let body = body.to_string();
+        let response = format!(
+            "{status_line}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
+        );
+        let _ = stream.write_all(response.as_bytes());
+        let _ = stream.flush();
+        captured
+    });
+    (base_url, handle)
+}
+
+fn read_one_request(stream: &mut TcpStream) -> CapturedRequest {
+    let mut buf = Vec::new();
+    let mut tmp = [0u8; 4096];
+    loop {
+        let n = stream.read(&mut tmp).unwrap_or(0);
+        if n == 0 {
+            break;
+        }
+        buf.extend_from_slice(&tmp[..n]);
+        let text = String::from_utf8_lossy(&buf);
+        if let Some(hdr_end) = text.find("\r\n\r\n") {
+            let header_text = &text[..hdr_end];
+            let content_len = header_text
+                .lines()
+                .find_map(|line| {
+                    let (key, value) = line.split_once(':')?;
+                    if key.trim().eq_ignore_ascii_case("content-length") {
+                        value.trim().parse::<usize>().ok()
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0);
+            if buf.len() >= hdr_end + 4 + content_len {
+                break;
+            }
+        }
+    }
+    let text = String::from_utf8_lossy(&buf).to_string();
+    let hdr_end = text.find("\r\n\r\n").unwrap_or(text.len());
+    let mut lines = text[..hdr_end].lines();
+    let request_line = lines.next().unwrap_or("").to_owned();
+    let mut headers = std::collections::HashMap::new();
+    for line in lines {
+        if let Some((key, value)) = line.split_once(':') {
+            headers.insert(key.trim().to_ascii_lowercase(), value.trim().to_owned());
+        }
+    }
+    let body = text[(hdr_end + 4).min(text.len())..].to_owned();
+    CapturedRequest {
+        request_line,
+        headers,
+        body,
+    }
+}
+
+fn assert_hsk_document_headers(req: &CapturedRequest) {
+    for header in [
+        "x-hsk-actor-id",
+        "x-hsk-kernel-task-run-id",
+        "x-hsk-session-run-id",
+    ] {
+        assert!(
+            req.headers.contains_key(header),
+            "MT-019 document request must carry {header}; got headers {:?}",
+            req.headers.keys().collect::<Vec<_>>()
+        );
+    }
+}
+
+fn assert_hsk_operator_document_headers(req: &CapturedRequest) {
+    assert_hsk_document_headers(req);
+    assert_eq!(
+        req.headers.get("x-hsk-actor-kind").map(String::as_str),
+        Some("operator"),
+        "MT-019 write requests must carry x-hsk-actor-kind: operator; got headers {:?}",
+        req.headers
+    );
+}
+
+fn knowledge_document_response(id: &str, version: u64) -> serde_json::Value {
+    serde_json::json!({
+        "document": {
+            "rich_document_id": id,
+            "workspace_id": "WS-1",
+            "title": "Daily Note",
+            "schema_version": "rich_document_block_tree_v1",
+            "content_json": {"type": "doc", "content": []},
+            "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "doc_version": version,
+            "authority_label": "draft",
+            "owner_actor_kind": "operator",
+            "owner_actor_id": "handshake-native-editor"
+        },
+        "tree": {
+            "schema_version": "rich_document_block_tree_v1",
+            "schema_matches": true,
+            "block_ids": [],
+            "blocks": []
+        },
+        "code_nodes": []
+    })
 }
 
 // ── A fixed mock "today" so the proofs are deterministic ───────────────────────────────────────
@@ -231,7 +357,7 @@ fn headless_panel(current: NaiveDate, link_document: bool, fail_open: bool) -> J
 }
 
 /// Collect all AccessKit author_ids present in the rendered tree.
-fn collect_author_ids(harness: &Harness<'_, ()>) -> std::collections::HashSet<String> {
+fn collect_author_ids<State>(harness: &Harness<'_, State>) -> std::collections::HashSet<String> {
     use egui_kittest::kittest::NodeT;
     let mut found = std::collections::HashSet::new();
     for node in harness.root().children_recursive() {
@@ -289,7 +415,7 @@ fn mt019_panel_shows_today_and_nav_accesskit_ids() {
         );
     }
     assert!(
-        found.contains("journal-panel-root"),
+        found.contains(JOURNAL_ROOT_ID),
         "the panel root is addressable"
     );
     assert!(
@@ -479,6 +605,43 @@ fn mt019_start_writing_button_for_blank_block() {
     assert!(
         found.contains(START_WRITING_ID),
         "a blank journal block shows the 'Start writing' button (journal-start-writing)"
+    );
+}
+
+#[test]
+fn mt019_created_blank_journal_discloses_missing_durable_link() {
+    let mut p = headless_panel(mock_today(), false, false);
+    p.store.seed_ready(JournalReady::new(
+        "2026-06-19",
+        journal_block("2026-06-19", None),
+        Some(doc_body_with_text("KRD-created", "session note")),
+    ));
+    assert!(
+        p.store.state.ready().unwrap().document_link_missing(),
+        "fixture represents a created rich doc that the backend cannot attach to the journal block"
+    );
+
+    let state = Arc::new(Mutex::new(p));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(640.0, 440.0))
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            JournalPanelWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    harness.step();
+    harness.step();
+
+    assert!(
+        harness
+            .query_by_label_contains("Journal link not persisted")
+            .is_some(),
+        "the editor renders a visible backend-gap banner for an unlinked created journal document"
+    );
+    let found = collect_author_ids(&harness);
+    assert!(
+        found.contains(LINK_GAP_ID),
+        "the backend-gap banner is model-addressable by '{LINK_GAP_ID}'"
     );
 }
 
@@ -749,6 +912,179 @@ fn mt019_factory_is_the_journal_sibling_pane() {
         f.pane_type(),
         PaneType::LoomDailyJournal,
         "the journal is the LoomDailyJournal sibling surface"
+    );
+}
+
+#[test]
+fn mt019_operator_route_mounts_bound_journal_editor_root_in_app() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build app runtime");
+    let mut app = handshake_native::app::HandshakeApp::with_health(
+        handshake_native::app::HealthDisplayState::Ok(
+            handshake_native::backend_client::HealthInfo {
+                status: "ok".to_owned(),
+                db_status: "ok".to_owned(),
+                migration_version: Some(1),
+            },
+        ),
+    );
+    app.set_runtime_handle(runtime.handle().clone());
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1200.0, 800.0))
+        .build_state(
+            |ctx, app: &mut handshake_native::app::HandshakeApp| app.ui(ctx),
+            app,
+        );
+    harness.run_steps(2);
+
+    assert!(
+        harness
+            .state_mut()
+            .dispatch_palette_action_for_test(handshake_native::command_registry::CMD_VIEW_JOURNAL),
+        "view.journal dispatches through the real app command route"
+    );
+
+    for _ in 0..20 {
+        harness.run_steps(2);
+        let found = collect_author_ids(&harness);
+        if found.contains(JOURNAL_ROOT_ID) {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+
+    panic!(
+        "view.journal did not mount the bound journal editor root; found author_ids {:?}",
+        collect_author_ids(&harness)
+    );
+}
+
+#[test]
+fn mt019_open_daily_journal_uses_put_and_deserializes_document_id() {
+    let body = serde_json::json!({
+        "block_id": "LB-2026-06-19",
+        "workspace_id": "WS-1",
+        "content_type": "journal",
+        "document_id": "KRD-linked",
+        "title": "Daily Note 2026-06-19",
+        "journal_date": "2026-06-19"
+    });
+    let (base_url, server) = spawn_capture_server("HTTP/1.1 200 OK", body);
+    let backend = ReqwestJournalBackend::new(base_url);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
+    let block = rt
+        .block_on(async { backend.open_daily_journal("WS-1", "2026-06-19").await })
+        .expect("mock openDailyJournal succeeds");
+    let request = server.join().unwrap();
+
+    assert!(
+        request
+            .request_line
+            .starts_with("PUT /workspaces/WS-1/loom/journals/2026-06-19"),
+        "openDailyJournal uses the Loom journal PUT route: {}",
+        request.request_line
+    );
+    assert_eq!(block.block_id, "LB-2026-06-19");
+    assert_eq!(block.workspace_id, "WS-1");
+    assert_eq!(block.content_type.as_deref(), Some("journal"));
+    assert_eq!(block.document_id.as_deref(), Some("KRD-linked"));
+}
+
+#[test]
+fn mt019_linked_document_load_uses_required_hsk_headers() {
+    let (base_url, server) = spawn_capture_server(
+        "HTTP/1.1 200 OK",
+        knowledge_document_response("KRD-load", 7),
+    );
+    let backend = ReqwestJournalBackend::new(base_url);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
+    let loaded = rt
+        .block_on(async { backend.load_document("KRD-load").await })
+        .expect("mock linked document load succeeds");
+    let request = server.join().unwrap();
+
+    assert_eq!(loaded.body.rich_document_id, "KRD-load");
+    assert!(
+        request
+            .request_line
+            .starts_with("GET /knowledge/documents/KRD-load"),
+        "load request hit the linked document route: {}",
+        request.request_line
+    );
+    assert_hsk_document_headers(&request);
+}
+
+#[test]
+fn mt019_start_writing_create_uses_required_hsk_headers() {
+    let (base_url, server) = spawn_capture_server(
+        "HTTP/1.1 200 OK",
+        knowledge_document_response("KRD-created", 1),
+    );
+    let backend = ReqwestJournalBackend::new(base_url);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
+    let created = rt
+        .block_on(async { backend.create_document("WS-1", "Daily Note").await })
+        .expect("mock create document succeeds");
+    let request = server.join().unwrap();
+
+    assert_eq!(created.body.rich_document_id, "KRD-created");
+    assert!(
+        request
+            .request_line
+            .starts_with("POST /knowledge/documents"),
+        "create request hit the document create route: {}",
+        request.request_line
+    );
+    assert_hsk_operator_document_headers(&request);
+    assert!(
+        request.body.contains("\"workspace_id\":\"WS-1\"")
+            && request.body.contains("\"content_json\":null"),
+        "create body preserves the journal workspace and empty rich-doc body: {}",
+        request.body
+    );
+}
+
+#[test]
+fn mt019_auto_save_uses_required_hsk_headers() {
+    let (base_url, server) = spawn_capture_server(
+        "HTTP/1.1 200 OK",
+        knowledge_document_response("KRD-save", 8),
+    );
+    let seam = ReqwestSaveSeam::new(base_url);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
+    let version = rt
+        .block_on(async {
+            seam.save(
+                "KRD-save",
+                7,
+                serde_json::json!({"type": "doc", "content": []}),
+            )
+            .await
+        })
+        .expect("mock auto-save succeeds");
+    let request = server.join().unwrap();
+
+    assert_eq!(version, 8);
+    assert!(
+        request
+            .request_line
+            .starts_with("PUT /knowledge/documents/KRD-save/save"),
+        "save request hit the document save route: {}",
+        request.request_line
+    );
+    assert_hsk_operator_document_headers(&request);
+    assert!(
+        request.body.contains("\"expected_version\":7"),
+        "save body carries optimistic concurrency version: {}",
+        request.body
     );
 }
 

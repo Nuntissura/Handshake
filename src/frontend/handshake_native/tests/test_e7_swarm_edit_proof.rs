@@ -847,6 +847,7 @@ fn run_search_step(log: &mut ProofLog) {
                 block: LoomSearchBlock {
                     block_id: PROOF_NOTE_BLOCK_ID.to_owned(),
                     content_type: "note".to_owned(),
+                    document_id: None,
                     title: Some("SwarmProofNote".to_owned()),
                 },
                 score: 0.9,

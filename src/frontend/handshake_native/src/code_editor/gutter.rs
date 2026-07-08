@@ -3,9 +3,9 @@
 //!
 //! ## What the gutter draws, per VS Code parity
 //!
-//! For each VISIBLE buffer line (the `visible_range` the panel hands in — the SAME painted
-//! `row_range`/`RowGeometry` the editor body uses, so gutter row N aligns exactly with code row N,
-//! including when MT-005 folds are active), left-to-right within a fixed-width strip:
+//! For each painted editor row (the exact row model the panel body painted, so gutter row N aligns
+//! exactly with code row N, including MT-005 folds and MT-054 wrapped continuation rows),
+//! left-to-right within a fixed-width strip:
 //! 1. a filled red breakpoint circle (when the line is in the [`BreakpointSet`](super::breakpoints::BreakpointSet)),
 //! 2. a fold triangle (`▶` collapsed / `▼` expanded) on a line that starts a foldable region,
 //! 3. the right-aligned, dimmed line number,
@@ -142,6 +142,28 @@ impl Default for GutterConfig {
     }
 }
 
+/// One painted row in the gutter. `line` is the 0-based buffer line this visual row belongs to;
+/// `is_first_fragment` is true only for the first visual row of that buffer line. Wrapped continuation
+/// rows still reserve pitch so later rows align, but they do not duplicate line numbers, diagnostics,
+/// breakpoints, fold triangles, click targets, or AccessKit nodes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GutterPaintRow {
+    /// 0-based buffer line owned by this painted gutter row.
+    pub line: usize,
+    /// True for the logical line's first visual row; false for wrapped continuation fragments.
+    pub is_first_fragment: bool,
+}
+
+impl GutterPaintRow {
+    /// A non-wrapped row, or the first visual fragment of a wrapped line.
+    pub fn first_fragment(line: usize) -> Self {
+        Self {
+            line,
+            is_first_fragment: true,
+        }
+    }
+}
+
 /// The outcome of one [`Gutter::render`] frame: which (if any) fold-triangle / breakpoint sub-rect the
 /// user clicked. Both `None` on a frame with no gutter click. The panel applies these to its
 /// `fold_set`/`breakpoint_set` after the render (the same post-render-apply discipline the cursor
@@ -234,25 +256,27 @@ impl Gutter {
         4.0 + breakpoint_w + fold_w + number_w + diagnostic_w
     }
 
-    /// Render the gutter for the visible buffer lines in `visible_lines` (each entry is a 0-based BUFFER
-    /// line — already fold-mapped by the panel, in painted order) and return which fold/breakpoint
+    /// Render the gutter for the painted body rows in `painted_rows` (each entry is a 0-based BUFFER
+    /// line plus whether it is the first wrapped fragment, already fold-mapped by the panel, in painted
+    /// order) and return which fold/breakpoint
     /// column was clicked this frame.
     ///
     /// DEVIATION from the literal MT signature (documented per the rubric "prescribed API shape must fit
     /// the real environment"): the contract sketches
     /// `render(ui, visible_range, buffer, markers, config, on_fold_click, on_breakpoint_click)`. To
-    /// align row-for-row with the editor body under MT-005 folds, the visible rows are NOT a contiguous
-    /// `Range` (a folded region makes buffer lines non-contiguous), so `visible_lines` is the explicit
-    /// per-painted-row buffer-line list the panel already computes, and the geometry the rows were
-    /// painted at is passed as [`GutterGeometry`]. The click outcome is returned in [`GutterResponse`]
-    /// (the panel applies it after render — the same post-render discipline as the cursor overlay)
-    /// rather than via `FnMut` callbacks, which keeps the borrow of the panel's `fold_set`/`breakpoint_set`
-    /// out of the render closure. `fold_open_for` reports, for a region-start line, whether it is open.
+    /// align row-for-row with the editor body under MT-005 folds and MT-054 wrap, the visible rows are
+    /// NOT a contiguous `Range` (a folded region makes buffer lines non-contiguous; a wrapped line
+    /// repeats the same buffer line across several visual rows), so `painted_rows` is the explicit body
+    /// row model the panel already computes, and the geometry the rows were painted at is passed as
+    /// [`GutterGeometry`]. The click outcome is returned in [`GutterResponse`] (the panel applies it
+    /// after render — the same post-render discipline as the cursor overlay) rather than via `FnMut`
+    /// callbacks, which keeps the borrow of the panel's `fold_set`/`breakpoint_set` out of the render
+    /// closure. `fold_open_for` reports, for a region-start line, whether it is open.
     #[allow(clippy::too_many_arguments)]
     pub fn render(
         ui: &mut egui::Ui,
         strip_rect: egui::Rect,
-        visible_lines: &[usize],
+        painted_rows: &[GutterPaintRow],
         buffer: &TextBuffer,
         markers: &[GutterMarker],
         breakpoints: &BreakpointSet,
@@ -296,13 +320,18 @@ impl Gutter {
 
         let mono = egui::FontId::monospace(super::panel::MONO_FONT_SIZE);
 
-        for (row_idx, &buffer_line) in visible_lines.iter().enumerate() {
+        for (row_idx, row) in painted_rows.iter().enumerate() {
+            let buffer_line = row.line;
             let row_top = geometry.origin.y + row_idx as f32 * geometry.line_height;
             let row_center_y = row_top + geometry.line_height * 0.5;
             let row_rect = egui::Rect::from_min_size(
                 egui::pos2(strip_rect.left(), row_top),
                 egui::vec2(strip_rect.width(), geometry.line_height),
             );
+
+            if !row.is_first_fragment {
+                continue;
+            }
 
             // ── Diagnostic left-border bar + dot ─────────────────────────────────────────────────
             if config.show_diagnostics {

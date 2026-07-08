@@ -62,6 +62,43 @@ pub const DRAFT_DISCARD_AUTHOR_ID: &str = "draft-discard";
 /// Export format-picker popup root author_id.
 pub const EXPORT_PICKER_AUTHOR_ID: &str = "export-format-picker";
 
+// ── Open-merge shell signal (WP-KERNEL-012 wave-6 / MT-009 wire-up) ───────────────────────────────
+//
+// The conflict dialog is rendered + its `ConflictOutcome` applied inside `rich_editor_widget.rs` (the
+// rich pane host), which has NO access to the shell's diff/merge `diff_slot`. Adding an
+// `OpenMerge` variant to `ConflictOutcome` would force a match arm in that host (not in this MT's lane).
+// Instead, the "Open merge" button raises a flag in egui MEMORY (a channel both this module — via the
+// `ctx` it already receives — and the shell — via the same `ctx` each frame — can reach). The shell
+// (`app::HandshakeApp::drive_editor_mounts`) DRAINS the flag each frame and calls
+// `open_diff_from_save_conflict()`, which builds the REAL server-vs-local `DiffEditorPanel` into the
+// mounted `diff_slot` and opens the Diff/Merge pane. This is a real signal path — click -> flag ->
+// shell open -> live diff pane — not a no-op.
+
+/// The stable egui-memory id the "Open merge" button raises + the shell drains.
+fn open_merge_request_id() -> egui::Id {
+    egui::Id::new("rich-editor-conflict-open-merge-request")
+}
+
+/// Raise the "open the merge/diff editor" request in egui memory (called by the conflict dialog's
+/// Open-merge button). Idempotent within a frame; the shell drains it on its next `drive_editor_mounts`.
+fn request_open_merge(ctx: &egui::Context) {
+    ctx.data_mut(|d| d.insert_temp(open_merge_request_id(), true));
+}
+
+/// Drain the pending "open merge" request raised by the conflict dialog's Open-merge button, returning
+/// `true` exactly once per raise. The shell calls this each frame; on `true` it builds the real
+/// server-vs-local diff into its `diff_slot` and opens the Diff/Merge pane. Clearing the flag on read
+/// makes the open fire once per click (no repeat-open loop).
+pub fn take_open_merge_request(ctx: &egui::Context) -> bool {
+    ctx.data_mut(|d| {
+        let raised = d.get_temp::<bool>(open_merge_request_id()).unwrap_or(false);
+        if raised {
+            d.remove::<bool>(open_merge_request_id());
+        }
+        raised
+    })
+}
+
 // ── Conflict UI outcome ─────────────────────────────────────────────────────────────────────────
 
 /// What the conflict surface decided this frame. The host (`rich_editor_widget`) applies it against
@@ -85,9 +122,9 @@ pub enum ConflictOutcome {
 /// conflict state this renders nothing and returns `None`.
 ///
 /// The window shows: the server version (read-only block list) vs the operator's version, and the
-/// three choices [Keep yours] [Keep server] [Open merge]. "Open merge" is deferred (the contract:
-/// show "Merge not yet available"). Choosing "Keep yours" surfaces a secondary confirmation
-/// (MC-003) inside the SAME window before the destructive overwrite.
+/// three choices [Keep yours] [Keep server] [Open merge]. "Open merge" raises a one-shot egui-memory
+/// request that the shell drains into the mounted Diff/Merge pane. Choosing "Keep yours" surfaces a
+/// secondary confirmation (MC-003) inside the SAME window before the destructive overwrite.
 pub fn show_conflict_window(
     ctx: &egui::Context,
     save: &SaveManager,
@@ -167,11 +204,17 @@ pub fn show_conflict_window(
                 let open_merge = ui.button("Open merge");
                 emit_button_id(ui, &open_merge, CONFLICT_OPEN_MERGE_AUTHOR_ID);
                 if open_merge.clicked() {
-                    // Deferred to a future MT — show the honest "not available" note (no panic, no
-                    // silent no-op). The button is addressable now so the future MT just wires it.
+                    // WP-KERNEL-012 wave-6 (S6 item 2 / MT-009 wire-up): raise the shell open-merge
+                    // request in egui memory. The shell drains it next frame and builds the REAL
+                    // server-vs-local DiffEditorPanel into `diff_slot`, opening the Diff/Merge pane — a
+                    // real open, no longer a no-op. `ctx` is the SAME context the shell polls.
+                    request_open_merge(ctx);
                 }
             });
-            ui.colored_label(palette.text_subtle, "Merge not yet available.");
+            ui.colored_label(
+                palette.text_subtle,
+                "Open merge opens the Diff/Merge editor with the server and your versions side by side.",
+            );
         }
     });
 
@@ -488,5 +531,30 @@ mod tests {
         assert_eq!(DRAFT_BANNER_AUTHOR_ID, "draft-recovery-banner");
         assert_eq!(DRAFT_RESTORE_AUTHOR_ID, "draft-restore");
         assert_eq!(DRAFT_DISCARD_AUTHOR_ID, "draft-discard");
+    }
+
+    #[test]
+    fn open_merge_request_drains_once_per_raise() {
+        let ctx = egui::Context::default();
+        assert!(
+            !take_open_merge_request(&ctx),
+            "no request is pending before the button raises one"
+        );
+
+        request_open_merge(&ctx);
+        assert!(
+            take_open_merge_request(&ctx),
+            "the first drain observes the raised request"
+        );
+        assert!(
+            !take_open_merge_request(&ctx),
+            "the second drain is false; the request does not repeat across frames"
+        );
+
+        request_open_merge(&ctx);
+        assert!(
+            take_open_merge_request(&ctx),
+            "a later button click raises a new one-shot request"
+        );
     }
 }

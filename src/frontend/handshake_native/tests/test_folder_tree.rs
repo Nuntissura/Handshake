@@ -309,6 +309,60 @@ fn proof4_recolor_request_shape() {
     println!("PROOF4: recolor request shape verified (URL + color-only merge-patch body)");
 }
 
+#[test]
+fn proof4_right_click_change_color_pick_flow_emits_patchable_event() {
+    use handshake_native::backend_client::LoomFolderClient;
+
+    let tree = shared(seeded_tree());
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = harness_for(Arc::clone(&tree), Arc::clone(&events));
+    harness.run();
+
+    // AC4: the color entry point is the row context menu, not only a seeded swatch pixel.
+    harness.get_by_label("Archive").click_secondary();
+    harness.run();
+    harness.run();
+    assert!(
+        harness.query_by_label("Change color").is_some(),
+        "AC4: right-clicking the folder row opens a context menu with 'Change color'"
+    );
+
+    harness.get_by_label("Change color").click();
+    harness.run();
+    harness.run();
+    assert!(
+        harness.query_by_label("Red #ff0000").is_some(),
+        "AC4: selecting 'Change color' opens the folder color picker with deterministic swatches"
+    );
+
+    harness.get_by_label("Red #ff0000").click();
+    harness.run();
+
+    let ev = events.lock().unwrap().clone();
+    let picked = ev.iter().find_map(|event| match event {
+        FolderTreeEvent::ChangeColor { folder_id, color } if folder_id == "folder-002" => {
+            Some(color_to_hex(*color))
+        }
+        _ => None,
+    });
+    assert_eq!(
+        picked.as_deref(),
+        Some("#ff0000"),
+        "AC4: picking the swatch emits ChangeColor(folder-002, #ff0000); got {ev:?}"
+    );
+
+    // The emitted color is directly patchable through the production request builder the host uses.
+    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+    let client = LoomFolderClient::new("http://test.local:1234", rt.handle().clone());
+    let spec = client.recolor_request("ws1", "folder-002", picked.as_deref().unwrap());
+    assert_eq!(
+        spec.body,
+        Some(serde_json::json!({ "color": "#ff0000" })),
+        "AC4/PROOF4: the real pick flow feeds the same single-color-key PATCH body"
+    );
+    println!("PROOF4: row right-click -> Change color -> Red emits patchable ChangeColor event");
+}
+
 // ── PROOF4b: the color swatch renders the stored color (red) in a screenshot ─────────────────────────
 
 #[test]
@@ -490,7 +544,11 @@ fn folder_tree_list_live_pg() {
     client.fetch_folders("ws-live", Arc::clone(&cell));
     let mut data = None;
     for _ in 0..50 {
-        if let Some(r) = cell.lock().unwrap().take() {
+        if let Some((workspace, r)) = cell.lock().unwrap().take() {
+            assert_eq!(
+                workspace, "ws-live",
+                "live folder list delivery is workspace-tagged"
+            );
             data = Some(r);
             break;
         }
@@ -549,4 +607,58 @@ fn folder_tree_children_live_pg() {
         "AC2 live PG: {} child blocks loaded for folder-001",
         leaves.len()
     );
+}
+
+/// AC4 live recolor proof against a REAL PG: right-click color picking is local/kittest-proven above;
+/// this gated proof verifies that the emitted `{ "color": "#ff0000" }` PATCH persists on the seeded
+/// folder row. Requires `ws-live` to contain `folder-001`.
+#[test]
+#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with seeded folder-001 recolor target"]
+#[cfg(feature = "integration")]
+fn folder_tree_recolor_live_pg() {
+    use handshake_native::backend_client::{FolderListCell, LoomFolderClient, ScmReceiptCell};
+
+    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+    let client = LoomFolderClient::production(rt.handle().clone());
+    let receipt: ScmReceiptCell = Arc::new(Mutex::new(None));
+    client.recolor_folder("ws-live", "folder-001", "#ff0000", Arc::clone(&receipt));
+    let mut outcome = None;
+    for _ in 0..50 {
+        if let Some(r) = receipt.lock().unwrap().take() {
+            outcome = Some(r);
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    outcome
+        .expect("live PG recolor delivered within 5s")
+        .expect("live PG recolor ok");
+
+    let list: FolderListCell = Arc::new(Mutex::new(None));
+    client.fetch_folders("ws-live", Arc::clone(&list));
+    let mut rows = None;
+    for _ in 0..50 {
+        if let Some((workspace, r)) = list.lock().unwrap().take() {
+            assert_eq!(
+                workspace, "ws-live",
+                "live folder list delivery is workspace-tagged"
+            );
+            rows = Some(r);
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    let rows = rows
+        .expect("live PG folder list delivered within 5s")
+        .expect("live PG folder list ok");
+    let folder = rows
+        .iter()
+        .find(|row| row.folder_id == "folder-001")
+        .expect("seeded folder-001 present after recolor");
+    assert_eq!(
+        folder.color.as_deref(),
+        Some("#ff0000"),
+        "AC4 live: recolor PATCH persists and reloads the folder color"
+    );
+    println!("AC4 live PG: folder-001 recolored to #ff0000 and reloaded");
 }

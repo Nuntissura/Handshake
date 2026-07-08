@@ -181,9 +181,36 @@ pub mod interop_adapter {
         copy_selection_to_clipboard(bus, selection, sink)
     }
 
-    use crate::backend_client::CanvasBoardClient;
+    use crate::backend_client::{CanvasBoardClient, CreatedCanvasPlacement};
     use crate::undo_stack::{UndoAction, UndoAsyncFn, UndoFn, UndoResult};
-    use std::sync::{Arc, Weak};
+    use std::sync::{Arc, Mutex, Weak};
+
+    #[derive(Clone, Debug)]
+    pub(super) struct CanvasPlacementUndoState {
+        current_placement_id: Arc<Mutex<String>>,
+    }
+
+    impl CanvasPlacementUndoState {
+        pub(super) fn new(placement_id: String) -> Self {
+            Self {
+                current_placement_id: Arc::new(Mutex::new(placement_id)),
+            }
+        }
+
+        pub(super) fn current_placement_id(&self) -> String {
+            self.current_placement_id
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone()
+        }
+
+        pub(super) fn accept_redo_created_placement(&self, placement: CreatedCanvasPlacement) {
+            *self
+                .current_placement_id
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = placement.placement_id;
+        }
+    }
 
     /// MT-035 (E5 unified undo): record a LOCAL graph-edit undo action for `pane_id` (POLICY-1) — a node
     /// MOVE or a TAG change. `undo_apply`/`redo_apply` mutate the graph pane's in-memory state (e.g.
@@ -246,14 +273,17 @@ pub mod interop_adapter {
         description: impl Into<String>,
     ) {
         let (x, y, w, h) = geometry;
-        // UNDO = compensating DELETE of the created placement (snapshot captured NOW — RISK-2 / MC-2).
+        let placement_state = CanvasPlacementUndoState::new(placement_id);
+        // UNDO = compensating DELETE of the latest created placement id. The first undo targets the
+        // original backend-minted id; redo updates this shared state to the replacement id so a second
+        // undo removes the redone placement rather than retrying the stale original id.
         let undo_client = client.clone();
         let undo_ws = workspace_id.clone();
-        let undo_placement = placement_id.clone();
+        let undo_state = placement_state.clone();
         let undo_async_fn: UndoAsyncFn = Arc::new(move || {
             let client = undo_client.clone();
             let ws = undo_ws.clone();
-            let placement = undo_placement.clone();
+            let placement = undo_state.current_placement_id();
             Box::pin(async move {
                 let spec = client.remove_placement_request(&ws, &placement);
                 match send_canvas_compensation(&client, spec).await {
@@ -269,15 +299,20 @@ pub mod interop_adapter {
         let redo_ws = workspace_id.clone();
         let redo_canvas = canvas_block_id.clone();
         let redo_block = placed_block_id.clone();
+        let redo_state = placement_state.clone();
         let redo_async_fn: UndoAsyncFn = Arc::new(move || {
             let client = redo_client.clone();
             let ws = redo_ws.clone();
             let canvas = redo_canvas.clone();
             let block = redo_block.clone();
+            let state = redo_state.clone();
             Box::pin(async move {
                 let spec = client.place_block_request(&ws, &canvas, &block, x, y, w, h);
-                match send_canvas_compensation(&client, spec).await {
-                    Ok(()) => UndoResult::ok(),
+                match send_canvas_created_compensation(&client, spec).await {
+                    Ok(created) => {
+                        state.accept_redo_created_placement(created);
+                        UndoResult::ok()
+                    }
                     Err(e) => UndoResult::err(format!("canvas redo (re-place block) failed: {e}")),
                 }
             })
@@ -315,5 +350,54 @@ pub mod interop_adapter {
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
         Err("canvas compensating call timed out (no 2xx within bound)".to_owned())
+    }
+
+    async fn send_canvas_created_compensation(
+        client: &CanvasBoardClient,
+        spec: crate::backend_client::RequestSpec,
+    ) -> Result<CreatedCanvasPlacement, String> {
+        let cell: crate::backend_client::CanvasBoardCreateCell =
+            Arc::new(std::sync::Mutex::new(None));
+        client.dispatch_created_placement(spec, cell.clone());
+        for _ in 0..600 {
+            if let Ok(slot) = cell.lock() {
+                if let Some(result) = slot.as_ref() {
+                    return result.clone();
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        Err("canvas redo placement call timed out (no created placement within bound)".to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::interop_adapter::CanvasPlacementUndoState;
+    use crate::backend_client::CreatedCanvasPlacement;
+
+    #[test]
+    fn canvas_redo_updates_current_placement_id_for_next_undo() {
+        let state = CanvasPlacementUndoState::new("placement-original".to_owned());
+        assert_eq!(
+            state.current_placement_id(),
+            "placement-original",
+            "first undo targets the originally created placement"
+        );
+
+        state.accept_redo_created_placement(CreatedCanvasPlacement {
+            placement_id: "placement-redone".to_owned(),
+            placed_block_id: "block-1".to_owned(),
+            x: 10.0,
+            y: 20.0,
+            w: 200.0,
+            h: 120.0,
+        });
+
+        assert_eq!(
+            state.current_placement_id(),
+            "placement-redone",
+            "second undo after redo targets the backend-minted replacement id"
+        );
     }
 }

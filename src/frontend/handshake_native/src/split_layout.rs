@@ -348,6 +348,8 @@ impl SplitLayoutWidget {
         tab_colors: TabBarColors,
         active_module: ModuleId,
         header_colors: PaneHeaderColors,
+        header_palette: &crate::theme::HsPalette,
+        undo_counts: &HashMap<PaneId, usize>,
         lock_requests: &mut Vec<PaneId>,
         pop_out_requests: &mut Vec<PaneId>,
         is_popped_out: P,
@@ -511,6 +513,9 @@ impl SplitLayoutWidget {
                     locked,
                     is_last_pane,
                     header_colors,
+                    undo_counts.get(&pane_id).copied().unwrap_or(0),
+                    header_palette,
+                    true,
                 );
                 if header_resp.lock_toggled {
                     lock_requests.push(pane_id.clone());

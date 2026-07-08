@@ -213,7 +213,9 @@ fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
     let freeze_view = views
         .iter()
         .find(|v| v.kind == PalmistrySurvivorKind::Freeze)
-        .expect("the freeze record decodes to the typed Freeze kind (NOT Other) across the boundary");
+        .expect(
+            "the freeze record decodes to the typed Freeze kind (NOT Other) across the boundary",
+        );
     assert_eq!(freeze_view.session_id, "sess-golden-freeze");
     assert_eq!(freeze_view.process_id, 4242);
     assert_eq!(freeze_view.event_code, freeze_event_code);

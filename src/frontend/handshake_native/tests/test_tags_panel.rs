@@ -13,9 +13,9 @@
 //!
 //! ## Backend reality (Spec-Realism Gate — MT-008/021/022 "verify, don't trust the contract" rule)
 //!
-//! The MT-023 contract's assumed surface (`views/all?content_type=tag_hub` list, `views/all?tag_ids={id}`
-//! members, a `content_json` hub description) does NOT exist in the running backend. The REAL tag
-//! authority is the dedicated tag-hub API (MT-182), verified READ-ONLY against
+//! The MT-023 contract's assumed generic view filters (`views/all?content_type=tag_hub`,
+//! `views/all?tag_ids={id}`) exist, but the stronger authority for this surface is the dedicated tag-hub
+//! API (MT-182), verified READ-ONLY against
 //! `src/backend/handshake_core/src/{api,storage}/loom.rs`:
 //!   - `GET  /loom/tags`                  -> Vec<LoomBlock> (every tag_hub block)
 //!   - `GET  /loom/tags/{id}`             -> LoomTagHub { block, sub_tags, tagged_blocks, backlink_count }
@@ -549,20 +549,24 @@ fn tags_list_live_pg() {
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     let client = LoomTagClient::production(rt.handle().clone());
-    let cell: TagListCell = Arc::new(Mutex::new(None));
+    let cell: TagListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     // The operator seeds >= 3 tag_hub blocks in `ws-live` before running this.
     client.fetch_tags("ws-live", Arc::clone(&cell));
     let mut data = None;
     for _ in 0..50 {
-        if let Some(r) = cell.lock().unwrap().take() {
+        if let Some(r) = cell.lock().unwrap().pop_front() {
             data = Some(r);
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let tags = data
-        .expect("live PG fetch delivered within 5s")
-        .expect("live PG fetch ok");
+    let (workspace, sequence, tags_result) = data.expect("live PG fetch delivered within 5s");
+    assert_eq!(
+        workspace, "ws-live",
+        "live PG delivery is attributed to the requested workspace"
+    );
+    assert_eq!(sequence, 0, "convenience live fetch uses sequence 0");
+    let tags = tags_result.expect("live PG fetch ok");
     assert!(
         tags.len() >= 3,
         "AC1 live: >= 3 seeded tag_hub blocks expected from GET /loom/tags, got {}",
@@ -580,20 +584,23 @@ fn tag_hub_detail_live_pg() {
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     let client = LoomTagClient::production(rt.handle().clone());
-    let cell: TagHubDetailCell = Arc::new(Mutex::new(None));
+    let cell: TagHubDetailCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     // The operator seeds tag_hub "tag-hub-001" with >= 1 tagged member in `ws-live` before running this.
     client.fetch_hub_detail("ws-live", "tag-hub-001", Arc::clone(&cell));
     let mut data = None;
     for _ in 0..50 {
-        if let Some(r) = cell.lock().unwrap().take() {
+        if let Some(r) = cell.lock().unwrap().pop_front() {
             data = Some(r);
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let (title, members) = data
-        .expect("live PG fetch delivered within 5s")
-        .expect("live PG fetch ok");
+    let (workspace, hub_id, sequence, detail_result) =
+        data.expect("live PG fetch delivered within 5s");
+    assert_eq!(workspace, "ws-live");
+    assert_eq!(hub_id, "tag-hub-001");
+    assert_eq!(sequence, 0, "convenience live fetch uses sequence 0");
+    let (title, members) = detail_result.expect("live PG fetch ok");
     assert!(
         !title.trim().is_empty(),
         "AC4 live: hub title must be non-empty"
@@ -612,12 +619,12 @@ fn tag_hub_detail_live_pg() {
 #[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded tag_hub + a taggable block"]
 #[cfg(feature = "integration")]
 fn tag_edge_create_live_pg() {
-    use handshake_native::backend_client::{LoomTagClient, ScmReceiptCell, TagHubDetailCell};
+    use handshake_native::backend_client::{LoomTagClient, TagEdgeReceiptCell, TagHubDetailCell};
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     let client = LoomTagClient::production(rt.handle().clone());
     // The operator seeds tag_hub "tag-hub-001" + a taggable note "block-taggable" in `ws-live`.
-    let post_cell: ScmReceiptCell = Arc::new(Mutex::new(None));
+    let post_cell: TagEdgeReceiptCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     client.tag_block(
         "ws-live",
         "block-taggable",
@@ -627,30 +634,35 @@ fn tag_edge_create_live_pg() {
     // Await the POST RESPONSE (AC6 / RISK-2: re-query only AFTER the create resolves — no fixed sleep).
     let mut post_done = None;
     for _ in 0..50 {
-        if let Some(r) = post_cell.lock().unwrap().take() {
+        if let Some(r) = post_cell.lock().unwrap().pop_front() {
             post_done = Some(r);
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    post_done
-        .expect("tag POST delivered within 5s")
-        .expect("tag POST ok");
+    let (workspace, hub_id, sequence, post_result) =
+        post_done.expect("tag POST delivered within 5s");
+    assert_eq!(workspace, "ws-live");
+    assert_eq!(hub_id, "tag-hub-001");
+    assert_eq!(sequence, 0, "convenience live POST uses sequence 0");
+    post_result.expect("tag POST ok");
 
     // Now re-query the members — the just-tagged block must be present.
-    let members_cell: TagHubDetailCell = Arc::new(Mutex::new(None));
+    let members_cell: TagHubDetailCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     client.fetch_members("ws-live", "tag-hub-001", Arc::clone(&members_cell));
     let mut data = None;
     for _ in 0..50 {
-        if let Some(r) = members_cell.lock().unwrap().take() {
+        if let Some(r) = members_cell.lock().unwrap().pop_front() {
             data = Some(r);
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let (_t, members) = data
-        .expect("members re-query delivered")
-        .expect("members re-query ok");
+    let (workspace, hub_id, sequence, members_result) = data.expect("members re-query delivered");
+    assert_eq!(workspace, "ws-live");
+    assert_eq!(hub_id, "tag-hub-001");
+    assert_eq!(sequence, 0, "convenience live fetch uses sequence 0");
+    let (_t, members) = members_result.expect("members re-query ok");
     assert!(
         members.iter().any(|m| m.block_id == "block-taggable"),
         "AC6 live: the just-tagged block must appear in the re-queried members (got {members:?})"

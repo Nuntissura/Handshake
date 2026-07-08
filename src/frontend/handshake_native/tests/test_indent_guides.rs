@@ -19,8 +19,8 @@ use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::code_editor::{
-    indent_guide_x, indent_level_of, CodeEditorPanel, Cursor, TextBuffer,
-    CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID,
+    find_matching_bracket, indent_guide_x, indent_level_of, CodeEditorPanel, Cursor, TextBuffer,
+    CODE_EDITOR_CURSOR_AUTHOR_PREFIX, CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID,
 };
 
 /// The EXTERNAL artifact root for MT-054 test output (CX-212E / CX-212E screenshot rule). NEVER
@@ -108,9 +108,12 @@ fn chrome_screenshot_shows_bracket_and_indent_guide() {
     // immediately after the function's opening '{' so the matching-bracket highlight is active.
     let src = "fn demo() {\n    if cond {\n        body();\n    }\n}\n";
     let panel = Arc::new(CodeEditorPanel::new(src, "rs"));
-    // Place the primary caret immediately AFTER the first '{' (byte 11 is just past "fn demo() {"),
-    // so VS Code adjacency lights the matching '}' on the last line. set_cursors clamps + snaps.
-    panel.set_cursors(vec![Cursor::caret(11)]);
+    // Place the primary caret immediately BEFORE the fn's opening '{' (byte 10 — the char AT the caret
+    // is `{`). This is the BEFORE-OPEN adjacency `find_matching_bracket` actually fires on (byte 11 is
+    // the '\n', where NEITHER adjacency rule matches -> the old test claimed a highlight that was never
+    // painted). At byte 10 the '{' pairs with the fn's closing '}' at byte 48 (line 4). set_cursors
+    // clamps + snaps.
+    panel.set_cursors(vec![Cursor::caret(10)]);
 
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
@@ -145,6 +148,93 @@ fn chrome_screenshot_shows_bracket_and_indent_guide() {
         "the body line is indented >= 1 level, so >= 1 indent guide is painted"
     );
 
+    // ── AC-006 DETERMINISTIC (non-GPU) decoration-position proof — ALWAYS runs, never GPU-gated ──────
+    // The prior version (a) put the caret at byte 11 (the '\n'), where `find_matching_bracket` fires for
+    // NEITHER adjacency rule, so NO bracket highlight was ever painted, yet the test claimed one; and
+    // (b) put every visual assertion inside the `Ok(image)` arm, so a headless/no-GPU host SILENTLY
+    // skipped all proof and passed vacuously. This block fixes both: it proves — WITHOUT a GPU — that the
+    // chrome paint path WILL paint a matching-bracket highlight AND >=1 indent guide at the correct glyph
+    // positions. The pixel sampling further below is an ADDITIONAL GPU-host proof; it can no longer be the
+    // only proof, so the Err arm can never let the test pass without the positions being asserted here.
+    let gw = panel
+        .measured_glyph_width()
+        .expect("glyph width measured after a frame");
+
+    // (P1) The primary caret is immediately BEFORE the fn '{' (byte 10 = line 0 col 10) — the exact
+    //      cursor_byte the chrome paint path feeds `find_matching_bracket`. Prove it from the LIVE caret
+    //      AccessKit node (`code_editor_cursor_0`), i.e. the caret a swarm agent would read.
+    let cursor0_id = format!("{CODE_EDITOR_CURSOR_AUTHOR_PREFIX}0");
+    let mut caret_value: Option<String> = None;
+    for node in root.children_recursive() {
+        let ak = node.accesskit_node();
+        if ak.author_id() == Some(cursor0_id.as_str()) {
+            caret_value = ak.value().map(|v| v.to_owned());
+        }
+    }
+    assert_eq!(
+        caret_value.as_deref(),
+        Some("line 0 col 10"),
+        "AC-006: the caret is at byte 10 (line 0 col 10), immediately before the fn '{{' — the \
+         cursor_byte the chrome painter feeds find_matching_bracket"
+    );
+
+    // (P2) `find_matching_bracket` at the caret returns the fn brace pair (open byte 10 -> close byte 48
+    //      on line 4). This is the SAME pure decision `paint_chrome_decorations` makes with
+    //      `set.primary().head`, so a Some(match) => a highlight box IS painted at BOTH brackets.
+    let m = find_matching_bracket(&buf, 10)
+        .expect("AC-006: the caret before the fn '{' lights the matching '}' (VS Code adjacency)");
+    assert_eq!(
+        (m.open_byte, m.close_byte),
+        (10, 48),
+        "AC-006: the '{{' at byte 10 pairs with the '}}' at byte 48 (the fn's closing brace, line 4)"
+    );
+
+    // (P3) BOTH matched brackets map to real on-screen glyph positions (`decoration_xy` uses this same
+    //      line/col -> xy mapping the painter draws the highlight rect at). Open '{' = line 0 col 10;
+    //      matched '}' = line 4 col 0. Both must resolve to a pixel inside the rendered surface, and the
+    //      matched '}' must sit BELOW the open '{' (the highlight spans the block, not a same-cell pair).
+    let screen = harness.ctx.content_rect();
+    let open_pos = panel
+        .screen_pos_for_line_col(0, 10, gw)
+        .expect("AC-006: the open '{' glyph is on screen");
+    let close_pos = panel
+        .screen_pos_for_line_col(4, 0, gw)
+        .expect("AC-006: the matched '}' glyph is on screen");
+    for (label, p) in [("open-brace", open_pos), ("matched-brace", close_pos)] {
+        assert!(
+            screen.contains(p),
+            "AC-006: the {label} highlight lands inside the rendered surface (pos {p:?}, {screen:?})"
+        );
+    }
+    assert!(
+        close_pos.y > open_pos.y,
+        "AC-006: the matched '}}' (line 4) is painted below the open '{{' (line 0)"
+    );
+
+    // (P4) Indent guide: line 2 (`body();`) is indented >= 2 levels, is ON SCREEN, and its guide x's fall
+    //      to the right of the gutter inside the text area (the SAME `indent_guide_x` the painter uses:
+    //      level 1 at the gutter edge, level 2 one indent cell right).
+    let body_pos = panel
+        .screen_pos_for_line_col(2, 0, gw)
+        .expect("AC-006: the indented body line (line 2) is on screen");
+    let text_left = body_pos.x - gw * 0.25; // undo screen_pos_for_line_col's half-glyph click nudge
+    let level = indent_level_of(&buf, 2, 4);
+    assert!(
+        level >= 2,
+        "AC-006: line 2 is indented >= 2 levels (8 spaces / tab 4); got {level}"
+    );
+    let g1 = indent_guide_x(text_left, 1, 4, gw);
+    let g2 = indent_guide_x(text_left, 2, 4, gw);
+    assert!(
+        (g1 - text_left).abs() < 0.01,
+        "AC-006: the level-1 indent guide sits at the text-left/gutter edge (x={g1})"
+    );
+    assert!(
+        g2 > g1 && screen.contains(egui::pos2(g2, body_pos.y)),
+        "AC-006: the level-2 indent guide sits one indent cell right of level 1 and inside the \
+         rendered surface (g1={g1}, g2={g2})"
+    );
+
     // HBR-VIS: render + REAL PIXEL SAMPLING (MT-054 Wave-B remediation — the old check saved the PNG
     // and asserted only non-emptiness, which the audit flagged as fake proof). On a GPU host this now
     // asserts, from the rendered pixels + the panel's own row geometry:
@@ -160,9 +250,7 @@ fn chrome_screenshot_shows_bracket_and_indent_guide() {
             let (w, h) = (image.width(), image.height());
             assert!(w > 0 && h > 0, "rendered image is non-empty");
             let ppp = harness.ctx.pixels_per_point();
-            let gw = panel
-                .measured_glyph_width()
-                .expect("glyph width measured after a frame");
+            // `gw` is measured once above (the deterministic proof block) and reused here.
             // The ONE row unit: consecutive overlay row centers differ by exactly line_height.
             let c0 = panel
                 .screen_pos_for_line_col(0, 0, gw)
@@ -239,6 +327,17 @@ fn chrome_screenshot_shows_bracket_and_indent_guide() {
                 "MT-054 row-pitch unit: col 14 is empty on line 3 — glyph pixels there mean the \
                  painted rows drifted off the geometry unit"
             );
+            // (4) MATCHING-BRACKET HIGHLIGHT (AC-006): the matched '}' is at line 4 col 0 — the ONLY
+            // glyph on that row. Its cell must be non-background: the chrome painter re-draws the '}' in
+            // its bracket-pair color AND strokes the matching-bracket highlight box around it there (via
+            // the same `find_matching_bracket` proven in P2). Non-background at line-4/col-0 => the
+            // highlight + glyph land on the matched bracket's painted row/col, not an empty cell.
+            let close_cell = count_non_bg(text_left + 0.5 * gw, row_top(4.0) + 1.5, row_top(5.0) - 1.5);
+            assert!(
+                close_cell > 0,
+                "AC-006: the matched '}}' cell (line 4 col 0) is painted (bracket glyph + highlight box); \
+                 got 0 pixels"
+            );
 
             let ext_dir = external_artifact_dir("wp-kernel-012-mt-054");
             let _ = std::fs::create_dir_all(&ext_dir);
@@ -255,10 +354,15 @@ fn chrome_screenshot_shows_bracket_and_indent_guide() {
             );
         }
         Err(e) => {
+            // Non-fatal ONLY because the load-bearing decoration-POSITION proof (P1-P4 above) already
+            // ran unconditionally (non-GPU): the caret is at byte 10, find_matching_bracket lights the
+            // fn brace pair, and both brackets + the level-1/2 indent guides map to on-screen positions.
+            // The PNG + pixel sampling are the extra GPU-host proof; their absence cannot make the test
+            // pass without the positions having been asserted.
             println!(
-                "BLOCKER(non-fatal): MT-054 chrome screenshot render unavailable (no wgpu adapter): \
-                 {e}. The AC-006 indent-guide + bracket-match decoration math + the AccessKit \
-                 wrap-toggle node proofs passed; the PNG + pixel sampling are GPU-host items."
+                "BLOCKER(non-fatal): MT-054 chrome screenshot pixel proof unavailable (no wgpu \
+                 adapter): {e}. The deterministic non-GPU AC-006 position proof (bracket highlight + \
+                 indent guides at the matched glyph positions) already passed above."
             );
         }
     }

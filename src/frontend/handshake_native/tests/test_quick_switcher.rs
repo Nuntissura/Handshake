@@ -73,14 +73,12 @@ fn ok_app() -> HandshakeApp {
 }
 
 /// The switcher's search box, disambiguated from the always-visible MT-022 bottom search rail input
-/// (which is ALSO a `Role::TextInput` in every frame). The rail input carries the stable author_id
-/// `bottom-rail.input`; the switcher search box does not, so we pick the non-rail TextInput. (Before
-/// MT-022 the switcher search was the only TextInput on screen; the rail made that ambiguous.)
+/// and any other mounted text fields by the switcher's stable author_id.
 fn switcher_search<'h>(harness: &'h Harness<'_, HandshakeApp>) -> egui_kittest::Node<'h> {
     harness
         .query_all_by_role(egui::accesskit::Role::TextInput)
-        .find(|n| n.accesskit_node().author_id() != Some("bottom-rail.input"))
-        .expect("the switcher search TextInput (the non-rail one)")
+        .find(|n| n.accesskit_node().author_id() == Some(SWITCHER_SEARCH_AUTHOR_ID))
+        .expect("the switcher search TextInput")
 }
 
 /// A canned, in-memory transport: returns the same hits for any query, a fixed recents list, and
@@ -741,6 +739,16 @@ impl ShellNavigator for MockNavigator {
             surface: "Loom Block".into(),
         }
     }
+    fn open_block_collection_view(&mut self, view_block_id: &str) -> NavDispatchOutcome {
+        self.calls.push((
+            "open_block_collection_view".into(),
+            view_block_id.into(),
+            None,
+        ));
+        NavDispatchOutcome::Opened {
+            surface: "Block Collections".into(),
+        }
+    }
     fn open_code_symbol(&mut self, symbol_entity_id: &str) -> NavDispatchOutcome {
         self.calls
             .push(("open_code_symbol".into(), symbol_entity_id.into(), None));
@@ -791,6 +799,19 @@ fn quick_switcher_resolve_open_target() {
         resolve_open_target(&blk),
         QuickSwitcherTarget::LoomBlock {
             block_id: "BLK-1".into()
+        }
+    );
+    let mut view = make_hit(
+        "loom_block",
+        "VIEW-1",
+        "Table View",
+        json!({ "content_type": "view_def" }),
+    );
+    view.block = json!({ "content_type": "view_def" });
+    assert_eq!(
+        resolve_open_target(&view),
+        QuickSwitcherTarget::BlockCollectionView {
+            view_block_id: "VIEW-1".into()
         }
     );
     // loom_block with metadata.rich_document_id=KRD-1 -> Document{KRD-1}.
@@ -894,6 +915,15 @@ fn dispatch_target_routes_every_target_to_the_right_method() {
             },
             "open_loom_block",
             "BLK-9",
+            None,
+            true,
+        ),
+        (
+            QuickSwitcherTarget::BlockCollectionView {
+                view_block_id: "VIEW-9".into(),
+            },
+            "open_block_collection_view",
+            "VIEW-9",
             None,
             true,
         ),
@@ -1043,6 +1073,75 @@ fn document_hit_opens_mounted_rich_editor_tab() {
     assert!(
         harness.state().active_pane().is_some(),
         "opening the mounted editor focused a pane (the tab-open primitive activates + focuses)"
+    );
+}
+
+// ── A wiki_page hit opens the dedicated wiki-projection pane, not the rich-document editor ────────────
+
+#[test]
+fn wiki_page_hit_opens_dedicated_wiki_page_pane() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, WIKI_PAGE_PANE_LABEL};
+
+    let stub = StubTransport {
+        hits: vec![make_hit(
+            "wiki_page",
+            "PROJ-2",
+            "Projection Two",
+            Value::Null,
+        )],
+        recents: vec![],
+    };
+    let mut harness = shell_harness_with_stub(stub);
+    harness.run();
+    harness.state_mut().open_quick_switcher();
+    harness.run();
+    harness.run();
+
+    switcher_search(&harness).type_text("projection");
+    let rendered = step_until(&mut harness, |app| {
+        !app.quick_switcher_search_results().is_empty()
+    });
+    assert!(rendered, "graph-search delivered the wiki_page hit");
+    harness.step();
+    harness.step();
+
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+
+    assert!(
+        !harness.state().quick_switcher_open(),
+        "Enter on the wiki_page hit closed the switcher"
+    );
+    assert_eq!(
+        harness.state().quick_switcher_nav_status(),
+        None,
+        "MT-025 host route: wiki_page opens a mounted pane without surfacing a nav-status seam"
+    );
+
+    let wiki_pane = placeholder_pane_type(WIKI_PAGE_PANE_LABEL);
+    let mut saw_dedicated_wiki_tab = false;
+    let mut saw_rich_doc_projection_tab = false;
+    for tab in harness
+        .state()
+        .tab_bar_states()
+        .values()
+        .flat_map(|bar| bar.tabs.iter())
+    {
+        if tab.pane_type == wiki_pane && tab.content_id.as_deref() == Some("PROJ-2") {
+            saw_dedicated_wiki_tab = true;
+        }
+        if tab.pane_type == PaneType::LoomWikiPage && tab.content_id.as_deref() == Some("PROJ-2") {
+            saw_rich_doc_projection_tab = true;
+        }
+    }
+    assert!(
+        saw_dedicated_wiki_tab,
+        "MT-025 host route: wiki_page hit opens Placeholder(\"Wiki Page\") carrying projection id PROJ-2"
+    );
+    assert!(
+        !saw_rich_doc_projection_tab,
+        "MT-025 host route: wiki projection id must not be fed to the LoomWikiPage rich-document loader"
     );
 }
 

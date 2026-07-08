@@ -72,6 +72,40 @@ fn catalog_lists_every_code_action_and_rich_commands() {
     );
 }
 
+#[test]
+fn catalog_pins_code_folding_actions_and_default_chords() {
+    let catalog = editor_action_catalog();
+    for (id, label, default_chord) in [
+        (
+            "code.fold_at_cursor",
+            "Fold region at cursor",
+            "Ctrl+Shift+[",
+        ),
+        (
+            "code.unfold_at_cursor",
+            "Unfold region at cursor",
+            "Ctrl+Shift+]",
+        ),
+        ("code.fold_all", "Fold all regions", "Ctrl+K Ctrl+0"),
+        ("code.unfold_all", "Unfold all regions", "Ctrl+K Ctrl+J"),
+    ] {
+        let action = catalog
+            .iter()
+            .find(|action| action.id == id)
+            .unwrap_or_else(|| panic!("folding action {id} is present in the settings catalog"));
+        assert_eq!(action.label, label, "settings label for {id}");
+        assert_eq!(
+            action.default_chord, default_chord,
+            "settings default chord for {id}"
+        );
+        assert_eq!(
+            action.surface,
+            EditorActionSurface::Code,
+            "folding action {id} belongs to the code-editor settings surface"
+        );
+    }
+}
+
 /// AC-005 (override semantics): a custom binding overrides the default for that action; resetting
 /// reverts. Resolution is "custom if present else default" against the SEPARATE editor_keybindings list.
 #[test]

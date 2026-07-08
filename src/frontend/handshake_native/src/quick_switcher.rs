@@ -183,6 +183,8 @@ pub enum QuickSwitcherTarget {
     Document { document_id: String },
     /// Open a Loom block / file / tag hub by id (`PaneType::LoomBlock`, content_id = block_id).
     LoomBlock { block_id: String },
+    /// Open a saved Loom block collection view (`content_type='view_def'`) in the mounted collection host.
+    BlockCollectionView { view_block_id: String },
     /// Open a code symbol by entity id (`PaneType::CodeSymbol`, content_id = symbol_entity_id).
     CodeSymbol { symbol_entity_id: String },
     /// Open a work packet in the Kernel DCC (`PaneType::KernelDcc`, content_id = "WP:{wp_id}").
@@ -209,6 +211,7 @@ impl QuickSwitcherTarget {
             QuickSwitcherTarget::UserManual { .. } => "Open UserManual page",
             QuickSwitcherTarget::Document { .. } => "Open document",
             QuickSwitcherTarget::LoomBlock { .. } => "Open Loom block",
+            QuickSwitcherTarget::BlockCollectionView { .. } => "Open block collection view",
             QuickSwitcherTarget::CodeSymbol { .. } => "Open code symbol",
             QuickSwitcherTarget::WorkPacket { .. } => "Open Kernel DCC work packet",
             QuickSwitcherTarget::MicroTask { .. } => "Open Kernel DCC microtask",
@@ -320,6 +323,8 @@ pub trait ShellNavigator {
     fn open_document(&mut self, document_id: &str) -> NavDispatchOutcome;
     /// Open a Loom block / file / tag-hub by its block id (the Loom block viewer, mounted now).
     fn open_loom_block(&mut self, block_id: &str) -> NavDispatchOutcome;
+    /// Open a saved block-collection view by its `view_def` block id.
+    fn open_block_collection_view(&mut self, view_block_id: &str) -> NavDispatchOutcome;
     /// Open a code symbol by its entity id (the MT-001 code editor surface).
     fn open_code_symbol(&mut self, symbol_entity_id: &str) -> NavDispatchOutcome;
     /// Open a work packet in the Kernel DCC by its WP id (mounted now).
@@ -345,6 +350,9 @@ pub fn dispatch_target(
     match target {
         QuickSwitcherTarget::Document { document_id } => navigator.open_document(document_id),
         QuickSwitcherTarget::LoomBlock { block_id } => navigator.open_loom_block(block_id),
+        QuickSwitcherTarget::BlockCollectionView { view_block_id } => {
+            navigator.open_block_collection_view(view_block_id)
+        }
         QuickSwitcherTarget::CodeSymbol { symbol_entity_id } => {
             navigator.open_code_symbol(symbol_entity_id)
         }
@@ -388,6 +396,18 @@ fn block_document_id(hit: &LoomGraphSearchHit) -> Option<String> {
     } else {
         Some(t.to_owned())
     }
+}
+
+/// Read the Loom block `content_type` from either the raw block payload or metadata. Saved
+/// block-collection views are ordinary `loom_block` hits with `content_type='view_def'`.
+fn content_type_from_hit(hit: &LoomGraphSearchHit) -> Option<String> {
+    hit.block
+        .get("content_type")
+        .and_then(|v| v.as_str())
+        .or_else(|| hit.metadata.get("content_type").and_then(|v| v.as_str()))
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(str::to_owned)
 }
 
 /// Resolve the rich-document id for a hit, requiring the `KRD-` prefix (port of the React
@@ -506,45 +526,55 @@ pub fn open_target_for_hit(hit: &LoomGraphSearchHit) -> QuickSwitcherTarget {
     if let Some(slug) = user_manual_slug(hit) {
         return QuickSwitcherTarget::UserManual { slug };
     }
-    // 3. rich document id (KRD-prefixed).
+    // 3. saved block-collection view (`LoomBlock(content_type='view_def')`) opens the mounted
+    // collection host, not the generic Loom-block viewer.
+    if hit.source_kind == "loom_block"
+        && content_type_from_hit(hit).as_deref() == Some("view_def")
+        && !hit.ref_id.trim().is_empty()
+    {
+        return QuickSwitcherTarget::BlockCollectionView {
+            view_block_id: hit.ref_id.trim().to_owned(),
+        };
+    }
+    // 4. rich document id (KRD-prefixed).
     if let Some(document_id) = document_id_from_hit(hit) {
         return QuickSwitcherTarget::Document { document_id };
     }
-    // 4. a loom_block hit whose block carries a (non-KRD) source document_id.
+    // 5. a loom_block hit whose block carries a (non-KRD) source document_id.
     if hit.source_kind == "loom_block" {
         if let Some(document_id) = block_document_id(hit) {
             return QuickSwitcherTarget::Document { document_id };
         }
     }
-    // 5. loom_block by ref_id.
+    // 6. loom_block by ref_id.
     if hit.source_kind == "loom_block" && !hit.ref_id.trim().is_empty() {
         return QuickSwitcherTarget::LoomBlock {
             block_id: hit.ref_id.trim().to_owned(),
         };
     }
-    // 6. file -> open as a Loom block.
+    // 7. file -> open as a Loom block.
     if hit.source_kind == "file" && !hit.ref_id.trim().is_empty() {
         return QuickSwitcherTarget::LoomBlock {
             block_id: hit.ref_id.trim().to_owned(),
         };
     }
-    // 7. tag_hub -> open as a Loom block.
+    // 8. tag_hub -> open as a Loom block.
     if hit.source_kind == "tag_hub" && !hit.ref_id.trim().is_empty() {
         return QuickSwitcherTarget::LoomBlock {
             block_id: hit.ref_id.trim().to_owned(),
         };
     }
-    // 8. symbol -> code symbol.
+    // 9. symbol -> code symbol.
     if hit.source_kind == "symbol" && !hit.ref_id.trim().is_empty() {
         return QuickSwitcherTarget::CodeSymbol {
             symbol_entity_id: hit.ref_id.trim().to_owned(),
         };
     }
-    // 9. work_packet.
+    // 10. work_packet.
     if let Some(wp_id) = work_packet_id(hit) {
         return QuickSwitcherTarget::WorkPacket { wp_id };
     }
-    // 10. micro_task.
+    // 11. micro_task.
     if let Some((mt_id, wp_id)) = micro_task_target(hit) {
         return QuickSwitcherTarget::MicroTask { mt_id, wp_id };
     }

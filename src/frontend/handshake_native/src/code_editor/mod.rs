@@ -165,9 +165,9 @@ pub use cursor::{
     MAX_ACCESSKIT_CURSORS,
 };
 pub use diff_editor_panel::{
-    build_line_map, right_line_for_left_line, DiffEditorPaneFactory, DiffEditorPanel, DiffMode,
-    Side, SyncRow, SyncScrollState, DIFF_BLOCK_ACCEPT_LOCAL_PREFIX, DIFF_EDITOR_PANEL_AUTHOR_ID,
-    DIFF_MODE_TOGGLE_AUTHOR_ID,
+    build_line_map, left_line_for_right_line, right_line_for_left_line, DiffEditorPaneFactory,
+    DiffEditorPanel, DiffMode, Side, SyncRow, SyncScrollState, DIFF_BLOCK_ACCEPT_LOCAL_PREFIX,
+    DIFF_EDITOR_PANEL_AUTHOR_ID, DIFF_MODE_TOGGLE_AUTHOR_ID,
 };
 pub use diff_engine::{
     diff_json_blocks, DiffBlock, DiffEngine, DiffStatus, MergeBlock, MergeChoice, MergeEngine,
@@ -223,6 +223,7 @@ pub use note_refs_panel::{
     PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
 };
 pub use outline::{OutlineItem, OutlineKind, OutlineProvider};
+pub use panel::CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID;
 pub use panel::{
     scope_to_color, CodeEditorPaneFactory, CodeEditorPanel, FindState, GotoLineState, PerfStats,
     CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX, CODE_EDITOR_COMMAND_AUTHOR_PREFIX,
@@ -237,7 +238,6 @@ pub use panel::{
     TWO_CHORD_TIMEOUT,
 };
 pub use panel::{CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID, EDITOR_WRAP_TOGGLE_NODE_ID};
-pub use panel::CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID;
 pub use rename::{
     apply_preview, apply_text_edits_to_buffer, apply_text_edits_to_string, begin_rename,
     identifier_occurrences, identifier_range_at, is_identifier_kind,
@@ -308,7 +308,10 @@ pub mod interop_adapter {
     use crate::interop::adapters::{
         copy_selection_to_clipboard, register_standard_commands, text_range_selection,
     };
-    use crate::interop::interaction_bus::{EditorSurfaceKind, InteractionBus, SharedSelection};
+    use crate::interop::interaction_bus::{
+        default_keybind_for, ClipboardCommand, EditorSurfaceKind, InteractionBus, SharedSelection,
+        CMD_COPY, CMD_CUT, CMD_PASTE,
+    };
     use crate::pane_registry::PaneId;
     use crate::rich_editor::properties::metadata_client::ClipboardSink;
 
@@ -403,8 +406,169 @@ pub mod interop_adapter {
         }
     }
 
+    /// Consume the live code pane's Ctrl/Cmd+C/X/V shortcuts and route them through the shared bus.
+    /// This is the keyboard counterpart to the host menu/palette dispatch: Copy/Cut write the pane's real
+    /// selection to the bus + egui clipboard sink, and Paste inserts the bus payload into this panel.
+    pub fn drive_clipboard_shortcuts_in_render(
+        ui: &egui::Ui,
+        bus: &std::sync::Arc<std::sync::Mutex<InteractionBus>>,
+        panel: &std::sync::Arc<CodeEditorPanel>,
+        pane_id: PaneId,
+        has_focus: bool,
+    ) -> bool {
+        if !has_focus {
+            return false;
+        }
+
+        let consume = |command_id: &str| {
+            default_keybind_for(command_id)
+                .is_some_and(|shortcut| ui.input_mut(|i| i.consume_shortcut(&shortcut)))
+        };
+        let sink =
+            crate::rich_editor::properties::metadata_client::EguiClipboard::new(ui.ctx().clone());
+
+        if let Some(command) =
+            InteractionBus::with_try_lock(bus, |b| b.take_clipboard_command_for(&pane_id)).flatten()
+        {
+            match command {
+                ClipboardCommand::Copy => {
+                    return InteractionBus::with_try_lock(bus, |b| {
+                        register(b);
+                        copy_to_bus(b, panel, pane_id.clone(), &sink)
+                    })
+                    .unwrap_or(false);
+                }
+                ClipboardCommand::Cut => {
+                    let copied = InteractionBus::with_try_lock(bus, |b| {
+                        register(b);
+                        copy_to_bus(b, panel, pane_id.clone(), &sink)
+                    })
+                    .unwrap_or(false);
+                    if !copied {
+                        return false;
+                    }
+                    let before = panel.buffer();
+                    let deleted = panel.delete_text();
+                    if deleted > 0 {
+                        let after = panel.buffer();
+                        InteractionBus::with_try_lock(bus, |b| {
+                            push_code_edit_undo(
+                                b,
+                                pane_id.clone(),
+                                panel,
+                                before,
+                                after,
+                                "code: cut",
+                            );
+                        });
+                    }
+                    return true;
+                }
+                ClipboardCommand::Paste => {
+                    let before = panel.buffer();
+                    let applied = InteractionBus::with_try_lock(bus, |b| {
+                        register(b);
+                        paste_from_bus(b, panel)
+                    })
+                    .unwrap_or(0);
+                    if applied == 0 {
+                        return false;
+                    }
+                    let after = panel.buffer();
+                    InteractionBus::with_try_lock(bus, |b| {
+                        push_code_edit_undo(
+                            b,
+                            pane_id.clone(),
+                            panel,
+                            before,
+                            after,
+                            "code: paste",
+                        );
+                    });
+                    return true;
+                }
+            }
+        }
+
+        if consume(CMD_COPY) {
+            return InteractionBus::with_try_lock(bus, |b| {
+                register(b);
+                copy_to_bus(b, panel, pane_id.clone(), &sink)
+            })
+            .unwrap_or(false);
+        }
+
+        if consume(CMD_CUT) {
+            let copied = InteractionBus::with_try_lock(bus, |b| {
+                register(b);
+                copy_to_bus(b, panel, pane_id.clone(), &sink)
+            })
+            .unwrap_or(false);
+            if !copied {
+                return false;
+            }
+            let before = panel.buffer();
+            let deleted = panel.delete_text();
+            if deleted > 0 {
+                let after = panel.buffer();
+                InteractionBus::with_try_lock(bus, |b| {
+                    push_code_edit_undo(b, pane_id, panel, before, after, "code: cut");
+                });
+            }
+            return true;
+        }
+
+        if consume(CMD_PASTE) {
+            let before = panel.buffer();
+            let applied = InteractionBus::with_try_lock(bus, |b| {
+                register(b);
+                paste_from_bus(b, panel)
+            })
+            .unwrap_or(0);
+            if applied == 0 {
+                return false;
+            }
+            let after = panel.buffer();
+            InteractionBus::with_try_lock(bus, |b| {
+                push_code_edit_undo(b, pane_id, panel, before, after, "code: paste");
+            });
+            return true;
+        }
+
+        false
+    }
+
     use crate::undo_stack::{UndoAction, UndoResult};
     use std::sync::{Arc, Weak};
+
+    fn code_edit_undo_action(
+        panel: &Arc<CodeEditorPanel>,
+        before: crate::code_editor::TextBuffer,
+        after: crate::code_editor::TextBuffer,
+        description: impl Into<String>,
+    ) -> UndoAction {
+        let weak: Weak<CodeEditorPanel> = Arc::downgrade(panel);
+        let undo_weak = weak.clone();
+        let before_snapshot = before.clone();
+        let after_snapshot = after.clone();
+        let undo_fn: crate::undo_stack::UndoFn = Arc::new(move || match undo_weak.upgrade() {
+            Some(p) => {
+                p.set_buffer_snapshot(before_snapshot.clone());
+                p.reset_text_edit_undo_batch();
+                UndoResult::ok()
+            }
+            None => UndoResult::pane_dropped(),
+        });
+        let redo_fn: crate::undo_stack::UndoFn = Arc::new(move || match weak.upgrade() {
+            Some(p) => {
+                p.set_buffer_snapshot(after_snapshot.clone());
+                p.reset_text_edit_undo_batch();
+                UndoResult::ok()
+            }
+            None => UndoResult::pane_dropped(),
+        });
+        UndoAction::sync(description, undo_fn, redo_fn)
+    }
 
     /// MT-035 (E5 unified undo): record a LOCAL code-edit undo action on the shared scope for `pane_id`
     /// (POLICY-1). `before` is the rope snapshot taken BEFORE the edit (ropey clones are O(1) — impl note
@@ -423,24 +587,29 @@ pub mod interop_adapter {
         after: crate::code_editor::TextBuffer,
         description: impl Into<String>,
     ) {
-        let weak: Weak<CodeEditorPanel> = Arc::downgrade(panel);
-        let undo_weak = weak.clone();
-        let before_text = before.to_string();
-        let after_text = after.to_string();
-        let undo_fn: crate::undo_stack::UndoFn = Arc::new(move || match undo_weak.upgrade() {
-            Some(p) => {
-                p.set_text(&before_text);
-                UndoResult::ok()
-            }
-            None => UndoResult::pane_dropped(),
-        });
-        let redo_fn: crate::undo_stack::UndoFn = Arc::new(move || match weak.upgrade() {
-            Some(p) => {
-                p.set_text(&after_text);
-                UndoResult::ok()
-            }
-            None => UndoResult::pane_dropped(),
-        });
-        bus.push_undo_local(pane_id, UndoAction::sync(description, undo_fn, redo_fn));
+        bus.push_undo_local(
+            pane_id,
+            code_edit_undo_action(panel, before, after, description),
+        );
+    }
+
+    /// MT-035 live typing coalescing: push a fresh code-edit undo action, or replace the focused pane's
+    /// local tail when this edit continues the same 500ms text-edit burst. If no tail exists (for example,
+    /// the first burst edit and a continuation were staged before the first drain), it falls back to a
+    /// fresh push so the undo entry is never dropped.
+    pub fn push_or_coalesce_code_edit_undo(
+        bus: &mut InteractionBus,
+        pane_id: PaneId,
+        panel: &Arc<CodeEditorPanel>,
+        before: crate::code_editor::TextBuffer,
+        after: crate::code_editor::TextBuffer,
+        description: impl Into<String>,
+        replace_tail: bool,
+    ) {
+        let action = code_edit_undo_action(panel, before, after, description);
+        if replace_tail && bus.replace_undo_local_tail(&pane_id, action.clone()) {
+            return;
+        }
+        bus.push_undo_local(pane_id, action);
     }
 }

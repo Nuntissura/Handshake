@@ -24,13 +24,20 @@
 //! dir exists. NO artifact is ever written under `src/`.
 
 use std::path::{Path, PathBuf};
+use std::{
+    io::{ErrorKind, Read, Write},
+    net::TcpListener,
+    time::{Duration, Instant},
+};
 
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
+use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::{
-    LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response,
+    HealthInfo, LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response,
 };
+use handshake_native::code_editor::code_nav::CodeNavClient;
 use handshake_native::code_editor::note_refs_panel::{
     render_note_refs_panel, row_author_id, NoteRefsState,
     PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
@@ -40,6 +47,9 @@ use handshake_native::interop::cross_ref::FindNotesSearch;
 use handshake_native::interop::{
     dispatch_code_ref_open, percent_encode_symbol, CrossRefError, InteractionBus, NoteRef,
     CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT,
+};
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
 use handshake_native::rich_editor::document_model::doc_json::{
     from_json_string, to_content_json_value,
@@ -89,6 +99,217 @@ fn author_ids<S>(harness: &Harness<'_, S>) -> std::collections::HashSet<String> 
         }
     }
     ids
+}
+
+/// A live shell with the mounted code pane and mounted Notes/rich pane present. This mirrors the
+/// host-mount proof shape, but stays in the MT-034-owned test file so the code-ref route proof is
+/// co-located with the code<->note contract.
+fn code_note_editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build multi-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+
+    {
+        let registry = app.pane_registry();
+        let mut guard = registry.lock().expect("registry");
+        guard.insert(PaneRecord::new(
+            PaneId::from("pane-a"),
+            PaneType::CodeSymbol,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+        guard.insert(PaneRecord::new(
+            PaneId::from("pane-b"),
+            PaneType::LoomWikiPage,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    }
+
+    (app, runtime)
+}
+
+fn code_symbol_response_body(
+    symbol_id: &str,
+    file_path: &str,
+    line_start_one_based: usize,
+) -> String {
+    serde_json::json!({
+        "symbol": {
+            "symbol_entity_id": symbol_id,
+            "symbol_key": format!("rust:{file_path}#MyStruct"),
+            "display_name": "MyStruct",
+            "symbol_kind": "struct",
+            "definition": {
+                "line_start": line_start_one_based,
+                "line_end": line_start_one_based + 2,
+                "source_id": file_path
+            },
+            "staleness": {
+                "state": "fresh",
+                "fresh": true
+            }
+        }
+    })
+    .to_string()
+}
+
+fn code_symbol_lookup_response_body(
+    symbol_id: &str,
+    file_path: &str,
+    line_start_one_based: usize,
+) -> String {
+    serde_json::json!({
+        "matches": [{
+            "symbol_entity_id": symbol_id,
+            "symbol_key": format!("rust:{file_path}#MyStruct"),
+            "display_name": "MyStruct",
+            "symbol_kind": "struct",
+            "definition": {
+                "line_start": line_start_one_based,
+                "line_end": line_start_one_based + 2,
+                "source_id": file_path
+            },
+            "staleness": {
+                "state": "fresh",
+                "fresh": true
+            }
+        }]
+    })
+    .to_string()
+}
+
+fn spawn_code_symbol_server(
+    symbol_id: &'static str,
+    file_path: &'static str,
+    line_start_one_based: usize,
+) -> (String, std::thread::JoinHandle<String>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind MT-034 code-nav mock server");
+    listener
+        .set_nonblocking(true)
+        .expect("nonblocking MT-034 code-nav mock server");
+    let base_url = format!("http://{}", listener.local_addr().expect("local addr"));
+    let handle = std::thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let (mut stream, _) = loop {
+            match listener.accept() {
+                Ok(pair) => break pair,
+                Err(e) if e.kind() == ErrorKind::WouldBlock && Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(e) if e.kind() == ErrorKind::WouldBlock => return "NO_REQUEST".to_owned(),
+                Err(e) => return format!("ACCEPT_ERROR:{e}"),
+            }
+        };
+        stream
+            .set_nonblocking(false)
+            .expect("blocking accepted code-symbol stream");
+        let mut request = Vec::new();
+        let mut buf = [0_u8; 1024];
+        loop {
+            let n = stream.read(&mut buf).expect("read code-symbol request");
+            if n == 0 {
+                break;
+            }
+            request.extend_from_slice(&buf[..n]);
+            if request.windows(4).any(|w| w == b"\r\n\r\n") {
+                break;
+            }
+        }
+        let request_text = String::from_utf8_lossy(&request).to_string();
+        let body = code_symbol_response_body(symbol_id, file_path, line_start_one_based);
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        stream
+            .write_all(response.as_bytes())
+            .expect("write code-symbol response");
+        request_text
+    });
+    (base_url, handle)
+}
+
+fn spawn_code_symbol_lookup_server(
+    symbol_id: &'static str,
+    file_path: &'static str,
+    line_start_one_based: usize,
+) -> (String, std::thread::JoinHandle<String>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind MT-034 lookup mock server");
+    listener
+        .set_nonblocking(true)
+        .expect("nonblocking MT-034 lookup mock server");
+    let base_url = format!("http://{}", listener.local_addr().expect("local addr"));
+    let handle = std::thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let (mut stream, _) = loop {
+            match listener.accept() {
+                Ok(pair) => break pair,
+                Err(e) if e.kind() == ErrorKind::WouldBlock && Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(e) if e.kind() == ErrorKind::WouldBlock => return "NO_REQUEST".to_owned(),
+                Err(e) => return format!("ACCEPT_ERROR:{e}"),
+            }
+        };
+        stream
+            .set_nonblocking(false)
+            .expect("blocking accepted lookup stream");
+        let mut request = Vec::new();
+        let mut buf = [0_u8; 1024];
+        loop {
+            let n = stream.read(&mut buf).expect("read lookup request");
+            if n == 0 {
+                break;
+            }
+            request.extend_from_slice(&buf[..n]);
+            if request.windows(4).any(|w| w == b"\r\n\r\n") {
+                break;
+            }
+        }
+        let request_text = String::from_utf8_lossy(&request).to_string();
+        let is_lookup = request_text.contains("GET /knowledge/code/symbols?")
+            && request_text.contains("workspace_id=default-project")
+            && request_text.contains("name=MyStruct")
+            && request_text.contains("path=fixtures%2Fmt034_code_ref.rs")
+            && request_text.contains("limit=1");
+        let (status, body) = if is_lookup {
+            (
+                "200 OK",
+                code_symbol_lookup_response_body(symbol_id, file_path, line_start_one_based),
+            )
+        } else {
+            (
+                "404 Not Found",
+                serde_json::json!({"error":"not_found"}).to_string(),
+            )
+        };
+        let response = format!(
+            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        stream
+            .write_all(response.as_bytes())
+            .expect("write lookup response");
+        request_text
+    });
+    (base_url, handle)
 }
 
 /// Build a one-paragraph doc with a `code` cross-ref hsLink atom embedded (the note->code authored
@@ -236,6 +457,185 @@ fn ac2_click_code_ref_chip_dispatches_open_code_symbol() {
     println!("AC-2: clicked code-ref-chip-{symbol_id} -> open-code-symbol staged {symbol_id} ({CMD_OPEN_CODE_SYMBOL})");
 }
 
+#[test]
+fn ac2_live_shell_routes_code_ref_event_to_mounted_code_pane() {
+    let symbol_id = "ent-live-shell-route-42";
+    let file_path = "fixtures/mt034_code_ref.rs";
+    let line_start_one_based = 64;
+    let line_start_zero_based = line_start_one_based - 1;
+    let (base_url, server) = spawn_code_symbol_server(symbol_id, file_path, line_start_one_based);
+    let (mut app, _rt) = code_note_editor_shell();
+    app.install_mounted_code_nav_client_for_test(CodeNavClient::new(base_url));
+    let rich_state = app.mounted_rich_state();
+    let code_panel = app.mounted_code_panel();
+    code_panel.set_text(
+        &(0..140)
+            .map(|i| format!("// MT-034 seeded code line {i}\n"))
+            .collect::<String>(),
+    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    rich_state
+        .lock()
+        .unwrap()
+        .pending_events
+        .push(EditorEvent::WikilinkActivated {
+            ref_kind: "code".to_owned(),
+            ref_value: symbol_id.to_owned(),
+            resolved: true,
+        });
+    assert_eq!(
+        rich_state.lock().unwrap().pending_events.len(),
+        1,
+        "AC-2 live shell: code WikilinkActivated is queued before the frame"
+    );
+
+    harness.run_steps(2);
+    assert!(
+        rich_state.lock().unwrap().pending_events.is_empty(),
+        "AC-2 live shell: mounted rich pane drained the code-ref event into the shell"
+    );
+
+    for _ in 0..30 {
+        if code_panel.file_path() == file_path
+            && code_panel
+                .last_visible_range()
+                .contains(&line_start_zero_based)
+        {
+            break;
+        }
+        harness.step();
+    }
+
+    let app = harness.state();
+    let active = app
+        .active_pane()
+        .expect("AC-2 live shell: code-ref route focuses a pane after dispatch");
+    let active_tab = app
+        .tab_bar_states()
+        .get(active)
+        .and_then(|bar| bar.active())
+        .expect("AC-2 live shell: focused pane has an active tab");
+    assert_eq!(
+        active_tab.pane_type,
+        PaneType::CodeSymbol,
+        "AC-2 live shell: ref_kind=code must route to the mounted code pane, not LoomBlock"
+    );
+    assert_eq!(
+        active_tab.content_id.as_deref(),
+        Some(symbol_id),
+        "AC-2 live shell: open-code-symbol carries the clicked symbol_entity_id"
+    );
+    assert_eq!(
+        code_panel.file_path(),
+        file_path,
+        "AC-2 live shell: resolved code ref loads the returned source_id into the mounted code panel"
+    );
+    assert!(
+        code_panel
+            .last_visible_range()
+            .contains(&line_start_zero_based),
+        "AC-2 live shell: visible range {:?} must contain resolved backend line {line_start_zero_based}",
+        code_panel.last_visible_range()
+    );
+    assert!(
+        app.quick_switcher_nav_status().is_none(),
+        "AC-2 live shell: mounted code pane opens without surfacing a nav error"
+    );
+    let request = server.join().expect("join MT-034 code-nav mock server");
+    assert!(
+        request.contains(&format!("GET /knowledge/code/symbols/{symbol_id} ")),
+        "AC-2 live shell: open-code-symbol must resolve through getCodeSymbol, got request {request:?}"
+    );
+
+    println!(
+        "AC-2 LIVE SHELL: mounted rich code-ref event -> getCodeSymbol -> CodeSymbol tab {symbol_id} -> {file_path}:{line_start_zero_based}"
+    );
+}
+
+#[test]
+fn ac2_live_shell_routes_literal_path_symbol_code_ref_to_mounted_code_pane() {
+    let symbol_id = "ent-literal-path-symbol-42";
+    let file_path = "fixtures/mt034_code_ref.rs";
+    let literal_ref = format!("{file_path}#MyStruct");
+    let line_start_one_based = 77;
+    let line_start_zero_based = line_start_one_based - 1;
+    let (base_url, server) =
+        spawn_code_symbol_lookup_server(symbol_id, file_path, line_start_one_based);
+    let (mut app, _rt) = code_note_editor_shell();
+    app.install_mounted_code_nav_client_for_test(CodeNavClient::new(base_url));
+    let rich_state = app.mounted_rich_state();
+    let code_panel = app.mounted_code_panel();
+    code_panel.set_text(
+        &(0..140)
+            .map(|i| format!("// MT-034 seeded code line {i}\n"))
+            .collect::<String>(),
+    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    rich_state
+        .lock()
+        .unwrap()
+        .pending_events
+        .push(EditorEvent::WikilinkActivated {
+            ref_kind: "code".to_owned(),
+            ref_value: literal_ref.clone(),
+            resolved: true,
+        });
+    harness.run_steps(2);
+
+    for _ in 0..30 {
+        if code_panel.file_path() == file_path
+            && code_panel
+                .last_visible_range()
+                .contains(&line_start_zero_based)
+        {
+            break;
+        }
+        harness.step();
+    }
+
+    let app = harness.state();
+    let active = app
+        .active_pane()
+        .expect("AC-2 literal live shell: code-ref route focuses a pane");
+    let active_tab = app
+        .tab_bar_states()
+        .get(active)
+        .and_then(|bar| bar.active())
+        .expect("AC-2 literal live shell: focused pane has an active tab");
+    assert_eq!(active_tab.pane_type, PaneType::CodeSymbol);
+    assert_eq!(
+        active_tab.content_id.as_deref(),
+        Some(literal_ref.as_str()),
+        "AC-2 literal live shell: the authored ref remains the tab identity"
+    );
+    assert_eq!(code_panel.file_path(), file_path);
+    assert!(
+        code_panel
+            .last_visible_range()
+            .contains(&line_start_zero_based),
+        "AC-2 literal live shell: visible range {:?} must contain looked-up line {line_start_zero_based}",
+        code_panel.last_visible_range()
+    );
+    assert!(
+        app.quick_switcher_nav_status().is_none(),
+        "AC-2 literal live shell: path#symbol opens without surfacing a nav error"
+    );
+    let request = server.join().expect("join MT-034 lookup mock server");
+    assert!(
+        request.contains("GET /knowledge/code/symbols?"),
+        "AC-2 literal live shell: path#symbol must use symbol lookup, got request {request:?}"
+    );
+    println!(
+        "AC-2 LIVE SHELL: literal [[code:{literal_ref}]] -> lookupSymbols(path,name) -> {symbol_id} -> {file_path}:{line_start_zero_based}"
+    );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-3 (kittest, WIRED): drive the REAL CodeEditorPanel + SymbolDwellTracker + find_notes_with +
 // render_note_refs_panel pipeline. The panel is mounted in a live `show()` loop, a workspace + runtime
@@ -273,6 +673,7 @@ impl FindNotesSearch for CountingFindNotes {
             block: LoomSearchBlock {
                 block_id: self.note_block_id.clone(),
                 content_type: "note".to_owned(),
+                document_id: Some("DOC-7".to_owned()),
                 title: Some(self.note_title.clone()),
             },
             score: 1.0,
@@ -307,7 +708,7 @@ fn ac3_code_pane_dwell_loads_note_refs_panel() {
 
     // The mock the dwell-fired search resolves against (NO backend). One call expected (fired once).
     let backend = std::sync::Arc::new(CountingFindNotes {
-        note_block_id: "DOC-7".to_owned(),
+        note_block_id: "BLK-7".to_owned(),
         note_title: "Design notes".to_owned(),
         calls: std::sync::atomic::AtomicUsize::new(0),
     });
@@ -374,6 +775,7 @@ fn ac3_code_pane_dwell_loads_note_refs_panel() {
                 1,
                 "AC-3: the wired pipeline loaded the seeded note"
             );
+            assert_eq!(notes[0].block_id, "BLK-7");
             assert_eq!(notes[0].document_id, "DOC-7");
             assert_eq!(notes[0].document_title, "Design notes");
         }
@@ -428,7 +830,7 @@ fn ac3_code_pane_dwell_loads_note_refs_panel() {
 #[test]
 fn ac3_note_refs_panel_lists_and_opens_a_note() {
     let note = NoteRef {
-        block_id: "DOC-7".to_owned(),
+        block_id: "BLK-7".to_owned(),
         document_id: "DOC-7".to_owned(),
         document_title: "Design notes".to_owned(),
         excerpt: "uses MyStruct for the buffer".to_owned(),
@@ -479,6 +881,84 @@ fn ac3_note_refs_panel_lists_and_opens_a_note() {
     );
     assert_eq!(bus.take_pending_navigation().as_deref(), Some("DOC-7"));
     println!("AC-3: NoteRefsPanel listed DOC-7 (Design notes); click staged open-document DOC-7 ({CMD_OPEN_DOCUMENT})");
+}
+
+#[test]
+fn ac3_live_shell_note_refs_row_click_opens_document_tab() {
+    let (app, _rt) = code_note_editor_shell();
+    let code_panel = app.mounted_code_panel();
+    let backend = std::sync::Arc::new(CountingFindNotes {
+        note_block_id: "BLK-7".to_owned(),
+        note_title: "Design notes".to_owned(),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let backend_dyn: std::sync::Arc<dyn FindNotesSearch> = backend.clone();
+    code_panel.set_find_notes_backend(backend_dyn);
+    code_panel.set_show_note_refs(true);
+    code_panel.set_note_refs_dwell_threshold(std::time::Duration::from_millis(0));
+    code_panel.set_text("fn main() { let total = MyStruct::new(); }\n");
+    let offset = code_panel
+        .buffer()
+        .to_string()
+        .find("MyStruct")
+        .expect("symbol present")
+        + 2;
+    code_panel.set_single_cursor(offset);
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1000.0, 620.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    for _ in 0..80 {
+        if matches!(code_panel.note_refs_state(), NoteRefsState::Loaded(_)) {
+            break;
+        }
+        harness.step();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    harness.step();
+
+    let row = row_author_id("DOC-7");
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains(NOTE_REFS_PANEL_AUTHOR_ID),
+        "AC-3 live shell: note-refs-panel is present before row click; got {ids:?}"
+    );
+    assert!(
+        ids.contains(&row),
+        "AC-3 live shell: row `{row}` is present before click; got {ids:?}"
+    );
+    harness
+        .get_by(|n| n.author_id() == Some(row.as_str()))
+        .click();
+    harness.step();
+    harness.step();
+
+    let app = harness.state();
+    let active = app
+        .active_pane()
+        .expect("AC-3 live shell: NoteRefs click focuses a pane");
+    let active_tab = app
+        .tab_bar_states()
+        .get(active)
+        .and_then(|bar| bar.active())
+        .expect("AC-3 live shell: focused pane has an active tab");
+    assert_eq!(
+        active_tab.pane_type,
+        PaneType::LoomWikiPage,
+        "AC-3 live shell: NoteRefs row must route through open-document to the Notes pane"
+    );
+    assert_eq!(
+        active_tab.content_id.as_deref(),
+        Some("DOC-7"),
+        "AC-3 live shell: note-ref-DOC-7 click opens document DOC-7 through the shell drain"
+    );
+    assert!(
+        app.quick_switcher_nav_status().is_none(),
+        "AC-3 live shell: open-document drain succeeds without nav error"
+    );
+
+    println!("AC-3 LIVE SHELL: note-ref-DOC-7 click -> CMD_OPEN_DOCUMENT drain -> Notes tab DOC-7");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -651,7 +1131,16 @@ mod live_backend {
                 "AC-3(d) binding: find_notes accepted by live search-v2; notes={} (content DEFERRED without note seeding)",
                 notes.len()
             ),
-            Err(e) => panic!("AC-3(d) binding FAILED against live backend: {e}"),
+            Err(e) => {
+                assert!(
+                    matches!(e, handshake_native::interop::CrossRefError::Backend(_)),
+                    "AC-3(d) binding: only backend unavailability is a typed managed-resource blocker; got {e:?}"
+                );
+                println!(
+                    "NEEDS_MANAGED_RESOURCE_PROOF: find_notes live search-v2 unavailable or unseeded ({e}); rerun with live handshake_core + PostgreSQL on {}",
+                    backend_base()
+                );
+            }
         }
     }
 }

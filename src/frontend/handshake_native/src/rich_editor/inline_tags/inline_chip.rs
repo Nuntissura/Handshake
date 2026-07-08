@@ -203,8 +203,9 @@ where
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// One row in the inline-tag autocomplete menu: a tag the operator can select. Sourced from the MT-023
-/// tag-hub list (`GET /loom/tags`, the VERIFIED route — the contract's `?content_type=tag_hub` filter
-/// does NOT exist; see [`crate::backend_client::LoomTagClient`]), PLUS a synthetic "create new tag" row
+/// tag-hub list (`GET /loom/tags`, the VERIFIED route — generic `views/all?content_type=tag_hub`
+/// and `views/all?tag_ids={id}` filters exist, but the dedicated tag API is the MT-023 authority),
+/// PLUS a synthetic "create new tag" row
 /// for a free-typed tag not yet in the list (AC-006 — authoring a tag in the body is a valid create
 /// path).
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -285,6 +285,11 @@ mod tests {
             self.calls.push(("open_loom_block", block_id.to_owned()));
             self.outcome_for(block_id, "Loom Block")
         }
+        fn open_block_collection_view(&mut self, view_block_id: &str) -> NavDispatchOutcome {
+            self.calls
+                .push(("open_block_collection_view", view_block_id.to_owned()));
+            self.outcome_for(view_block_id, "Block Collections")
+        }
         fn open_code_symbol(&mut self, symbol_entity_id: &str) -> NavDispatchOutcome {
             self.calls
                 .push(("open_code_symbol", symbol_entity_id.to_owned()));

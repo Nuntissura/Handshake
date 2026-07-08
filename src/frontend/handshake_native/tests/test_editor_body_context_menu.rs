@@ -127,7 +127,9 @@ fn live_editor_body_right_click_shows_five_typed_entries_plus_copy_ref() {
     // The MT-046 entry rides the same menu.
     let copy_want = format!("ctx-menu.{CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID}");
     assert!(
-        nodes.iter().any(|(a, r)| a == &copy_want && r == "MenuItem"),
+        nodes
+            .iter()
+            .any(|(a, r)| a == &copy_want && r == "MenuItem"),
         "the MT-046 'Copy as note reference' entry is a live MenuItem: {nodes:?}"
     );
     println!(
@@ -145,10 +147,7 @@ fn live_editor_body_menu_rename_opens_the_inline_rename_input() {
     panel.set_single_cursor(caret);
     let mut harness = harness_for(Arc::clone(&panel));
 
-    assert!(
-        !panel.is_rename_input_open(),
-        "rename input starts closed"
-    );
+    assert!(!panel.is_rename_input_open(), "rename input starts closed");
     open_editor_body_menu(&mut harness);
     click_menu_item(&mut harness, "ctx-menu.code_editor_ctx_rename_symbol");
 
@@ -157,7 +156,9 @@ fn live_editor_body_menu_rename_opens_the_inline_rename_input() {
         "activating the typed menu's 'Rename Symbol' entry fired the REAL begin_rename path \
          (the inline rename input opened — a live handler side effect)"
     );
-    println!("PASS MT-070 wave-2: menu 'Rename Symbol' fired the real F2 handler on the live panel");
+    println!(
+        "PASS MT-070 wave-2: menu 'Rename Symbol' fired the real F2 handler on the live panel"
+    );
 }
 
 // ── Activating 'Copy as note reference' stages the REAL MT-046 ref ────────────────────────────────

@@ -80,6 +80,16 @@ pub const INDENT_PER_LEVEL: f32 = 16.0;
 /// Color swatch size (the contract's "12x12 filled rectangle").
 pub const SWATCH_SIZE: f32 = 12.0;
 
+/// Deterministic color-picker swatches used by the right-click "Change color" flow and the swatch
+/// shortcut. The built-in egui color editor still appears below these buttons for arbitrary colors, but
+/// fixed swatches give kittest and model drivers stable labels to exercise the real pick path.
+const COLOR_PICKER_SWATCHES: [(&str, &str); 4] = [
+    ("Red", "#ff0000"),
+    ("Green", "#22c55e"),
+    ("Blue", "#3b82f6"),
+    ("Amber", "#f59e0b"),
+];
+
 /// Hard cap on tree depth (RISK-1 / MC-1). Beyond this a `…(deep)` truncation row is shown rather than
 /// recursing further, so a cyclic / pathologically-deep `parent_folder_id` chain can never blow the
 /// stack or hang the layout. The contract names 20 for the build-time cycle guard; the *render* depth
@@ -523,13 +533,35 @@ fn render_folder(
         node.expanded,
     );
 
-    // ── Swatch click => open the color picker popup (egui color_edit_button_srgba in a popup) ────────
-    // The picker is an in-process egui popup anchored to the swatch button (HBR-QUIET — no OS window, no
-    // focus theft). It opens/closes on the swatch click via `Popup::from_toggle_button_response`. On a
-    // changed value we emit ChangeColor (the persist-on-change signal, the contract's "On color pick …
-    // persist"); the picker is opaque-only (folder swatches have no alpha).
-    if let Some(picked) = color_picker_popup(&sw_resp, node.color.unwrap_or(palette.border_strong))
-    {
+    let current_color = node.color.unwrap_or(palette.border_strong);
+    let row_picker_id = label_resp.id.with("folder-color-picker");
+
+    // ── Row right-click => context-menu "Change color" => color picker (AC4) ────────────────────────
+    // This is the contract-required row secondary-click path. It opens an in-process egui picker; the
+    // picker returns a real picked color, which emits the same ChangeColor event the host persists via
+    // `PATCH /loom/folders/{id}`. The swatch popup below is retained as a shortcut, not the only path.
+    let mut open_row_picker = false;
+    egui::Popup::context_menu(&label_resp).show(|ui| {
+        if ui.button("Change color").clicked() {
+            open_row_picker = true;
+        }
+    });
+    if open_row_picker {
+        egui::Popup::open_id(ui.ctx(), row_picker_id);
+        ui.ctx().request_repaint();
+    }
+    if let Some(picked) = color_picker_popup_for_id(row_picker_id, &label_resp, current_color) {
+        node.color = Some(picked);
+        event = Some(FolderTreeEvent::ChangeColor {
+            folder_id: node.folder_id.clone(),
+            color: picked,
+        });
+    }
+
+    // ── Swatch click => open the same color picker popup (shortcut) ─────────────────────────────────
+    // The shortcut is anchored to the swatch button. It is not a replacement for the right-click row
+    // flow above; both paths emit the same event and therefore exercise the same host persistence route.
+    if let Some(picked) = color_picker_popup(&sw_resp, current_color) {
         node.color = Some(picked);
         event = Some(FolderTreeEvent::ChangeColor {
             folder_id: node.folder_id.clone(),
@@ -620,28 +652,63 @@ fn render_leaf(
 }
 
 /// A small color-picker popup anchored to the swatch button. Returns `Some(color)` ONLY when the popup
-/// is open and the operator changed the color this frame (the persist-on-change signal). Uses egui's own
-/// [`egui::color_picker::color_edit_button_srgba`] inside an [`egui::Popup`] (the modern, non-deprecated
-/// popup API) so it never steals OS focus (HBR-QUIET — it is an in-process egui popup, no foreground
+/// is open and the operator changed the color this frame (the persist-on-change signal). Uses stable
+/// swatch buttons plus egui's own [`egui::color_picker::color_edit_button_srgba`] inside an
+/// [`egui::Popup`] so it never steals OS focus (HBR-QUIET — it is an in-process egui popup, no foreground
 /// window). The popup toggles open on the swatch click via `Popup::from_toggle_button_response`.
 fn color_picker_popup(anchor: &egui::Response, current: Color32) -> Option<Color32> {
     let mut picked = None;
     egui::Popup::from_toggle_button_response(anchor)
         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
         .show(|ui| {
-            let mut srgba = current;
-            // The egui color button: opens an in-popup color wheel. A changed value is the persist
-            // signal (the contract's "On color pick … persist").
-            let resp = egui::color_picker::color_edit_button_srgba(
-                ui,
-                &mut srgba,
-                egui::color_picker::Alpha::Opaque,
-            );
-            if resp.changed() && srgba != current {
-                picked = Some(srgba);
-            }
-            ui.label("Pick a folder color");
+            picked = color_picker_contents(ui, current);
         });
+    picked
+}
+
+/// The context-menu driven color picker opened by the "Change color" row action. It uses a stable popup
+/// id so the menu action can open it and model/kittest drivers can then pick a deterministic swatch.
+fn color_picker_popup_for_id(
+    popup_id: egui::Id,
+    anchor: &egui::Response,
+    current: Color32,
+) -> Option<Color32> {
+    let mut picked = None;
+    egui::Popup::menu(anchor)
+        .id(popup_id)
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .show(|ui| {
+            picked = color_picker_contents(ui, current);
+            if picked.is_some() {
+                egui::Popup::close_id(ui.ctx(), popup_id);
+            }
+        });
+    picked
+}
+
+/// Shared color-picking contents for the row context-menu path and the swatch shortcut.
+fn color_picker_contents(ui: &mut egui::Ui, current: Color32) -> Option<Color32> {
+    let mut picked = None;
+    ui.label("Pick a folder color");
+    ui.horizontal_wrapped(|ui| {
+        for (label, hex) in COLOR_PICKER_SWATCHES {
+            let color = parse_hex_color(hex).unwrap_or(current);
+            let button = egui::Button::new(format!("{label} {hex}")).fill(color);
+            if ui.add(button).clicked() {
+                picked = Some(color);
+            }
+        }
+    });
+    ui.separator();
+    let mut srgba = current;
+    let resp = egui::color_picker::color_edit_button_srgba(
+        ui,
+        &mut srgba,
+        egui::color_picker::Alpha::Opaque,
+    );
+    if resp.changed() && srgba != current {
+        picked = Some(srgba);
+    }
     picked
 }
 

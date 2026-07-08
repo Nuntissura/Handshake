@@ -58,6 +58,9 @@ pub const START_WRITING_ID: &str = "journal-start-writing";
 pub const RETRY_ID: &str = "journal-retry";
 /// The author_id for the block-id badge.
 pub const BLOCK_BADGE_ID: &str = "journal-block-badge";
+/// The author_id for the visible backend-gap banner shown when a blank journal gets a created rich doc
+/// but the Loom block cannot be durably linked because the backend patch shape lacks `document_id`.
+pub const LINK_GAP_ID: &str = "journal-document-link-gap";
 
 /// The frame-idle threshold before an auto-save fires (≈3 s at 60 fps — the contract impl-note).
 pub const AUTO_SAVE_IDLE_FRAMES: u64 = 180;
@@ -499,7 +502,7 @@ impl JournalPanelWidget {
             Loading,
             Error(String, String), // (kind_str, message)
             ReadyNoDoc { creating: bool },
-            ReadyDoc,
+            ReadyDoc { link_missing: bool },
         }
         let view = match &state.store.state {
             JournalState::Idle => View::Idle,
@@ -510,7 +513,9 @@ impl JournalPanelWidget {
             JournalState::Ready(r) if r.needs_document() => View::ReadyNoDoc {
                 creating: r.is_creating,
             },
-            JournalState::Ready(_) => View::ReadyDoc,
+            JournalState::Ready(r) => View::ReadyDoc {
+                link_missing: r.document_link_missing(),
+            },
         };
 
         match view {
@@ -561,7 +566,21 @@ impl JournalPanelWidget {
                     }
                 }
             }
-            View::ReadyDoc => {
+            View::ReadyDoc { link_missing } => {
+                if link_missing {
+                    egui::Frame::group(ui.style())
+                        .fill(palette.surface)
+                        .show(ui, |ui| {
+                            let warning = ui.colored_label(
+                                ui.visuals().warn_fg_color,
+                                "Journal link not persisted: backend cannot attach this document to \
+                                 the daily-journal block yet.",
+                            );
+                            ui.ctx().accesskit_node_builder(warning.id, |node| {
+                                node.set_author_id(LINK_GAP_ID.to_owned());
+                            });
+                        });
+                }
                 // The MT-012 editor renders the journal document. Edit tracking for the auto-save timer
                 // is handled BEFORE this render in `detect_edits_and_tick` (called once per frame from
                 // `show`): it diffs the editor's live content_json fingerprint frame-to-frame, so any

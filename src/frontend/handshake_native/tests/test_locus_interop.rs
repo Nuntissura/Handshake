@@ -193,6 +193,7 @@ fn hit(
         block: LoomSearchBlock {
             block_id: block_id.to_owned(),
             content_type: content_type.to_owned(),
+            document_id: None,
             title: title.map(str::to_owned),
         },
         score: 1.0,

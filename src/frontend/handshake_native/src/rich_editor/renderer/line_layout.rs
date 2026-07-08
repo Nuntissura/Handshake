@@ -52,6 +52,11 @@ const CODE_FAMILY: FontFamily = FontFamily::Monospace;
 /// scale factors multiply this. Matches the shell's default body text size.
 pub const BASE_FONT_SIZE: f32 = 15.0;
 
+/// Clamp a live rich-editor font size to the same operator-facing range the code editor uses.
+pub fn resolved_base_font_size(size: f32) -> f32 {
+    size.clamp(6.0, 48.0)
+}
+
 /// Heading scale factors for levels 1..=3 (contract step 2: h1=1.8, h2=1.5, h3=1.25).
 /// Indexed by `level - 1`. A level outside 1..=3 is already clamped by
 /// [`crate::rich_editor::document_model::node::HeadingLevel`], so this never indexes
@@ -99,25 +104,40 @@ pub struct BlockTextStyle {
 impl BlockTextStyle {
     /// Body paragraph style (base size, proportional).
     pub fn body() -> Self {
+        Self::body_with_base(BASE_FONT_SIZE)
+    }
+
+    /// Body paragraph style for a live editor base size.
+    pub fn body_with_base(base_font_size: f32) -> Self {
         Self {
-            size: BASE_FONT_SIZE,
+            size: resolved_base_font_size(base_font_size),
             force_monospace: false,
         }
     }
 
     /// Heading style: base size scaled by the level factor.
     pub fn heading(level: u8) -> Self {
+        Self::heading_with_base(level, BASE_FONT_SIZE)
+    }
+
+    /// Heading style for a live editor base size.
+    pub fn heading_with_base(level: u8, base_font_size: f32) -> Self {
         let idx = (level.clamp(1, 3) - 1) as usize;
         Self {
-            size: BASE_FONT_SIZE * HEADING_SCALE[idx],
+            size: resolved_base_font_size(base_font_size) * HEADING_SCALE[idx],
             force_monospace: false,
         }
     }
 
     /// Code-block style: base size, monospace forced.
     pub fn code_block() -> Self {
+        Self::code_block_with_base(BASE_FONT_SIZE)
+    }
+
+    /// Code-block style for a live editor base size.
+    pub fn code_block_with_base(base_font_size: f32) -> Self {
         Self {
-            size: BASE_FONT_SIZE,
+            size: resolved_base_font_size(base_font_size),
             force_monospace: true,
         }
     }
@@ -252,7 +272,24 @@ pub fn layout_block(
     wrap_width: f32,
     bold_available: bool,
 ) -> BlockLayout {
-    layout_block_atoms(block, palette, wrap_width, bold_available, AtomPaint::Visible)
+    layout_block_with_base(block, palette, wrap_width, bold_available, BASE_FONT_SIZE)
+}
+
+pub fn layout_block_with_base(
+    block: &BlockNode,
+    palette: &HsPalette,
+    wrap_width: f32,
+    bold_available: bool,
+    base_font_size: f32,
+) -> BlockLayout {
+    layout_block_atoms_with_base(
+        block,
+        palette,
+        wrap_width,
+        bold_available,
+        AtomPaint::Visible,
+        base_font_size,
+    )
 }
 
 /// [`layout_block`] with an explicit [`AtomPaint`] mode (MT-068): the top-level
@@ -267,7 +304,25 @@ pub fn layout_block_atoms(
     bold_available: bool,
     atom_paint: AtomPaint,
 ) -> BlockLayout {
-    let style = block_style(block);
+    layout_block_atoms_with_base(
+        block,
+        palette,
+        wrap_width,
+        bold_available,
+        atom_paint,
+        BASE_FONT_SIZE,
+    )
+}
+
+pub fn layout_block_atoms_with_base(
+    block: &BlockNode,
+    palette: &HsPalette,
+    wrap_width: f32,
+    bold_available: bool,
+    atom_paint: AtomPaint,
+    base_font_size: f32,
+) -> BlockLayout {
+    let style = block_style_with_base(block, base_font_size);
     let mut job = LayoutJob::default();
     job.wrap.max_width = wrap_width;
     let mut plain = String::new();
@@ -364,11 +419,16 @@ pub fn bold_family_available(ctx: &egui::Context) -> bool {
 /// blocks use the body style; a heading uses its level scale; a code block forces
 /// monospace.
 pub fn block_style(block: &BlockNode) -> BlockTextStyle {
+    block_style_with_base(block, BASE_FONT_SIZE)
+}
+
+/// Resolve the per-block [`BlockTextStyle`] from a live editor base font size.
+pub fn block_style_with_base(block: &BlockNode, base_font_size: f32) -> BlockTextStyle {
     use crate::rich_editor::document_model::node::NodeKind;
     match block.kind {
-        NodeKind::Heading(level) => BlockTextStyle::heading(level.get()),
-        NodeKind::CodeBlock => BlockTextStyle::code_block(),
-        _ => BlockTextStyle::body(),
+        NodeKind::Heading(level) => BlockTextStyle::heading_with_base(level.get(), base_font_size),
+        NodeKind::CodeBlock => BlockTextStyle::code_block_with_base(base_font_size),
+        _ => BlockTextStyle::body_with_base(base_font_size),
     }
 }
 
@@ -483,10 +543,22 @@ pub fn layout_block_bidi(
     wrap_width: f32,
     bold_available: bool,
 ) -> BidiBlockLayout {
+    layout_block_bidi_with_base(block, palette, wrap_width, bold_available, BASE_FONT_SIZE)
+}
+
+pub fn layout_block_bidi_with_base(
+    block: &BlockNode,
+    palette: &HsPalette,
+    wrap_width: f32,
+    bold_available: bool,
+    base_font_size: f32,
+) -> BidiBlockLayout {
     // Reuse the existing plain-text concatenation by building the standard layout first (it gives us the
     // logical plain text in the exact order the model holds it).
-    let logical = layout_block(block, palette, wrap_width, bold_available).plain_text;
-    let style = block_style(block);
+    let logical =
+        layout_block_with_base(block, palette, wrap_width, bold_available, base_font_size)
+            .plain_text;
+    let style = block_style_with_base(block, base_font_size);
 
     let reordered = crate::text_intl::reorder_line(&logical);
     let shaping_limitation = crate::text_intl::shaping_limitation(&logical);
@@ -666,6 +738,36 @@ mod tests {
             vec![Child::Text(TextLeaf::new("x"))],
         );
         assert_eq!(block_style(&h).size, BASE_FONT_SIZE * HEADING_SCALE[2]);
+    }
+
+    #[test]
+    fn block_style_respects_live_base_font_size() {
+        let para = BlockNode::paragraph("body");
+        let h1 = BlockNode::heading(1, "Title");
+        let code = BlockNode::with_children(
+            NodeKind::CodeBlock,
+            vec![Child::Text(TextLeaf::new("let x = 1;"))],
+        );
+
+        assert_eq!(block_style_with_base(&para, 22.0).size, 22.0);
+        assert_eq!(
+            block_style_with_base(&h1, 22.0).size,
+            22.0 * HEADING_SCALE[0]
+        );
+        assert_eq!(block_style_with_base(&code, 22.0).size, 22.0);
+        assert_eq!(
+            block_style_with_base(&para, 1.0).size,
+            resolved_base_font_size(1.0)
+        );
+        assert_eq!(
+            layout_block_with_base(&para, &dark(), 400.0, true, 22.0)
+                .job
+                .sections[0]
+                .format
+                .font_id
+                .size,
+            22.0
+        );
     }
 
     // ── MT-077 AC1/AC2: CJK line-breaking via egui's native Galley wrap ────────────────────────────

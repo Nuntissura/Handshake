@@ -217,7 +217,9 @@ const CRASH_CLIENT_ARM_RETRY: std::time::Duration = std::time::Duration::from_mi
 /// No-op if a client is already armed (the [`ENV_CRASH_SOCKET`] override seam connected early).
 fn arm_crash_client_late(crash_socket: &str) {
     if CRASH_CLIENT.get().is_some() {
-        tracing::debug!("MT-092 crash client already armed (override seam); skipping the late-arm step");
+        tracing::debug!(
+            "MT-092 crash client already armed (override seam); skipping the late-arm step"
+        );
         return;
     }
     let deadline = std::time::Instant::now() + CRASH_CLIENT_ARM_DEADLINE;

@@ -128,7 +128,8 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         sel_start,
         sel_start + "my_function".len(),
     )]);
-    let dispatched = code_panel.dispatch_command_by_author_id("code_editor_cmd_copy_as_note_reference");
+    let dispatched =
+        code_panel.dispatch_command_by_author_id("code_editor_cmd_copy_as_note_reference");
     assert_eq!(
         dispatched,
         Some(CodeEditorAction::CopyAsNoteReference),

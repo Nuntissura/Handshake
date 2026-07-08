@@ -641,8 +641,8 @@ fn mt020_live_tag_commit_undo_restores_pre_insert_doc() {
         );
     }
     let bus = InteractionBus::get_or_init(&harness.ctx);
-    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
-        .expect("bus lock");
+    let depth =
+        InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
     assert_eq!(
         depth, 2,
         "MT-020: the tag commit recorded its own unified-bus entry (typing + commit)"
@@ -659,9 +659,7 @@ fn mt020_live_tag_commit_undo_restores_pre_insert_doc() {
             "MT-020: Ctrl+Z removed the committed tag atom"
         );
         let now_json =
-            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
-                &st.doc,
-            );
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
         assert_eq!(
             now_json, pre_insert_json,
             "MT-020: undo restored the EXACT pre-commit doc (the `#ru` trigger text)"
@@ -718,7 +716,12 @@ fn mt058_request_save_for_host_queues_tag_edge_intent() {
     let doc = doc_with_tag_chip("rust");
     let mut state = RichEditorState::new(doc);
     state.properties = Some(make_properties_with_tags(&["Rust", "design"]));
-    state.save = Some(SaveManager::new(Arc::new(NoopSaveBackend), None, "KRD-1", 7));
+    state.save = Some(SaveManager::new(
+        Arc::new(NoopSaveBackend),
+        None,
+        "KRD-1",
+        7,
+    ));
     assert!(
         state.pending_tag_edge_intent.is_none(),
         "no intent before any save (MC-004: never per keystroke)"
@@ -750,7 +753,10 @@ fn mt058_request_save_for_host_queues_tag_edge_intent() {
         "AC-005/MC-004: inline #rust + property 'Rust' converge to exactly one edge"
     );
     assert!(
-        intent.payload.canonical_set().contains(&"design".to_owned()),
+        intent
+            .payload
+            .canonical_set()
+            .contains(&"design".to_owned()),
         "the property-only tag is in the union"
     );
 
@@ -778,7 +784,10 @@ fn mt058_request_save_for_host_queues_tag_edge_intent() {
         .clone()
         .expect("the fresh dispatch re-queued");
     assert!(
-        intent2.payload.canonical_set().contains(&"extra".to_owned()),
+        intent2
+            .payload
+            .canonical_set()
+            .contains(&"extra".to_owned()),
         "latest-wins: the newer save's tag union supersedes the older queued intent"
     );
 }

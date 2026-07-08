@@ -215,9 +215,10 @@ pub struct MergeEngine;
 
 impl MergeEngine {
     /// Compute the three-way merge blocks for `base` / `local` / `remote` (MT contract
-    /// `three_way`). Walks the three buffers line-by-line (the React port aligns by block index;
-    /// the native code path aligns by line index, the unit the code editor renders). For each line
-    /// position it classifies whether local and/or remote changed relative to base:
+    /// `three_way`). Computes base->local and base->remote diff spans, then aligns those spans by
+    /// base range / insertion point. This is deliberately NOT a raw same-index line walk: insertions
+    /// and deletions before a later edit must not shift the other side into a false conflict. For each
+    /// aligned change group it classifies whether local and/or remote changed relative to base:
     ///   - neither changed -> NO block emitted (the line is unchanged, like the React port which
     ///     `continue`s when `!localChanged && !remoteChanged`).
     ///   - only local changed  -> [`MergeStatus::LocalOnly`] (chosen pre-set to `Local`).
@@ -229,68 +230,51 @@ impl MergeEngine {
         local: &TextBuffer,
         remote: &TextBuffer,
     ) -> Vec<MergeBlock> {
-        let base_lines = buffer_lines(base);
-        let local_lines = buffer_lines(local);
-        let remote_lines = buffer_lines(remote);
+        let base_text = base.to_string();
+        let local_text = local.to_string();
+        let remote_text = remote.to_string();
+        let local_lines = lines_from_text(&local_text);
+        let remote_lines = lines_from_text(&remote_text);
 
-        let count = base_lines
-            .len()
-            .max(local_lines.len())
-            .max(remote_lines.len());
-        let mut blocks = Vec::new();
+        let local_changes = side_changes_from_base(&base_text, &local_text);
+        let remote_changes = side_changes_from_base(&base_text, &remote_text);
+        let groups = collect_change_groups(local_changes, remote_changes);
 
-        for index in 0..count {
-            let base_line = base_lines.get(index);
-            let local_line = local_lines.get(index);
-            let remote_line = remote_lines.get(index);
-
-            let local_changed = base_line != local_line;
-            let remote_changed = base_line != remote_line;
-
-            if !local_changed && !remote_changed {
-                continue; // unchanged line — not part of the merge plan (React parity).
-            }
-
-            let (status, chosen) = if local_changed && remote_changed {
-                if local_line == remote_line {
-                    (MergeStatus::BothSame, Some(MergeChoice::Local))
-                } else {
-                    (MergeStatus::Conflict, None)
+        groups
+            .into_iter()
+            .map(|group| {
+                let (status, chosen) = match (group.has_local, group.has_remote) {
+                    (true, false) => (MergeStatus::LocalOnly, Some(MergeChoice::Local)),
+                    (false, true) => (MergeStatus::RemoteOnly, Some(MergeChoice::Remote)),
+                    (true, true) => {
+                        let local_content = line_slice(&local_lines, &group.local_lines);
+                        let remote_content = line_slice(&remote_lines, &group.remote_lines);
+                        if local_content == remote_content {
+                            (MergeStatus::BothSame, Some(MergeChoice::Local))
+                        } else {
+                            (MergeStatus::Conflict, None)
+                        }
+                    }
+                    (false, false) => {
+                        unreachable!("change groups always contain at least one side")
+                    }
+                };
+                MergeBlock {
+                    base_lines: group.base_lines,
+                    local_lines: group.local_lines,
+                    remote_lines: group.remote_lines,
+                    status,
+                    chosen,
                 }
-            } else if local_changed {
-                (MergeStatus::LocalOnly, Some(MergeChoice::Local))
-            } else {
-                (MergeStatus::RemoteOnly, Some(MergeChoice::Remote))
-            };
-
-            // A line present on a side occupies [index, index+1); an absent line occupies the empty
-            // [index, index) so the range math stays consistent for shorter buffers.
-            let span = |present: bool| {
-                if present {
-                    index..index + 1
-                } else {
-                    index..index
-                }
-            };
-
-            blocks.push(MergeBlock {
-                base_lines: span(base_line.is_some()),
-                local_lines: span(local_line.is_some()),
-                remote_lines: span(remote_line.is_some()),
-                status,
-                chosen,
-            });
-        }
-
-        blocks
+            })
+            .collect()
     }
 
-    /// Apply a resolved merge plan to produce the merged buffer text (MT step 5). For each line
-    /// index it emits the chosen side's line; lines not covered by any block (unchanged lines) are
-    /// emitted from the local buffer (the React port spreads `plan.local` content for untouched
-    /// blocks). A `Conflict` block with no `chosen` is emitted as the LOCAL side (a safe default so
-    /// the function is total — the panel forces a choice via the accept buttons before calling this,
-    /// but `apply` never panics on an unresolved conflict).
+    /// Apply a resolved merge plan to produce the merged buffer text (MT step 5). The plan is walked by
+    /// base ranges, so insertions and deletions do not corrupt later line indexes. Unchanged base ranges
+    /// are emitted from `base`; changed ranges are emitted from the selected side. A `Conflict` block
+    /// with no `chosen` preserves BOTH sides (local first, then remote), so an unresolved preview is total
+    /// without silently dropping either side.
     pub fn apply(
         base: &TextBuffer,
         local: &TextBuffer,
@@ -301,63 +285,184 @@ impl MergeEngine {
         let local_lines = buffer_lines(local);
         let remote_lines = buffer_lines(remote);
 
-        let count = base_lines
-            .len()
-            .max(local_lines.len())
-            .max(remote_lines.len());
+        let mut ordered: Vec<&MergeBlock> = blocks.iter().collect();
+        ordered.sort_by_key(|b| (b.base_lines.start, b.base_lines.end));
+        let mut merged: Vec<String> = Vec::new();
+        let mut base_cursor = 0usize;
 
-        // Index the blocks by the line position they cover (each block covers exactly one line index
-        // in this line-aligned model).
-        let mut block_by_index: Vec<Option<&MergeBlock>> = vec![None; count];
-        for block in blocks {
-            // The covered index is the start of whichever range is non-empty (they all start at the
-            // same index in the line-aligned model).
-            let idx = block
-                .base_lines
-                .start
-                .min(block.local_lines.start)
-                .min(block.remote_lines.start);
-            if idx < count {
-                block_by_index[idx] = Some(block);
+        for block in ordered {
+            let start = block.base_lines.start.min(base_lines.len());
+            if start > base_cursor {
+                merged.extend(base_lines[base_cursor..start].iter().cloned());
             }
+
+            let choice = block.chosen.unwrap_or(MergeChoice::Both);
+            match choice {
+                MergeChoice::Local => extend_range(&mut merged, &local_lines, &block.local_lines),
+                MergeChoice::Remote => {
+                    extend_range(&mut merged, &remote_lines, &block.remote_lines)
+                }
+                MergeChoice::Both => {
+                    extend_range(&mut merged, &local_lines, &block.local_lines);
+                    extend_range(&mut merged, &remote_lines, &block.remote_lines);
+                }
+            }
+            base_cursor = base_cursor.max(block.base_lines.end.min(base_lines.len()));
         }
 
-        let mut merged: Vec<String> = Vec::new();
-        for (index, slot) in block_by_index.iter().enumerate().take(count) {
-            match *slot {
-                Some(block) => {
-                    let choice = block.chosen.unwrap_or(MergeChoice::Local);
-                    match choice {
-                        MergeChoice::Local => {
-                            if let Some(line) = local_lines.get(index) {
-                                merged.push(line.clone());
-                            }
-                        }
-                        MergeChoice::Remote => {
-                            if let Some(line) = remote_lines.get(index) {
-                                merged.push(line.clone());
-                            }
-                        }
-                        MergeChoice::Both => {
-                            if let Some(line) = local_lines.get(index) {
-                                merged.push(line.clone());
-                            }
-                            if let Some(line) = remote_lines.get(index) {
-                                merged.push(line.clone());
-                            }
-                        }
-                    }
-                }
-                None => {
-                    // Unchanged line: take it from local (== base == remote here).
-                    if let Some(line) = local_lines.get(index) {
-                        merged.push(line.clone());
-                    }
-                }
-            }
+        if base_cursor < base_lines.len() {
+            merged.extend(base_lines[base_cursor..].iter().cloned());
         }
 
         TextBuffer::new(&merged.join("\n"))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum MergeSide {
+    Local,
+    Remote,
+}
+
+#[derive(Clone, Debug)]
+struct SideChange {
+    base_lines: Range<usize>,
+    side_lines: Range<usize>,
+}
+
+#[derive(Clone, Debug)]
+struct PendingChange {
+    side: MergeSide,
+    base_lines: Range<usize>,
+    side_lines: Range<usize>,
+}
+
+#[derive(Clone, Debug)]
+struct ChangeGroup {
+    base_lines: Range<usize>,
+    local_lines: Range<usize>,
+    remote_lines: Range<usize>,
+    has_local: bool,
+    has_remote: bool,
+}
+
+impl ChangeGroup {
+    fn from_change(change: PendingChange) -> Self {
+        match change.side {
+            MergeSide::Local => Self {
+                base_lines: change.base_lines,
+                local_lines: change.side_lines,
+                remote_lines: 0..0,
+                has_local: true,
+                has_remote: false,
+            },
+            MergeSide::Remote => Self {
+                base_lines: change.base_lines,
+                local_lines: 0..0,
+                remote_lines: change.side_lines,
+                has_local: false,
+                has_remote: true,
+            },
+        }
+    }
+
+    fn absorb(&mut self, change: PendingChange) {
+        self.base_lines = union_ranges(&self.base_lines, &change.base_lines);
+        match change.side {
+            MergeSide::Local => {
+                self.local_lines = if self.has_local {
+                    union_ranges(&self.local_lines, &change.side_lines)
+                } else {
+                    change.side_lines
+                };
+                self.has_local = true;
+            }
+            MergeSide::Remote => {
+                self.remote_lines = if self.has_remote {
+                    union_ranges(&self.remote_lines, &change.side_lines)
+                } else {
+                    change.side_lines
+                };
+                self.has_remote = true;
+            }
+        }
+    }
+}
+
+fn side_changes_from_base(base_text: &str, side_text: &str) -> Vec<SideChange> {
+    DiffEngine::diff_text(base_text, side_text)
+        .into_iter()
+        .filter(|block| block.status != DiffStatus::Equal)
+        .map(|block| SideChange {
+            base_lines: block.left_lines,
+            side_lines: block.right_lines,
+        })
+        .collect()
+}
+
+fn collect_change_groups(
+    local_changes: Vec<SideChange>,
+    remote_changes: Vec<SideChange>,
+) -> Vec<ChangeGroup> {
+    let mut pending = Vec::with_capacity(local_changes.len() + remote_changes.len());
+    pending.extend(local_changes.into_iter().map(|change| PendingChange {
+        side: MergeSide::Local,
+        base_lines: change.base_lines,
+        side_lines: change.side_lines,
+    }));
+    pending.extend(remote_changes.into_iter().map(|change| PendingChange {
+        side: MergeSide::Remote,
+        base_lines: change.base_lines,
+        side_lines: change.side_lines,
+    }));
+    pending.sort_by_key(|change| {
+        (
+            change.base_lines.start,
+            change.base_lines.end,
+            change.side,
+            change.side_lines.start,
+            change.side_lines.end,
+        )
+    });
+
+    let mut groups: Vec<ChangeGroup> = Vec::new();
+    for change in pending {
+        if let Some(group) = groups.last_mut() {
+            if ranges_interact(&group.base_lines, &change.base_lines) {
+                group.absorb(change);
+                continue;
+            }
+        }
+        groups.push(ChangeGroup::from_change(change));
+    }
+    groups
+}
+
+fn ranges_interact(a: &Range<usize>, b: &Range<usize>) -> bool {
+    let a_empty = a.start == a.end;
+    let b_empty = b.start == b.end;
+    match (a_empty, b_empty) {
+        (true, true) => a.start == b.start,
+        (true, false) => a.start > b.start && a.start < b.end,
+        (false, true) => b.start > a.start && b.start < a.end,
+        (false, false) => a.start < b.end && b.start < a.end,
+    }
+}
+
+fn union_ranges(a: &Range<usize>, b: &Range<usize>) -> Range<usize> {
+    a.start.min(b.start)..a.end.max(b.end)
+}
+
+fn line_slice(lines: &[String], range: &Range<usize>) -> Vec<String> {
+    lines
+        .get(range.start.min(lines.len())..range.end.min(lines.len()))
+        .unwrap_or(&[])
+        .to_vec()
+}
+
+fn extend_range(out: &mut Vec<String>, lines: &[String], range: &Range<usize>) {
+    if let Some(slice) = lines.get(range.start.min(lines.len())..range.end.min(lines.len())) {
+        out.extend(slice.iter().cloned());
     }
 }
 
@@ -366,6 +471,10 @@ impl MergeEngine {
 /// aligns content lines), matching the React port which aligns `content` array entries.
 fn buffer_lines(buffer: &TextBuffer) -> Vec<String> {
     let text = buffer.to_string();
+    lines_from_text(&text)
+}
+
+fn lines_from_text(text: &str) -> Vec<String> {
     if text.is_empty() {
         return Vec::new();
     }

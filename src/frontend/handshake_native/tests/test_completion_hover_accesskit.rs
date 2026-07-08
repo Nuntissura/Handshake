@@ -16,6 +16,8 @@
 //! AC-007: a staleness check pushes >= 1 Warning gutter marker -> the gutter renders a diagnostic dot
 //! (verified via the gutter marker count + a screenshot saved to the external artifact root).
 
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -23,7 +25,8 @@ use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::code_editor::code_nav::{
-    CodeStaleness, CodeSymbolDefinition, CodeSymbolNavProjection, CompletionItem, CompletionKind,
+    CodeNavClient, CodeStaleness, CodeSymbolDefinition, CodeSymbolNavProjection, CompletionItem,
+    CompletionKind, HOVER_DWELL_MS,
 };
 use handshake_native::code_editor::editor_view::{
     CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID, CODE_EDITOR_HOVER_AUTHOR_ID,
@@ -43,6 +46,58 @@ fn assert_no_local_test_output() {
         "no repo-local test_output/ dir may exist — artifacts go to the external \
          Handshake_Artifacts/handshake-test root only"
     );
+}
+
+fn stale_add_lookup_body() -> String {
+    serde_json::json!({
+        "matches": [{
+            "symbol_entity_id": "",
+            "symbol_key": "rust:src/lib.rs#add",
+            "display_name": "add",
+            "symbol_kind": "function",
+            "definition": {
+                "line_start": 1,
+                "line_end": 1
+            },
+            "staleness": {
+                "state": "marked_stale",
+                "fresh": false
+            }
+        }]
+    })
+    .to_string()
+}
+
+fn spawn_one_lookup_server() -> (String, std::thread::JoinHandle<String>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind MT-008 lookup mock server");
+    let base_url = format!("http://{}", listener.local_addr().expect("local addr"));
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept lookup request");
+        let mut request = Vec::new();
+        let mut buf = [0_u8; 1024];
+        loop {
+            let n = stream.read(&mut buf).expect("read lookup request");
+            if n == 0 {
+                break;
+            }
+            request.extend_from_slice(&buf[..n]);
+            if request.windows(4).any(|w| w == b"\r\n\r\n") {
+                break;
+            }
+        }
+        let request_text = String::from_utf8_lossy(&request).to_string();
+        let body = stale_add_lookup_body();
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        stream
+            .write_all(response.as_bytes())
+            .expect("write lookup response");
+        request_text
+    });
+    (base_url, handle)
 }
 
 /// Two synthetic completion items (the shape the code-nav lookup yields), so the popup-render +
@@ -360,6 +415,178 @@ fn ac007_staleness_check_pushes_gutter_diagnostic_marker() {
     assert_no_local_test_output();
 }
 
+#[test]
+fn raw_code_nav_symbol_batches_aggregate_staleness_before_gutter_push() {
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    panel.queue_code_nav_symbols_for_test(
+        "add",
+        vec![CodeSymbolNavProjection {
+            display_name: "add".into(),
+            symbol_kind: "function".into(),
+            symbol_key: "rust:src/lib.rs#add".into(),
+            definition: Some(CodeSymbolDefinition {
+                line_start: Some(1),
+                line_end: Some(1),
+                ..Default::default()
+            }),
+            staleness: Some(CodeStaleness {
+                state: Some("marked_stale".into()),
+                fresh: false,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }],
+    );
+    panel.queue_code_nav_symbols_for_test(
+        "caller",
+        vec![CodeSymbolNavProjection {
+            display_name: "caller".into(),
+            symbol_kind: "function".into(),
+            symbol_key: "rust:src/lib.rs#caller".into(),
+            definition: Some(CodeSymbolDefinition {
+                line_start: Some(2),
+                line_end: Some(2),
+                ..Default::default()
+            }),
+            staleness: Some(CodeStaleness {
+                state: Some("marked_stale".into()),
+                fresh: false,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }],
+    );
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    harness.run();
+
+    let markers = panel.diagnostic_markers();
+    let mut marker_lines: Vec<usize> = markers.iter().map(|marker| marker.line).collect();
+    marker_lines.sort_unstable();
+    assert_eq!(
+        marker_lines,
+        vec![0, 1],
+        "same-frame raw code-nav batches aggregate stale markers instead of last-batch replacement"
+    );
+}
+
+#[test]
+fn completion_fallback_lookup_queues_raw_symbols_for_staleness() {
+    let (base_url, server) = spawn_one_lookup_server();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build tokio runtime");
+
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    panel.set_runtime(rt.handle().clone());
+    panel.set_workspace_id("ws-test");
+    panel.set_code_nav_client(CodeNavClient::new(base_url));
+
+    panel.trigger_completion(rt.handle(), "add");
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    for _ in 0..40 {
+        harness.run();
+        if panel.is_completion_open() && !panel.diagnostic_markers().is_empty() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+
+    let request = server.join().expect("lookup server thread joined");
+    assert!(
+        request.starts_with("GET /knowledge/code/symbols?"),
+        "MT-008: completion fallback used the code-nav lookup route, got {request:?}"
+    );
+    assert!(
+        request.contains("prefix=add"),
+        "MT-008: completion fallback sent the completion prefix, got {request:?}"
+    );
+    assert!(
+        panel.is_completion_open(),
+        "MT-008: completion fallback response opened the completion popup"
+    );
+    let markers = panel.diagnostic_markers();
+    assert_eq!(
+        markers.len(),
+        1,
+        "MT-008: completion fallback queued raw symbols and the UI drain pushed a staleness marker"
+    );
+    assert_eq!(markers[0].line, 0);
+
+    drop(harness);
+    drop(panel);
+    rt.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+#[test]
+fn hover_fallback_lookup_queues_raw_symbols_for_staleness() {
+    let (base_url, server) = spawn_one_lookup_server();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build tokio runtime");
+
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    panel.set_runtime(rt.handle().clone());
+    panel.set_workspace_id("ws-test");
+    panel.set_code_nav_client(CodeNavClient::new(base_url));
+
+    panel.trigger_hover(rt.handle(), "add");
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    for _ in 0..40 {
+        harness.run();
+        if panel.is_hover_open() && !panel.diagnostic_markers().is_empty() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+
+    let request = server.join().expect("lookup server thread joined");
+    assert!(
+        request.starts_with("GET /knowledge/code/symbols?"),
+        "MT-008: hover fallback used the code-nav lookup route, got {request:?}"
+    );
+    assert!(
+        request.contains("prefix=add"),
+        "MT-008: hover fallback sent the hovered word as prefix, got {request:?}"
+    );
+    assert!(
+        panel.is_hover_open(),
+        "MT-008: hover fallback response opened the hover tooltip"
+    );
+    let markers = panel.diagnostic_markers();
+    assert_eq!(
+        markers.len(),
+        1,
+        "MT-008: hover fallback queued raw symbols and the UI drain pushed a staleness marker"
+    );
+    assert_eq!(markers[0].line, 0);
+
+    drop(harness);
+    drop(panel);
+    rt.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
 // ── must-fix #2: the LIVE keystroke -> input-handler -> trigger path is reachable ───────────────────
 //
 // The adversarial review found that the completion popup keyboard handling and the Ctrl+Space /
@@ -581,4 +808,41 @@ fn mustfix_hover_dwell_pump_fires_trigger() {
     drop(harness);
     drop(panel);
     rt.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+/// P2 hardening: the dwell gate should fire once per stable caret offset, not every frame after the
+/// dwell window elapses. The live pump uses this return value to decide whether to spawn a hover lookup.
+#[test]
+fn hover_dwell_gate_fires_once_per_stable_offset() {
+    let panel = CodeEditorPanel::new(SNIPPET, "rs");
+    let offset = panel
+        .buffer()
+        .to_string()
+        .find("add")
+        .expect("identifier present")
+        + 1;
+
+    assert!(
+        !panel.update_hover_dwell(offset),
+        "first observation starts the dwell clock"
+    );
+    std::thread::sleep(std::time::Duration::from_millis(HOVER_DWELL_MS + 20));
+    assert!(
+        panel.update_hover_dwell(offset),
+        "dwell fires once after the configured delay"
+    );
+    assert!(
+        !panel.update_hover_dwell(offset),
+        "same offset does not repeatedly fire on following frames"
+    );
+
+    assert!(
+        !panel.update_hover_dwell(offset + 1),
+        "cursor movement resets the dwell clock"
+    );
+    std::thread::sleep(std::time::Duration::from_millis(HOVER_DWELL_MS + 20));
+    assert!(
+        panel.update_hover_dwell(offset + 1),
+        "new settled offset can fire after its own dwell"
+    );
 }

@@ -270,7 +270,9 @@ impl LoomBlockResolver {
     pub fn resolve_url(&self, addr: &LoomBlockAddr) -> String {
         format!(
             "{}/workspaces/{}/loom/blocks/{}",
-            self.base_url, addr.workspace_id, addr.block_id
+            self.base_url,
+            crate::interop::percent_encode_symbol(&addr.workspace_id),
+            crate::interop::percent_encode_symbol(&addr.block_id)
         )
     }
 
@@ -359,6 +361,18 @@ mod tests {
         let parsed = parse_loom_uri("loom://ws1/a/b/c").unwrap();
         assert_eq!(parsed.workspace_id, "ws1");
         assert_eq!(parsed.block_id, "a/b/c");
+    }
+
+    #[test]
+    fn resolve_url_percent_encodes_workspace_and_block_segments() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resolver = LoomBlockResolver::new("http://backend", rt.handle().clone());
+        let addr = LoomBlockAddr::new("ws/one", "block/a#b");
+        assert_eq!(
+            resolver.resolve_url(&addr),
+            "http://backend/workspaces/ws%2Fone/loom/blocks/block%2Fa%23b",
+            "resolver URL encodes path segments so a slash-bearing loom:// block id cannot become extra path segments"
+        );
     }
 
     #[test]

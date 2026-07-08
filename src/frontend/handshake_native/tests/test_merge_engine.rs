@@ -46,6 +46,69 @@ fn merge_engine_non_overlapping_edits_no_conflict() {
 }
 
 #[test]
+fn merge_engine_true_insertions_do_not_conflict_and_apply_preserves_both() {
+    let base = TextBuffer::new("l0\nl1\nl2\nl3\nl4");
+    let local = TextBuffer::new("l0\nl1\nLOCAL_INSERT\nl2\nl3\nl4");
+    let remote = TextBuffer::new("l0\nl1\nl2\nl3\nREMOTE_INSERT\nl4");
+    let blocks = MergeEngine::three_way(&base, &local, &remote);
+
+    assert!(
+        blocks.iter().all(|b| b.status != MergeStatus::Conflict),
+        "true non-overlapping insertions must not false-conflict; got {blocks:?}"
+    );
+    assert!(
+        blocks.iter().any(|b| b.status == MergeStatus::LocalOnly),
+        "local insertion should produce a LocalOnly block; got {blocks:?}"
+    );
+    assert!(
+        blocks.iter().any(|b| b.status == MergeStatus::RemoteOnly),
+        "remote insertion should produce a RemoteOnly block; got {blocks:?}"
+    );
+
+    let merged = MergeEngine::apply(&base, &local, &remote, &blocks).to_string();
+    assert_eq!(
+        merged, "l0\nl1\nLOCAL_INSERT\nl2\nl3\nREMOTE_INSERT\nl4",
+        "default non-conflict merge preserves both insertions in base order"
+    );
+}
+
+#[test]
+fn merge_engine_local_insertion_before_remote_edit_keeps_alignment() {
+    let base = TextBuffer::new("A\nB\nC");
+    let local = TextBuffer::new("A\nX\nB\nC");
+    let remote = TextBuffer::new("A\nB\nR");
+    let blocks = MergeEngine::three_way(&base, &local, &remote);
+
+    assert!(
+        blocks.iter().all(|b| b.status != MergeStatus::Conflict),
+        "local insertion before a remote edit should align through base spans, not raw indexes: {blocks:?}"
+    );
+    let merged = MergeEngine::apply(&base, &local, &remote, &blocks).to_string();
+    assert_eq!(
+        merged, "A\nX\nB\nR",
+        "remote edit must apply to C after preserving the local insertion"
+    );
+}
+
+#[test]
+fn merge_engine_local_deletion_before_remote_edit_keeps_alignment() {
+    let base = TextBuffer::new("A\nB\nC\nD");
+    let local = TextBuffer::new("A\nC\nD");
+    let remote = TextBuffer::new("A\nB\nC\nR");
+    let blocks = MergeEngine::three_way(&base, &local, &remote);
+
+    assert!(
+        blocks.iter().all(|b| b.status != MergeStatus::Conflict),
+        "local deletion before a remote edit should align through base spans, not raw indexes: {blocks:?}"
+    );
+    let merged = MergeEngine::apply(&base, &local, &remote, &blocks).to_string();
+    assert_eq!(
+        merged, "A\nC\nR",
+        "deleted B stays deleted and remote edit applies to D"
+    );
+}
+
+#[test]
 fn merge_engine_both_modify_same_line_is_conflict() {
     let base = TextBuffer::new("l0\nl1\nl2\nl3");
     let local = TextBuffer::new("l0\nl1\nLOCAL_EDIT\nl3");
@@ -145,16 +208,16 @@ fn merge_engine_apply_accept_local_then_remote_then_both() {
 
 #[test]
 fn merge_engine_apply_total_on_unresolved_conflict() {
-    // Robustness: apply() must NOT panic on an unresolved conflict (defaults to local). The panel
-    // forces a choice via the buttons, but the engine stays total.
+    // Robustness: apply() must NOT panic on an unresolved conflict, and must not silently drop either
+    // side before the operator accepts a choice.
     let base = TextBuffer::new("l0\nl1\nl2");
     let local = TextBuffer::new("l0\nLOCAL_EDIT\nl2");
     let remote = TextBuffer::new("l0\nREMOTE_EDIT\nl2");
     let blocks = MergeEngine::three_way(&base, &local, &remote); // left unresolved
     let merged = MergeEngine::apply(&base, &local, &remote, &blocks).to_string();
     assert!(
-        merged.contains("LOCAL_EDIT"),
-        "unresolved conflict defaults to local (total): {merged:?}"
+        merged.contains("LOCAL_EDIT") && merged.contains("REMOTE_EDIT"),
+        "unresolved conflict preserves both sides until a choice is made: {merged:?}"
     );
-    println!("RISK-003: apply() is total on an unresolved conflict (default = local, no panic)");
+    println!("RISK-003: apply() is total on an unresolved conflict and preserves both sides");
 }

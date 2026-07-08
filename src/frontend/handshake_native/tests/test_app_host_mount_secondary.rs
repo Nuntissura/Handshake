@@ -39,6 +39,7 @@ use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
+use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
 
 /// Serialize the `.wgpu()` screenshot test (the documented Windows-wgpu concurrent-device hazard).
 static WGPU_SERIAL_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -149,6 +150,17 @@ fn live_author_ids(harness: &Harness<'_, HandshakeApp>) -> std::collections::Has
         }
     }
     ids
+}
+
+/// Read a live app AccessKit node's label by author_id.
+fn live_label_for(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> Option<String> {
+    for node in harness.root().children_recursive() {
+        let ak = node.accesskit_node();
+        if ak.author_id() == Some(author_id) {
+            return ak.label().map(|v| v.to_owned());
+        }
+    }
+    None
 }
 
 // ── PT-080-A / AC-080-1: secondary panes render LIVE in the running app + screenshot ──────────────────
@@ -385,6 +397,569 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
     );
 }
 
+// ── MT-022 mounted host: folder-tree events route through the live shell ─────────────────────────────
+
+#[test]
+fn folder_tree_host_drains_expand_recolor_retry_and_open_events() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, FOLDER_TREE_PANE_LABEL};
+    use handshake_native::graph::folder_tree::{FolderRow, FolderTreeEvent};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(FOLDER_TREE_PANE_LABEL))],
+    );
+    let folder_tree = app.mounted_folder_tree_for_test();
+    let folder_events = app.mounted_folder_events_for_test();
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        tree.set_folders(&[FolderRow::new(
+            "folder-host",
+            None,
+            "Host Folder",
+            Some("#336699".to_owned()),
+        )]);
+    }
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    let baseline_child_cells = harness.state().folder_child_cells_in_flight_for_test();
+    folder_events
+        .lock()
+        .unwrap()
+        .push(FolderTreeEvent::ExpandFolder {
+            folder_id: "folder-host".to_owned(),
+        });
+    harness.run_steps(1);
+    assert!(
+        folder_events.lock().unwrap().is_empty(),
+        "MT-022 host: ExpandFolder event queue was drained"
+    );
+    assert!(
+        harness.state().folder_child_cells_in_flight_for_test() > baseline_child_cells,
+        "MT-022 host: ExpandFolder dispatched a real child-block fetch cell"
+    );
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        let node = tree
+            .find_folder_mut("folder-host")
+            .expect("seeded host folder remains mounted");
+        assert!(
+            node.expanded && node.loading,
+            "MT-022 host: expand marks the mounted node expanded and loading while the child fetch is in flight"
+        );
+    }
+
+    let baseline_recolor_cells = harness.state().folder_recolor_cells_in_flight_for_test();
+    folder_events
+        .lock()
+        .unwrap()
+        .push(FolderTreeEvent::ChangeColor {
+            folder_id: "folder-host".to_owned(),
+            color: egui::Color32::from_rgb(255, 0, 0),
+        });
+    harness.run_steps(1);
+    assert!(
+        folder_events.lock().unwrap().is_empty(),
+        "MT-022 host: ChangeColor event queue was drained"
+    );
+    assert!(
+        harness.state().folder_recolor_cells_in_flight_for_test() > baseline_recolor_cells,
+        "MT-022 host: ChangeColor dispatched a real recolor PATCH cell"
+    );
+
+    folder_events.lock().unwrap().push(FolderTreeEvent::Retry);
+    harness.run_steps(1);
+    assert!(
+        folder_tree.lock().unwrap().loading,
+        "MT-022 host: Retry sets the mounted tree into the bounded loading state before re-fetch"
+    );
+
+    folder_events
+        .lock()
+        .unwrap()
+        .push(FolderTreeEvent::OpenBlock {
+            block_id: "block-host".to_owned(),
+        });
+    harness.run_steps(1);
+    let opened = harness
+        .state_mut()
+        .tab_bar_states_mut()
+        .values()
+        .any(|bar| {
+            bar.tabs.iter().any(|tab| {
+                tab.pane_type == PaneType::LoomBlock
+                    && tab.content_id.as_deref() == Some("block-host")
+            })
+        });
+    assert!(
+        opened,
+        "MT-022 host: OpenBlock routes through open_content_on_active_pane into a LoomBlock tab"
+    );
+}
+
+#[test]
+fn sidebar_active_block_deliveries_bind_backlinks_and_unlinked() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, SIDEBAR_PANE_LABEL};
+    use handshake_native::graph::sidebar_panel::{
+        BacklinkRow, SectionKind, SidebarEvent, UnlinkedRow,
+    };
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(SIDEBAR_PANE_LABEL))],
+    );
+    let sidebar_panel = app.mounted_sidebar_panel_for_test();
+    let sidebar_events = app.mounted_sidebar_events_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    sidebar_events.lock().unwrap().push(SidebarEvent::Open {
+        block_id: "block-a".to_owned(),
+    });
+    harness.run_steps(1);
+    {
+        let panel = sidebar_panel.lock().unwrap();
+        assert_eq!(
+            panel.active_block_id.as_deref(),
+            Some("block-a"),
+            "MT-024 host: SidebarEvent::Open binds the clicked Loom block as sidebar active context"
+        );
+    }
+
+    let (backlinks_generation, unlinked_generation) = harness
+        .state()
+        .prepare_sidebar_active_block_for_test("block-a")
+        .expect("MT-024 host: prepare active block generations");
+    {
+        let panel = sidebar_panel.lock().unwrap();
+        assert!(
+            panel.loading_section.contains(&SectionKind::Backlinks)
+                && panel.loading_section.contains(&SectionKind::Unlinked),
+            "MT-024 host: active-block prepare marks Backlinks and Unlinked independently loading"
+        );
+    }
+    harness.state().deliver_sidebar_backlinks_for_test(
+        backlinks_generation,
+        Ok(vec![BacklinkRow::new("source-a", "Source A", "mention")]),
+    );
+    harness.state().deliver_sidebar_unlinked_for_test(
+        unlinked_generation,
+        Ok(vec![UnlinkedRow::new("mention-a", "Mention A")]),
+    );
+    harness.run_steps(1);
+    {
+        let panel = sidebar_panel.lock().unwrap();
+        assert_eq!(
+            panel.backlinks,
+            vec![BacklinkRow::new("source-a", "Source A", "mention")],
+            "MT-024 host: generation-matched Backlinks delivery reaches the mounted sidebar panel"
+        );
+        assert_eq!(
+            panel.unlinked,
+            vec![UnlinkedRow::new("mention-a", "Mention A")],
+            "MT-024 host: generation-matched Unlinked delivery reaches the mounted sidebar panel"
+        );
+        assert!(
+            !panel.loading_section.contains(&SectionKind::Backlinks)
+                && !panel.loading_section.contains(&SectionKind::Unlinked),
+            "MT-024 host: successful deliveries clear only their section loading flags"
+        );
+    }
+
+    let (fresh_backlinks_generation, _) = harness
+        .state()
+        .prepare_sidebar_active_block_for_test("block-b")
+        .expect("MT-024 host: prepare refreshed active block generations");
+    harness.state().deliver_sidebar_backlinks_for_test(
+        backlinks_generation,
+        Ok(vec![BacklinkRow::new("stale", "Stale", "mention")]),
+    );
+    harness.run_steps(1);
+    {
+        let panel = sidebar_panel.lock().unwrap();
+        assert!(
+            panel.backlinks.is_empty(),
+            "MT-024 host: stale Backlinks delivery cannot overwrite the new active block"
+        );
+        assert!(
+            panel.loading_section.contains(&SectionKind::Backlinks),
+            "MT-024 host: stale Backlinks delivery leaves the current generation in flight"
+        );
+    }
+    harness.state().deliver_sidebar_backlinks_for_test(
+        fresh_backlinks_generation,
+        Ok(vec![BacklinkRow::new("source-b", "Source B", "related")]),
+    );
+    harness.run_steps(1);
+    {
+        let panel = sidebar_panel.lock().unwrap();
+        assert_eq!(
+            panel.backlinks,
+            vec![BacklinkRow::new("source-b", "Source B", "related")],
+            "MT-024 host: fresh Backlinks generation applies after stale delivery was dropped"
+        );
+    }
+}
+
+#[test]
+fn folder_tree_refetches_and_clears_state_after_workspace_switch() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, FOLDER_TREE_PANE_LABEL};
+    use handshake_native::graph::folder_tree::FolderRow;
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(FOLDER_TREE_PANE_LABEL))],
+    );
+    let folder_tree = app.mounted_folder_tree_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        tree.workspace_id = DEFAULT_PROJECT_ID.to_owned();
+        tree.set_folders(&[FolderRow::new("old-folder", None, "Old Folder", None)]);
+    }
+    assert!(
+        harness.state_mut().switch_project("project-b"),
+        "test precondition: project switch should happen"
+    );
+    retype_panes(
+        harness.state_mut(),
+        &[("pane-a", placeholder_pane_type(FOLDER_TREE_PANE_LABEL))],
+    );
+    harness.run_steps(2);
+
+    let tree = folder_tree.lock().unwrap();
+    assert_eq!(
+        tree.workspace_id, "project-b",
+        "MT-022 host: folder tree must be keyed to the active workspace after a project switch"
+    );
+    assert!(
+        tree.root_nodes.is_empty(),
+        "MT-022 host: stale folder rows from the previous workspace must be cleared before refetch"
+    );
+    assert!(
+        tree.loading || tree.error.is_some(),
+        "MT-022 host: the new workspace should start a bounded folder-list refetch when the pane is visible"
+    );
+}
+
+#[test]
+fn tags_pane_refetches_and_clears_state_after_workspace_switch() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
+    use handshake_native::graph::tags_panel::{HubMember, LoomTagHubPanel, TagEntry};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    let tags_panel = app.mounted_tags_panel_for_test();
+    let tags_hub = app.mounted_tags_hub_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    {
+        let mut panel = tags_panel.lock().unwrap();
+        panel.workspace_id = DEFAULT_PROJECT_ID.to_owned();
+        panel.set_tags(vec![TagEntry::new("old-tag", "Old Tag", Some(1))]);
+        panel.search_filter = "old".to_owned();
+    }
+    {
+        let mut hub = tags_hub.lock().unwrap();
+        let mut old_hub = LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "old-tag");
+        old_hub.set_detail(
+            "Old Tag",
+            vec![HubMember::new("old-member", "Old Member", "note")],
+        );
+        *hub = Some(old_hub);
+    }
+
+    assert!(
+        harness.state_mut().switch_project("project-b"),
+        "test precondition: project switch should happen"
+    );
+    retype_panes(
+        harness.state_mut(),
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    harness.run_steps(2);
+
+    let panel = tags_panel.lock().unwrap();
+    assert_eq!(
+        panel.workspace_id, "project-b",
+        "MT-023 host: tags panel must be keyed to the active workspace after a project switch"
+    );
+    assert!(
+        panel.tags.is_empty(),
+        "MT-023 host: stale tag rows from the previous workspace must be cleared before refetch"
+    );
+    assert!(
+        panel.search_filter.is_empty(),
+        "MT-023 host: stale tag search text from the previous workspace must be cleared"
+    );
+    assert!(
+        panel.loading || panel.error.is_some(),
+        "MT-023 host: the new workspace should start a bounded tag-list refetch when the pane is visible"
+    );
+    drop(panel);
+    assert!(
+        tags_hub.lock().unwrap().is_none(),
+        "MT-023 host: an open tag-hub page from the previous workspace must be closed on switch"
+    );
+}
+
+#[test]
+fn tags_hub_delivery_queue_preserves_newer_valid_result_before_stale_reject() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
+    use handshake_native::graph::tags_panel::{HubMember, LoomTagHubPanel};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    let tags_hub = app.mounted_tags_hub_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    {
+        let mut hub = tags_hub.lock().unwrap();
+        let mut current = LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "hub-b");
+        current.loading = true;
+        *hub = Some(current);
+    }
+
+    harness.state().deliver_tag_hub_detail_for_test(
+        DEFAULT_PROJECT_ID,
+        "hub-b",
+        Ok((
+            "Hub B".to_owned(),
+            vec![HubMember::new("member-b", "Member B", "note")],
+        )),
+    );
+    harness.state().deliver_tag_hub_detail_for_test(
+        "old-project",
+        "hub-a",
+        Ok((
+            "Stale Hub A".to_owned(),
+            vec![HubMember::new("member-a", "Member A", "note")],
+        )),
+    );
+    harness.run_steps(2);
+
+    let hub = tags_hub.lock().unwrap();
+    let hub = hub.as_ref().expect("current hub remains open");
+    assert_eq!(
+        hub.title, "Hub B",
+        "MT-023 host: valid current hub delivery must survive a later stale delivery before drain"
+    );
+    assert_eq!(
+        hub.members.len(),
+        1,
+        "MT-023 host: current hub members from the valid delivery must be applied"
+    );
+    assert_eq!(hub.members[0].block_id, "member-b");
+    assert!(
+        !hub.loading,
+        "MT-023 host: valid delivery clears the current hub loading state"
+    );
+}
+
+#[test]
+fn tags_member_count_delivery_updates_list_without_open_hub() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
+    use handshake_native::graph::tags_panel::{HubMember, TagEntry};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    let tags_panel = app.mounted_tags_panel_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    {
+        let mut panel = tags_panel.lock().unwrap();
+        panel.workspace_id = DEFAULT_PROJECT_ID.to_owned();
+        panel.set_tags(vec![TagEntry::new("tag-rust", "rust", None)]);
+    }
+    harness.state().deliver_tag_hub_detail_for_test(
+        DEFAULT_PROJECT_ID,
+        "tag-rust",
+        Ok((
+            String::new(),
+            vec![
+                HubMember::new("member-1", "Member 1", "note"),
+                HubMember::new("member-2", "Member 2", "note"),
+            ],
+        )),
+    );
+    harness.run_steps(2);
+
+    let panel = tags_panel.lock().unwrap();
+    let tag = panel
+        .tags
+        .iter()
+        .find(|tag| tag.block_id == "tag-rust")
+        .expect("seeded tag remains");
+    assert_eq!(
+        tag.member_count,
+        Some(2),
+        "MT-023 AC1: members-only delivery must update the tag-list member count badge"
+    );
+}
+
+#[test]
+fn tags_edge_stale_error_does_not_apply_to_current_hub() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
+    use handshake_native::graph::tags_panel::LoomTagHubPanel;
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    let tags_hub = app.mounted_tags_hub_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    {
+        let mut hub = tags_hub.lock().unwrap();
+        *hub = Some(LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "hub-b"));
+    }
+    harness.state().deliver_tag_edge_receipt_for_test(
+        DEFAULT_PROJECT_ID,
+        "hub-a",
+        Err("old hub failed".to_owned()),
+    );
+    harness.run_steps(2);
+
+    let hub = tags_hub.lock().unwrap();
+    let hub = hub.as_ref().expect("current hub remains open");
+    assert_eq!(hub.block_id, "hub-b");
+    assert!(
+        hub.error.is_none(),
+        "MT-023 host: stale add-tag errors for a different hub must not surface on the current hub"
+    );
+}
+
+#[test]
+fn tags_edge_same_hub_superseded_error_does_not_surface() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
+    use handshake_native::graph::tags_panel::LoomTagHubPanel;
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    let tags_hub = app.mounted_tags_hub_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    {
+        let mut hub = tags_hub.lock().unwrap();
+        *hub = Some(LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "hub-b"));
+    }
+    let old_sequence = harness
+        .state()
+        .register_tag_edge_request_for_test(DEFAULT_PROJECT_ID, "hub-b");
+    let _new_sequence = harness
+        .state()
+        .register_tag_edge_request_for_test(DEFAULT_PROJECT_ID, "hub-b");
+    harness
+        .state()
+        .deliver_tag_edge_receipt_with_sequence_for_test(
+            DEFAULT_PROJECT_ID,
+            "hub-b",
+            old_sequence,
+            Err("old add failed".to_owned()),
+        );
+    harness.run_steps(2);
+
+    let hub = tags_hub.lock().unwrap();
+    let hub = hub.as_ref().expect("current hub remains open");
+    assert!(
+        hub.error.is_none(),
+        "MT-023 host: superseded same-hub add-tag errors must not surface after a newer add-tag request"
+    );
+}
+
+#[test]
+fn tags_hub_same_key_stale_delivery_does_not_overwrite_current_detail() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
+    use handshake_native::graph::tags_panel::{HubMember, LoomTagHubPanel};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    let tags_hub = app.mounted_tags_hub_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    {
+        let mut hub = tags_hub.lock().unwrap();
+        *hub = Some(LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "hub-b"));
+    }
+    let old_sequence = harness
+        .state()
+        .register_tag_hub_request_for_test(DEFAULT_PROJECT_ID, "hub-b");
+    let new_sequence = harness
+        .state()
+        .register_tag_hub_request_for_test(DEFAULT_PROJECT_ID, "hub-b");
+    harness
+        .state()
+        .deliver_tag_hub_detail_with_sequence_for_test(
+            DEFAULT_PROJECT_ID,
+            "hub-b",
+            new_sequence,
+            Ok((
+                "New Hub B".to_owned(),
+                vec![HubMember::new("member-new", "Member New", "note")],
+            )),
+        );
+    harness
+        .state()
+        .deliver_tag_hub_detail_with_sequence_for_test(
+            DEFAULT_PROJECT_ID,
+            "hub-b",
+            old_sequence,
+            Ok((
+                "Old Hub B".to_owned(),
+                vec![HubMember::new("member-old", "Member Old", "note")],
+            )),
+        );
+    harness.run_steps(2);
+
+    let hub = tags_hub.lock().unwrap();
+    let hub = hub.as_ref().expect("current hub remains open");
+    assert_eq!(
+        hub.title, "New Hub B",
+        "MT-023 host: older same-workspace/same-hub deliveries must not overwrite newer hub detail"
+    );
+    assert_eq!(hub.members[0].block_id, "member-new");
+}
+
 // ── PT-080-B / AC-080-2 (must-fix backend-shape): the clear-section path sends the body the REAL backend
 // accepts (`{clear_group:true}`), and an AssignSection{None} drains through the live host. ───────────────
 
@@ -544,6 +1119,443 @@ fn canvas_mutation_events_map_to_host_dispatches_with_op_cells() {
          tracked op cell (none swallowed by a catch-all)"
     );
     println!("PASS W3/W2: 9 canvas mutation events -> {dispatched} host dispatches with op cells");
+}
+
+#[test]
+fn block_collection_create_view_result_rebinds_mounted_host() {
+    use handshake_native::backend_client::BlockViewRecordData;
+    use handshake_native::editor_pane_factories::{
+        placeholder_pane_type, BLOCK_COLLECTIONS_PANE_LABEL,
+    };
+    use handshake_native::graph::block_collection_view::{
+        BlockViewDefinition, BlockViewEvent, BlockViewKind, BlockViewResults,
+    };
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build parked current-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    retype_panes(
+        &mut app,
+        &[(
+            "pane-a",
+            placeholder_pane_type(BLOCK_COLLECTIONS_PANE_LABEL),
+        )],
+    );
+
+    let collection = app.mounted_block_collection_view();
+    let events = app.mounted_block_collection_events();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    events.lock().unwrap().push(BlockViewEvent::CreateView {
+        title: "Host-created collection".to_owned(),
+        kind: BlockViewKind::Table,
+    });
+    harness.run_steps(1);
+    assert!(
+        events.lock().unwrap().is_empty(),
+        "MT-027 host: CreateView event was drained by the mounted collection consumer"
+    );
+    {
+        let view = collection.lock().unwrap();
+        assert!(
+            view.in_flight,
+            "MT-027 host: CreateView enters an in-flight create state before the async result lands"
+        );
+        assert_eq!(
+            view.status, "Creating view…",
+            "MT-027 host: CreateView exposes an honest status while waiting for createBlockView"
+        );
+        assert!(
+            view.view_block_id.is_empty(),
+            "MT-027 host: the mounted host must not invent a new view id before the backend result"
+        );
+    }
+
+    harness
+        .state()
+        .deliver_block_collection_op_for_test(Ok("view-created-from-backend".to_owned()));
+    harness.run_steps(1);
+    {
+        let view = collection.lock().unwrap();
+        assert_eq!(
+            view.view_block_id, "view-created-from-backend",
+            "MT-027 host: createBlockView's returned id rebinds the mounted host before re-query"
+        );
+        assert!(
+            view.in_flight && view.loading,
+            "MT-027 host: after create succeeds, the host remains busy while it fetches definition/results"
+        );
+    }
+
+    let definition = BlockViewDefinition::of_kind(BlockViewKind::Table);
+    harness
+        .state()
+        .deliver_block_collection_record_for_test(Ok(BlockViewRecordData {
+            view_block_id: "view-created-from-backend".to_owned(),
+            definition: definition.clone(),
+        }));
+    harness
+        .state()
+        .deliver_block_collection_results_for_test(Ok(BlockViewResults::default()));
+    harness.run_steps(1);
+    {
+        let view = collection.lock().unwrap();
+        assert_eq!(view.view_block_id, "view-created-from-backend");
+        assert!(
+            !view.in_flight && !view.loading,
+            "MT-027 host: definition + results delivery clears the mounted in-flight state"
+        );
+        assert_eq!(
+            view.definition.as_ref().map(|d| d.kind),
+            Some(BlockViewKind::Table)
+        );
+        assert!(
+            view.results.is_some(),
+            "MT-027 host: results delivery installs the authoritative query result projection"
+        );
+    }
+}
+
+#[test]
+fn block_collection_saved_view_opens_and_binds_mounted_host() {
+    use handshake_native::editor_pane_factories::{
+        placeholder_pane_type, BLOCK_COLLECTIONS_PANE_LABEL,
+    };
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build parked current-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    retype_panes(
+        &mut app,
+        &[(
+            "pane-a",
+            placeholder_pane_type(BLOCK_COLLECTIONS_PANE_LABEL),
+        )],
+    );
+
+    let outcome = ShellNavigator::open_block_collection_view(&mut app, "view-def-001");
+    assert_eq!(
+        outcome,
+        NavDispatchOutcome::Opened {
+            surface: BLOCK_COLLECTIONS_PANE_LABEL.to_owned()
+        },
+        "saved view_def navigation opens the mounted Block Collections surface"
+    );
+    let active = app.active_pane().expect("active pane after nav").clone();
+    let active_tab = app
+        .tab_bar_states()
+        .get(&active)
+        .and_then(|bar| bar.active())
+        .expect("active tab after nav");
+    assert_eq!(
+        active_tab.pane_type,
+        placeholder_pane_type(BLOCK_COLLECTIONS_PANE_LABEL)
+    );
+    assert_eq!(active_tab.content_id.as_deref(), Some("view-def-001"));
+    let collection = app.mounted_block_collection_view();
+    let view = collection.lock().unwrap();
+    assert_eq!(view.view_block_id, "view-def-001");
+    assert!(
+        view.loading,
+        "saved view_def navigation enters the definition/results loading state"
+    );
+    assert_eq!(
+        view.status, "Loading view...",
+        "saved view_def navigation exposes an honest loading status"
+    );
+}
+
+#[test]
+fn block_collection_load_handles_results_before_definition() {
+    use handshake_native::backend_client::BlockViewRecordData;
+    use handshake_native::editor_pane_factories::{
+        placeholder_pane_type, BLOCK_COLLECTIONS_PANE_LABEL,
+    };
+    use handshake_native::graph::block_collection_view::{
+        BlockViewDefinition, BlockViewKind, BlockViewResults,
+    };
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build parked current-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    retype_panes(
+        &mut app,
+        &[(
+            "pane-a",
+            placeholder_pane_type(BLOCK_COLLECTIONS_PANE_LABEL),
+        )],
+    );
+    let collection = app.mounted_block_collection_view();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    let outcome = ShellNavigator::open_block_collection_view(harness.state_mut(), "view-def-race");
+    assert_eq!(
+        outcome,
+        NavDispatchOutcome::Opened {
+            surface: BLOCK_COLLECTIONS_PANE_LABEL.to_owned()
+        }
+    );
+
+    harness
+        .state()
+        .deliver_block_collection_results_for_test(Ok(BlockViewResults {
+            kind_str: "table".to_owned(),
+            total_returned: 1,
+            ..Default::default()
+        }));
+    harness.run_steps(1);
+    {
+        let view = collection.lock().unwrap();
+        assert!(
+            view.loading && view.results.is_none(),
+            "results that beat getBlockView are retained but not installed without a definition"
+        );
+    }
+
+    harness
+        .state()
+        .deliver_block_collection_record_for_test(Ok(BlockViewRecordData {
+            view_block_id: "view-def-race".to_owned(),
+            definition: BlockViewDefinition::of_kind(BlockViewKind::Table),
+        }));
+    harness.run_steps(1);
+    {
+        let view = collection.lock().unwrap();
+        assert_eq!(view.view_block_id, "view-def-race");
+        assert!(
+            !view.loading && !view.in_flight,
+            "definition delivery installs the retained results and clears loading"
+        );
+        assert_eq!(
+            view.results.as_ref().map(|r| r.total_returned),
+            Some(1),
+            "out-of-order results are not dropped"
+        );
+    }
+}
+
+#[test]
+fn block_collection_host_drains_mutations_and_requeries_current_view() {
+    use handshake_native::backend_client::BlockViewRecordData;
+    use handshake_native::editor_pane_factories::{
+        placeholder_pane_type, BLOCK_COLLECTIONS_PANE_LABEL,
+    };
+    use handshake_native::graph::block_collection_view::{
+        BlockViewDefinition, BlockViewEvent, BlockViewKind, BlockViewResults, BlockViewSort,
+        BlockViewSortDirection,
+    };
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build parked current-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    retype_panes(
+        &mut app,
+        &[(
+            "pane-a",
+            placeholder_pane_type(BLOCK_COLLECTIONS_PANE_LABEL),
+        )],
+    );
+
+    let collection = app.mounted_block_collection_view();
+    {
+        let mut view = collection.lock().unwrap();
+        view.view_block_id = "existing-view-def".to_owned();
+        view.set_loaded(
+            BlockViewDefinition::of_kind(BlockViewKind::Table),
+            BlockViewResults::default(),
+        );
+    }
+    let events = app.mounted_block_collection_events();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    let mutation_events = [
+        BlockViewEvent::Sort {
+            sort: BlockViewSort {
+                field: handshake_native::graph::block_collection_view::BlockViewField::Title,
+                direction: BlockViewSortDirection::Asc,
+            },
+        },
+        BlockViewEvent::KindChange {
+            kind: BlockViewKind::Kanban,
+        },
+        BlockViewEvent::DateRange {
+            date_from: Some("2026-07-01".to_owned()),
+            date_to: Some("2026-07-05".to_owned()),
+        },
+        BlockViewEvent::CardMove {
+            block_id: "block-001".to_owned(),
+            add_tags: vec!["done".to_owned()],
+            remove_tags: vec!["todo".to_owned()],
+        },
+    ];
+
+    for event in mutation_events {
+        events.lock().unwrap().push(event);
+        harness.run_steps(1);
+        assert!(
+            events.lock().unwrap().is_empty(),
+            "MT-027 host: mutation event was drained by the mounted collection consumer"
+        );
+        {
+            let view = collection.lock().unwrap();
+            assert!(
+                view.in_flight,
+                "MT-027 host: drained mutation enters an in-flight backend state"
+            );
+            assert_eq!(view.status, "Applying…");
+        }
+
+        harness
+            .state()
+            .deliver_block_collection_op_for_test(Ok("existing-view-def".to_owned()));
+        harness.run_steps(1);
+        {
+            let view = collection.lock().unwrap();
+            assert!(
+                view.loading,
+                "MT-027 host: successful mutation receipt starts definition/results re-query"
+            );
+            assert_eq!(view.view_block_id, "existing-view-def");
+        }
+        harness
+            .state()
+            .deliver_block_collection_record_for_test(Ok(BlockViewRecordData {
+                view_block_id: "existing-view-def".to_owned(),
+                definition: BlockViewDefinition::of_kind(BlockViewKind::Table),
+            }));
+        harness
+            .state()
+            .deliver_block_collection_results_for_test(Ok(BlockViewResults::default()));
+        harness.run_steps(1);
+        assert!(
+            !collection.lock().unwrap().in_flight,
+            "MT-027 host: definition + results delivery clears in-flight before the next mutation"
+        );
+    }
+}
+
+#[test]
+fn canvas_board_fetch_resolves_live_titles_into_mounted_cards() {
+    use handshake_native::backend_client::CanvasBoardData;
+    use handshake_native::graph::canvas_board::{placement_author_id, CanvasPlacementCard};
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    retype_panes(&mut app, &[("pane-a", PaneType::AtelierEditor)]);
+    let board = app.mounted_canvas_board();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    harness
+        .state()
+        .deliver_canvas_board_for_test(Ok(CanvasBoardData {
+            placements: vec![
+                CanvasPlacementCard::new("p-live-a", "blk-live-a", 40.0, 60.0, 220.0, 130.0),
+                CanvasPlacementCard::new("p-live-b", "blk-live-b", 300.0, 60.0, 220.0, 130.0),
+            ],
+            visual_edges: vec![],
+            pan_x: 0.0,
+            pan_y: 0.0,
+            zoom: 1.0,
+        }));
+    harness.run_steps(2);
+    let generation = harness.state().canvas_live_block_generation_for_test();
+    assert_eq!(
+        board.lock().unwrap().placements[0].display_title(),
+        "(stale reference)",
+        "the raw getCanvasBoard payload is reference-only until getLoomBlock resolves"
+    );
+
+    harness.state_mut().deliver_canvas_live_block_for_test(
+        generation,
+        "blk-live-a",
+        Ok((
+            Some("Resolved Canvas Title".to_owned()),
+            "note".to_owned(),
+            Some("hash-live-a".to_owned()),
+        )),
+    );
+    harness.state_mut().deliver_canvas_live_block_for_test(
+        generation,
+        "blk-live-b",
+        Err("missing block".to_owned()),
+    );
+    harness.run_steps(2);
+
+    {
+        let board = board.lock().unwrap();
+        let resolved = board
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-live-a")
+            .expect("resolved placement");
+        assert_eq!(resolved.display_title(), "Resolved Canvas Title");
+        assert_eq!(resolved.live_content_type.as_deref(), Some("note"));
+        assert_eq!(resolved.loom_content_hash.as_deref(), Some("hash-live-a"));
+
+        let stale = board
+            .placements
+            .iter()
+            .find(|p| p.placement_id == "p-live-b")
+            .expect("stale placement");
+        assert_eq!(
+            stale.display_title(),
+            "(stale reference)",
+            "a failed live-block resolve stays an honest stale reference"
+        );
+    }
+    assert_eq!(
+        harness.state().canvas_live_block_cells_in_flight_for_test(),
+        0,
+        "resolved live-block cells are drained from the mounted app host"
+    );
+    assert_eq!(
+        live_label_for(&harness, &placement_author_id("p-live-a")).as_deref(),
+        Some("Resolved Canvas Title"),
+        "the mounted canvas AccessKit node label comes from the resolved live block title"
+    );
+    assert_eq!(
+        live_label_for(&harness, &placement_author_id("p-live-b")).as_deref(),
+        Some("(stale reference)"),
+        "missing blocks remain explicit stale references instead of fabricated titles"
+    );
 }
 
 // ── PT-080-B / AC-080-5: outgoing-links click routes to the nav bus ───────────────────────────────────

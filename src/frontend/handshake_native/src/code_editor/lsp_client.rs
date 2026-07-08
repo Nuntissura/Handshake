@@ -60,6 +60,21 @@ pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 /// that never replies must not hang the editor's result-delivery task.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
+#[cfg(windows)]
+/// Windows `CREATE_NO_WINDOW`: keep language-server processes quiet during model/operator work.
+pub const LSP_CREATE_NO_WINDOW_FLAG: u32 = 0x0800_0000;
+
+#[cfg(windows)]
+fn focus_safe_creation_flags() -> u32 {
+    LSP_CREATE_NO_WINDOW_FLAG
+}
+
+#[cfg(windows)]
+/// Test-observable value used by the production LSP subprocess spawn path.
+pub fn lsp_focus_safe_creation_flags_for_test() -> u32 {
+    focus_safe_creation_flags()
+}
+
 /// Why an LSP request that the editor treats as fallible (currently only `textDocument/rename` — MT-048)
 /// could not produce a usable result. A no-server / timeout case is NOT an error for rename (it maps to an
 /// empty WorkspaceEdit so the editor falls back to the single-file path); an error is reserved for an
@@ -653,7 +668,7 @@ impl LspClient {
         #[cfg(windows)]
         {
             // CREATE_NO_WINDOW (0x0800_0000): the server never flashes a console window (HBR-QUIET).
-            command.creation_flags(0x0800_0000);
+            command.creation_flags(focus_safe_creation_flags());
         }
         let mut child = match command.spawn() {
             Ok(child) => child,

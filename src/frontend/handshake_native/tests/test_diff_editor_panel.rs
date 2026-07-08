@@ -22,14 +22,16 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::code_editor::{
-    DiffEditorPanel, DiffMode, MergeChoice, MergeStatus, TextBuffer, DIFF_EDITOR_PANEL_AUTHOR_ID,
-    DIFF_MODE_TOGGLE_AUTHOR_ID,
+    DiffEditorPaneFactory, DiffEditorPanel, DiffMode, MergeChoice, MergeStatus, TextBuffer,
+    DIFF_EDITOR_PANEL_AUTHOR_ID, DIFF_MODE_TOGGLE_AUTHOR_ID,
 };
+use handshake_native::pane_registry::{PaneFactory, PaneType};
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
@@ -126,11 +128,7 @@ fn side_by_side_added_line_has_green_in_right_pane() {
             );
         }
         Err(e) => {
-            println!(
-                "BLOCKER(non-fatal): MT-009 side-by-side screenshot render unavailable (no wgpu \
-                 adapter): {e}. The added-block + background-color logic is proven by the diff_engine \
-                 tests and the diff_color unit; the PNG + green-pixel check is a GPU-host item."
-            );
+            panic!("PT-003 side-by-side screenshot render unavailable: {e}");
         }
     }
 
@@ -242,11 +240,7 @@ fn inline_mode_shows_green_added_and_red_removed_prefixes() {
             );
         }
         Err(e) => {
-            println!(
-                "BLOCKER(non-fatal): MT-009 inline screenshot render unavailable (no wgpu adapter): \
-                 {e}. The inline-prefix + theme-color logic is proven by the panel unit tests; the PNG \
-                 + colored-pixel check is a GPU-host item."
-            );
+            panic!("PT-004 inline screenshot render unavailable: {e}");
         }
     }
 
@@ -349,6 +343,10 @@ fn merge_mode_accesskit_has_accept_local_button() {
         "AC-006: the AccessKit tree must contain a button node author_id='diff_block_0_accept_local'; \
          got {authors:?}"
     );
+    assert!(
+        authors.iter().any(|a| a == "code_editor_panel#base"),
+        "MT-009: merge mode must render an addressable BASE pane, not only local/remote; got {authors:?}"
+    );
     // The panel container is addressable too.
     assert!(
         authors.iter().any(|a| a == DIFF_EDITOR_PANEL_AUTHOR_ID),
@@ -370,6 +368,62 @@ fn merge_mode_accesskit_has_accept_local_button() {
         "AC-006: diff_block_0_accept_local must be Role::Button; got {role:?}"
     );
     println!("PT-006 accesskit: {{\"diff_block_0_accept_local\":\"Button\",\"container\":\"{DIFF_EDITOR_PANEL_AUTHOR_ID}\"}}");
+}
+
+#[test]
+fn diff_editor_factory_uses_diff_merge_pane_key_not_code_symbol() {
+    let factory = DiffEditorPaneFactory::new(DiffEditorPanel::diff(
+        TextBuffer::new("a"),
+        TextBuffer::new("b"),
+        "txt",
+    ));
+    assert_eq!(
+        factory.pane_type(),
+        PaneType::Placeholder("Diff Merge".to_owned()),
+        "MT-009: direct factory registration must not collide with PaneType::CodeSymbol"
+    );
+}
+
+#[test]
+fn large_diff_starts_pending_and_delivers_from_background_worker() {
+    let mut left = String::new();
+    let mut right = String::new();
+    for n in 0..10_050 {
+        left.push_str(&format!("line {n}\n"));
+        right.push_str(&format!("line {n}\n"));
+        if n == 5_000 {
+            right.push_str("added middle\n");
+        }
+    }
+
+    let panel = DiffEditorPanel::diff(
+        TextBuffer::new(left.trim_end()),
+        TextBuffer::new(right.trim_end()),
+        "txt",
+    );
+    assert!(
+        panel.diff_backgrounded_for_test(),
+        "MC-001: >10k-line diffs should dispatch through the background worker path"
+    );
+
+    for _ in 0..100 {
+        if !panel.diff_pending() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    assert!(
+        !panel.diff_pending(),
+        "MC-001: background diff worker should deliver the result"
+    );
+    let blocks = panel.diff_blocks();
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b.status == handshake_native::code_editor::DiffStatus::Added),
+        "delivered large diff should contain the added tail block; got {blocks:?}"
+    );
 }
 
 #[test]
@@ -461,5 +515,79 @@ fn synchronized_scroll_right_follows_left_within_two_lines() {
     println!(
         "AC-007 sync scroll: left scrolled to 20 (top {}), right top {} (synced target {expected_right}, delta {delta})",
         left_range.start, right_range.start
+    );
+}
+
+#[test]
+fn user_wheel_scroll_on_left_pane_syncs_right_pane() {
+    let mut left_s = String::from("REMOVED\n");
+    let mut right_s = String::new();
+    for n in 0..140 {
+        left_s.push_str(&format!("line{n}\n"));
+        right_s.push_str(&format!("line{n}\n"));
+    }
+    let left = TextBuffer::new(left_s.trim_end());
+    let right = TextBuffer::new(right_s.trim_end());
+    let panel = Arc::new(DiffEditorPanel::diff(left, right, "rs"));
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 360.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    harness.run();
+    harness.run();
+
+    let before_left = panel.left_visible_range();
+    let before_right = panel.right_visible_range();
+    assert!(
+        !before_left.is_empty() && !before_right.is_empty(),
+        "precondition: both panes painted before wheel scroll"
+    );
+
+    let wheel_pos = egui::pos2(220.0, 170.0);
+    {
+        let events = &mut harness.input_mut().events;
+        events.push(egui::Event::PointerMoved(wheel_pos));
+        events.push(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, -420.0),
+            modifiers: egui::Modifiers::NONE,
+        });
+    }
+    harness.step();
+    harness.run();
+    harness.run();
+
+    let after_left = panel.left_visible_range();
+    let after_right = panel.right_visible_range();
+    assert!(
+        after_left.start > before_left.start,
+        "precondition: wheel over the left pane must move the left pane (before {before_left:?}, after {after_left:?})"
+    );
+    let expected_right = panel.synced_right_line(after_left.start);
+    let delta = (after_right.start as i64 - expected_right as i64).abs();
+    assert!(
+        delta <= 2,
+        "MT-009: live user scroll must sync right pane to mapped line {expected_right}; got right {:?}, left {:?}, delta={delta}",
+        after_right,
+        after_left
+    );
+}
+
+#[test]
+fn diff_background_y_uses_visible_top_line_not_document_top() {
+    let y =
+        DiffEditorPanel::diff_background_y_for_visible_line_for_test(25, 20.5 * 16.0, 16.0, 100.0)
+            .expect("line 25 is visible when scrolled just past line 20");
+    assert_eq!(
+        y, 172.0,
+        "line 25 should account for a half-row scroll offset, not snap to the visible top line"
+    );
+    assert!(
+        DiffEditorPanel::diff_background_y_for_visible_line_for_test(19, f32::NAN, 16.0, 100.0)
+            .is_none(),
+        "non-finite scroll offsets are rejected"
     );
 }

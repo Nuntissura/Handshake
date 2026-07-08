@@ -118,6 +118,7 @@ struct PaneApp {
     /// A stable handle to the shared bus for assertions (== the app-data instance the factories use).
     bus: Arc<Mutex<InteractionBus>>,
     seeded: bool,
+    focus_code: bool,
 }
 
 impl PaneApp {
@@ -129,7 +130,12 @@ impl PaneApp {
             rich_record: pane_record("pane-rich", PaneType::LoomWikiPage),
             bus: Arc::new(Mutex::new(InteractionBus::new())),
             seeded: false,
+            focus_code: false,
         }
+    }
+
+    fn focus_code_pane(&mut self) {
+        self.focus_code = true;
     }
 
     fn ui(&mut self, ctx: &egui::Context) {
@@ -159,6 +165,13 @@ impl PaneApp {
                     record: &self.code_record,
                     egui_id: ui.id(),
                 };
+                if self.focus_code {
+                    ui.ctx().accesskit_node_builder(render_ctx.egui_id, |node| {
+                        node.set_role(egui::accesskit::Role::GenericContainer);
+                        node.set_label("Focused code pane scope".to_owned());
+                    });
+                    ui.memory_mut(|m| m.request_focus(render_ctx.egui_id));
+                }
                 self.code.render(ui, &render_ctx);
             });
             // Render the REAL rich-text pane (its render() wires the bus + publishes selection when it
@@ -210,8 +223,9 @@ fn selection_propagates_from_real_code_pane_to_rich_pane() {
         let panel = harness.state().code.panel();
         panel.set_cursors(vec![Cursor::selection(start, end)]);
     }
-    // Run a frame: the code pane's render() publishes the selection into the shared bus (it is the focus
-    // owner because it has a live selection).
+    // Run a focused frame: the code pane's render() publishes the selection into the shared bus because
+    // the code pane owns focus. A stale selection alone must not claim focus.
+    harness.state_mut().focus_code_pane();
     harness.run();
 
     // Read the shared selection from the rich-text pane's perspective (a different consumer of the SAME
@@ -261,6 +275,7 @@ fn clipboard_round_trip_real_code_to_real_rich_pane() {
         let panel = harness.state().code.panel();
         panel.set_cursors(vec![Cursor::selection(0, SRC.len())]);
     }
+    harness.state_mut().focus_code_pane();
     harness.run();
 
     // Code pane Copy (the Ctrl+C path): copy the published shared selection through the bus + the mock
@@ -358,6 +373,7 @@ fn copy_dispatch_caches_shared_selection() {
         let panel = harness.state().code.panel();
         panel.set_cursors(vec![Cursor::selection(0, SRC.len())]);
     }
+    harness.state_mut().focus_code_pane();
     harness.run();
 
     let bus = harness.state().bus.clone();

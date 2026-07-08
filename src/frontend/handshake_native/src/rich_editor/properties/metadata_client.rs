@@ -4,9 +4,10 @@
 //!
 //! MT-014's `AssetMetadataFetcher` and MT-015's `WikilinkBackend` proved the right shape for this
 //! crate: a `Send + Sync` trait returning boxed futures (NOT `async-trait`, so ZERO new dependency
-//! families), a production [`reqwest`] impl wrapping the existing reqwest 0.12 + rustls stack, and a
-//! COUNTED in-memory mock for the unit tests. This module reuses that exact pattern for the THREE
-//! MT-017 backend bindings, anchored to the VERIFIED real backend
+//! families), a production impl wrapping the existing consolidated `/knowledge/documents/*` client
+//! (including the required `x-hsk-*` document headers), and a COUNTED in-memory mock for the unit tests.
+//! This module reuses that exact pattern for the THREE MT-017 backend bindings, anchored to the VERIFIED
+//! real backend
 //! (`src/backend/handshake_core/src/api/knowledge_documents.rs`):
 //!   - title rename: `POST /knowledge/documents/{id}/rename` with `{ title }` -> `{ document, … }`
 //!     (verified `RenameBody { title }` + the `move`/`rename` handlers return the updated document),
@@ -29,6 +30,7 @@
 //! it sidesteps the contract's MC-001 stale-content-clobber risk entirely: a rename never sends a
 //! content body, so it cannot overwrite the operator's live edits.
 
+use std::collections::VecDeque;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -74,28 +76,6 @@ pub struct DocMetadata {
     pub created_at: String,
     /// The ISO-8601 last-update timestamp (rendered local; refreshed after each save).
     pub updated_at: String,
-}
-
-/// The `RichDocLoad` envelope (`GET /knowledge/documents/{id}` returns `{ document, tree, code_nodes }`).
-/// The panel only needs `document`.
-#[derive(Debug, Clone, Deserialize)]
-struct RichDocLoadEnvelope {
-    document: DocMetadata,
-}
-
-/// The rename/move response envelope (`{ document, save_receipt_event_id, … }`). The panel only needs
-/// the updated `document` (to refresh the displayed metadata + `updated_at`).
-#[derive(Debug, Clone, Deserialize)]
-struct DocMutationEnvelope {
-    document: DocMetadata,
-}
-
-/// The backlinks-count response (`{ source_document_id, backlinks: [...] }`). The panel counts
-/// `backlinks.len()` — it does NOT need the entries (MT-015's panel renders those).
-#[derive(Debug, Clone, Deserialize)]
-struct BacklinksCountEnvelope {
-    #[serde(default)]
-    backlinks: Vec<serde_json::Value>,
 }
 
 /// The typed reasons a metadata backend interaction failed. Each variant renders as a VISIBLE banner
@@ -169,43 +149,97 @@ pub trait KnowledgeMetadataBackend: Send + Sync {
     fn backlinks_count<'a>(&'a self, document_id: &'a str) -> MetadataFuture<'a, usize>;
 }
 
-/// The production [`KnowledgeMetadataBackend`]: a thin wrapper over a `reqwest::Client` against the
-/// verified backend endpoints, mapping HTTP status to the typed [`MetadataError`] vocabulary. REUSES
-/// the existing reqwest 0.12 + rustls stack from `backend_client` — NO new HTTP crate. Read/write of
-/// the EXISTING knowledge-document API only; no backend code is touched.
+/// The production [`KnowledgeMetadataBackend`]: a thin wrapper over the consolidated
+/// [`crate::backend::knowledge_documents::KnowledgeDocumentsClient`] against the verified backend
+/// endpoints, mapping typed document-client errors to the panel's [`MetadataError`] vocabulary. REUSES
+/// the existing reqwest 0.12 + rustls stack and the required `x-hsk-*` identity headers from
+/// `backend_client` / `backend::knowledge_documents` — NO new HTTP crate and NO duplicate header path.
+/// Read/write of the EXISTING knowledge-document API only; no backend code is touched.
 #[derive(Clone)]
 pub struct ReqwestMetadataBackend {
-    client: reqwest::Client,
+    client: crate::backend::knowledge_documents::KnowledgeDocumentsClient,
     base_url: String,
+    session_run_id: String,
 }
 
 impl ReqwestMetadataBackend {
     /// Build a backend client against `base_url` (e.g. `backend_client::BACKEND_BASE_URL`).
     pub fn new(base_url: impl Into<String>) -> Self {
+        let base_url = base_url.into();
         Self {
-            client: reqwest::Client::new(),
-            base_url: base_url.into(),
+            client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_base_url(
+                base_url.clone(),
+            ),
+            base_url,
+            session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
         }
     }
 
     /// The production client against the hardcoded backend base URL.
     pub fn production() -> Self {
-        Self::new(crate::backend_client::BACKEND_BASE_URL)
+        Self {
+            client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::production(),
+            base_url: crate::backend_client::BACKEND_BASE_URL.to_owned(),
+            session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
+        }
     }
 
     /// The REST base this client talks to.
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
+
+    fn read_headers(
+        &self,
+        document_id: &str,
+    ) -> crate::backend::knowledge_documents::HskDocumentHeaders {
+        crate::backend::knowledge_documents::HskDocumentHeaders::for_read(
+            self.session_run_id.clone(),
+            document_id,
+        )
+    }
+
+    fn write_headers(
+        &self,
+        document_id: &str,
+    ) -> crate::backend::knowledge_documents::HskDocumentHeaders {
+        crate::backend::knowledge_documents::HskDocumentHeaders::for_operator(
+            self.session_run_id.clone(),
+            document_id,
+        )
+    }
 }
 
-/// Map a non-success HTTP status to the typed [`MetadataError`].
-fn map_status(status: u16, what: &str) -> MetadataError {
-    match status {
-        404 => MetadataError::NotFound(what.to_owned()),
-        401 | 403 => MetadataError::Forbidden(format!("{what} (HTTP {status})")),
-        _ => MetadataError::ServerError(format!("{what} returned HTTP {status}")),
+fn document_client_error_to_metadata_error(
+    error: crate::backend::knowledge_documents::KnowledgeDocumentsError,
+) -> MetadataError {
+    use crate::backend::knowledge_documents::KnowledgeDocumentsError;
+    match error {
+        KnowledgeDocumentsError::NotFound(detail) => MetadataError::NotFound(detail),
+        KnowledgeDocumentsError::Forbidden(reason) => MetadataError::Forbidden(reason),
+        KnowledgeDocumentsError::Transport(e) => MetadataError::NetworkError(e),
+        KnowledgeDocumentsError::BadRequest(detail) => MetadataError::ServerError(detail),
+        KnowledgeDocumentsError::Server(detail) => MetadataError::ServerError(detail),
+        KnowledgeDocumentsError::UnexpectedStatus { status, body } => {
+            MetadataError::ServerError(format!("unexpected HTTP {status}: {body}"))
+        }
+        KnowledgeDocumentsError::Parse(e) => MetadataError::ServerError(e),
+        KnowledgeDocumentsError::SaveConflict { server_version } => MetadataError::ServerError(
+            format!("metadata write conflicted (server_version={server_version:?})"),
+        ),
+        KnowledgeDocumentsError::BatchTooLarge { len, max } => {
+            MetadataError::ServerError(format!("batch too large: {len} > {max}"))
+        }
+        KnowledgeDocumentsError::BatchEmpty => MetadataError::ServerError("batch empty".into()),
     }
+}
+
+fn doc_metadata_from_value(
+    value: serde_json::Value,
+    what: &str,
+) -> Result<DocMetadata, MetadataError> {
+    serde_json::from_value(value)
+        .map_err(|e| MetadataError::ServerError(format!("{what} body invalid: {e}")))
 }
 
 impl KnowledgeMetadataBackend for ReqwestMetadataBackend {
@@ -214,31 +248,20 @@ impl KnowledgeMetadataBackend for ReqwestMetadataBackend {
         document_id: &'a str,
         title: &'a str,
     ) -> MetadataFuture<'a, DocMetadata> {
-        let url = format!(
-            "{}/knowledge/documents/{}/rename",
-            self.base_url, document_id
-        );
         let client = self.client.clone();
+        let headers = self.write_headers(document_id);
+        let document_id = document_id.to_owned();
         let title = title.trim().to_owned();
         Box::pin(async move {
             if title.is_empty() {
                 return Err(MetadataError::EmptyTitle);
             }
+            let body = crate::backend::knowledge_documents::RenameDocumentRequest { title };
             let response = client
-                .post(&url)
-                .json(&serde_json::json!({ "title": title }))
-                .send()
+                .rename_document(&headers, &document_id, &body)
                 .await
-                .map_err(|e| MetadataError::NetworkError(format!("rename failed: {e}")))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(map_status(status.as_u16(), "rename"));
-            }
-            let parsed: DocMutationEnvelope = response
-                .json()
-                .await
-                .map_err(|e| MetadataError::ServerError(format!("rename body invalid: {e}")))?;
-            Ok(parsed.document)
+                .map_err(document_client_error_to_metadata_error)?;
+            doc_metadata_from_value(response.document, "rename")
         })
     }
 
@@ -248,92 +271,51 @@ impl KnowledgeMetadataBackend for ReqwestMetadataBackend {
         project_ref: Option<Option<String>>,
         folder_ref: Option<Option<String>>,
     ) -> MetadataFuture<'a, DocMetadata> {
-        let url = format!("{}/knowledge/documents/{}/move", self.base_url, document_id);
         let client = self.client.clone();
+        let headers = self.write_headers(document_id);
+        let document_id = document_id.to_owned();
         Box::pin(async move {
-            // Build the body honoring absent-vs-null: an absent field is OMITTED (unchanged); an
-            // explicit None serializes as JSON null (clear); a Some(value) sets it.
-            let mut body = serde_json::Map::new();
-            if let Some(p) = project_ref {
-                body.insert(
-                    "project_ref".into(),
-                    p.map(serde_json::Value::String)
-                        .unwrap_or(serde_json::Value::Null),
-                );
-            }
-            if let Some(f) = folder_ref {
-                body.insert(
-                    "folder_ref".into(),
-                    f.map(serde_json::Value::String)
-                        .unwrap_or(serde_json::Value::Null),
-                );
-            }
+            let body = crate::backend::knowledge_documents::MoveDocumentRequest {
+                project_ref,
+                folder_ref,
+            };
             let response = client
-                .post(&url)
-                .json(&serde_json::Value::Object(body))
-                .send()
+                .move_document(&headers, &document_id, &body)
                 .await
-                .map_err(|e| MetadataError::NetworkError(format!("move failed: {e}")))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(map_status(status.as_u16(), "move"));
-            }
-            let parsed: DocMutationEnvelope = response
-                .json()
-                .await
-                .map_err(|e| MetadataError::ServerError(format!("move body invalid: {e}")))?;
-            Ok(parsed.document)
+                .map_err(document_client_error_to_metadata_error)?;
+            doc_metadata_from_value(response.document, "move")
         })
     }
 
     fn load<'a>(&'a self, document_id: &'a str) -> MetadataFuture<'a, DocMetadata> {
-        let url = format!("{}/knowledge/documents/{}", self.base_url, document_id);
         let client = self.client.clone();
+        let headers = self.read_headers(document_id);
         let document_id = document_id.to_owned();
         Box::pin(async move {
             let response = client
-                .get(&url)
-                .send()
+                .load_document(&headers, &document_id)
                 .await
-                .map_err(|e| MetadataError::NetworkError(format!("load failed: {e}")))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(map_status(
-                    status.as_u16(),
-                    &format!("document '{document_id}'"),
-                ));
-            }
-            let parsed: RichDocLoadEnvelope = response
-                .json()
-                .await
-                .map_err(|e| MetadataError::ServerError(format!("load body invalid: {e}")))?;
-            Ok(parsed.document)
+                .map_err(document_client_error_to_metadata_error)?;
+            doc_metadata_from_value(response.document, "load")
         })
     }
 
     fn backlinks_count<'a>(&'a self, document_id: &'a str) -> MetadataFuture<'a, usize> {
-        let url = format!(
-            "{}/knowledge/documents/{}/backlinks",
-            self.base_url, document_id
-        );
         let client = self.client.clone();
+        let headers = self.read_headers(document_id);
         let document_id = document_id.to_owned();
         Box::pin(async move {
-            let response =
-                client.get(&url).send().await.map_err(|e| {
-                    MetadataError::NetworkError(format!("backlinks-count failed: {e}"))
-                })?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(map_status(
-                    status.as_u16(),
-                    &format!("backlinks for '{document_id}'"),
-                ));
+            let response = client
+                .list_backlinks(&headers, &document_id)
+                .await
+                .map_err(document_client_error_to_metadata_error)?;
+            match response.backlinks {
+                serde_json::Value::Array(rows) => Ok(rows.len()),
+                serde_json::Value::Null => Ok(0),
+                other => Err(MetadataError::ServerError(format!(
+                    "backlinks-count body invalid: expected array, got {other}"
+                ))),
             }
-            let parsed: BacklinksCountEnvelope = response.json().await.map_err(|e| {
-                MetadataError::ServerError(format!("backlinks-count body invalid: {e}"))
-            })?;
-            Ok(parsed.backlinks.len())
         })
     }
 }
@@ -367,8 +349,11 @@ pub enum BacklinksCountState {
     Failed(MetadataError),
 }
 
-/// One-slot delivery cell for an off-thread metadata mutation (rename/move) result.
-type MutationDeliveryCell = Arc<Mutex<Option<Result<DocMetadata, MetadataError>>>>;
+/// FIFO delivery queue for off-thread metadata mutation (rename/move) results, tagged with the mutation
+/// generation + document id each request was issued for so stale responses can be dropped without
+/// overwriting a fresher queued result.
+type MutationDeliveryQueue = VecDeque<(u64, String, Result<DocMetadata, MetadataError>)>;
+type MutationDeliveryCell = Arc<Mutex<MutationDeliveryQueue>>;
 
 /// One-slot delivery cell for an off-thread backlinks-count fetch, tagged with the generation it was
 /// issued for (MC-004 cancellation): `(generation, result)`.
@@ -387,6 +372,9 @@ pub struct PropertiesRuntime {
     pub document_id: String,
     /// The title-save (rename) dispatch state.
     pub save_state: SaveState,
+    /// The monotonic rename/move generation; bumped on each metadata mutation dispatch and document
+    /// switch so stale same-document and prior-document mutation responses are dropped.
+    pub mutation_generation: u64,
     /// The backlinks-count state (a SEPARATE async task — MC-004).
     pub backlinks_count: BacklinksCountState,
     /// The monotonic backlinks-count generation; bumped on document change so a stale response is
@@ -407,9 +395,10 @@ impl PropertiesRuntime {
             runtime,
             document_id: String::new(),
             save_state: SaveState::Idle,
+            mutation_generation: 0,
             backlinks_count: BacklinksCountState::Idle,
             count_generation: 0,
-            mutation_cell: Arc::new(Mutex::new(None)),
+            mutation_cell: Arc::new(Mutex::new(VecDeque::new())),
             count_cell: Arc::new(Mutex::new(None)),
         }
     }
@@ -427,6 +416,17 @@ impl PropertiesRuntime {
             return;
         }
         self.document_id = document_id;
+        self.mutation_generation = self.mutation_generation.wrapping_add(1);
+        self.count_generation = self.count_generation.wrapping_add(1);
+        self.backlinks_count = BacklinksCountState::Idle;
+        self.save_state = SaveState::Idle;
+    }
+
+    /// Clear the active document binding unconditionally. Used when the shell invalidates or switches
+    /// documents before the next metadata load lands, so stale save/count state cannot remain visible.
+    pub fn clear_document(&mut self) {
+        self.document_id.clear();
+        self.mutation_generation = self.mutation_generation.wrapping_add(1);
         self.count_generation = self.count_generation.wrapping_add(1);
         self.backlinks_count = BacklinksCountState::Idle;
         self.save_state = SaveState::Idle;
@@ -434,12 +434,15 @@ impl PropertiesRuntime {
 
     /// Dispatch a title rename for `document_id`. Marks `Saving` and spawns the rename; the result lands
     /// in the mutation cell (drained next frame). A no-op (records `Failed(EmptyTitle)`) for a blank
-    /// title. Without a runtime (headless) it records the request as `Failed` rather than entering a
-    /// perpetual `Saving` that nothing resolves (no-spinner discipline); tests stage results directly.
+    /// title. Without a runtime (headless) it leaves state unchanged rather than entering a perpetual
+    /// `Saving` that nothing resolves (no-spinner discipline); tests stage results directly.
     pub fn dispatch_rename(&mut self, document_id: &str, title: &str) {
         let title = title.trim().to_owned();
         if title.is_empty() {
             self.save_state = SaveState::Failed(MetadataError::EmptyTitle);
+            return;
+        }
+        if document_id != self.document_id {
             return;
         }
         let Some(runtime) = self.runtime.clone() else {
@@ -447,6 +450,8 @@ impl PropertiesRuntime {
             // stage the result via `stage_mutation`; production always has a runtime.
             return;
         };
+        self.mutation_generation = self.mutation_generation.wrapping_add(1);
+        let generation = self.mutation_generation;
         self.save_state = SaveState::Saving;
         let backend = Arc::clone(&self.backend);
         let cell = Arc::clone(&self.mutation_cell);
@@ -454,7 +459,42 @@ impl PropertiesRuntime {
         runtime.spawn(async move {
             let result = backend.rename(&document_id, &title).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result);
+                slot.push_back((generation, document_id, result));
+            }
+        });
+    }
+
+    /// Dispatch a project/folder move for `document_id`. `None` means leave that ref unchanged,
+    /// `Some(None)` clears it, and `Some(Some(v))` sets it. The result lands in the same mutation cell as
+    /// rename so the host applies the refreshed metadata and updated timestamp on the next frame.
+    pub fn dispatch_move(
+        &mut self,
+        document_id: &str,
+        project_ref: Option<Option<String>>,
+        folder_ref: Option<Option<String>>,
+    ) {
+        if project_ref.is_none() && folder_ref.is_none() {
+            return;
+        }
+        if document_id != self.document_id {
+            return;
+        }
+        let Some(runtime) = self.runtime.clone() else {
+            // Headless: do not enter a perpetual Saving state; tests can stage or use a real runtime.
+            return;
+        };
+        self.mutation_generation = self.mutation_generation.wrapping_add(1);
+        let generation = self.mutation_generation;
+        self.save_state = SaveState::Saving;
+        let backend = Arc::clone(&self.backend);
+        let cell = Arc::clone(&self.mutation_cell);
+        let document_id = document_id.to_owned();
+        runtime.spawn(async move {
+            let result = backend
+                .move_doc(&document_id, project_ref, folder_ref)
+                .await;
+            if let Ok(mut slot) = cell.lock() {
+                slot.push_back((generation, document_id, result));
             }
         });
     }
@@ -501,17 +541,35 @@ impl PropertiesRuntime {
         let mut applied = false;
         let mut fresh_metadata: Option<DocMetadata> = None;
 
-        if let Ok(mut slot) = self.mutation_cell.lock() {
-            if let Some(result) = slot.take() {
+        let mutation_deliveries = if let Ok(mut slot) = self.mutation_cell.lock() {
+            slot.drain(..).collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        for (generation, document_id, result) in mutation_deliveries {
+            if generation == self.mutation_generation && document_id == self.document_id {
                 match result {
                     Ok(meta) => {
-                        self.save_state = SaveState::Saved;
-                        fresh_metadata = Some(meta);
+                        if meta.rich_document_id == self.document_id {
+                            self.save_state = SaveState::Saved;
+                            fresh_metadata = Some(meta);
+                            applied = true;
+                        } else {
+                            self.save_state =
+                                SaveState::Failed(MetadataError::ServerError(format!(
+                                    "metadata mutation returned document {} for active document {}",
+                                    meta.rich_document_id, self.document_id
+                                )));
+                            applied = true;
+                        }
                     }
-                    Err(e) => self.save_state = SaveState::Failed(e),
+                    Err(e) => {
+                        self.save_state = SaveState::Failed(e);
+                        applied = true;
+                    }
                 }
-                applied = true;
             }
+            // else: a stale mutation landed late -> dropped.
         }
         if let Ok(mut slot) = self.count_cell.lock() {
             if let Some((generation, result)) = slot.take() {
@@ -533,7 +591,39 @@ impl PropertiesRuntime {
     /// Stage a mutation (rename/move) delivery into the cell (test seam).
     #[cfg(test)]
     pub fn stage_mutation(&self, result: Result<DocMetadata, MetadataError>) {
-        *self.mutation_cell.lock().unwrap() = Some(result);
+        self.mutation_cell.lock().unwrap().push_back((
+            self.mutation_generation,
+            self.document_id.clone(),
+            result,
+        ));
+    }
+
+    /// Stage a mutation (rename/move) delivery tagged with an explicit document id (test seam).
+    #[cfg(test)]
+    pub fn stage_mutation_for_document(
+        &self,
+        document_id: impl Into<String>,
+        result: Result<DocMetadata, MetadataError>,
+    ) {
+        self.mutation_cell.lock().unwrap().push_back((
+            self.mutation_generation,
+            document_id.into(),
+            result,
+        ));
+    }
+
+    /// Stage a mutation delivery tagged with explicit generation + document id (test seam).
+    #[cfg(test)]
+    pub fn stage_mutation_for_generation(
+        &self,
+        generation: u64,
+        document_id: impl Into<String>,
+        result: Result<DocMetadata, MetadataError>,
+    ) {
+        self.mutation_cell
+            .lock()
+            .unwrap()
+            .push_back((generation, document_id.into(), result));
     }
 
     /// Stage a backlinks-count delivery into the cell tagged with `generation` (test seam).
@@ -590,6 +680,12 @@ mod tests {
             created_at: "2026-06-19T14:32:00Z".into(),
             updated_at: "2026-06-19T14:32:00Z".into(),
         }
+    }
+
+    fn meta_with_id(document_id: &str, title: &str) -> DocMetadata {
+        let mut m = meta(title);
+        m.rich_document_id = document_id.to_owned();
+        m
     }
 
     /// A counted mock clipboard sink (AC-6: copy without touching the OS clipboard).
@@ -661,11 +757,28 @@ mod tests {
     }
 
     #[test]
-    fn map_status_maps_http_codes() {
-        assert_eq!(map_status(404, "x"), MetadataError::NotFound("x".into()));
-        assert_eq!(map_status(401, "x").kind_str(), "forbidden");
-        assert_eq!(map_status(403, "x").kind_str(), "forbidden");
-        assert_eq!(map_status(500, "x").kind_str(), "server_error");
+    fn document_client_errors_map_to_metadata_errors() {
+        use crate::backend::knowledge_documents::KnowledgeDocumentsError;
+
+        assert_eq!(
+            document_client_error_to_metadata_error(KnowledgeDocumentsError::NotFound("x".into())),
+            MetadataError::NotFound("x".into())
+        );
+        assert_eq!(
+            document_client_error_to_metadata_error(KnowledgeDocumentsError::Forbidden("x".into()))
+                .kind_str(),
+            "forbidden"
+        );
+        assert_eq!(
+            document_client_error_to_metadata_error(KnowledgeDocumentsError::Transport("x".into()))
+                .kind_str(),
+            "network_error"
+        );
+        assert_eq!(
+            document_client_error_to_metadata_error(KnowledgeDocumentsError::Server("x".into()))
+                .kind_str(),
+            "server_error"
+        );
     }
 
     struct NoopBackend;
@@ -707,6 +820,7 @@ mod tests {
         // to PropertiesState). MC-001 documented: the metadata is the rename response (title-only), so a
         // content body is never involved and cannot clobber the live doc.
         let mut rt = rt();
+        rt.set_document("KRD-1");
         rt.stage_mutation(Ok(meta("Renamed Doc")));
         let (fresh, applied) = rt.drain();
         assert!(applied);
@@ -717,6 +831,7 @@ mod tests {
     #[test]
     fn drain_applies_rename_failure_to_save_state() {
         let mut rt = rt();
+        rt.set_document("KRD-1");
         rt.stage_mutation(Err(MetadataError::ServerError("500".into())));
         let (fresh, applied) = rt.drain();
         assert!(applied);
@@ -725,6 +840,128 @@ mod tests {
             rt.save_state,
             SaveState::Failed(MetadataError::ServerError(_))
         ));
+    }
+
+    #[test]
+    fn mutation_delivery_drops_stale_document_results() {
+        // Rename/move responses are tagged with the document id they were issued for. If Doc A's
+        // mutation lands after the editor has switched to Doc B, it must not overwrite Doc B metadata.
+        let mut rt = rt();
+        rt.set_document("KRD-A");
+        rt.set_document("KRD-B");
+        rt.stage_mutation_for_document("KRD-A", Ok(meta_with_id("KRD-A", "Stale A")));
+
+        let (fresh, applied) = rt.drain();
+        assert!(
+            !applied,
+            "stale Doc A mutation is dropped after switching to Doc B"
+        );
+        assert!(fresh.is_none());
+        assert_eq!(
+            rt.save_state,
+            SaveState::Idle,
+            "dropping a stale mutation does not mark the active Doc B save state"
+        );
+
+        rt.stage_mutation_for_document("KRD-B", Ok(meta_with_id("KRD-B", "Fresh B")));
+        let (fresh, applied) = rt.drain();
+        assert!(applied);
+        assert_eq!(fresh.unwrap().title, "Fresh B");
+        assert_eq!(rt.save_state, SaveState::Saved);
+    }
+
+    #[test]
+    fn mutation_delivery_drops_stale_same_document_generation() {
+        let mut rt = rt();
+        rt.set_document("KRD-1");
+        rt.mutation_generation = 7;
+
+        rt.stage_mutation_for_generation(6, "KRD-1", Ok(meta_with_id("KRD-1", "Older")));
+        let (fresh, applied) = rt.drain();
+        assert!(
+            !applied,
+            "older same-document metadata mutation generation is dropped"
+        );
+        assert!(fresh.is_none());
+
+        rt.stage_mutation_for_generation(7, "KRD-1", Ok(meta_with_id("KRD-1", "Latest")));
+        let (fresh, applied) = rt.drain();
+        assert!(applied);
+        assert_eq!(fresh.unwrap().title, "Latest");
+    }
+
+    #[test]
+    fn mutation_delivery_queue_preserves_current_result_when_stale_lands_after_it() {
+        let mut rt = rt();
+        rt.set_document("KRD-1");
+        rt.mutation_generation = 2;
+        rt.save_state = SaveState::Saving;
+
+        rt.stage_mutation_for_generation(2, "KRD-1", Ok(meta_with_id("KRD-1", "Newest")));
+        rt.stage_mutation_for_generation(1, "KRD-1", Ok(meta_with_id("KRD-1", "Old")));
+
+        let (fresh, applied) = rt.drain();
+        assert!(applied);
+        assert_eq!(rt.save_state, SaveState::Saved);
+        assert_eq!(
+            fresh.unwrap().title,
+            "Newest",
+            "a late stale delivery must not overwrite or discard the current-generation result"
+        );
+    }
+
+    #[test]
+    fn mutation_delivery_wrong_return_document_fails_active_save() {
+        let mut rt = rt();
+        rt.set_document("KRD-1");
+        rt.mutation_generation = 3;
+        rt.save_state = SaveState::Saving;
+
+        rt.stage_mutation_for_generation(
+            3,
+            "KRD-1",
+            Ok(meta_with_id("KRD-OTHER", "Wrong document")),
+        );
+
+        let (fresh, applied) = rt.drain();
+        assert!(applied);
+        assert!(fresh.is_none());
+        match &rt.save_state {
+            SaveState::Failed(MetadataError::ServerError(message)) => {
+                assert!(message.contains("KRD-OTHER"));
+                assert!(message.contains("KRD-1"));
+            }
+            other => panic!("wrong returned document must fail the active save, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn dispatch_mutations_ignore_non_current_document_without_saving() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let mut rt = PropertiesRuntime::new(Arc::new(NoopBackend), Some(runtime.handle().clone()));
+        rt.set_document("KRD-1");
+        let generation = rt.mutation_generation;
+
+        rt.dispatch_rename("KRD-OTHER", "Wrong document");
+        assert_eq!(rt.save_state, SaveState::Idle);
+        assert_eq!(
+            rt.mutation_generation, generation,
+            "wrong-document rename must not bump the mutation generation"
+        );
+
+        rt.dispatch_move(
+            "KRD-OTHER",
+            Some(Some("project-x".into())),
+            Some(Some("folder-x".into())),
+        );
+        assert_eq!(rt.save_state, SaveState::Idle);
+        assert_eq!(
+            rt.mutation_generation, generation,
+            "wrong-document move must not bump the mutation generation"
+        );
     }
 
     #[test]
@@ -769,6 +1006,18 @@ mod tests {
             rt.count_generation, gen,
             "no generation bump without a runtime to dispatch the fetch"
         );
+    }
+
+    #[test]
+    fn clear_document_resets_runtime_state_even_when_id_is_already_empty() {
+        let mut rt = rt();
+        rt.save_state = SaveState::Saving;
+        rt.backlinks_count = BacklinksCountState::Loaded(4);
+        rt.clear_document();
+
+        assert_eq!(rt.document_id, "");
+        assert_eq!(rt.save_state, SaveState::Idle);
+        assert_eq!(rt.backlinks_count, BacklinksCountState::Idle);
     }
 
     #[test]

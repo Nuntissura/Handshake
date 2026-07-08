@@ -61,6 +61,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use egui::accesskit;
 
@@ -79,7 +80,7 @@ use super::note_refs_panel::{render_note_refs_panel, NoteRefsState};
 
 use super::buffer::TextBuffer;
 use super::code_nav::{
-    staleness_marker_for, CodeNavCache, CodeNavClient, CodeSymbolNavProjection,
+    staleness_marker_for, symbol_file_path, CodeNavCache, CodeNavClient, CodeSymbolNavProjection,
     CodeSymbolReferencesResponse, CompletionItem, COMPLETION_DEBOUNCE_MS, HOVER_DWELL_MS,
     SYMBOL_LOOKUP_LIMIT,
 };
@@ -100,7 +101,7 @@ use super::find_replace::{FindEngine, FindQuery, Match};
 use super::folding::{FoldProvider, FoldSet};
 use super::gutter::{
     DiagnosticSeverity, Gutter, GutterConfig, GutterGeometry, GutterMarker, GutterMarkerKind,
-    GutterResponse,
+    GutterPaintRow, GutterResponse,
 };
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
 use super::jump_history::{JumpEntry, JumpHistory};
@@ -134,6 +135,8 @@ pub const CODE_EDITOR_TEXT_AUTHOR_ID: &str = "code_editor_text";
 /// caret role in accesskit 0.21 — the contract's `Role::TextCursor` does not exist there). Only the
 /// first [`MAX_ACCESSKIT_CURSORS`] cursors are surfaced (RISK-004 / MC-004).
 pub const CODE_EDITOR_CURSOR_AUTHOR_PREFIX: &str = "code_editor_cursor_";
+
+const CODE_TEXT_UNDO_BATCH_WINDOW: Duration = Duration::from_millis(500);
 
 /// MT-004 find/replace author_ids. The find input is `code_editor_find_bar` (the MT contract names
 /// `Role::SearchBox`, which does NOT exist in accesskit 0.21 — `Role::SearchInput` is the field-correct
@@ -224,26 +227,22 @@ pub const CODE_ACTION_REST_MS: u64 = 300;
 /// connect (the MT-015 no-perpetual-spinner lesson — the off-thread task always completes promptly).
 pub const SYMBOL_KEY_LOOKUP_TIMEOUT_MS: u64 = 1500;
 
-/// The fixed AccessKit `NodeId` band the per-fold `Role::TreeItem` nodes occupy for the default panel
-/// (300..300+MAX_ACCESSKIT_FOLDS), disjoint from the find-bar band (280..283), the cursor band
-/// (210..274), and the container/scroll/text band (200/201/202).
-const PANEL_FOLD_NODE_ID_BASE: u64 = 300;
-
 /// MT-006 navigation-aid fixed AccessKit `NodeId`s for the default (single-instance) panel. A fresh
-/// band (370..372) ABOVE the fold band (300..363) so they never collide with the container/scroll/text
-/// (200/201/202), cursor (210..274), find-bar (280..283), or fold nodes. Multi-instance panels hash the
-/// suffixed author_id instead (RISK-004), the same scheme every other panel node uses.
+/// band (370..372) never collides with the container/scroll/text (200/201/202), cursor (210..274),
+/// find-bar (280..283), or dynamic fold nodes. Multi-instance panels hash the suffixed author_id instead
+/// (RISK-004), the same scheme every other panel node uses.
 const PANEL_MINIMAP_NODE_ID: u64 = 370;
 const PANEL_OUTLINE_NODE_ID: u64 = 371;
 const PANEL_GOTO_LINE_NODE_ID: u64 = 372;
 
 /// MT-053 fixed AccessKit `NodeId`s for the default (single-instance) panel. A fresh band (700..702)
 /// ABOVE the MT-010 command band (600..600+N≈660), disjoint from the container/scroll/text (200/201/202),
-/// cursor (210..274), find-bar (280..283), fold (300..363), nav (370..372), gutter (400/410../480..), and
-/// command (600..) bands. The symbol-palette dialog (the modal window scope), the palette list container,
-/// and the search input get fixed ids; the sticky band container gets a fixed id too. Per-row + per-header
-/// nodes are DYNAMIC (hashed id space). Multi-instance panels hash the suffixed author_id instead
-/// (RISK-004), the same scheme every other panel node uses.
+/// cursor (210..274), find-bar (280..283), nav (370..372), gutter (400/410../480..), and command (600..)
+/// bands; dynamic fold nodes are keyed by fold start line instead of a fixed band. The symbol-palette
+/// dialog (the modal window scope), the palette list container, and the search input get fixed ids; the
+/// sticky band container gets a fixed id too. Per-row + per-header nodes are DYNAMIC (hashed id space).
+/// Multi-instance panels hash the suffixed author_id instead (RISK-004), the same scheme every other
+/// panel node uses.
 const PANEL_SYMBOL_PALETTE_DIALOG_NODE_ID: u64 = 700;
 const PANEL_SYMBOL_PALETTE_LIST_NODE_ID: u64 = 701;
 const PANEL_SYMBOL_PALETTE_SEARCH_NODE_ID: u64 = 702;
@@ -258,8 +257,8 @@ pub const MAX_ACCESSKIT_GUTTER_MARKERS: usize = 64;
 /// the MT-006 nav band (370..372): the gutter strip Group at 400; the per-line breakpoint `CheckBox`
 /// nodes in 410..410+MAX_ACCESSKIT_GUTTER_MARKERS; the per-line diagnostic `Label` nodes in
 /// 480..480+MAX_ACCESSKIT_GUTTER_MARKERS — all disjoint from the container/scroll/text (200/201/202),
-/// cursor (210..274), find-bar (280..283), fold (300..363), and nav (370..372) bands. Multi-instance
-/// panels hash the suffixed author_id instead (RISK-004).
+/// cursor (210..274), find-bar (280..283), and nav (370..372) bands; dynamic fold nodes are keyed by
+/// fold start line. Multi-instance panels hash the suffixed author_id instead (RISK-004).
 const PANEL_GUTTER_NODE_ID: u64 = 400;
 const PANEL_BREAKPOINT_NODE_ID_BASE: u64 = 410;
 const PANEL_DIAGNOSTIC_NODE_ID_BASE: u64 = 480;
@@ -276,8 +275,9 @@ pub const CODE_EDITOR_COMMAND_AUTHOR_PREFIX: &str = "code_editor_cmd_";
 /// MT-010 fixed AccessKit `NodeId` band for the per-command `Role::Button` nodes (default
 /// single-instance panel): 600..600+N (N = number of [`CodeEditorAction`] variants). A fresh band ABOVE
 /// the gutter diagnostic band (480..544) so the command nodes never collide with the container/scroll/
-/// text (200/201/202), cursor (210..274), find-bar (280..283), fold (300..363), nav (370..372), or
-/// gutter (400/410../480..) bands. Multi-instance panels hash the suffixed author_id instead (RISK-004).
+/// text (200/201/202), cursor (210..274), find-bar (280..283), nav (370..372), or gutter
+/// (400/410../480..) bands; dynamic fold nodes are keyed by fold start line. Multi-instance panels hash
+/// the suffixed author_id instead (RISK-004).
 const PANEL_COMMAND_NODE_ID_BASE: u64 = 600;
 
 /// How often the keymap override file (`~/.handshake/keymap.json`) is polled for changes, in seconds
@@ -360,6 +360,48 @@ pub struct PerfStats {
     /// the same way `render_rows` always has) or before the first frame. A perf test asserts this is
     /// bounded by the painted window even on a large wrapped document.
     pub frame_lines_wrapped: usize,
+}
+
+#[derive(Clone, Debug, Default)]
+struct HighlightSpanWindow {
+    spans: Vec<HighlightSpan>,
+    prefix_max_end: Vec<usize>,
+}
+
+impl HighlightSpanWindow {
+    fn from_spans(spans: Vec<HighlightSpan>) -> Self {
+        let mut prefix_max_end = Vec::with_capacity(spans.len());
+        let mut max_end = 0usize;
+        for span in &spans {
+            max_end = max_end.max(span.byte_range.end);
+            prefix_max_end.push(max_end);
+        }
+        Self {
+            spans,
+            prefix_max_end,
+        }
+    }
+
+    fn overlapping(
+        &self,
+        win_start: usize,
+        win_end: usize,
+    ) -> impl Iterator<Item = &HighlightSpan> {
+        let bounds = if win_end <= win_start {
+            0..0
+        } else {
+            let begin = self
+                .prefix_max_end
+                .partition_point(|max_end| *max_end <= win_start);
+            let end = self
+                .spans
+                .partition_point(|span| span.byte_range.start < win_end);
+            begin..end
+        };
+        self.spans[bounds]
+            .iter()
+            .filter(move |span| span.byte_range.end > win_start)
+    }
 }
 
 /// Map a [`HighlightScope`] to a color from the active theme's syntax tokens — NEVER a hardcoded hex
@@ -533,6 +575,43 @@ impl WrapRowIndex {
     }
 }
 
+#[derive(Clone)]
+struct PendingCodeTextUndo {
+    before: TextBuffer,
+    after: TextBuffer,
+    description: &'static str,
+    replace_tail: bool,
+}
+
+#[derive(Default)]
+struct CodeTextUndoBatcher {
+    batch_before: Option<TextBuffer>,
+    last_edit_at: Option<Instant>,
+}
+
+impl CodeTextUndoBatcher {
+    fn observe_edit(&mut self, before: TextBuffer, now: Instant) -> (TextBuffer, bool) {
+        let replace_tail = self
+            .last_edit_at
+            .is_some_and(|last| now.duration_since(last) <= CODE_TEXT_UNDO_BATCH_WINDOW);
+        if replace_tail {
+            let batch_before = self.batch_before.clone().unwrap_or_else(|| before.clone());
+            self.batch_before = Some(batch_before.clone());
+            self.last_edit_at = Some(now);
+            (batch_before, true)
+        } else {
+            self.batch_before = Some(before.clone());
+            self.last_edit_at = Some(now);
+            (before, false)
+        }
+    }
+
+    fn reset(&mut self) {
+        self.batch_before = None;
+        self.last_edit_at = None;
+    }
+}
+
 /// The native code-editor panel widget. Holds the document buffer + highlighter and renders the
 /// visible lines as colored runs, virtualized through `ScrollArea::show_rows` (MT-002).
 ///
@@ -558,7 +637,7 @@ pub struct CodeEditorPanel {
     buffer_version: AtomicU64,
     /// Cached highlight spans + the `buffer_version` they were computed for (MT-002 step 3). Recomputed
     /// only when the version changes, so the render path never re-parses every frame.
-    highlight_cache: Mutex<Option<(Vec<HighlightSpan>, u64)>>,
+    highlight_cache: Mutex<Option<(HighlightSpanWindow, u64)>>,
     /// Cached measured monospace line height (px), set on the first `show` from the row height of the
     /// EXACT `FontId::monospace(MONO_FONT_SIZE)` galley the glyphs are painted with (MT-054 row-pitch
     /// unit fix — one unit for painted rows, `show_rows` stride, gutter, overlays, and decorations).
@@ -572,6 +651,9 @@ pub struct CodeEditorPanel {
     /// overlay against the real painted window. egui applies NO overscan, so this equals the on-screen
     /// rows, not a padded estimate. `0..0` before the first render.
     last_visible_range: Mutex<std::ops::Range<usize>>,
+    /// The live vertical scroll offset in pixels from egui's own `ScrollArea` state, updated each
+    /// render. This preserves fractional/partial-row scroll for overlays that must align to pixels.
+    last_scroll_offset_px: Mutex<f32>,
     /// A one-shot requested vertical scroll offset (px from content top). When set, the next `show`
     /// forces the `ScrollArea` to that offset via `vertical_scroll_offset` and clears the request, so
     /// a caller (a go-to-line action in a later MT, a swarm agent, or a deterministic test) can scroll
@@ -597,6 +679,10 @@ pub struct CodeEditorPanel {
     /// so the caret/selection overlay and pointer hit-testing share egui's ACTUAL layout (no separate
     /// recompute). `None` before the first render.
     row_geometry: Mutex<Option<RowGeometry>>,
+    /// The exact gutter row model the body paint path produced this frame. This is distinct from
+    /// `last_visible_range`: under word wrap that range is VISUAL-row space, so reconstructing buffer
+    /// lines from it would put gutter line 1 beside a continuation fragment of line 0.
+    last_gutter_paint_rows: Mutex<Vec<GutterPaintRow>>,
     /// MT-004 in-file find/replace state. `None` when the find bar is closed (no highlights painted —
     /// AC-006); `Some` while it is open. The find bar UI reads + mutates it; `process_find_input`
     /// opens/closes it on Ctrl+F / Ctrl+H / Escape. Behind a `Mutex` for the same `Sync` reason as the
@@ -658,9 +744,9 @@ pub struct CodeEditorPanel {
     /// The screen rect the outline panel occupied on the most recent frame (diagnostics + the
     /// three-panel layout test — AC-003). `None` before the first render or while the outline is hidden.
     last_outline_rect: Mutex<Option<egui::Rect>>,
-    /// Cached minimap per-row colors + the `(buffer_version, painted_rows, dark_mode)` key they were
-    /// computed for. The minimap's only O(spans) pass ([`Minimap::compute_row_colors`]) runs ONLY on a
-    /// cache miss (buffer edit, panel resize, or theme flip), so the per-frame minimap render is
+    /// Cached minimap per-row colors + the `(buffer_version, painted_rows, dark_mode, syntax_palette)` key
+    /// they were computed for. The minimap's only O(spans) pass ([`Minimap::compute_row_colors`]) runs ONLY
+    /// on a cache miss (buffer edit, panel resize, theme flip, or Custom palette edit), so the per-frame minimap render is
     /// O(painted_rows) — critical on a 100k-line file where re-walking every span each frame blows the
     /// MT-002 frame budget. `None` until the first minimap render.
     minimap_row_cache: Mutex<Option<MinimapRowCache>>,
@@ -722,7 +808,7 @@ pub struct CodeEditorPanel {
     hover_state: Mutex<Option<HoverState>>,
     /// MT-008 Handshake backend code-nav client (the fallback intelligence source). Reused for
     /// completion + hover + go-to-def + references when no LSP server is attached. Cheap to clone.
-    code_nav_client: CodeNavClient,
+    code_nav_client: Mutex<CodeNavClient>,
     /// MT-008 short-lived `lookup_symbols(prefix)` cache (RISK-002 / MC-004 — debounce + cache).
     code_nav_cache: Mutex<CodeNavCache>,
     /// MT-008 LSP client (lazily spawns a language server on first `did_open`). Defaults to
@@ -737,10 +823,11 @@ pub struct CodeEditorPanel {
     /// fires when this is at least [`COMPLETION_DEBOUNCE_MS`] in the past, so fast typing does not flood
     /// the backend (RISK-002). `None` until the first edit.
     last_edit_instant: Mutex<Option<std::time::Instant>>,
-    /// MT-008 hover-dwell tracker (implementation note 3): the `(cursor_byte_offset, since)` the cursor
-    /// has rested at. A hover request fires once the dwell exceeds [`HOVER_DWELL_MS`] at the same
-    /// offset. `None` when the cursor is moving / no dwell is in progress.
-    hover_dwell: Mutex<Option<(usize, std::time::Instant)>>,
+    /// MT-008 hover-dwell tracker (implementation note 3): the `(cursor_byte_offset, since, fired)` the
+    /// cursor has rested at. A hover request fires once per settled offset after the dwell exceeds
+    /// [`HOVER_DWELL_MS`], preventing repeated backend lookups every frame while the caret is parked.
+    /// `None` when no dwell is in progress.
+    hover_dwell: Mutex<Option<(usize, std::time::Instant, bool)>>,
     /// MT-008 off-thread completion result delivery cell. A spawned `lookup_symbols` task writes the
     /// `(anchor, items)` here; the next `show` drains it into `completion_state` (HBR-QUIET — the egui
     /// thread never blocks on the backend). `Arc<Mutex<..>>` so the spawned task + the UI thread share it.
@@ -748,6 +835,10 @@ pub struct CodeEditorPanel {
     /// MT-008 off-thread hover result delivery cell. A spawned hover task writes the `(anchor, hover)`
     /// here; the next `show` drains it into `hover_state`.
     hover_result: HoverResultCell,
+    /// MT-008 off-thread code-nav symbol delivery queue. Completion + hover lookups push the raw backend
+    /// symbols here so the next UI-thread drain updates the staleness gutter and cache from every REAL
+    /// code-nav result batch, not only the synthetic `push_staleness_markers` test seam.
+    code_nav_symbols_result: CodeNavSymbolsResultCell,
     /// MT-010 off-thread go-to-definition result cell (F12). A spawned `lookup_symbols` task writes the
     /// resolved 0-based definition line here; the next `show` drains it and calls `navigate_to_line`.
     /// Reuses the MT-008 code-nav client + the MT-006 line-navigation path (no new backend surface).
@@ -822,6 +913,9 @@ pub struct CodeEditorPanel {
     /// The cursor-rest trigger + Ctrl+. + the context-menu 'Quick Fix...' entry feed it; the render path
     /// draws the lightbulb + menu from it. Behind a `Mutex` for the same `Sync` reason as the buffer.
     code_action_controller: Mutex<CodeActionController>,
+    /// Actual quick-fix lightbulb draw positions from the most recent frame, exposed only for kittest
+    /// regression proofs that need to compare gutter chrome against body row centers.
+    last_quickfix_lightbulbs: Mutex<Vec<(usize, egui::Pos2)>>,
     /// MT-049 off-thread code-action result delivery cell: a spawned `textDocument/codeAction` task sends
     /// the resolved [`CodeActionResult`] over this channel; [`CodeActionController::poll_results`] drains it
     /// each frame (HBR-QUIET — the egui thread never blocks on the LSP; the MT-008 off-thread pattern). The
@@ -901,6 +995,13 @@ pub struct CodeEditorPanel {
     /// (the MT-035/050 wrap-not-fork pattern; no parallel undo stack). Only the latest is kept (a second
     /// transform before the drain supersedes; the host applies them in order so the newest pair is correct).
     pending_line_op_undo: Mutex<Option<(&'static str, String, String)>>,
+    /// MT-035 the queued live text-edit undo snapshot `(before, after)` for Event::Text / IME commit /
+    /// newline / Backspace / Delete. The panel stages rope snapshots here and the factory render drains
+    /// them into the shared `InteractionBus`, preserving the single unified undo authority.
+    pending_text_edit_undo: Mutex<Option<PendingCodeTextUndo>>,
+    /// MT-035 code-side typing batcher. Edits inside the same 500ms burst replace the pane's local undo
+    /// tail so one Ctrl+Z reverts to the first pre-burst snapshot instead of stepping per character.
+    text_edit_undo_batcher: Mutex<CodeTextUndoBatcher>,
     /// MT-051 the operator's `editor.tabSize` (one indent unit = this many spaces when `insert_spaces`).
     /// Sourced from the editor-settings layer via [`set_indent_settings`](Self::set_indent_settings);
     /// defaults to VS Code's 4. Atomic so the `&self` dispatch reads it without locking. Never hardcoded
@@ -945,6 +1046,21 @@ pub struct CodeEditorPanel {
     /// spaces + arrows for tabs; the status-bar whitespace segment flips it. Atomic so the `&self` draw
     /// path / an agent reads it without locking.
     render_whitespace: std::sync::atomic::AtomicBool,
+    /// WP-KERNEL-012 wave-6 (S6 item 3 / the MT-072 font-size follow-up): the LIVE editor font size (pt)
+    /// the shell threads in from `editor_prefs.editor_font_size` via
+    /// [`set_font_size`](Self::set_font_size). `None` = use the built-in [`MONO_FONT_SIZE`] default. The
+    /// measurement (`line_height` / `glyph_width`) AND every panel-body glyph-paint site read it through
+    /// [`mono_font`](Self::mono_font)/[`font_size`](Self::font_size), so a settings change resizes the
+    /// running editor (row height + glyphs) with no restart. Behind a `Mutex` for the same `Sync` reason
+    /// as the buffer; `set_font_size` clears the measured-metric caches so the next frame re-measures.
+    font_size: Mutex<Option<f32>>,
+    /// WP-KERNEL-012 wave-6 (S6 item 3 / the MT-072 syntax-palette follow-up): the LIVE Custom syntax
+    /// palette the shell threads in from `syntax_palette` via
+    /// [`set_syntax_palette`](Self::set_syntax_palette). `None` (or a non-`Custom` mode) keeps the
+    /// theme-driven [`scope_to_color`]; a `Custom` palette routes every highlight-run color through the
+    /// LIVE [`resolve_scope_color`](crate::code_editor::resolve_scope_color) resolver, so a Custom swatch
+    /// edit repaints the running editor. Behind a `Mutex` for the same `Sync` reason as the buffer.
+    syntax_palette: Mutex<Option<crate::workspace_settings::SyntaxPalette>>,
 
     // ── MT-054 editor chrome: word wrap + bracket match/colorize + indent guides ──────────────────
     /// MT-054 the word-wrap configuration (Alt+Z). `enabled == false` by default (the MT-002 baseline
@@ -1119,6 +1235,10 @@ type CompletionResultCell = Arc<Mutex<Option<(egui::Pos2, Vec<CompletionItem>)>>
 /// spawned hover task and drained on the next frame. Aliased for the same legibility reason.
 type HoverResultCell = Arc<Mutex<Option<(egui::Pos2, HoverState)>>>;
 
+/// MT-008 off-thread code-nav symbol delivery cell: `(lookup prefix, symbols)` written by real
+/// completion/hover backend tasks and drained on the next frame for staleness markers + cache.
+type CodeNavSymbolsResultCell = Arc<Mutex<Vec<(String, Vec<CodeSymbolNavProjection>)>>>;
+
 /// MT-010 off-thread go-to-definition result cell: the 0-based target buffer line written by a spawned
 /// `lookup_symbols` task (F12 / GoToDefinition) and drained on the next frame to `navigate_to_line`.
 type GotoDefResultCell = Arc<Mutex<Option<usize>>>;
@@ -1154,9 +1274,15 @@ type RenameResultCell = Arc<Mutex<Option<Result<WorkspaceEditPreview, String>>>>
 type FormatResultCell = Arc<Mutex<Option<(String, Option<String>, FormatOutcome)>>>;
 
 /// The cached minimap row colors plus the cache key they were computed for: `(colors, buffer_version,
-/// painted_rows, dark_mode)`. Aliased so the `minimap_row_cache` field type stays legible (clippy
-/// `type_complexity`).
-type MinimapRowCache = (Vec<egui::Color32>, u64, usize, bool);
+/// painted_rows, dark_mode, syntax_palette)`. Aliased so the `minimap_row_cache` field type stays legible
+/// (clippy `type_complexity`).
+type MinimapRowCache = (
+    Vec<egui::Color32>,
+    u64,
+    usize,
+    bool,
+    Option<crate::workspace_settings::SyntaxPalette>,
+);
 
 /// MT-006 go-to-line palette state. Owned by [`CodeEditorPanel`] behind a `Mutex`; present only while
 /// the palette is open (Ctrl+G). The modal pre-populates `input` with the current cursor line; on Enter
@@ -1338,7 +1464,7 @@ impl CodeEditorPanel {
             // Version starts at 1 and the initial spans are cached AT version 1, so the first render
             // is a cache hit (no re-parse) and any later edit bumps to 2+ to invalidate.
             buffer_version: AtomicU64::new(1),
-            highlight_cache: Mutex::new(Some((spans, 1))),
+            highlight_cache: Mutex::new(Some((HighlightSpanWindow::from_spans(spans), 1))),
             line_height_px: Mutex::new(None),
             perf: Mutex::new(PerfStats {
                 frame_lines_rendered: 0,
@@ -1346,12 +1472,14 @@ impl CodeEditorPanel {
                 frame_lines_wrapped: 0,
             }),
             last_visible_range: Mutex::new(0..0),
+            last_scroll_offset_px: Mutex::new(0.0),
             pending_scroll_offset: Mutex::new(None),
             instance,
             cursor_set: Mutex::new(CursorSet::new()),
             box_drag_start: Mutex::new(None),
             glyph_width_px: Mutex::new(None),
             row_geometry: Mutex::new(None),
+            last_gutter_paint_rows: Mutex::new(Vec::new()),
             find_state: Mutex::new(None),
             fold_set: Mutex::new(fold_set),
             // Fold regions were computed at buffer version 1 (the same version the highlight cache is
@@ -1393,7 +1521,7 @@ impl CodeEditorPanel {
             // requests are skipped until `set_workspace_id`).
             completion_state: Mutex::new(None),
             hover_state: Mutex::new(None),
-            code_nav_client: CodeNavClient::production(),
+            code_nav_client: Mutex::new(CodeNavClient::production()),
             code_nav_cache: Mutex::new(CodeNavCache::new()),
             lsp_client: Mutex::new(Arc::new(LspClient::disabled())),
             workspace_id: Mutex::new(String::new()),
@@ -1401,6 +1529,7 @@ impl CodeEditorPanel {
             hover_dwell: Mutex::new(None),
             completion_result: Arc::new(Mutex::new(None)),
             hover_result: Arc::new(Mutex::new(None)),
+            code_nav_symbols_result: Arc::new(Mutex::new(Vec::new())),
             goto_def_result: Arc::new(Mutex::new(None)),
             references_result: Arc::new(Mutex::new(None)),
             last_references: Mutex::new(None),
@@ -1420,6 +1549,7 @@ impl CodeEditorPanel {
             // controller lazily on the first pump (one consumer per channel). The cursor-rest debounce +
             // the Ctrl+. arm start empty; the rest threshold is the ~300ms VS Code lightbulb dwell.
             code_action_controller: Mutex::new(CodeActionController::new()),
+            last_quickfix_lightbulbs: Mutex::new(Vec::new()),
             code_action_tx: code_action_tx_init,
             code_action_rx: Mutex::new(Some(code_action_rx_init)),
             code_action_rest: Mutex::new(None),
@@ -1453,6 +1583,9 @@ impl CodeEditorPanel {
                 detected_indent.kind,
                 super::file_meta::IndentKind::Spaces
             )),
+            // MT-035 live text-edit undo: empty until a real typing/deletion/IME/newline path mutates.
+            pending_text_edit_undo: Mutex::new(None),
+            text_edit_undo_batcher: Mutex::new(CodeTextUndoBatcher::default()),
             // MT-071 file-metadata: seed EOL from the buffer (LF default — MC-007); language override
             // none (auto-detect); encoding UTF-8; render-whitespace off. These hang off the doc model so
             // they survive re-render + re-focus and the language resolver / draw path read them.
@@ -1463,6 +1596,10 @@ impl CodeEditorPanel {
             eol: Mutex::new(detected_eol),
             encoding: Mutex::new(super::file_meta::Encoding::default()),
             render_whitespace: std::sync::atomic::AtomicBool::new(false),
+            // WP-KERNEL-012 wave-6 (S6 item 3): no live font-size / custom palette until the shell threads
+            // them in from editor settings (None -> built-in MONO_FONT_SIZE + theme syntax tokens).
+            font_size: Mutex::new(None),
+            syntax_palette: Mutex::new(None),
             // MT-054 word wrap: OFF by default so the first render is the MT-002 1:1 baseline
             // (RISK-006 / MC-006). The viewport width is filled in each frame from the live editor-area
             // width before the wrap layout runs.
@@ -1741,17 +1878,17 @@ impl CodeEditorPanel {
         *self.preedit.lock().unwrap_or_else(|e| e.into_inner()) = text;
     }
 
-    /// Replace the WHOLE buffer with `text` and re-highlight (MT-035 undo-snapshot restore). The unified
-    /// undo scope's `undo_fn` for a code edit captures a [`TextBuffer`] snapshot taken BEFORE the edit
-    /// (ropey clones are O(1) — implementation note 1/2) and calls this to restore it on Ctrl+Z. Bumping
-    /// the buffer version through [`Self::refresh`] invalidates the stale highlight spans (RISK-002, the
-    /// length-changing-undo case the buffer-version hook documents). Cursors are clamped to the new
-    /// length so a restored shorter document never leaves an out-of-range caret (panic-free — AC-006
-    /// spirit). Returns the new byte length.
-    pub fn set_text(&self, text: &str) -> usize {
+    /// Replace the WHOLE buffer with a rope snapshot and re-highlight (MT-035 undo-snapshot restore).
+    /// The unified undo scope's `undo_fn` for a code edit captures a [`TextBuffer`] snapshot taken BEFORE
+    /// the edit (ropey clones are O(1) — implementation note 1/2) and calls this to restore it on Ctrl+Z.
+    /// Bumping the buffer version through [`Self::refresh`] invalidates the stale highlight spans
+    /// (RISK-002, the length-changing-undo case the buffer-version hook documents). Cursors are clamped to
+    /// the new length so a restored shorter document never leaves an out-of-range caret (panic-free —
+    /// AC-006 spirit). Returns the new byte length.
+    pub fn set_buffer_snapshot(&self, snapshot: TextBuffer) -> usize {
         let new_len = {
             let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            *buffer = TextBuffer::new(text);
+            *buffer = snapshot;
             let len = buffer.len_bytes();
             // Collapse to a single primary caret clamped into the restored buffer so a shrink does not
             // leave a stale out-of-range cursor (set_primary clamps the offset to the new length).
@@ -1769,6 +1906,13 @@ impl CodeEditorPanel {
         };
         self.refresh();
         new_len
+    }
+
+    /// Replace the WHOLE buffer with `text` and re-highlight (MT-035 undo-snapshot restore). External
+    /// callers keep the string API; undo/redo uses [`Self::set_buffer_snapshot`] to avoid stringifying
+    /// large rope snapshots on the frame path.
+    pub fn set_text(&self, text: &str) -> usize {
+        self.set_buffer_snapshot(TextBuffer::new(text))
     }
 
     /// Delete at every cursor (selection, else the char before the caret — Backspace), then
@@ -2009,7 +2153,7 @@ impl CodeEditorPanel {
         self.highlight_cache
             .lock()
             .ok()
-            .and_then(|c| c.as_ref().map(|(spans, _)| spans.clone()))
+            .and_then(|c| c.as_ref().map(|(spans, _)| spans.spans.clone()))
             .unwrap_or_default()
     }
 
@@ -2051,7 +2195,8 @@ impl CodeEditorPanel {
         *self
             .highlight_cache
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some((spans, version));
+            .unwrap_or_else(|e| e.into_inner()) =
+            Some((HighlightSpanWindow::from_spans(spans), version));
     }
 
     /// Recompute the fold regions iff the buffer version moved since they were last computed (MT-005
@@ -2102,10 +2247,30 @@ impl CodeEditorPanel {
     /// (AC-006: two toggles return to the original state).
     pub fn toggle_fold(&self, start_line: usize) -> bool {
         self.ensure_fold_regions();
-        self.fold_set
+        let changed = self
+            .fold_set
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .toggle(start_line)
+            .toggle(start_line);
+        if changed {
+            self.fold_state_changed();
+        }
+        changed
+    }
+
+    /// Set the folded state for the exact region starting at `start_line`. This is the deterministic
+    /// target used by AccessKit `Expand`/`Collapse` requests on `code_editor_fold_{start_line}`.
+    pub fn set_fold_state(&self, start_line: usize, folded: bool) -> bool {
+        self.ensure_fold_regions();
+        let changed = self
+            .fold_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .set_folded(start_line, folded);
+        if changed {
+            self.fold_state_changed();
+        }
+        changed
     }
 
     /// Fold the innermost region that contains buffer line `line` (Ctrl+Shift+[ at the cursor). Picks
@@ -2137,18 +2302,24 @@ impl CodeEditorPanel {
             .max();
         match target {
             Some(start_line) => {
-                let region = set
-                    .regions
-                    .iter()
-                    .find(|r| r.start_line == start_line)
-                    .map(|r| r.folded);
-                if region == Some(folded) {
-                    return false; // already in the requested state
+                let changed = set.set_folded(start_line, folded);
+                drop(set);
+                if changed {
+                    self.fold_state_changed();
                 }
-                set.toggle(start_line)
+                changed
             }
             None => false,
         }
+    }
+
+    /// Any user-visible fold-state change invalidates secondary layout caches that key off folded
+    /// content. The FoldSet owns visible-line map invalidation; the panel owns wrap row indexing.
+    fn fold_state_changed(&self) {
+        *self
+            .wrap_row_index
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     /// Fold the region at the primary cursor's line (Ctrl+Shift+[). Convenience wrapper that resolves
@@ -2894,6 +3065,20 @@ impl CodeEditorPanel {
         self.completion_request.load(Ordering::Relaxed)
     }
 
+    /// Queue raw code-nav symbols exactly like the off-thread completion/hover tasks do. Tests use this
+    /// to prove the UI-thread drain handles multiple same-frame result batches without losing staleness
+    /// markers before render consumes them.
+    pub fn queue_code_nav_symbols_for_test(
+        &self,
+        prefix: impl Into<String>,
+        symbols: Vec<CodeSymbolNavProjection>,
+    ) {
+        self.code_nav_symbols_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push((prefix.into(), symbols));
+    }
+
     // ── MT-008 code intelligence API (completion / hover / code-nav / LSP) ─────────────────────────
 
     /// Bind the active workspace id used for backend code-nav lookups. Empty = no workspace (code-nav
@@ -2908,6 +3093,16 @@ impl CodeEditorPanel {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone()
+    }
+
+    /// Replace the backend code-nav client. Hosts/tests use this to point the live completion/hover
+    /// fallback at a known backend endpoint while the egui thread keeps using the same nonblocking spawn
+    /// path as production.
+    pub fn set_code_nav_client(&self, client: CodeNavClient) {
+        *self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = client;
     }
 
     /// Replace the LSP client (e.g. install a configured language server, or a mock LSP in a test). The
@@ -3104,7 +3299,9 @@ impl CodeEditorPanel {
         };
         match insert {
             Some(text) => {
-                self.insert_text(&text);
+                self.apply_text_edit_undoable("code: accept completion", |panel| {
+                    panel.insert_text(&text)
+                });
                 self.close_completion();
                 true
             }
@@ -3125,7 +3322,9 @@ impl CodeEditorPanel {
         };
         match insert {
             Some(text) => {
-                self.insert_text(&text);
+                self.apply_text_edit_undoable("code: accept completion", |panel| {
+                    panel.insert_text(&text)
+                });
                 self.close_completion();
                 true
             }
@@ -3279,7 +3478,11 @@ impl CodeEditorPanel {
         let uri = self.lsp_uri();
         let position = self.lsp_position_at(cursor_byte);
         let lsp_client = self.lsp_client();
-        let code_nav = self.code_nav_client.clone();
+        let code_nav = self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let workspace_id = self.workspace_id();
         let cell = Arc::clone(&self.signature_help_result);
         let fallback_cache = Arc::clone(&self.signature_fallback_cache);
@@ -3674,6 +3877,15 @@ impl CodeEditorPanel {
             Some(s) => s.actions.iter().map(|a| a.title.clone()).collect(),
             None => Vec::new(),
         }
+    }
+
+    /// Actual quick-fix lightbulb draw positions from the most recent frame, for regression tests.
+    #[doc(hidden)]
+    pub fn quickfix_lightbulb_positions_for_test(&self) -> Vec<(usize, egui::Pos2)> {
+        self.last_quickfix_lightbulbs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Install a resolved action list directly (the deterministic path the kittest/unit proofs use, the
@@ -4317,6 +4529,66 @@ impl CodeEditorPanel {
             .take()
     }
 
+    fn record_text_edit_undo(
+        &self,
+        before: TextBuffer,
+        after: TextBuffer,
+        description: &'static str,
+    ) {
+        let (batch_before, replace_tail) = self
+            .text_edit_undo_batcher
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .observe_edit(before, Instant::now());
+        *self
+            .pending_text_edit_undo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(PendingCodeTextUndo {
+            before: batch_before,
+            after,
+            description,
+            replace_tail,
+        });
+    }
+
+    fn apply_text_edit_undoable(
+        &self,
+        description: &'static str,
+        edit: impl FnOnce(&Self) -> usize,
+    ) -> usize {
+        let before = self.buffer();
+        let applied = edit(self);
+        if applied > 0 {
+            self.record_text_edit_undo(before, self.buffer(), description);
+        }
+        applied
+    }
+
+    fn has_pending_text_edit_undo(&self) -> bool {
+        self.pending_text_edit_undo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
+    }
+
+    fn take_pending_text_edit_undo(&self) -> Option<PendingCodeTextUndo> {
+        self.pending_text_edit_undo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+    }
+
+    pub fn reset_text_edit_undo_batch(&self) {
+        self.text_edit_undo_batcher
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .reset();
+        *self
+            .pending_text_edit_undo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
     // ── MT-051 line-edit buffer transforms — settings + dispatch + single-undo ─────────────────────────
 
     /// MT-051: set the operator's indent settings (`editor.tabSize` + `editor.insertSpaces`) so the
@@ -4533,6 +4805,94 @@ impl CodeEditorPanel {
         !prev
     }
 
+    // ── WP-KERNEL-012 wave-6 (S6 item 3): LIVE editor font size + custom syntax palette ─────────────
+
+    /// The LIVE editor font size (pt) — the shell-threaded `editor_font_size`, or the built-in
+    /// [`MONO_FONT_SIZE`] default when the shell has not set one. Every panel-body measurement + glyph
+    /// paint reads THIS (through [`mono_font`](Self::mono_font)) so the running editor is one consistent
+    /// size unit (the MT-054 row-pitch invariant holds at any size: `line_height` is measured from the
+    /// SAME font the glyphs paint with).
+    pub fn font_size(&self) -> f32 {
+        self.font_size
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or(MONO_FONT_SIZE)
+    }
+
+    /// The monospace `FontId` the editor body measures + paints with, at the LIVE [`font_size`](Self::font_size).
+    fn mono_font(&self) -> egui::FontId {
+        egui::FontId::monospace(self.font_size())
+    }
+
+    /// WP-KERNEL-012 wave-6 (S6 item 3): thread the LIVE editor font size in from the operator's
+    /// `editor_prefs.editor_font_size` (the shell calls this from `sync_editor_prefs_to_panel`). Clamped
+    /// to the settings range (6..=48 pt). When the size actually changes, the measured-metric caches
+    /// (`line_height_px` / `glyph_width_px`) are invalidated so the next frame re-measures at the new size
+    /// — that is what resizes the running editor's row height AND glyph advance (no restart). A no-op when
+    /// the size is unchanged, so a per-frame sync stays cheap (the caches are not thrashed).
+    pub fn set_font_size(&self, size: f32) {
+        let clamped = size.clamp(6.0, 48.0);
+        // Update the slot and detect a real change WITHOUT holding the font_size lock across the cache
+        // locks (keep the lock scopes disjoint).
+        let changed = {
+            let mut slot = self.font_size.lock().unwrap_or_else(|e| e.into_inner());
+            let current = slot.unwrap_or(MONO_FONT_SIZE);
+            if (current - clamped).abs() > f32::EPSILON {
+                *slot = Some(clamped);
+                true
+            } else {
+                false
+            }
+        };
+        if changed {
+            *self
+                .line_height_px
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+            *self
+                .glyph_width_px
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+        }
+    }
+
+    /// WP-KERNEL-012 wave-6 (S6 item 3): thread the LIVE syntax palette in from the operator's
+    /// `syntax_palette` setting (the shell calls this from `sync_editor_prefs_to_panel`). A `Custom`
+    /// palette makes [`resolve_highlight_color`](Self::resolve_highlight_color) route highlight-run colors
+    /// through the LIVE [`resolve_scope_color`](crate::code_editor::resolve_scope_color) resolver so a
+    /// Custom swatch edit repaints the running editor; a `Muted`/`Standard` palette keeps the theme tokens
+    /// (only Custom overrides the theme, matching the Settings section's live-effect note).
+    pub fn set_syntax_palette(&self, palette: crate::workspace_settings::SyntaxPalette) {
+        *self
+            .syntax_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(palette);
+    }
+
+    /// Resolve the color a highlight `scope` should paint with, honoring a LIVE Custom syntax palette when
+    /// one is set (the S6 item-3 live effect) and otherwise the theme's [`scope_to_color`]. The panel body
+    /// draw paths call this for every highlighted run, so a Custom swatch edit changes the painted color in
+    /// the SAME frame. `pub` so a kittest can assert the render-path color directly.
+    pub fn resolve_highlight_color(
+        &self,
+        scope: HighlightScope,
+        syntax: &HsSyntaxTokens,
+    ) -> egui::Color32 {
+        use crate::workspace_settings::SyntaxPaletteMode;
+        let palette = self
+            .syntax_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        match palette.as_ref() {
+            // Only a CUSTOM palette overrides the theme tokens (Muted/Standard/absent keep the theme
+            // colors, so a non-custom palette never silently recolors the live editor).
+            Some(p) if p.mode == SyntaxPaletteMode::Custom => {
+                crate::code_editor::resolve_scope_color(scope, p)
+            }
+            _ => scope_to_color(scope, syntax),
+        }
+    }
+
     // ── MT-054 word wrap (Alt+Z) — toggle + state ─────────────────────────────────────────────────
 
     /// MT-054: the current word-wrap configuration (for tests / the host / the AccessKit node value).
@@ -4713,6 +5073,7 @@ impl CodeEditorPanel {
     /// line and the LSP severity to a [`DiagnosticSeverity`]. Returns the number of markers pushed if a
     /// notification was drained, else `None` (no notification this frame — leave the markers as-is).
     pub fn drain_lsp_diagnostics(&self) -> Option<usize> {
+        let expected_uri = self.format_uri()?;
         let receiver = {
             // Take the receiver from the client the first time; it is parked on the panel afterward.
             let client = self.lsp_client.lock().unwrap_or_else(|e| e.into_inner());
@@ -4734,7 +5095,9 @@ impl CodeEditorPanel {
         {
             // Drain to the most recent notification for this document (LSP replaces the whole set).
             while let Ok(published) = rx.try_recv() {
-                latest = Some(published);
+                if published.uri == expected_uri {
+                    latest = Some(published);
+                }
             }
         }
         let published = latest?;
@@ -4790,10 +5153,19 @@ impl CodeEditorPanel {
                 .completion_result
                 .lock()
                 .unwrap_or_else(|e| e.into_inner()) = Some((anchor, items));
+            self.code_nav_symbols_result
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push((prefix.to_owned(), cached));
             return;
         }
-        let client = self.code_nav_client.clone();
+        let client = self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let cell = Arc::clone(&self.completion_result);
+        let symbols_cell = Arc::clone(&self.code_nav_symbols_result);
         let prefix_owned = prefix.to_owned();
         runtime.spawn(async move {
             let symbols = client
@@ -4801,25 +5173,36 @@ impl CodeEditorPanel {
                 .await
                 .unwrap_or_default(); // graceful empty on backend error (AC-004 analog).
             let items = symbols.iter().map(CompletionItem::from_symbol).collect();
+            if let Ok(mut slot) = symbols_cell.lock() {
+                slot.push((prefix_owned, symbols));
+            }
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((anchor, items));
             }
         });
     }
 
-    /// Update the hover-dwell tracker for the current cursor byte offset and return `true` once the
-    /// cursor has rested at the SAME offset for at least [`HOVER_DWELL_MS`] (implementation note 3). A
-    /// cursor move resets the dwell. The editor calls this each frame with the live cursor offset; on a
-    /// `true` it calls [`trigger_hover`](Self::trigger_hover) to fetch the hover.
+    /// Update the hover-dwell tracker for the current cursor byte offset and return `true` once per
+    /// settled offset after the cursor has rested at the SAME offset for at least [`HOVER_DWELL_MS`]
+    /// (implementation note 3). A cursor move resets the dwell. The editor calls this each frame with the
+    /// live cursor offset; on a `true` it calls [`trigger_hover`](Self::trigger_hover) to fetch the hover.
     pub fn update_hover_dwell(&self, cursor_byte_offset: usize) -> bool {
         let mut guard = self.hover_dwell.lock().unwrap_or_else(|e| e.into_inner());
-        match guard.as_ref() {
-            Some((offset, since)) if *offset == cursor_byte_offset => {
-                since.elapsed() >= std::time::Duration::from_millis(HOVER_DWELL_MS)
+        match guard.as_mut() {
+            Some((offset, since, fired)) if *offset == cursor_byte_offset => {
+                if *fired {
+                    return false;
+                }
+                if since.elapsed() >= std::time::Duration::from_millis(HOVER_DWELL_MS) {
+                    *fired = true;
+                    true
+                } else {
+                    false
+                }
             }
             _ => {
                 // New offset (or first dwell): restart the dwell clock.
-                *guard = Some((cursor_byte_offset, std::time::Instant::now()));
+                *guard = Some((cursor_byte_offset, std::time::Instant::now(), false));
                 false
             }
         }
@@ -4838,8 +5221,13 @@ impl CodeEditorPanel {
         let anchor = self
             .cursor_screen_pos()
             .unwrap_or_else(|| egui::pos2(40.0, 40.0));
-        let client = self.code_nav_client.clone();
+        let client = self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let cell = Arc::clone(&self.hover_result);
+        let symbols_cell = Arc::clone(&self.code_nav_symbols_result);
         let word_owned = word.to_owned();
         runtime.spawn(async move {
             // Look up the first symbol matching the word (the React `lookupFirstSymbol`).
@@ -4847,8 +5235,48 @@ impl CodeEditorPanel {
                 .lookup_symbols(&workspace_id, &word_owned, 5)
                 .await
                 .unwrap_or_default();
-            let Some(symbol) = symbols.into_iter().next() else {
+            if let Ok(mut slot) = symbols_cell.lock() {
+                slot.push((word_owned.clone(), symbols.clone()));
+            }
+            let Some(lookup_symbol) = symbols.into_iter().next() else {
                 return; // no symbol -> no hover (graceful).
+            };
+            let symbol = if lookup_symbol.symbol_entity_id.is_empty() {
+                lookup_symbol
+            } else {
+                match client.get_symbol(&lookup_symbol.symbol_entity_id).await {
+                    Ok(resp)
+                        if !resp.symbol.symbol_entity_id.is_empty()
+                            || !resp.symbol.display_name.is_empty() =>
+                    {
+                        resp.symbol
+                    }
+                    _ => lookup_symbol,
+                }
+            };
+            let lens_doc = if let (Some(path), Some(staleness)) = (
+                symbol_file_path(&symbol.symbol_key),
+                symbol.staleness.as_ref(),
+            ) {
+                match (
+                    staleness.indexed_content_hash.as_deref(),
+                    staleness.indexed_parser_version.as_deref(),
+                ) {
+                    (Some(hash), Some(parser_version)) => client
+                        .get_file_lens(&workspace_id, &path, hash, parser_version)
+                        .await
+                        .ok()
+                        .and_then(|lens| {
+                            lens.entries
+                                .iter()
+                                .find(|entry| entry.symbol_entity_id == symbol.symbol_entity_id)
+                                .and_then(|entry| entry.doc.clone())
+                                .or_else(|| lens.entries.into_iter().find_map(|entry| entry.doc))
+                        }),
+                    _ => None,
+                }
+            } else {
+                None
             };
             let definition_line = symbol
                 .definition
@@ -4856,7 +5284,7 @@ impl CodeEditorPanel {
                 .and_then(|d| d.line_start)
                 .filter(|l| *l >= 1)
                 .map(|l| (l - 1) as usize);
-            let markdown = super::code_nav::markdown_for_symbol(&symbol, None);
+            let markdown = super::code_nav::markdown_for_symbol(&symbol, lens_doc.as_deref());
             let hover = HoverState {
                 markdown,
                 display_name: symbol.display_name.clone(),
@@ -4876,7 +5304,7 @@ impl CodeEditorPanel {
     /// breakpoint area, not the line-number or diagnostic column.
     pub fn gutter_breakpoint_pos_for_line(&self, line: usize) -> Option<egui::Pos2> {
         let rows = self
-            .last_gutter_rows
+            .last_gutter_paint_rows
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let geometry = (*self
@@ -4887,7 +5315,9 @@ impl CodeEditorPanel {
             .last_gutter_rect
             .lock()
             .unwrap_or_else(|e| e.into_inner()))?;
-        let row_idx = rows.iter().position(|&l| l == line)?;
+        let row_idx = rows
+            .iter()
+            .position(|row| row.line == line && row.is_first_fragment)?;
         let y =
             geometry.origin.y + row_idx as f32 * geometry.line_height + geometry.line_height * 0.5;
         // Click in the breakpoint sub-column (a little right of the strip's left edge).
@@ -4900,7 +5330,7 @@ impl CodeEditorPanel {
     /// not painted. The basis for the AC-006 gutter fold-click test.
     pub fn gutter_fold_pos_for_line(&self, line: usize) -> Option<egui::Pos2> {
         let rows = self
-            .last_gutter_rows
+            .last_gutter_paint_rows
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let geometry = (*self
@@ -4912,7 +5342,9 @@ impl CodeEditorPanel {
             .lock()
             .unwrap_or_else(|e| e.into_inner()))?;
         let config = *self.gutter_config.lock().unwrap_or_else(|e| e.into_inner());
-        let row_idx = rows.iter().position(|&l| l == line)?;
+        let row_idx = rows
+            .iter()
+            .position(|row| row.line == line && row.is_first_fragment)?;
         let y =
             geometry.origin.y + row_idx as f32 * geometry.line_height + geometry.line_height * 0.5;
         // The fold column sits after the breakpoint column. Mirror `gutter::Gutter::render`'s anchors.
@@ -4958,10 +5390,11 @@ impl CodeEditorPanel {
     }
 
     /// The cached minimap per-row colors for this frame, recomputing the O(spans) pass ONLY on a cache
-    /// miss — a buffer edit (`version` moved), a panel resize (`painted_rows` changed), or a theme flip
-    /// (`dark_mode` changed). On a hit (the common per-frame case) this is a cheap key compare + clone of
-    /// the small `Vec<Color32>` (at most a few hundred rows), so the minimap render stays O(painted_rows)
-    /// instead of O(spans) — the MT-002 frame-budget protection on a 100k-line file.
+    /// miss — a buffer edit (`version` moved), a panel resize (`painted_rows` changed), a theme flip
+    /// (`dark_mode` changed), or a Custom syntax-palette edit. On a hit (the common per-frame case) this
+    /// is a cheap key compare + clone of the small `Vec<Color32>` (at most a few hundred rows), so the
+    /// minimap render stays O(painted_rows) instead of O(spans) — the MT-002 frame-budget protection on a
+    /// 100k-line file.
     fn minimap_row_colors(
         &self,
         painted_rows: usize,
@@ -4969,14 +5402,22 @@ impl CodeEditorPanel {
         dark_mode: bool,
         version: u64,
     ) -> Vec<egui::Color32> {
+        let syntax_palette = self
+            .syntax_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let key = (version, painted_rows, dark_mode);
         {
             let cache = self
                 .minimap_row_cache
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            if let Some((colors, v, rows, dm)) = cache.as_ref() {
-                if (*v, *rows, *dm) == key && colors.len() == painted_rows {
+            if let Some((colors, v, rows, dm, palette)) = cache.as_ref() {
+                if (*v, *rows, *dm) == key
+                    && palette == &syntax_palette
+                    && colors.len() == painted_rows
+                {
                     return colors.clone(); // cache hit: no span fetch / no O(spans) re-walk this frame.
                 }
             }
@@ -4989,15 +5430,30 @@ impl CodeEditorPanel {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
             let empty: Vec<HighlightSpan> = Vec::new();
-            let spans = span_cache.as_ref().map(|(s, _)| s).unwrap_or(&empty);
+            let spans = span_cache
+                .as_ref()
+                .map(|(s, _)| s.spans.as_slice())
+                .unwrap_or(&empty);
             let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            Minimap::compute_row_colors(&buffer, spans, painted_rows, ratio, dark_mode)
+            Minimap::compute_row_colors(
+                &buffer,
+                spans,
+                painted_rows,
+                ratio,
+                dark_mode,
+                syntax_palette.as_ref(),
+            )
         };
         *self
             .minimap_row_cache
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) =
-            Some((colors.clone(), version, painted_rows, dark_mode));
+            .unwrap_or_else(|e| e.into_inner()) = Some((
+            colors.clone(),
+            version,
+            painted_rows,
+            dark_mode,
+            syntax_palette,
+        ));
         colors
     }
 
@@ -5017,6 +5473,15 @@ impl CodeEditorPanel {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone()
+    }
+
+    /// The live vertical scroll offset in pixels from egui's own `ScrollArea` state, including
+    /// fractional partial-row offsets. `0.0` before the first render.
+    pub fn last_scroll_offset_px(&self) -> f32 {
+        *self
+            .last_scroll_offset_px
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
     }
 
     /// Request that the next `show` scrolls the viewport to `offset_px` (pixels from the content top).
@@ -5491,40 +5956,41 @@ impl CodeEditorPanel {
                 // maps each visible row back to a buffer line via the FoldSet (MT step 4/6). Under wrap
                 // (MT-054) the range is in VISUAL-row space and `render_wrapped_rows` maps each visual row
                 // back to its logical buffer line + byte fragment.
-                scroll_area.show_rows(ui, line_height, scroll_row_count, |ui, row_range| {
-                    // Record egui's actual painted window before painting.
-                    painted_range = row_range.clone();
-                    if wrap_enabled {
-                        // MT-054 PERF CAP: materialize ONLY the painted visual-row window's logical
-                        // lines (O(window)), translated from the cached index — not the whole doc.
-                        let (window_rows, window_start, lines_touched) =
-                            self.wrap_rows_for_window(row_range.clone(), &wrap_cfg, glyph_width);
-                        frame_lines_wrapped = lines_touched;
-                        self.render_wrapped_rows(
-                            ui,
-                            &window_rows,
-                            window_start,
-                            &syntax,
-                            total_lines,
-                            text_id,
-                            &text_author,
-                            line_height,
-                            glyph_width,
-                        );
-                    } else {
-                        self.render_rows(
-                            ui,
-                            row_range,
-                            &syntax,
-                            total_lines,
-                            visible_lines,
-                            text_id,
-                            &text_author,
-                            line_height,
-                            glyph_width,
-                        );
-                    }
-                });
+                let scroll_output =
+                    scroll_area.show_rows(ui, line_height, scroll_row_count, |ui, row_range| {
+                        // Record egui's actual painted window before painting.
+                        painted_range = row_range.clone();
+                        if wrap_enabled {
+                            // MT-054 PERF CAP: materialize ONLY the painted visual-row window's logical
+                            // lines (O(window)), translated from the cached index — not the whole doc.
+                            let (window_rows, window_start, lines_touched) = self
+                                .wrap_rows_for_window(row_range.clone(), &wrap_cfg, glyph_width);
+                            frame_lines_wrapped = lines_touched;
+                            self.render_wrapped_rows(
+                                ui,
+                                &window_rows,
+                                window_start,
+                                &syntax,
+                                total_lines,
+                                text_id,
+                                &text_author,
+                                line_height,
+                                glyph_width,
+                            );
+                        } else {
+                            self.render_rows(
+                                ui,
+                                row_range,
+                                &syntax,
+                                total_lines,
+                                visible_lines,
+                                text_id,
+                                &text_author,
+                                line_height,
+                                glyph_width,
+                            );
+                        }
+                    });
 
                 // Store egui's actual painted row range as BOTH the perf "lines painted this frame"
                 // count and the `last_visible_range` overlay seam (AC-007). The painted range is the
@@ -5547,6 +6013,10 @@ impl CodeEditorPanel {
                     .last_visible_range
                     .lock()
                     .unwrap_or_else(|e| e.into_inner()) = painted_range.clone();
+                *self
+                    .last_scroll_offset_px
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = scroll_output.state.offset.y.max(0.0);
 
                 // MT-003: process multi-cursor input AFTER the rows painted this frame, so the captured
                 // row geometry is available to map a pointer position (Alt+Click / box drag) to a
@@ -5661,6 +6131,25 @@ impl CodeEditorPanel {
     fn render_code_intelligence(&self, ui: &egui::Ui) {
         // Drain delivered completion items into the popup state (HBR-QUIET — the spawn delivered them
         // off-thread; here we just swap them in on the UI thread).
+        let delivered_symbol_batches = {
+            let mut guard = self
+                .code_nav_symbols_result
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            std::mem::take(&mut *guard)
+        };
+        let had_symbol_batches = !delivered_symbol_batches.is_empty();
+        let mut delivered_symbols = Vec::new();
+        for (prefix, symbols) in delivered_symbol_batches {
+            delivered_symbols.extend(symbols.iter().cloned());
+            self.code_nav_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .put(prefix, symbols);
+        }
+        if had_symbol_batches {
+            self.push_staleness_markers(&delivered_symbols);
+        }
         if let Some((anchor, items)) = self
             .completion_result
             .lock()
@@ -6024,10 +6513,9 @@ impl CodeEditorPanel {
                 // for the factory render's bus clipboard write (the REAL command, not a fabricated
                 // payload). The same one-path rule as the keymap dispatch (`CopyAsNoteReference`).
                 self.copy_as_note_reference();
-            } else if let Some(action) = crate::context_menu_surfaces::editor_body_action_for_id(
-                confirmed,
-                availability,
-            ) {
+            } else if let Some(action) =
+                crate::context_menu_surfaces::editor_body_action_for_id(confirmed, availability)
+            {
                 use crate::context_menu_surfaces::EditorBodyMenuAction as B;
                 match action {
                     B::RenameSymbol => self.begin_rename_at_cursor(),
@@ -7065,7 +7553,7 @@ impl CodeEditorPanel {
         // `show_rows` stride, the gutter row_top, the cursor/find/whitespace overlays, and every
         // decoration y. Deriving it from any other metric re-opens the ghost-bracket / gutter-drift
         // unit mismatch the Wave-B audit measured.
-        let font = egui::FontId::monospace(MONO_FONT_SIZE);
+        let font = self.mono_font();
         let h = ui.fonts_mut(|f| f.row_height(&font)).max(1.0);
         *cached = Some(h);
         h
@@ -7084,7 +7572,7 @@ impl CodeEditorPanel {
         if let Some(w) = *cached {
             return w;
         }
-        let font = egui::FontId::monospace(MONO_FONT_SIZE);
+        let font = self.mono_font();
         // `FontsView::glyph_width` takes `&mut self` (it lazily lays out the glyph), so use
         // `fonts_mut`. All monospace glyphs share one advance width, so ' ' is representative.
         let w = ui.fonts_mut(|f| f.glyph_width(&font, ' ')).max(1.0);
@@ -7202,6 +7690,14 @@ impl CodeEditorPanel {
                     None => self.render_line(ui, buffer_line, &visible_spans, syntax),
                 }
             }
+            *self
+                .last_gutter_paint_rows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = painted_lines
+                .iter()
+                .copied()
+                .map(GutterPaintRow::first_fragment)
+                .collect();
 
             // Store the painted-row geometry so `process_cursor_input` (pointer hit-testing) and the
             // overlay share egui's ACTUAL layout — no separate recompute (the MT-002 unit discipline:
@@ -7236,21 +7732,28 @@ impl CodeEditorPanel {
             // visible window so it stays cheap on a large file. A no-op when the toggle is off (the
             // baseline render is unchanged).
             if self.render_whitespace() {
-                self.paint_whitespace_glyphs(ui, &geometry, glyph_width, &painted_lines, syntax);
+                self.paint_whitespace_glyphs(
+                    ui,
+                    &geometry,
+                    glyph_width,
+                    &painted_lines,
+                    syntax,
+                    None,
+                );
             }
 
             // MT-004: paint the find-match highlights (below the carets) so a caret/selection stays
             // visible on top of a match rect. Restricted to the painted row window (the same sans-spacing
             // line_height + monospace glyph_width units as the cursor overlay), fold-aware via
             // `painted_lines`.
-            self.paint_match_highlights(ui, &geometry, glyph_width, &painted_lines);
+            self.paint_match_highlights(ui, &geometry, glyph_width, &painted_lines, None);
 
             // MT-003: paint every caret + selection as a painter overlay OVER the rows, restricted to
             // the painted row window so carets align exactly with rendered glyphs (no draw for cursors
             // scrolled off-screen, none for cursors on fold-hidden lines). Row y comes from the painted
             // row offset in `painted_lines` (fold-aware — the MT-003-era `y_for` contiguity fix) + the
             // same monospace glyph width.
-            self.paint_cursor_overlay(ui, &geometry, glyph_width, &painted_lines, syntax);
+            self.paint_cursor_overlay(ui, &geometry, glyph_width, &painted_lines, syntax, None);
 
             // Emit the TextInput node onto this nested scope's Ui id (AC-005). Because this scope is a
             // child of the scroll-area scope (itself a child of the container), the node is a
@@ -7292,11 +7795,11 @@ impl CodeEditorPanel {
             // see `emit_cursor_nodes` for the documented deviation.)
             self.emit_cursor_nodes(ui);
 
-            // MT-005 AC-005: emit one `Role::TreeItem` AccessKit node per foldable region intersecting
-            // the painted buffer window (capped at MAX_ACCESSKIT_FOLDS — RISK-001), with an
+            // MT-005 AC-005: emit one `Role::TreeItem` AccessKit node per foldable region whose start
+            // line is ACTUALLY PAINTED (capped at MAX_ACCESSKIT_FOLDS — RISK-001), with an
             // Expand/Collapse action reflecting the fold state, so a swarm agent can fold/unfold each
             // region by `code_editor_fold_{start_line}`. Nested under the text node like the cursors.
-            self.emit_fold_nodes(ui, first_buffer_line, buffer_end);
+            self.emit_fold_nodes(ui, &painted_lines);
         });
     }
 
@@ -7516,6 +8019,16 @@ impl CodeEditorPanel {
                     None => self.render_visual_row_fragment(ui, row, &visible_spans, syntax),
                 }
             }
+            *self
+                .last_gutter_paint_rows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = window_rows
+                .iter()
+                .map(|row| GutterPaintRow {
+                    line: row.logical_line,
+                    is_first_fragment: row.is_first_fragment(),
+                })
+                .collect();
 
             // The painted window's RowGeometry: `first_line` is the GLOBAL visual-row index of the first
             // painted row (NOT a buffer line) because under wrap the rows are in visual space. The
@@ -7535,13 +8048,43 @@ impl CodeEditorPanel {
             // directly (each visual row carries its own byte range — already fold-filtered + bounded).
             self.paint_chrome_decorations(ui, &geometry, glyph_width, &[], Some(window_rows));
 
+            // MT-054 Task-B: paint the SAME overlays the non-wrap `render_rows` paints, made wrap-aware
+            // (byte -> visual row via `window_rows`). Before this the wrap path painted none of them, so
+            // Alt+Z wrap ON showed NO caret, selection, find-match highlight, or render-whitespace glyphs.
+            // `painted_lines` is empty (`&[]`) — the overlays map through `Some(window_rows)`; the paint
+            // stays bounded to the on-screen visual-row window.
+            if self.render_whitespace() {
+                self.paint_whitespace_glyphs(
+                    ui,
+                    &geometry,
+                    glyph_width,
+                    &[],
+                    syntax,
+                    Some(window_rows),
+                );
+            }
+            self.paint_match_highlights(ui, &geometry, glyph_width, &[], Some(window_rows));
+            self.paint_cursor_overlay(ui, &geometry, glyph_width, &[], syntax, Some(window_rows));
+
             let author = text_author.to_owned();
+            let painted_fold_lines: Vec<usize> = window_rows
+                .iter()
+                .filter(|row| row.is_first_fragment())
+                .map(|row| row.logical_line)
+                .collect();
+            self.emit_fold_nodes(ui, &painted_fold_lines);
+
             ui.ctx().accesskit_node_builder(text_node_id, move |node| {
                 node.set_role(accesskit::Role::TextInput);
                 node.set_author_id(author.clone());
                 node.set_label("Code editor text".to_owned());
                 node.set_value(format!("{total_lines} lines (word wrap on)"));
             });
+
+            // MT-054 Task-B: emit one `Role::Caret` AccessKit node per cursor under wrap too (position-
+            // independent — a swarm agent can still address each caret by `code_editor_cursor_{n}`), the
+            // same node `render_rows` emits in the non-wrap path.
+            self.emit_cursor_nodes(ui);
         });
     }
 
@@ -7554,7 +8097,7 @@ impl CodeEditorPanel {
         &self,
         ui: &mut egui::Ui,
         row: &VisualRow,
-        visible_spans: &[HighlightSpan],
+        visible_spans: &HighlightSpanWindow,
         syntax: &HsSyntaxTokens,
     ) {
         let frag_start = row.byte_start;
@@ -7564,7 +8107,7 @@ impl CodeEditorPanel {
             .unwrap_or(&frag_text_owned);
         let frag_end = frag_start + frag_text.len();
 
-        let mono = egui::FontId::monospace(MONO_FONT_SIZE);
+        let mono = self.mono_font();
         // MT-078: same RTL/limitation treatment as the non-wrap `render_line`, applied per VISIBLE wrap
         // fragment (the bidi cost is bounded to the rows on screen). A pure-LTR fragment returns `false`
         // and falls through to the EXACT existing per-run colored path (AC6 identity).
@@ -7573,7 +8116,7 @@ impl CodeEditorPanel {
         }
 
         let mut runs: Vec<(std::ops::Range<usize>, HighlightScope)> = Vec::new();
-        for span in visible_spans {
+        for span in visible_spans.overlapping(frag_start, frag_end) {
             let s = span.byte_range.start.max(frag_start);
             let e = span.byte_range.end.min(frag_end);
             if s < e {
@@ -7621,7 +8164,7 @@ impl CodeEditorPanel {
                 }
                 let run_text = frag_slice(range.start, range.end);
                 if !run_text.is_empty() {
-                    let color = scope_to_color(*scope, syntax);
+                    let color = self.resolve_highlight_color(*scope, syntax);
                     Self::code_static_label(
                         ui,
                         egui::RichText::new(run_text)
@@ -7784,7 +8327,7 @@ impl CodeEditorPanel {
         if !bracket_palette.is_empty() {
             let colors =
                 bracket_pair_colors_in_segments(&buffer, &visible_segments, &bracket_palette);
-            let mono = egui::FontId::monospace(MONO_FONT_SIZE);
+            let mono = self.mono_font();
             for (range, color) in colors {
                 if let Some((x, y)) = self.decoration_xy(
                     &buffer,
@@ -7883,6 +8426,75 @@ impl CodeEditorPanel {
         }
     }
 
+    /// MT-054 Task-B: the (x, y) top-left of `byte_offset`'s cell under WORD WRAP — the painted VISUAL-row
+    /// index (not the logical line) drives y and the column is the char count within the fragment. This is
+    /// the overlay analogue of `decoration_xy`'s `Some(rows)` arm, so the caret / preedit overlays land on
+    /// the same wrapped row the text fragment paints on. Returns `None` when the byte is off the painted
+    /// window. A byte exactly at a fragment end (a caret at the line/content edge) maps to that fragment's
+    /// last column; a trailing `\n` in the fragment is not counted as a column.
+    fn wrap_overlay_pos(
+        rows: &[VisualRow],
+        buffer: &TextBuffer,
+        byte_offset: usize,
+        geometry: &RowGeometry,
+        glyph_width: f32,
+    ) -> Option<(f32, f32)> {
+        let idx = rows
+            .iter()
+            .position(|r| byte_offset >= r.byte_start && byte_offset < r.byte_end)
+            .or_else(|| rows.iter().rposition(|r| byte_offset == r.byte_end))?;
+        let row = &rows[idx];
+        let seg = buffer.byte_slice_to_string(row.byte_start..byte_offset.min(row.byte_end));
+        let mut col = seg.chars().count();
+        if seg.ends_with('\n') {
+            col = col.saturating_sub(1);
+        }
+        let x = geometry.left + col as f32 * glyph_width;
+        let y = geometry.top + idx as f32 * geometry.line_height;
+        Some((x, y))
+    }
+
+    /// MT-054 Task-B: the overlay rects covering byte range `[start, end)` under WORD WRAP — one rect per
+    /// painted VISUAL row the range intersects (the wrapped analogue of the per-line selection / find-match
+    /// rects in the non-wrap overlays). A trailing `\n` inside a fragment is not counted as a column, so a
+    /// whole-line selection stops at the content edge. Bounded to the painted `rows` window.
+    fn wrap_overlay_rects(
+        rows: &[VisualRow],
+        buffer: &TextBuffer,
+        range: std::ops::Range<usize>,
+        geometry: &RowGeometry,
+        glyph_width: f32,
+    ) -> Vec<egui::Rect> {
+        let mut out: Vec<egui::Rect> = Vec::new();
+        for (idx, row) in rows.iter().enumerate() {
+            let s = range.start.max(row.byte_start);
+            let e = range.end.min(row.byte_end);
+            if s >= e {
+                continue;
+            }
+            let start_col = buffer
+                .byte_slice_to_string(row.byte_start..s)
+                .chars()
+                .count();
+            let end_seg = buffer.byte_slice_to_string(row.byte_start..e);
+            let mut end_col = end_seg.chars().count();
+            if end_seg.ends_with('\n') {
+                end_col = end_col.saturating_sub(1);
+            }
+            if end_col <= start_col {
+                continue;
+            }
+            let y = geometry.top + idx as f32 * geometry.line_height;
+            let x0 = geometry.left + start_col as f32 * glyph_width;
+            let x1 = geometry.left + end_col as f32 * glyph_width;
+            out.push(egui::Rect::from_min_max(
+                egui::pos2(x0, y),
+                egui::pos2(x1, y + geometry.line_height),
+            ));
+        }
+        out
+    }
+
     /// Render a folded region's collapsed SUMMARY line (the start-line text + ` …`) in place of the
     /// region's real lines (MT step 4). One row, monospace, in the editor foreground color — the same
     /// row height as a real line so the virtualized layout stays on one unit. A subtle background tint
@@ -7890,7 +8502,7 @@ impl CodeEditorPanel {
     fn render_fold_label_line(&self, ui: &mut egui::Ui, label: &str, syntax: &HsSyntaxTokens) {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            let mono = egui::FontId::monospace(13.0);
+            let mono = self.mono_font();
             // The label text in the normal foreground; the trailing ellipsis already conveys "folded".
             let resp = ui.label(
                 egui::RichText::new(label)
@@ -7909,8 +8521,10 @@ impl CodeEditorPanel {
         });
     }
 
-    /// Emit the per-fold-region `Role::TreeItem` AccessKit nodes for the regions whose start line falls
-    /// in the painted buffer window `[first_buffer_line, buffer_end)` (AC-005 / HBR-SWARM). Each node:
+    /// Emit the per-fold-region `Role::TreeItem` AccessKit nodes for regions whose start line is in the
+    /// actual painted row list (AC-005 / HBR-SWARM). This deliberately keys off painted rows rather than
+    /// a broad buffer span so a nested region hidden inside a folded outer region never emits a live node.
+    /// Each node:
     /// - author_id `code_editor_fold_{start_line}` (the contract-named id; AC-005 asserts THIS id),
     /// - role `Role::TreeItem` (exists in accesskit 0.21 — no fallback needed; verified at build),
     /// - action `Action::Expand` when the region is FOLDED (the agent action that unfolds it) or
@@ -7919,18 +8533,20 @@ impl CodeEditorPanel {
     /// - value carries the fold state + line span so an agent can read it without dispatching.
     ///
     /// Capped at [`MAX_ACCESSKIT_FOLDS`] nodes (RISK-001) so a file with thousands of folds cannot blow
-    /// the per-frame node budget. Fixed ids in the fold band (default panel) keep NodeIds stable across
-    /// frames; instances hash the suffixed author_id (RISK-004), the same scheme the cursor nodes use.
-    fn emit_fold_nodes(&self, ui: &egui::Ui, first_buffer_line: usize, buffer_end: usize) {
+    /// the per-frame node budget. Fold ids are keyed by buffer start line so NodeIds stay stable across
+    /// frames and cannot be reassigned to a different visible slot after scrolling; instances hash the
+    /// suffixed author_id (RISK-004), the same scheme the cursor nodes use.
+    fn emit_fold_nodes(&self, ui: &egui::Ui, painted_lines: &[usize]) {
         let regions: Vec<(usize, usize, bool)> = {
             let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
-            set.regions
+            painted_lines
                 .iter()
-                .filter(|r| r.start_line >= first_buffer_line && r.start_line < buffer_end)
+                .filter_map(|&line| set.region_starting_at(line))
                 .take(MAX_ACCESSKIT_FOLDS)
                 .map(|r| (r.start_line, r.end_line, r.folded))
                 .collect()
         };
+        let mut requested_states: Vec<(usize, bool)> = Vec::new();
         for (slot, (start_line, end_line, folded)) in regions.into_iter().enumerate() {
             let author = if self.instance.is_empty() {
                 format!("{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}")
@@ -7959,15 +8575,37 @@ impl CodeEditorPanel {
                     node.add_action(accesskit::Action::Collapse);
                 }
             });
+            ui.input(|input| {
+                if folded {
+                    if input
+                        .accesskit_action_requests(node_id, accesskit::Action::Expand)
+                        .next()
+                        .is_some()
+                    {
+                        requested_states.push((start_line, false));
+                    }
+                } else if input
+                    .accesskit_action_requests(node_id, accesskit::Action::Collapse)
+                    .next()
+                    .is_some()
+                {
+                    requested_states.push((start_line, true));
+                }
+            });
+        }
+        for (start_line, folded) in requested_states {
+            if self.set_fold_state(start_line, folded) {
+                ui.ctx().request_repaint();
+            }
         }
     }
 
-    /// The fixed `egui::Id` for fold node `slot` (default panel uses the fold band; instances hash the
-    /// suffixed author_id so two panels never share a fold id — RISK-004).
-    fn fold_node_id(&self, slot: usize, start_line: usize) -> egui::Id {
+    /// The stable `egui::Id` for a fold node. It is keyed by `start_line`, not by the currently painted
+    /// slot, so a stale AccessKit action cannot hit a different fold row after scrolling or virtualization
+    /// changes the visible slot order.
+    fn fold_node_id(&self, _slot: usize, start_line: usize) -> egui::Id {
         if self.instance.is_empty() {
-            // SAFETY: each slot maps to a distinct fixed id in the disjoint fold band; never reused.
-            unsafe { egui::Id::from_high_entropy_bits(PANEL_FOLD_NODE_ID_BASE + slot as u64) }
+            egui::Id::new(format!("{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}"))
         } else {
             egui::Id::new(format!(
                 "{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}#{}",
@@ -8000,6 +8638,10 @@ impl CodeEditorPanel {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .clear();
+            self.last_gutter_paint_rows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clear();
             *self
                 .last_gutter_geometry
                 .lock()
@@ -8007,17 +8649,19 @@ impl CodeEditorPanel {
             return;
         };
 
-        // The painted VISIBLE-line window (post-fold), mapped to BUFFER lines per row so the gutter draws
-        // the right line numbers/markers in the right rows. The gutter strip starts at the gutter rect's
-        // left edge but uses the editor rows' TOP (row_geom.top) so the first gutter row lines up with
-        // the first code row exactly.
-        let visible_range = self.last_visible_range();
-        let visible_rows: Vec<usize> = {
-            let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
-            (visible_range.start..visible_range.end)
-                .map(|v| set.visible_line_to_buffer_line(v))
-                .collect()
-        };
+        // The exact painted body rows for this frame. Rebuilding these from `last_visible_range` is only
+        // correct when wrap is off; under wrap that range is visual-row space and a long first logical
+        // line may occupy rows 0..N. The body paint path already knows the right row model, so consume it.
+        let paint_rows = self
+            .last_gutter_paint_rows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let first_fragment_lines: Vec<usize> = paint_rows
+            .iter()
+            .filter(|row| row.is_first_fragment)
+            .map(|row| row.line)
+            .collect();
 
         // The gutter geometry: origin at the gutter strip's left edge + the code rows' top, with the
         // editor's measured line height + glyph width (so the line numbers use the SAME metrics).
@@ -8055,7 +8699,7 @@ impl CodeEditorPanel {
         let response: GutterResponse = Gutter::render(
             ui,
             gutter_rect,
-            &visible_rows,
+            &paint_rows,
             &buffer,
             &markers,
             &breakpoints,
@@ -8065,7 +8709,7 @@ impl CodeEditorPanel {
         );
 
         if config.show_breakpoints {
-            for &line in &visible_rows {
+            for &line in &first_fragment_lines {
                 let target_id = ui.id().with(("gutter_row", line)).with("bp");
                 let author = if self.instance.is_empty() {
                     format!("{CODE_EDITOR_BREAKPOINT_TARGET_AUTHOR_PREFIX}{line}")
@@ -8083,7 +8727,7 @@ impl CodeEditorPanel {
             }
         }
         if config.show_fold_triangles {
-            for &line in &visible_rows {
+            for &line in &first_fragment_lines {
                 if fold_open_for(line).is_none() {
                     continue;
                 }
@@ -8108,7 +8752,7 @@ impl CodeEditorPanel {
         *self
             .last_gutter_rows
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = visible_rows.clone();
+            .unwrap_or_else(|e| e.into_inner()) = paint_rows.iter().map(|row| row.line).collect();
         *self
             .last_gutter_geometry
             .lock()
@@ -8129,15 +8773,15 @@ impl CodeEditorPanel {
         // `code_editor_diagnostic_{line}` and toggle/read it by id (AC-005 / HBR-SWARM). Capped per
         // frame (RISK-004) and restricted to the painted window so a huge file cannot blow the node
         // budget.
-        self.emit_breakpoint_nodes(ui, &visible_rows, &breakpoints, config);
-        self.emit_diagnostic_nodes(ui, &visible_rows, &markers, config);
+        self.emit_breakpoint_nodes(ui, &first_fragment_lines, &breakpoints, config);
+        self.emit_diagnostic_nodes(ui, &first_fragment_lines, &markers, config);
 
         // MT-049: draw the quick-fix lightbulb on any PAINTED line that currently has available code
         // actions (AC-003 — only on the diagnostic line with actions, never on a line without). The glyph is
         // a clickable Role::Button that opens the quick-fix menu (the gutter-click path). Theme-aware
         // (CONTROL-4 — `lightbulb_color`/`warn_fg_color`, no Color32 literal). Only drawn when the menu is
         // closed so the bulb does not overdraw the open menu (the bulb stays "lit" via the controller state).
-        self.draw_quickfix_lightbulbs(ui, &visible_rows, &geometry);
+        self.draw_quickfix_lightbulbs(ui, &paint_rows, &geometry);
     }
 
     /// MT-049: draw the quick-fix lightbulb on each painted line that carries available code actions
@@ -8147,11 +8791,16 @@ impl CodeEditorPanel {
     fn draw_quickfix_lightbulbs(
         &self,
         ui: &mut egui::Ui,
-        visible_rows: &[usize],
+        paint_rows: &[GutterPaintRow],
         geometry: &GutterGeometry,
     ) {
         let mut open_for: Option<usize> = None;
-        for (painted_idx, &line) in visible_rows.iter().enumerate() {
+        let mut drawn: Vec<(usize, egui::Pos2)> = Vec::new();
+        for (painted_idx, row) in paint_rows.iter().enumerate() {
+            if !row.is_first_fragment {
+                continue;
+            }
+            let line = row.line;
             if !self.has_quickfix_on_line(line) {
                 continue;
             }
@@ -8165,10 +8814,15 @@ impl CodeEditorPanel {
             let x = geometry.origin.x + code_actions::LIGHTBULB_GLYPH_SIZE * 0.5 + 2.0;
             let pos = egui::pos2(x, y);
             let resp = code_actions::draw_lightbulb(ui, line, pos, &self.instance);
+            drawn.push((line, pos));
             if resp.clicked() {
                 open_for = Some(line);
             }
         }
+        *self
+            .last_quickfix_lightbulbs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = drawn;
         // A clicked lightbulb opens the quick-fix menu for that line (AC-003 — gutter-click path). If a
         // request for the line is not yet resolved the menu opens empty and re-fires on the next pump.
         if let Some(line) = open_for {
@@ -8344,44 +8998,18 @@ impl CodeEditorPanel {
     /// one starts past the window end. This bounds per-frame span work to the visible window rather
     /// than the whole document (MT-002 step 3). Spans are cloned out so the cache lock is not held
     /// across the egui layout calls in `render_line`.
-    fn spans_in_byte_window(&self, win_start: usize, win_end: usize) -> Vec<HighlightSpan> {
+    fn spans_in_byte_window(&self, win_start: usize, win_end: usize) -> HighlightSpanWindow {
         if win_end <= win_start {
-            return Vec::new();
+            return HighlightSpanWindow::default();
         }
         let cache = self
             .highlight_cache
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let Some((spans, _)) = cache.as_ref() else {
-            return Vec::new();
+            return HighlightSpanWindow::default();
         };
-        // A span [s.start, s.end) overlaps the window iff s.start < win_end AND s.end > win_start.
-        // Spans are sorted by (start, end). The earliest span that can overlap is the first whose
-        // `end > win_start`; but `end` is not the sort key, so we cannot binary-search on it directly.
-        // Instead, find the first span with `start >= win_start` (lower bound on start) and step a
-        // little backward to include a span that started before the window but extends into it (a
-        // multi-line comment/string). A bounded back-scan is enough because spans here are token-sized
-        // except rare block comments; cap it so a pathological input cannot make this O(n).
-        let lb = spans.partition_point(|s| s.byte_range.start < win_start);
-        // Back up over spans whose end still reaches into the window (e.g. a block comment opened above
-        // the viewport). Bounded so worst case stays cheap.
-        let mut begin = lb;
-        let mut backstep = 0usize;
-        const MAX_BACKSTEP: usize = 4096;
-        while begin > 0 && backstep < MAX_BACKSTEP && spans[begin - 1].byte_range.end > win_start {
-            begin -= 1;
-            backstep += 1;
-        }
-        let mut out = Vec::new();
-        for s in &spans[begin..] {
-            if s.byte_range.start >= win_end {
-                break; // sorted by start: nothing further can overlap.
-            }
-            if s.byte_range.end > win_start {
-                out.push(s.clone());
-            }
-        }
-        out
+        HighlightSpanWindow::from_spans(spans.overlapping(win_start, win_end).cloned().collect())
     }
 
     fn code_static_label(ui: &mut egui::Ui, text: egui::RichText) -> egui::Response {
@@ -8544,7 +9172,7 @@ impl CodeEditorPanel {
         &self,
         ui: &mut egui::Ui,
         line_idx: usize,
-        visible_spans: &[HighlightSpan],
+        visible_spans: &HighlightSpanWindow,
         syntax: &HsSyntaxTokens,
     ) {
         let (line_text_owned, line_start_byte) = self.with_buffer(|b| {
@@ -8559,7 +9187,7 @@ impl CodeEditorPanel {
             .unwrap_or(&line_text_owned);
         let line_end_byte = line_start_byte + line_text.len();
 
-        let mono = egui::FontId::monospace(13.0);
+        let mono = self.mono_font();
         // MT-078: an RTL line (Hebrew/Arabic literal/comment) is reordered + right-aligned, and an
         // Arabic/Indic line surfaces the visible typed-limitation marker — via the shared bidi pass.
         // A pure-LTR line returns `false` and falls through to the EXACT existing per-run path (AC6).
@@ -8567,10 +9195,11 @@ impl CodeEditorPanel {
             return;
         }
 
-        // Spans overlapping THIS line, clipped to the line's byte window (from the already
-        // window-clipped frame slice).
+        // Spans overlapping THIS line, clipped to the line's byte window from the already
+        // window-clipped frame slice. The prefix max-end index preserves long parent spans that start
+        // above the row even when shorter child spans ended before it.
         let mut runs: Vec<(std::ops::Range<usize>, HighlightScope)> = Vec::new();
-        for span in visible_spans {
+        for span in visible_spans.overlapping(line_start_byte, line_end_byte) {
             let s = span.byte_range.start.max(line_start_byte);
             let e = span.byte_range.end.min(line_end_byte);
             if s < e {
@@ -8632,7 +9261,7 @@ impl CodeEditorPanel {
             }
             append(
                 line_slice(range.start, range.end),
-                scope_to_color(*scope, syntax),
+                self.resolve_highlight_color(*scope, syntax),
                 &mut job,
             );
             cursor = cursor.max(range.end);
@@ -8685,6 +9314,7 @@ impl CodeEditorPanel {
         geometry: &RowGeometry,
         glyph_width: f32,
         painted_lines: &[usize],
+        wrap_rows: Option<&[VisualRow]>,
     ) {
         let state = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
         let Some(state) = state.as_ref() else {
@@ -8709,6 +9339,17 @@ impl CodeEditorPanel {
             } else {
                 MATCH_HIGHLIGHT_COLOR
             };
+            // MT-054 Task-B: under WORD WRAP the match spans visual rows, so map the byte range through
+            // the painted visual rows (one rect per visual row it covers) instead of the non-wrap
+            // per-logical-line mapping below.
+            if let Some(rows) = wrap_rows {
+                for rect in
+                    Self::wrap_overlay_rects(rows, &buffer, m.byte_range.clone(), geometry, glyph_width)
+                {
+                    painter.rect_filled(rect, 0.0, color);
+                }
+                continue;
+            }
             // The match's start/end (line, col). A match is usually single-line; a multi-line regex
             // match is handled by drawing one rect per covered line (start col on the first line, end
             // col on the last, whole content width between).
@@ -8755,21 +9396,21 @@ impl CodeEditorPanel {
         glyph_width: f32,
         painted_lines: &[usize],
         syntax: &HsSyntaxTokens,
+        wrap_rows: Option<&[VisualRow]>,
     ) {
         let painter = ui.painter();
         let color = syntax.punctuation;
-        let font = egui::FontId::monospace(MONO_FONT_SIZE);
+        let font = self.mono_font();
         let x_for = |col: usize| geometry.left + col as f32 * glyph_width;
         // Read only the PAINTED rows (never the whole rope — RISK-003 window discipline). FOLD-AWARE
         // (Wave-B fix): iterate the painted row list itself, so a fold-hidden line's whitespace is
         // never marked and each row's y is its real painted offset.
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-        for (row_offset, &line) in painted_lines.iter().enumerate() {
-            let row_y = geometry.top + row_offset as f32 * geometry.line_height;
-            let line_text = buffer.slice_to_string(line..line + 1);
-            // Column index in CHARS (the editor's monospace column unit), tracking each glyph.
+        // Mark one row of whitespace at `row_y` over the characters of `text` (a `\n`/`\r` is never
+        // marked). Shared by the non-wrap (whole logical line) and wrap (per-fragment) paths.
+        let mark_row = |row_y: f32, text: &str| {
             let mut col = 0usize;
-            for ch in line_text.chars() {
+            for ch in text.chars() {
                 match ch {
                     ' ' => {
                         let center = egui::pos2(
@@ -8805,6 +9446,24 @@ impl CodeEditorPanel {
                     }
                 }
             }
+        };
+        match wrap_rows {
+            None => {
+                for (row_offset, &line) in painted_lines.iter().enumerate() {
+                    let row_y = geometry.top + row_offset as f32 * geometry.line_height;
+                    let line_text = buffer.slice_to_string(line..line + 1);
+                    mark_row(row_y, &line_text);
+                }
+            }
+            // MT-054 Task-B: under WORD WRAP each painted row is one wrap fragment; mark whitespace per
+            // fragment so continuation rows carry their own middots/arrows at the correct visual row.
+            Some(rows) => {
+                for (idx, row) in rows.iter().enumerate() {
+                    let row_y = geometry.top + idx as f32 * geometry.line_height;
+                    let frag = buffer.byte_slice_to_string(row.byte_start..row.byte_end);
+                    mark_row(row_y, &frag);
+                }
+            }
         }
     }
 
@@ -8824,6 +9483,7 @@ impl CodeEditorPanel {
         glyph_width: f32,
         painted_lines: &[usize],
         syntax: &HsSyntaxTokens,
+        wrap_rows: Option<&[VisualRow]>,
     ) {
         let painter = ui.painter();
         // Caret color: the editor foreground (theme-sourced, never a hex literal). Selection overlay is
@@ -8852,39 +9512,62 @@ impl CodeEditorPanel {
             // Draw the SELECTION (if any) first, then the caret on top, so the caret stays visible.
             if cursor.is_selection() {
                 let range = cursor.range();
-                let (start_line, start_col) = byte_to_line_col(range.start, &buffer);
-                let (end_line_sel, end_col) = byte_to_line_col(range.end, &buffer);
-                for line in start_line..=end_line_sel {
-                    let Some(y0) = y_for(line) else {
-                        continue; // off-screen or fold-hidden row
-                    };
-                    // Column span on THIS line: from the selection start col (or 0 if the line is not the
-                    // first) to the end col (or the line's content end if the line is not the last).
-                    let line_start_col = if line == start_line { start_col } else { 0 };
-                    let line_end_col = if line == end_line_sel {
-                        end_col
-                    } else {
-                        // Whole-line selection rows extend to the line's char length.
-                        let (_, content_end_col) =
-                            byte_to_line_col(line_col_to_byte(line, usize::MAX, &buffer), &buffer);
-                        content_end_col.max(line_start_col + 1) // at least 1 col wide so it is visible
-                    };
-                    if line_end_col <= line_start_col {
-                        continue;
+                match wrap_rows {
+                    None => {
+                        let (start_line, start_col) = byte_to_line_col(range.start, &buffer);
+                        let (end_line_sel, end_col) = byte_to_line_col(range.end, &buffer);
+                        for line in start_line..=end_line_sel {
+                            let Some(y0) = y_for(line) else {
+                                continue; // off-screen or fold-hidden row
+                            };
+                            // Column span on THIS line: from the selection start col (or 0 if the line is
+                            // not the first) to the end col (or the line's content end if not the last).
+                            let line_start_col = if line == start_line { start_col } else { 0 };
+                            let line_end_col = if line == end_line_sel {
+                                end_col
+                            } else {
+                                // Whole-line selection rows extend to the line's char length.
+                                let (_, content_end_col) = byte_to_line_col(
+                                    line_col_to_byte(line, usize::MAX, &buffer),
+                                    &buffer,
+                                );
+                                content_end_col.max(line_start_col + 1) // at least 1 col wide
+                            };
+                            if line_end_col <= line_start_col {
+                                continue;
+                            }
+                            let x0 = x_for(line_start_col);
+                            let x1 = x_for(line_end_col);
+                            let rect = egui::Rect::from_min_max(
+                                egui::pos2(x0, y0),
+                                egui::pos2(x1, y0 + geometry.line_height),
+                            );
+                            painter.rect_filled(rect, 0.0, selection_color);
+                        }
                     }
-                    let x0 = x_for(line_start_col);
-                    let x1 = x_for(line_end_col);
-                    let rect = egui::Rect::from_min_max(
-                        egui::pos2(x0, y0),
-                        egui::pos2(x1, y0 + geometry.line_height),
-                    );
-                    painter.rect_filled(rect, 0.0, selection_color);
+                    // MT-054 Task-B: WORD WRAP selection — one rect per visual row the range covers.
+                    Some(rows) => {
+                        for rect in
+                            Self::wrap_overlay_rects(rows, &buffer, range, geometry, glyph_width)
+                        {
+                            painter.rect_filled(rect, 0.0, selection_color);
+                        }
+                    }
                 }
             }
-            // Draw the caret (the moving head) as a 2px vertical bar.
-            let (head_line, head_col) = byte_to_line_col(cursor.head, &buffer);
-            if let Some(y) = y_for(head_line) {
-                let x = x_for(head_col);
+            // Draw the caret (the moving head) as a 2px vertical bar. Non-wrap maps the head's (line,col)
+            // through the fold-aware painted rows; wrap maps the head byte through the painted visual rows
+            // (MT-054 Task-B) so the caret sits on the correct WRAPPED row.
+            let caret_xy = match wrap_rows {
+                None => {
+                    let (head_line, head_col) = byte_to_line_col(cursor.head, &buffer);
+                    y_for(head_line).map(|y| (x_for(head_col), y))
+                }
+                Some(rows) => {
+                    Self::wrap_overlay_pos(rows, &buffer, cursor.head, geometry, glyph_width)
+                }
+            };
+            if let Some((x, y)) = caret_xy {
                 let caret = egui::Rect::from_min_max(
                     egui::pos2(x, y),
                     egui::pos2(x + 2.0, y + geometry.line_height),
@@ -8907,11 +9590,20 @@ impl CodeEditorPanel {
             .clone();
         if !preedit.is_empty() {
             let primary = cursors.primary();
-            let (head_line, head_col) = byte_to_line_col(primary.head, &buffer);
-            if let Some(y) = y_for(head_line) {
-                let x = x_for(head_col);
+            // MT-054 Task-B: anchor the IME preedit at the primary caret in BOTH modes (wrap maps the
+            // head byte through the painted visual rows, like the caret above).
+            let preedit_xy = match wrap_rows {
+                None => {
+                    let (head_line, head_col) = byte_to_line_col(primary.head, &buffer);
+                    y_for(head_line).map(|y| (x_for(head_col), y))
+                }
+                Some(rows) => {
+                    Self::wrap_overlay_pos(rows, &buffer, primary.head, geometry, glyph_width)
+                }
+            };
+            if let Some((x, y)) = preedit_xy {
                 // Lay out the preedit in the editor's monospace font so it matches the code glyphs.
-                let font = egui::FontId::monospace(MONO_FONT_SIZE);
+                let font = self.mono_font();
                 let galley = painter.layout_no_wrap(preedit.clone(), font, caret_color);
                 let run_w = galley.rect.width().max(glyph_width);
                 let run_h = geometry.line_height;
@@ -9027,7 +9719,9 @@ impl CodeEditorPanel {
     }
 
     /// The cached monospace glyph width measured on the last `show` (px), or `None` before the first
-    /// frame. Lets a test compute click pixels with the SAME width the overlay uses.
+    /// frame. Test/support observability seam: lets existing kittest proofs compute click pixels with the
+    /// SAME width the overlay uses.
+    #[doc(hidden)]
     pub fn measured_glyph_width(&self) -> Option<f32> {
         *self
             .glyph_width_px
@@ -9802,11 +10496,21 @@ impl CodeEditorPanel {
             A::SelectAll => self.select_all(),
             // ── Deletion ──
             A::DeleteLeft => {
-                self.delete_text();
+                self.apply_text_edit_undoable("code: delete left", |panel| panel.delete_text());
             }
-            A::DeleteRight => self.delete_forward(),
-            A::DeleteWordLeft => self.delete_word(true),
-            A::DeleteWordRight => self.delete_word(false),
+            A::DeleteRight => {
+                self.apply_text_edit_undoable("code: delete right", |panel| panel.delete_forward());
+            }
+            A::DeleteWordLeft => {
+                self.apply_text_edit_undoable("code: delete word left", |panel| {
+                    panel.delete_word(true)
+                });
+            }
+            A::DeleteWordRight => {
+                self.apply_text_edit_undoable("code: delete word right", |panel| {
+                    panel.delete_word(false)
+                });
+            }
             // MT-051: DeleteLine deletes every affected whole row (incl. trailing newline; the preceding
             // newline too on the last row so no empty trailing line remains) as ONE undo entry.
             A::DeleteLine => {
@@ -9814,7 +10518,7 @@ impl CodeEditorPanel {
             }
             // ── Insertion / line edits ──
             A::InsertNewline => {
-                self.insert_text("\n");
+                self.apply_text_edit_undoable("code: newline", |panel| panel.insert_text("\n"));
             }
             // MT-051: InsertTab inserts one indent unit (tab or tab_size spaces per the operator setting —
             // MC-006) at every collapsed cursor, OR block-indents when any cursor has a multi-line selection
@@ -9964,7 +10668,7 @@ impl CodeEditorPanel {
     /// delete the preceding char). Routed through [`CursorSet::delete_forward_at_all`] so EOF carets
     /// never fall into Backspace semantics — the prior compose-and-delete path ate the preceding char
     /// at EOF (fixed per adversarial review).
-    fn delete_forward(&self) {
+    fn delete_forward(&self) -> usize {
         let applied = {
             let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
             self.cursor_set
@@ -9975,17 +10679,18 @@ impl CodeEditorPanel {
         if applied > 0 {
             self.refresh();
         }
+        applied
     }
 
     /// Delete the word to the left (`to_left`) or right of each cursor (Ctrl+Backspace / Ctrl+Delete):
     /// extend each bare caret over the adjacent word, then delete.
-    fn delete_word(&self, to_left: bool) {
+    fn delete_word(&self, to_left: bool) -> usize {
         {
             let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
             let mut set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
             set.select_word_for_bare_carets(to_left, &buffer);
         }
-        self.delete_text();
+        self.delete_text()
     }
 
     /// Collapse the cursor set to a single caret at the primary head (Escape with a multi-cursor —
@@ -10004,17 +10709,9 @@ impl CodeEditorPanel {
     /// folded flag, then invalidates the visible map so the next render re-lays the rows.
     fn fold_all(&self, fold: bool) {
         let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
-        let mut changed = false;
-        for region in &mut set.regions {
-            if region.folded != fold {
-                region.folded = fold;
-                changed = true;
-            }
-        }
-        if changed {
-            // Re-fold/unfold invalidates the cached visible map; rebuilding happens lazily on next query.
-            let total = self.with_buffer(|b| b.len_lines());
-            set.rebuild_visible_map_for(total);
+        if set.set_all_folded(fold) {
+            drop(set);
+            self.fold_state_changed();
         }
     }
 
@@ -10043,7 +10740,11 @@ impl CodeEditorPanel {
         if workspace_id.is_empty() || word.is_empty() {
             return;
         }
-        let client = self.code_nav_client.clone();
+        let client = self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let cell = Arc::clone(&self.goto_def_result);
         runtime.spawn(async move {
             let symbols = client
@@ -10083,7 +10784,11 @@ impl CodeEditorPanel {
         if workspace_id.is_empty() || word.is_empty() {
             return;
         }
-        let client = self.code_nav_client.clone();
+        let client = self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let cell = Arc::clone(&self.references_result);
         runtime.spawn(async move {
             // Resolve the word to a symbol entity id, then fetch its references.
@@ -10269,7 +10974,11 @@ impl CodeEditorPanel {
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = Some(dwelled_word.clone());
 
-        let client = self.code_nav_client.clone();
+        let client = self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let backend = Arc::clone(
             &self
                 .find_notes_backend
@@ -10365,7 +11074,7 @@ impl CodeEditorPanel {
         self.undo();
     }
 
-    /// Redo (Ctrl+Y / Ctrl+Shift+Z) — routed to the host unified-undo stack, same as [`undo`](Self::undo).
+    /// Redo (Ctrl+Y) — routed to the host unified-undo stack, same as [`undo`](Self::undo).
     fn redo(&self) {
         self.send_to_command_bus(CodeEditorAction::Redo);
     }
@@ -10528,8 +11237,12 @@ impl CodeEditorPanel {
                     // but the popup is non-focus-stealing, so normal typing still flows; only the explicit
                     // Tab/Enter accept (handled in process_keymap) consumes. Insert the text at all
                     // cursors.
-                    self.insert_text(text);
-                    self.mark_edit_now();
+                    if self
+                        .apply_text_edit_undoable("code: typing", |panel| panel.insert_text(text))
+                        > 0
+                    {
+                        self.mark_edit_now();
+                    }
                     if text.chars().any(|c| matches!(c, '.' | ':' | '_')) {
                         self.completion_request.store(true, Ordering::Relaxed);
                     }
@@ -10561,9 +11274,11 @@ impl CodeEditorPanel {
                     ) {
                         continue;
                     }
+                    let before = self.buffer();
                     if self.handle_ime_event(ime) {
                         // A non-empty commit mutated the buffer — mark the edit (debounce clock) so the
                         // MT-008 completion + MT-035 dirty/draft tracking treat it like typed text.
+                        self.record_text_edit_undo(before, self.buffer(), "code: ime commit");
                         self.mark_edit_now();
                     }
                 }
@@ -10665,12 +11380,16 @@ impl CodeEditorPanel {
             }
         });
         if let Some(value) = set_value {
+            let before = self.buffer();
             self.set_text(&value);
+            self.record_text_edit_undo(before, self.buffer(), "code: swarm set value");
             ui.ctx().request_repaint();
         }
         for value in replace_values {
             if !value.is_empty() {
-                self.insert_text(&value);
+                self.apply_text_edit_undoable("code: swarm replace selected text", |panel| {
+                    panel.insert_text(&value)
+                });
                 ui.ctx().request_repaint();
             }
         }
@@ -10729,22 +11448,58 @@ impl PaneFactory for CodeEditorPaneFactory {
         // keyed by INTERACTION_BUS_KEY, so every mounted pane sees the same instance.
         let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
         let pane_id: PaneId = Arc::from(ctx.record.pane_id.as_ref());
-        // The code pane owns the shared selection only while a widget under this pane's egui id scope
-        // holds focus (impl note 6/7), so a background pane never clobbers the focused pane's selection.
-        // `egui_id` is this pane's scope id; the code editor builds its child widget ids from it.
-        let has_focus = ui.memory(|m| m.focused().map(|f| f == ctx.egui_id).unwrap_or(false))
-            || self.panel.cursors().primary().is_selection();
+        // The code pane owns shared focus only while the pane's egui scope is actually focused. A stale
+        // code selection must not claim focus or consume clipboard shortcuts while another editor/input is
+        // active; explicit menu/palette commands materialize selections through the host dispatch path.
+        let has_focus = ui.memory(|m| m.focused().map(|f| f == ctx.egui_id).unwrap_or(false));
         let mut registered = self.bus_registered.load(Ordering::Relaxed);
         super::interop_adapter::drive_bus_in_render(
             &bus,
             &self.panel,
-            pane_id,
+            pane_id.clone(),
             has_focus,
             &mut registered,
         );
         self.bus_registered.store(registered, Ordering::Relaxed);
+        if super::interop_adapter::drive_clipboard_shortcuts_in_render(
+            ui,
+            &bus,
+            &self.panel,
+            pane_id,
+            has_focus,
+        ) {
+            ui.ctx().request_repaint();
+        }
 
         self.panel.show(ui);
+
+        // MT-035: live typing / IME / delete / newline record their undo snapshots through the SAME bus
+        // boundary as format and line transforms. Do not take the staged snapshot until the bus lock is
+        // acquired; if the bus is contended this frame, request a repaint and preserve the pending entry.
+        if self.panel.has_pending_text_edit_undo() {
+            let pane_id_text: PaneId = Arc::from(ctx.record.pane_id.as_ref());
+            let drained =
+                crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
+                    let Some(pending) = self.panel.take_pending_text_edit_undo() else {
+                        return false;
+                    };
+                    b.set_focus_owner(pane_id_text.clone());
+                    super::interop_adapter::push_or_coalesce_code_edit_undo(
+                        b,
+                        pane_id_text.clone(),
+                        &self.panel,
+                        pending.before,
+                        pending.after,
+                        pending.description,
+                        pending.replace_tail,
+                    );
+                    true
+                })
+                .unwrap_or(false);
+            if !drained {
+                ui.ctx().request_repaint();
+            }
+        }
 
         // MT-050 (AC-001): record the SINGLE undo entry for a just-applied format at the SAME bus boundary
         // every code edit's undo is recorded (the wrap-not-fork discipline). The panel queued the
@@ -10816,6 +11571,227 @@ mod tests {
         assert_ne!(
             scope_to_color(HighlightScope::Keyword, &dark),
             scope_to_color(HighlightScope::String, &dark),
+        );
+    }
+
+    #[test]
+    fn code_text_undo_batcher_replaces_tail_inside_500ms_window() {
+        let mut batcher = CodeTextUndoBatcher::default();
+        let start = Instant::now();
+
+        let (first_before, first_replace) =
+            batcher.observe_edit(TextBuffer::new("before first"), start);
+        assert!(
+            !first_replace,
+            "the first edit in a batch pushes a fresh undo entry"
+        );
+        assert_eq!(first_before.to_string(), "before first");
+
+        let (second_before, second_replace) = batcher.observe_edit(
+            TextBuffer::new("before second"),
+            start + Duration::from_millis(250),
+        );
+        assert!(
+            second_replace,
+            "an edit inside the 500ms code typing window replaces the local undo tail"
+        );
+        assert_eq!(
+            second_before.to_string(),
+            "before first",
+            "coalesced code typing keeps the first pre-burst snapshot"
+        );
+
+        let (third_before, third_replace) = batcher.observe_edit(
+            TextBuffer::new("before third"),
+            start + Duration::from_millis(900),
+        );
+        assert!(
+            !third_replace,
+            "an edit outside the 500ms window starts a fresh code undo entry"
+        );
+        assert_eq!(third_before.to_string(), "before third");
+    }
+
+    #[test]
+    fn span_window_keeps_long_parent_after_ended_child_span() {
+        let spans = vec![
+            HighlightSpan {
+                byte_range: 0..10_000,
+                scope: HighlightScope::String,
+            },
+            HighlightSpan {
+                byte_range: 100..102,
+                scope: HighlightScope::Other,
+            },
+            HighlightSpan {
+                byte_range: 1_100..1_112,
+                scope: HighlightScope::Keyword,
+            },
+            HighlightSpan {
+                byte_range: 20_000..20_010,
+                scope: HighlightScope::Comment,
+            },
+        ];
+        let window = HighlightSpanWindow::from_spans(spans);
+        let overlaps: Vec<_> = window.overlapping(1_000, 1_010).collect();
+
+        assert_eq!(
+            overlaps.len(),
+            1,
+            "a short child span ending before the window must not hide the long parent span"
+        );
+        assert_eq!(overlaps[0].byte_range, 0..10_000);
+        assert_eq!(overlaps[0].scope, HighlightScope::String);
+    }
+
+    /// WP-KERNEL-012 wave-6 (S6 item 3): a Custom syntax-palette override changes the color the RENDER PATH
+    /// resolves for a scope. `resolve_highlight_color` is the exact resolver the panel-body draw paths call
+    /// for every highlighted run, so this proves a Custom swatch edit repaints the running editor (the
+    /// MT-072 typed follow-up, now wired). With no palette set the resolver falls back to the theme token
+    /// (unchanged behavior); with a Custom override it returns the override color.
+    #[test]
+    fn custom_palette_override_changes_render_path_color() {
+        use crate::workspace_settings::{SyntaxPalette, SyntaxPaletteMode};
+        let dark = crate::theme::HsTheme::Dark.palette().syntax;
+        let panel = CodeEditorPanel::new("fn main() {}", "rs");
+
+        // Default (no live palette installed): the render-path resolver uses the theme keyword token.
+        assert_eq!(
+            panel.resolve_highlight_color(HighlightScope::Keyword, &dark),
+            dark.keyword,
+            "no palette installed -> render path uses the theme keyword color"
+        );
+
+        // Install a Custom palette overriding Keyword to a distinct sRGBA color.
+        let mut palette = SyntaxPalette {
+            mode: SyntaxPaletteMode::Custom,
+            custom: Default::default(),
+        };
+        palette.set_custom(HighlightScope::Keyword.scope_key(), [200, 30, 30, 255]);
+        panel.set_syntax_palette(palette);
+
+        let resolved = panel.resolve_highlight_color(HighlightScope::Keyword, &dark);
+        assert_eq!(
+            resolved,
+            egui::Color32::from_rgba_unmultiplied(200, 30, 30, 255),
+            "Custom override is applied in the render-path resolver"
+        );
+        assert_ne!(
+            resolved, dark.keyword,
+            "the Custom override actually CHANGES the render-path keyword color vs the theme token"
+        );
+        // A non-overridden scope in Custom mode falls back to a concrete color (never missing/panics).
+        let _ = panel.resolve_highlight_color(HighlightScope::Comment, &dark);
+    }
+
+    /// WP-KERNEL-012 wave-6 (S6 item 3): `set_font_size` changes the panel's LIVE font size + invalidates
+    /// the measured-metric caches, so the next measurement re-measures at the new size. This is the
+    /// non-rendered half of the font-size proof; the rendered row-height proof lives below as a panel.rs
+    /// unit test so test-only row-height internals stay private to the module.
+    #[test]
+    fn set_font_size_updates_slot_and_invalidates_metric_caches() {
+        let panel = CodeEditorPanel::new("fn main() {}", "rs");
+        assert_eq!(
+            panel.font_size(),
+            MONO_FONT_SIZE,
+            "default font size is the built-in MONO_FONT_SIZE"
+        );
+        // Seed the caches with fake measured values, then change the size and confirm they are cleared.
+        *panel.line_height_px.lock().unwrap() = Some(15.0);
+        *panel.glyph_width_px.lock().unwrap() = Some(8.0);
+        panel.set_font_size(28.0);
+        assert_eq!(
+            panel.font_size(),
+            28.0,
+            "the live font size updated to 28pt"
+        );
+        assert!(
+            panel.line_height_px.lock().unwrap().is_none(),
+            "changing the font size invalidated the line-height cache (next frame re-measures)"
+        );
+        assert!(
+            panel.measured_glyph_width().is_none(),
+            "changing the font size invalidated the glyph-width cache"
+        );
+        // Out-of-range is clamped to the settings range (6..=48).
+        panel.set_font_size(999.0);
+        assert_eq!(panel.font_size(), 48.0, "font size clamped to the 48pt max");
+        panel.set_font_size(1.0);
+        assert_eq!(panel.font_size(), 6.0, "font size clamped to the 6pt min");
+    }
+
+    /// WP-KERNEL-012 wave-6 (S6 item 3): the LIVE editor-font-size effect is proven through the RENDER
+    /// path without exposing line-height internals as product API. The test drives the real
+    /// [`CodeEditorPanel::show`] path in an egui_kittest harness and inspects the module-private cached
+    /// line-height/glyph-width measurements before and after live font-size changes.
+    #[test]
+    fn font_size_change_resizes_measured_row_height_through_render_path() {
+        use std::sync::Arc;
+
+        use egui_kittest::Harness;
+
+        const SNIPPET: &str = "\
+fn main() {
+    let name = \"world\";
+    // greet
+    println!(\"hi {name}\");
+}";
+
+        let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+        let panel_for_harness = Arc::clone(&panel);
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(640.0, 300.0))
+            .build_ui(move |ui| {
+                panel_for_harness.show(ui);
+            });
+
+        harness.run();
+        let h_default = panel
+            .line_height_px
+            .lock()
+            .unwrap()
+            .expect("row height measured after the first render at the default font size");
+        let w_default = panel
+            .glyph_width_px
+            .lock()
+            .unwrap()
+            .expect("glyph advance measured at the default font size");
+        assert!(
+            h_default > 0.0 && w_default > 0.0,
+            "sane default metrics: row_height={h_default}, glyph_width={w_default}"
+        );
+
+        panel.set_font_size(28.0);
+        harness.run();
+        let h_big = panel
+            .line_height_px
+            .lock()
+            .unwrap()
+            .expect("row height re-measured at 28pt");
+        let w_big = panel
+            .glyph_width_px
+            .lock()
+            .unwrap()
+            .expect("glyph advance re-measured at 28pt");
+        assert!(
+            h_big > h_default + 1.0,
+            "S6 item 3: a larger font size GREW the measured row height ({h_default} -> {h_big})"
+        );
+        assert!(
+            w_big > w_default,
+            "S6 item 3: a larger font size grew the measured glyph advance ({w_default} -> {w_big})"
+        );
+
+        panel.set_font_size(8.0);
+        harness.run();
+        let h_tiny = panel
+            .line_height_px
+            .lock()
+            .unwrap()
+            .expect("row height re-measured at 8pt");
+        assert!(
+            h_tiny < h_default,
+            "S6 item 3: a smaller font size SHRANK the measured row height ({h_default} -> {h_tiny})"
         );
     }
 

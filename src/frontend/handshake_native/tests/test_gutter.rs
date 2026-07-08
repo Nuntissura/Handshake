@@ -17,6 +17,8 @@
 //!   verified via the fold state change (a previously visible body line is no longer painted).
 //! - AC-007: `push_diagnostics([... line 3 error ...])` updates the markers without a panic AND without
 //!   bumping `buffer_version` (KERNEL_BUILDER perf gate); MC-004: pushing an empty vec clears them.
+//! - Reopen hardening: with word wrap enabled, the gutter uses the exact body visual-row model, so line
+//!   numbers/markers for logical line 1 align with line 1 instead of a wrapped continuation of line 0.
 //!
 //! ## Why drive the real gutter surface, not a faked node
 //!
@@ -28,13 +30,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use egui_kittest::kittest::NodeT;
+use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
 use handshake_native::code_editor::gutter::{
     fold_triangle_glyph, DiagnosticSeverity, Gutter, GutterConfig, GutterMarkerKind,
 };
-use handshake_native::code_editor::{CodeEditorPanel, GutterMarker};
+use handshake_native::code_editor::{CodeActionItem, CodeEditorPanel, GutterMarker};
 
 /// A real multi-line Rust function so the line-0 body region is foldable (AC-006) and there are enough
 /// rows to target line 2 / line 3 (AC-003/AC-005).
@@ -208,13 +210,24 @@ fn gutter_error_marker_renders_red_dot_screenshot() {
             let ppp = harness.ctx.pixels_per_point();
             let x0 = 0u32;
             let x1 = ((gutter_rect.right() * ppp).ceil() as u32).min(w);
+            let line_3_center = panel
+                .gutter_breakpoint_pos_for_line(3)
+                .expect("line 3 has a painted gutter row")
+                .y
+                * ppp;
+            let y_band0 = (line_3_center - 5.0).floor().max(0.0) as u32;
+            let y_band1 = (line_3_center + 5.0).ceil().min(h as f32) as u32;
             let mut red_pixels = 0u32;
+            let mut red_pixels_on_line_3 = 0u32;
             for y in 0..h {
                 for x in x0..x1 {
                     let p = image.get_pixel(x, y);
                     let [r, g, b, _a] = p.0;
                     if r > 170 && g < 110 && b < 110 {
                         red_pixels += 1;
+                        if (y_band0..y_band1).contains(&y) {
+                            red_pixels_on_line_3 += 1;
+                        }
                     }
                 }
             }
@@ -235,6 +248,11 @@ fn gutter_error_marker_renders_red_dot_screenshot() {
             assert!(
                 red_pixels > 0,
                 "AC-003: the gutter shows a red diagnostic pixel for the line-3 error (found {red_pixels})"
+            );
+            assert!(
+                red_pixels_on_line_3 > 0,
+                "AC-003: the red diagnostic pixel must be inside line 3's tight gutter row band \
+                 y={y_band0}..{y_band1} (found {red_pixels_on_line_3}; total gutter red={red_pixels})"
             );
         }
         Err(e) => {
@@ -331,6 +349,140 @@ fn gutter_line_numbers_render_screenshot() {
     assert_no_local_test_output();
 }
 
+#[test]
+fn gutter_rows_align_to_body_rows_when_word_wrap_is_enabled() {
+    let first_line =
+        "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu ".repeat(3);
+    let doc = format!("{first_line}\nsecond-line\nthird-line\n");
+    let panel = Arc::new(CodeEditorPanel::new(&doc, "txt"));
+    panel.set_wrap_enabled(true);
+    panel.set_wrap_column(Some(18));
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(520.0, 360.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+
+    harness.run();
+    harness.run();
+
+    let rows = panel.gutter_rows_for_test();
+    let line_1_row = rows
+        .iter()
+        .position(|&line| line == 1)
+        .unwrap_or_else(|| panic!("logical line 1 has a painted gutter row; rows={rows:?}"));
+    assert!(
+        line_1_row > 1,
+        "line 0 should occupy wrapped continuation rows before logical line 1; rows={rows:?}"
+    );
+
+    let gutter_center = panel
+        .gutter_breakpoint_pos_for_line(1)
+        .expect("logical line 1 has a first-fragment gutter position");
+    let body_center = harness.get_by_label("second-line").rect().center().y;
+    assert!(
+        (gutter_center.y - body_center).abs() < 0.25,
+        "MT-007 wrap hardening: gutter line 1 center {:.3} must align with body line 1 center \
+         {body_center:.3}; rows={rows:?}",
+        gutter_center.y
+    );
+
+    assert_no_local_test_output();
+}
+
+#[test]
+fn gutter_click_positions_skip_wrap_continuation_only_windows() {
+    let long_signature = "fn wrapped_region_start_with_many_arguments(alpha: i32, beta: i32, gamma: i32, delta: i32, epsilon: i32, zeta: i32) {";
+    let doc = format!("{long_signature}\n    let value = 1;\n    value\n}}\n");
+    let panel = Arc::new(CodeEditorPanel::new(&doc, "rs"));
+    panel.set_wrap_enabled(true);
+    panel.set_wrap_column(Some(10));
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(420.0, 86.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+
+    harness.run();
+    assert!(
+        panel.gutter_breakpoint_pos_for_line(0).is_some(),
+        "line 0 first fragment initially exposes a breakpoint click position"
+    );
+    assert!(
+        panel.gutter_fold_pos_for_line(0).is_some(),
+        "line 0 first fragment initially exposes a fold click position"
+    );
+
+    panel.scroll_to_offset_px(40.0);
+    harness.run();
+    harness.run();
+
+    let rows = panel.gutter_rows_for_test();
+    assert!(
+        rows.first() == Some(&0) && rows.iter().all(|&line| line == 0),
+        "the scrolled viewport should contain only line-0 wrapped continuation rows; rows={rows:?}"
+    );
+    assert!(
+        panel.gutter_breakpoint_pos_for_line(0).is_none(),
+        "MT-007 wrap hardening: continuation-only line 0 must not expose a breakpoint click position"
+    );
+    assert!(
+        panel.gutter_fold_pos_for_line(0).is_none(),
+        "MT-007 wrap hardening: continuation-only line 0 must not expose a fold click position"
+    );
+
+    assert_no_local_test_output();
+}
+
+#[test]
+fn gutter_quickfix_lightbulb_preserves_wrap_continuation_pitch() {
+    let first_line =
+        "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu ".repeat(3);
+    let doc = format!("{first_line}\nsecond-line\nthird-line\n");
+    let panel = Arc::new(CodeEditorPanel::new(&doc, "txt"));
+    panel.set_wrap_enabled(true);
+    panel.set_wrap_column(Some(18));
+    panel.set_quickfix_actions(
+        1,
+        vec![CodeActionItem {
+            title: "Fix second line".to_owned(),
+            kind: Some("quickfix".to_owned()),
+            edit: None,
+            command: None,
+            is_preferred: true,
+        }],
+        false,
+    );
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(520.0, 360.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+
+    harness.run();
+    harness.run();
+
+    let bulbs = panel.quickfix_lightbulb_positions_for_test();
+    let bulb_center_y = bulbs
+        .iter()
+        .find_map(|(line, pos)| (*line == 1).then_some(pos.y))
+        .unwrap_or_else(|| panic!("line-1 quick-fix lightbulb was drawn; bulbs={bulbs:?}"));
+    let body_center = harness.get_by_label("second-line").rect().center().y;
+    assert!(
+        (bulb_center_y - body_center).abs() < 0.75,
+        "MT-007 wrap hardening: quick-fix bulb for line 1 must preserve continuation pitch and align \
+         with body line 1 ({bulb_center_y:.3} vs {body_center:.3})"
+    );
+
+    assert_no_local_test_output();
+}
+
 // ── AC-005 / PT-005: gutter click at line 2 toggles a breakpoint (AccessKit CheckBox state) ───────
 
 #[test]
@@ -371,11 +523,13 @@ fn gutter_breakpoint_toggle_via_click_emits_checkbox_node() {
     let root = harness.root();
     let mut found_breakpoint_2 = false;
     let mut breakpoint_2_role: Option<String> = None;
+    let mut breakpoint_2_toggled = None;
     for node in root.children_recursive() {
         let ak = node.accesskit_node();
         if ak.author_id() == Some("code_editor_breakpoint_2") {
             found_breakpoint_2 = true;
             breakpoint_2_role = Some(format!("{:?}", ak.role()));
+            breakpoint_2_toggled = ak.toggled();
         }
     }
     assert!(
@@ -386,6 +540,11 @@ fn gutter_breakpoint_toggle_via_click_emits_checkbox_node() {
         breakpoint_2_role.as_deref(),
         Some("CheckBox"),
         "AC-005: code_editor_breakpoint_2 uses the field-correct CheckBox toggle role; got {breakpoint_2_role:?}"
+    );
+    assert_eq!(
+        breakpoint_2_toggled,
+        Some(egui::accesskit::Toggled::True),
+        "AC-005: code_editor_breakpoint_2 exposes toggled=true after the gutter click"
     );
 
     // A second click on the SAME line clears the breakpoint (idempotent in pairs — AC-002) and the node

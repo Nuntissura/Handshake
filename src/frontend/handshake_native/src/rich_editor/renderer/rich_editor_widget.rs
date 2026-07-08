@@ -35,7 +35,7 @@ use crate::rich_editor::document_model::position::DocPosition;
 use crate::rich_editor::document_model::selection::Selection;
 use crate::theme::{HsPalette, HsTheme};
 
-use super::block_renderer::{block_media_embed, paint_block, paint_caret};
+use super::block_renderer::block_media_embed;
 use super::caret::{blink_visible, request_blink_repaint, DocCaret};
 use super::ime_handler::{self, ImeContext, PreeditState};
 use super::input_handler::{self, EditContext};
@@ -59,6 +59,8 @@ pub struct RichEditorState {
     pub preedit: PreeditState,
     /// Active theme (resolved to a palette each frame).
     pub theme: HsTheme,
+    /// Live body font size for rich document content, synchronized from editor settings.
+    pub editor_font_size: f32,
     /// Actor id for transaction provenance.
     pub actor_id: String,
     /// MT-014 embed runtime: per-editor asset-resolution + texture caches, slideshow/album/video
@@ -236,6 +238,7 @@ impl RichEditorState {
             undo: UndoManager::new(),
             preedit: PreeditState::default(),
             theme: HsTheme::Dark,
+            editor_font_size: super::line_layout::BASE_FONT_SIZE,
             actor_id: "operator".to_owned(),
             embeds,
             wikilinks,
@@ -262,6 +265,22 @@ impl RichEditorState {
             pending_bus_undo: Vec::new(),
             pending_tag_edge_intent: None,
         }
+    }
+
+    /// Apply the operator editor-font preference to rich document layout.
+    pub fn set_editor_font_size(&mut self, size: f32) -> bool {
+        let resolved = super::line_layout::resolved_base_font_size(size);
+        if (self.editor_font_size - resolved).abs() > f32::EPSILON {
+            self.editor_font_size = resolved;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Current live rich document base font size.
+    pub fn editor_font_size(&self) -> f32 {
+        super::line_layout::resolved_base_font_size(self.editor_font_size)
     }
 
     /// WP-KERNEL-012 MT-058: install the cached MT-023 tag list (display names) the inline-tag `#`
@@ -372,6 +391,27 @@ impl RichEditorState {
     /// menu Save proof asserts THIS to show the dispatch reached the real MT-020 save entry.
     pub fn save_is_in_flight(&self) -> bool {
         self.save.as_ref().map(|s| s.is_saving()).unwrap_or(false)
+    }
+
+    /// Open or refocus the rich editor find/replace panel from a host menu/palette command. Mirrors the
+    /// Ctrl+F/Ctrl+H behavior: preserve an existing query, focus the find field, and reveal the replace
+    /// row only when requested.
+    pub fn open_find_replace_for_host(&mut self, with_replace: bool) {
+        use crate::rich_editor::find_replace::FindReplaceState;
+
+        match self.find_replace.as_mut() {
+            Some(panel) => {
+                panel.focus_find_input = true;
+                if with_replace {
+                    panel.with_replace = true;
+                }
+            }
+            None => {
+                let mut panel = FindReplaceState::open(with_replace);
+                panel.rescan(&self.doc);
+                self.find_replace = Some(panel);
+            }
+        }
     }
 
     /// WP-KERNEL-012 MT-069: trigger a canonical save of the live document through the MT-020
@@ -532,6 +572,15 @@ impl RichEditorState {
         self.properties_runtime.set_document(document_id);
     }
 
+    /// Clear the loaded properties context when the shell switches documents or invalidates a load. The
+    /// properties runtime keeps its production backend/runtime handle, but the active document id and
+    /// visible metadata are cleared so an old title/project/folder cannot remain visible while a new
+    /// document is loading.
+    pub fn clear_properties_context(&mut self) {
+        self.properties = None;
+        self.properties_runtime.clear_document();
+    }
+
     /// Replace the properties state + runtime (test seam: inject a seeded `PropertiesState` + a mock
     /// metadata backend so the panel renders real fields and the title-save round-trips headlessly).
     pub fn with_properties(
@@ -626,6 +675,67 @@ impl RichEditorState {
         } else {
             Some((block_idx, lo, hi, text))
         }
+    }
+
+    /// Insert plain text through the same document-transform path the live typing loop uses. Host-level
+    /// routes (menu / command-palette Paste) call this after reading the shared InteractionBus clipboard,
+    /// so the paste mutates the real mounted document rather than only touching the bus cache.
+    pub fn insert_plain_text_for_host(&mut self, text: &str) -> bool {
+        if text.is_empty() {
+            return false;
+        }
+        self.apply_host_edit(input_handler::EditAction::Insert(text.to_owned()))
+    }
+
+    /// Delete the current rich-text selection through the same Backspace transform the live keyboard path
+    /// uses. Host-level Cut calls this only after a successful clipboard write.
+    pub fn delete_selection_for_host(&mut self) -> bool {
+        if self.selected_text().is_none() {
+            return false;
+        }
+        self.apply_host_edit(input_handler::EditAction::DeleteBackward)
+    }
+
+    fn apply_host_edit(&mut self, action: input_handler::EditAction) -> bool {
+        let doc_before =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
+        let changed = {
+            let RichEditorState {
+                doc,
+                selection,
+                undo,
+                actor_id,
+                ..
+            } = self;
+            let mut ctx = EditContext {
+                doc,
+                selection,
+                undo,
+                actor_id: actor_id.as_str(),
+            };
+            input_handler::apply_action(&mut ctx, action)
+        };
+        if !changed {
+            return false;
+        }
+
+        let doc_after =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
+        if doc_after == doc_before {
+            return false;
+        }
+
+        self.pending_bus_undo.push((doc_before, doc_after));
+        if let Some(save) = self.save.as_mut() {
+            save.mark_dirty();
+        }
+        if let Some(draft) = self.draft.as_mut() {
+            draft.mark_dirty(std::time::Instant::now());
+        }
+        if let Some(panel) = self.find_replace.as_mut() {
+            panel.rescan(&self.doc);
+        }
+        true
     }
 
     /// The plain text of the block at `idx` (for hit-testing / tests).
@@ -2083,24 +2193,10 @@ impl RichEditorWidget {
         state: &mut RichEditorState,
         shortcut: input_handler::FindReplaceShortcut,
     ) {
-        use crate::rich_editor::find_replace::FindReplaceState as FrState;
         use input_handler::FindReplaceShortcut;
 
         let with_replace = matches!(shortcut, FindReplaceShortcut::OpenReplace);
-        match state.find_replace.as_mut() {
-            Some(panel) => {
-                // Already open: re-focus the find input; Ctrl+H additionally reveals the replace row.
-                panel.focus_find_input = true;
-                if with_replace {
-                    panel.with_replace = true;
-                }
-            }
-            None => {
-                let mut panel = FrState::open(with_replace);
-                panel.rescan(&state.doc); // initial scan (empty query -> empty scan).
-                state.find_replace = Some(panel);
-            }
-        }
+        state.open_find_replace_for_host(with_replace);
     }
 
     /// Handle the autocomplete popup's navigation/confirm/cancel keys while it is open. Consumes
@@ -2573,7 +2669,8 @@ impl RichEditorWidget {
 
         // Apply atomically + record on BOTH undo authorities: the model-level UndoManager receipt and the
         // MT-035 unified bus snapshot pair (drained at frame end through `record_rich_edit_undo`).
-        let before = crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        let before =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
         let tx = Transaction::new(steps, ActorKind::Operator, state.actor_id.as_str());
         match apply_transaction(&mut state.doc, tx) {
             Ok(receipt) => {
@@ -2738,8 +2835,7 @@ impl RichEditorWidget {
             };
             execute_slash_command(&mut ctx, &menu, cmd)
         };
-        let after =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        let after = crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
         if after != before {
             state.pending_bus_undo.push((before, after));
         }
@@ -3163,6 +3259,7 @@ impl RichEditorWidget {
         // at startup; a bare/no-fonts context does not). Threaded into every block layout
         // so a bold run never requests an unbound family (panic guard).
         let bold_available = super::line_layout::bold_family_available(ui.ctx());
+        let base_font_size = state.editor_font_size();
 
         // MT-014: drain any off-thread embed resolutions that completed since last frame into
         // the embed caches BEFORE rendering, so a just-resolved embed shows its media/error this
@@ -3314,7 +3411,7 @@ impl RichEditorWidget {
                                 .layout(egui::Layout::top_down(egui::Align::Min)),
                         );
                         embed_block_renderer::render_embed(&mut child, &link, &mut state.embeds, palette);
-                        let used = child.min_rect().height().max(super::line_layout::BASE_FONT_SIZE);
+                        let used = child.min_rect().height().max(base_font_size);
                         top.y += used + super::line_layout::BLOCK_GAP_PTS + extra_block_gap;
                         continue;
                     }
@@ -3403,7 +3500,7 @@ impl RichEditorWidget {
                             }
                             ui.ctx().request_repaint();
                         }
-                        let used = child.min_rect().height().max(super::line_layout::BASE_FONT_SIZE);
+                        let used = child.min_rect().height().max(base_font_size);
                         top.y += used + super::line_layout::BLOCK_GAP_PTS + extra_block_gap;
                         continue;
                     }
@@ -3414,7 +3511,16 @@ impl RichEditorWidget {
                     } else {
                         None
                     };
-                    let bp = paint_block(&painter, block, top, content_width, palette, caret_offset, bold_available);
+                    let bp = super::block_renderer::paint_block_with_base(
+                        &painter,
+                        block,
+                        top,
+                        content_width,
+                        palette,
+                        caret_offset,
+                        bold_available,
+                        base_font_size,
+                    );
                     if let Some(g) = bp.caret_galley {
                         caret_galley = Some(g.clone());
                     }
@@ -3446,6 +3552,7 @@ impl RichEditorWidget {
                         palette,
                         content_width,
                         bold_available,
+                        base_font_size,
                         &painter,
                         &state.wikilinks.resolver_index,
                     );
@@ -3532,7 +3639,15 @@ impl RichEditorWidget {
                 // this is already inert, and `read_only` makes the guard explicit (RISK-005 belt-and-braces).
                 if !read_only {
                     if let Some((galley, origin)) = caret_galley.clone() {
-                        paint_caret(&painter, &galley, origin, &caret, palette, blink_on);
+                        super::block_renderer::paint_caret_with_base(
+                            &painter,
+                            &galley,
+                            origin,
+                            &caret,
+                            palette,
+                            blink_on,
+                            base_font_size,
+                        );
                     }
                 }
                 // Return the caret galley+origin so the popup (rendered OUTSIDE this scroll closure)
@@ -3622,8 +3737,8 @@ impl RichEditorWidget {
                 // The caret block's body font size so the preedit matches the line it composes into.
                 let block_font_size = caret_block
                     .and_then(|idx| state.doc.children.get(idx).and_then(Child::as_block))
-                    .map(|b| super::line_layout::block_style(b).size)
-                    .unwrap_or(super::line_layout::BASE_FONT_SIZE);
+                    .map(|b| super::line_layout::block_style_with_base(b, base_font_size).size)
+                    .unwrap_or(base_font_size);
                 if let Some(pp) = super::block_renderer::paint_preedit(
                     ui.painter(),
                     caret_pixel,
@@ -3710,10 +3825,9 @@ impl RichEditorWidget {
                     insert_code_ref_atom(&mut ctx, &symbol_entity_id, &display_name)
                 };
                 if inserted {
-                    let after =
-                        crate::rich_editor::document_model::doc_json::to_content_json_value(
-                            &state.doc,
-                        );
+                    let after = crate::rich_editor::document_model::doc_json::to_content_json_value(
+                        &state.doc,
+                    );
                     state.pending_bus_undo.push((before, after));
                 }
                 state.code_symbol_search = None;
@@ -4110,6 +4224,7 @@ fn wikilink_chip_specs(
     palette: &HsPalette,
     content_width: f32,
     bold_available: bool,
+    base_font_size: f32,
     painter: &egui::Painter,
     resolver_index: &crate::rich_editor::wikilinks::resolver::ResolverIndex,
 ) -> Vec<WikilinkChipSpec> {
@@ -4120,8 +4235,13 @@ fn wikilink_chip_specs(
     use egui::epaint::text::cursor::CCursor;
 
     // Only inline-content blocks (paragraph/heading) carry inline hsLink atoms.
-    let layout =
-        super::line_layout::layout_block(block, palette, content_width.max(1.0), bold_available);
+    let layout = super::line_layout::layout_block_with_base(
+        block,
+        palette,
+        content_width.max(1.0),
+        bold_available,
+        base_font_size,
+    );
     let galley = painter.layout_job(layout.job);
 
     let mut specs = Vec::new();
@@ -4230,27 +4350,39 @@ impl PaneFactory for RichEditorPaneFactory {
         // INTERACTION_BUS_KEY, so every mounted pane sees the same instance.
         let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
         let pane_id: crate::pane_registry::PaneId = Arc::from(ctx.record.pane_id.as_ref());
-        let has_focus = ui.memory(|m| m.focused().map(|f| f == ctx.egui_id).unwrap_or(false));
         // MT-035 (E5 — unified undo): install the live pane id on the editor state so its undo entries are
         // recorded + routed under THIS pane's ring on the shared bus (POLICY-1). Idempotent.
-        let selected = {
+        {
             let mut s = self.state.lock().unwrap_or_else(|e| e.into_inner());
             if s.undo_pane_id.as_deref() != Some(pane_id.as_ref()) {
                 s.undo_pane_id = Some(pane_id.clone());
             }
+        }
+
+        let response = RichEditorWidget::new(Arc::clone(&self.state)).show(ui);
+        let has_focus = response.has_focus();
+        let selected = {
+            let s = self.state.lock().unwrap_or_else(|e| e.into_inner());
             s.selected_text()
         };
         let mut registered = self.bus_registered.load(Ordering::Relaxed);
         crate::rich_editor::interop_adapter::drive_bus_in_render(
             &bus,
-            pane_id,
+            pane_id.clone(),
             has_focus,
             selected,
             &mut registered,
         );
         self.bus_registered.store(registered, Ordering::Relaxed);
-
-        RichEditorWidget::new(Arc::clone(&self.state)).show(ui);
+        if crate::rich_editor::interop_adapter::drive_clipboard_shortcuts_in_render(
+            ui,
+            &bus,
+            &self.state,
+            pane_id,
+            has_focus,
+        ) {
+            ui.ctx().request_repaint();
+        }
     }
 
     fn accesskit_role(&self) -> accesskit::Role {
@@ -4273,6 +4405,23 @@ mod tests {
             st.selection,
             Selection::Text { ref head, .. } if head.path == vec![0, 0] && head.char_offset == 0
         ));
+    }
+
+    #[test]
+    fn editor_font_size_setting_clamps_and_reports_changes() {
+        let mut st = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("hi")]));
+        assert_eq!(
+            st.editor_font_size(),
+            crate::rich_editor::renderer::line_layout::BASE_FONT_SIZE
+        );
+        assert!(st.set_editor_font_size(24.0));
+        assert_eq!(st.editor_font_size(), 24.0);
+        assert!(!st.set_editor_font_size(24.0));
+        assert!(st.set_editor_font_size(1.0));
+        assert_eq!(
+            st.editor_font_size(),
+            crate::rich_editor::renderer::line_layout::resolved_base_font_size(1.0)
+        );
     }
 
     #[test]

@@ -299,6 +299,11 @@ pub struct FoldSet {
 }
 
 impl FoldSet {
+    fn invalidate_visible_map(&mut self) {
+        self.visible_map_cache = None;
+        self.visible_map_built_for = None;
+    }
+
     /// An empty fold set (no regions, nothing folded).
     pub fn new() -> Self {
         Self::default()
@@ -330,7 +335,7 @@ impl FoldSet {
             }
         }
         self.regions = regions;
-        self.visible_map_cache = None;
+        self.invalidate_visible_map();
     }
 
     /// Toggle the folded state of the region whose `start_line` equals `start_line`. No-op (returns
@@ -339,11 +344,43 @@ impl FoldSet {
     pub fn toggle(&mut self, start_line: usize) -> bool {
         if let Some(region) = self.regions.iter_mut().find(|r| r.start_line == start_line) {
             region.folded = !region.folded;
-            self.visible_map_cache = None;
+            self.invalidate_visible_map();
             true
         } else {
             false
         }
+    }
+
+    /// Set the folded state of the region whose `start_line` equals `start_line`. Returns `true` only
+    /// when a real region changed state. Invalidates the visible-map cache on change, matching
+    /// [`toggle`](Self::toggle), so AccessKit Expand/Collapse dispatches rebuild the render map.
+    pub fn set_folded(&mut self, start_line: usize, folded: bool) -> bool {
+        if let Some(region) = self.regions.iter_mut().find(|r| r.start_line == start_line) {
+            if region.folded == folded {
+                return false;
+            }
+            region.folded = folded;
+            self.invalidate_visible_map();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Set every fold region to the requested state. Returns `true` only when at least one region
+    /// changed, and invalidates the visible-line map so render/navigation cannot reuse a stale layout.
+    pub fn set_all_folded(&mut self, folded: bool) -> bool {
+        let mut changed = false;
+        for region in &mut self.regions {
+            if region.folded != folded {
+                region.folded = folded;
+                changed = true;
+            }
+        }
+        if changed {
+            self.invalidate_visible_map();
+        }
+        changed
     }
 
     /// True when `line` is visible — i.e. it is NOT hidden inside a folded region.

@@ -6,7 +6,7 @@
 //! | method         | params                                  | result                                            |
 //! |----------------|-----------------------------------------|---------------------------------------------------|
 //! | `list_widgets` | `{}`                                    | the MT-026 [`UiTreeSnapshot`] JSON                 |
-//! | `click_widget` | `{ "target": "<author_id>" }`           | `{ "queued": true, "action": "Click", "node_id": N }` |
+//! | `click_widget` | `{ "target": "<author_id>", "payload"?: <json|string> }` | `{ "queued": true, "action": "Click", "node_id": N }` |
 //! | `set_value`    | `{ "target": "<author_id>", "value": "…" }` | `{ "queued": true, "action": "Focus", "node_id": N }` (Focus + text — see [`super::action`]) |
 //! | `screenshot`   | `{}`                                    | `{ png_base64, width, height, captured_at_utc }`  |
 //!
@@ -360,8 +360,14 @@ pub fn dispatch_request(
                 .unwrap_or_else(|_| serde_json::json!({ "error": "snapshot serialize failed" }));
             McpResponse::ok(request.id.clone(), value)
         }
-        "click_widget" => match parse_target(&request.params) {
-            Ok(target) => enqueue_response(request, snapshot, channel, &target, UiAction::Click),
+        "click_widget" => match parse_target_and_payload(&request.params) {
+            Ok((target, payload)) => {
+                let action = match payload {
+                    Some(payload) => UiAction::ClickWithPayload { payload },
+                    None => UiAction::Click,
+                };
+                enqueue_response(request, snapshot, channel, &target, action)
+            }
             Err(e) => McpResponse::err(
                 request.id.clone(),
                 McpError {
@@ -426,6 +432,29 @@ fn enqueue_response(
 /// AccessKit `NodeId` is a newtype over u64; pull the inner value for the JSON result.
 fn node_id_u64(id: &accesskit::NodeId) -> u64 {
     id.0
+}
+
+/// Parse `target` plus optional JSON payload for `click_widget`.
+fn parse_target_and_payload(
+    params: &serde_json::Value,
+) -> Result<(String, Option<String>), McpToolError> {
+    let target = parse_target(params)?;
+    let Some(payload) = params.get("payload") else {
+        return Ok((target, None));
+    };
+    if payload.is_null() {
+        return Ok((target, None));
+    }
+    let payload = match payload.as_str() {
+        Some(s) => s.to_owned(),
+        None => serde_json::to_string(payload).map_err(|e| {
+            McpToolError::new(
+                ERR_INVALID_PARAMS,
+                format!("params.payload must serialize as JSON: {e}"),
+            )
+        })?,
+    };
+    Ok((target, Some(payload)))
 }
 
 /// Parse the `target` author_id from a tool's params object.
@@ -576,6 +605,42 @@ mod tests {
         assert_eq!(v["result"]["action"], "Click");
         assert_eq!(v["result"]["node_id"], 10);
         assert_eq!(chan.pending(), 1);
+    }
+
+    #[test]
+    fn click_widget_payload_enqueues_action_data_value() {
+        let token = SessionToken::from_hex("secret");
+        let mut chan = ActionChannel::new();
+        let payload = serde_json::json!({"field":"title","direction":"asc"});
+        let r = dispatch_request(
+            &req(
+                "click_widget",
+                serde_json::json!({"target": "btn", "payload": payload}),
+                "secret",
+            ),
+            &token,
+            &snap(),
+            &mut chan,
+            ok_capture,
+        );
+        assert_eq!(r.to_json()["result"]["queued"], true);
+        let events = chan.drain_into_events();
+        match &events[0] {
+            egui::Event::AccessKitActionRequest(request) => {
+                assert_eq!(request.action, egui::accesskit::Action::Click);
+                assert_eq!(request.target, egui::accesskit::NodeId(10));
+                let Some(egui::accesskit::ActionData::Value(value)) = &request.data else {
+                    panic!("payload click should carry ActionData::Value");
+                };
+                let parsed: serde_json::Value =
+                    serde_json::from_str(value).expect("payload remains JSON");
+                assert_eq!(
+                    parsed,
+                    serde_json::json!({"field":"title","direction":"asc"})
+                );
+            }
+            other => panic!("expected AccessKitActionRequest, got {other:?}"),
+        }
     }
 
     #[test]

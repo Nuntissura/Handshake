@@ -231,7 +231,10 @@ fn bracket_pair_colors_in_segments_skips_hidden_bytes_and_carries_depth() {
 
     // Bounds safety: segments past the buffer end are clamped, never a panic.
     let clamped = bracket_pair_colors_in_segments(&buf, &[100..200], &palette);
-    assert!(clamped.is_empty(), "out-of-range segment -> empty, no panic");
+    assert!(
+        clamped.is_empty(),
+        "out-of-range segment -> empty, no panic"
+    );
 }
 
 // ── AC-007: render/decoration only — no buffer mutation in the MT-054 source files ──────────────────

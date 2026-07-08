@@ -592,6 +592,26 @@ fn process_keymap_two_chord_within_window_folds_all() {
     println!("event Ctrl+K Ctrl+0 -> FoldAll via the live two-chord state machine");
 }
 
+#[test]
+fn fold_all_after_render_rebuilds_visible_map() {
+    let panel = Arc::new(CodeEditorPanel::new(FOLDABLE_RUST, "rs"));
+    let mut harness = harness_for(&panel);
+    harness.run_steps(2);
+    let unfolded_painted = panel.perf_stats().frame_lines_rendered;
+    assert!(
+        unfolded_painted > 3,
+        "precondition: unfolded frame paints the function body; got {unfolded_painted}"
+    );
+
+    panel.dispatch_action(CodeEditorAction::FoldAll);
+    harness.run_steps(2);
+    let folded_painted = panel.perf_stats().frame_lines_rendered;
+    assert!(
+        folded_painted < unfolded_painted,
+        "FoldAll after a rendered frame must invalidate the visible map (folded={folded_painted}, unfolded={unfolded_painted})"
+    );
+}
+
 /// (c) Ctrl+K then wait > TWO_CHORD_TIMEOUT (aged deterministically) then Ctrl+0 -> NO FoldAll, because
 /// the real timeout branch at the top of process_keymap cleared the pending prefix first.
 #[test]

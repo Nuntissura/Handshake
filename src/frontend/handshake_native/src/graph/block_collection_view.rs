@@ -659,6 +659,29 @@ impl BlockCollectionView {
         }
     }
 
+    /// Bind this mounted host to a saved `view_def` block and reset transient projection state before
+    /// the app fires `getBlockView` + `queryBlockViewResults`.
+    pub fn bind_loading_view(
+        &mut self,
+        workspace_id: impl Into<String>,
+        view_block_id: impl Into<String>,
+    ) {
+        self.workspace_id = workspace_id.into();
+        self.view_block_id = view_block_id.into();
+        self.definition = None;
+        self.results = None;
+        self.loading = true;
+        self.error = None;
+        self.status = "Loading view...".to_owned();
+        self.in_flight = false;
+        self.kanban_drag = None;
+        self.date_from_input.clear();
+        self.date_to_input.clear();
+        self.date_error = None;
+        self.new_view = None;
+        self.pending_knowledge_events.clear();
+    }
+
     /// Install a loaded definition + results (after `getBlockView` + `queryBlockViewResults` resolve).
     /// Clears the in-flight + status state (the re-query has landed — the move/sort is now authority).
     pub fn set_loaded(&mut self, definition: BlockViewDefinition, results: BlockViewResults) {
@@ -693,7 +716,7 @@ impl BlockCollectionView {
     }
 
     /// Populate the knowledge registry with the collection GLOBAL controls (fixed Button nodes — sort /
-    /// filter / kanban-move / calendar-nav / open-block) and the per-identity nodes: one
+    /// kanban-move / open-block) and the per-identity nodes: one
     /// `collection.row.<block_id>` Row per result block (table/calendar AND kanban cards — every block in
     /// the result is a row identity), plus one `collection.lane.<tag>` Group per Kanban lane (IN-042-03,
     /// so a swarm agent can assert which lane a card is in). Fully re-derived each frame so a vanished
@@ -801,7 +824,7 @@ impl BlockCollectionView {
             // in_flight guard; no new conflict mechanism). Read-only nav (open/calendar) is always allowed.
             let is_mutation = matches!(
                 author_id.as_str(),
-                "collection.sort" | "collection.kanban-move" | "collection.filter"
+                "collection.sort" | "collection.kanban-move"
             );
             if is_mutation && self.in_flight {
                 tracing::warn!(action = %author_id, "collection mutation dispatch rejected while a prior mutation is in flight (CTRL-042-04)");
@@ -847,24 +870,6 @@ impl BlockCollectionView {
                             remove_tags,
                         });
                     }
-                }
-                "collection.filter" => {
-                    // Filter routes through the same DateRange/updateBlockView surface in this MT only for
-                    // a documented subset; a generic field filter is a typed gap (no silent no-op). We
-                    // surface the dispatch as a status note + no event so it is discoverable but honest.
-                    tracing::info!("collection.filter dispatched (generic field filter is a documented typed gap this MT — no silent backend write)");
-                }
-                "collection.calendar-next"
-                | "collection.calendar-prev"
-                | "collection.calendar-today" => {
-                    // Calendar navigation shifts the date window; emit a DateRange the host re-queries.
-                    // This MT wires the DISPATCH seam; the concrete window math reuses the existing
-                    // date_from/date_to inputs the host already round-trips (no new client-side bucketing).
-                    let (from, to) = (self.date_from_input.clone(), self.date_to_input.clone());
-                    events.push(BlockViewEvent::DateRange {
-                        date_from: (!from.is_empty()).then_some(from),
-                        date_to: (!to.is_empty()).then_some(to),
-                    });
                 }
                 "collection.open-block" => {
                     if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(

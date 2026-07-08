@@ -9,15 +9,17 @@
 //!
 //! AC map (honesty note after the 2026-06 adversarial harden — what is LIVE vs ADAPTER vs DEFERRED):
 //! - AC-1 (POLICY-1 local-first), TWO honest proofs:
+//!     * LIVE (code half): `code_pane_plain_typing_records_undo_and_shell_undo_reverts_live` and
+//!       `code_pane_backspace_records_undo_and_shell_undo_reverts_live` drive the mounted app shell with
+//!       real code-pane mutations. No test seeds `push_code_edit_undo`; the live producer stages the undo,
+//!       the pane factory drains it into the shared bus, and shell-routed Undo restores the buffer.
 //!     * LIVE (rich half): `rich_pane_ctrl_z_reverts_through_bus` drives a REAL edit + a REAL Ctrl+Z
 //!       keystroke through the MOUNTED rich-editor widget harness; the doc reverts via the unified scope
 //!       (the rich pane's live undo now flows through `bus.undo(pane)`, NOT a parallel `UndoManager`).
 //!       The old `sync_action("rich-edit", log)` logging stand-in + its tautological assertion are GONE.
 //!     * ADAPTER / data-structure (code half): `local_first_isolation_via_real_pane_adapters` +
 //!       `registered_undo_command_dispatches_local_first` prove the per-pane ring + the real
-//!       `push_code_edit_undo` / `push_rich_edit_undo` adapters isolate undo per pane. These do NOT claim
-//!       the code pane is LIVE-wired — the code-pane live Ctrl+Z host consumer is E11/MT-069
-//!       (`code_pane_live_undo_blocked_on_e11`, `#[ignore]`d with the dependency named).
+//!       `push_code_edit_undo` / `push_rich_edit_undo` adapters isolate undo per pane.
 //! - RISK-1 / MC-1 (500ms coalescing): `rich_undo_batcher_coalesces_rapid_keystrokes` (the batcher
 //!   decision) + `rich_undo_coalesce_keeps_one_entry_reverting_the_whole_burst` (the scope-level
 //!   coalesce: N rapid edits -> ONE entry that reverts the WHOLE burst, never silently dropped).
@@ -26,13 +28,13 @@
 //! - AC-3 (POLICY-3 session-scoped): a fresh `UnifiedUndoScope` is empty AND the type cannot be
 //!   serialized (a source-level guard asserting no `Serialize`/`Deserialize` derive on the scope/action).
 //! - AC-4 (POLICY-4 canvas compensating): the compensating-DELETE REQUEST SHAPE against the verified
-//!   MT-026 placement route is proven without a live backend; the full round-trip is
-//!   NEEDS_MANAGED_RESOURCE_PROOF (real PG, `#[ignore]`d). The LIVE canvas placement-create/move ->
-//!   cross-pane-undo wiring needs the canvas pane mounted (E11/MT-069 —
-//!   `canvas_pane_live_placement_undo_blocked_on_e11`, `#[ignore]`d).
+//!   MT-026 placement route is proven without a live backend. The live host drain registers a
+//!   cross-pane compensating undo after a created-placement response, and the full create -> undo ->
+//!   reload round-trip remains NEEDS_MANAGED_RESOURCE_PROOF (real PG, `#[ignore]`d).
 //! - AC-5 (POLICY-5 cap): 201 pushes to a cap-200 ring -> 200; 51 to cap-50 cross-pane -> 50.
-//! - AC-6 (undo-count indicator): the `undo-count-{pane_id}` AccessKit Label carries the live count
-//!   after pushes + an undo (kittest AccessKit dump).
+//! - AC-6 (undo-count indicator): the `render_undo_count_indicator` helper emits
+//!   `undo-count-{pane_id}` with the correct count in a kittest AccessKit dump, and the live pane header
+//!   reads the same shared `InteractionBus` depth in the mounted shell.
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -40,10 +42,15 @@ use std::sync::{Arc, Mutex};
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
+use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
+use handshake_native::backend_client::HealthInfo;
 use handshake_native::code_editor::panel::CodeEditorPanel;
+use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
 use handshake_native::interop::interaction_bus::InteractionBus;
 use handshake_native::interop::{render_undo_count_indicator, undo_count_author_id};
-use handshake_native::pane_registry::PaneId;
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
 use handshake_native::stage_pane::{push_route_to_stage_undo, StageContent, StagePane};
 use handshake_native::undo_stack::{
     PaneUndoRing, UndoAction, UndoResult, UnifiedUndoScope, CROSS_PANE_RING_CAP, PANE_RING_CAP,
@@ -80,15 +87,74 @@ fn sync_action(tag: &'static str, log: Arc<Mutex<Vec<String>>>) -> UndoAction {
     )
 }
 
+fn mt035_editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build multi-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+
+    {
+        let registry = app.pane_registry();
+        let mut guard = registry.lock().expect("registry");
+        guard.insert(PaneRecord::new(
+            PaneId::from("pane-a"),
+            PaneType::CodeSymbol,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+        guard.insert(PaneRecord::new(
+            PaneId::from("pane-b"),
+            PaneType::LoomWikiPage,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    }
+    (app, runtime)
+}
+
+fn focus_code_text_surface(harness: &Harness<'_, HandshakeApp>) {
+    let node = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_TEXT_AUTHOR_ID))
+        .expect("the mounted code_editor_text TextInput node must be present");
+    node.focus();
+}
+
+fn shell_indicator_value(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> Option<String> {
+    for node in harness.root().children_recursive() {
+        let ak = node.accesskit_node();
+        if ak.author_id() == Some(author_id) {
+            return ak.value();
+        }
+    }
+    None
+}
+
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-1 — POLICY-1 local-first. TWO proofs, honestly separated:
 //   (a) DATA-STRUCTURE / ADAPTER proof (this test + `registered_undo_command_dispatches_local_first`):
-//       proves the `push_code_edit_undo` adapter + the per-pane ring isolate undo per pane. This does
-//       NOT prove the code pane is LIVE-wired (the test performs the adapter push itself; the code
-//       pane's Ctrl+Z host consumer needs the editor pane MOUNTED in app.rs — E11/MT-069). It is the
-//       ring + adapter contract, not live behavior. See `code_pane_live_undo_blocked_on_e11` (ignored).
-//   (b) LIVE proof (`rich_pane_ctrl_z_reverts_through_bus`): drives a REAL edit + a REAL Ctrl+Z keystroke
-//       through the mounted rich-editor widget harness and asserts the doc reverts via the unified scope.
+//       proves the `push_code_edit_undo` adapter + the per-pane ring isolate undo per pane. It is the
+//       ring + adapter contract, not live producer behavior.
+//   (b) LIVE code proofs (`code_pane_plain_typing_records_undo_and_shell_undo_reverts_live` and
+//       `code_pane_backspace_records_undo_and_shell_undo_reverts_live`) drive mounted-shell code edits
+//       without manual undo seeding.
+//   (c) LIVE rich proof (`rich_pane_ctrl_z_reverts_through_bus`): drives a REAL edit + a REAL Ctrl+Z
+//       keystroke through the mounted rich-editor widget harness and asserts the doc reverts via the
+//       unified scope.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// DATA-STRUCTURE / ADAPTER proof of POLICY-1 local-first isolation (NOT a live-wiring proof — see the
@@ -197,7 +263,7 @@ fn local_first_isolation_via_real_pane_adapters() {
 
 /// The registered Ctrl+Z COMMAND (not the direct `bus.undo` call) dispatches local-first through the
 /// focus owner — proving the command-bus wiring, not just the method. ADAPTER / data-structure proof
-/// (the test performs the `push_code_edit_undo`); code-pane LIVE wiring is E11/MT-069 (ignored test).
+/// (the test performs the `push_code_edit_undo`); live code producer proofs are separate below.
 #[test]
 fn registered_undo_command_dispatches_local_first() {
     let ctx = egui::Context::default();
@@ -233,6 +299,29 @@ fn registered_undo_command_dispatches_local_first() {
         code_panel.buffer().to_string(),
         before.to_string(),
         "the registered Ctrl+Z command reverted the focused code pane"
+    );
+}
+
+#[test]
+fn registered_undo_command_does_not_consume_cross_pane_when_local_empty() {
+    let ctx = egui::Context::default();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let code_pane = pane("pane-code");
+    let mut bus = InteractionBus::new();
+    bus.register_undo_commands();
+    bus.set_focus_owner(code_pane.clone());
+    bus.push_undo_cross_pane(sync_action("cross", log.clone()));
+
+    assert!(bus.dispatch_command(&ctx, handshake_native::interop::CMD_UNDO));
+    assert_eq!(
+        *log.lock().unwrap(),
+        Vec::<&str>::new(),
+        "Ctrl+Z is local-only; Ctrl+Shift+Z owns cross-pane undo"
+    );
+    assert_eq!(
+        bus.undo_scope().cross_pane_undo_count(),
+        1,
+        "cross-pane action remains available for the dedicated cross-pane command"
     );
 }
 
@@ -478,42 +567,147 @@ fn rich_undo_coalesce_keeps_one_entry_reverting_the_whole_burst() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// BLOCKED_ON_DEPENDENCY: E11/MT-069 editor-pane mount. The CODE pane's live Ctrl+Z host consumer and the
-// CANVAS pane's live placement create/move undo wiring require the editor panes to be HOSTED in the shell
-// (app.rs calls `set_undo_runtime` / `register_undo_commands` and routes pane keystrokes). Those mounts
-// are E11/MT-069 (recorded as a carry-forward). We do NOT fake a live wire into an unmounted pane: these
-// two proofs are `#[ignore]`d with the dependency named, NOT asserted as live-PASS via a test stand-in.
-// The code/canvas data-structure + adapter proofs (the push_*_undo helpers, the ring caps, the canvas
-// compensating DELETE request shape) DO pass above/below — they prove the ring + adapter, not live mount.
+// CURRENT LIVE/DEFERRED TRUTH:
+// - Code pane live typing/deletion now records local undo entries through the mounted shell.
+// - Canvas placement/card creation responses now register push_canvas_placement_undo through the mounted
+//   app drain after the backend-minted placement id is known.
+// - The canvas compensating DELETE request shape passes below; the full create -> undo -> reload absence
+//   proof still needs a managed PostgreSQL run.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// CODE-pane LIVE undo — BLOCKED on E11/MT-069. The code pane's `CodeEditorAction::Undo` channel has no
-/// host consumer until the code editor pane is mounted in app.rs, where app.rs would call
-/// `register_undo_commands` plus `set_undo_runtime` and route the pane's Ctrl+Z through `bus.undo(pane)`
-/// the way the rich pane now does. Until then no live code-pane keystroke reaches the bus, so this proof
-/// cannot run honestly. The adapter plus ring are proven by `local_first_isolation_via_real_pane_adapters`
-/// and `registered_undo_command_dispatches_local_first` at the data-structure level, NOT here.
 #[test]
-#[ignore = "BLOCKED_ON_DEPENDENCY: E11/MT-069 editor-pane mount — the code pane's live Ctrl+Z host \
-            consumer (app.rs register_undo_commands + keystroke routing) is not mounted yet; no live \
-            code-pane->bus path exists to drive. Do not fake it."]
-fn code_pane_live_undo_blocked_on_e11() {
-    unreachable!("blocked on E11/MT-069 code-pane mount; see #[ignore] reason");
+fn code_pane_plain_typing_records_undo_and_shell_undo_reverts_live() {
+    let (app, _rt) = mt035_editor_shell();
+    let code_panel = app.mounted_code_panel();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+
+    let pane_id = PaneId::from("pane-a");
+    let before = code_panel.buffer().to_string();
+    let inserted = "// mt035 live typing undo";
+    code_panel.set_single_cursor(before.len());
+    focus_code_text_surface(&harness);
+    harness.run_steps(1);
+
+    harness.event(egui::Event::Text(inserted.to_owned()));
+    harness.run_steps(2);
+
+    let after = code_panel.buffer().to_string();
+    assert_ne!(after, before, "the mounted code pane accepted live typing");
+    assert!(
+        after.ends_with(inserted),
+        "the live typed text landed in the mounted code pane buffer; got tail {:?}",
+        &after[after.len().saturating_sub(inserted.len())..]
+    );
+
+    let undo_depth =
+        InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |b| {
+            b.local_undo_count(&pane_id)
+        })
+        .expect("bus lock");
+    assert_eq!(
+        undo_depth, 1,
+        "AC-1 LIVE: plain code typing records one local undo entry without manual seeding"
+    );
+
+    code_panel.request_undo_for_test();
+    harness.run_steps(2);
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        before,
+        "AC-1 LIVE: shell-routed Undo reverted the live typed code edit"
+    );
+
+    let undo_depth_after =
+        InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |b| {
+            b.local_undo_count(&pane_id)
+        })
+        .expect("bus lock");
+    assert_eq!(
+        undo_depth_after, 0,
+        "AC-1 LIVE: the code pane local undo ring drained after shell Undo"
+    );
 }
 
-/// CANVAS-pane LIVE placement undo — BLOCKED on E11/MT-069. A live canvas placement create/move would
-/// push a cross-pane compensating undo when the canvas pane is MOUNTED in the shell and its placement
-/// actions are routed through the bus. The compensating-DELETE REQUEST SHAPE is proven (without a live
-/// backend) by `canvas_compensating_undo_uses_verified_delete_route`, and the full PG round-trip is the
-/// separate `canvas_placement_undo_round_trip_live_pg` (NEEDS_MANAGED_RESOURCE_PROOF). The LIVE
-/// create/move-from-the-canvas-pane wiring needs the canvas pane mounted in app.rs (E11/MT-069), so it is
-/// not asserted as live-PASS here.
 #[test]
-#[ignore = "BLOCKED_ON_DEPENDENCY: E11/MT-069 editor-pane mount — the canvas pane is not hosted in app.rs, \
-            so there is no live placement-create/move -> cross-pane-undo path to drive. The DELETE request \
-            shape (POLICY-4) and the PG round-trip are proven separately. Do not fake the live wire."]
-fn canvas_pane_live_placement_undo_blocked_on_e11() {
-    unreachable!("blocked on E11/MT-069 canvas-pane mount; see #[ignore] reason");
+fn code_pane_backspace_records_undo_and_shell_undo_reverts_live() {
+    let (app, _rt) = mt035_editor_shell();
+    let code_panel = app.mounted_code_panel();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+
+    let pane_id = PaneId::from("pane-a");
+    let before = "fn main() {}\n// delete-target";
+    code_panel.set_text(before);
+    code_panel.set_single_cursor(before.len());
+    focus_code_text_surface(&harness);
+    harness.run_steps(1);
+
+    harness.key_press(egui::Key::Backspace);
+    harness.run_steps(2);
+
+    let after = code_panel.buffer().to_string();
+    assert_ne!(after, before, "Backspace changed the mounted code pane");
+    assert!(
+        after.ends_with("delete-targe"),
+        "Backspace removed the final byte-grapheme from the mounted code pane; got {after:?}"
+    );
+
+    let undo_depth =
+        InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |b| {
+            b.local_undo_count(&pane_id)
+        })
+        .expect("bus lock");
+    assert_eq!(
+        undo_depth, 1,
+        "AC-1 LIVE: Backspace records one local undo entry without manual seeding"
+    );
+
+    code_panel.request_undo_for_test();
+    harness.run_steps(2);
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        before,
+        "AC-1 LIVE: shell-routed Undo reverted the live Backspace edit"
+    );
+}
+
+#[test]
+fn canvas_created_placement_response_registers_cross_pane_undo_in_live_shell() {
+    let (mut app, _rt) = mt035_editor_shell();
+    app.deliver_canvas_created_placement_for_test(
+        "ws-mt035",
+        "canvas-mt035",
+        handshake_native::backend_client::CreatedCanvasPlacement {
+            placement_id: "LCP-mt035".to_owned(),
+            placed_block_id: "blk-mt035".to_owned(),
+            x: 40.0,
+            y: 50.0,
+            w: 200.0,
+            h: 120.0,
+        },
+        "canvas: place block",
+    )
+    .expect("inject created-placement result into mounted host drain");
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    let cross_depth =
+        InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |b| {
+            b.undo_scope().cross_pane_undo_count()
+        })
+        .expect("bus lock");
+    assert_eq!(
+        cross_depth, 1,
+        "AC-4 LIVE: a created canvas placement response registers one cross-pane compensating undo entry"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -598,6 +792,28 @@ fn cross_pane_ring_is_independent_of_local_rings() {
     // The cross-pane undo consumes the cross-pane action.
     bus.undo_cross_pane().unwrap();
     assert_eq!(*log.lock().unwrap(), vec!["local", "cross"]);
+}
+
+#[test]
+fn async_cross_pane_undo_without_runtime_does_not_advance_history() {
+    let mut bus = InteractionBus::new();
+    bus.push_undo_cross_pane(UndoAction::async_compensating(
+        "canvas placement",
+        Arc::new(UndoResult::ok),
+        Arc::new(UndoResult::ok),
+        Arc::new(|| Box::pin(async { UndoResult::ok() })),
+        Arc::new(|| Box::pin(async { UndoResult::ok() })),
+    ));
+
+    let result = bus
+        .undo_cross_pane()
+        .expect("the cross-pane action reports the missing runtime");
+    assert!(!result.ok, "missing runtime is a typed failure");
+    assert_eq!(
+        bus.undo_scope().cross_pane_undo_count(),
+        1,
+        "failed async dispatch does not move the action to redo history"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -699,11 +915,12 @@ fn cross_pane_ring_caps_at_50_after_51_pushes() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-6 — the undo-count indicator carries the live count via an AccessKit Label (HBR-SWARM / HBR-VIS).
+// AC-6 — undo-count indicator helper + live shell header mount.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// A kittest harness rendering the undo-count indicator for a pane whose local ring depth the test
-/// drives, then asserting the live AccessKit `undo-count-{pane_id}` Label value tracks the count.
+/// A kittest harness rendering the undo-count indicator helper for a pane whose local ring depth the test
+/// drives, then asserting the AccessKit `undo-count-{pane_id}` Label value tracks the count. The separate
+/// `live_shell_header_undo_count_tracks_shared_bus_depth` test proves the mounted pane-header call site.
 struct IndicatorApp {
     bus: Arc<Mutex<InteractionBus>>,
     pane_id: PaneId,
@@ -789,6 +1006,30 @@ fn undo_count_indicator_tracks_ring_depth() {
         ),
     }
     assert_no_local_artifact_dir();
+}
+
+#[test]
+fn live_shell_header_undo_count_tracks_shared_bus_depth() {
+    let (app, _rt) = mt035_editor_shell();
+    let pane_id = pane("pane-a");
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+
+    InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |b| {
+        b.push_undo_local(pane_id.clone(), sync_action("header-count", log.clone()));
+    })
+    .expect("bus lock");
+    harness.run_steps(1);
+
+    let author_id = undo_count_author_id("pane-a");
+    assert_eq!(
+        shell_indicator_value(&harness, &author_id).as_deref(),
+        Some("Undo (1)"),
+        "AC-6 LIVE: the pane header emits the shared-bus undo count for pane-a"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

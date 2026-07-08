@@ -642,8 +642,8 @@ fn mt020_live_transclusion_prompt_confirm_undo_restores_pre_insert_doc() {
 #[test]
 fn mt020_live_code_ref_select_undo_restores_pre_insert_doc() {
     use handshake_native::code_editor::code_nav::CodeSymbolNavProjection;
-    use handshake_native::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState;
     use handshake_native::rich_editor::slash_commands::code_symbol_result_author_id;
+    use handshake_native::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState;
 
     let state = mt020_state("pane-mt020-coderef");
     {
@@ -751,8 +751,8 @@ fn mt035_live_slash_divider_bus_undo_restores_exact_doc() {
     );
     // The execution recorded EXACTLY ONE unified-bus entry (trigger removal + insert, one pair).
     let bus = InteractionBus::get_or_init(&harness.ctx);
-    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
-        .expect("bus lock");
+    let depth =
+        InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
     assert_eq!(
         depth, 1,
         "the /divider execution recorded one unified-bus undo entry"
@@ -770,9 +770,8 @@ fn mt035_live_slash_divider_bus_undo_restores_exact_doc() {
             1,
             "Ctrl+Z removed the inserted divider block"
         );
-        let now = handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
-            &st.doc,
-        );
+        let now =
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
         assert_eq!(
             now, before,
             "bus undo restored the EXACT pre-execution doc (`/divider` trigger text included)"
@@ -863,8 +862,8 @@ fn mt035_in_window_atom_confirms_coalesce_into_one_bus_undo_entry() {
     }
     // ...but the bus holds ONE coalesced entry (the in-window contract).
     let bus = InteractionBus::get_or_init(&harness.ctx);
-    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
-        .expect("bus lock");
+    let depth =
+        InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
     assert_eq!(
         depth, 1,
         "two in-window atom confirms coalesced into ONE unified-bus undo entry"
@@ -882,9 +881,8 @@ fn mt035_in_window_atom_confirms_coalesce_into_one_bus_undo_entry() {
             para.children.iter().all(|c| c.as_hs_link().is_none()),
             "one undo removed BOTH in-window confirmed atoms (batch-start restore)"
         );
-        let now = handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
-            &st.doc,
-        );
+        let now =
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
         assert_eq!(
             now, before,
             "the coalesced undo restored the EXACT batch-start doc"

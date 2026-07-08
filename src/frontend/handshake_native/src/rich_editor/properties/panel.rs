@@ -97,15 +97,13 @@ impl<'a> PropertiesPanel<'a> {
                 }
                 ui.end_row();
 
-                // Project / folder refs (read-only here; editable-via-/move is a follow-on — the
-                // read-only display binds the verified fields without faking an editor the contract
-                // under-specified for these two).
+                // Project / folder refs (editable through the verified `/move` endpoint).
                 label(ui, "Project", palette);
-                fields::read_only_value(ui, state.doc_metadata.project_ref.as_deref(), palette);
+                fields::project_ref_field(ui, state, runtime, palette);
                 ui.end_row();
 
                 label(ui, "Folder", palette);
-                fields::read_only_value(ui, state.doc_metadata.folder_ref.as_deref(), palette);
+                fields::folder_ref_field(ui, state, runtime, palette);
                 ui.end_row();
 
                 // CRDT id (read-only, displayed if present).

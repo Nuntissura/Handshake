@@ -384,6 +384,67 @@ fn graph_view_scroll_zoom() {
     println!("PROOF5: scroll-zoom raised zoom 1.0 -> {zoom} (clamped <= 4.0)");
 }
 
+// ── AC3: dragging empty canvas pans the graph through the real egui response path ─────────────────
+
+#[test]
+fn graph_view_drag_empty_canvas_pans() {
+    let view = shared(seeded_view(5));
+    {
+        let mut v = view.lock().unwrap();
+        while !v.layout_stable() {
+            v.step_layout();
+        }
+    }
+    let view_ui = Arc::clone(&view);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 600.0))
+        .build_ui(move |ui| {
+            let pal = HsTheme::Dark.palette();
+            view_ui.lock().unwrap().show(ui, &pal);
+        });
+    harness.run();
+
+    let rect = view
+        .lock()
+        .unwrap()
+        .canvas_rect()
+        .expect("canvas rect recorded after a render");
+    let from = egui::pos2(rect.right() - 28.0, rect.bottom() - 28.0);
+    let to = egui::pos2(from.x - 72.0, from.y - 44.0);
+    let before = view.lock().unwrap().pan;
+
+    harness.event(egui::Event::PointerMoved(from));
+    harness.run();
+    harness.event(egui::Event::PointerButton {
+        pos: from,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.run();
+    for step in 1..=4 {
+        let t = step as f32 / 4.0;
+        let pos = egui::pos2(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
+        harness.event(egui::Event::PointerMoved(pos));
+        harness.run();
+    }
+    harness.event(egui::Event::PointerButton {
+        pos: to,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.run();
+
+    let after = view.lock().unwrap().pan;
+    assert!(
+        (after.x - before.x).abs() > 1.0 || (after.y - before.y).abs() > 1.0,
+        "AC3: empty-canvas drag must change graph pan (before={before:?}, after={after:?}, \
+         from={from:?}, to={to:?})"
+    );
+    println!("AC3: empty-canvas drag panned graph from {before:?} to {after:?}");
+}
+
 // ── AC7: empty workspace -> empty canvas + "0 nodes" label, no panic ──────────────────────────────
 
 #[test]

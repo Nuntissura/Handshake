@@ -16,9 +16,13 @@
 use std::sync::Arc;
 
 use egui::{Key, Modifiers};
+use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
-use handshake_native::code_editor::{layout_visual_rows, CodeEditorPanel, TextBuffer, WrapConfig};
+use handshake_native::code_editor::{
+    layout_visual_rows, CodeEditorPanel, Cursor, TextBuffer, WrapConfig,
+    CODE_EDITOR_CURSOR_AUTHOR_PREFIX,
+};
 
 fn off() -> WrapConfig {
     WrapConfig::default()
@@ -353,5 +357,125 @@ fn live_panel_renders_under_wrap_without_panic() {
     assert!(
         stats.frame_lines_rendered > 0,
         "the wrap render path painted a non-empty window; got {stats:?}"
+    );
+}
+
+// ── MT-054 Task-B: wrap mode renders caret / selection / caret AccessKit node ─────────────────────
+
+#[test]
+fn wrap_mode_renders_caret_and_selection_at_visual_row() {
+    // Task-B regression: with word wrap ON, the caret, the selection, and the per-caret AccessKit node
+    // must RENDER (the wrap paint path previously painted NONE of them — no caret, no selection, no
+    // find-match, no whitespace, no caret node). The first line wraps into 2 visual rows, so the second
+    // logical line ("TARGET") is pushed to VISUAL ROW 2 — its visual-row index differs from its logical
+    // line index, which is exactly what the wrap-aware byte->visual-row overlay mapping must get right.
+    let src = "wwww wwww wwww wwww\nTARGET\n";
+    let panel = Arc::new(CodeEditorPanel::new(src, "txt"));
+    panel.set_wrap_enabled(true);
+    panel.set_wrap_column(Some(10)); // deterministic narrow wrap: line 0 -> 2 rows, "TARGET" -> row 2
+    // A selection over "TARGET" (bytes 20..26); head=26 places the caret at line 1 col 6 (just past the
+    // last 'T', an empty cell — so the caret bar stands alone, not overlapping a glyph).
+    panel.set_cursors(vec![Cursor::selection(20, 26)]);
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(400.0, 300.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    harness.run();
+    harness.run();
+
+    // ── Non-GPU proofs (always run) ──────────────────────────────────────────────────────────────
+    assert!(panel.is_wrap_enabled(), "wrap stayed enabled across frames");
+    let stats = panel.perf_stats();
+    assert!(
+        stats.frame_lines_wrapped > 0,
+        "the wrap render path ran (materialized >=1 logical line); got {stats:?}"
+    );
+    assert_eq!(
+        panel.primary_selection_bytes(),
+        (20, 26),
+        "the selection over 'TARGET' is set (bytes 20..26)"
+    );
+
+    // Structural (non-GPU): the wrap layout math places logical line 1 ("TARGET") on VISUAL ROW 2 (line 0
+    // wraps into rows 0-1), so a correct overlay must paint the caret on visual row 2 — NOT logical row 1
+    // (the non-wrap mapping, which under wrap has an empty painted_lines list and would draw nothing).
+    let buf = panel.buffer();
+    let gw = panel
+        .measured_glyph_width()
+        .expect("glyph width measured after a frame");
+    let rows = layout_visual_rows(&buf, 0..buf.len_lines(), &on_cols(10), gw);
+    let target_row = rows
+        .iter()
+        .position(|r| r.logical_line == 1 && r.is_first_fragment())
+        .expect("logical line 1 has a visual row");
+    assert_eq!(
+        target_row, 2,
+        "line 0 wraps into 2 visual rows -> 'TARGET' (line 1) is on visual row 2; got {target_row}"
+    );
+
+    // A per-caret AccessKit node EXISTS under wrap (a swarm agent can still address the caret by id),
+    // carrying the caret's LOGICAL (line, col) — the same node render_rows emits in the non-wrap path.
+    let cursor0_id = format!("{CODE_EDITOR_CURSOR_AUTHOR_PREFIX}0");
+    let mut caret_value: Option<String> = None;
+    for node in harness.root().children_recursive() {
+        let ak = node.accesskit_node();
+        if ak.author_id() == Some(cursor0_id.as_str()) {
+            caret_value = ak.value().map(|v| v.to_owned());
+        }
+    }
+    assert_eq!(
+        caret_value.as_deref(),
+        Some("line 1 col 6"),
+        "Task-B: the caret AccessKit node exists in wrap mode at the selection head (line 1 col 6)"
+    );
+
+    // ── Pixel proof: the caret overlay rect is painted at the correct VISUAL row ─────────────────────
+    // "TARGET" is one label under plain 'txt' (one label per visual row) and egui laid it out at its
+    // wrapped visual-row position, so its rect IS that row's band + column origin. The caret at col 6
+    // sits at the label's right edge; a caret bar there proves the overlay mapped the head byte to THIS
+    // wrapped row/col. (`get_by_label` reads layout, unaffected by the painter overlays drawn on top.)
+    let target = harness.get_by_label("TARGET").rect();
+    let image = harness
+        .render()
+        .expect("Task-B: a wgpu adapter is required to prove the wrapped caret pixel");
+    let (w, h) = (image.width(), image.height());
+    let ppp = harness.ctx.pixels_per_point();
+    let caret_x = target.right(); // col-6 x = right edge of the 6-glyph "TARGET" label
+    // Count pixels in a thin strip at the caret x within the "TARGET" row band that differ from the SAME
+    // column's background reference far BELOW the 4-row document (uniform panel background).
+    let count_non_bg = |x_pt: f32, y0_pt: f32, y1_pt: f32, bg_y_pt: f32| -> u32 {
+        let x_px = (x_pt * ppp).round() as i64;
+        let bg_y = (bg_y_pt * ppp).round().clamp(0.0, (h - 1) as f32) as u32;
+        let mut count = 0u32;
+        for dx in -1..=2i64 {
+            let x = x_px + dx;
+            if x < 0 || x >= w as i64 {
+                continue;
+            }
+            let bg = image.get_pixel(x as u32, bg_y).0;
+            let y0 = (y0_pt * ppp).round().max(0.0) as u32;
+            let y1 = ((y1_pt * ppp).round() as u32).min(h - 1);
+            for y in y0..y1 {
+                if image.get_pixel(x as u32, y).0 != bg {
+                    count += 1;
+                }
+            }
+        }
+        count
+    };
+    let band_h = target.height().max(1.0);
+    let caret_pixels = count_non_bg(
+        caret_x,
+        target.top() + 1.0,
+        target.bottom() - 1.0,
+        target.bottom() + 6.0 * band_h, // far below the 4-row document -> panel background
+    );
+    assert!(
+        caret_pixels > 0,
+        "Task-B: the caret bar is painted at the 'TARGET' visual row, col 6 (x={caret_x:.1}); got 0 \
+         non-background pixels (the wrap overlay did not render the caret at the wrapped row)"
     );
 }

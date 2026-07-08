@@ -442,6 +442,29 @@ impl CodeNavClient {
         Ok(parsed.matches)
     }
 
+    /// `GET /knowledge/code/symbols?workspace_id=&name=&path=&limit=` — exact symbol lookup for
+    /// hand-authored `[[code:path#Symbol]]` refs. This reuses the same backend lookup route as
+    /// completion, but binds the optional `name` + `path` filters the backend already exposes.
+    pub async fn lookup_symbols_by_name_path(
+        &self,
+        workspace_id: &str,
+        name: &str,
+        path: &str,
+        limit: usize,
+    ) -> Result<Vec<CodeSymbolNavProjection>, AppError> {
+        let url = format!("{}/knowledge/code/symbols", self.base_url);
+        let query = vec![
+            ("workspace_id".to_owned(), workspace_id.to_owned()),
+            ("name".to_owned(), name.to_owned()),
+            ("path".to_owned(), path.to_owned()),
+            ("limit".to_owned(), limit.to_string()),
+        ];
+        let v = code_nav_get(&url, &query, &format!("lookup-path-{workspace_id}")).await?;
+        let parsed: CodeSymbolLookupResponse =
+            serde_json::from_value(v).map_err(|e| AppError::Parse(e.to_string()))?;
+        Ok(parsed.matches)
+    }
+
     /// `GET /knowledge/code/symbols/:entity_id` — one symbol's definition + staleness. Ports
     /// `getCodeSymbol` (`api.ts:2152`). Returns `None` when the symbol is absent / the backend errors
     /// (graceful: hover shows nothing rather than crashing).

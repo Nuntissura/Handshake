@@ -34,22 +34,17 @@
 //!
 //! ## Stable AccessKit ids (out-of-process steering)
 //!
-//! The lock button is the header's one interactive control. The four fixed grid panes (pane-a..d) map
-//! to a FRESH fixed `NodeId` band ([`PANE_LOCK_NODE_ID_BASE`] = 70..73), disjoint from every other
-//! declared identity (theme toggle 10, chrome 20/21, dividers 30/31, scrollbar rails 40..43,
-//! project-tab strip 50, module buttons 51..56, tab-bar containers 60..63, merge-back 64..67, panes at
-//! 100 and above). The collision test in [`crate::accessibility::registry`] proves the disjointness across
-//! the whole declared set. Each lock button is a `Role::Button` node with `Action::Click`/
-//! `Action::Focus` and an `author_id` equal to `pane-{pane_id}-lock` — the same stable key the React
-//! `data-stable-id` used — so an out-of-process model toggles a pane's lock by a stable id, not a frame
-//! counter. The title label is presentational (a `Role::Label`, no author_id), exactly like the pane
-//! body label, so it does NOT trip the MT-025 `assert_no_unnamed_interactive` gate.
+//! The lock button, title label, and header strip all carry stable AccessKit identity. The four fixed
+//! grid panes (pane-a..d) map lock/title controls to fixed `NodeId` bands, disjoint from every other
+//! declared identity; the header strip itself is a dynamic right-click target addressed by
+//! `pane-{pane_id}-header`. The title remains presentational (`Role::Label`), while the lock button and
+//! header strip are the interactive surfaces.
 
 use egui::accesskit;
 
 use crate::context_menu::ContextMenu;
 use crate::context_menu_surfaces::{
-    pane_header_action_for_id, pane_header_context_items, PaneHeaderMenuAction,
+    pane_header_action_for_id, pane_header_context_items_with_popout, PaneHeaderMenuAction,
 };
 use crate::module_switcher::{ModuleId, MODULE_DEFINITIONS};
 use crate::pane_registry::PaneType;
@@ -242,17 +237,20 @@ impl PaneHeader {
     /// - `is_last_pane`: whether this is the only pane (drives the header context menu's `Close Pane`
     ///   disable reason; red-team: never offer to close the only pane).
     /// - `colors`: the MT-003 theme-token colors the header paints with.
+    /// - `undo_count`: the pane's current MT-035 local undo depth, rendered as a stable model-readable
+    ///   `undo-count-{pane_id}` label.
+    /// - `pop_out_enabled`: whether the context-menu "Pop Out Pane" action is actionable. Detached
+    ///   pop-out headers pass `false` so the menu discloses that the pane is already popped out.
     ///
     /// Layout: a horizontal row — the active-tab title on the LEFT (a presentational `Role::Label`),
-    /// the Lock/Unlock button right-aligned (`right_to_left`), mirroring the React `.main-pane__header`
-    /// flex row. The title is a label (NOT interactive) so it does not need a stable author_id; the
-    /// lock button is the one interactive control and carries its fixed id + author_id.
+    /// the undo-count label next to it, and the Lock/Unlock button right-aligned (`right_to_left`),
+    /// mirroring the React `.main-pane__header` flex row.
     ///
     /// MT-020: the whole header strip is a SECONDARY-clickable target carrying the stable author_id
     /// `pane-{pane_id}-header` (`Role::Group`); right-clicking it (or Shift+F10 while focused) opens the
-    /// shared MT-019 context menu (Lock/Unlock + Pop Out enabled; split/set-type/close future-target,
-    /// disabled+disclosed). A confirmed item is recorded into the returned [`PaneHeaderResponse`] for
-    /// the caller to apply (single source of truth for pane state).
+    /// shared MT-019 context menu (Lock/Unlock + Pop Out when enabled; split/set-type/close
+    /// future-target, disabled+disclosed). A confirmed item is recorded into the returned
+    /// [`PaneHeaderResponse`] for the caller to apply (single source of truth for pane state).
     pub fn show(
         ui: &mut egui::Ui,
         pane_id: &str,
@@ -260,6 +258,9 @@ impl PaneHeader {
         locked: bool,
         is_last_pane: bool,
         colors: PaneHeaderColors,
+        undo_count: usize,
+        palette: &crate::theme::HsPalette,
+        pop_out_enabled: bool,
     ) -> PaneHeaderResponse {
         let mut response = PaneHeaderResponse::default();
 
@@ -291,7 +292,11 @@ impl PaneHeader {
         });
         // Build + show the header context menu on the strip's response. CLOSED by default (so the
         // MT-025 default snapshot only grows by the four header TARGET nodes, not menu items).
-        let menu = ContextMenu::new("pane").items(pane_header_context_items(locked, is_last_pane));
+        let menu = ContextMenu::new("pane").items(pane_header_context_items_with_popout(
+            locked,
+            is_last_pane,
+            pop_out_enabled,
+        ));
         if let Some(confirmed_id) = menu.show_on(&header_resp) {
             if let Some(action) = pane_header_action_for_id(confirmed_id) {
                 match action {
@@ -333,7 +338,11 @@ impl PaneHeader {
             } else {
                 active_tab_label
             };
-            Self::title_label(ui, pane_id, title, colors);
+            let trailing_reserved =
+                Self::trailing_controls_reserved_width(ui, locked, undo_count, colors, palette);
+            Self::title_label(ui, pane_id, title, colors, trailing_reserved);
+            ui.add_space(8.0);
+            crate::interop::render_undo_count_indicator(ui, pane_id, undo_count, palette);
 
             // ── Lock button (right-aligned) ─────────────────────────────────────────────────────────
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -352,7 +361,13 @@ impl PaneHeader {
     /// auto-generated and whose AccessKit emission egui may coalesce away under clipping) so the title
     /// node is reliably in the live tree with a stable `NodeId` + `author_id` — the same id discipline
     /// the chrome title/status widgets use (`app::title_identity`).
-    fn title_label(ui: &mut egui::Ui, pane_id: &str, title: &str, colors: PaneHeaderColors) {
+    fn title_label(
+        ui: &mut egui::Ui,
+        pane_id: &str,
+        title: &str,
+        colors: PaneHeaderColors,
+        trailing_reserved_width: f32,
+    ) {
         let id = pane_title_egui_id(pane_id);
         let font = egui::FontId::proportional(13.0);
         let galley = ui
@@ -362,7 +377,10 @@ impl PaneHeader {
         // button off-strip (the lock is rendered right_to_left after this, so reserving less here keeps
         // it visible). The galley itself is laid out no-wrap; the allocation is what bounds the click box.
         let avail_w = ui.available_width();
-        let alloc_w = galley.size().x.min((avail_w - 4.0).max(0.0));
+        let alloc_w = galley
+            .size()
+            .x
+            .min((avail_w - trailing_reserved_width - 4.0).max(0.0));
         let (rect, _) =
             ui.allocate_exact_size(egui::vec2(alloc_w, galley.size().y), egui::Sense::hover());
         if ui.is_rect_visible(rect) {
@@ -376,6 +394,35 @@ impl PaneHeader {
             node.set_author_id(pane_title_author_id(pane_id));
             node.set_label(title.to_owned());
         });
+    }
+
+    fn trailing_controls_reserved_width(
+        ui: &egui::Ui,
+        locked: bool,
+        undo_count: usize,
+        colors: PaneHeaderColors,
+        palette: &crate::theme::HsPalette,
+    ) -> f32 {
+        let undo_galley = ui.painter().layout_no_wrap(
+            format!("Undo ({undo_count})"),
+            egui::TextStyle::Body.resolve(ui.style()),
+            palette.text_subtle,
+        );
+        let lock_label = if locked { "Unlock" } else { "Lock" };
+        let lock_galley = ui.painter().layout_no_wrap(
+            lock_label.to_owned(),
+            egui::FontId::proportional(12.0),
+            colors.lock_text,
+        );
+
+        let title_to_count_gap = 8.0;
+        let count_to_lock_gap = 8.0;
+        let lock_button_pad_x = 16.0;
+        title_to_count_gap
+            + undo_galley.size().x
+            + count_to_lock_gap
+            + lock_galley.size().x
+            + lock_button_pad_x
     }
 
     /// Render the Lock/Unlock button as a real interactive egui widget at its FIXED AccessKit id and

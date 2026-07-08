@@ -24,6 +24,8 @@ use std::sync::{Arc, Mutex};
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::backend_client::{HealthInfo, RichDocBody};
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, NodeKind, TextLeaf};
 use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
@@ -80,6 +82,8 @@ fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
 struct MockMetadataBackend {
     backlinks: usize,
     rename_calls: Mutex<u32>,
+    move_calls: Mutex<u32>,
+    last_move: Mutex<Option<(Option<Option<String>>, Option<Option<String>>)>>,
 }
 
 impl MockMetadataBackend {
@@ -87,6 +91,8 @@ impl MockMetadataBackend {
         Self {
             backlinks,
             rename_calls: Mutex::new(0),
+            move_calls: Mutex::new(0),
+            last_move: Mutex::new(None),
         }
     }
 }
@@ -106,10 +112,23 @@ impl KnowledgeMetadataBackend for MockMetadataBackend {
     fn move_doc<'a>(
         &'a self,
         _d: &'a str,
-        _p: Option<Option<String>>,
-        _f: Option<Option<String>>,
+        p: Option<Option<String>>,
+        f: Option<Option<String>>,
     ) -> MetadataFuture<'a, DocMetadata> {
-        Box::pin(async { Ok(sample_metadata()) })
+        *self.move_calls.lock().unwrap() += 1;
+        *self.last_move.lock().unwrap() = Some((p.clone(), f.clone()));
+        Box::pin(async move {
+            let mut meta = sample_metadata();
+            if let Some(project_ref) = p {
+                meta.project_ref = project_ref;
+            }
+            if let Some(folder_ref) = f {
+                meta.folder_ref = folder_ref;
+            }
+            meta.doc_version += 1;
+            meta.updated_at = "2026-06-22T11:00:00Z".into();
+            Ok(meta)
+        })
     }
     fn load<'a>(&'a self, _d: &'a str) -> MetadataFuture<'a, DocMetadata> {
         Box::pin(async { Ok(sample_metadata()) })
@@ -211,9 +230,8 @@ fn mt017_properties_collapsed_by_default() {
             let saved = image.save(&path).is_ok();
             println!("PT-2 collapsed screenshot: {}x{} saved={saved} ({})", image.width(), image.height(), path.display());
         }
-        Err(e) => println!(
-            "BLOCKER(non-fatal): mt017_properties_collapsed screenshot unavailable (no wgpu adapter): {e}. \
-             The collapsed structural proof passed; the PNG is a GPU-host item."
+        Err(e) => panic!(
+            "PT-2 collapsed screenshot unavailable; MT-017 requires the PNG proof from the GPU host: {e}"
         ),
     }
     assert_no_local_artifact_dir();
@@ -292,6 +310,8 @@ fn mt017_properties_expanded_shows_all_fields() {
     for id in [
         "properties-panel",
         "properties-title",
+        "properties-project-ref",
+        "properties-folder-ref",
         "properties-doc-id",
         "properties-tags",
     ] {
@@ -316,9 +336,8 @@ fn mt017_properties_expanded_shows_all_fields() {
             let saved = image.save(&path).is_ok();
             println!("PT-3 expanded screenshot: {}x{} saved={saved} ({})", image.width(), image.height(), path.display());
         }
-        Err(e) => println!(
-            "BLOCKER(non-fatal): mt017_properties_expanded screenshot unavailable (no wgpu adapter): {e}. \
-             The expanded structural + AccessKit proofs passed; the PNG is a GPU-host item."
+        Err(e) => panic!(
+            "PT-3 expanded screenshot unavailable; MT-017 requires the PNG proof from the GPU host: {e}"
         ),
     }
     assert_no_local_artifact_dir();
@@ -348,19 +367,31 @@ fn mt017_add_tag_appends_chip_via_button() {
         });
     harness.run();
 
-    // Seed a tag through the model the '+'-button path mutates (the button opens an input; the input's
-    // blur calls add_tag). We assert the STATE change the '+' affordance produces, then prove it renders.
+    let add_button = harness.get_by(|node| node.author_id() == Some("tag-add-button"));
+    add_button.click();
+    harness.run();
+
+    let input = harness.get_by(|node| node.author_id() == Some("tag-new-input"));
+    input.focus();
+    harness.run();
+    harness
+        .get_by(|node| node.author_id() == Some("tag-new-input"))
+        .type_text("rust");
+    harness.run();
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+    harness.get_by_label_contains("Document ID").click();
+    harness.run();
+
     {
         let mut st = state.lock().unwrap();
         let props = st.properties.as_mut().unwrap();
-        assert!(
-            props.add_tag("rust"),
-            "AC-4: adding a tag appends it to the list"
+        assert_eq!(
+            props.tags,
+            vec!["rust".to_owned()],
+            "AC-4: clicking '+', typing a tag, and committing appends the tag"
         );
-        assert_eq!(props.tags, vec!["rust".to_owned()]);
     }
-    harness.run();
-    harness.run();
 
     let chip_present = harness
         .root()
@@ -454,6 +485,175 @@ fn mt017_pending_save_dispatches_rename_through_runtime() {
     assert_eq!(
         fresh.doc_version, 6,
         "the version bumped on the persisted rename (mock bumps it)"
+    );
+}
+
+#[test]
+fn mt017_project_ref_dispatches_move_through_runtime() {
+    let backend = Arc::new(MockMetadataBackend::new(0));
+    let mut props = PropertiesState::new(sample_metadata());
+    props.project_ref_edit = Some("PRJ-9".into());
+    let project_ref = props
+        .commit_project_ref_edit()
+        .expect("changed project ref emits a move payload");
+
+    let tokio_rt = tokio::runtime::Runtime::new().unwrap();
+    let mut runtime = PropertiesRuntime::new(backend.clone(), Some(tokio_rt.handle().clone()));
+    runtime.set_document(&props.doc_metadata.rich_document_id);
+    runtime.dispatch_move(
+        &props.doc_metadata.rich_document_id,
+        Some(project_ref),
+        None,
+    );
+    assert_eq!(
+        runtime.save_state,
+        SaveState::Saving,
+        "the project-ref edit dispatches through the real runtime move path"
+    );
+
+    let mut fresh = None;
+    for _ in 0..200 {
+        let (m, applied) = runtime.drain();
+        if applied {
+            fresh = m;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(runtime.save_state, SaveState::Saved);
+    assert_eq!(*backend.move_calls.lock().unwrap(), 1);
+    assert_eq!(
+        backend.last_move.lock().unwrap().as_ref().unwrap().0,
+        Some(Some("PRJ-9".into()))
+    );
+    assert_eq!(
+        fresh.unwrap().project_ref.as_deref(),
+        Some("PRJ-9"),
+        "the move response refreshes the displayed metadata"
+    );
+}
+
+#[test]
+fn mt017_folder_ref_dispatches_move_through_runtime() {
+    let backend = Arc::new(MockMetadataBackend::new(0));
+    let mut props = PropertiesState::new(sample_metadata());
+    props.folder_ref_edit = Some("FOLDER-Z".into());
+    let folder_ref = props
+        .commit_folder_ref_edit()
+        .expect("changed folder ref emits a move payload");
+
+    let tokio_rt = tokio::runtime::Runtime::new().unwrap();
+    let mut runtime = PropertiesRuntime::new(backend.clone(), Some(tokio_rt.handle().clone()));
+    runtime.set_document(&props.doc_metadata.rich_document_id);
+    runtime.dispatch_move(&props.doc_metadata.rich_document_id, None, Some(folder_ref));
+    assert_eq!(
+        runtime.save_state,
+        SaveState::Saving,
+        "the folder-ref edit dispatches through the real runtime move path"
+    );
+
+    let mut fresh = None;
+    for _ in 0..200 {
+        let (m, applied) = runtime.drain();
+        if applied {
+            fresh = m;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(runtime.save_state, SaveState::Saved);
+    assert_eq!(*backend.move_calls.lock().unwrap(), 1);
+    assert_eq!(
+        backend.last_move.lock().unwrap().as_ref().unwrap().1,
+        Some(Some("FOLDER-Z".into()))
+    );
+    assert_eq!(
+        fresh.unwrap().folder_ref.as_deref(),
+        Some("FOLDER-Z"),
+        "the move response refreshes the displayed folder metadata"
+    );
+}
+
+#[test]
+fn mt017_clear_properties_context_removes_stale_document_metadata() {
+    let mut state = seeded_state(0);
+    assert!(
+        state.properties.is_some(),
+        "precondition: the seeded editor has document properties loaded"
+    );
+    assert_eq!(state.properties_runtime.document_id, "KRD-MT017-1");
+
+    state.clear_properties_context();
+
+    assert!(
+        state.properties.is_none(),
+        "document invalidation must clear old properties so stale metadata is not rendered"
+    );
+    assert_eq!(
+        state.properties_runtime.document_id, "",
+        "clearing properties also clears the active properties-runtime document id"
+    );
+    assert!(
+        matches!(
+            state.properties_runtime.backlinks_count,
+            handshake_native::rich_editor::properties::metadata_client::BacklinksCountState::Idle
+        ),
+        "a cleared document does not leave a stale backlinks count visible"
+    );
+}
+
+#[test]
+fn mt017_app_load_path_installs_properties_context() {
+    let tokio_rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".into(),
+        db_status: "ok".into(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(tokio_rt.handle().clone());
+
+    app.apply_loaded_rich_document_for_test(RichDocBody {
+        document_id: "KRD-MT017-APP".into(),
+        workspace_id: "ws-mt017".into(),
+        doc_version: 17,
+        title: "Loaded Properties Title".into(),
+        content_json: serde_json::json!({
+            "type": "doc",
+            "content": [{
+                "type": "paragraph",
+                "content": [{ "type": "text", "text": "loaded body" }]
+            }]
+        }),
+        crdt_document_id: Some("KCRDT-MT017-APP".into()),
+        authority_label: "promoted".into(),
+        owner_actor_kind: Some("operator".into()),
+        owner_actor_id: Some("ilja".into()),
+        project_ref: Some("PRJ-42".into()),
+        folder_ref: Some("FOLDER-9".into()),
+        created_at: "2026-06-19T14:32:00Z".into(),
+        updated_at: "2026-06-22T10:00:00Z".into(),
+    })
+    .expect("production rich-document load installer accepts the loaded doc");
+
+    let rich_state = app.mounted_rich_state();
+    let state = rich_state.lock().unwrap();
+    let props = state
+        .properties
+        .as_ref()
+        .expect("MT-017: production load path installs properties context");
+    assert_eq!(props.doc_metadata.rich_document_id, "KRD-MT017-APP");
+    assert_eq!(props.doc_metadata.title, "Loaded Properties Title");
+    assert_eq!(props.doc_metadata.project_ref.as_deref(), Some("PRJ-42"));
+    assert_eq!(props.doc_metadata.folder_ref.as_deref(), Some("FOLDER-9"));
+    assert_eq!(state.properties_runtime.document_id, "KRD-MT017-APP");
+    assert_eq!(
+        state.block_plain_text(0).as_deref(),
+        Some("loaded body"),
+        "the same production load path also installed the rich document body"
     );
 }
 
