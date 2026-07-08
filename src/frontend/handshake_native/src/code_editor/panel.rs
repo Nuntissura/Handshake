@@ -1070,6 +1070,14 @@ pub struct CodeEditorPanel {
     /// (RISK-001 / MC-001 — one source of truth). Behind a `Mutex` for the same `Sync` reason as the
     /// buffer; a swarm agent flips it via the `editor-wrap-toggle` AccessKit node.
     wrap_config: Mutex<WrapConfig>,
+    /// MT-072 Fix 3 (MT-054 wrap-persistence closeout): set to `true` by [`toggle_wrap`](Self::toggle_wrap)
+    /// — the single mutation point Alt+Z, the visible "Wrap" button, and the `editor-wrap-toggle` AccessKit
+    /// node all route through — to signal a USER-initiated wrap change. The host drains it once per frame
+    /// via [`take_user_wrap_toggle`](Self::take_user_wrap_toggle) and writes the new state back into the
+    /// persisted `editor_prefs.word_wrap` (so Alt+Z persists across restart). A prefs->panel
+    /// [`set_wrap_enabled`](Self::set_wrap_enabled) push does NOT set this flag, so the write-back is a
+    /// one-way user->prefs signal that never ping-pongs.
+    wrap_toggled_by_user: std::sync::atomic::AtomicBool,
     /// MT-054 PERF CAP (adversarial-review hardening): the cached wrap-row COUNT index that lets the paint
     /// path compute `show_rows`' total visual-row count + map a visual-row index back to its visible line
     /// WITHOUT re-wrapping the whole post-fold document every frame. Recomputed only when its key changes
@@ -1604,6 +1612,9 @@ impl CodeEditorPanel {
             // (RISK-006 / MC-006). The viewport width is filled in each frame from the live editor-area
             // width before the wrap layout runs.
             wrap_config: Mutex::new(WrapConfig::default()),
+            // MT-072 Fix 3: no pending USER wrap toggle until Alt+Z / the Wrap button / the
+            // editor-wrap-toggle node flips it (a prefs->panel push never sets this).
+            wrap_toggled_by_user: std::sync::atomic::AtomicBool::new(false),
             wrap_row_index: Mutex::new(None),
             live_text_node_id: Mutex::new(None),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
@@ -4857,11 +4868,12 @@ impl CodeEditorPanel {
     }
 
     /// WP-KERNEL-012 wave-6 (S6 item 3): thread the LIVE syntax palette in from the operator's
-    /// `syntax_palette` setting (the shell calls this from `sync_editor_prefs_to_panel`). A `Custom`
-    /// palette makes [`resolve_highlight_color`](Self::resolve_highlight_color) route highlight-run colors
-    /// through the LIVE [`resolve_scope_color`](crate::code_editor::resolve_scope_color) resolver so a
-    /// Custom swatch edit repaints the running editor; a `Muted`/`Standard` palette keeps the theme tokens
-    /// (only Custom overrides the theme, matching the Settings section's live-effect note).
+    /// `syntax_palette` setting (the shell calls this from `sync_editor_prefs_to_panel`). MT-072 Fix 1:
+    /// installing a palette of ANY mode makes [`resolve_highlight_color`](Self::resolve_highlight_color)
+    /// route highlight-run colors through the LIVE
+    /// [`resolve_scope_color`](crate::code_editor::resolve_scope_color) resolver, so selecting Muted or
+    /// Standard, OR editing a Custom swatch, repaints the running editor — the live editor and the Settings
+    /// preview swatch AGREE for every mode. Theme tokens remain the fallback only when no palette is set.
     pub fn set_syntax_palette(&self, palette: crate::workspace_settings::SyntaxPalette) {
         *self
             .syntax_palette
@@ -4869,27 +4881,28 @@ impl CodeEditorPanel {
             .unwrap_or_else(|e| e.into_inner()) = Some(palette);
     }
 
-    /// Resolve the color a highlight `scope` should paint with, honoring a LIVE Custom syntax palette when
-    /// one is set (the S6 item-3 live effect) and otherwise the theme's [`scope_to_color`]. The panel body
-    /// draw paths call this for every highlighted run, so a Custom swatch edit changes the painted color in
-    /// the SAME frame. `pub` so a kittest can assert the render-path color directly.
+    /// Resolve the color a highlight `scope` should paint with, honoring a LIVE syntax palette of ANY mode
+    /// (Muted / Standard / Custom) when one is installed (MT-072 Fix 1), and otherwise the theme's
+    /// [`scope_to_color`]. The panel body draw paths call this for every highlighted run, so a palette-mode
+    /// switch or a Custom swatch edit changes the painted color in the SAME frame — the running editor and
+    /// the Settings preview swatch AGREE for every mode. `pub` so a kittest can assert the render-path color
+    /// directly.
     pub fn resolve_highlight_color(
         &self,
         scope: HighlightScope,
         syntax: &HsSyntaxTokens,
     ) -> egui::Color32 {
-        use crate::workspace_settings::SyntaxPaletteMode;
         let palette = self
             .syntax_palette
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         match palette.as_ref() {
-            // Only a CUSTOM palette overrides the theme tokens (Muted/Standard/absent keep the theme
-            // colors, so a non-custom palette never silently recolors the live editor).
-            Some(p) if p.mode == SyntaxPaletteMode::Custom => {
-                crate::code_editor::resolve_scope_color(scope, p)
-            }
-            _ => scope_to_color(scope, syntax),
+            // MT-072 Fix 1: a LIVE palette of ANY mode resolves through the SAME `resolve_scope_color` the
+            // Settings preview swatch uses (Muted/Standard tables; Custom overrides with a Standard fallback
+            // for un-overridden scopes), so selecting Muted or Standard recolors the RUNNING editor — not
+            // only the preview. Theme tokens are the fallback ONLY when no palette selection is installed.
+            Some(p) => crate::code_editor::resolve_scope_color(scope, p),
+            None => scope_to_color(scope, syntax),
         }
     }
 
@@ -4915,7 +4928,27 @@ impl CodeEditorPanel {
     pub fn toggle_wrap(&self) -> bool {
         let mut cfg = self.wrap_config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.enabled = !cfg.enabled;
+        // MT-072 Fix 3: mark this as a USER-initiated toggle (Alt+Z / the "Wrap" button / the
+        // editor-wrap-toggle node) so the host writes it back into the persisted editor prefs (Alt+Z
+        // persistence). A prefs->panel push via `set_wrap_enabled` does NOT set this flag, so the write-back
+        // never ping-pongs.
+        self.wrap_toggled_by_user
+            .store(true, Ordering::Relaxed);
         cfg.enabled
+    }
+
+    /// MT-072 Fix 3 (MT-054 wrap-persistence closeout): take a pending USER-initiated wrap toggle (set by
+    /// [`toggle_wrap`](Self::toggle_wrap), the single mutation point Alt+Z / the visible "Wrap" button / the
+    /// `editor-wrap-toggle` AccessKit node all route through). Returns `Some(is_wrap_enabled)` exactly once
+    /// per user toggle and clears the flag, so the host writes the change back into the persisted
+    /// `editor_prefs.word_wrap`; returns `None` when no user toggle is pending. A prefs->panel
+    /// [`set_wrap_enabled`](Self::set_wrap_enabled) push does NOT set the flag, so it never round-trips back.
+    pub fn take_user_wrap_toggle(&self) -> Option<bool> {
+        if self.wrap_toggled_by_user.swap(false, Ordering::Relaxed) {
+            Some(self.is_wrap_enabled())
+        } else {
+            None
+        }
     }
 
     /// MT-054: explicitly set the wrap-enabled state (host / settings / a test). Persisted on the panel.

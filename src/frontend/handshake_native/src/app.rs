@@ -6552,6 +6552,45 @@ impl HandshakeApp {
         }
     }
 
+    /// WP-KERNEL-012 MT-072 Fix 3 (MT-054 wrap-persistence closeout): the mounted code panel's Alt+Z
+    /// shortcut / visible "Wrap" button / `editor-wrap-toggle` AccessKit node flip ONLY the panel-local
+    /// `wrap_config` (via `toggle_wrap`), never `editor_prefs`. Called once per frame (after the pane host
+    /// so a same-frame Alt+Z is captured), this pulls a pending USER wrap toggle off the panel and writes it
+    /// back into the persisted `editor_prefs.word_wrap`, then schedules the SAME debounced PUT every other
+    /// editor-pref change uses — so Alt+Z persists across restart.
+    ///
+    /// No clobber / no ping-pong: because `editor_prefs` now equals the panel state, a subsequent
+    /// [`sync_editor_prefs_to_panel`](Self::sync_editor_prefs_to_panel) (prefs->panel) is a no-op and cannot
+    /// revert the just-made toggle; and a prefs->panel `set_wrap_enabled` push never sets the user flag, so
+    /// this is a one-way user->prefs write while an external Settings change still flows prefs->panel
+    /// normally. The panel's live `wrap_column` is mirrored so an Alt+Z toggle preserves a configured
+    /// bounded column instead of flattening it to viewport-edge wrap.
+    fn drain_editor_wrap_toggle(&mut self) {
+        use crate::workspace_settings::WordWrapMode;
+        let Some(enabled) = self.editor_mounts.code_panel.take_user_wrap_toggle() else {
+            return;
+        };
+        let new_mode = if enabled {
+            match self.editor_mounts.code_panel.wrap_config().wrap_column {
+                Some(col) => WordWrapMode::BoundedColumn(col.min(u16::MAX as usize) as u16),
+                None => WordWrapMode::On,
+            }
+        } else {
+            WordWrapMode::Off
+        };
+        if self.workspace_settings.editor_prefs.word_wrap != new_mode {
+            self.workspace_settings.editor_prefs.word_wrap = new_mode;
+            self.schedule_settings_save();
+        }
+    }
+
+    /// Test seam (MT-072 Fix 3): invoke the prefs->panel sync directly so a proof can show that a
+    /// persisted `editor_prefs` value written back by [`drain_editor_wrap_toggle`](Self::drain_editor_wrap_toggle)
+    /// is NOT clobbered by a following sync (the exact path the bug reported reverting the Alt+Z toggle).
+    pub fn sync_editor_prefs_to_panel_for_test(&self) {
+        self.sync_editor_prefs_to_panel();
+    }
+
     /// WP-KERNEL-012 MT-072: rebind the LIVE code-editor keymap from the persisted `editor_keybindings`
     /// overrides so a custom binding overrides the default for that action on the running editor (AC-005
     /// live side), not only in the Settings table. Reuses the existing override-application path exactly:
@@ -13362,6 +13401,11 @@ impl HandshakeApp {
         // Drained AFTER the pane host so a Save/Undo/Redo/OpenCommandPalette keypress or a wikilink/
         // backlink/tag chip click handled THIS frame is dispatched THIS frame.
         self.drive_editor_mounts(ctx);
+
+        // ── WP-KERNEL-012 MT-072 Fix 3: write a USER Alt+Z / Wrap-button / editor-wrap-toggle change back
+        // into the persisted editor prefs (drained AFTER the pane host so a same-frame toggle is captured),
+        // so word wrap persists across restart and a later prefs->panel sync does NOT clobber it.
+        self.drain_editor_wrap_toggle();
 
         // ── Apply MT-013 pane-header Lock/Unlock requests ───────────────────────────────────────────
         // A lock click from the pane header (pointer OR out-of-process AccessKit Click) toggles the

@@ -25,7 +25,7 @@ use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::code_editor::HighlightScope;
 use handshake_native::settings_dialog::SettingsOutcome;
-use handshake_native::theme::HsTheme;
+use handshake_native::theme::{HsTheme, MUTED_PALETTE, STANDARD_PALETTE};
 use handshake_native::workspace_settings::{
     EditorPrefs, RenderWhitespaceMode, SettingsTransport, SettingsTransportError, SyntaxPalette,
     SyntaxPaletteMode, WordWrapMode,
@@ -552,5 +552,153 @@ fn editor_keybinding_override_persists_outside_the_app_keybindings_map() {
     assert!(
         !kb.contains_key("code.open_find"),
         "RISK-001: the editor binding did NOT leak into the backend-validated keybindings map"
+    );
+}
+
+// ── MT-072 Fix 1: selecting Muted or Standard recolors the LIVE code panel (not only the preview) ────
+//
+// Before the fix, `resolve_highlight_color` routed ONLY Custom through the palette resolver, so Muted /
+// Standard changed only the Settings preview swatch — the running editor kept theme tokens. This proves
+// the live render-path resolver now returns the Muted / Standard TABLE color for every mode, so the live
+// editor and the preview swatch agree (mirroring the existing Custom same-frame proof above).
+#[test]
+fn muted_and_standard_palette_recolor_the_live_code_panel() {
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport);
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+
+    // The `syntax` arg is the theme-token fallback (used only when NO palette is installed); with a palette
+    // installed the resolver ignores it and returns the palette-table color.
+    let syntax = HsTheme::Dark.palette().syntax;
+
+    // Select Muted: the running panel resolves EVERY scope to the Muted table color (same-frame recolor).
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::SyntaxPaletteChanged(SyntaxPalette {
+            mode: SyntaxPaletteMode::Muted,
+            custom: Default::default(),
+        }));
+    harness.run();
+    let panel = harness.state().mounted_code_panel();
+    for scope in HighlightScope::ALL.iter().copied() {
+        assert_eq!(
+            panel.resolve_highlight_color(scope, &syntax),
+            scope.builtin_color(&MUTED_PALETTE),
+            "MT-072 Fix 1: Muted recolors the LIVE panel for {scope:?} (not only the preview swatch)"
+        );
+    }
+    // Muted actually DIFFERS from the theme keyword token — proves the live editor recolored, not a no-op.
+    assert_ne!(
+        panel.resolve_highlight_color(HighlightScope::Keyword, &syntax),
+        syntax.keyword,
+        "MT-072 Fix 1: Muted keyword differs from the theme token on the live panel"
+    );
+
+    // Select Standard: the running panel resolves EVERY scope to the Standard table color.
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::SyntaxPaletteChanged(SyntaxPalette {
+            mode: SyntaxPaletteMode::Standard,
+            custom: Default::default(),
+        }));
+    harness.run();
+    let panel = harness.state().mounted_code_panel();
+    for scope in HighlightScope::ALL.iter().copied() {
+        assert_eq!(
+            panel.resolve_highlight_color(scope, &syntax),
+            scope.builtin_color(&STANDARD_PALETTE),
+            "MT-072 Fix 1: Standard recolors the LIVE panel for {scope:?}"
+        );
+    }
+}
+
+// ── MT-072 Fix 3 (MT-054 wrap-persistence closeout): a USER Alt+Z / Wrap-button / editor-wrap-toggle
+//    change writes back to editor_prefs, persists via the existing PUT, is NOT clobbered by a following
+//    prefs->panel sync, and an explicit Settings change still flows prefs->panel. ──────────────────────
+#[test]
+fn user_wrap_toggle_persists_and_is_not_clobbered_by_sync() {
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport.clone());
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+
+    // Baseline: wrap OFF on both the persisted prefs and the live panel.
+    assert_eq!(
+        harness.state().workspace_settings().editor_prefs.word_wrap,
+        WordWrapMode::Off,
+        "baseline persisted word_wrap is Off"
+    );
+    assert!(
+        !harness.state().mounted_code_panel().is_wrap_enabled(),
+        "baseline live panel wrap OFF"
+    );
+
+    // A USER wrap toggle through the SAME mutation point Alt+Z / the "Wrap" button / the editor-wrap-toggle
+    // node route through (proven equivalent to Alt+Z in test_word_wrap). One frame lets the app drain the
+    // pending user toggle and write it back into editor_prefs.
+    harness.state().mounted_code_panel().toggle_wrap();
+    assert!(
+        harness.state().mounted_code_panel().is_wrap_enabled(),
+        "the user toggle enabled wrap on the live panel"
+    );
+    harness.run();
+
+    // WRITE-BACK: the persisted editor_prefs now reflects the toggle (it did NOT before this fix).
+    assert_eq!(
+        harness.state().workspace_settings().editor_prefs.word_wrap,
+        WordWrapMode::On,
+        "MT-072 Fix 3: a user Alt+Z toggle wrote back to editor_prefs.word_wrap = On"
+    );
+
+    // PERSISTENCE: it rides the SAME debounced PUT (the only save surface — AC-009), so it survives restart.
+    let saved = run_until(&mut harness, 80, |_| transport.save_calls() >= 1);
+    assert!(saved, "the wrap toggle persisted via the existing PUT");
+    let blob = transport.saved().expect("a settings_state blob was PUT");
+    assert_eq!(
+        blob.as_object()
+            .and_then(|o| o.get("editor_prefs"))
+            .and_then(|e| e.get("word_wrap"))
+            .and_then(Value::as_str),
+        Some("on"),
+        "the PUT blob carries word_wrap = on"
+    );
+
+    // NO CLOBBER: a following prefs->panel sync (the EXACT path the bug reported reverting the toggle) must
+    // NOT revert the live panel — editor_prefs already equals the panel state, so the sync is a no-op.
+    harness.state().sync_editor_prefs_to_panel_for_test();
+    harness.run();
+    assert!(
+        harness.state().mounted_code_panel().is_wrap_enabled(),
+        "MT-072 Fix 3: a prefs->panel sync did NOT clobber the user wrap toggle"
+    );
+    assert_eq!(
+        harness.state().workspace_settings().editor_prefs.word_wrap,
+        WordWrapMode::On,
+        "editor_prefs still On after the sync (no revert)"
+    );
+
+    // TWO-WAY: an explicit Settings change still flows prefs->panel (word wrap OFF via the Settings control).
+    let mut off_prefs = harness.state().workspace_settings().editor_prefs;
+    off_prefs.word_wrap = WordWrapMode::Off;
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(off_prefs));
+    harness.run();
+    assert!(
+        !harness.state().mounted_code_panel().is_wrap_enabled(),
+        "MT-072 Fix 3: an explicit Settings word_wrap=Off still flows prefs->panel (two-way sync intact)"
     );
 }

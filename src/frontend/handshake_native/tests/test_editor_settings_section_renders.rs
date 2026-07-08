@@ -193,6 +193,45 @@ fn editor_settings_controls_show_honest_live_effect_note() {
     }
 }
 
+// ── MT-072 Fix 2: the editor-related sections render contiguously (Editor -> Syntax) BEFORE About ─────
+//
+// Before the fix the Editor + Syntax sections were appended AFTER About, splitting them out of the
+// contract's stated order. This proves the live render order (== AccessKit tree order) is now
+// Editor -> Syntax -> About, grouped and before About. Ordering only — section content + author_ids are
+// unchanged.
+#[test]
+fn editor_and_syntax_sections_render_contiguously_before_about() {
+    let app = ok_app();
+    // A tall viewport so every collapsed section header lays out (no scroll culling of the later sections).
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 1000.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+    harness.run();
+
+    // Collect the section-header author_ids in live tree order (depth-first == render/sibling order).
+    let ids: Vec<String> = harness
+        .root()
+        .children_recursive()
+        .filter_map(|n| n.accesskit_node().author_id().map(str::to_owned))
+        .collect();
+    let pos = |id: &str| ids.iter().position(|a| a == id);
+
+    let editor = pos("settings.section.editor").expect("Editor section header renders");
+    let syntax = pos("settings.section.syntax").expect("Syntax section header renders");
+    let about = pos("settings.section.about").expect("About section header renders");
+
+    assert!(
+        editor < syntax,
+        "Fix 2: Editor renders above Syntax (contract order Editor -> Syntax); editor={editor}, syntax={syntax}"
+    );
+    assert!(
+        syntax < about,
+        "Fix 2: the editor sections render BEFORE About (grouped, not appended after it); syntax={syntax}, about={about}"
+    );
+}
+
 // ── AC-008: the Editor settings section renders + reflects stored state + saves a screenshot ─────────
 #[test]
 fn editor_settings_section_renders_and_screenshots() {

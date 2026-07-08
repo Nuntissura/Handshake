@@ -825,39 +825,16 @@ fn render_sections(
         );
     }
 
-    // ── [6] About (app name + REAL Cargo version) ──────────────────────────────────────────────────
-    let show_about = setting_matches_query(query, &["about", "app", "version"]);
-    if show_about {
-        let about_header = egui::CollapsingHeader::new("About")
-            .default_open(true)
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("App").small().weak());
-                    ui.label(ABOUT_APP_NAME);
-                });
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Version").small().weak());
-                    ui.label(ABOUT_VERSION);
-                });
-            });
-        set_author_id(
-            ui,
-            about_header.header_response.id,
-            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}about"),
-        );
-        // TODO MT-0XX: CLI Bridge config panel - see app/src/components/CliBridgeConfigPanel.tsx
-    }
-
     // ── [MT-072 / Editor] Editor preferences (font/tab/insert-spaces/wrap/whitespace) ──────────────
     //
-    // The MT-072 editor sections (Editor, Syntax) are rendered AFTER the WP-011 sections and CLOSED BY
-    // DEFAULT. Two reasons: (1) appending them keeps the EXISTING sections' positions byte-stable, so a
-    // single-pointer-click interaction on a lower WP-011 control (e.g. the reset-layout test) is
-    // unaffected; (2) collapsed-by-default keeps the dialog's default body short — the user expands the
-    // editor sections they need (a search query auto-expands a matching section). The editor Keybindings
-    // EXTENSION stays IN PLACE inside the one Keybindings section above (RISK-005 — not a 2nd keybindings
-    // store), wrapped in its own collapsed sub-header for the same length reason. Relative order of the
-    // new sections is Editor -> Syntax (the contract's order); the Keybindings extension is in its section.
+    // MT-072 Fix 2: the editor-related sections render as a CONTIGUOUS group in the contract's structured
+    // order — Editor -> Syntax -> About — BEFORE About (they were previously appended AFTER About, which
+    // split them out of order). They stay CLOSED BY DEFAULT so the dialog's default body stays short (a
+    // search query auto-expands a matching section), and they still render AFTER the WP-011 control
+    // sections (Appearance..Model Session), so the reset-layout single-pointer-click test on a higher
+    // WP-011 control is unaffected. The editor Keybindings EXTENSION stays IN PLACE inside the one
+    // Keybindings section above (RISK-005 — not a 2nd keybindings store), wrapped in its own collapsed
+    // sub-header for the same length reason.
     let show_editor = setting_matches_query(
         query,
         &[
@@ -931,6 +908,31 @@ fn render_sections(
             syntax_header.header_response.id,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}syntax"),
         );
+    }
+
+    // ── [6] About (app name + REAL Cargo version) ──────────────────────────────────────────────────
+    // MT-072 Fix 2: About now renders AFTER the contiguous Editor + Syntax group (it previously rendered
+    // BEFORE them). Section content + author_id are unchanged — this is an ordering-only move.
+    let show_about = setting_matches_query(query, &["about", "app", "version"]);
+    if show_about {
+        let about_header = egui::CollapsingHeader::new("About")
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("App").small().weak());
+                    ui.label(ABOUT_APP_NAME);
+                });
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Version").small().weak());
+                    ui.label(ABOUT_VERSION);
+                });
+            });
+        set_author_id(
+            ui,
+            about_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}about"),
+        );
+        // TODO MT-0XX: CLI Bridge config panel - see app/src/components/CliBridgeConfigPanel.tsx
     }
 
     // ── [MT-087 / Diagnostics] In-app Diagnostics panel (§5.8.4 + §10.12.5 three-tier) ─────────────
