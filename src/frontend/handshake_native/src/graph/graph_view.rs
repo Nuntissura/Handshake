@@ -137,7 +137,12 @@ impl GraphMode {
 /// network call of its own — it reuses payloads the folder/tag panels already fetch. When a node is in no
 /// folder/tag membership list, it matches no group and falls back to its `content_type` colour, as before.
 /// The [`GraphNode::with_tags`] / [`GraphNode::with_folder_path`] builders are the per-node setters that
-/// cross-reference (and direct unit-test seams); the host drives them through `apply_group_identity`.
+/// cross-reference (and direct unit-test seams). The host DRIVES this in the shipped app (WP-KERNEL-012
+/// MT-080 FIX B): `app.rs::apply_graph_group_identity` calls [`LoomGraphView::apply_group_identity`]
+/// right after every `set_graph`, building the membership maps from the mounted folder tree's loaded
+/// `child_blocks` and the open tag hub's members. HONEST partiality: only EXPANDED folders and the one
+/// OPEN tag hub contribute members (lazily-loaded membership), so a node in no loaded list keeps its
+/// content_type colour until its folder/hub is loaded.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphNode {
     pub block_id: String,
@@ -191,6 +196,22 @@ impl GraphNode {
 
     fn pos(&self) -> Pos2 {
         Pos2::new(self.x, self.y)
+    }
+}
+
+/// WP-KERNEL-012 MT-080 FIX E: the honest node context-menu availability for a graph node, read from the
+/// node's OWN payload (NOT a hardcoded `false`). A `note` content_type node HAS a backing note to open
+/// (Open Note enabled); every graph node has a stable block id to reveal (Reveal Node enabled). A graph
+/// node is a RESOLVED block from the graph query, so it carries no unresolved link (Create-note stays
+/// disabled). This keeps the disabled-not-dead-enabled invariant: a disabled entry maps to `None` in
+/// [`crate::context_menu_surfaces::node_action_for_id`], never a dead enabled entry.
+pub fn graph_node_menu_availability(
+    node: &GraphNode,
+) -> crate::context_menu_surfaces::NodeMenuAvailability {
+    crate::context_menu_surfaces::NodeMenuAvailability {
+        has_note: node.content_type == "note",
+        has_node_id: !node.block_id.is_empty(),
+        unresolved_link: false,
     }
 }
 
@@ -415,6 +436,10 @@ impl LoomGraphView {
     /// MT-060 (RISK-1 / MC-1): populate every loaded node's tag/folder GROUP identity by a REAL CLIENT-SIDE
     /// CROSS-REFERENCE against the SAME membership surfaces the trees use, keyed by `block_id`. This is the
     /// production path that makes AC3 group-colouring live in the running app — NOT a test-only builder.
+    /// WP-KERNEL-012 MT-080 FIX B wired the live caller: `app.rs::apply_graph_group_identity` invokes this
+    /// after every graph `set_graph`, passing the membership the host holds (loaded folder `child_blocks`
+    /// + the open tag hub's members). Empty maps (nothing loaded yet) leave nodes at their content_type
+    /// colour — honest, since the client cannot colour by memberships it has not loaded.
     ///
     /// - `tag_membership`: `{tag identity (the MT-023 tag-hub title) -> the hub's member block_ids}`, exactly
     ///   the shape the tag tree's `GET /loom/tags/{hub}/blocks` already yields (`HubMember.block_id` /
@@ -873,10 +898,11 @@ impl LoomGraphView {
         // Create note from link) to the canvas response (and selects the node, so the menu visibly
         // belongs to it); a right-click over empty canvas detaches it. A confirmed enabled entry emits
         // [`GraphEvent::NodeMenu`], which the host feeds through `node_navigation_target` ->
-        // `navigation_bus::dispatch` (the click-through wiring that previously had ZERO product call
-        // sites). Availability is honest: a graph node's stable id is its Loom block id (Reveal Node);
-        // no backing note id or unresolved link is carried inline on the graph payload, so those
-        // entries render disabled with their disclosed reason — never a dead handler.
+        // `navigation_bus::dispatch` (the LIVE click-through wired in the wave-2/3 remediation).
+        // WP-KERNEL-012 MT-080 FIX E: availability is read from the clicked node's OWN payload
+        // ([`graph_node_menu_availability`]) — a `note` node ENABLES Open Note, every node enables Reveal
+        // Node; a resolved graph node carries no unresolved link (Create-note disabled) — never a dead
+        // handler (a disabled entry maps to `None`).
         if canvas_resp.secondary_clicked() {
             self.ctx_menu_node = canvas_resp
                 .interact_pointer_pos()
@@ -887,11 +913,16 @@ impl LoomGraphView {
             }
         }
         if let Some(block_id) = self.ctx_menu_node.clone() {
-            let availability = crate::context_menu_surfaces::NodeMenuAvailability {
-                has_note: false,
-                has_node_id: !block_id.is_empty(),
-                unresolved_link: false,
-            };
+            let availability = self
+                .nodes
+                .iter()
+                .find(|n| n.block_id == block_id)
+                .map(graph_node_menu_availability)
+                .unwrap_or(crate::context_menu_surfaces::NodeMenuAvailability {
+                    has_note: false,
+                    has_node_id: !block_id.is_empty(),
+                    unresolved_link: false,
+                });
             if let Some(action) =
                 crate::context_menu_surfaces::show_node_menu(&canvas_resp, availability)
             {

@@ -55,6 +55,10 @@ struct PendingCanvasPlacementCreateUndo {
     workspace_id: String,
     canvas_block_id: String,
     description: String,
+    /// WP-KERNEL-012 MT-080 FIX A: `true` when this create came from `CanvasEvent::AddCard` (a free-text
+    /// card via `POST .../cards`), so when it resolves the host records the minted `placed_block_id` as a
+    /// TextCard. `false` for a `PlaceBlock` (a reference to an existing block — never inline-editable).
+    is_text_card: bool,
 }
 
 /// Stable AccessKit id for the theme-toggle button. egui maps `accesskit::NodeId` directly
@@ -890,6 +894,17 @@ pub struct HandshakeApp {
     /// carries a backend-minted placement id. Draining an `Ok` registers the MT-035 compensating undo;
     /// errors use the same board-error + re-fetch path as generic mutations.
     canvas_create_cells: Vec<PendingCanvasPlacementCreateUndo>,
+    /// WP-KERNEL-012 MT-080 FIX A: the `placed_block_id`s the host minted as FREE-TEXT cards via
+    /// `CanvasEvent::AddCard` (`POST .../cards`). A canvas placement is inline-editable ONLY when its kind
+    /// is `TextCard`, but the backend `LoomCanvasPlacement` carries NO field distinguishing a text card
+    /// from a block reference (a card is just a `note`-block reference) — so `placement_from_json` cannot
+    /// know, and every `getCanvasBoard` (re-)load would otherwise default the card to `BlockRef` and make
+    /// the inline text-card editor UNREACHABLE. The host is the only authority that KNOWS which placements
+    /// it created as cards (it holds the `CreateCanvasCardResponse`), matching the reference-not-copy design
+    /// (`CanvasCardKind` docs). Every board (re-)load re-applies these marks via `mark_text_cards`. Session
+    /// -scoped: a card created in a PRIOR session is not re-marked until the backend exposes a card-origin
+    /// field (documented limitation, NOT a fake).
+    canvas_text_card_block_ids: std::collections::HashSet<String>,
     /// WP-KERNEL-012 MT-026 REMEDIATION: the in-flight canvas mutation (PATCH/POST/DELETE) result
     /// cells. Each frame the feed drain reads the RESOLVED ones (previously the results were dispatched
     /// into throwaway cells and never read): `Ok(())` reconciles by re-fetching the board; `Err` logs
@@ -2215,6 +2230,7 @@ impl HandshakeApp {
             canvas_live_block_generation: 0,
             canvas_live_block_cells: Vec::new(),
             canvas_create_cells: Vec::new(),
+            canvas_text_card_block_ids: std::collections::HashSet::new(),
             canvas_op_cells: Vec::new(),
             graph_op_cells: Vec::new(),
             outgoing_links_raw: Vec::new(),
@@ -2724,6 +2740,7 @@ impl HandshakeApp {
             canvas_live_block_generation: 0,
             canvas_live_block_cells: Vec::new(),
             canvas_create_cells: Vec::new(),
+            canvas_text_card_block_ids: std::collections::HashSet::new(),
             canvas_op_cells: Vec::new(),
             graph_op_cells: Vec::new(),
             outgoing_links_raw: Vec::new(),
@@ -4759,6 +4776,18 @@ impl HandshakeApp {
         }
     }
 
+    /// WP-KERNEL-012 MT-080 FIX B: inject a graph delivery into the SAME shared cell the per-frame feed
+    /// drain reads, so a host-mount proof can drive `set_graph` + the FIX B `apply_group_identity`
+    /// group-colouring cross-reference without a live backend.
+    pub fn deliver_graph_for_test(
+        &self,
+        result: Result<crate::backend_client::LoomGraphData, String>,
+    ) {
+        if let Ok(mut cell) = self.graph_data_cell.lock() {
+            *cell = Some(result);
+        }
+    }
+
     /// WP-KERNEL-012 MT-035: inject a resolved canvas create response into the same pending-create drain
     /// production uses after `dispatch_created_placement` returns. This keeps the host proof off a live
     /// PostgreSQL dependency while still exercising the real frame drain and shared InteractionBus.
@@ -4768,6 +4797,7 @@ impl HandshakeApp {
         canvas_block_id: impl Into<String>,
         result: crate::backend_client::CreatedCanvasPlacement,
         description: impl Into<String>,
+        is_text_card: bool,
     ) -> Result<(), String> {
         let Some(rt) = self.runtime_handle.clone() else {
             return Err(
@@ -4782,8 +4812,16 @@ impl HandshakeApp {
                 workspace_id: workspace_id.into(),
                 canvas_block_id: canvas_block_id.into(),
                 description: description.into(),
+                is_text_card,
             });
         Ok(())
+    }
+
+    /// WP-KERNEL-012 MT-080 FIX A: the set of `placed_block_id`s the host has recorded as free-text cards
+    /// (host-created via `AddCard`). Lets a host-mount proof assert the create -> text-card-tracking path
+    /// without a live backend.
+    pub fn canvas_text_card_block_ids_for_test(&self) -> &std::collections::HashSet<String> {
+        &self.canvas_text_card_block_ids
     }
 
     /// WP-KERNEL-012 MT-026: the current generation for canvas live-block title resolves.
@@ -8767,11 +8805,13 @@ impl HandshakeApp {
 
         // 6. Relevant-memory refresh-for-context (AC-080-5 / MT-063). Subscribe the panel's debounced
         // refresh to the active workspace context: when bound + the context is NEW, the panel marks
-        // in-flight and the shell spawns the FEMS read off-thread. The FEMS read route is verified ABSENT
-        // in this build, so the fetch resolves to the `EndpointMissing` typed blocker and the panel renders
-        // its empty-state banner (the DESIGNED primary path — no backend add, no fake pack). Guarded so the
-        // first fetch fires once per active context (the debounce inside `refresh_for_context` skips an
-        // unchanged context every frame after).
+        // in-flight and the shell spawns the FEMS read off-thread. The FEMS read route EXISTS (WP-009
+        // MT-109 shipped `GET /workspaces/{ws}/memory/pack`, bound in `api::memory::routes`); the live
+        // /memory/pack round-trip is NEEDS_MANAGED_RESOURCE_PROOF (it needs a running backend + PostgreSQL).
+        // In a harness with no backend the fetch resolves to a typed blocker (a Transport error, or the
+        // `EndpointMissing` 404 variant) and the panel renders its empty-state banner — an HONEST typed
+        // blocker, never a faked pack. Guarded so the first fetch fires once per active context (the
+        // debounce inside `refresh_for_context` skips an unchanged context every frame after).
         if !self.capturing_snapshot {
             if let (false, Some(rt), false) = (
                 self.active_project_id.is_empty(),
@@ -10375,6 +10415,10 @@ impl HandshakeApp {
             CreatedPlacement {
                 spec: crate::backend_client::RequestSpec,
                 description: &'static str,
+                // WP-KERNEL-012 MT-080 FIX A: `true` only for `AddCard` (a free-text card). When the
+                // create resolves, the host records the minted `placed_block_id` as a TextCard so the
+                // inline text-card editor is reachable after the board re-loads.
+                is_text_card: bool,
             },
         }
 
@@ -10411,7 +10455,10 @@ impl HandshakeApp {
                 CanvasEvent::NodeMenu {
                     block_id, action, ..
                 } => {
-                    self.route_node_menu_action(ctx, action, &block_id, None);
+                    // WP-KERNEL-012 MT-080 FIX E: pass the placed block id as the note id so an ENABLED
+                    // Open Note (only emitted for a note-backed placement) resolves to a real OpenNote
+                    // navigation target instead of a no-op.
+                    self.route_node_menu_action(ctx, action, &block_id, Some(block_id.as_str()));
                     vec![]
                 }
                 CanvasEvent::AssignSection {
@@ -10436,6 +10483,7 @@ impl HandshakeApp {
                         DEFAULT_CARD_H as f64,
                     ),
                     description: "canvas: place block",
+                    is_text_card: false,
                 }],
                 CanvasEvent::AddCard { title, x, y } => vec![CanvasDispatch::CreatedPlacement {
                     spec: client.create_card_request(
@@ -10448,6 +10496,7 @@ impl HandshakeApp {
                         DEFAULT_CARD_H as f64,
                     ),
                     description: "canvas: add card",
+                    is_text_card: true,
                 }],
                 CanvasEvent::Group {
                     placement_ids,
@@ -10539,7 +10588,11 @@ impl HandshakeApp {
                         client.dispatch(spec, Arc::clone(&cell));
                         self.canvas_op_cells.push(cell);
                     }
-                    CanvasDispatch::CreatedPlacement { spec, description } => {
+                    CanvasDispatch::CreatedPlacement {
+                        spec,
+                        description,
+                        is_text_card,
+                    } => {
                         let cell: crate::backend_client::CanvasBoardCreateCell =
                             Arc::new(Mutex::new(None));
                         client.dispatch_created_placement(spec, Arc::clone(&cell));
@@ -10550,6 +10603,7 @@ impl HandshakeApp {
                                 workspace_id: workspace_id.clone(),
                                 canvas_block_id: canvas_block_id.clone(),
                                 description: description.to_owned(),
+                                is_text_card,
                             });
                     }
                 }
@@ -10706,8 +10760,10 @@ impl HandshakeApp {
                 }
                 GraphEvent::NodeMenu { block_id, action } => {
                     // WP-KERNEL-012 MT-070: a confirmed graph-node context-menu entry routes through
-                    // the MT-070 navigation bus (`node_navigation_target` -> `dispatch`).
-                    self.route_node_menu_action(ctx, action, &block_id, None);
+                    // the MT-070 navigation bus (`node_navigation_target` -> `dispatch`). FIX E: pass the
+                    // node's block id as the note id so an ENABLED Open Note (a `note` node) resolves to a
+                    // real OpenNote navigation target instead of a no-op.
+                    self.route_node_menu_action(ctx, action, &block_id, Some(block_id.as_str()));
                 }
                 // Relayout is owned by the widget (positions reset in place); no host route needed.
                 GraphEvent::Relayout => {}
@@ -10745,15 +10801,80 @@ impl HandshakeApp {
                 Err(err) => self.quick_switcher_nav_status = Some(err.message()),
             },
             None => {
-                // CreateNoteFromLink (or an OpenNote with no note id): not a navigation to an EXISTING
-                // target. The node surfaces render those entries DISABLED (no note id / unresolved link
-                // is carried on graph/canvas node payloads), so reaching here is defensive — surface a
-                // typed status rather than a silent no-op.
+                // CreateNoteFromLink is not a navigation to an EXISTING target (it emits the MT-057
+                // create-note intent, not a reveal), so it lands here by design; surface a typed status
+                // rather than a silent no-op. (Open Note now carries the node's block id as its note id —
+                // FIX E — so an enabled Open Note resolves to a real target instead of reaching here.)
                 self.quick_switcher_nav_status =
                     Some("node menu: no navigable target for this entry".to_owned());
             }
         }
         ctx.request_repaint();
+    }
+
+    /// WP-KERNEL-012 MT-080 FIX B: drive [`crate::graph::graph_view::LoomGraphView::apply_group_identity`]
+    /// from the host after each graph (re)load, so tag/folder GROUP colouring is LIVE in the shipped app.
+    /// Before this wiring `apply_group_identity` had ZERO product callers (dead code); it is now called from
+    /// the graph feed drain right after `set_graph`.
+    ///
+    /// Builds the `{identity -> member block_ids}` maps from membership the host ALREADY holds — the mounted
+    /// folder tree's lazily-loaded `child_blocks` (keyed by the folder PATH built from the tree) and the
+    /// single OPEN tag hub's members (keyed by hub title) — reusing payloads the Folders/Tags panels already
+    /// fetched (NO extra endpoint, NO network call of its own). HONEST partiality: only folders the operator
+    /// has EXPANDED and the one OPEN tag hub contribute members (the client does not know memberships it has
+    /// not loaded); a node in no loaded membership list falls back to its content_type colour, exactly as
+    /// before. When nothing is loaded yet the maps are empty and identity is left as-is (the fresh
+    /// `set_graph` already reset it).
+    fn apply_graph_group_identity(&mut self) {
+        use std::collections::{HashMap, HashSet};
+
+        // Folder membership: {folder path -> member block_ids} from the mounted folder tree's loaded
+        // children. The path is the "/"-joined title chain (matching the graph controls' prefix match).
+        fn collect_folder_membership(
+            nodes: &[crate::graph::folder_tree::FolderNode],
+            prefix: &str,
+            out: &mut HashMap<String, HashSet<String>>,
+        ) {
+            for node in nodes {
+                let path = if prefix.is_empty() {
+                    node.title.clone()
+                } else {
+                    format!("{prefix}/{}", node.title)
+                };
+                if let Some(blocks) = &node.child_blocks {
+                    if !blocks.is_empty() {
+                        out.entry(path.clone())
+                            .or_default()
+                            .extend(blocks.iter().map(|b| b.block_id.clone()));
+                    }
+                }
+                collect_folder_membership(&node.child_folders, &path, out);
+            }
+        }
+        let mut folder_membership: HashMap<String, HashSet<String>> = HashMap::new();
+        if let Ok(tree) = self.editor_mounts.secondary.folder_tree.lock() {
+            collect_folder_membership(&tree.root_nodes, "", &mut folder_membership);
+        }
+
+        // Tag membership: {hub title -> member block_ids} from the single OPEN tag hub page (its members).
+        let mut tag_membership: HashMap<String, HashSet<String>> = HashMap::new();
+        if let Ok(hub) = self.editor_mounts.secondary.tags_hub.lock() {
+            if let Some(hub) = hub.as_ref() {
+                if !hub.members.is_empty() {
+                    tag_membership.insert(
+                        hub.title.clone(),
+                        hub.members.iter().map(|m| m.block_id.clone()).collect(),
+                    );
+                }
+            }
+        }
+
+        if folder_membership.is_empty() && tag_membership.is_empty() {
+            return; // Nothing loaded to colour by yet — leave the content_type colours (honest).
+        }
+        if let Ok(mut view) = self.editor_mounts.secondary.graph_view.lock() {
+            view.apply_group_identity(&tag_membership, &folder_membership);
+        }
     }
 
     /// WP-KERNEL-012 MT-021/042 REMEDIATION: dispatch one semantic-edge mutation built by `build`
@@ -10955,14 +11076,26 @@ impl HandshakeApp {
         // ── Graph: drain the shared data cell -> set_graph (the deliver loop) ────────────────────────
         let delivered = self.graph_data_cell.lock().ok().and_then(|mut c| c.take());
         if let Some(result) = delivered {
+            let mut graph_set = false;
             if let Ok(mut view) = self.editor_mounts.secondary.graph_view.lock() {
                 match result {
-                    Ok(data) => view.set_graph(data.nodes, data.edges),
+                    Ok(data) => {
+                        view.set_graph(data.nodes, data.edges);
+                        graph_set = true;
+                    }
                     Err(msg) => {
                         view.loading = false;
                         view.error = Some(msg);
                     }
                 }
+            }
+            // WP-KERNEL-012 MT-080 FIX B: after the graph is (re)populated, drive
+            // `LoomGraphView::apply_group_identity` from the loaded folder/tag membership the host holds,
+            // so tag/folder GROUP colouring is LIVE in the shipped app (the method previously had zero
+            // product callers — dead code). Done OUTSIDE the view lock above (the method re-locks the view
+            // after reading the folder tree / tag hub).
+            if graph_set {
+                self.apply_graph_group_identity();
             }
             ctx.request_repaint();
         }
@@ -11069,6 +11202,10 @@ impl HandshakeApp {
                             egui::Vec2::new(data.pan_x, data.pan_y),
                             data.zoom,
                         );
+                        // WP-KERNEL-012 MT-080 FIX A: re-mark host-created free-text cards as `TextCard`
+                        // (the getCanvasBoard payload can't carry the card-vs-reference kind), so a card the
+                        // host created via AddCard stays inline-editable across board re-loads.
+                        board.mark_text_cards(&self.canvas_text_card_block_ids);
                         board.error = None;
                         resolve_after_board = Some((workspace_id, placements_for_resolve));
                     }
@@ -11094,6 +11231,16 @@ impl HandshakeApp {
             for pending in std::mem::take(&mut self.canvas_create_cells) {
                 match pending.cell.lock().ok().and_then(|mut c| c.take()) {
                     Some(Ok(created)) => {
+                        // WP-KERNEL-012 MT-080 FIX A: a resolved AddCard create is the ONLY place the host
+                        // learns a placement's backend-minted `placed_block_id` is a free-text card. Record
+                        // it so every subsequent board (re-)load re-marks that placement as `TextCard` (the
+                        // inline-editable kind) — the getCanvasBoard payload carries no card-vs-reference
+                        // field, so without this the card would reload as a `BlockRef` and its inline editor
+                        // would be unreachable.
+                        if pending.is_text_card {
+                            self.canvas_text_card_block_ids
+                                .insert(created.placed_block_id.clone());
+                        }
                         let retry = created.clone();
                         let bus = crate::interop::InteractionBus::get_or_init(ctx);
                         let registered =

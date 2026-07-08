@@ -1268,20 +1268,21 @@ pub fn status_bar_action_for_id(
 // hold NO egui state and perform NO mutation (dispatch happens at the wiring site, exactly as the
 // MT-019 primitive's `into_items()`/`show_on` split requires).
 //
-// ── WIRING STATUS (HONEST — read before judging the ACs): NOT YET WIRED INTO THE LIVE RENDER LOOP ──
-// As of this MT-070 commit these builders/mappers and `show_editor_body_menu` / `show_node_menu` have
-// NO product call site. The LIVE code-editor body right-click menu is still
-// `code_editor/panel.rs::render_editor_context_menu` (a separate pre-existing 2-entry egui menu offering
-// only Rename Symbol + Quick Fix); the canvas/loom node right-click menus are still the MT-021
-// `canvas_node_context_items` / `loom_node_context_items` surfaces. None of those panes call this
-// MT-070 layer. Wiring the click-through requires editing `code_editor/panel.rs`, `canvas_board.rs`,
-// `loom_graph.rs`, and `quick_switcher.rs` — ALL OUTSIDE the MT-070 `allowed_paths` allowlist
-// (`context_menu_surfaces.rs`, `navigation_bus.rs`, `lib.rs`, + the 2 test files). The contract
-// `scope.summary` mandates those call-site edits, which `allowed_paths` forbids: a packet contradiction
-// raised as a typed BLOCKER (BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE) to the Orchestrator rather than
-// resolved by an undisclosed scope expansion (CX-218L, MC-070-6, GLOBAL-SCOPE-005). The phrase "the
-// wiring site dispatches …" below describes the call site that MUST be added once the orchestrator
-// reconciles the contract; it does NOT claim such a site exists in this commit.
+// ── WIRING STATUS (HONEST — read before judging the ACs): WIRED INTO THE LIVE RENDER LOOP ──
+// The wave-2/3 remediation landed the call sites. These builders/mappers are called from the live panes:
+//   - EDITOR BODY: `code_editor/panel.rs::render_editor_context_menu` builds its right-click menu from
+//     `editor_body_context_items(...)` (the MT-070 5-entry list — Rename Symbol / Quick Fix / Format
+//     Selection / Peek Definition / Create note from link) extended with the MT-046 "Copy as note
+//     reference" entry, and maps a confirmed id back through `editor_body_action_for_id`. It calls the
+//     lower-level builder directly (NOT `show_editor_body_menu` — see that helper's note).
+//   - CANVAS NODE: `graph/canvas_board.rs` (its `show`) calls `show_node_menu(...)` on a right-clicked
+//     placement and emits `CanvasEvent::NodeMenu`.
+//   - GRAPH NODE: `graph/graph_view.rs` (its `show`) calls `show_node_menu(...)` on a right-clicked node
+//     and emits `GraphEvent::NodeMenu`.
+// The host (`app.rs::route_node_menu_action`) feeds a confirmed node action through
+// `node_navigation_target` -> `navigation_bus::dispatch`; a confirmed editor-body action dispatches to the
+// real code-panel action (begin_rename / quick_fix / request_format_selection / go-to-def /
+// EditorEvent::CreateNote). No entry is a placeholder — a disabled entry maps to `None` (AC-070-4/5).
 //
 // DISPATCH-ONLY (RISK-070-1/MC-070-1, RISK-070-4/MC-070-4): every required entry resolves to a REAL,
 // already-built editor action — never a placeholder/no-op/TODO. The bindings reuse:
@@ -1628,12 +1629,13 @@ pub fn node_navigation_target(
 /// (so a disabled/dead entry can never fire — AC-070-5). Reuses the WP-011 primitive verbatim — NO new
 /// menu-rendering infrastructure (AC-070-7 / RISK-070-4).
 ///
-/// NOT YET CALLED FROM PRODUCT CODE: the intended caller is `code_editor/panel.rs::render_editor_context_menu`
-/// (which today shows only its own 2-entry inline menu and does NOT call this helper). Adding that call
-/// and dispatching the returned [`EditorBodyMenuAction`] through the code panel
-/// (begin_rename / quick_fix / request_format_selection / go-to-def / `EditorEvent::CreateNote`) is the
-/// remaining click-through wiring, blocked because `code_editor/panel.rs` is outside the MT-070
-/// `allowed_paths` (BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE).
+/// UNUSED-IN-PROD CONVENIENCE WRAPPER (not dead — exercised by `tests/test_context_menu_surfaces.rs`):
+/// the LIVE code-editor body (`code_editor/panel.rs::render_editor_context_menu`) does NOT call this
+/// wrapper. It builds the menu from the lower-level `editor_body_context_items(...)` directly so it can
+/// append the MT-046 "Copy as note reference" entry after the MT-070 list, then maps confirmed ids with
+/// `editor_body_action_for_id`. This wrapper packages the same build+show+map for a caller that wants the
+/// bare MT-070 list without the extra entry; it stays as a tested convenience surface + the node-menu
+/// twin's symmetry.
 pub fn show_editor_body_menu(
     response: &egui::Response,
     availability: EditorBodyAvailability,
@@ -1648,11 +1650,11 @@ pub fn show_editor_body_menu(
 /// [`show_editor_body_menu`]: same WP-011 primitive, same no-dead-handler mapping (AC-070-4), same
 /// Role::Menu / Role::MenuItem AccessKit emission (AC-070-9).
 ///
-/// NOT YET CALLED FROM PRODUCT CODE: the intended callers are `canvas_board.rs` / `loom_graph.rs` (which
-/// today attach the MT-021 node menus and do NOT call this helper). Adding those calls and feeding the
+/// LIVE CALLERS: `graph/canvas_board.rs` (its `show`, on a right-clicked placement) and
+/// `graph/graph_view.rs` (its `show`, on a right-clicked graph node) call this helper and emit
+/// `CanvasEvent::NodeMenu` / `GraphEvent::NodeMenu`. The host (`app.rs::route_node_menu_action`) feeds the
 /// returned [`NodeMenuAction`] through [`node_navigation_target`] -> [`crate::navigation_bus::dispatch`]
-/// on the live shell is the remaining click-through wiring, blocked because `canvas_board.rs` /
-/// `loom_graph.rs` are outside the MT-070 `allowed_paths` (BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE).
+/// on the live shell — the MT-070 click-through, landed in the wave-2/3 remediation.
 pub fn show_node_menu(
     response: &egui::Response,
     availability: NodeMenuAvailability,

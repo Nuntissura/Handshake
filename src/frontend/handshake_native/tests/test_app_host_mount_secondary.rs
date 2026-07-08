@@ -21,8 +21,9 @@
 //!   on the live mounted graph is drained by the host (the live fetch is gated).
 //! - PT-080-B / AC-080-5: `outgoing_links_click_routes_to_nav` seeds a resolved link on the mounted pane,
 //!   clicks it, and asserts a nav target reaches the shell's outbound queue (routed to the nav bus).
-//! - PT-080-B / AC-080-5: `relevant_memory_shows_endpoint_missing_empty_state` drives the FEMS read (route
-//!   verified ABSENT) and asserts the panel holds the `EndpointMissing` typed blocker (honest empty-state).
+//! - PT-080-B / AC-080-5: `relevant_memory_shows_endpoint_missing_empty_state` drives the FEMS read (the
+//!   `GET /memory/pack` route EXISTS — WP-009 MT-109; the live round-trip is NEEDS_MANAGED_RESOURCE_PROOF)
+//!   and asserts that with no backend the panel holds an HONEST typed blocker (honest empty-state).
 //! - PT-080-A / AC-080-6: `code_text_node_exposes_swarm_edit_actions` asserts the live `code_editor_text`
 //!   node advertises `Action::SetValue` + `Action::ReplaceSelectedText`, and a dispatched SetValue mutates
 //!   the buffer.
@@ -1558,6 +1559,178 @@ fn canvas_board_fetch_resolves_live_titles_into_mounted_cards() {
     );
 }
 
+// ── WP-KERNEL-012 MT-080 FIX A: a host-created text card reloads as an inline-editable TextCard ────────
+
+#[test]
+fn host_created_text_card_reloads_inline_editable() {
+    use handshake_native::backend_client::{CanvasBoardData, CreatedCanvasPlacement};
+    use handshake_native::graph::canvas_board::{CanvasCardKind, CanvasPlacementCard};
+
+    let (app, _rt) = secondary_shell(); // pane-a is the AtelierEditor (canvas) + a live runtime handle
+    let board = app.mounted_canvas_board();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    // Inject a RESOLVED AddCard create (is_text_card = true) into the SAME pending-create drain production
+    // uses after `dispatch_created_placement` returns. The host records the minted `placed_block_id` as a
+    // free-text card (the create is the only place it can learn this — the wire carries no card-vs-ref flag).
+    harness
+        .state_mut()
+        .deliver_canvas_created_placement_for_test(
+            "ws-fixa",
+            "canvas-fixa",
+            CreatedCanvasPlacement {
+                placement_id: "LCP-card".to_owned(),
+                placed_block_id: "blk-card".to_owned(),
+                x: 40.0,
+                y: 50.0,
+                w: 200.0,
+                h: 120.0,
+            },
+            "canvas: add card",
+            true,
+        )
+        .expect("inject created text card into mounted drain");
+    let mut recorded = false;
+    for _ in 0..20 {
+        harness.run_steps(2);
+        if harness
+            .state()
+            .canvas_text_card_block_ids_for_test()
+            .contains("blk-card")
+        {
+            recorded = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        recorded,
+        "FIX A: the host recorded the AddCard-created block id as a text card"
+    );
+
+    // A getCanvasBoard (re)load delivers the placement as a PLAIN reference (defaults to BlockRef in
+    // `placement_from_json`). The host re-marks it TextCard on load via `mark_text_cards`. Re-deliver in a
+    // bounded poll so a competing async re-fetch to a dead backend can't leave the assertion racy (an Err
+    // delivery leaves placements untouched, so once the Ok lands + marks, the mark persists).
+    let mut marked = false;
+    for _ in 0..40 {
+        harness
+            .state()
+            .deliver_canvas_board_for_test(Ok(CanvasBoardData {
+                placements: vec![CanvasPlacementCard::new(
+                    "LCP-card", "blk-card", 40.0, 50.0, 200.0, 120.0,
+                )],
+                visual_edges: vec![],
+                pan_x: 0.0,
+                pan_y: 0.0,
+                zoom: 1.0,
+            }));
+        harness.run_steps(2);
+        if board
+            .lock()
+            .unwrap()
+            .placements
+            .iter()
+            .any(|p| p.placement_id == "LCP-card" && p.card_kind == CanvasCardKind::TextCard)
+        {
+            marked = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        marked,
+        "FIX A: the host-created text card reloads as a TextCard (inline editor reachable), not a BlockRef"
+    );
+
+    // Double-click opens the inline editor on the text card (the SAME logic the live double-click runs).
+    {
+        let mut b = board.lock().unwrap();
+        let idx = b
+            .placements
+            .iter()
+            .position(|p| p.placement_id == "LCP-card")
+            .expect("card present");
+        assert!(
+            b.try_begin_inline_edit(idx),
+            "FIX A: double-click OPENS the inline text-card editor"
+        );
+        assert_eq!(
+            b.editing_card_id(),
+            Some("LCP-card"),
+            "FIX A: the inline editor is open on the created text card"
+        );
+    }
+}
+
+// ── WP-KERNEL-012 MT-080 FIX B: the host drives apply_group_identity after a graph (re)load ────────────
+
+#[test]
+fn graph_load_applies_group_identity_from_folder_membership() {
+    use handshake_native::backend_client::LoomGraphData;
+    use handshake_native::graph::folder_tree::{FolderRow, LeafBlock};
+    use handshake_native::graph::graph_view::GraphNode;
+
+    let (app, _rt) = secondary_shell();
+    // Seed the mounted folder tree with an EXPANDED folder ("Research") whose loaded child_blocks hold blk-1.
+    let folder_tree = app.mounted_folder_tree_for_test();
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        tree.set_folders(&[FolderRow::new("F-research", None, "Research", None)]);
+        let node = tree
+            .find_folder_mut("F-research")
+            .expect("seeded folder present");
+        node.expanded = true;
+        node.child_blocks = Some(vec![LeafBlock::new("blk-1", "Note One", "note")]);
+    }
+    let graph_view = app.mounted_graph_view();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    // Deliver a graph: blk-1 is in the "Research" folder; blk-2 is in no loaded folder.
+    harness.state().deliver_graph_for_test(Ok(LoomGraphData {
+        nodes: vec![
+            GraphNode::new("blk-1", "Note One", "note"),
+            GraphNode::new("blk-2", "Note Two", "note"),
+        ],
+        edges: vec![],
+    }));
+
+    // Drain until the graph lands + the host cross-references folder membership (apply_group_identity runs).
+    let mut applied = false;
+    for _ in 0..40 {
+        harness.run_steps(2);
+        let has_identity = graph_view
+            .lock()
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|n| n.block_id == "blk-1" && n.folder_path.as_deref() == Some("Research"));
+        if has_identity {
+            applied = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        applied,
+        "FIX B: the host cross-referenced folder membership into graph node blk-1 \
+         (apply_group_identity was invoked after set_graph)"
+    );
+    // A node in no loaded folder keeps no folder identity — honest partiality, not a fabricated group.
+    let v = graph_view.lock().unwrap();
+    let n2 = v
+        .nodes
+        .iter()
+        .find(|n| n.block_id == "blk-2")
+        .expect("blk-2 present");
+    assert_eq!(
+        n2.folder_path, None,
+        "FIX B: a node in no loaded membership list keeps no folder identity"
+    );
+}
+
 // ── PT-080-B / AC-080-5: outgoing-links click routes to the nav bus ───────────────────────────────────
 
 #[test]
@@ -1621,7 +1794,9 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     // Several frames so the shell fires the FEMS read and the off-thread fetch resolves to the typed
-    // blocker (the route is verified ABSENT). Poll the panel until the blocker lands or a bound is hit.
+    // blocker. The `GET /memory/pack` route EXISTS (WP-009 MT-109); with no backend in this harness the
+    // fetch yields a typed blocker (Transport / 404), NOT an absent route. Poll the panel until the blocker
+    // lands or a bound is hit.
     let mut got_blocker = false;
     let mut ever_in_flight = false;
     for _ in 0..80 {
@@ -1643,14 +1818,15 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
         ever_in_flight,
         "AC-080-5: the shell DROVE the FEMS refresh-for-context (the read fired) — the wiring is live"
     );
-    // The FEMS read route is ABSENT in this build, so the fetch resolves to a typed blocker (EndpointMissing
-    // on a 404, or a Transport error if no backend is reachable) — either way the panel holds an HONEST
+    // The `GET /memory/pack` route EXISTS (WP-009 MT-109 shipped it); the live round-trip is
+    // NEEDS_MANAGED_RESOURCE_PROOF. With no backend reachable in this harness the fetch resolves to a typed
+    // blocker (a Transport error, or `EndpointMissing` on a 404) — either way the panel holds an HONEST
     // typed blocker and renders its empty-state, never a faked pack.
     let blocker = panel.lock().unwrap().blocker().is_some();
     assert!(
         got_blocker && blocker,
-        "AC-080-5: the relevant-memory pane drove the FEMS read to an HONEST typed blocker (the route is \
-         ABSENT) and shows its empty-state — never a faked pack"
+        "AC-080-5: the relevant-memory pane drove the FEMS read (the route EXISTS; no backend here) to an \
+         HONEST typed blocker and shows its empty-state — never a faked pack"
     );
 }
 

@@ -941,6 +941,65 @@ fn mt070_no_required_entry_is_a_dead_handler() {
     println!("PASS AC-070-5: no required context-menu entry is a dead/placeholder handler");
 }
 
+// ── WP-KERNEL-012 MT-080 FIX E: graph/canvas node-menu availability is read from the node payload ──────
+
+#[test]
+fn mt080_graph_and_canvas_node_availability_from_payload() {
+    use handshake_native::context_menu_surfaces::node_menu_ids;
+    use handshake_native::graph::canvas_board::{placement_menu_availability, CanvasPlacementCard};
+    use handshake_native::graph::graph_view::{graph_node_menu_availability, GraphNode};
+
+    // A NOTE-backed graph node ENABLES Open Note (has_note read from the payload content_type, not a
+    // hardcoded `false`). The enabled entry maps to a REAL action (no dead handler).
+    let note_node = GraphNode::new("blk-note", "A Note", "note");
+    let navail = graph_node_menu_availability(&note_node);
+    assert!(navail.has_note, "FIX E: a `note` graph node has a backing note");
+    assert_eq!(
+        node_action_for_id(node_menu_ids::OPEN_NOTE, navail),
+        Some(NodeMenuAction::OpenNote),
+        "FIX E: a note-backed node ENABLES Open Note (maps to a real action)"
+    );
+
+    // A NON-note graph node keeps Open Note DISABLED — the invariant (disabled entry maps to None).
+    let file_node = GraphNode::new("blk-file", "A File", "file");
+    let favail = graph_node_menu_availability(&file_node);
+    assert!(!favail.has_note, "FIX E: a non-note node has no backing note");
+    assert_eq!(
+        node_action_for_id(node_menu_ids::OPEN_NOTE, favail),
+        None,
+        "FIX E: a non-note node keeps Open Note disabled (no dead ENABLED entry)"
+    );
+
+    // An UNRESOLVED-LINK canvas placement (a stale reference: live_title None) ENABLES Create-note.
+    let stale = CanvasPlacementCard::new("p-stale", "blk-missing", 0.0, 0.0, 200.0, 120.0);
+    let savail = placement_menu_availability(&stale);
+    assert!(
+        savail.unresolved_link,
+        "FIX E: a stale reference is an unresolved link"
+    );
+    assert_eq!(
+        node_action_for_id(node_menu_ids::CREATE_NOTE_FROM_LINK, savail),
+        Some(NodeMenuAction::CreateNoteFromLink),
+        "FIX E: an unresolved-link node ENABLES Create-note from link"
+    );
+
+    // A free-text canvas card ENABLES Open Note (it owns a note) and is NOT an unresolved link.
+    let text = CanvasPlacementCard::new("p-text", "blk-text", 0.0, 0.0, 200.0, 120.0)
+        .as_text_card("hello");
+    let tavail = placement_menu_availability(&text);
+    assert!(tavail.has_note, "FIX E: a text card has a backing note");
+    assert!(
+        !tavail.unresolved_link,
+        "FIX E: a text card is not an unresolved link"
+    );
+    assert_eq!(
+        node_action_for_id(node_menu_ids::OPEN_NOTE, tavail),
+        Some(NodeMenuAction::OpenNote),
+        "FIX E: a text card ENABLES Open Note"
+    );
+    println!("PASS FIX E: graph/canvas node-menu availability reads the node payload (no hardcoded false)");
+}
+
 // ── AC-070-7 / RISK-070-5: required code-action ids ARE the existing registry ids (no parallel scheme) ─
 
 #[test]

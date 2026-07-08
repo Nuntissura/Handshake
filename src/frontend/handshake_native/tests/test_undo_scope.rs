@@ -692,6 +692,7 @@ fn canvas_created_placement_response_registers_cross_pane_undo_in_live_shell() {
             h: 120.0,
         },
         "canvas: place block",
+        false, // WP-KERNEL-012 MT-080 FIX A: a place-block reference, not a free-text card.
     )
     .expect("inject created-placement result into mounted host drain");
 

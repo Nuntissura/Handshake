@@ -46,21 +46,19 @@
 //! mounted editor panes own). A missing real navigator seam is a typed [`NavError`], never a panic and
 //! never a placeholder.
 //!
-//! ## WIRING STATUS (HONEST — read before judging AC-070-3): NO PRODUCT CALLER YET
+//! ## WIRING STATUS (HONEST — read before judging AC-070-3): WIRED (wave-2/3 remediation)
 //!
-//! As of this MT-070 commit, [`dispatch`] has NO product call site. The only non-test references to this
-//! module are its own definition + `lib.rs` (`pub mod navigation_bus;`). The quick-switcher confirm path
-//! (`quick_switcher.rs` -> `app.rs`) does NOT call [`dispatch`]; MT-079 already routes quick-switcher /
-//! link selections by calling the `ShellNavigator` `open_*` seams DIRECTLY, so AC-070-3 is satisfied at
-//! runtime by MT-079's direct seam wiring, NOT by this bus. This `NavigationTarget` layer therefore sits
-//! BETWEEN the quick-switcher and the shell with no live caller. The `test_navigation_bus.rs` proofs
-//! drive [`dispatch`] against a REAL `HandshakeApp` (genuine), but nothing in the running app invokes it.
-//! Wiring the quick-switcher / canvas / loom call sites to route THROUGH this bus requires editing
-//! `quick_switcher.rs`, `canvas_board.rs`, and `loom_graph.rs` — all OUTSIDE the MT-070 `allowed_paths`.
-//! That contract contradiction (and whether AC-070-3 should instead be reconciled/retired against MT-079)
-//! is raised as a typed BLOCKER (BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE) to the Orchestrator. The "this is
-//! the function the quick-switcher confirm path … call" phrasing on [`dispatch`] below names the INTENDED
-//! caller, not an existing one.
+//! [`dispatch`] HAS a live product call site. The graph/canvas node context menus route a confirmed node
+//! action through [`crate::context_menu_surfaces::node_navigation_target`] into
+//! [`crate::app::HandshakeApp::route_node_menu_action`], which calls [`dispatch`] on the live shell
+//! (`app.rs` — see `route_node_menu_action`, the `navigation_bus::dispatch(self, &target)` call). The
+//! confirmed-action producers are `graph_view.rs` (`show_node_menu` on a graph node) and
+//! `canvas_board.rs` (`show_node_menu` on a canvas placement), whose `GraphEvent::NodeMenu` /
+//! `CanvasEvent::NodeMenu` the host drains into `route_node_menu_action`. MT-079 additionally routes
+//! quick-switcher / link selections by calling the `ShellNavigator` `open_*` seams DIRECTLY (a second,
+//! independent satisfaction of AC-070-3); this bus is the node-menu click-through. A missing/closed pane
+//! is a typed [`NavError`] on the same nav-status surface the quick switcher uses, never a panic. The
+//! `test_navigation_bus.rs` proofs drive [`dispatch`] against a REAL `HandshakeApp`.
 
 use crate::pane_registry::PaneId;
 use crate::quick_switcher::{NavDispatchOutcome, ShellNavigator};

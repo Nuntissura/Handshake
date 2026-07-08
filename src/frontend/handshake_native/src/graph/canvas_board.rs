@@ -315,6 +315,31 @@ impl CanvasPlacementCard {
     }
 }
 
+/// WP-KERNEL-012 MT-080 FIX E: the honest node context-menu availability for a canvas placement, read from
+/// the placement's OWN payload (NOT a hardcoded `false`):
+/// - `has_note`: a free-text [`CanvasCardKind::TextCard`], or a reference whose resolved block is a `note`,
+///   HAS a backing note to open (Open Note enabled).
+/// - `has_node_id`: a placement with a non-empty `placed_block_id` can be revealed (Reveal Node enabled).
+/// - `unresolved_link`: a block REFERENCE whose block did not resolve (`live_title == None` -> shown as
+///   "(stale reference)") is an unresolved reference a note can be created for (Create-note enabled). A
+///   text card is never an unresolved link. Consistent with the "(stale reference)" the card already
+///   displays. (During the brief window before the first `getLoomBlock` resolve a reference reads as
+///   unresolved — the same as its displayed label.)
+///
+/// Keeps the disabled-not-dead-enabled invariant: a disabled entry maps to `None` in
+/// [`crate::context_menu_surfaces::node_action_for_id`].
+pub fn placement_menu_availability(
+    card: &CanvasPlacementCard,
+) -> crate::context_menu_surfaces::NodeMenuAvailability {
+    let has_block = !card.placed_block_id.is_empty();
+    crate::context_menu_surfaces::NodeMenuAvailability {
+        has_note: card.card_kind.is_text_card()
+            || card.live_content_type.as_deref() == Some("note"),
+        has_node_id: has_block,
+        unresolved_link: has_block && !card.card_kind.is_text_card() && card.live_title.is_none(),
+    }
+}
+
 /// A visual-only edge between two placements (board decoration; NOT a `loom_edge`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VisualEdge {
@@ -689,6 +714,55 @@ impl LoomCanvasBoard {
         }
         self.loading = false;
         self.error = None;
+    }
+
+    /// WP-KERNEL-012 MT-080 FIX A: mark every placement whose `placed_block_id` the host recorded as a
+    /// free-text card (created via `AddCard`) as a [`CanvasCardKind::TextCard`], so the inline text-card
+    /// editor is REACHABLE after a `getCanvasBoard` (re-)load. The backend `LoomCanvasPlacement` carries no
+    /// card-vs-reference field (a card is just a `note`-block reference), so `placement_from_json` defaults
+    /// every placement to `BlockRef`; the host — the only authority that knows which placements it created
+    /// as cards — re-applies the mark here after each load. Reference-not-copy safe: this NEVER copies
+    /// block content; `live_body` is only seeded to an empty buffer when absent so a double-click opens an
+    /// editable (initially empty) card. A placement already marked `TextCard` is left untouched. Called by
+    /// the host right after [`Self::set_board`].
+    pub fn mark_text_cards(&mut self, text_card_block_ids: &HashSet<String>) {
+        if text_card_block_ids.is_empty() {
+            return;
+        }
+        for card in &mut self.placements {
+            if card.card_kind.is_text_card() {
+                continue;
+            }
+            if text_card_block_ids.contains(&card.placed_block_id) {
+                card.card_kind = CanvasCardKind::TextCard;
+                if card.live_body.is_none() {
+                    card.live_body = Some(String::new());
+                }
+            }
+        }
+    }
+
+    /// WP-KERNEL-012 MT-080 FIX A: the edit-entry decision a double-click on a card makes. A
+    /// [`CanvasCardKind::TextCard`] ENTERS in-place editing (its own body seeds the buffer — never a block
+    /// copy); a [`CanvasCardKind::BlockRef`] navigates to its block instead (reference-not-copy gate). This
+    /// is the SAME logic the live double-click handler runs, extracted so it is directly unit-testable.
+    /// Returns `true` when the inline editor opened.
+    pub fn try_begin_inline_edit(&mut self, idx: usize) -> bool {
+        let Some(card) = self.placements.get(idx) else {
+            return false;
+        };
+        if card.card_kind.is_text_card() {
+            self.editing_card_id = Some(card.placement_id.clone());
+            self.editing_buffer = card.live_body.clone().unwrap_or_default();
+            self.status = format!("Editing {} (text card)", card.placement_id);
+            true
+        } else {
+            self.status = format!(
+                "Open block {} (reference — not inline-editable)",
+                card.placed_block_id
+            );
+            false
+        }
     }
 
     /// Canvas-space -> screen-space transform (THE single pair, RISK-1 / MC-1):
@@ -1111,19 +1185,10 @@ impl LoomCanvasBoard {
             if let Some(screen) = canvas_resp.interact_pointer_pos() {
                 let canvas_pos = self.screen_to_canvas(screen, origin);
                 if let Some(idx) = self.placement_at_canvas(canvas_pos) {
-                    let card = &self.placements[idx];
-                    if card.card_kind.is_text_card() {
-                        // Enter edit mode: seed the buffer from the card's own body (never a block copy).
-                        self.editing_card_id = Some(card.placement_id.clone());
-                        self.editing_buffer = card.live_body.clone().unwrap_or_default();
-                        self.status = format!("Editing {} (text card)", card.placement_id);
-                    } else {
-                        // A block reference navigates to its block — it is NEVER turned into an editor.
-                        self.status = format!(
-                            "Open block {} (reference — not inline-editable)",
-                            card.placed_block_id
-                        );
-                    }
+                    // WP-KERNEL-012 MT-080 FIX A: a TextCard enters in-place editing (its own body seeds
+                    // the buffer — never a block copy); a BlockRef navigates to its block instead. Same
+                    // logic as [`Self::try_begin_inline_edit`] (extracted so it is unit-testable).
+                    self.try_begin_inline_edit(idx);
                 }
             }
         }
@@ -1172,10 +1237,11 @@ impl LoomCanvasBoard {
         // site). A RIGHT-click over a placement attaches the 3-entry node menu (Open Note / Reveal
         // Node / Create note from link) to the canvas response; a right-click over empty canvas
         // detaches it (no menu). A confirmed enabled entry emits [`CanvasEvent::NodeMenu`], which the
-        // host feeds through `node_navigation_target` -> `navigation_bus::dispatch` (the click-through
-        // wiring that previously had ZERO product call sites). Availability is honest: a placement's
-        // node id is its PLACED BLOCK (Reveal Node); no backing note id or unresolved link is carried
-        // inline, so those entries render disabled with their disclosed reason — never a dead handler.
+        // host feeds through `node_navigation_target` -> `navigation_bus::dispatch` (the LIVE click-through
+        // wired in the wave-2/3 remediation). WP-KERNEL-012 MT-080 FIX E: availability is read from the
+        // clicked placement's OWN payload ([`placement_menu_availability`]) — a text/note card ENABLES Open
+        // Note, a resolvable placement enables Reveal Node, and a stale reference ENABLES Create-note —
+        // never a dead handler (a disabled entry maps to `None`).
         if canvas_resp.secondary_clicked() {
             self.ctx_menu_placement = canvas_resp
                 .interact_pointer_pos()
@@ -1186,11 +1252,7 @@ impl LoomCanvasBoard {
         if let Some(pid) = self.ctx_menu_placement.clone() {
             if let Some(card) = self.placements.iter().find(|c| c.placement_id == pid) {
                 let block_id = card.placed_block_id.clone();
-                let availability = crate::context_menu_surfaces::NodeMenuAvailability {
-                    has_note: false,
-                    has_node_id: !block_id.is_empty(),
-                    unresolved_link: false,
-                };
+                let availability = placement_menu_availability(card);
                 if let Some(action) =
                     crate::context_menu_surfaces::show_node_menu(&canvas_resp, availability)
                 {
@@ -2407,6 +2469,87 @@ mod tests {
             Some("hello body"),
             "text card seeds its body"
         );
+    }
+
+    /// WP-KERNEL-012 MT-080 FIX A: the inline text-card editor is REACHABLE in prod. A host-created card
+    /// (its block id recorded by the host) is re-marked `TextCard` on board (re)load via `mark_text_cards`,
+    /// and a double-click on it OPENS the inline editor via `try_begin_inline_edit`. Before this fix a
+    /// (re)loaded placement always defaulted to `BlockRef`, so the editor was unreachable.
+    #[test]
+    fn host_text_card_mark_makes_inline_editor_reachable() {
+        let mut b = board_with(2); // p-001/block-001, p-002/block-002 — both BlockRef by default
+        let idx = b
+            .placements
+            .iter()
+            .position(|p| p.placed_block_id == "block-001")
+            .unwrap();
+        // Before the host mark, the card is a block reference: a double-click NAVIGATES, no editor opens.
+        assert_eq!(b.placements[idx].card_kind, CanvasCardKind::BlockRef);
+        assert!(
+            !b.try_begin_inline_edit(idx),
+            "a BlockRef does NOT open the inline editor"
+        );
+        assert_eq!(b.editing_card_id(), None, "no editor open for a block reference");
+        // The host recorded block-001 as a free-text card it created via AddCard -> re-mark on load.
+        let mut ids = HashSet::new();
+        ids.insert("block-001".to_owned());
+        b.mark_text_cards(&ids);
+        assert_eq!(
+            b.placements[idx].card_kind,
+            CanvasCardKind::TextCard,
+            "FIX A: the host-recorded card re-marks as TextCard on (re)load"
+        );
+        // A double-click (the SAME logic the live handler runs) now OPENS the inline editor.
+        assert!(
+            b.try_begin_inline_edit(idx),
+            "FIX A: a TextCard opens the inline editor"
+        );
+        assert_eq!(
+            b.editing_card_id(),
+            Some("p-001"),
+            "FIX A: the inline editor is open on the text card"
+        );
+        // A non-recorded placement is untouched (still a block reference, not inline-editable).
+        let other = b
+            .placements
+            .iter()
+            .position(|p| p.placed_block_id == "block-002")
+            .unwrap();
+        assert_eq!(
+            b.placements[other].card_kind,
+            CanvasCardKind::BlockRef,
+            "FIX A: only recorded block ids are marked — no over-marking"
+        );
+    }
+
+    /// WP-KERNEL-012 MT-080 FIX E: canvas placement node-menu availability is read from the placement's OWN
+    /// payload. A text/note card ENABLES Open Note; a stale (unresolved) reference ENABLES Create-note.
+    #[test]
+    fn placement_menu_availability_reads_payload() {
+        // A free-text card: has a backing note (Open Note enabled), not an unresolved link.
+        let text = CanvasPlacementCard::new("p-t", "blk-t", 0.0, 0.0, 200.0, 120.0)
+            .as_text_card("body");
+        let a = placement_menu_availability(&text);
+        assert!(a.has_note, "a text card has a backing note");
+        assert!(a.has_node_id, "a placed card has a node id");
+        assert!(!a.unresolved_link, "a text card is not an unresolved link");
+
+        // A stale block reference (live_title None -> "(stale reference)"): unresolved link -> Create-note.
+        let stale = CanvasPlacementCard::new("p-s", "blk-s", 0.0, 0.0, 200.0, 120.0);
+        let a = placement_menu_availability(&stale);
+        assert!(!a.has_note, "an unresolved reference has no note to open");
+        assert!(
+            a.unresolved_link,
+            "a stale reference is an unresolved link (Create-note enabled)"
+        );
+
+        // A resolved note reference: has a backing note (Open Note), not unresolved.
+        let mut resolved = CanvasPlacementCard::new("p-r", "blk-r", 0.0, 0.0, 200.0, 120.0);
+        resolved.live_title = Some("Resolved".to_owned());
+        resolved.live_content_type = Some("note".to_owned());
+        let a = placement_menu_availability(&resolved);
+        assert!(a.has_note, "a resolved note reference has a note to open");
+        assert!(!a.unresolved_link, "a resolved reference is not unresolved");
     }
 
     /// AC-061-1 clamp: the resize handle clamps the card to the minimum size — w/h can never go below

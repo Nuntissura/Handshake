@@ -586,8 +586,10 @@ impl PaneFactory for OutgoingLinksPaneMount {
 /// WP-KERNEL-012 MT-080 (GROUP A / MT-063): the live RELEVANT-MEMORY side pane. Registered over
 /// `PaneType::Placeholder("Relevant Memory")` (the distinct placeholder key the pane registers under).
 /// Wraps the existing [`crate::fems::relevant_memory_panel::RelevantMemoryPanel`]; a "Go to source" click
-/// routes through the shared nav queue. The FEMS read route is ABSENT in the current backend, so the panel
-/// renders its own `EndpointMissing` empty-state — the mount never fakes a pack.
+/// routes through the shared nav queue. The FEMS read route EXISTS (WP-009 MT-109 shipped
+/// `GET /workspaces/{ws}/memory/pack`); the live round-trip is NEEDS_MANAGED_RESOURCE_PROOF. When no
+/// backend is reachable the panel renders its own typed-blocker empty-state (`EndpointMissing`/Transport)
+/// — the mount never fakes a pack.
 pub struct RelevantMemoryPaneMount {
     panel: Arc<Mutex<crate::fems::relevant_memory_panel::RelevantMemoryPanel>>,
     palette: SharedPalette,
