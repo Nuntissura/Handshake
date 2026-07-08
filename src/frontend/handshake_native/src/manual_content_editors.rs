@@ -107,6 +107,12 @@ pub const WP_SURFACE_HEADINGS: &[&str] = &[
     "Internationalization",
     "Menu Bar and Commands",
     "Editor Settings",
+    // WP-KERNEL-012 MT-035 wave (native-editor surfacing): three additional per-surface topics for the
+    // code-editor language features (signature help / rename / quick fix), the document outline, and the
+    // FEMS relevant-memory pane — each a dedicated no-context topic asserted by the heading-presence test.
+    "Signature Help, Rename, and Quick Fix",
+    "Outline and Table of Contents",
+    "Relevant Memory (FEMS)",
 ];
 
 pub const TERMINAL_MENU_AUTHOR_ID: &str = "menu.run.terminal";
@@ -268,6 +274,13 @@ pub fn editors_manual_section() -> ManualSection {
         ("Internationalization", internationalization_body()),
         ("Menu Bar and Commands", menu_bar_and_commands_body()),
         ("Editor Settings", editor_settings_body()),
+        // MT-035 wave: surfacing topics for language features, outline, and relevant memory.
+        (
+            "Signature Help, Rename, and Quick Fix",
+            signature_rename_quickfix_body(),
+        ),
+        ("Outline and Table of Contents", outline_toc_body()),
+        ("Relevant Memory (FEMS)", relevant_memory_body()),
     ] {
         topics.push(ManualTopic { heading, body });
     }
@@ -953,6 +966,58 @@ palette also repaints the mounted code editor and minimap syntax rows through th
 Muted and Standard keep the theme syntax tokens. Cosmetic scope edge: gutter line numbers still use their base \
 sizing, so they are not part of the live font-size claim. Rich-editor keybinding overrides persist but \
 have no live rich keymap seam yet."
+        .to_owned()
+}
+
+fn signature_rename_quickfix_body() -> String {
+    "The code editor has VS Code-parity symbol-intelligence actions on the mounted code pane. Signature help \
+is the parameter-hints popup: while typing inside a call's argument list the editor shows the active \
+signature and highlights the current parameter (an LSP textDocument/signatureHelp request when a language \
+server is attached; a typed graceful absent state otherwise). Rename Symbol (F2, \
+CodeEditorAction::RenameSymbol) opens the in-place rename box at the cursor identifier and renames every \
+occurrence as one undo step; the code path is the panel's begin_rename_at_cursor, reached from the F2 \
+keybind, the code-editor right-click 'Rename Symbol' entry, and the EDITORS menu leaf \
+menu.editors.rename-symbol which dispatches command id editor.rename.symbol. Quick Fix (Ctrl+.) requests \
+code actions for the cursor range and opens the quick-fix menu; the code path is the panel's \
+quick_fix_request flag, reached from the Ctrl+. keybind, the right-click 'Quick Fix...' entry, and the \
+EDITORS menu leaf menu.editors.quick-fix which dispatches command id editor.quickFix. Both menu leaves are \
+enabled only while the active/focused pane is the mounted code editor (honest enable predicate, never a \
+fake-enabled leaf); with no code editor active they render disabled. A no-context model surfaces the \
+EDITORS menu (menu-editors), reads the leaves with list_widgets, and clicks menu.editors.rename-symbol or \
+menu.editors.quick-fix with click_widget. Nothing here bypasses the mounted panel — the menu and keybind \
+share ONE dispatch path (dispatch_editor_command -> code_panel.dispatch_action)."
+        .to_owned()
+}
+
+fn outline_toc_body() -> String {
+    "The Outline (table of contents) is the document-structure side pane. Open it from the EDITORS menu \
+leaf 'View: Outline' (menu.editors.outline), the Command Palette option \
+command-palette.option.hs-view-palette-outline, or command id view.outline; the mounted surface is built \
+by code_editor/outline.rs and lists the headings/symbols of the active document in source order. Click a \
+row to navigate the mounted editor to that heading or symbol (the SAME fold-aware navigate-to-line path \
+the minimap and go-to-line use), so the outline is a jump index, not just a static list. The code editor \
+also has its own inline outline toggle; the view.outline command opens the document outline beside the \
+rich editor. A no-context model opens it with click_widget on menu.editors.outline (or dispatches \
+view.outline through the palette), reads the rows with list_widgets, and clicks a row to jump. Empty or \
+heading-less documents show an empty outline rather than an error. Persistence of the underlying document \
+remains handshake_core PostgreSQL/EventLedger; the outline itself is a read-only projection over the live \
+document model and stores nothing."
+        .to_owned()
+}
+
+fn relevant_memory_body() -> String {
+    "Relevant Memory is the FEMS (Pillar 12) retrieval side pane. Open it from the EDITORS menu leaf \
+'View: Relevant Memory' (menu.editors.relevant-memory), the Command Palette option \
+command-palette.option.hs-view-palette-relevant-memory, or command id view.relevant-memory. The mounted \
+pane is the relevant-memory-panel container with the relevant-memory-list of retrieved memory items — the \
+FEMS retrieval capsule for the active context (typed memory the model has stored: episodic/semantic/\
+procedural entries relevant to the current document/task). It is READ-ONLY navigation: a memory WRITE is \
+never an editor-direct commit; it is always the review-gated proposal path (fems-propose-dialog -> \
+fems-propose-confirm). A no-context model surfaces the pane with click_widget on \
+menu.editors.relevant-memory, reads the capsule with list_widgets + screenshot, and opens a proposal only \
+through the propose dialog. The live cross-edge FEMS read route is gated (EndpointMissing) in the current \
+handshake_core build, so the pane shows a typed empty-state until the FEMS pack route lands rather than \
+fabricating memory rows; all durable memory authority is handshake_core PostgreSQL/EventLedger."
         .to_owned()
 }
 

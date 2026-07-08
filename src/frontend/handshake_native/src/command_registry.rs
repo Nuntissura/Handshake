@@ -605,6 +605,13 @@ pub const CMD_EDITOR_GO_PREV_DIAGNOSTIC: &str = "editor.go.prevDiagnostic";
 pub const CMD_EDITOR_GO_BACK: &str = "editor.go.back";
 pub const CMD_EDITOR_GO_FORWARD: &str = "editor.go.forward";
 pub const CMD_EDITOR_GO_SYMBOL_IN_FILE: &str = "editor.go.symbolInFile";
+// WP-KERNEL-012 MT-035 (EDITORS menu surfacing): Rename Symbol (F2) + Quick Fix (Ctrl+.) as stable
+// command ids so the new EDITORS menu leaves and the command palette dispatch the SAME action the F2 /
+// Ctrl+. keymap chords + the editor body context menu reach. `app.rs::dispatch_editor_command` routes
+// each id to the mounted code panel's `dispatch_action` (RenameSymbol -> begin_rename_at_cursor,
+// QuickFix -> quick_fix_request), so menu, palette, keybind, and context-menu share ONE path.
+pub const CMD_EDITOR_RENAME_SYMBOL: &str = "editor.rename.symbol";
+pub const CMD_EDITOR_QUICK_FIX: &str = "editor.quickFix";
 
 /// GO-menu code-navigation command ids whose owning command is NOT yet registered on the shell command
 /// bus. MT-069 REMEDIATION: EMPTY — the code-nav commands are now registered against the mounted code
@@ -836,6 +843,19 @@ const EDITOR_MENU_COMMANDS: &[AppCommand] = &[
         "Editor: Go to Symbol in File",
         &["go", "symbol", "file", "outline", "navigate", "editor"],
         "hs-editor-menu-go-symbol-in-file",
+    ),
+    // MT-035: Rename Symbol + Quick Fix — dispatched against the mounted code panel (code-only actions).
+    editor_menu_cmd(
+        CMD_EDITOR_RENAME_SYMBOL,
+        "Editor: Rename Symbol",
+        &["rename", "symbol", "refactor", "code", "editor"],
+        "hs-editor-menu-rename-symbol",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_QUICK_FIX,
+        "Editor: Quick Fix",
+        &["quick", "fix", "code", "action", "editor"],
+        "hs-editor-menu-quick-fix",
     ),
 ];
 
@@ -1282,13 +1302,16 @@ mod tests {
             CMD_EDITOR_GO_BACK,
             CMD_EDITOR_GO_FORWARD,
             CMD_EDITOR_GO_SYMBOL_IN_FILE,
+            // MT-035: Rename Symbol + Quick Fix, dispatched against the mounted code panel.
+            CMD_EDITOR_RENAME_SYMBOL,
+            CMD_EDITOR_QUICK_FIX,
         ] {
             assert!(
                 menu_ids.contains(&expected),
                 "menu command id '{expected}' present: {menu_ids:?}"
             );
         }
-        assert_eq!(menu_ids.len(), 35, "exactly 35 EditorMenu commands");
+        assert_eq!(menu_ids.len(), 37, "exactly 37 EditorMenu commands (35 + MT-035 rename/quick-fix)");
         // MT-069 REMEDIATION: no GO id is pending anymore (the code-nav commands are registered).
         assert!(
             EDITOR_GO_NAV_PENDING_IDS.is_empty(),

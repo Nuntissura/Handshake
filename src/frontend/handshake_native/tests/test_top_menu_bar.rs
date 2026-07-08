@@ -70,18 +70,19 @@ fn live_shell_has_six_top_level_menus_with_stable_ids() {
             .unwrap_or_else(|| panic!("{} missing from live tree: {nodes:?}", menu.author_id()));
         assert_eq!(found.1, "MenuItem", "{} role is MenuItem", menu.author_id());
     }
-    // Exactly six top-level menu buttons (leaf items are not rendered while all menus are closed).
+    // Exactly seven top-level menu buttons (MT-035 added EDITORS; leaf items are not rendered while all
+    // menus are closed). The `menu-` prefix matches only the top-level buttons, not the `menu.` leaves.
     let count = nodes
         .iter()
         .filter(|(a, _, _)| a.starts_with("menu-"))
         .count();
     assert_eq!(
-        count, 6,
-        "exactly six top-level menu buttons in the live tree: {nodes:?}"
+        count, 7,
+        "exactly seven top-level menu buttons in the live tree: {nodes:?}"
     );
-    // The six menu titles are reachable by label (the mouse-click open path). The Alt+<letter> keyboard
+    // The seven menu titles are reachable by label (the mouse-click open path). The Alt+<letter> keyboard
     // mnemonic open path is proven separately in `alt_letter_mnemonic_opens_each_menu` below (AC2).
-    for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP"] {
+    for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP", "EDITORS"] {
         let _ = harness.get_by_label(label);
     }
 }
@@ -105,6 +106,7 @@ fn alt_letter_mnemonic_opens_each_menu() {
         (MenuId::Go, Key::G, "menu.go.command-palette"),
         (MenuId::Run, Key::R, "menu.run.swarm-board"),
         (MenuId::Help, Key::H, "menu.help.about"),
+        (MenuId::Editors, Key::I, "menu.editors.outline"),
     ];
 
     for (menu, key, open_only_leaf) in cases {

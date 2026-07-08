@@ -344,11 +344,12 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
         author_id: BOOKMARKS_AUTHOR_ID,
         node_id: BOOKMARKS_NODE_ID,
     },
-    // MT-015 top-level menu-bar buttons (Role::MenuItem), fresh band 92..=97: above the FIX-A bookmarks
-    // container (91), strictly below the pane id base (100). The menu count is FIXED at six, so each
-    // top-level menu button gets a fixed id (MENU_BAR_NODE_ID_BASE + index) and a fixed author_id (its
-    // `menu-{name}` key), both enumerated here so the collision test proves the six ids are disjoint from
-    // every other declared identity. (Const-context: the indices are spelled out because a const slice
+    // MT-015 top-level menu-bar buttons (Role::MenuItem), fresh band 92..=98: above the FIX-A bookmarks
+    // container (91), strictly below the pane id base (100). The menu count is FIXED at seven (MT-035 added
+    // the `Editors` menu at index 6 -> id 98; id 99 stays free), so each top-level menu button gets a
+    // fixed id (MENU_BAR_NODE_ID_BASE + index) and a fixed author_id (its `menu-{name}` key), both
+    // enumerated here so the collision test proves the seven ids are disjoint from every other declared
+    // identity. (Const-context: the indices are spelled out because a const slice
     // cannot iterate; the `menu_ids_sit_in_a_disjoint_fresh_band` unit test in `top_menu_bar` pins the
     // band shape.) Individual LEAF menu items are DYNAMIC (they exist only while a menu is open) and are
     // addressed by an egui::Id derived from their author_id STRING (`menu.{menu}.{leaf}`) in egui's
@@ -377,6 +378,12 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: MENU_DEFINITIONS[5].author_id(),
         node_id: MENU_BAR_NODE_ID_BASE + 5,
+    },
+    // MT-035: the 7th top-level menu (`Editors`, `menu-editors`), fixed id 98 (id 99 stays free before
+    // the pane id base 100). Enumerated so the collision test proves it is disjoint from every other id.
+    DeclaredIdentity {
+        author_id: MENU_DEFINITIONS[6].author_id(),
+        node_id: MENU_BAR_NODE_ID_BASE + 6,
     },
     // MT-016 command-palette overlay container nodes, fresh band 11..=13: above the theme toggle (10),
     // below the chrome title bar (20) and the pane id base (100). The palette renders ONLY while

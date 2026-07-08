@@ -67,6 +67,12 @@ pub const EDITOR_INSERT_SPACES_AUTHOR_ID: &str = "settings-editor-insert-spaces"
 pub const EDITOR_WORD_WRAP_AUTHOR_ID: &str = "settings-editor-word-wrap";
 /// AccessKit author_id for the render-whitespace mode `ComboBox`.
 pub const EDITOR_RENDER_WHITESPACE_AUTHOR_ID: &str = "settings-editor-render-whitespace";
+/// WP-KERNEL-012 MT-035: AccessKit author_id for the minimap on/off `Checkbox`.
+pub const EDITOR_MINIMAP_AUTHOR_ID: &str = "settings-editor-minimap";
+/// WP-KERNEL-012 MT-035: AccessKit author_id for the sticky-scroll on/off `Checkbox`.
+pub const EDITOR_STICKY_SCROLL_AUTHOR_ID: &str = "settings-editor-sticky-scroll";
+/// WP-KERNEL-012 MT-035: AccessKit author_id for the gutter line-numbers on/off `Checkbox`.
+pub const EDITOR_LINE_NUMBERS_AUTHOR_ID: &str = "settings-editor-line-numbers";
 /// AccessKit author_id for the bounded-wrap-column `DragValue` (shown only when word_wrap = Bounded).
 pub const EDITOR_WRAP_COLUMN_AUTHOR_ID: &str = "settings-editor-wrap-column";
 /// AccessKit author_id for the syntax-palette mode `ComboBox`.
@@ -481,6 +487,48 @@ impl EditorSettingsSection {
             );
             if selected != prefs.render_whitespace {
                 prefs.render_whitespace = selected;
+                changed = true;
+            }
+        });
+
+        // WP-KERNEL-012 MT-035: the code-editor visibility toggles (minimap / sticky scroll / gutter line
+        // numbers). Each rides the SAME EditorPrefsChanged outcome + the shell's sync-to-panel path, so a
+        // flip takes effect LIVE on the mounted code editor (set_show_minimap / set_sticky_scroll_enabled /
+        // set_line_numbers_enabled) — not a dead toggle.
+        ui.horizontal(|ui| {
+            let mut minimap = prefs.minimap_enabled;
+            let cb = ui.checkbox(&mut minimap, "Minimap");
+            set_author_id_and_label(ui, cb.id, EDITOR_MINIMAP_AUTHOR_ID, "Show minimap");
+            if cb.changed() {
+                prefs.minimap_enabled = minimap;
+                changed = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            let mut sticky = prefs.sticky_scroll;
+            let cb = ui.checkbox(&mut sticky, "Sticky scroll");
+            set_author_id_and_label(
+                ui,
+                cb.id,
+                EDITOR_STICKY_SCROLL_AUTHOR_ID,
+                "Show sticky scroll header band",
+            );
+            if cb.changed() {
+                prefs.sticky_scroll = sticky;
+                changed = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            let mut line_numbers = prefs.line_numbers;
+            let cb = ui.checkbox(&mut line_numbers, "Line numbers");
+            set_author_id_and_label(
+                ui,
+                cb.id,
+                EDITOR_LINE_NUMBERS_AUTHOR_ID,
+                "Show gutter line numbers",
+            );
+            if cb.changed() {
+                prefs.line_numbers = line_numbers;
                 changed = true;
             }
         });

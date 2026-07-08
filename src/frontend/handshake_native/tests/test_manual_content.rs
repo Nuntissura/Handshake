@@ -866,6 +866,13 @@ fn wave5_body_marker(heading: &str) -> &'static str {
         "Internationalization" => "SINGLE shared Unicode text-mechanics",
         "Menu Bar and Commands" => "six top-level dropdowns",
         "Editor Settings" => "Editor preferences live in the Settings dialog",
+        "Signature Help, Rename, and Quick Fix" => {
+            "The code editor has VS Code-parity symbol-intelligence actions"
+        }
+        "Outline and Table of Contents" => {
+            "The Outline (table of contents) is the document-structure side pane"
+        }
+        "Relevant Memory (FEMS)" => "Relevant Memory is the FEMS (Pillar 12) retrieval side pane",
         other => panic!("unknown wave-5 surface topic '{other}'"),
     }
 }
@@ -1063,6 +1070,36 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "mounted code editor and rich editor",
             "repaints the mounted code editor",
         ],
+        "Signature Help, Rename, and Quick Fix" => &[
+            "Signature help",
+            "F2",
+            "Rename Symbol",
+            "begin_rename_at_cursor",
+            "Quick Fix",
+            "Ctrl+.",
+            "quick_fix_request",
+            "editor.rename.symbol",
+            "editor.quickFix",
+            "menu.editors.rename-symbol",
+            "menu.editors.quick-fix",
+            "dispatch_editor_command",
+        ],
+        "Outline and Table of Contents" => &[
+            "view.outline",
+            "code_editor/outline.rs",
+            "menu.editors.outline",
+            "command-palette.option.hs-view-palette-outline",
+            "table of contents",
+        ],
+        "Relevant Memory (FEMS)" => &[
+            "view.relevant-memory",
+            "relevant-memory-panel",
+            "relevant-memory-list",
+            "menu.editors.relevant-memory",
+            "command-palette.option.hs-view-palette-relevant-memory",
+            "fems-propose-confirm",
+            "EndpointMissing",
+        ],
         other => panic!("unknown wave-5 surface topic '{other}'"),
     }
 }
@@ -1251,8 +1288,8 @@ fn wave5_surface_topics_exist_and_carry_real_no_context_facts() {
     let section = editors_manual_section();
     assert_eq!(
         WP_SURFACE_HEADINGS.len(),
-        13,
-        "one dedicated topic per native editor surface"
+        16,
+        "one dedicated topic per native editor surface (13 wave-5 + 3 MT-035 surfacing topics)"
     );
     for heading in WP_SURFACE_HEADINGS {
         let body = topic_body(&section, heading);
@@ -1348,5 +1385,37 @@ fn wave5_surface_topics_are_selectable_in_manual_pane() {
             harness.query_by_label_contains(marker).is_some(),
             "selecting topic '{heading}' should render body marker '{marker}'"
         );
+    }
+}
+
+// ── WP-KERNEL-012 MT-035 wave: the 3 native-editor surfacing topics are present with substantive bodies ──
+
+/// Heading-presence proof for the three MT-035 surfacing topics (Signature Help/Rename/Quick Fix, the
+/// document Outline, and the FEMS Relevant Memory pane): each is a registered topic in the editors
+/// section with a substantive no-context body, and its heading is enumerated in WP_SURFACE_HEADINGS.
+#[test]
+fn mt035_surfacing_topics_present_with_substantive_bodies() {
+    let section = editors_manual_section();
+    for heading in [
+        "Signature Help, Rename, and Quick Fix",
+        "Outline and Table of Contents",
+        "Relevant Memory (FEMS)",
+    ] {
+        assert!(
+            WP_SURFACE_HEADINGS.contains(&heading),
+            "MT-035 heading '{heading}' must be enumerated in WP_SURFACE_HEADINGS"
+        );
+        let body = topic_body(&section, heading);
+        assert!(
+            body.len() > 220,
+            "MT-035 topic '{heading}' must carry a substantive no-context body (got {} chars)",
+            body.len()
+        );
+        for needle in wave5_needles(heading) {
+            assert!(
+                body.contains(needle),
+                "MT-035 topic '{heading}' must include concrete runtime fact '{needle}'"
+            );
+        }
     }
 }

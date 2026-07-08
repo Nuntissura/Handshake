@@ -79,8 +79,9 @@
 //!
 //! ## Stable AccessKit ids (out-of-process steering — HBR-VIS)
 //!
-//! The menu count is FIXED at six, so — like the module switcher — each TOP-LEVEL menu button gets a
-//! fixed `NodeId` in a dedicated fresh band ([`MENU_BAR_NODE_ID_BASE`] = 92..=97), strictly below the
+//! The menu count is FIXED at seven (MT-035 added `Editors`), so — like the module switcher — each
+//! TOP-LEVEL menu button gets a fixed `NodeId` in a dedicated fresh band ([`MENU_BAR_NODE_ID_BASE`] =
+//! 92..=98; ids 98=`Editors`, 99 free before the pane id base 100), strictly below the
 //! pane id base (100) and disjoint from every other declared identity (theme toggle 10, chrome 20/21,
 //! dividers 30/31, scrollbar rails 40..43, project-tab strip 50, module buttons 51..56, tab-bar
 //! containers 60..63, merge-back 64..67, pane locks 70..73, pane titles 74..77, left rail 80..88,
@@ -105,9 +106,10 @@
 
 use egui::accesskit;
 
-/// Fixed AccessKit/egui `NodeId` of the FIRST top-level menu button (`FILE`). The six menu buttons
-/// occupy the FRESH band 92..=97: above the MT-014 FIX-A bookmarks container (91), strictly below the
-/// pane id base (100). Each button's id is `MENU_BAR_NODE_ID_BASE + index_in_MENU_DEFINITIONS`. A
+/// Fixed AccessKit/egui `NodeId` of the FIRST top-level menu button (`FILE`). The seven menu buttons
+/// occupy the FRESH band 92..=98: above the MT-014 FIX-A bookmarks container (91), strictly below the
+/// pane id base (100) (id 98 = the MT-035 `Editors` menu; 99 stays free). Each button's id is
+/// `MENU_BAR_NODE_ID_BASE + index_in_MENU_DEFINITIONS`. A
 /// fixed-value `egui::Id` (`from_high_entropy_bits`) yields a fixed `NodeId` across frames + process
 /// restarts — the same convention the theme toggle, chrome, dividers, and module switcher use.
 pub const MENU_BAR_NODE_ID_BASE: u64 = 92;
@@ -190,6 +192,11 @@ pub enum MenuId {
     Go,
     Run,
     Help,
+    /// WP-KERNEL-012 MT-035: the 7th top-level menu, surfacing this WP's native-editor commands (Outline /
+    /// Relevant Memory / Outgoing Links / Stage / Sidebar / Daily Journal view opens + Format Document /
+    /// diagnostics navigation / Rename Symbol / Quick Fix editor commands). Appended LAST so its fixed
+    /// AccessKit id is `MENU_BAR_NODE_ID_BASE + 6` = 98 (existing FILE..HELP keep 92..=97 unchanged).
+    Editors,
 }
 
 impl MenuId {
@@ -202,6 +209,7 @@ impl MenuId {
             MenuId::Go => "GO",
             MenuId::Run => "RUN",
             MenuId::Help => "HELP",
+            MenuId::Editors => "EDITORS",
         }
     }
 
@@ -214,6 +222,7 @@ impl MenuId {
             MenuId::Go => "menu-go",
             MenuId::Run => "menu-run",
             MenuId::Help => "menu-help",
+            MenuId::Editors => "menu-editors",
         }
     }
 
@@ -230,6 +239,9 @@ impl MenuId {
             MenuId::Go => egui::Key::G,
             MenuId::Run => egui::Key::R,
             MenuId::Help => egui::Key::H,
+            // "EDITORS" — the initial `E` is already Edit's mnemonic, so the underlined access key is the
+            // `I` (Alt+I), keeping the per-menu mnemonic unique (the uniqueness test enforces it).
+            MenuId::Editors => egui::Key::I,
         }
     }
 }
@@ -241,7 +253,7 @@ impl MenuId {
 /// in this crate uses.
 fn menu_button_id(index: usize) -> egui::Id {
     // SAFETY: `from_high_entropy_bits` only requires the value to be high-entropy enough to avoid
-    // accidental collisions; these ids share the documented disjoint fixed band (92..=97) proven by the
+    // accidental collisions; these ids share the documented disjoint fixed band (92..=98) proven by the
     // accessibility registry collision test, so they never collide with another declared identity.
     unsafe { egui::Id::from_high_entropy_bits(MENU_BAR_NODE_ID_BASE + index as u64) }
 }
@@ -277,15 +289,17 @@ pub fn handle_menu_mnemonics(ctx: &egui::Context) -> Option<MenuId> {
     opened
 }
 
-/// The six top-level menus in display order. The fixed-count array drives both rendering and the
-/// fixed-band id assignment (`MENU_BAR_NODE_ID_BASE + index`).
-pub const MENU_DEFINITIONS: [MenuId; 6] = [
+/// The seven top-level menus in display order. The fixed-count array drives both rendering and the
+/// fixed-band id assignment (`MENU_BAR_NODE_ID_BASE + index`). MT-035 appends `Editors` LAST (index 6 ->
+/// id 98) so the existing FILE..HELP ids (92..=97) are unchanged (no renumbering).
+pub const MENU_DEFINITIONS: [MenuId; 7] = [
     MenuId::File,
     MenuId::Edit,
     MenuId::View,
     MenuId::Go,
     MenuId::Run,
     MenuId::Help,
+    MenuId::Editors,
 ];
 
 /// The typed action a leaf menu item dispatches. Returned by [`MenuBar::show`] when a leaf is clicked
@@ -462,7 +476,7 @@ impl MenuBar {
         index: usize,
         action: &mut Option<MenuBarAction>,
     ) {
-        // Fixed-value Id -> fixed AccessKit NodeId in the 92..=97 band (disjoint by construction; the
+        // Fixed-value Id -> fixed AccessKit NodeId in the 92..=98 band (disjoint by construction; the
         // registry collision test proves it). We build the toggle button + popup ourselves (rather than
         // `ui.menu_button`, whose id is auto-allocated) so the button lands on this exact stable id.
         // Derived via the shared `menu_button_id` so the Alt+letter mnemonic opener computes the SAME
@@ -1270,6 +1284,129 @@ impl MenuBar {
                     action,
                 );
             }
+            MenuId::Editors => {
+                // WP-KERNEL-012 MT-035: the EDITORS menu surfaces this WP's native-editor commands. The
+                // VIEW-open leaves route an already-wired `CMD_VIEW_*` open command through the SAME
+                // `MenuBarAction::OpenViewSurface` -> `dispatch_palette_action` path the command palette +
+                // VIEW menu use (no forked open logic, ZERO new MenuBarAction variants); each target has a
+                // live host-mounted factory, so they are ALWAYS-enabled real opens, never lying-enabled.
+                ui.label(egui::RichText::new("Open Editor Side Panes").weak().small());
+                self.item(
+                    ui,
+                    "menu.editors.outline",
+                    "View: Outline",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_OUTLINE),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.relevant-memory",
+                    "View: Relevant Memory",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(
+                        crate::command_registry::CMD_VIEW_RELEVANT_MEMORY,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.outgoing-links",
+                    "View: Outgoing Links",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(
+                        crate::command_registry::CMD_VIEW_OUTGOING_LINKS,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.stage",
+                    "View: Stage",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_STAGE),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.sidebar",
+                    "Toggle Sidebar",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_SIDEBAR),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.journal",
+                    "Open Daily Journal",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_JOURNAL),
+                    action,
+                );
+                ui.separator();
+                // Code-editor commands. Each dispatches its stable command id through the ONE shared
+                // `dispatch_editor_command` (RISK-001 — same path as the EDIT/GO menus + the palette).
+                // Enabled ONLY when the active/focused pane is the mounted code editor (honest predicate:
+                // with no active code editor the leaf renders DISABLED, never fake-enabled).
+                let code = self.state.active_code_editor;
+                self.item(
+                    ui,
+                    "menu.editors.format-document",
+                    "Format Document",
+                    Some("Alt+Shift+F"),
+                    code,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_EDIT_FORMAT_DOCUMENT,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.next-diagnostic",
+                    "Go to Next Diagnostic",
+                    Some("F8"),
+                    code,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_GO_NEXT_DIAGNOSTIC,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.prev-diagnostic",
+                    "Go to Previous Diagnostic",
+                    Some("Shift+F8"),
+                    code,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_GO_PREV_DIAGNOSTIC,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.rename-symbol",
+                    "Rename Symbol",
+                    Some("F2"),
+                    code,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_RENAME_SYMBOL),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.quick-fix",
+                    "Quick Fix…",
+                    Some("Ctrl+."),
+                    code,
+                    MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_QUICK_FIX),
+                    action,
+                );
+            }
         }
     }
 
@@ -1967,14 +2104,14 @@ mod tests {
         );
     }
 
-    /// The six fixed menu ids sit in the 92..=97 band, are sequential, and stay strictly below the pane
+    /// The seven fixed menu ids sit in the 92..=98 band, are sequential, and stay strictly below the pane
     /// id base — the disjoint-fresh-band invariant the registry collision test relies on.
     #[test]
     fn menu_ids_sit_in_a_disjoint_fresh_band() {
         assert_eq!(MENU_BAR_NODE_ID_BASE, 92);
         for (index, _menu) in MENU_DEFINITIONS.iter().enumerate() {
             let id = MENU_BAR_NODE_ID_BASE + index as u64;
-            assert!((92..=97).contains(&id), "menu id {id} in band 92..=97");
+            assert!((92..=98).contains(&id), "menu id {id} in band 92..=98");
             assert!(
                 id < crate::accessibility::PANE_NODE_ID_BASE,
                 "menu id {id} below pane base {}",
@@ -1995,7 +2132,8 @@ mod tests {
                 "menu-view",
                 "menu-go",
                 "menu-run",
-                "menu-help"
+                "menu-help",
+                "menu-editors"
             ]
         );
         // No duplicates.
@@ -2016,6 +2154,7 @@ mod tests {
             (MenuId::Go, egui::Key::G),
             (MenuId::Run, egui::Key::R),
             (MenuId::Help, egui::Key::H),
+            (MenuId::Editors, egui::Key::I),
         ];
         for (menu, key) in pairs {
             assert_eq!(menu.mnemonic_key(), key, "{:?} mnemonic", menu);
@@ -2094,20 +2233,20 @@ mod tests {
         assert!(!SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.view.reset-layout"));
     }
 
-    /// `MenuBar::show` paints the six top-level menu buttons as live `Role::MenuItem` nodes with stable
+    /// `MenuBar::show` paints the seven top-level menu buttons as live `Role::MenuItem` nodes with stable
     /// `menu-*` author_ids on an idle (no-click) frame. (The click->action path is proven end-to-end in
     /// tests/test_top_menu_bar.rs against the real shell.)
     #[test]
-    fn show_paints_six_menu_buttons() {
+    fn show_paints_seven_menu_buttons() {
         use egui_kittest::kittest::{NodeT, Queryable};
         let state = full_state();
         let mut harness = egui_kittest::Harness::builder().build_ui(move |ui| {
-            // The returned action is None on an idle frame; the widget still paints all six menus.
+            // The returned action is None on an idle frame; the widget still paints all seven menus.
             let _ = MenuBar::new(state).show(ui);
         });
         harness.run();
 
-        for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP"] {
+        for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP", "EDITORS"] {
             let _ = harness.get_by_label(label);
         }
         let menu_nodes = harness
@@ -2120,7 +2259,7 @@ mod tests {
                     .unwrap_or(false)
             })
             .count();
-        assert_eq!(menu_nodes, 6, "six top-level menu buttons in the live tree");
+        assert_eq!(menu_nodes, 7, "seven top-level menu buttons in the live tree");
     }
 
     // ── MT-071 editor status-bar segment unit tests ──────────────────────────────────────────────────

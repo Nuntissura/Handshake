@@ -294,6 +294,12 @@ pub struct EditorPrefs {
     pub word_wrap: WordWrapMode,
     /// Whether the code editor draws whitespace glyphs. Default `None`.
     pub render_whitespace: RenderWhitespaceMode,
+    /// WP-KERNEL-012 MT-035: show the code editor minimap. Default `true` (the minimap was always on).
+    pub minimap_enabled: bool,
+    /// WP-KERNEL-012 MT-035: show the code editor sticky-scroll pinned-header band. Default `true`.
+    pub sticky_scroll: bool,
+    /// WP-KERNEL-012 MT-035: show the code editor gutter line numbers. Default `true`.
+    pub line_numbers: bool,
 }
 
 impl Default for EditorPrefs {
@@ -304,6 +310,9 @@ impl Default for EditorPrefs {
             insert_spaces: true,
             word_wrap: WordWrapMode::default_mode(),
             render_whitespace: RenderWhitespaceMode::default_mode(),
+            minimap_enabled: true,
+            sticky_scroll: true,
+            line_numbers: true,
         }
     }
 }
@@ -328,6 +337,9 @@ impl EditorPrefs {
             "insert_spaces": self.insert_spaces,
             "word_wrap": self.word_wrap.to_json(),
             "render_whitespace": self.render_whitespace.as_str(),
+            "minimap_enabled": self.minimap_enabled,
+            "sticky_scroll": self.sticky_scroll,
+            "line_numbers": self.line_numbers,
         })
     }
 
@@ -366,12 +378,27 @@ impl EditorPrefs {
             .and_then(Value::as_str)
             .and_then(RenderWhitespaceMode::from_str_opt)
             .unwrap_or(fallback.render_whitespace);
+        let minimap_enabled = obj
+            .get("minimap_enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(fallback.minimap_enabled);
+        let sticky_scroll = obj
+            .get("sticky_scroll")
+            .and_then(Value::as_bool)
+            .unwrap_or(fallback.sticky_scroll);
+        let line_numbers = obj
+            .get("line_numbers")
+            .and_then(Value::as_bool)
+            .unwrap_or(fallback.line_numbers);
         EditorPrefs {
             editor_font_size,
             tab_size,
             insert_spaces,
             word_wrap,
             render_whitespace,
+            minimap_enabled,
+            sticky_scroll,
+            line_numbers,
         }
     }
 }
@@ -1238,6 +1265,10 @@ mod tests {
             insert_spaces: false,
             word_wrap: WordWrapMode::BoundedColumn(100),
             render_whitespace: RenderWhitespaceMode::All,
+            // MT-035: flip the visibility toggles off so the round-trip proves the new fields serialize.
+            minimap_enabled: false,
+            sticky_scroll: false,
+            line_numbers: false,
         };
         settings.syntax_palette = SyntaxPalette {
             mode: SyntaxPaletteMode::Custom,

@@ -156,6 +156,9 @@ fn editor_prefs_change_persists_via_existing_put_and_reloads() {
         insert_spaces: false,
         word_wrap: WordWrapMode::BoundedColumn(100),
         render_whitespace: RenderWhitespaceMode::All,
+        // MT-035: the minimap / sticky-scroll / line-number toggles default to `true`; this case keeps them
+        // at their defaults (their live-wiring is proven in the dedicated MT-035 toggle test).
+        ..EditorPrefs::default()
     };
     harness
         .state_mut()
@@ -294,6 +297,7 @@ fn editor_prefs_change_drives_the_live_mounted_editors() {
         insert_spaces: false,
         word_wrap: WordWrapMode::BoundedColumn(100),
         render_whitespace: RenderWhitespaceMode::All,
+        ..EditorPrefs::default()
     };
     harness
         .state_mut()
@@ -335,6 +339,109 @@ fn editor_prefs_change_drives_the_live_mounted_editors() {
             "wave-6 S6 item 3: editor_font_size resizes the live rich editor, not only the saved blob"
         );
     }
+}
+
+// ── WP-KERNEL-012 MT-035: minimap / sticky-scroll / line-number toggles + render-whitespace 3-way ────────
+
+/// Each MT-035 code-editor toggle is FULLY live-wired: changing the setting through the wired
+/// `EditorPrefsChanged` outcome changes the MOUNTED code panel's OWN public state (proven against the
+/// panel, not the saved blob). No dead toggles: minimap -> `is_minimap_shown`, sticky-scroll ->
+/// `sticky_scroll_enabled`, line numbers -> `line_numbers_enabled` (the MT-007 GutterConfig flag), and the
+/// render-whitespace mode threads the FULL None/Boundary/All enum (the old Boundary-vs-All lossiness is
+/// fixed) into `render_whitespace_mode`.
+#[test]
+fn mt035_visibility_and_whitespace_toggles_drive_live_code_panel() {
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport);
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+
+    // Baseline: the three visibility features default ON (matching the always-on pre-MT-035 behavior).
+    let panel = harness.state().mounted_code_panel();
+    assert!(panel.is_minimap_shown(), "minimap defaults on");
+    assert!(panel.sticky_scroll_enabled(), "sticky scroll defaults on");
+    assert!(panel.line_numbers_enabled(), "gutter line numbers default on");
+
+    // Flip all three OFF + set render-whitespace to Boundary through the SAME wired outcome the live
+    // controls produce.
+    let prefs = EditorPrefs {
+        render_whitespace: RenderWhitespaceMode::Boundary,
+        minimap_enabled: false,
+        sticky_scroll: false,
+        line_numbers: false,
+        ..EditorPrefs::default()
+    };
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs));
+    harness.run();
+
+    let panel = harness.state().mounted_code_panel();
+    assert!(
+        !panel.is_minimap_shown(),
+        "MT-035: minimap=false disabled the LIVE minimap (set_show_minimap)"
+    );
+    assert!(
+        !panel.sticky_scroll_enabled(),
+        "MT-035: sticky_scroll=false disabled the LIVE sticky band (set_sticky_scroll_enabled)"
+    );
+    assert!(
+        !panel.line_numbers_enabled(),
+        "MT-035: line_numbers=false disabled LIVE gutter numbers (GutterConfig::show_line_numbers)"
+    );
+    assert_eq!(
+        panel.render_whitespace_mode(),
+        RenderWhitespaceMode::Boundary,
+        "MT-035: the full Boundary mode threads to the panel (Boundary-vs-All lossiness fixed)"
+    );
+    assert!(
+        panel.render_whitespace(),
+        "Boundary still draws glyphs (the bool draw-gate stays true for a non-None mode)"
+    );
+
+    // Move the toggles the OTHER direction: re-enable minimap + set render-whitespace to All.
+    let prefs2 = EditorPrefs {
+        render_whitespace: RenderWhitespaceMode::All,
+        minimap_enabled: true,
+        ..EditorPrefs::default()
+    };
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs2));
+    harness.run();
+    let panel = harness.state().mounted_code_panel();
+    assert!(panel.is_minimap_shown(), "minimap re-enabled");
+    assert_eq!(
+        panel.render_whitespace_mode(),
+        RenderWhitespaceMode::All,
+        "MT-035: All mode threads distinctly from Boundary"
+    );
+
+    // None mode: the draw-gate bool goes false (no glyphs) — proving None/Boundary/All are all distinct.
+    let prefs3 = EditorPrefs {
+        render_whitespace: RenderWhitespaceMode::None,
+        ..EditorPrefs::default()
+    };
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs3));
+    harness.run();
+    let panel = harness.state().mounted_code_panel();
+    assert_eq!(
+        panel.render_whitespace_mode(),
+        RenderWhitespaceMode::None,
+        "MT-035: None mode threads through"
+    );
+    assert!(
+        !panel.render_whitespace(),
+        "None disables whitespace drawing (the bool draw-gate is false)"
+    );
 }
 
 #[test]

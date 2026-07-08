@@ -1054,6 +1054,18 @@ pub struct CodeEditorPanel {
     /// spaces + arrows for tabs; the status-bar whitespace segment flips it. Atomic so the `&self` draw
     /// path / an agent reads it without locking.
     render_whitespace: std::sync::atomic::AtomicBool,
+    /// WP-KERNEL-012 MT-035 (settings completeness): the LIVE render-whitespace MODE (0=None, 1=Boundary,
+    /// 2=All) the shell threads in from `editor_prefs.render_whitespace`. It supersedes the boolean lossiness
+    /// (Boundary and All previously both collapsed to `true`): `paint_whitespace_glyphs` reads THIS to skip
+    /// single inter-word spaces in Boundary mode (VS Code parity). Kept in lockstep with the bool
+    /// `render_whitespace` (mode != None <=> bool true) so the status-bar toggle path still works. Atomic so
+    /// the `&self` draw path / an agent reads it without locking.
+    render_whitespace_mode: std::sync::atomic::AtomicU8,
+    /// WP-KERNEL-012 MT-035 (settings completeness): whether the sticky-scroll pinned-header band renders.
+    /// Default `true` (the feature was always-on before). The shell threads `editor_prefs.sticky_scroll` in
+    /// via [`set_sticky_scroll_enabled`](Self::set_sticky_scroll_enabled); `render_sticky_band` early-returns
+    /// when `false`. Atomic so the `&self` draw path reads it without locking.
+    sticky_scroll_enabled: std::sync::atomic::AtomicBool,
     /// WP-KERNEL-012 wave-6 (S6 item 3 / the MT-072 font-size follow-up): the LIVE editor font size (pt)
     /// the shell threads in from `editor_prefs.editor_font_size` via
     /// [`set_font_size`](Self::set_font_size). `None` = use the built-in [`MONO_FONT_SIZE`] default. The
@@ -1615,6 +1627,10 @@ impl CodeEditorPanel {
             eol: Mutex::new(detected_eol),
             encoding: Mutex::new(super::file_meta::Encoding::default()),
             render_whitespace: std::sync::atomic::AtomicBool::new(false),
+            // MT-035: render-whitespace MODE (0=None default), plus the sticky-scroll + line-number visibility
+            // toggles (both default ENABLED, matching the always-on pre-MT-035 behavior).
+            render_whitespace_mode: std::sync::atomic::AtomicU8::new(0),
+            sticky_scroll_enabled: std::sync::atomic::AtomicBool::new(true),
             // WP-KERNEL-012 wave-6 (S6 item 3): no live font-size / custom palette until the shell threads
             // them in from editor settings (None -> built-in MONO_FONT_SIZE + theme syntax tokens).
             font_size: Mutex::new(None),
@@ -4872,15 +4888,85 @@ impl CodeEditorPanel {
     }
 
     /// MT-071: set the render-whitespace toggle (the status-bar whitespace segment / an agent flips it).
+    /// Keeps the MT-035 3-way mode in lockstep: `true` => All, `false` => None (the boolean segment has no
+    /// Boundary state, so it round-trips through the two extremes).
     pub fn set_render_whitespace(&self, on: bool) {
         self.render_whitespace.store(on, Ordering::Relaxed);
+        self.render_whitespace_mode
+            .store(if on { 2 } else { 0 }, Ordering::Relaxed);
     }
 
     /// MT-071: flip the render-whitespace toggle and return the NEW value (the segment's left-click).
     pub fn toggle_render_whitespace(&self) -> bool {
         // `fetch_xor(true)` returns the PREVIOUS value, so the new value is its negation.
         let prev = self.render_whitespace.fetch_xor(true, Ordering::Relaxed);
-        !prev
+        let now = !prev;
+        // Keep the 3-way mode consistent with the boolean flip (All when on, None when off).
+        self.render_whitespace_mode
+            .store(if now { 2 } else { 0 }, Ordering::Relaxed);
+        now
+    }
+
+    /// MT-035: the LIVE render-whitespace MODE (None / Boundary / All). The shell threads
+    /// `editor_prefs.render_whitespace` in via [`set_render_whitespace_mode`](Self::set_render_whitespace_mode);
+    /// `paint_whitespace_glyphs` reads THIS so Boundary and All are no longer collapsed to a single bool.
+    pub fn render_whitespace_mode(&self) -> crate::workspace_settings::RenderWhitespaceMode {
+        use crate::workspace_settings::RenderWhitespaceMode as M;
+        match self.render_whitespace_mode.load(Ordering::Relaxed) {
+            1 => M::Boundary,
+            2 => M::All,
+            _ => M::None,
+        }
+    }
+
+    /// MT-035: set the LIVE render-whitespace mode (the shell threads the full None/Boundary/All enum from
+    /// Settings, fixing the prior Boundary-vs-All lossiness). Keeps the boolean `render_whitespace` in
+    /// lockstep (mode != None <=> draw glyphs) so the status-bar toggle + the draw-gate reads stay valid.
+    pub fn set_render_whitespace_mode(
+        &self,
+        mode: crate::workspace_settings::RenderWhitespaceMode,
+    ) {
+        use crate::workspace_settings::RenderWhitespaceMode as M;
+        let code = match mode {
+            M::None => 0u8,
+            M::Boundary => 1u8,
+            M::All => 2u8,
+        };
+        self.render_whitespace_mode.store(code, Ordering::Relaxed);
+        self.render_whitespace
+            .store(mode.draws_whitespace(), Ordering::Relaxed);
+    }
+
+    /// MT-035: whether the sticky-scroll pinned-header band renders (the shell threads
+    /// `editor_prefs.sticky_scroll` in via [`set_sticky_scroll_enabled`](Self::set_sticky_scroll_enabled)).
+    pub fn sticky_scroll_enabled(&self) -> bool {
+        self.sticky_scroll_enabled.load(Ordering::Relaxed)
+    }
+
+    /// MT-035: enable/disable the sticky-scroll band. When `false`, `render_sticky_band` early-returns so
+    /// no pinned headers (and no `code_editor_sticky_scroll` nodes) are emitted.
+    pub fn set_sticky_scroll_enabled(&self, enabled: bool) {
+        self.sticky_scroll_enabled.store(enabled, Ordering::Relaxed);
+    }
+
+    /// MT-035: whether the gutter renders line numbers. Reads the EXISTING MT-007 `GutterConfig`
+    /// (`show_line_numbers`) so this is the live feature flag the gutter paint path already consumes — no
+    /// parallel state.
+    pub fn line_numbers_enabled(&self) -> bool {
+        self.gutter_config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .show_line_numbers
+    }
+
+    /// MT-035: enable/disable gutter line numbers (the shell threads `editor_prefs.line_numbers` in from
+    /// Settings). Flips the EXISTING `GutterConfig::show_line_numbers` the gutter renderer reads, so the
+    /// change takes effect on the running editor's next paint (the gutter also re-measures its width).
+    pub fn set_line_numbers_enabled(&self, enabled: bool) {
+        self.gutter_config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .show_line_numbers = enabled;
     }
 
     // ── WP-KERNEL-012 wave-6 (S6 item 3): LIVE editor font size + custom syntax palette ─────────────
@@ -7290,6 +7376,10 @@ impl CodeEditorPanel {
     /// container node and a `sticky-header-{depth}` (Role::Button) node per header. A no-op (and no nodes)
     /// when no scope encloses the viewport top.
     fn render_sticky_band(&self, ui: &mut egui::Ui, total_lines: usize, line_height: f32) {
+        // MT-035: honor the Settings sticky-scroll toggle — when disabled, emit no band + no headers.
+        if !self.sticky_scroll_enabled() {
+            return;
+        }
         // Recompute headers EVERY frame from the CURRENT scroll offset + the live fold regions (RISK-004 /
         // MC-004 — no caching across edits). The first visible BUFFER line is the start of the last painted
         // buffer-line window (`show` captured it last frame; on the first frame it is 0..0 -> top line 0).
@@ -9506,24 +9596,42 @@ impl CodeEditorPanel {
         // (Wave-B fix): iterate the painted row list itself, so a fold-hidden line's whitespace is
         // never marked and each row's y is its real painted offset.
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        // MT-035: honor the 3-way render-whitespace MODE (fixing the old Boundary-vs-All lossiness). In
+        // `Boundary` mode a SINGLE space between two visible characters is NOT marked (VS Code parity),
+        // while leading/trailing spaces, runs of 2+ spaces, and every tab are still marked. `All` marks
+        // every space + tab. `None` never reaches here (the draw-gate `render_whitespace()` is false).
+        let boundary = matches!(
+            self.render_whitespace_mode(),
+            crate::workspace_settings::RenderWhitespaceMode::Boundary
+        );
         // Mark one row of whitespace at `row_y` over the characters of `text` (a `\n`/`\r` is never
         // marked). Shared by the non-wrap (whole logical line) and wrap (per-fragment) paths.
         let mark_row = |row_y: f32, text: &str| {
+            let chars: Vec<char> = text.chars().collect();
+            let is_visible =
+                |c: char| c != ' ' && c != '\t' && c != '\n' && c != '\r';
             let mut col = 0usize;
-            for ch in text.chars() {
+            for (i, &ch) in chars.iter().enumerate() {
                 match ch {
                     ' ' => {
-                        let center = egui::pos2(
-                            x_for(col) + glyph_width * 0.5,
-                            row_y + geometry.line_height * 0.5,
-                        );
-                        painter.text(
-                            center,
-                            egui::Align2::CENTER_CENTER,
-                            "·",
-                            font.clone(),
-                            color,
-                        );
+                        // Boundary mode: skip a lone space bordered by visible chars on BOTH sides.
+                        let skip = boundary
+                            && i > 0
+                            && is_visible(chars[i - 1])
+                            && chars.get(i + 1).copied().map(is_visible).unwrap_or(false);
+                        if !skip {
+                            let center = egui::pos2(
+                                x_for(col) + glyph_width * 0.5,
+                                row_y + geometry.line_height * 0.5,
+                            );
+                            painter.text(
+                                center,
+                                egui::Align2::CENTER_CENTER,
+                                "·",
+                                font.clone(),
+                                color,
+                            );
+                        }
                         col += 1;
                     }
                     '\t' => {

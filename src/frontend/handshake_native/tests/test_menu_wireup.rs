@@ -1078,6 +1078,164 @@ fn go_nav_items_render_enabled_and_registered() {
     );
 }
 
+// ── WP-KERNEL-012 MT-035: the EDITORS menu (7th top-level, node id 98) renders + dispatches real commands ─
+
+/// The EDITORS menu occupies the fixed AccessKit node id 98 (MENU_BAR_NODE_ID_BASE + 6), renders its
+/// documented leaves as live MenuItem nodes with HONEST enable-state, and dispatching its leaves routes to
+/// the REAL wired commands: a VIEW-open leaf (Outline) opens the real `view.outline` command, and the new
+/// Rename-Symbol / Quick-Fix leaves reach the mounted code panel via `dispatch_editor_command` (the SAME
+/// path the F2 / Ctrl+. keymap and the editor body context menu use). No dead / lying-enabled leaves.
+#[test]
+fn editors_menu_renders_node_id_98_and_dispatches_real_commands() {
+    use handshake_native::command_registry::{
+        CMD_EDITOR_QUICK_FIX, CMD_EDITOR_RENAME_SYMBOL, CMD_VIEW_OUTLINE, CMD_VIEW_RELEVANT_MEMORY,
+    };
+    use handshake_native::quick_switcher::ShellNavigator;
+
+    let (mut app, _rt) = editor_shell();
+    // Focus the mounted code editor so the code-gated EDITORS leaves (Format/diagnostics/Rename/Quick Fix)
+    // are ENABLED (honest predicate proof: they enable only with an active code editor).
+    let opened = app.open_code_symbol("mt035-editors-menu-target");
+    assert!(
+        matches!(
+            opened,
+            handshake_native::quick_switcher::NavDispatchOutcome::Opened { .. }
+        ),
+        "precondition: the mounted code editor is the active target, got {opened:?}"
+    );
+    let code_panel = app.mounted_code_panel();
+    let mut harness = shell_harness(app);
+    harness.run_steps(3);
+
+    // The EDITORS top-level button is a live MenuItem carrying its stable author_id + the FIXED node id 98.
+    assert_live_author_id(&harness, "menu-editors", "EDITORS menu button");
+    assert_eq!(
+        handshake_native::top_menu_bar::MENU_BAR_NODE_ID_BASE + 6,
+        98,
+        "the 7th menu's fixed id derivation is 98"
+    );
+    assert_eq!(
+        node_id_for(&harness, "menu-editors"),
+        egui::accesskit::NodeId(handshake_native::top_menu_bar::MENU_BAR_NODE_ID_BASE + 6),
+        "the EDITORS menu occupies the fixed AccessKit node id 98"
+    );
+
+    // Open EDITORS; every documented leaf renders as an enabled MenuItem (code editor is active).
+    harness.get_by_label("EDITORS").click();
+    harness.run_steps(2);
+    let nodes = live_author_nodes(&harness);
+    for leaf in [
+        "menu.editors.outline",
+        "menu.editors.relevant-memory",
+        "menu.editors.outgoing-links",
+        "menu.editors.stage",
+        "menu.editors.sidebar",
+        "menu.editors.journal",
+        "menu.editors.format-document",
+        "menu.editors.next-diagnostic",
+        "menu.editors.prev-diagnostic",
+        "menu.editors.rename-symbol",
+        "menu.editors.quick-fix",
+    ] {
+        let node = nodes
+            .iter()
+            .find(|(a, _, _)| a == leaf)
+            .unwrap_or_else(|| panic!("EDITORS leaf {leaf} missing from open menu: {nodes:?}"));
+        assert_eq!(node.1, "MenuItem", "{leaf} role is MenuItem");
+        assert!(
+            !node.2,
+            "{leaf} is ENABLED while the mounted code editor is active (honest enable predicate)"
+        );
+    }
+
+    // ── Code-editor commands FIRST (the code editor is the active target). ──
+    // Quick Fix is the deterministic panel-state proof: dispatching CMD_EDITOR_QUICK_FIX reaches the mounted
+    // code panel and ARMS its quick_fix_request flag (the same flag the Ctrl+. keybind + context menu set).
+    assert!(
+        !code_panel.quick_fix_request_armed_for_test(),
+        "quick-fix request not armed before the EDITORS > Quick Fix dispatch"
+    );
+    assert!(
+        dispatch_palette_live(&mut harness, CMD_EDITOR_QUICK_FIX),
+        "EDITORS > Quick Fix dispatched to the mounted code editor"
+    );
+    // Assert WITHOUT rendering a frame: the mounted panel consumes (swaps) quick_fix_request during its
+    // own frame processing, so the armed flag is observable only between the dispatch and the next paint.
+    assert!(
+        code_panel.quick_fix_request_armed_for_test(),
+        "EDITORS > Quick Fix ARMED the mounted code panel's quick_fix_request (real panel-state effect)"
+    );
+
+    // Rename Symbol routes to the mounted code panel's begin_rename_at_cursor (dispatch fires for the active
+    // code target). Honest gating (no active code editor => no-op) is proven in the sibling test below.
+    assert!(
+        dispatch_palette_live(&mut harness, CMD_EDITOR_RENAME_SYMBOL),
+        "EDITORS > Rename Symbol dispatched to the mounted code editor (begin_rename_at_cursor path)"
+    );
+
+    // ── VIEW-open leaves LAST (they open a side pane and may re-target the active work surface). Each
+    // routes to the REAL `view.*` open command through the SAME shell dispatcher the menu OpenViewSurface
+    // action reaches — an observable open (not a fake). ──
+    assert!(
+        dispatch_palette_live(&mut harness, CMD_VIEW_OUTLINE),
+        "EDITORS > View: Outline routed to the real view.outline open command"
+    );
+    assert!(
+        dispatch_palette_live(&mut harness, CMD_VIEW_RELEVANT_MEMORY),
+        "EDITORS > View: Relevant Memory routed to the real view.relevant-memory open command"
+    );
+}
+
+/// Honesty proof: the code-gated EDITORS leaves + their commands are DISABLED / no-op when no code editor
+/// is the active target (never fake-enabled), while the VIEW-open leaves stay enabled (always-available
+/// opens).
+#[test]
+fn editors_menu_code_leaves_disabled_without_active_code_editor() {
+    use handshake_native::command_registry::{CMD_EDITOR_QUICK_FIX, CMD_EDITOR_RENAME_SYMBOL};
+
+    // The plain shell has NO mounted editor pane active, so the code-gated leaves must render disabled.
+    let mut harness = shell_harness(plain_shell());
+    harness.run();
+    harness.get_by_label("EDITORS").click();
+    harness.run_steps(2);
+    let nodes = live_author_nodes(&harness);
+    for leaf in [
+        "menu.editors.format-document",
+        "menu.editors.rename-symbol",
+        "menu.editors.quick-fix",
+        "menu.editors.next-diagnostic",
+    ] {
+        let node = nodes
+            .iter()
+            .find(|(a, _, _)| a == leaf)
+            .unwrap_or_else(|| panic!("EDITORS leaf {leaf} missing: {nodes:?}"));
+        assert!(
+            node.2,
+            "{leaf} renders DISABLED when no code editor is active (honest, no fake-enable)"
+        );
+    }
+    // The VIEW-open leaves remain enabled (they do not require an active editor).
+    for leaf in ["menu.editors.outline", "menu.editors.relevant-memory"] {
+        let node = nodes
+            .iter()
+            .find(|(a, _, _)| a == leaf)
+            .unwrap_or_else(|| panic!("EDITORS view-open leaf {leaf} missing: {nodes:?}"));
+        assert!(!node.2, "{leaf} view-open leaf stays enabled");
+    }
+
+    // The code commands are ALSO honestly gated at the dispatcher: a no-op (false) with no code target.
+    let mut harness2 = shell_harness(plain_shell());
+    harness2.run();
+    assert!(
+        !dispatch_palette_live(&mut harness2, CMD_EDITOR_RENAME_SYMBOL),
+        "Rename Symbol is a no-op when no code editor is active (honest gate)"
+    );
+    assert!(
+        !dispatch_palette_live(&mut harness2, CMD_EDITOR_QUICK_FIX),
+        "Quick Fix is a no-op when no code editor is active (honest gate)"
+    );
+}
+
 // ── AC-005 / PT-004: the command-palette editor entries are now enabled + dispatch ─────────────────────
 
 #[test]
@@ -1493,8 +1651,8 @@ fn editor_menu_catalog_has_the_contract_ids() {
     }
     // MT-069 REMEDIATION: the original 22 plus the 9 GO code-navigation shell commands (definition /
     // references / workspace-symbol / line / next+prev diagnostic / back / forward / symbol-in-file),
-    // plus the four code-folding commands rendered under EDIT.
-    assert_eq!(menu.len(), 35, "exactly 35 EditorMenu commands wired");
+    // plus the four code-folding commands rendered under EDIT. MT-035 adds Rename Symbol + Quick Fix (37).
+    assert_eq!(menu.len(), 37, "exactly 37 EditorMenu commands wired (35 + MT-035 rename/quick-fix)");
 }
 
 // ── WP-KERNEL-012 MT-069 REMEDIATION: FILE > Export Document reaches the REAL export path ──────────────

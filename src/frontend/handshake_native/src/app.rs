@@ -3611,6 +3611,29 @@ impl HandshakeApp {
                 ctx.request_repaint();
                 true
             }
+            // ── MT-035: Rename Symbol / Quick Fix -> the mounted code panel (the SAME dispatch_action
+            //    entry the F2 / Ctrl+. keymap chords and the editor body context menu reach). Requires an
+            //    active CODE editor target; otherwise a typed logged no-op (never a fake effect). ────────
+            cr::CMD_EDITOR_RENAME_SYMBOL | cr::CMD_EDITOR_QUICK_FIX => {
+                if self.active_editor_target(ctx) != Some(ActiveEditorTarget::Code) {
+                    tracing::info!(
+                        "editor command {command_id} requires an active code editor target; no-op"
+                    );
+                    return false;
+                }
+                let action = match command_id {
+                    cr::CMD_EDITOR_RENAME_SYMBOL => {
+                        crate::code_editor::keymap::CodeEditorAction::RenameSymbol
+                    }
+                    cr::CMD_EDITOR_QUICK_FIX => {
+                        crate::code_editor::keymap::CodeEditorAction::QuickFix
+                    }
+                    _ => unreachable!("matched rename/quick-fix command ids above"),
+                };
+                self.editor_mounts.code_panel.dispatch_action(action);
+                ctx.request_repaint();
+                true
+            }
             // ── Save -> SCOPED to the FOCUSED pane (MT-069 REMEDIATION) ───────────────────────────────
             cr::CMD_EDITOR_FILE_SAVE => {
                 // Previously Save unconditionally invoked the RICH SaveManager AND pinged the code
@@ -6583,7 +6606,9 @@ impl HandshakeApp {
     /// the SAME frame (not just persisted). Reuses the panel's existing `&self` interior-mutability slots
     /// (no panel.rs edit, no parallel state):
     /// - `tab_size` + `insert_spaces` -> [`CodeEditorPanel::set_indent_settings`];
-    /// - `render_whitespace` (any non-`None` mode draws) -> [`CodeEditorPanel::set_render_whitespace`];
+    /// - `render_whitespace` (full None/Boundary/All mode, MT-035) -> [`CodeEditorPanel::set_render_whitespace_mode`];
+    /// - `minimap_enabled` / `sticky_scroll` / `line_numbers` (MT-035) -> `set_show_minimap` /
+    ///   `set_sticky_scroll_enabled` / `set_line_numbers_enabled`;
     /// - `word_wrap` -> [`CodeEditorPanel::set_wrap_enabled`] + [`CodeEditorPanel::set_wrap_column`]
     ///   (`Off` => disabled; `On` => enabled, viewport-edge wrap; `BoundedColumn(n)` => enabled at `n`).
     ///
@@ -6601,7 +6626,15 @@ impl HandshakeApp {
         let prefs = &self.workspace_settings.editor_prefs;
         let panel = &self.editor_mounts.code_panel;
         panel.set_indent_settings(prefs.tab_size as usize, prefs.insert_spaces);
-        panel.set_render_whitespace(prefs.render_whitespace.draws_whitespace());
+        // MT-035: thread the FULL None/Boundary/All render-whitespace mode (fixing the prior lossiness that
+        // collapsed Boundary and All to a single bool via `draws_whitespace()`).
+        panel.set_render_whitespace_mode(prefs.render_whitespace);
+        // MT-035: LIVE-wire the minimap / sticky-scroll / line-number visibility toggles onto the mounted
+        // code panel's existing feature flags (set_show_minimap, set_sticky_scroll_enabled, and the MT-007
+        // GutterConfig::show_line_numbers via set_line_numbers_enabled).
+        panel.set_show_minimap(prefs.minimap_enabled);
+        panel.set_sticky_scroll_enabled(prefs.sticky_scroll);
+        panel.set_line_numbers_enabled(prefs.line_numbers);
         // S6 item 3: LIVE font size + Custom syntax palette on mounted editors.
         panel.set_font_size(prefs.editor_font_size);
         panel.set_syntax_palette(self.workspace_settings.syntax_palette.clone());
