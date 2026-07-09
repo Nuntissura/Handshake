@@ -14,7 +14,7 @@
   "title": "E10-MT-067-CalendarDailyNoteAndActivityInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-08T02:58:52.998Z",
+  "updated_at_utc": "2026-07-09T02:45:54.108Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-067.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -77,8 +77,8 @@
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-08T02:58:52.998Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-08T02:58:52.998Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "ready_for_validation_at_utc": "2026-07-09T02:45:54.108Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-09)",
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260707-224033",
       "mode": "VERIFY_AND_PROVE (reopen 'CalendarInteropService never instantiated' resolved in code; comprehensive pre-review + independent proof)",
@@ -94,6 +94,12 @@
         "live-PG batch: daily-note PUT idempotency",
         "AC-6: register daily-journal ids in accessibility/registry.rs (follow-up)"
       ]
+    },
+    "rfv_evidence_2026_07_09_livepg": {
+      "by": "KERNEL_BUILDER-20260709-livepg",
+      "mode": "RUNTIME-PROVEN (backend Calendar activity-span store + daily-note linkage built + proven live)",
+      "session_summary": "Calendar interop. Backend blocker RESOLVED: new calendar_activity_spans store (migration 0340, storage/calendar_activity.rs, api/calendar.rs POST+GET /calendar/activity-spans; commit 5993cfe5) + daily_note_doc_id linkage on calendar events (resolves the loom journal for the event start date). Distinct from the swarm-iteration flight_recorder ActivitySpan.",
+      "proofs": "LIVE managed PG: mt067_activity_span_create_and_query_round_trip PASS (POST span with edited_doc_ids -> GET returns them) + mt067_calendar_event_populates_daily_note_doc_id PASS. Backend route tests 8/8."
     }
   },
   "scope": {

@@ -14,7 +14,7 @@
   "title": "E10-MT-066-StageRouteAndCaptureInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-08T05:37:24.001Z",
+  "updated_at_utc": "2026-07-09T02:45:54.108Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-066.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -77,8 +77,8 @@
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-08T05:37:24.001Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-08T05:37:24.001Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "ready_for_validation_at_utc": "2026-07-09T02:45:54.108Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-09)",
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260707-224033",
       "mode": "GAP-FIX (coder wired reopen-item-4 embed-back leg; library layer was verify-and-prove) + NEEDS_MANAGED_RESOURCE_PROOF",
@@ -93,6 +93,13 @@
         "AC-001 build_from_selection/canvas_node builders still dead-in-prod (live route path builds StageContent::Document inline, only whole-Document) -> Selection/CanvasNode routing = E11/future",
         "AC-002 live PG round-trip + FR ingestion -> live batch"
       ]
+    },
+    "rfv_evidence_2026_07_09_livepg": {
+      "by": "KERNEL_BUILDER-20260709-livepg",
+      "mode": "RUNTIME-PROVEN (backend Stage artifact store built + proven live)",
+      "session_summary": "Stage embed-back (Pillar 17). The backend blocker (no Stage capture-artifact + SHA-256 manifest store) is RESOLVED: new stage_capture_artifacts store (migration 0341, storage/stage_artifacts.rs, api/stage.rs POST create + GET read; commit 7f639f6e). The GET returns the evidence-grade provenance descriptor StageArtifactRef{artifact_id,workspace_id,sha256,manifest{sha256,manifest_ref,content_type},label} the frontend fetch_stage_artifact -> hsLink(ref_kind=stage_capture) embed-back needs; DB CHECKs enforce non-empty sha256+manifest_ref (the twin of the frontend ProvenanceMissing gate).",
+      "proofs": "LIVE managed PG: route2_stage_artifact_create_and_resolve PASS (POST a selection artifact -> GET -> non-empty 64-hex sha256 + non-empty manifest_ref + content_type round-trips). Backend route tests 8/8.",
+      "deferred": "Binary/blob captures (image/png via ArtifactStore L1-L4) + wiring the Stage-pane Capture action to POST (route_to_stage is bus-only) = documented product-flow follow-ups; the GET is metadata-only so binary defers cleanly."
     }
   },
   "scope": {
