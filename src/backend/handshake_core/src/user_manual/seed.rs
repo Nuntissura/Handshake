@@ -4437,7 +4437,21 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: Some("/swarm/model-lanes/navigation/runs/{run_id}".into()),
         http_method: "GET".into(),
         description:
-            "Exact Rust proof targets for no-context Dexterity ModelLane navigation routes and UserManual registry parity."
+            "Exact Rust proof targets for no-context Dexterity ModelLane navigation routes and UserManual registry parity. \
+             Routes: GET /swarm/model-lanes/navigation/runs/{run_id}, \
+             GET /swarm/model-lanes/navigation/lanes/{lane_id}, \
+             GET /swarm/model-lanes/navigation/messages/{message_id}, \
+             GET /swarm/model-lanes/navigation/artifacts, \
+             GET /swarm/model-lanes/navigation/traces/{trace_id}, \
+             GET /swarm/model-lanes/navigation/diagnostics/{run_id}, \
+             GET /swarm/model-lanes/navigation/recovery/{run_id}, \
+             GET /swarm/model-lanes/navigation/lookup. \
+             Selectors that are not natural route path parameters resolve through the \
+             `model_lane.navigation.lookup` lookup_kind (ModelLaneNavigationLookup) with exactly one \
+             query selector, served by ModelLaneStore::navigation_by_lookup. Every returned row carries \
+             trace_id, span_id, event_ledger_event_id, event_ledger_seq, and error_code, plus EventLedger \
+             authority refs and Flight Recorder refs, the HBR-INT-009 internal_diagnostics and Palmistry \
+             posture, and Locus, Loom, FEMS, ContextBundle, and MemoryPack refs."
                 .into(),
         expected_input:
             "Real PostgreSQL/EventLedger test schema; ModelLaneRun, lane, message, artifact binding, recovery, lease, diagnostic tier, and MT status rows with trace/span, Locus, Loom, FEMS, ContextBundle, MemoryPack, Flight Recorder, and Palmistry refs."
