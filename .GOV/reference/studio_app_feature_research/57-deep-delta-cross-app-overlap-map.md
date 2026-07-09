@@ -7,7 +7,7 @@ status: generated
 updated_at: "2026-07-09"
 generator: _tools/generate-deep-delta-overlap-map.py
 source_files: [51, 52, 53, 54, 55]
-deep_delta_row_count: 2304
+deep_delta_row_count: 2330
 overlap_group_count: 160
 ---
 
@@ -19,12 +19,12 @@ overlap_group_count: 160
 
 ```yaml
 coverage:
-  deep_delta_row_count: 2304
-  affinity_rows: 440
+  deep_delta_row_count: 2330
+  affinity_rows: 464
   figma_rows: 425
-  illustrator_rows: 447
+  illustrator_rows: 448
   indesign_rows: 416
-  photoshop_rows: 576
+  photoshop_rows: 577
   overlap_group_count: 160
   policy: shared_behavior_maps_to_one_studio_primitive_source_rows_stay_as_variants
 ```
@@ -34,16 +34,16 @@ coverage:
 ```yaml
 domain_counts:
   automation:
-    affinity: 14
+    affinity: 16
     figma: 86
     illustrator: 29
     indesign: 32
     photoshop: 30
   camera_raw:
-    affinity: 24
+    affinity: 26
     photoshop: 51
   collaboration:
-    affinity: 2
+    affinity: 3
     figma: 29
     illustrator: 7
     indesign: 19
@@ -63,25 +63,25 @@ domain_counts:
     indesign: 9
     photoshop: 12
   document:
-    affinity: 16
+    affinity: 20
     figma: 38
     illustrator: 39
     indesign: 62
     photoshop: 25
   export:
-    affinity: 37
+    affinity: 39
     figma: 26
     illustrator: 42
     indesign: 26
     photoshop: 22
   interactive:
-    affinity: 16
+    affinity: 21
     figma: 23
     illustrator: 1
     indesign: 21
     photoshop: 29
   layer_graph:
-    affinity: 55
+    affinity: 56
     figma: 10
     illustrator: 12
     indesign: 3
@@ -98,27 +98,27 @@ domain_counts:
   prototype:
     figma: 39
   raster:
-    affinity: 78
+    affinity: 81
     figma: 17
     illustrator: 17
     indesign: 17
-    photoshop: 189
+    photoshop: 190
   selection_mask:
-    affinity: 23
+    affinity: 24
     figma: 2
     illustrator: 18
     indesign: 4
     photoshop: 31
   typography:
-    affinity: 24
+    affinity: 25
     figma: 22
     illustrator: 48
     indesign: 83
     photoshop: 36
   vector:
-    affinity: 55
+    affinity: 57
     figma: 32
-    illustrator: 168
+    illustrator: 169
     indesign: 22
     photoshop: 20
 ```

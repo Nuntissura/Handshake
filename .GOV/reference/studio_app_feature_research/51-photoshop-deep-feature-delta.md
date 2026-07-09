@@ -7,7 +7,7 @@ status: draft
 app_key: photoshop
 updated_at: "2026-07-09"
 summary: "Tool/command/option/filter/panel/preference-level delta inventory for Adobe Photoshop desktop and Adobe Camera Raw, deepening or extending the 441-row help-TOC leaf index."
-row_count: 576
+row_count: 577
 modality_counts:
   adjustments-and-blending: 74
   automation-and-scripting: 28
@@ -19,16 +19,16 @@ modality_counts:
   panels-and-workspace: 28
   preferences: 19
   smart-and-linked: 15
-  tools: 81
+  tools: 82
   type-engine: 31
 dedupe_status_counts:
-  new_surface: 122
+  new_surface: 123
   deepens_existing: 454
 verification_status_counts:
-  VERIFIED: 576
+  VERIFIED: 577
   PARTIAL: 0
   UNVERIFIED: 0
-sources: 52
+sources: 53
 ---
 
 ## [SFR-PHOTOSHOP-DEEP-DELTA] Photoshop Deep Feature Delta
@@ -54,6 +54,16 @@ records:
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/get-started-selections/selection-tools-overview.html"
     source_ids: [PSDD-S01]
     verification_status: "VERIFIED"
+  - id: "photoshop.deep.tools.adjustment-brush"
+    name: "Adjustment Brush tool"
+    record_role: "feature_deep_delta"
+    app_behavior: "Paints a local non-destructive adjustment (exposure, color, etc.) by brushing directly on the canvas; each stroke generates a new adjustment layer with a layer mask, editable later in the Properties panel, with add/subtract/invert/overlay and apply-to-object options in the options bar / Contextual Task Bar. Shipped in the Photoshop 2024 (May 2024) release."
+    primitive_domain: "raster"
+    dedupe_status: "new_surface"
+    source_url: "https://helpx.adobe.com/photoshop/using/adjustment-brush.html"
+    source_ids: [PSDD-S53]
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.artboard-tool"
     name: "Artboard tool"
     record_role: "feature_deep_delta"
@@ -6114,4 +6124,7 @@ sources:
   - id: PSDD-S52
     url: "https://helpx.adobe.com/photoshop/desktop/get-started/learn-the-basics/change-text-size.html"
     note: "Official adjust-text-size page (Preferences > Interface UI Font Size, Scale UI To Font); basis for Photoshop's small accessibility surface plus OS-level screen-reader (JAWS/NVDA/VoiceOver) posture. Search-snippet + official-page enumeration 2026-07-09."
+  - id: PSDD-S53
+    url: "https://helpx.adobe.com/photoshop/using/adjustment-brush.html"
+    note: "Official Adjustment Brush tool page; confirms brush-applied non-destructive local adjustment generating an adjustment layer + mask, editable in Properties, with add/subtract/invert/overlay/apply-to-object options. Added by the 2026-07-09 recency-audit (round 3) fill; shipped in Photoshop 2024 (May 2024)."
 ```

@@ -7,8 +7,8 @@ status: draft
 app_key: illustrator
 updated_at: "2026-07-09"
 counts:
-  total_rows: 447
-  tools: 90
+  total_rows: 448
+  tools: 91
   menu_commands: 94
   effects: 70
   appearance_and_styles: 22
@@ -20,9 +20,9 @@ counts:
   panels_and_workspace: 46
   preferences: 16
   cloud_and_ai: 17
-  new_surface: 190
+  new_surface: 191
   deepens_existing: 257
-  verified: 447
+  verified: 448
   unverified: 0
 ---
 
@@ -46,6 +46,16 @@ records:
     source_url: "https://helpx.adobe.com/illustrator/using/tool-techniques/selection-tool.html"
     source_ids: [ILDEEP-S01, ILDEEP-S03]
     verification_status: "VERIFIED"
+  - id: "illustrator.deep.tools.objects-on-path"
+    name: "Objects on Path tool"
+    record_role: "feature_deep_delta"
+    app_behavior: "Attaches and aligns selected objects to a straight or curved path as an Objects-on-Path group, then lets you adjust spacing, rotate objects to follow the path curvature, move objects along the path, change each object's 9-point attachment point, and shuffle order without losing alignment. Illustrator 29.0+ (2024 release)."
+    primitive_domain: "vector"
+    dedupe_status: "new_surface"
+    source_url: "https://helpx.adobe.com/illustrator/using/objects-on-path.html"
+    source_ids: [ILDEEP-S17]
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.direct-selection-tool"
     name: "Direct Selection tool (A)"
     record_role: "feature_deep_delta"
@@ -4605,4 +4615,7 @@ sources:
   - id: ILDEEP-S16
     url: "web-search-verification-pass-2026-07-09"
     note: "Consolidated 2026-07-09 official-helpx web-search verification pass (helpx.adobe.com pages: set-app-preferences category list; divide-or-split-objects Split Into Grid; expand-objects Expand Appearance; line-character-spacing Fit Headline; add-advanced-formatting-to-text Optical Margin Alignment; add-text-work-with-type-objects Create Outlines and Type>Convert to Area/Point Type and Legacy Text; image-trace-panel-options Paths/Corners/Noise/Method; creating-pdf-files/pdf-options preset families; multiple-file-place Place dialog Link/Template/Replace/Show Import Options; printing-color-management + accessibility Proof Setup/Proof Colors; about-3d-effects/create-3d-objects 3D (Classic) menu path; introduction-to-artboards 1000-artboard limit; reshaping-objects-effects Warp Style menu fixed 15-preset set and Effect>Path Offset/Outline). Snippet enumeration accepted per corpus policy (S11)."
+  - id: ILDEEP-S17
+    url: "https://helpx.adobe.com/illustrator/using/objects-on-path.html"
+    note: "Official 'Align, arrange, and move objects on a path' page; confirms the Objects on Path tool (Illustrator 29.0+, 2024): attach/align objects to a path as an Objects-on-Path group, adjust spacing, rotate to path curvature, move along path, 9-point attachment widget, shuffle order. Added by the 2026-07-09 recency-audit (round 3) fill."
 ```

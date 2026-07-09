@@ -8,7 +8,7 @@ app_key: affinity
 updated_at: "2026-07-09"
 summary: "Below-TOC-leaf per-persona tool/panel/option inventory for Affinity Photo 2, Designer 2 and Publisher 2 desktop, built from official desktop help pages, local desktop TOC snapshots and 2.x release evidence."
 counts:
-  total_records: 440
+  total_records: 464
   personas: 14
   photo_tools: 72
   designer_tools: 56
@@ -22,10 +22,11 @@ counts:
   automation_and_integration: 15
   panels_and_workspace: 42
   version_2x_deltas: 13
-  verified: 440
+  post_2x_unified_relaunch: 24
+  verified: 464
   unverified: 0
   deepens_existing: 433
-  new_surface: 7
+  new_surface: 31
 ---
 
 ## [SFR-AFFINITY-DEEP-DELTA] Affinity Suite Deep Feature Delta
@@ -4991,6 +4992,278 @@ records:
     verified_at: "2026-07-09"
 ```
 
+### [SFR-AFFINITY-DEEP-DELTA.post-2-6-unified-relaunch] Post-2.6 Unified Relaunch and 2026 Features
+
+Architecture context for Handshake's own "one unified Studio app" goal: the earlier V2 rows above describe the three-app Photo/Designer/Publisher model (V2.6-era). That model was superseded. At the "Creative Freedom" keynote on 30 October 2025, Canva relaunched Affinity as a single unified desktop app (internal version 3.0, branded simply "Affinity" / "Affinity by Canva") that drops the three separate applications and folds their capability into one interface with three switchable studios/modes — Vector (former Designer), Pixel (former Photo), and Layout (former Publisher). The app is free forever (replacing the former ~USD 70-per-app one-time purchase) and introduces a new universal `.af` document that holds vector, raster and layout content in one file. Work is stored locally on device, but a free Canva account and online sign-in are required to run the app (provider posture: online-account-gated; Handshake Studio's equivalent unification stays fully local-first and offline with no account). Core editing, customization and export are entirely free; generative-AI features (Generative Fill, Generative Expand, Generate Image/Vector) are locked behind a Canva Pro/Premium subscription. It shipped on Windows and macOS (iPad planned later). Two free updates followed within scope: version 3.1 (16 March 2026) and version 3.2 (27 April 2026). All rows in this subtopic are release-notes/press-only surfaces with no covering V2 help leaf, so all are `new_surface`.
+
+```yaml
+records:
+  - id: "affinity.deep.post-2-6.unified-single-app"
+    name: "3.0: unified single app replacing the three separate V2 apps"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "Affinity 3.0 (relaunched 30 Oct 2025) drops the separate Photo, Designer and Publisher apps and integrates all three toolsets into one application."
+    primitive_domain: document
+    dedupe_status: new_surface
+    source_url: "https://en.wikipedia.org/wiki/Affinity_(software)"
+    source_ids: [AFD-S44, AFD-S45]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.studios-vector-pixel-layout"
+    name: "3.0: personas become Vector/Pixel/Layout studios in one interface"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "The former Photo/Designer/Publisher personas become three switchable studios (Pixel, Vector, Layout) accessed via dedicated tabs inside one unified interface."
+    primitive_domain: interactive
+    dedupe_status: new_surface
+    source_url: "https://www.macrumors.com/2025/10/31/canva-relaunches-affinity-free-app/"
+    source_ids: [AFD-S45, AFD-S44]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.universal-af-format"
+    name: "3.0: universal .af document format"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "A new universal .af file format stores vector, raster and layout content of a project in a single document, replacing the separate .afphoto/.afdesign/.afpub formats."
+    primitive_domain: document
+    dedupe_status: new_surface
+    source_url: "https://en.wikipedia.org/wiki/Affinity_(software)"
+    source_ids: [AFD-S44]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.free-forever-pricing"
+    name: "3.0: free-forever pricing (no paid license)"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "The unified app is free forever with no purchase; every Pixel/Vector/Layout tool plus customization and export are unrestricted, replacing the former ~USD 70-per-app one-time purchase model."
+    primitive_domain: document
+    dedupe_status: new_surface
+    source_url: "https://www.canva.com/newsroom/news/affinity-free/"
+    source_ids: [AFD-S39, AFD-S44]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.canva-account-required"
+    name: "3.0: free Canva account and online sign-in required (provider posture)"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "Running the app requires a free Canva account and online sign-in ('Everyone now needs a Canva account to access the software'); this is an online-account-gated provider posture. Handshake Studio's equivalent unification stays fully local-first with no account or sign-in."
+    primitive_domain: collaboration
+    dedupe_status: new_surface
+    source_url: "https://www.macrumors.com/2025/10/31/canva-relaunches-affinity-free-app/"
+    source_ids: [AFD-S45]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.local-storage-offline-editing"
+    name: "3.0: work stored locally on device"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "Affinity stores project files locally on the device rather than cloud-first, so editing and documents remain local even though initial sign-in is online."
+    primitive_domain: document
+    dedupe_status: new_surface
+    source_url: "https://www.canva.com/newsroom/news/affinity-free/"
+    source_ids: [AFD-S39]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.generative-ai-canva-pro"
+    name: "3.0: generative-AI features gated behind Canva Pro"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "Generative-AI features (Generative Fill, Generative Expand, Generate Image, Generate Vector) require a paid Canva Pro/Premium subscription; all non-AI editing is free. Provider posture: AI is an optional paid cloud adapter, not core."
+    primitive_domain: automation
+    dedupe_status: new_surface
+    source_url: "https://en.wikipedia.org/wiki/Affinity_(software)"
+    source_ids: [AFD-S44, AFD-S39]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.customizable-unified-workspace"
+    name: "3.0: cross-studio customizable, savable and shareable workspace"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "The unified UI lets users show/hide panels and mix tools from any studio, then save workspace layouts per task and share those setups with a team or the community."
+    primitive_domain: interactive
+    dedupe_status: new_surface
+    source_url: "https://www.canva.com/newsroom/news/affinity-free/"
+    source_ids: [AFD-S39]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.light-ui-theme"
+    name: "3.1: customizable Light UI theme"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "3.1 (16 Mar 2026) adds a Light UI theme with adjustable interface brightness alongside the existing dark theme."
+    primitive_domain: interactive
+    dedupe_status: new_surface
+    source_url: "https://www.affinity.studio/blog/affinity-update-march-2026"
+    source_ids: [AFD-S40, AFD-S41]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.convert-to-curves"
+    name: "3.1: Convert to Curves (pixel selection to editable vector)"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "A Vector-menu Convert to Curves command turns a pixel selection into a fully editable vector curve instantly, without manual tracing."
+    primitive_domain: vector
+    dedupe_status: new_surface
+    source_url: "https://www.affinity.studio/blog/affinity-update-march-2026"
+    source_ids: [AFD-S40, AFD-S42]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.live-tone-blend-groups"
+    name: "3.1: Live Tone Blend Groups"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "A Live Tone Blend Group is a dynamic group in which placed layers blend with the underlying composition in real time, non-destructively, simplifying still-image compositing."
+    primitive_domain: layer_graph
+    dedupe_status: new_surface
+    source_url: "https://www.affinity.studio/blog/affinity-update-march-2026"
+    source_ids: [AFD-S40, AFD-S42]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.tone-brush"
+    name: "3.1: non-destructive Tone Brush"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "A non-destructive Tone Brush paints brightness, contrast and color adjustments onto an image with Dodge/Burn, Blend and Inverse Blend modes."
+    primitive_domain: raster
+    dedupe_status: new_surface
+    source_url: "https://www.cgchannel.com/2026/03/canva-releases-first-major-update-to-its-free-affinity-software/"
+    source_ids: [AFD-S42]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.right-click-brush-menu"
+    name: "3.1: right-click brush library menu"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "A right-click contextual menu gives instant access to the full brush library while painting."
+    primitive_domain: interactive
+    dedupe_status: new_surface
+    source_url: "https://www.affinity.studio/blog/affinity-update-march-2026"
+    source_ids: [AFD-S40]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.document-tab-context-menu"
+    name: "3.1: document tab context menu"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "A right-click menu on document tabs exposes color format/size info, close, float-window and other document-management actions."
+    primitive_domain: interactive
+    dedupe_status: new_surface
+    source_url: "https://www.affinity.studio/blog/affinity-update-march-2026"
+    source_ids: [AFD-S40]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.develop-tone-curve-choices"
+    name: "3.1: Develop Studio tone curve choices"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "The Develop (RAW) studio adds a choice of tone curves — Compressed, Natural, High Contrast and Log — during RAW processing."
+    primitive_domain: camera_raw
+    dedupe_status: new_surface
+    source_url: "https://petapixel.com/2026/03/17/affinitys-first-free-update-adds-new-features-and-camera-raw-profiles/"
+    source_ids: [AFD-S41, AFD-S42]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.v31-camera-raw-models"
+    name: "3.1: new camera RAW model support"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "3.1 adds RAW support for Canon R6 Mark III, Sony a7 V (lossless compression only), Fujifilm X-T30 III and Sony RX100 VIIA."
+    primitive_domain: camera_raw
+    dedupe_status: new_surface
+    source_url: "https://petapixel.com/2026/03/17/affinitys-first-free-update-adds-new-features-and-camera-raw-profiles/"
+    source_ids: [AFD-S41]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.texture-filter"
+    name: "3.2: Texture filter"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "3.2 (27 Apr 2026) adds a Texture filter that enhances midtone detail in images."
+    primitive_domain: raster
+    dedupe_status: new_surface
+    source_url: "https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/"
+    source_ids: [AFD-S43]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.vector-blob-erase-brushes"
+    name: "3.2: Vector Blob and Vector Erase brushes"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "New Vector Blob and Vector Erase brushes create and remove filled vector shapes directly by brushing, without first drawing outlines."
+    primitive_domain: vector
+    dedupe_status: new_surface
+    source_url: "https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/"
+    source_ids: [AFD-S43]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.v32-raw-mask-types"
+    name: "3.2: new RAW mask types"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "RAW processing gains Object Selection, Luminosity, Hue Range and Compound mask types for masked RAW adjustments."
+    primitive_domain: selection_mask
+    dedupe_status: new_surface
+    source_url: "https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/"
+    source_ids: [AFD-S43]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.multi-band-sharpen-fine-detail"
+    name: "3.2: Multi Band Sharpen Fine Detail option"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "The Multi Band Sharpen filter adds a Fine Detail sharpening option."
+    primitive_domain: raster
+    dedupe_status: new_surface
+    source_url: "https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/"
+    source_ids: [AFD-S43]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.davinci-resolve-af-import"
+    name: "3.2: DaVinci Resolve .af import with real-time sync"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "DaVinci Resolve can import Affinity .af files as titles/overlays with real-time sync back to edits made in Affinity."
+    primitive_domain: export
+    dedupe_status: new_surface
+    source_url: "https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/"
+    source_ids: [AFD-S43]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.capture-one-af-export"
+    name: "3.2: Capture One .af export with preserved masks/metadata"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "Affinity can export .af files to Capture One with masks, watermarks and metadata preserved."
+    primitive_domain: export
+    dedupe_status: new_surface
+    source_url: "https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/"
+    source_ids: [AFD-S43]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.custom-image-bullets"
+    name: "3.2: custom image bullet points in layout"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "Page-layout tools support using custom images as bullet points, alongside improved OpenType typography support."
+    primitive_domain: typography
+    dedupe_status: new_surface
+    source_url: "https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/"
+    source_ids: [AFD-S43]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+  - id: "affinity.deep.post-2-6.natural-language-automation-beta"
+    name: "3.2: natural-language desktop automation (beta, provider posture)"
+    record_role: "feature_deep_delta"
+    source_app: affinity_unified
+    app_behavior: "A beta feature enables AI-driven task automation inside Affinity via natural-language commands routed through an external AI desktop assistant; provider posture is external-AI-adapter and optional, not a local scripting engine (V2 had no scripting)."
+    primitive_domain: automation
+    dedupe_status: new_surface
+    source_url: "https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/"
+    source_ids: [AFD-S43]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
+```
+
 ### [SFR-AFFINITY-DEEP-DELTA.sources] Sources
 
 ```yaml
@@ -5109,4 +5382,25 @@ sources:
   - id: AFD-S38
     url: "https://www.affinity.studio/"
     note: "Affinity by Canva homepage: free-for-individuals all-in-one app (Vector/Pixel/Layout), separate from V2 suite, optional Canva AI for Premium subscribers, no scripting mentioned; fetched 2026-07-09 via reader proxy. Verifies suite-canva-era-posture and scripting-posture context."
+  - id: AFD-S39
+    url: "https://www.canva.com/newsroom/news/affinity-free/"
+    note: "Canva newsroom relaunch announcement: free-forever rationale, 'Affinity stores your work locally on your device', no AI training on Affinity content, generative AI within Affinity; fetched 2026-07-09 via reader proxy. Verifies free-forever-pricing, local-storage-offline-editing, customizable-unified-workspace, generative-ai-canva-pro context."
+  - id: AFD-S40
+    url: "https://www.affinity.studio/blog/affinity-update-march-2026"
+    note: "Official Affinity blog, March 2026 (v3.1) update: Light UI, Convert to Curves, Live Tone Blend Groups, right-click brush menu, document tab context menu; released 16 Mar 2026; fetched 2026-07-09. Verifies light-ui-theme, convert-to-curves, live-tone-blend-groups, right-click-brush-menu, document-tab-context-menu."
+  - id: AFD-S41
+    url: "https://petapixel.com/2026/03/17/affinitys-first-free-update-adds-new-features-and-camera-raw-profiles/"
+    note: "PetaPixel coverage of Affinity 3.1: new camera RAW models (Canon R6 Mark III, Sony a7 V lossless-only, Fujifilm X-T30 III, Sony RX100 VIIA) and Develop tone curve choices (Compressed/Natural/High Contrast/Log); fetched 2026-07-09. Verifies v31-camera-raw-models, develop-tone-curve-choices."
+  - id: AFD-S42
+    url: "https://www.cgchannel.com/2026/03/canva-releases-first-major-update-to-its-free-affinity-software/"
+    note: "CG Channel coverage of Affinity 3.1 (first major free update): Tone Brush (Dodge/Burn, Blend, Inverse Blend), selection-to-curves, Live Tone Blend Group, Develop tone-curve choices, version number 3.1; fetched 2026-07-09. Verifies tone-brush and v3.1 version numbering."
+  - id: AFD-S43
+    url: "https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/"
+    note: "CG Channel coverage of Affinity 3.2 (27 Apr 2026): Texture filter, Vector Blob/Erase brushes, new RAW mask types (Object Selection/Luminosity/Hue Range/Compound), Multi Band Sharpen Fine Detail, DaVinci Resolve .af import, Capture One .af export, custom image bullets, OpenType, natural-language desktop automation beta; fetched 2026-07-09. Verifies all 3.2 post-2-6 rows."
+  - id: AFD-S44
+    url: "https://en.wikipedia.org/wiki/Affinity_(software)"
+    note: "Wikipedia Affinity (software): confirms 30 Oct 2025 'Creative Freedom' keynote relaunch as internal version 3.0, 'Version 3 drops the separate applications and integrates their functionality into a singular application', Vector/Pixel/Layout studios, custom .af file format, Canva AI locked behind Canva Pro; fetched 2026-07-09. Verifies unified-single-app, studios, universal-af-format, generative-ai-canva-pro."
+  - id: AFD-S45
+    url: "https://www.macrumors.com/2025/10/31/canva-relaunches-affinity-free-app/"
+    note: "MacRumors relaunch coverage: 'Everyone now needs a Canva account to access the software, but signing up is free'; unifies vector/photo/layout into one app with Vector/Pixel/Layout tabs; fetched 2026-07-09. Verifies canva-account-required, studios-vector-pixel-layout."
 ```
