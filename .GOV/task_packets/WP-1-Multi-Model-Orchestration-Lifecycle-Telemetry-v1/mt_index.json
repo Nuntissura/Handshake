@@ -1,10 +1,10 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-01T19:02:22Z",
+  "generated_at_utc": "2026-07-09T00:35:00Z",
   "total": 17,
   "range": "MT-001..MT-017",
-  "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes.",
+  "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes. KERNEL_BUILDER HEAD re-proof 2026-07-09: every MT re-verified at HEAD via its declared proof targets on managed PostgreSQL; stale greens from ancestor commits replaced. Deferred gaps captured in MT-017.",
   "microtasks": [
     {
       "mt_id": "MT-001",
@@ -23,7 +23,7 @@
         "MT-009",
         "MT-010"
       ],
-      "proof_status": "PASS_MT001_SPEC_PACKET_TOPOLOGY_CHECKS",
+      "proof_status": "PASS_MT001_SPEC_PACKET_TOPOLOGY_CHECKS || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: spec-current-check OK; spec-bundle-check OK. KNOWN SPEC-DEBT (not a runtime defect): spec 04-llm-infrastructure.md kind/authority/status enums (:1575/:1584/:1515) differ from runtime-proven code enums (model_lane.rs:5118/5142/4849); MT-001 name-only check cannot see it. Spec bundle bump deprioritized by operator.",
       "hbr_status": "PASS_HBR_MATRIX_CHECK",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
@@ -44,7 +44,7 @@
         "MT-007",
         "MT-008"
       ],
-      "proof_status": "PASS_MT002_2026-07-01_SCHEMA_PG_TESTS_4_PASS_0_FAIL_COMMIT_e083e0d2_SHARED_CLOUD_SEED_HELPER_PLUS_3_REAL_MODEL_LANE_BUG_FIXES",
+      "proof_status": "PASS_MT002_2026-07-01_SCHEMA_PG_TESTS_4_PASS_0_FAIL_COMMIT_e083e0d2_SHARED_CLOUD_SEED_HELPER_PLUS_3_REAL_MODEL_LANE_BUG_FIXES || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: model_lane_schema_pg_tests 4/4 PASS.",
       "hbr_status": "PASS_MT002_SCHEMA_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
@@ -63,7 +63,7 @@
         "MT-007",
         "MT-009"
       ],
-      "proof_status": "PASS_MT-003_OLLAMA_KILL_EMBEDDED_MODELRUNTIME_DEFAULT_4_ENGINE_FREE_TESTS_PASS_CARGO_CHECK_APP_RUNTIME_PASS_COMMIT_321543ca_REAL_INFERENCE_AND_BOXING_DEFERRED_MT013_MT014",
+      "proof_status": "PASS_MT-003_OLLAMA_KILL_EMBEDDED_MODELRUNTIME_DEFAULT_4_ENGINE_FREE_TESTS_PASS_CARGO_CHECK_APP_RUNTIME_PASS_COMMIT_321543ca_REAL_INFERENCE_AND_BOXING_DEFERRED_MT013_MT014 || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: llm_default_boot_resolution_tests 6/6 PASS; llm_client_local_routing_tests 14/14 PASS. Ollama removal verified (no mod/use/type/variant refs; EngineOriginValidator deny-lists daemon origins).",
       "hbr_status": "PASS_WIRING_SCOPE_FR_BOXING_DEFERRED_MT013",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
@@ -82,7 +82,7 @@
         "MT-006",
         "MT-009"
       ],
-      "proof_status": "PASS_MT004_2026-07-02_PROMOTION_PG_TESTS_3_PASS_0_FAIL_229s_SHARED_CLOUD_SEED_ADOPTED_COMMIT_faf0af60_PRIOR_PASS_SELFCERT_WAS_UNRUN",
+      "proof_status": "PASS_MT004_2026-07-02_PROMOTION_PG_TESTS_3_PASS_0_FAIL_229s_SHARED_CLOUD_SEED_ADOPTED_COMMIT_faf0af60_PRIOR_PASS_SELFCERT_WAS_UNRUN || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: model_lane_promotion_pg_tests 3/3 PASS.",
       "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT004_SCOPE",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
@@ -101,7 +101,7 @@
         "MT-007",
         "MT-009"
       ],
-      "proof_status": "PASS_MT005_2026-07-02_CONTEXT_BUNDLE_PG_TESTS_3_PASS_0_FAIL_454s_SHARED_CLOUD_SEED_ADOPTED_COMMIT_faf0af60_PRIOR_PASS_SELFCERT_WAS_UNRUN",
+      "proof_status": "PASS_MT005_2026-07-02_CONTEXT_BUNDLE_PG_TESTS_3_PASS_0_FAIL_454s_SHARED_CLOUD_SEED_ADOPTED_COMMIT_faf0af60_PRIOR_PASS_SELFCERT_WAS_UNRUN || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: model_lane_context_bundle_pg_tests 3/3 PASS.",
       "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT005_SCOPE_EVENTLEDGER_WIRED_FLIGHT_RECORDER_EVIDENCE_REFS_DIRECT_FR_EMIT_DEFERRED_TO_MT008",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
@@ -120,7 +120,7 @@
       "blocks": [
         "MT-009"
       ],
-      "proof_status": "PASS_MT006_2026-07-02_CLOUD_POLICY_PG_TESTS_3_PASS_0_FAIL_331s_SEEDS_OWN_CLOUD_PREREQS_PLUS_REVOCATION_RESTAMP_FIX_e083e0d2",
+      "proof_status": "PASS_MT006_2026-07-02_CLOUD_POLICY_PG_TESTS_3_PASS_0_FAIL_331s_SEEDS_OWN_CLOUD_PREREQS_PLUS_REVOCATION_RESTAMP_FIX_e083e0d2 || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: cloud_model_lane_policy_pg_tests 4/4 PASS, including NEW cloud_consent_receipt_bound_to_other_lane_fails_closed (commit 01c1ad8b) proving cloud authority is lane-bound. GAP: ConsentScope::SingleRun unreachable -> MT-017 AC-1.",
       "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
@@ -143,7 +143,7 @@
         "MT-009",
         "MT-010"
       ],
-      "proof_status": "PASS_MT007_2026-07-02_RECOVERY_9_9_AND_MIXED_5_5_RECONCILED_PER_KIND_PLUS_IDENTITY_ORDER_FIX_COMMITS_ba13ca74_4a3c8ef9_NO_CROSS_SUITE_REGRESSION",
+      "proof_status": "PASS_MT007_2026-07-02_RECOVERY_9_9_AND_MIXED_5_5_RECONCILED_PER_KIND_PLUS_IDENTITY_ORDER_FIX_COMMITS_ba13ca74_4a3c8ef9_NO_CROSS_SUITE_REGRESSION || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: model_lane_recovery_pg_tests 10/10 PASS.",
       "hbr_status": "PASS_MT007_RECOVERY_RECONCILED",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
@@ -164,7 +164,7 @@
       "blocks": [
         "MT-010"
       ],
-      "proof_status": "PASS_MT008_2026-07-02_BACKEND_swarm_lane_diagnostics_pg_tests_2_PASS_550s_PLUS_FRONTEND_test_swarm_lane_diagnostics_argus_3_PASS_headless_accesskit_menu_drilldown_projection_matches_eventledger_FR_only_posture_rejected",
+      "proof_status": "PASS_MT008_2026-07-02_BACKEND_swarm_lane_diagnostics_pg_tests_2_PASS_550s_PLUS_FRONTEND_test_swarm_lane_diagnostics_argus_3_PASS_headless_accesskit_menu_drilldown_projection_matches_eventledger_FR_only_posture_rejected || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: swarm_lane_diagnostics_pg_tests 2/2 PASS; frontend test_swarm_lane_diagnostics_argus 3/3 PASS (incl. WP acceptance #2 mixed_model_lane_run_is_inspectable_through_argus). GAP: backend<->frontend projection contract unpinned -> MT-017 AC-5.",
       "hbr_status": "PASS_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
@@ -185,7 +185,7 @@
       "blocks": [
         "MT-010"
       ],
-      "proof_status": "PASS_MT009_2026-07-02_MIXED_INTEGRATION_5_5_PASS_657s_COMMITS_ba13ca74_4a3c8ef9_CATCHUP_MSGSTRING_EVENTSEQ_IDENTITY_ORDER_MT007_RECOVERY_RECONFIRMED_9_9",
+      "proof_status": "PASS_MT009_2026-07-02_MIXED_INTEGRATION_5_5_PASS_657s_COMMITS_ba13ca74_4a3c8ef9_CATCHUP_MSGSTRING_EVENTSEQ_IDENTITY_ORDER_MT007_RECOVERY_RECONFIRMED_9_9 || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: mixed_model_lane_integration_pg_tests 5/5 PASS (WP acceptance #1). NEW mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key 1/1 PASS (commit 750b9447) genuinely closes the REQUIRED HBR-SWARM-001 row: 2 concurrent agent lanes + a HumanOperator lane on ONE CRDT key, no deadlock/lost-update, EventLedger-ordered convergence. GAPS: snapshot compaction / derived state_vector / real cancellation -> MT-017 AC-2..AC-4.",
       "hbr_status": "PASS_MT009_MIXED_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
@@ -202,7 +202,7 @@
       "summary": "Update no-context model manual and backend navigation for lane launch, exchange, diagnostics, and recovery.",
       "unlocks": "Unlocks no-context model/operator use of the lane system through canonical UserManual and backend navigation.",
       "blocks": [],
-      "proof_status": "PASS_MT010_2026-07-02_NAV_API_2_PASS_506s_ARTIFACTS_LOOKUP_500_FIXED_JSON_FIELD_QUERY_TEST_REGISTERED_COMMIT_8744430f_8_SURFACES_MATCH",
+      "proof_status": "PASS_MT010_2026-07-02_NAV_API_2_PASS_506s_ARTIFACTS_LOOKUP_500_FIXED_JSON_FIELD_QUERY_TEST_REGISTERED_COMMIT_8744430f_8_SURFACES_MATCH || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: model_lane_navigation_api_tests 2/2 PASS; user_manual_api_tests::model_lane_navigation_user_manual_entries_are_current 1/1 PASS after nav tool-entry manual-currency fix (commit 9ea46427). GAP: page detail endpoint omits manual_version -> MT-017 AC-15.",
       "hbr_status": "PASS_MT010_NAV_AND_MANUAL_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
@@ -218,7 +218,7 @@
       "summary": "Update the internal UserManual so every WP behavior is usable by future models/operators and linked to Flight Recorder plus Palmistry posture.",
       "unlocks": "Unlocks WP-wide manual currency so every implemented behavior is discoverable, recoverable, and tied to evidence.",
       "blocks": [],
-      "proof_status": "PASS_MT011_2026-07-02_USERMANUAL_BEHAVIOR_COVERAGE_1_PASS_79s_15_BEHAVIORS_MATRIX_MATCHES_SCHEMA_REGISTRY_AND_SEED_CORPUS_POSTURE_ASSERTED_NEW_MTS_ADD_OWN_COVERAGE",
+      "proof_status": "PASS_MT011_2026-07-02_USERMANUAL_BEHAVIOR_COVERAGE_1_PASS_79s_15_BEHAVIORS_MATRIX_MATCHES_SCHEMA_REGISTRY_AND_SEED_CORPUS_POSTURE_ASSERTED_NEW_MTS_ADD_OWN_COVERAGE || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: user_manual_behavior_coverage_tests 7/7 PASS (WP acceptance #3); user_manual_storage_tests 12/12 PASS; user_manual_freshness_fixture_tests 2/2 PASS. GAPS: self_consistency_result is a constant; runtime_surface_id existence unchecked -> MT-017 AC-6..AC-8.",
       "hbr_status": "PASS_MT011_USERMANUAL_COVERAGE_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
@@ -237,7 +237,7 @@
       "summary": "Operator work-surface: interactive native chat/launch pane to pick local/cloud model + folder/worktree, launch via Dexterity SwarmCoordinator, and capture CLI conversation/thought/tool-calls as ModelLaneMessage wired to Flight Recorder. Build after MT-014 (local enum) + MT-015 (cloud enum/auth). OPERATOR_REQUESTED_ADDITION 2026-07-01.",
       "unlocks": "Unlocks operator-driven local/cloud model sessions inside Handshake with typed CLI-wrapper capture.",
       "blocks": [],
-      "proof_status": "PASS_MT012_2026-07-04_OPERATOR_CHAT_SURFACE_AND_SUBAGENT_LAUNCH_GREEN: prior local/cloud/operator-chat evidence retained; current repair added SUBAGENT inventory, frontend selection audit, backend no-OS SwarmCoordinator launch, ModelLane persistence, operator prompt persistence, UserManual coverage, and route regression proof. Current-session commands passed; KB ready checklist PASS refreshed at 2026-07-04T03:40:13.631Z.",
+      "proof_status": "PASS_MT012_2026-07-04_OPERATOR_CHAT_SURFACE_AND_SUBAGENT_LAUNCH_GREEN: prior local/cloud/operator-chat evidence retained; current repair added SUBAGENT inventory, frontend selection audit, backend no-OS SwarmCoordinator launch, ModelLane persistence, operator prompt persistence, UserManual coverage, and route regression proof. Current-session commands passed; KB ready checklist PASS refreshed at 2026-07-04T03:40:13.631Z. || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: operator_chat_capture_tests 11/11 PASS; operator_chat_route_tests 4/4 PASS; frontend test_top_menu_bar 15/15 PASS (run_menu_opens_operator_chat_launch + run_menu_opens_swarm_lane_diagnostics = operator dropdown requirement PROVEN); test_operator_chat_selection_and_transcript_argus 1/1 PASS; test_settings_dialog 10/12 (the 2 failures are pre-existing NON-WP-1 keybinding-conflict + layout-reset tests, diff-confirmed untouched by WP-1). GAP: FR-EVT-AGENT suppression has no integration test -> MT-017 AC-16.",
       "hbr_status": "PASS_HBR_VIS_INT_SWARM_QUIET_MAN_FOR_MT012_OPERATOR_CHAT_SURFACE_WITH_SUBAGENT_NO_OS_LAUNCH",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review_BUILD_AFTER_MT014_MT015",
       "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_POST_REVIEW_NO_OPEN_BLOCKERS_AFTER_DUPLICATE_AGENT_EVENT_FIX",
@@ -252,7 +252,7 @@
       "summary": "Embedded ModelRuntime real-load conformance: box the default embedded model-load path under a SandboxAdapter + emit ProcessOwnershipLedger START/STOP (master-spec 3.6.2/4.6.1), and emit Flight Recorder on DisabledLlmClient/fail-closed paths (4.2.3.2(3)); validated with a REAL Candle load. DEFERRED_FROM_MT-003 2026-07-01.",
       "unlocks": "Closes the master-spec 3.6.2/4.6.1 HARD boxing/ledger gap on the default embedded local model path and the FR-on-error gap.",
       "blocks": [],
-      "proof_status": "PASS_MT013_2026-07-04_REAL_CANDLE_DEFAULT_LOAD_LEDGER_GREEN_LOSSLESS_OVERFLOW_FIX: subagent-discovered fail-open overflow blocker fixed with lossless embedded START/STOP enqueue path and retryable STOP failure. Fresh proofs passed after fix: embedded_model_ledger_tests 8/8, process_ledger_writer overflow preservation 1/1, llm_client_local_routing_tests 14/14, user_manual_behavior_coverage_tests 4/4, frontend cloud/settings Argus 5/5, operator-chat selection/transcript Argus exact 1/1. Required managed-resource proof command passed 1/1 with HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a local cached peft-internal-testing/tiny-random-LlamaForCausalLM snapshot and printed [MT-013_REAL_CANDLE_LEDGER_DUMP] with matching real START/STOP rows, os_pid=null, model_artifact_sha256=49c20f32c6c597480fcaec5df2f86c645eabea765cbea1e67886dbae45e5c992, and stop_reason=llm-client-shutdown. Logs are under ../Handshake_Artifacts/handshake-test/wp1-final-audit/.",
+      "proof_status": "PASS_MT013_2026-07-04_REAL_CANDLE_DEFAULT_LOAD_LEDGER_GREEN_LOSSLESS_OVERFLOW_FIX: subagent-discovered fail-open overflow blocker fixed with lossless embedded START/STOP enqueue path and retryable STOP failure. Fresh proofs passed after fix: embedded_model_ledger_tests 8/8, process_ledger_writer overflow preservation 1/1, llm_client_local_routing_tests 14/14, user_manual_behavior_coverage_tests 4/4, frontend cloud/settings Argus 5/5, operator-chat selection/transcript Argus exact 1/1. Required managed-resource proof command passed 1/1 with HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a local cached peft-internal-testing/tiny-random-LlamaForCausalLM snapshot and printed [MT-013_REAL_CANDLE_LEDGER_DUMP] with matching real START/STOP rows, os_pid=null, model_artifact_sha256=49c20f32c6c597480fcaec5df2f86c645eabea765cbea1e67886dbae45e5c992, and stop_reason=llm-client-shutdown. Logs are under ../Handshake_Artifacts/handshake-test/wp1-final-audit/. || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: embedded_model_ledger_tests 8/8 PASS; process_ledger_writer_tests 14/14 PASS. NOT RE-RUN at HEAD: the #[ignore] + candle-runtime-engine REAL-Candle managed-resource proof (needs HANDSHAKE_TEST_CANDLE_MODEL_DIR); its prior evidence stands but is not HEAD-verified. OPEN false-green vector: default embedded load only ledgers when a ledger handle is threaded -> MT-017 AC-14 (corrected design; a naive guard would break 20 green tests).",
       "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT013_REAL_CANDLE_LEDGER_FR_MANUAL_PROOFS_GREEN",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
       "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_REVIEW_OVERFLOW_BLOCKER_FIXED_AND_REPROVEN",
@@ -267,7 +267,7 @@
       "summary": "Shared/enumerable/labeled default-LlmClient model registry (UUIDv7->display_name) for MT-008 labeling, MT-012 picker, Work Profiles provider_ref resolution; + LoomSearchV2 embedding-model contract (degrade-not-error on 768-dim mismatch). DEFERRED_FROM_MT-003 2026-07-01.",
       "unlocks": "Unlocks local-model labeling in diagnostics, enumeration in the operator picker, Work Profiles resolution, and crash-free Loom reindex on embedding-dim mismatch.",
       "blocks": [],
-      "proof_status": "PASS_MT014_2026-07-02_REGISTRY_4_LOOM_7_PROVIDER_REF_8_KERNEL_WP_4_ALL_GREEN_IMPL_97618d35_HIGH1_WIRED_cb2fd516_MED1_SELECTION_AUDIT_DEFERRED_MT012_AC4b_DEFERRED_MT016",
+      "proof_status": "PASS_MT014_2026-07-02_REGISTRY_4_LOOM_7_PROVIDER_REF_8_KERNEL_WP_4_ALL_GREEN_IMPL_97618d35_HIGH1_WIRED_cb2fd516_MED1_SELECTION_AUDIT_DEFERRED_MT012_AC4b_DEFERRED_MT016 || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: model_registry_tests 8/8 PASS; model_catalog_tests 5/5 PASS; loom_search_v2_tests 9/9 PASS after the F1/F2 compile fix (commit 2e1204f0) - previously this binary did NOT COMPILE (E0432/E0599), so the recorded 7/7 was false-green.",
       "hbr_status": "PASS_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
       "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a8285d2bd49d98916_HIGH1_FIXED_MED1_DEFERRED_MT012",
@@ -282,7 +282,7 @@
       "summary": "Operator-facing cloud-model access config surface: CLI-bridge/plan auth+login status for Claude Code + GPT/Codex (operator's primary), and BYOK API-key entry (Anthropic/OpenAI) stored in the OS-keychain secrets vault for other users. Gemini excluded (CLI deprecating). Backends exist (WP-KERNEL-004); this builds the config UI. OPERATOR_REQUESTED_ADDITION 2026-07-02.",
       "unlocks": "Unlocks operator/other-user cloud-model access (plan login + BYOK key) so cloud lanes are reachable from the operator surface and enumerable by the MT-012 picker.",
       "blocks": [],
-      "proof_status": "PASS_MT015_2026-07-02_CLOUD_CONFIG_HARDENED_157b4072_6ebc8c90_LEAK_1_ACCESS_CONFIG_12_SECRETS_VAULT_19_ROUTE_5_ARGUS_5_ALL_GREEN_NO_CRITICAL_LEAK",
+      "proof_status": "PASS_MT015_2026-07-02_CLOUD_CONFIG_HARDENED_157b4072_6ebc8c90_LEAK_1_ACCESS_CONFIG_12_SECRETS_VAULT_19_ROUTE_5_ARGUS_5_ALL_GREEN_NO_CRITICAL_LEAK || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: model_access_route_tests 6/6 PASS; cloud_byok_access_config_leak_tests 1/1 PASS (Windows + os-keychain, real Credential Manager); frontend test_cloud_models_settings_argus 5/5 PASS (Settings cloud features = operator requirement PROVEN). GAP: proof is windows/os-keychain gated -> 0-test vacuous pass off-Windows -> MT-017 AC-11.",
       "hbr_status": "PASS_MT015_CLOUD_CONFIG_SECRETS_HARDENED",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
       "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a3b979d0af985185b_2_MUSTFIX_2_SHOULDFIX_ADDRESSED_6ebc8c90",
@@ -297,7 +297,7 @@
       "summary": "Dedicated embedding model distinct from the chat model: second embedding-capable local registration + supports_embedding/embedding_dimension product-extension capability; LoomSearchV2 embeds via the registry-resolved embedding model, filters semantic rows by embedding_model, and never falls back to chat profile().model_id. DEFERRED from MT-014 AC-4b (pre-impl review F9).",
       "unlocks": "Unlocks a separate correctly-dimensioned embedding model for LoomSearchV2 semantic search, decoupled from the chat model.",
       "blocks": [],
-      "proof_status": "PASS_MT016_2026-07-04_DEDICATED_EMBEDDING_MODEL_GREEN: exact proof commands 6/6 PASS; additional regressions default_local_runtime_client_embedding_is_supported_via_model_runtime_embed, mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search, and mt264_pgvector_semantic_and_hybrid PASS; git diff --check exit 0 with CRLF warnings only; KB_READY_CHECKLIST_RECEIPT PASS written to ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl; RC-004 n/a cross-platform CI/non-target cargo check not run.",
+      "proof_status": "PASS_MT016_2026-07-04_DEDICATED_EMBEDDING_MODEL_GREEN: exact proof commands 6/6 PASS; additional regressions default_local_runtime_client_embedding_is_supported_via_model_runtime_embed, mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search, and mt264_pgvector_semantic_and_hybrid PASS; git diff --check exit 0 with CRLF warnings only; KB_READY_CHECKLIST_RECEIPT PASS written to ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl; RC-004 n/a cross-platform CI/non-target cargo check not run. || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: loom_search_v2_tests 9/9 PASS (mt016 registry-embedding routing + no-embedding degrade); model_catalog_tests / model_registry_tests / llm_default_boot_resolution_tests PASS. Previously unrunnable (binary did not compile).",
       "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
       "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
