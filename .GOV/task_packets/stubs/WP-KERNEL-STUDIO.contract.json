@@ -1,0 +1,141 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-STUDIO",
+  "base_wp_id": "WP-KERNEL-STUDIO",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.md",
+    "status": "GENERATED_IN_SYNC",
+    "projection_sha256": null,
+    "generated_by": "kernel_builder_studio_activation_prep_2026-07-09"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "1",
+    "activation_required": true,
+    "user_signature_required": true,
+    "user_signature": "ilja090720260901",
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": ["WP-KERNEL-011", "WP-KERNEL-012"],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md (v02.199 -> .GOV/spec/master-spec-v02.199/indexed-spec-manifest.json)",
+    "roadmap_pointer": "Section 7.6 Week 5 Atelier-Lens-CKC / creative production feature track; Studio pillar #18 (product reference)",
+    "roadmap_add_coverage": "SPEC=v02.199; MAIN_BODY=Section 14 (14.1-14.24); anchors STU-SECTION-001..003, STU-OVR/ARC/DOC/RAS/VEC/LAY/TYP/COL/FX/DS/PRO/RAW/IO/AUT/WB/MDL/PAR/PW/HIS/QUIET/UNI/MAN/CON/VAL-*"
+  },
+  "spec_anchors": [
+    "14.1 Overview/Scope/Differentiator [STU-SECTION-001..003, STU-OVR-001..003]",
+    "14.2 Architecture & Kernel Binding [STU-ARC-001..006]",
+    "14.3 Unified Document Model & Primitives [STU-DOC-001..004]",
+    "14.4 Raster [STU-RAS-*]",
+    "14.5 Vector [STU-VEC-*]",
+    "14.6 Layout/Publishing [STU-LAY-*]",
+    "14.7 Typography [STU-TYP-*]",
+    "14.8 Color [STU-COL-*]",
+    "14.9 Effects/Filters [STU-FX-*]",
+    "14.10 Design Systems [STU-DS-*]",
+    "14.11 Prototyping/Motion [STU-PRO-*]",
+    "14.12 Camera Raw/Develop [STU-RAW-*]",
+    "14.13 Import/Export/Format-Compat [STU-IO-*]",
+    "14.14 Automation/Scripting/API [STU-AUT-*]",
+    "14.15 Whiteboard [STU-WB-*]",
+    "14.16 Model Visibility/Steerability [STU-MDL-*]",
+    "14.17 Parallel Workflows [STU-PAR-*]",
+    "14.18 Propose-Work [STU-PW-*]",
+    "14.19 History/Undo/Revert [STU-HIS-*]",
+    "14.20 Headless/Quiet Law [STU-QUIET-*]",
+    "14.21 Operator Unification [STU-UNI-*]",
+    "14.22 UserManual [STU-MAN-*]",
+    "14.23 Canonical Contracts [STU-CON-*]",
+    "14.24 Validation/Promotion/HBR [STU-VAL-*]"
+  ],
+  "session_policy": {
+    "session_start_authority": "ORCHESTRATOR (ORCHESTRATOR_MANAGED) or CLASSIC_ORCHESTRATOR (MANUAL_RELAY); KERNEL_BUILDER folded-implementer per reset brief",
+    "session_host_preference": "HEADLESS_ACP",
+    "session_launch_policy": "GOVERNED_SESSION_CONTROL",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": "KERNEL_BUILDER (folded) or Coder-A..Coder-Z; small/fast coding models per-MT where MT is local-model-sized"
+  },
+  "draft_scope": {
+    "intent": "Build Studio (pillar #18) as the Handshake-native unified creative suite in native Rust: full deduped feature parity with Photoshop(+Camera Raw)/Illustrator/InDesign/Affinity-suite/Figma-family across raster/vector/layout/typography/color/effects/design-systems/prototyping/raw/interop/automation/whiteboard, offline with no external creative-app dependency, wired to Handshake pillars (EventLedger/PostgreSQL, CRDT, sandbox->validation->PromotionGate, three-tier diagnostics, Argus, Loom, FEMS, Job Runtime, DCC, UserManual), model-visible+steerable in backend and frontend, with parallel multi-file/multi-model workflows, a propose-work system, per-file history/undo with revert-of-undo, and a headless/quiet operation law.",
+    "scope_sketch": "IN: handshake_core::studio module + studio-engine crate (RasterEngine/VectorEngine/LayoutEngine/TextEngine/ColorEngine/RenderEngine traits), StudioDocument unified model + 38 canonical primitives, studio_* PostgreSQL tables + dated migrations, STUDIO_* EventLedger variants, StudioValidationDescriptor, StudioModelAdapter + MCP command surface, StudioEditProposal propose-work path, per-file StudioHistoryEntry undo/redo, native egui/wgpu/AccessKit operator surface with Argus targets, dual-audience UserManual entries, import/export + format-compat fixtures. OUT: source-app menu-tree clones, pixel-perfect UI clone, vendor cloud services, vendor product naming, a new invented interchange format, provider generative-AI as a core dependency (adapter-only).",
+    "acceptance_criteria": "Every Section 14 normative MUST claimed by an MT is proven with runtime evidence (executable product runtime or Handshake-managed resource boundary), not scaffold-only; StudioDocument authority resolves through PostgreSQL/EventLedger with no SQLite; model-authored edits pass sandbox->validation->PromotionGate; every operator-visible surface has Argus proof + dual-audience UserManual entry; HBR matrix (INT/SWARM/VIS/QUIET/MAN/STOP) all PROVED/NOT_APPLICABLE-with-reason before closeout; parity coverage traces to the deduped Section 14 feature catalog.",
+    "risks_unknowns": "Very large surface (hundreds of MTs); CRDT for large raster documents; GPU contention across parallel render jobs; undo semantics across CRDT+EventLedger dual state; headless-GPU screenshot readback crash class 0xc0000005 (fall back to AccessKit-tree assertions on headless hosts); internal_diagnostics/Palmistry DEFERRED until WP-KERNEL-012/016 ship. Open contract points in [STU-CON-006] (redo depth, event granularity/coalescing, auto-accept policy, raster authority storage shape, FR-EVT-STUDIO-* registration, plugin capability schema) must be resolved by refinement before the implementing MTs harden.",
+    "governance_artifact_stance": "Machine-contract-first (packet.json + MT-*.json authority; Markdown projection only). Studio research corpus is non-normative provenance per [STU-SECTION-002]; Section 14 is sole authority."
+  },
+  "microtask_plan": {
+    "decomposition_authority": "Section 14 domains; foundation MTs first (kernel binding, canonical contracts, document model, tables/migrations, EventLedger variants, engine traits), then per-domain feature MTs (each feature-group -> one narrow MT), then cross-cutting MTs (model API/MCP, propose-work, history/undo, headless/quiet, operator unification, UserManual, validation/HBR harnesses).",
+    "granularity_rule": "No upper MT-count bias; each MT narrow enough for a small/fast coding model and independent per-MT review + crash/session recovery; split when an MT would mix unrelated authority boundaries, broad code-surface families, independent proof commands, or unrelated failure modes.",
+    "estimated_mt_count": "hundreds (comparable to Tailor Section 13 which used 653); authored in domain batches under KERNEL_BUILDER/Activation review",
+    "mt_contract_dir": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-*.json",
+    "mt_index": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json"
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "confirm_user_signature_ilja090720260901",
+      "resolve_open_contract_points_STU-CON-006",
+      "create_official_work_packet_contract",
+      "import_microtask_contracts",
+      "create_wtc_worktree_and_feat_branch (NEXT SESSION)",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ],
+    "activation_deferred_to_next_session": ["create_wtc_worktree_and_feat_branch", "launch_coder_or_kernel_builder_implementation"]
+  },
+  "hbr_applicability": {
+    "pillars": ["INT", "SWARM", "VIS", "QUIET", "MAN", "STOP"],
+    "int_009_three_tier": "Flight Recorder FR-EVT-STUDIO-* WIRED at build; internal_diagnostics + Palmistry DEFERRED-until-shipped (WP-KERNEL-012/016) with typed reason",
+    "vis": "Argus required for every operator-visible Studio surface (14.16/14.20/14.24)",
+    "man": "dual-audience UserManual entry per tool/command/panel (14.22), same-change currency",
+    "swarm": "parallel multi-file/multi-model workflows + operator concurrency (14.17)",
+    "quiet": "headless/no-focus-steal law (14.20), process-ownership ledger",
+    "stop": "no capacity/token/throughput stop reasoning"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "The research corpus is non-normative provenance; only Section 14 is authority ([STU-SECTION-002]).",
+      "Scaffold-only work cannot claim a runtime/storage/EventLedger/UI/replay MUST (Spec-Realism Gate).",
+      "Apps must not treat this stub as a runnable work packet.",
+      "Open contract points [STU-CON-006] must be resolved before the implementing MTs harden."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract + resolved [STU-CON-006] before Coder/KERNEL_BUILDER implementation.",
+      "Every MT carries runtime-proof, GUI/Argus, and UserManual obligations from Section 14.24."
+    ]
+  }
+}
