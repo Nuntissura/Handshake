@@ -30,10 +30,12 @@ pub mod loom;
 pub mod loom_ai;
 pub mod postgres;
 pub mod retention;
+pub mod stage_artifacts;
 
 pub use calendar::*;
 pub use calendar_activity::*;
 pub use loom::*;
+pub use stage_artifacts::*;
 
 // Test utilities - exposed for integration tests.
 // The helper function `run_storage_conformance` uses Result-based error handling.

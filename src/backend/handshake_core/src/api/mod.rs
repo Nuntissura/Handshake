@@ -26,6 +26,7 @@ pub mod memory;
 pub mod paths;
 pub mod role_mailbox;
 pub mod source_control;
+pub mod stage;
 pub mod user_manual;
 pub mod workspaces;
 
@@ -53,6 +54,7 @@ pub fn routes(state: AppState) -> Router {
     let user_manual_routes = user_manual::routes(state.clone());
     let atelier_routes = atelier::routes(state.clone());
     let source_control_routes = source_control::routes(state.clone());
+    let stage_routes = stage::routes(state.clone());
     let debug_adapter_routes = debug_adapter::routes(state.clone());
     let log_routes = Router::new()
         .route("/logs/tail", get(logs::tail_logs))
@@ -82,5 +84,6 @@ pub fn routes(state: AppState) -> Router {
         .merge(user_manual_routes)
         .merge(atelier_routes)
         .merge(source_control_routes)
+        .merge(stage_routes)
         .merge(debug_adapter_routes)
 }

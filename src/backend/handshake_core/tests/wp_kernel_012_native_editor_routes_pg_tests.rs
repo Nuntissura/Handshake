@@ -15,6 +15,7 @@
 //!   * MT-067   POST+GET /workspaces/:ws/calendar/activity-spans (span round-trip)
 //!   * MT-067   GET  /workspaces/:ws/calendar/events            (daily_note_doc_id link)
 //!   * MT-045   POST /workspaces/:ws/code-nav/index             (code-nav index pipeline)
+//!   * MT-066   POST+GET /workspaces/:ws/stage/artifacts        (stage capture provenance)
 
 mod knowledge_pg_support;
 
@@ -24,7 +25,7 @@ use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
 use handshake_core::api::{
     calendar as calendar_api, code_nav_index as code_nav_index_api,
-    knowledge_documents as docs_api, locus as locus_api,
+    knowledge_documents as docs_api, locus as locus_api, stage as stage_api,
 };
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
@@ -705,5 +706,116 @@ async fn mt045_code_nav_index_returns_symbol_count() {
         denied.status(),
         400,
         "an index without identity headers must be rejected"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MT-066 — Stage capture artifacts (create + resolve round-trip). Proves the
+// evidence-grade provenance contract: the resolved descriptor carries a
+// non-empty lowercase 64-hex sha256 AND a non-empty manifest_ref (the backend
+// twin of `stage_interop::StageArtifactRef::is_evidence_grade`), and the
+// manifest.content_type round-trips.
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires_pg"]
+async fn route2_stage_artifact_create_and_resolve() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP route2_stage_artifact: no PostgreSQL");
+        return;
+    };
+    let state = app_state(&pg).await;
+    let workspace_id = pg.create_workspace().await;
+
+    let (base, http) = serve(stage_api::routes(state.clone())).await;
+
+    // POST a selection capture artifact.
+    let created: Value = http
+        .post(format!("{base}/workspaces/{workspace_id}/stage/artifacts"))
+        .json(&json!({
+            "content_kind": "selection",
+            "label": "Selected snippet",
+            "content_type": "text/plain",
+            "content_json": { "text": "the quick brown fox", "source_ref": "note://DOC-A#sel-1" },
+            "source_ref": "note://DOC-A#sel-1"
+        }))
+        .send()
+        .await
+        .expect("create stage artifact request")
+        .json()
+        .await
+        .expect("create stage artifact json");
+
+    let artifact_id = created["artifact_id"]
+        .as_str()
+        .expect("artifact_id")
+        .to_string();
+    assert!(
+        artifact_id.starts_with("STGA-"),
+        "artifact id is a stage capture id: {artifact_id}"
+    );
+    let created_sha = created["sha256"].as_str().expect("created sha256");
+    assert_eq!(created_sha.len(), 64, "sha256 is a 64-hex digest: {created}");
+    assert!(
+        created_sha
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        "sha256 is lowercase hex: {created_sha}"
+    );
+
+    // GET it back and assert the evidence-grade contract holds.
+    let resp = http
+        .get(format!(
+            "{base}/workspaces/{workspace_id}/stage/artifacts/{artifact_id}"
+        ))
+        .send()
+        .await
+        .expect("get stage artifact request");
+    assert_eq!(resp.status(), 200, "stage artifact GET must succeed");
+    let fetched: Value = resp.json().await.expect("stage artifact json");
+
+    // Evidence-grade twin of stage_interop::is_evidence_grade: BOTH the hoisted
+    // sha256 AND the manifest.manifest_ref must be non-empty.
+    let sha = fetched["sha256"].as_str().expect("fetched sha256");
+    assert_eq!(sha.len(), 64, "hoisted sha256 is 64-hex and non-empty: {fetched}");
+    let manifest_ref = fetched["manifest"]["manifest_ref"]
+        .as_str()
+        .expect("manifest_ref");
+    assert!(
+        !manifest_ref.trim().is_empty(),
+        "manifest_ref must be non-empty (evidence-grade): {fetched}"
+    );
+    assert_eq!(
+        manifest_ref,
+        format!("manifest://{artifact_id}"),
+        "manifest_ref is manifest://{{artifact_id}}: {fetched}"
+    );
+    // The manifest sha256 matches the hoisted one.
+    assert_eq!(
+        fetched["manifest"]["sha256"].as_str(),
+        Some(sha),
+        "manifest.sha256 matches the hoisted sha256: {fetched}"
+    );
+    // content_type round-trips through the manifest.
+    assert_eq!(
+        fetched["manifest"]["content_type"], "text/plain",
+        "manifest.content_type round-trips: {fetched}"
+    );
+    assert_eq!(fetched["artifact_id"], artifact_id.as_str());
+    assert_eq!(fetched["workspace_id"], workspace_id.as_str());
+    assert_eq!(fetched["label"], "Selected snippet");
+
+    // A missing id is a 404, not a 500.
+    let missing = http
+        .get(format!(
+            "{base}/workspaces/{workspace_id}/stage/artifacts/STGA-00000000000000000000000000000000"
+        ))
+        .send()
+        .await
+        .expect("missing stage artifact request");
+    assert_eq!(
+        missing.status(),
+        404,
+        "missing stage artifact must be a 404"
     );
 }
