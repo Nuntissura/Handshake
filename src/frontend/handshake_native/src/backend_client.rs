@@ -2356,7 +2356,7 @@ async fn fetch_local_graph(
 // shape is the widget's own `graph::canvas_board::{CanvasPlacementCard, VisualEdge}`.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-use crate::graph::canvas_board::{CanvasPlacementCard, VisualEdge};
+use crate::graph::canvas_board::{CanvasCardKind, CanvasPlacementCard, VisualEdge};
 
 /// The parsed canvas board: placements + visual edges + viewport (pan/zoom), plus the live-title resolve
 /// map keyed by `placed_block_id` (filled by a follow-up `getLoomBlock` per distinct block). `Ok` carries
@@ -2846,6 +2846,19 @@ fn placement_from_json(p: &serde_json::Value) -> Option<CanvasPlacementCard> {
         .get("group_id")
         .and_then(|x| x.as_str())
         .map(ToOwned::to_owned);
+    // WP-KERNEL-012 MT-080: the backend now stamps each placement with a durable `is_text_card` flag
+    // (`LoomCanvasPlacement.is_text_card`). When set, mark the card as a free-text [`CanvasCardKind::TextCard`]
+    // so the inline editor stays REACHABLE across sessions — independent of the host-origin
+    // `canvas_text_card_block_ids` tracking (which only knows about cards created THIS session). serde-style
+    // default: an absent/non-bool field reads as `false` (a plain block reference). Reference-not-copy safe:
+    // `live_body` is only seeded to an empty buffer so a double-click opens an editable (initially empty)
+    // card — the backend field never carries block content.
+    if p.get("is_text_card").and_then(|x| x.as_bool()).unwrap_or(false) {
+        card.card_kind = CanvasCardKind::TextCard;
+        if card.live_body.is_none() {
+            card.live_body = Some(String::new());
+        }
+    }
     Some(card)
 }
 
@@ -7389,6 +7402,55 @@ mod tests {
             assign.body,
             Some(serde_json::json!({ "group_id": "section-2" }))
         );
+    }
+
+    /// WP-KERNEL-012 MT-080: `placement_from_json` reads the backend's durable `is_text_card` flag.
+    /// `true` yields a [`CanvasCardKind::TextCard`] (inline-editable across sessions), `false`/absent a
+    /// [`CanvasCardKind::BlockRef`] — so a reloaded text card no longer depends on same-session host-origin
+    /// tracking to stay inline-editable.
+    #[test]
+    fn placement_from_json_reads_is_text_card_flag() {
+        let text = placement_from_json(&serde_json::json!({
+            "placement_id": "p-text",
+            "placed_block_id": "blk-text",
+            "x": 10.0, "y": 20.0, "w": 200.0, "h": 120.0,
+            "is_text_card": true
+        }))
+        .expect("text placement parses");
+        assert_eq!(
+            text.card_kind,
+            CanvasCardKind::TextCard,
+            "is_text_card:true marks a TextCard"
+        );
+        assert!(
+            text.card_kind.is_text_card(),
+            "TextCard is inline-editable across sessions"
+        );
+        // The editor buffer is seeded (empty) so a double-click opens an editable card — never block content.
+        assert_eq!(text.live_body.as_deref(), Some(""));
+
+        let block_ref = placement_from_json(&serde_json::json!({
+            "placement_id": "p-ref",
+            "placed_block_id": "blk-ref",
+            "x": 0.0, "y": 0.0, "w": 200.0, "h": 120.0,
+            "is_text_card": false
+        }))
+        .expect("block-ref placement parses");
+        assert_eq!(
+            block_ref.card_kind,
+            CanvasCardKind::BlockRef,
+            "is_text_card:false stays a BlockRef"
+        );
+
+        // Absent field is the serde-default false -> BlockRef (never a fabricated TextCard).
+        let defaulted = placement_from_json(&serde_json::json!({
+            "placement_id": "p-none",
+            "placed_block_id": "blk-none",
+            "x": 0.0, "y": 0.0, "w": 200.0, "h": 120.0
+        }))
+        .expect("defaulted placement parses");
+        assert_eq!(defaulted.card_kind, CanvasCardKind::BlockRef);
+        assert!(!defaulted.card_kind.is_text_card());
     }
 
     /// End-to-end: the REAL `fetch_global` spawn path hits a live capture server and parses the verified

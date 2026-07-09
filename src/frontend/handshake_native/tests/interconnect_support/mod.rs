@@ -254,13 +254,25 @@ pub fn require_live_backend() -> LiveBackend {
 }
 
 impl LiveBackend {
+    /// Attach the identity headers the knowledge/loom write routes require (x-hsk-actor-id +
+    /// kernel-task-run-id + session-run-id + write-capable actor-kind). Without these the P2 knowledge
+    /// routes reject the request with 400 "x-hsk-actor-id header is required" (and deny writes without an
+    /// `operator` actor-kind). Mirrors MT-044 `pg_proof_support::LiveBackend::ident` exactly so the MT-046
+    /// interconnection round-trips can actually run against the live stack.
+    fn ident(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        rb.header("x-hsk-actor-id", "mt046-live-pg")
+            .header("x-hsk-kernel-task-run-id", "mt046-live-pg-run")
+            .header("x-hsk-session-run-id", "mt046-live-pg-sess")
+            // `operator` is a write-capable authenticated kind; least-privilege (no kind) is read-only,
+            // so document/block create + save (DocumentAction::Write) is denied without it.
+            .header("x-hsk-actor-kind", "operator")
+    }
+
     pub fn post_json(&self, path: &str, body: &serde_json::Value) -> serde_json::Value {
         let url = format!("{}{path}", self.base);
         let (status, text) = self.rt.block_on(async {
             let resp = self
-                .client
-                .post(&url)
-                .json(body)
+                .ident(self.client.post(&url).json(body))
                 .send()
                 .await
                 .unwrap_or_else(|e| panic!("requires_pg: POST {url} failed: {e}"));
@@ -275,9 +287,7 @@ impl LiveBackend {
         let url = format!("{}{path}", self.base);
         let (status, text) = self.rt.block_on(async {
             let resp = self
-                .client
-                .put(&url)
-                .json(body)
+                .ident(self.client.put(&url).json(body))
                 .send()
                 .await
                 .unwrap_or_else(|e| panic!("requires_pg: PUT {url} failed: {e}"));
@@ -295,8 +305,7 @@ impl LiveBackend {
         let url = format!("{}{path}", self.base);
         let (status, text) = self.rt.block_on(async {
             let resp = self
-                .client
-                .get(&url)
+                .ident(self.client.get(&url))
                 .send()
                 .await
                 .unwrap_or_else(|e| panic!("requires_pg: GET {url} failed: {e}"));
@@ -310,7 +319,7 @@ impl LiveBackend {
     pub fn get_status(&self, path: &str) -> u16 {
         let url = format!("{}{path}", self.base);
         self.rt.block_on(async {
-            match self.client.get(&url).send().await {
+            match self.ident(self.client.get(&url)).send().await {
                 Ok(resp) => resp.status().as_u16(),
                 Err(_) => 0,
             }
@@ -322,7 +331,7 @@ impl LiveBackend {
     pub fn delete(&self, path: &str) -> u16 {
         let url = format!("{}{path}", self.base);
         self.rt.block_on(async {
-            match self.client.delete(&url).send().await {
+            match self.ident(self.client.delete(&url)).send().await {
                 Ok(resp) => resp.status().as_u16(),
                 Err(_) => 0,
             }
