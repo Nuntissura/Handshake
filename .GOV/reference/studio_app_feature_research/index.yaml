@@ -10,8 +10,8 @@ research_paper:
     Illustrator, and Figma app behavior for rebuilding equivalent capability as
     local-first, no-cloud-required, Handshake-native Rust tools inside the built-in
     Studio module.
-  status: "draft - category maps plus generated official-help leaf indexes where source TOCs were reachable"
-  updated_at: "2026-07-05"
+  status: "draft - category maps, generated official-help leaf indexes, plus per-app deep-feature deltas (51-55) below help-TOC level, a Handshake integration architecture (56), and a generated deep-delta cross-app overlap map (57)"
+  updated_at: "2026-07-09"
   repo: Handshake
   location: ".GOV/reference/studio_app_feature_research/"
   instruction_file: "INSTRUCTIONS.md"
@@ -451,6 +451,81 @@ topics:
     source_compatibility_record_count: 410
     target_selection_rule: "format families with compatibility_posture native_round_trip_target"
     subtopics: [format-fixture-summary, format-fixture-rows, format-fixture-sources]
+  - id: SFR-PHOTOSHOP-DEEP-DELTA
+    title: "Photoshop Deep Feature Delta"
+    file: "51-photoshop-deep-feature-delta.md"
+    status: draft
+    summary: "Sub-TOC deep inventory: complete tool set, menu tree, full filter catalog, adjustments/blend modes, channel ops, complete Camera Raw surface, type engine, panels, automation/UXP DOM, import/export dialogs, smart objects, preferences."
+    count_status: DEEP_FEATURE_DELTA
+    feature_deep_delta_row_count: 573
+    dedupe_deepens_existing_count: 454
+    dedupe_new_surface_count: 119
+    verification_counts: { verified: 372, partial: 157, unverified: 44 }
+    subtopics: [tools, menu-commands, filters, adjustments-and-blending, channels-and-color, camera-raw, type-engine, panels-and-workspace, automation-and-scripting, import-export-dialogs, smart-and-linked, preferences, sources]
+  - id: SFR-ILLUSTRATOR-DEEP-DELTA
+    title: "Illustrator Deep Feature Delta"
+    file: "52-illustrator-deep-feature-delta.md"
+    status: draft
+    summary: "Sub-TOC deep inventory: full ~90 tool set, menu tree, complete Effect catalog (vector + raster groups), appearance/styles, color systems, typography, artboards, import/export matrix, scripting DOM, panels, preferences, provider-marked cloud/AI."
+    count_status: DEEP_FEATURE_DELTA
+    feature_deep_delta_row_count: 447
+    dedupe_deepens_existing_count: 257
+    dedupe_new_surface_count: 190
+    verification_counts: { verified: 296, unverified: 151 }
+    subtopics: [tools, menu-commands, effects, appearance-and-styles, color-systems, typography, layout-and-artboards, import-export, automation-and-scripting, panels-and-workspace, preferences, cloud-and-ai, sources]
+  - id: SFR-INDESIGN-DEEP-DELTA
+    title: "InDesign Deep Feature Delta"
+    file: "53-indesign-deep-feature-delta.md"
+    status: draft
+    summary: "Sub-TOC deep inventory: toolbox, full menu tree, text/typography option catalogs, all style types, pages/layout, tables, frames/graphics, color/output, interactive/EPUB, long-document, prepress/print/PDF panels, scripting DOM, panels, preferences."
+    count_status: DEEP_FEATURE_DELTA
+    feature_deep_delta_row_count: 415
+    dedupe_deepens_existing_count: 381
+    dedupe_new_surface_count: 34
+    verification_counts: { verified: 344, unverified: 71 }
+    subtopics: [method, tools, menu-commands, text-and-typography, styles, pages-and-layout, tables, graphics-and-frames, color-and-output, interactive-and-epub, long-document, output-and-prepress, automation-and-scripting, panels-and-workspace, preferences, cloud-and-collab, sources]
+  - id: SFR-AFFINITY-DEEP-DELTA
+    title: "Affinity Suite Deep Feature Delta"
+    file: "54-affinity-deep-feature-delta.md"
+    status: draft
+    summary: "Desktop-grounded deep inventory: personas/StudioLink, per-persona toolsets, all adjustments/live filters/blend modes, selections, color formats, typography, Publisher production depth, per-app format matrix, automation, panels, 2.1-2.6 version deltas."
+    count_status: DEEP_FEATURE_DELTA
+    feature_deep_delta_row_count: 440
+    dedupe_deepens_existing_count: 433
+    dedupe_new_surface_count: 7
+    verification_counts: { verified: 392, unverified: 48 }
+    subtopics: [personas, photo-tools, designer-tools, publisher-tools, layers-and-adjustments, selections-and-masks, color-and-formats, typography, publisher-layout, export-and-formats, automation-and-integration, panels-and-workspace, version-2x-deltas, sources]
+  - id: SFR-FIGMA-DEEP-DELTA
+    title: "Figma Family Deep Feature Delta"
+    file: "55-figma-deep-feature-delta.md"
+    status: draft
+    summary: "Priority-gap closure: design core/auto layout, vector networks + Draw, typography, components/variables, full prototyping, Dev Mode + Code Connect + MCP server, FigJam, Slides/Sites/Buzz/Make, collaboration, Plugin API node catalog, REST API, AI surface, org/admin posture."
+    count_status: DEEP_FEATURE_DELTA
+    feature_deep_delta_row_count: 400
+    dedupe_deepens_existing_count: 175
+    dedupe_new_surface_count: 225
+    verification_counts: { verified: 244, unverified: 156 }
+    subtopics: [design-core, vector-and-draw, typography, components-and-variables, prototyping, dev-mode, figjam, slides-sites-buzz-make, collaboration-and-files, plugin-api, rest-api-and-platform, ai-features, organization-admin, sources]
+  - id: SFR-STUDIO-INTEGRATION
+    title: "Studio-Handshake Integration Architecture"
+    file: "56-studio-handshake-integration-architecture.md"
+    status: draft
+    summary: "Wires Studio into Handshake kernel pillars (EventLedger/PostgreSQL, CRDT, sandbox-validation-PromotionGate, three-tier diagnostics, Argus, Loom, FEMS, Job Runtime, DCC, UserManual) plus model visibility, visual steerability, parallel workflows, propose-work, per-file history/undo, visual inspection duty, headless/quiet law, the unified operator surface, and the dual-audience Studio UserManual strategy."
+    count_status: INTEGRATION_ARCHITECTURE_RECORDS
+    integration_record_count: 66
+    proposed_concept_count: 22
+    open_question_count: 8
+    subtopics: [pillar-wiring, model-visibility, visual-steerability, parallel-workflows, propose-work-system, history-undo, visual-inspection-duty, headless-quiet-law, operator-unification, usermanual-strategy, risks-and-open-questions, sources]
+  - id: SFR-DEEP-DELTA-OVERLAP
+    title: "Deep-Delta Cross-App Overlap Map"
+    file: "57-deep-delta-cross-app-overlap-map.md"
+    status: generated
+    summary: "Generated overlap map over deep-delta files 51-55: shared capability across source apps maps to one Handshake-native Studio primitive; app rows stay as provenance variants."
+    count_status: GENERATED_DEEP_DELTA_OVERLAP_MAP
+    deep_delta_row_count: 2275
+    overlap_group_count: 159
+    generator: "_tools/generate-deep-delta-overlap-map.py"
+    subtopics: [coverage, domain-counts, groups, sources]
   - id: SFR-PRIMITIVES
     title: "Studio Primitive and Engine Module Map"
     file: "05-studio-primitive-map.md"
@@ -587,7 +662,12 @@ known_gaps:
     status: mitigated
     detail: "Illustrator and Figma generated feature rows previously had source URLs but no local source snapshot path references in the per-row source_refs."
     mitigation: "Resolved by adding snapshot-path resolution to _tools/generate-source-distilled-feature-rows.py, adding explicit Figma manual-row URL overrides, patching _tools/generate-illustrator-figma-research.py to emit stable snapshot names, capturing the missing Figma snapshots, and regenerating 39 through 49. The coverage matrix now reports zero URL-only rows."
+  - id: SFR-GAP-020
+    severity: high
+    status: mitigated
+    detail: "Help-TOC leaf indexes missed the sub-article surface: complete tool sets, menu trees, filter/effect catalogs, adjustment and blend-mode enumerations, Camera Raw/Develop control sets, panel inventories, dialog option catalogs, preferences panes, scripting/plugin/REST API domains, and the thin Figma family coverage. A dedicated deep-delta pass added 2,275 rows (photoshop 573, illustrator 447, indesign 415, affinity 440, figma 400) with per-row dedupe status against the leaf indexes, plus a Handshake integration architecture and a generated cross-app overlap map (159 groups)."
+    mitigation: "Use 51-55 deep-delta files alongside the leaf indexes and feature rows; use 57-deep-delta-cross-app-overlap-map.md for no-double-features grouping; use 56-studio-handshake-integration-architecture.md for pillar wiring, model visibility/steerability, parallel workflows, propose-work, history/undo, headless/quiet law, operator unification, and the dual-audience UserManual strategy. Rows marked PARTIAL/UNVERIFIED still need page-level inspection at command-contract promotion time."
 
 review:
   verdict: "Useful research corpus and implementation-planning seed for Studio; still not product authority until selected command contracts are accepted into a work packet or spec."
-  updated_at: "2026-07-05"
+  updated_at: "2026-07-09"

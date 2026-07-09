@@ -5,7 +5,7 @@ title: "Gap Resolution Notes"
 status: draft
 summary: "Resolved, mitigated, and residual evidence gaps for the Studio app feature research corpus."
 sources: 61
-updated_at: "2026-07-05"
+updated_at: "2026-07-09"
 ---
 
 ## [SFR-GAP-NOTES] Gap Resolution Notes
@@ -174,6 +174,28 @@ resolved_gaps:
         - edit_preserve
         - export
         - round_trip
+  - id: "SFR-GAP-020"
+    original_issue: "Help-TOC leaf indexes missed the sub-article surface (complete tool sets, menu trees, filter/effect catalogs, adjustment/blend-mode enumerations, Camera Raw and Develop control sets, panel inventories, dialog option catalogs, preferences panes, scripting/plugin/REST API domains), and the Figma family was covered by only 200 rows. The Operator judged the corpus incomplete for all-tools/all-features rebuild planning."
+    resolution: "Ran a per-app deep-delta pass below the help-TOC level with per-row dedupe status against the existing leaf indexes, added the Studio-Handshake integration architecture (pillar wiring, model visibility, visual steerability, parallel multi-file/multi-model workflows, propose-work system, per-file history/undo with revert-of-undo, visual inspection duty, headless/quiet law, operator unification surface, dual-audience UserManual strategy), and generated a cross-app overlap map over the deep rows for no-double-features grouping."
+    artifacts:
+      - ".GOV/reference/studio_app_feature_research/51-photoshop-deep-feature-delta.md"
+      - ".GOV/reference/studio_app_feature_research/52-illustrator-deep-feature-delta.md"
+      - ".GOV/reference/studio_app_feature_research/53-indesign-deep-feature-delta.md"
+      - ".GOV/reference/studio_app_feature_research/54-affinity-deep-feature-delta.md"
+      - ".GOV/reference/studio_app_feature_research/55-figma-deep-feature-delta.md"
+      - ".GOV/reference/studio_app_feature_research/56-studio-handshake-integration-architecture.md"
+      - ".GOV/reference/studio_app_feature_research/57-deep-delta-cross-app-overlap-map.md"
+      - ".GOV/reference/studio_app_feature_research/_tools/generate-deep-delta-overlap-map.py"
+    counts:
+      deep_delta_rows_total: 2275
+      photoshop_deep_rows: 573
+      illustrator_deep_rows: 447
+      indesign_deep_rows: 415
+      affinity_deep_rows: 440
+      figma_deep_rows: 400
+      integration_architecture_records: 66
+      deep_delta_overlap_groups: 159
+      corpus_feature_rows_total_after_pass: 5005
 ```
 
 ### [SFR-GAP-NOTES.unresolved] Remaining Unresolved Gaps
@@ -201,9 +223,9 @@ remaining_gaps:
   - id: "SFR-REMAINING-GAP-007"
     title: "Figma category crawl depth is uneven."
     status: "mitigated"
-    detail: "Figma Design and Make snapshots contain deeper article-level links, while several adjacent Figma category snapshots are represented through visible category evidence, source-agent research, the source-distilled domain ledger, and generated feature rows."
-    mitigation: "Use 21-figma-feature-map.md, 23-figma-leaf-index.md, 25-figma-feature-use-cards.md, 38-figma-source-distilled-domain-ledger.md, and 43-figma-source-distilled-feature-rows.md as the current source-distilled inventory. A deeper Figma Help category crawl is a delta-improvement pass, not a blocker."
-    residual_verification_needed: "Run deeper category crawls for FigJam, Motion, Slides, Sites, Buzz, Community, Work Across Figma, and Build with Figma when refreshing the online-source inventory; then regenerate or supersede affected rows."
+    detail: "Largely closed by the SFR-GAP-020 deep-delta pass: 55-figma-deep-feature-delta.md adds 400 rows covering design core/auto layout, vector networks and Draw, typography, components/variables, full prototyping, Dev Mode/Code Connect/MCP server, FigJam, Slides/Sites/Buzz/Make, collaboration, the Plugin API node catalog, REST API domains, AI surface, and org/admin posture."
+    mitigation: "Use 55-figma-deep-feature-delta.md alongside 21/23/25/38/43 as the current Figma inventory."
+    residual_verification_needed: "156 Figma deep rows remain UNVERIFIED (leaf-URL-anchored but not individually fetched); inspect at command-contract promotion time."
   - id: "SFR-REMAINING-GAP-008"
     title: "Proprietary AI and Figma-family file schemas are compatibility targets, not implementation contracts."
     status: "mitigated"

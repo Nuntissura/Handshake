@@ -60,6 +60,13 @@ It is reference material only. It does not authorize product code, spec edits, t
 - `48-provider-offline-parity-registry.md` records generated provider/offline parity rows that keep cloud, AI, collaboration, runtime, automation, and compatibility-adjacent source behavior local-first in Studio.
 - `49-source-coverage-verification-matrix.md` records generated per-feature coverage verification for required planning fields, source reference strength, provider/offline linkage, format linkage, tool linkage, and implementation obligations.
 - `50-proprietary-format-fixture-plan.md` records generated fixture, round-trip, unsupported-feature receipt, and Rust lane requirements for native/proprietary/local-copy format compatibility targets.
+- `51-photoshop-deep-feature-delta.md` records the sub-TOC Photoshop/Camera Raw deep delta: tools, menus, filters, adjustments/blending, channels, Camera Raw, type engine, panels, automation/scripting, dialogs, smart objects, preferences.
+- `52-illustrator-deep-feature-delta.md` records the sub-TOC Illustrator deep delta: tools, menus, full Effect catalog, appearance/styles, color systems, typography, artboards, import/export, scripting, panels, preferences, cloud/AI posture.
+- `53-indesign-deep-feature-delta.md` records the sub-TOC InDesign deep delta: tools, menus, text/typography option catalogs, styles, pages/layout, tables, frames, color/output, interactive/EPUB, long-document, prepress, scripting, panels, preferences.
+- `54-affinity-deep-feature-delta.md` records the desktop-grounded Affinity deep delta: personas/StudioLink, per-persona toolsets, adjustments/live filters/blend modes, selections, color, typography, Publisher production depth, formats, automation, panels, 2.x version deltas.
+- `55-figma-deep-feature-delta.md` records the Figma-family deep delta: design core/auto layout, vector networks/Draw, typography, components/variables, prototyping, Dev Mode/Code Connect/MCP, FigJam, Slides/Sites/Buzz/Make, collaboration, Plugin API, REST API, AI, org posture.
+- `56-studio-handshake-integration-architecture.md` records the Studio-Handshake integration architecture: pillar wiring, model visibility, visual steerability, parallel workflows, propose-work, per-file history/undo, visual inspection duty, headless/quiet law, operator unification, dual-audience UserManual strategy.
+- `57-deep-delta-cross-app-overlap-map.md` records the generated cross-app overlap map over the deep-delta files (no-double-features grouping under one Studio primitive per shared capability).
 - `_source_snapshots/` stores fetched official source snapshots used by generated leaf indexes.
 - `_tools/generate-source-distilled-feature-rows.py` regenerates `39` through `43` from the Feature Use Cards and domain ledgers.
 - `_tools/generate-cross-app-dedupe-map.py` regenerates `44` from `34` through `43`.
@@ -69,6 +76,7 @@ It is reference material only. It does not authorize product code, spec edits, t
 - `_tools/generate-provider-offline-parity-registry.py` regenerates `48` from `39` through `43`.
 - `_tools/generate-source-coverage-verification-matrix.py` regenerates `49` from `39` through `48`.
 - `_tools/generate-proprietary-format-fixture-plan.py` regenerates `50` from `46`, `47`, and `49`.
+- `_tools/generate-deep-delta-overlap-map.py` regenerates `57` from `51` through `55`.
 
 ## [INSTR.headers] Header Convention
 
