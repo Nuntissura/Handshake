@@ -11,7 +11,7 @@
     "edge": "ckc_media_to_note_embed",
     "proof_fn": "interconnect_ic01_ckc_image_into_note",
     "scenario_id": "IC-01",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "surfaces_involved": [
       "ckc",
       "rich_editor",
@@ -29,7 +29,7 @@
     "edge": "ckc_media_to_note_embed",
     "proof_fn": "interconnect_ic02_ckc_video_into_note",
     "scenario_id": "IC-02",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "surfaces_involved": [
       "ckc",
       "rich_editor",
@@ -168,7 +168,7 @@
     "edge": "loom_backlink_search",
     "proof_fn": "interconnect_ic11_search_v2_across_surfaces",
     "scenario_id": "IC-11",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "surfaces_involved": [
       "rich_editor",
       "code",
@@ -184,7 +184,7 @@
     "edge": "loom_backlink_search",
     "proof_fn": "interconnect_ic12_graph_cross_surface_edges",
     "scenario_id": "IC-12",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "surfaces_involved": [
       "loom",
       "graph",
@@ -217,7 +217,7 @@
     "edge": "loom_backlink_search",
     "proof_fn": "interconnect_ic14_quick_switcher_both_editors",
     "scenario_id": "IC-14",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "surfaces_involved": [
       "rich_editor",
       "code",

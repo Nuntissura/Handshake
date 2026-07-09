@@ -118,7 +118,7 @@
     "native_impl_module": "handshake_native::rich_editor::document_model",
     "proof_fn": "parity_block_document_model",
     "react_ref": "app/src/components/DocumentView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /knowledge/documents (workspace_id in body), GET /knowledge/documents/{doc_id}",
@@ -129,7 +129,7 @@
     "native_impl_module": "handshake_native::rich_editor::document_model::node",
     "proof_fn": "parity_wysiwyg_heading_render",
     "react_ref": "app/src/components/DocumentView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /knowledge/documents (workspace_id in body), GET /knowledge/documents/{doc_id}",
@@ -140,7 +140,7 @@
     "native_impl_module": "handshake_native::rich_editor::document_model",
     "proof_fn": "parity_table_insert_cell",
     "react_ref": "app/src/components/DocumentView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "GET /workspaces/{id}/assets/{asset_id}/content (asset bytes; bare /assets/{id} is metadata JSON)",
@@ -151,7 +151,7 @@
     "native_impl_module": "handshake_native::rich_editor::document_model::node",
     "proof_fn": "parity_embed_image_resolve",
     "react_ref": "app/src/components/HsLinkView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "GET /workspaces/{id}/loom/blocks/{block_id}",
@@ -162,7 +162,7 @@
     "native_impl_module": "handshake_native::rich_editor::document_model::node",
     "proof_fn": "parity_wikilink_persisted",
     "react_ref": "app/src/components/HsLinkView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "GET /workspaces/{id}/loom/blocks/{block_id}/transclusion",
@@ -184,7 +184,7 @@
     "native_impl_module": "handshake_native::rich_editor::slash_commands::executor",
     "proof_fn": "parity_slash_command_heading",
     "react_ref": "app/src/components/DocumentView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /knowledge/documents (property in content_json doc attrs), GET /knowledge/documents/{doc_id}",
@@ -195,7 +195,7 @@
     "native_impl_module": "handshake_native::rich_editor::document_model",
     "proof_fn": "parity_properties_panel",
     "react_ref": "app/src/components/DocumentView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /knowledge/documents, PUT /knowledge/documents/{doc_id}/save, GET /knowledge/documents/{doc_id}",
@@ -206,7 +206,7 @@
     "native_impl_module": "handshake_native::rich_editor::find_replace",
     "proof_fn": "parity_rich_find_replace",
     "react_ref": "app/src/components/FindReplacePanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "PUT /workspaces/{id}/loom/journals/{journal_date}",
@@ -217,7 +217,7 @@
     "native_impl_module": "handshake_native::rich_editor::daily_notes::journal_store",
     "proof_fn": "parity_daily_note",
     "react_ref": "app/src/components/DocumentView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "GET /knowledge/documents/{doc_id}/projection?format=html (returns JSON {rich_document_id, projection})",
@@ -250,7 +250,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomGraphClient",
     "proof_fn": "parity_local_graph",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "GET /workspaces/{id}/loom/graph/global",
@@ -261,7 +261,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomGraphClient",
     "proof_fn": "parity_global_graph",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "GET /workspaces/{id}/loom/folders",
@@ -272,7 +272,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomFolderClient",
     "proof_fn": "parity_folder_tree",
     "react_ref": "app/src/components/LoomWikiPagePanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "GET/PUT /workspaces/{id}/loom/folders",
@@ -316,7 +316,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomSidebarClient",
     "proof_fn": "parity_backlinks",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "GET /workspaces/{id}/loom/blocks/{block_id}/unlinked-mentions",
@@ -327,7 +327,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomSidebarClient",
     "proof_fn": "parity_unlinked_mentions",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "GET /workspaces/{id}/loom/blocks/{block_id}/breadcrumbs",
@@ -349,7 +349,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomWikiClient",
     "proof_fn": "parity_wiki_page_projection",
     "react_ref": "app/src/components/LoomWikiPagePanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/canvas-boards/{board_id}/placements",
@@ -360,7 +360,7 @@
     "native_impl_module": "handshake_native::backend_client::CanvasBoardClient",
     "proof_fn": "parity_canvas_board_placement",
     "react_ref": "app/src/components/LoomCanvasBoard.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/views/definitions + /views/definitions/{block_id}/results",
@@ -371,7 +371,7 @@
     "native_impl_module": "handshake_native::backend_client::BlockViewClient",
     "proof_fn": "parity_block_collection_table",
     "react_ref": "app/src/components/BlockCollectionView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/views/definitions/{block_id}/results",
@@ -393,7 +393,7 @@
     "native_impl_module": "handshake_native::backend_client::BlockViewClient",
     "proof_fn": "parity_block_collection_calendar",
     "react_ref": "app/src/components/BlockCollectionView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/search-v2",
@@ -404,7 +404,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomSearchV2Client + loom_search_v2",
     "proof_fn": "parity_full_text_search",
     "react_ref": "app/src/components/LoomSearchV2Panel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/search-v2",
@@ -415,7 +415,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomSearchV2Client",
     "proof_fn": "parity_fuzzy_search",
     "react_ref": "app/src/components/LoomSearchV2Panel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/search-v2 (no mode param; semantic via query_embedding/semantic_available, pgvector)",
@@ -448,7 +448,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomSearchV2Client",
     "proof_fn": "parity_save_results_as_view",
     "react_ref": "app/src/components/LoomSearchV2Panel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/search-v2 (find-in-files) or code-nav",
@@ -470,6 +470,6 @@
     "native_impl_module": "handshake_native::quick_switcher",
     "proof_fn": "parity_quick_switcher",
     "react_ref": "app/src/components/LoomSearchV2Panel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "PASS"
   }
 ]

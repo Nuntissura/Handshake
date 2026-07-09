@@ -109,9 +109,10 @@
     "description": "Load a 1000-paragraph-block rich document (POST then GET /knowledge/documents); measure network round-trip + native block-tree build. BINDS handshake_core knowledge documents -> requires live managed PostgreSQL.",
     "env_override": "PERF_BUDGET_LR01_MS",
     "gated": true,
-    "measured_value": null,
+    "measured_profile": "debug",
+    "measured_value": 117.0,
     "scenario_id": "LR-01",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "unit": "ms"
   },
   {
@@ -121,9 +122,10 @@
     "description": "Scroll through a loaded 1000-block rich document: drive the virtual scroll from block 0 to 999 across 100 viewport steps; assert no layout panic. BINDS handshake_core -> requires live managed PostgreSQL for the loaded doc.",
     "env_override": "PERF_BUDGET_LR02_MS",
     "gated": true,
-    "measured_value": null,
+    "measured_profile": "debug",
+    "measured_value": 0.0,
     "scenario_id": "LR-02",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "unit": "ms"
   },
   {
@@ -133,9 +135,10 @@
     "description": "Find in a rich document with 500 'FINDME' occurrences (every other block); collect all 500 spans. BINDS handshake_core -> requires live managed PostgreSQL.",
     "env_override": "PERF_BUDGET_LR03_MS",
     "gated": true,
-    "measured_value": null,
+    "measured_profile": "debug",
+    "measured_value": 0.0,
     "scenario_id": "LR-03",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "unit": "ms"
   },
   {
@@ -145,9 +148,10 @@
     "description": "Save a 1000-block rich document (PUT /knowledge/documents/{id}/save); measure round-trip; assert the saved version advances (updated_at changed). BINDS handshake_core + EventLedger -> requires live managed PostgreSQL.",
     "env_override": "PERF_BUDGET_LR04_MS",
     "gated": true,
-    "measured_value": null,
+    "measured_profile": "debug",
+    "measured_value": 129.0,
     "scenario_id": "LR-04",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "unit": "ms"
   },
   {
@@ -169,9 +173,10 @@
     "description": "Memory budget for a loaded + parsed 1000-block rich document; measure process RSS delta (median of 3). BINDS handshake_core for the loaded doc -> requires live managed PostgreSQL.",
     "env_override": "PERF_BUDGET_LR06_MB",
     "gated": true,
-    "measured_value": null,
+    "measured_profile": "debug",
+    "measured_value": 6.742,
     "scenario_id": "LR-06",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "unit": "mb"
   },
   {
@@ -230,9 +235,10 @@
     "description": "Search index, 5000 blocks: POST /loom/search-v2 with a query matching ~100 blocks; measure response; assert hits length between 50 and 200. BINDS handshake_core search-v2 -> requires live managed PostgreSQL.",
     "env_override": "PERF_BUDGET_LK04_MS",
     "gated": true,
-    "measured_value": null,
+    "measured_profile": "debug",
+    "measured_value": 78.0,
     "scenario_id": "LK-04",
-    "status": "REQUIRES_PG",
+    "status": "PASS",
     "unit": "ms"
   },
   {
