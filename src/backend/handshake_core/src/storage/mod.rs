@@ -19,6 +19,7 @@ use crate::ai_ready_data::records::{
 };
 
 pub mod calendar;
+pub mod calendar_activity;
 pub mod fems_memory;
 pub mod kb003_storage;
 pub mod knowledge;
@@ -31,6 +32,7 @@ pub mod postgres;
 pub mod retention;
 
 pub use calendar::*;
+pub use calendar_activity::*;
 pub use loom::*;
 
 // Test utilities - exposed for integration tests.

@@ -12,6 +12,9 @@
 //!   * Route 1  GET  /workspaces/:ws/locus/work-packets/:id     (locus resolve)
 //!   * Route 1  GET  /workspaces/:ws/locus/microtasks/:id       (locus resolve)
 //!   * Route 6  DELETE /knowledge/documents/:id                 (soft delete)
+//!   * MT-067   POST+GET /workspaces/:ws/calendar/activity-spans (span round-trip)
+//!   * MT-067   GET  /workspaces/:ws/calendar/events            (daily_note_doc_id link)
+//!   * MT-045   POST /workspaces/:ws/code-nav/index             (code-nav index pipeline)
 
 mod knowledge_pg_support;
 
@@ -19,7 +22,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
-use handshake_core::api::{calendar as calendar_api, knowledge_documents as docs_api, locus as locus_api};
+use handshake_core::api::{
+    calendar as calendar_api, code_nav_index as code_nav_index_api,
+    knowledge_documents as docs_api, locus as locus_api,
+};
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
 use handshake_core::flight_recorder::{
@@ -453,5 +459,251 @@ async fn route6_document_soft_delete_tombstones_and_receipts() {
             .iter()
             .any(|e| e.event_type == handshake_core::kernel::KernelEventType::KnowledgeRichDocumentDeleted),
         "a delete receipt must be appended to the EventLedger"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MT-067 — calendar activity spans (create + query round-trip) and the
+// daily-note linkage on the events response.
+// ---------------------------------------------------------------------------
+
+/// Seed a calendar source + one event for `event_id` starting at `start`.
+async fn seed_calendar_event(
+    state: &AppState,
+    workspace_id: &str,
+    event_id: &str,
+    start: chrono::DateTime<Utc>,
+) {
+    let ctx = WriteContext::human(None);
+    state
+        .storage
+        .upsert_calendar_source(
+            &ctx,
+            CalendarSourceUpsert {
+                id: format!("cal-src-{event_id}"),
+                workspace_id: workspace_id.to_string(),
+                display_name: "MT067 Calendar".to_string(),
+                provider_type: CalendarSourceProviderType::Local,
+                write_policy: CalendarSourceWritePolicy::ReadOnlyImport,
+                default_tzid: "UTC".to_string(),
+                auto_export: false,
+                credentials_ref: None,
+                provider_calendar_id: None,
+                capability_profile_id: None,
+                config: json!({}),
+                sync_state: CalendarSourceSyncState::default(),
+            },
+        )
+        .await
+        .expect("seed calendar source");
+    state
+        .storage
+        .upsert_calendar_event(
+            &ctx,
+            CalendarEventUpsert {
+                id: event_id.to_string(),
+                workspace_id: workspace_id.to_string(),
+                source_id: format!("cal-src-{event_id}"),
+                external_id: None,
+                external_etag: None,
+                title: "Edit block".to_string(),
+                description: None,
+                location: None,
+                start_ts_utc: start,
+                end_ts_utc: start + chrono::Duration::hours(1),
+                start_local: None,
+                end_local: None,
+                tzid: "UTC".to_string(),
+                all_day: false,
+                was_floating: false,
+                status: CalendarEventStatus::Confirmed,
+                visibility: CalendarEventVisibility::Private,
+                export_mode: CalendarEventExportMode::FullExport,
+                rrule: None,
+                rdate: vec![],
+                exdate: vec![],
+                is_recurring: false,
+                series_id: None,
+                instance_key: None,
+                is_override: false,
+                source_last_seen_at: None,
+                attendees: json!([]),
+                links: json!([]),
+                provider_payload: None,
+            },
+        )
+        .await
+        .expect("seed calendar event");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires_pg"]
+async fn mt067_activity_span_create_and_query_round_trip() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt067_activity_span: no PostgreSQL");
+        return;
+    };
+    let state = app_state(&pg).await;
+    let workspace_id = pg.create_workspace().await;
+    let start = Utc.with_ymd_and_hms(2026, 7, 3, 9, 0, 0).unwrap();
+    seed_calendar_event(&state, &workspace_id, "cal-evt-mt067", start).await;
+
+    let (base, http) = serve(calendar_api::routes(state.clone())).await;
+
+    // POST an activity span recording an edit block during the event.
+    let created: Value = http
+        .post(format!(
+            "{base}/workspaces/{workspace_id}/calendar/activity-spans"
+        ))
+        .json(&json!({
+            "calendar_event_id": "cal-evt-mt067",
+            "started_utc": "2026-07-03T09:05:00Z",
+            "ended_utc": "2026-07-03T09:45:00Z",
+            "edited_doc_ids": ["DOC-A", "DOC-B"]
+        }))
+        .send()
+        .await
+        .expect("create span request")
+        .json()
+        .await
+        .expect("create span json");
+    assert_eq!(created["calendar_event_id"], "cal-evt-mt067");
+    assert_eq!(created["edited_doc_ids"], json!(["DOC-A", "DOC-B"]));
+    let span_id = created["span_id"].as_str().expect("span id").to_string();
+    assert!(!span_id.is_empty(), "a span id must be minted");
+
+    // GET the activity spans for the event and assert the round-trip.
+    let resp = http
+        .get(format!(
+            "{base}/workspaces/{workspace_id}/calendar/activity-spans?event_id=cal-evt-mt067"
+        ))
+        .send()
+        .await
+        .expect("list spans request");
+    assert_eq!(resp.status(), 200, "activity-spans GET must succeed");
+    let spans: Value = resp.json().await.expect("spans json");
+    let arr = spans.as_array().expect("spans array");
+    assert!(
+        arr.iter().any(|s| s["span_id"] == span_id.as_str()
+            && s["calendar_event_id"] == "cal-evt-mt067"
+            && s["edited_doc_ids"] == json!(["DOC-A", "DOC-B"])
+            && s["ended_utc"].is_string()),
+        "the created span must be returned with its edited_doc_ids: {spans}"
+    );
+
+    // A missing event_id is a 400, not a 500.
+    let bad = http
+        .get(format!(
+            "{base}/workspaces/{workspace_id}/calendar/activity-spans?event_id="
+        ))
+        .send()
+        .await
+        .expect("bad event id request");
+    assert_eq!(bad.status(), 400, "empty event_id must be a 400");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires_pg"]
+async fn mt067_calendar_event_populates_daily_note_doc_id() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt067_daily_note: no PostgreSQL");
+        return;
+    };
+    let state = app_state(&pg).await;
+    let workspace_id = pg.create_workspace().await;
+    let start = Utc.with_ymd_and_hms(2026, 7, 4, 9, 0, 0).unwrap();
+    seed_calendar_event(&state, &workspace_id, "cal-evt-dn", start).await;
+
+    // Seed the daily journal LoomBlock for the event's date so the linkage
+    // resolves (the MT-019 / MT-257 get-or-create).
+    let ctx = WriteContext::human(None);
+    let block = state
+        .storage
+        .get_or_create_daily_journal_block(&ctx, &workspace_id, "2026-07-04")
+        .await
+        .expect("seed daily journal block");
+    let expected = block
+        .document_id
+        .clone()
+        .unwrap_or_else(|| block.block_id.clone());
+
+    let (base, http) = serve(calendar_api::routes(state.clone())).await;
+    let resp = http
+        .get(format!(
+            "{base}/workspaces/{workspace_id}/calendar/events?from=2026-07-04&to=2026-07-04"
+        ))
+        .send()
+        .await
+        .expect("events request");
+    assert_eq!(resp.status(), 200, "events GET must succeed");
+    let events: Value = resp.json().await.expect("events json");
+    let arr = events.as_array().expect("events array");
+    assert!(
+        arr.iter()
+            .any(|e| e["id"] == "cal-evt-dn" && e["daily_note_doc_id"] == expected.as_str()),
+        "an event on a journalled date must carry daily_note_doc_id={expected}: {events}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MT-045 (LC-06) — the code-nav index pipeline over a small real code dir.
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires_pg"]
+async fn mt045_code_nav_index_returns_symbol_count() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt045_code_nav_index: no PostgreSQL");
+        return;
+    };
+    let state = app_state(&pg).await;
+    let workspace_id = pg.create_workspace().await;
+
+    // A small real code dir (mirrors LC-06's fixture, tiny): 3 Rust files, each
+    // with 5 free functions => 15 real symbols the AST indexer must produce.
+    let dir = std::env::temp_dir().join(format!("wpk012-mt045-{}", uuid::Uuid::now_v7().simple()));
+    std::fs::create_dir_all(&dir).expect("create temp code dir");
+    for f in 0..3usize {
+        let mut body = String::new();
+        for i in 0..5usize {
+            body.push_str(&format!("fn file{f}_sym{i}() -> u32 {{ {i} }}\n"));
+        }
+        std::fs::write(dir.join(format!("file_{f}.rs")), body).expect("write code file");
+    }
+
+    let (base, http) = serve(code_nav_index_api::routes(state.clone())).await;
+    let resp = operator_headers(
+        http.post(format!("{base}/workspaces/{workspace_id}/code-nav/index")),
+        "index",
+    )
+    .json(&json!({ "root_path": dir.to_string_lossy() }))
+    .send()
+    .await
+    .expect("index request");
+    assert_eq!(resp.status(), 200, "code-nav index must succeed");
+    let out: Value = resp.json().await.expect("index json");
+    let symbol_count = out["symbol_count"].as_u64().expect("symbol_count");
+    assert!(
+        symbol_count > 0,
+        "the pipeline must return a real symbol count (got {symbol_count}): {out}"
+    );
+    assert!(
+        out["files_indexed"].as_u64().unwrap_or(0) >= 3,
+        "all 3 code files must index: {out}"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // Missing identity headers -> 400 (the mutation attribution law).
+    let denied = http
+        .post(format!("{base}/workspaces/{workspace_id}/code-nav/index"))
+        .json(&json!({ "root_path": "unused" }))
+        .send()
+        .await
+        .expect("unauth index request");
+    assert_eq!(
+        denied.status(),
+        400,
+        "an index without identity headers must be rejected"
     );
 }

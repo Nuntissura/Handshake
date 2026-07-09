@@ -6,6 +6,7 @@ pub mod atelier;
 pub mod bundles;
 pub mod calendar;
 pub mod canvases;
+pub mod code_nav_index;
 pub mod debug_adapter;
 pub mod diagnostics;
 pub mod flight_recorder;
@@ -31,6 +32,7 @@ pub mod workspaces;
 pub fn routes(state: AppState) -> Router {
     let workspace_routes = workspaces::routes(state.clone());
     let calendar_routes = calendar::routes(state.clone());
+    let code_nav_index_routes = code_nav_index::routes(state.clone());
     let locus_routes = locus::routes(state.clone());
     let canvas_routes = canvases::routes(state.clone());
     let job_routes = jobs::routes(state.clone());
@@ -58,6 +60,7 @@ pub fn routes(state: AppState) -> Router {
 
     workspace_routes
         .merge(calendar_routes)
+        .merge(code_nav_index_routes)
         .merge(locus_routes)
         .merge(canvas_routes)
         .merge(log_routes)
