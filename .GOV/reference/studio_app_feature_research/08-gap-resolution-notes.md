@@ -187,15 +187,17 @@ resolved_gaps:
       - ".GOV/reference/studio_app_feature_research/57-deep-delta-cross-app-overlap-map.md"
       - ".GOV/reference/studio_app_feature_research/_tools/generate-deep-delta-overlap-map.py"
     counts:
-      deep_delta_rows_total: 2275
-      photoshop_deep_rows: 573
+      deep_delta_rows_total: 2304
+      photoshop_deep_rows: 576
       illustrator_deep_rows: 447
-      indesign_deep_rows: 415
+      indesign_deep_rows: 416
       affinity_deep_rows: 440
-      figma_deep_rows: 400
+      figma_deep_rows: 425
       integration_architecture_records: 66
-      deep_delta_overlap_groups: 159
-      corpus_feature_rows_total_after_pass: 5005
+      deep_delta_overlap_groups: 160
+      corpus_feature_rows_total_after_pass: 5034
+      verification_pass: "All deep rows source-confirmed VERIFIED except 4 documented-unreachable residuals (3 InDesign menu enumerations, 1 Figma Motion .fig posture); each carries a residual_reason."
+      completeness_audit: "Two rounds. Round 1 (Adobe-centric top-level surface classes) found 3 Photoshop ecosystem-posture holes + missing Figma Motion. Round 2 (app-unique features with no cross-app equivalent + cross-cutting capability depth + whole-product surfaces, 130+ classes) found only InDesign Balance Ragged Lines. All findings filled and verified; round 2 otherwise returned dry across all five apps."
 ```
 
 ### [SFR-GAP-NOTES.unresolved] Remaining Unresolved Gaps

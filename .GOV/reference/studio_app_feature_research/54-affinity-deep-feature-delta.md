@@ -22,8 +22,8 @@ counts:
   automation_and_integration: 15
   panels_and_workspace: 42
   version_2x_deltas: 13
-  verified: 392
-  unverified: 48
+  verified: 440
+  unverified: 0
   deepens_existing: 433
   new_surface: 7
 ---
@@ -827,68 +827,74 @@ records:
     name: "Develop Tones panel"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Groups tonal develop controls (curve/black-and-white/split-tone style adjustments) applied during raw development."
+    app_behavior: "Develop-Persona-only panel grouping three tonal adjustments applied during raw development: Curves, Black & White and Split Toning."
     primitive_domain: camera_raw
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.develop-persona-raw-tones-panel"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Raw/raw_panelTones.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.photo-tools.photo-develop-details-panel"
     name: "Develop Details panel"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Groups detail refinement controls (sharpening and noise handling) applied during raw development."
+    app_behavior: "Develop-Persona-only panel grouping Detail Refinement (edge sharpening), Noise Reduction and Noise Addition applied during raw development."
     primitive_domain: camera_raw
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.develop-persona-raw-details-panel"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Raw/raw_panelDetails.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.photo-tools.photo-develop-lens-panel"
     name: "Develop Lens panel"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Groups lens correction controls (profile-based and manual geometry/fringing/vignette handling) applied during raw development."
+    app_behavior: "Develop-Persona-only panel grouping Lens Correction (distortion), Chromatic Aberration Reduction, Defringe, Remove Lens Vignette and Post Crop Vignette, with automatic lens-profile selection plus manual override."
     primitive_domain: camera_raw
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.develop-persona-raw-lens-panel"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Raw/raw_panelLens.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.photo-tools.photo-develop-focus-panel"
     name: "Develop Focus panel (desktop-only)"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Desktop Develop Persona panel for focus/detail inspection during raw development."
+    app_behavior: "Desktop Develop Persona metadata panel reporting capture-time focus settings (Mode, Beam, Circle of Confusion, hyperfocal distance) with a Show AF Regions overlay of camera autofocus zones (Canon CR2); inspection-only, not an adjustment."
     primitive_domain: camera_raw
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.desktop.leaf.raw-raw_panelfocus"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Raw/raw_panelFocus.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.photo-tools.photo-develop-snapshots-panel"
     name: "Develop Snapshots panel (desktop-only)"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Stores and restores named develop states within the Develop Persona."
+    app_behavior: "Stores and restores develop-settings snapshots within the Develop Persona for comparing processing variants; snapshots are temporary and deleted on leaving the persona (unlike persistent Photo Persona snapshots)."
     primitive_domain: camera_raw
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.desktop.leaf.raw-raw_panelsnapshots"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Raw/raw_panelSnapshots.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.photo-tools.photo-develop-location-panel"
-    name: "Develop Location panel (desktop-only)"
+    name: "Develop Location panel (desktop, macOS-only)"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Shows/edits GPS location metadata of the raw image inside the Develop Persona."
+    app_behavior: "Reviews and sets GPS location metadata of the raw image inside the Develop Persona via an interactive map (pin repositioning, address search, current location); help page states it is exclusive to the macOS version."
     primitive_domain: camera_raw
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.desktop.leaf.raw-raw_panellocation"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Raw/raw_panelLocation.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.photo-tools.photo-tonemap-tone-compression"
     name: "Tone Mapping: Tone Compression control"
     record_role: "feature_deep_delta"
@@ -1015,7 +1021,8 @@ records:
     deepens_leaf_id: "affinity_designer.leaf.tools-design-tools-pen-tool"
     source_url: "https://affinity.help/designer2/en-US.lproj/pages/Tools/tools_pen.html"
     source_ids: [AFD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.designer-tools.suite-node-tool"
     name: "Node Tool"
     record_role: "feature_deep_delta"
@@ -1312,7 +1319,8 @@ records:
     deepens_leaf_id: "affinity_designer.leaf.object-control-symbols"
     source_url: "https://affinity.help/designer2/en-US.lproj/pages/SymbolsAssets/symbols.html"
     source_ids: [AFD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.designer-tools.suite-constraints"
     name: "Object constraints (responsive anchoring/scaling)"
     record_role: "feature_deep_delta"
@@ -1642,13 +1650,14 @@ records:
     name: "Picture frame content fit/anchor properties"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "Frames carry content scaling rules (e.g. scale-to-fit variants and none) and anchor placement controlling how replaced content sizes into the frame."
+    app_behavior: "Frames carry content scaling rules controlling how placed content sizes into the frame: Scale to Max Fit (default, may crop), Scale to Min Fit, Stretch to Fit and None; an anchor point can also be set during precise data-entry frame creation."
     primitive_domain: layout
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.placing-external-content-picture-frames"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Media/pictureFrames.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.publisher-tools.publisher-data-merge-layout-tool"
     name: "Data Merge Layout Tool"
     record_role: "feature_deep_delta"
@@ -1791,13 +1800,14 @@ records:
     name: "Live layer masks (parametric masks)"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Parametric masks generated live from image properties (luminosity/hue-range/band-pass style criteria) that stay re-editable."
+    app_behavior: "Non-destructive parametric masks generated live from image properties, in three types (Live Hue Range, Live Luminosity Range, Live Band-pass); they update automatically with the underlying image and stay re-editable/reconfigurable at any time."
     primitive_domain: selection_mask
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.layers-live-layer-masks"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/LiveMasks/liveLayerMasks.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.layers-and-adjustments.suite-layer-tagging"
     name: "Layer tagging"
     record_role: "feature_deep_delta"
@@ -2836,35 +2846,38 @@ records:
     name: "Blend ranges (per-layer source/underlying tonal curves)"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Blend Options constrain a layer's compositing to tonal ranges via editable source and underlying-composition range curves."
+    app_behavior: "Blend Options constrain a layer's compositing to tonal ranges via editable Source Layer Ranges and Underlying Composition Ranges graphs with draggable/addable nodes, per-channel selection and linear or curved interpolation."
     primitive_domain: layer_graph
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.layers-layer-blend-ranges"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Layers/layerBlendRanges.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.layers-and-adjustments.suite-blend-gamma"
     name: "Blend gamma control"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Blend Options expose a per-layer blend gamma so compositing can occur in adjusted gamma (e.g. 1.0 linear vs 2.2)."
+    app_behavior: "Blend Options expose a per-layer blend gamma (RGB documents only): 1.0 linear-RGB, 2.2 regular sRGB blending, or any gamma up to 3.0; text layers default to 1.45, other layers to 2.2."
     primitive_domain: layer_graph
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.layers-layer-blend-ranges"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Layers/layerBlendRanges.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.layers-and-adjustments.suite-antialiasing-coverage-map"
     name: "Per-layer antialiasing/coverage map control"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Blend Options allow per-layer antialiasing/coverage map override for edge rendering control."
+    app_behavior: "Blend Options allow per-layer antialiasing override (Inherit/Force On/Force Off) plus an interactive Coverage Map chart adjusting the layer's antialiasing ramp for edge rendering control."
     primitive_domain: layer_graph
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.layers-layer-blend-ranges"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Layers/layerBlendRanges.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-AFFINITY-DEEP-DELTA.selections-and-masks] Selections, Refinement, Channels
@@ -2886,46 +2899,50 @@ records:
     name: "Grow/Shrink selection"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Expands or contracts the pixel selection boundary by a pixel amount."
+    app_behavior: "Expands or contracts the pixel selection boundary by a Radius amount (positive values grow, negative values shrink), with a Circular option rounding the selection shape."
     primitive_domain: selection_mask
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.selections-modifying-pixel-selections"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Selections/selections_modify.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.selections-and-masks.photo-selection-feather"
     name: "Feather selection"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Softens the selection edge falloff by radius."
+    app_behavior: "Softens the selection edge falloff by radius; for some selection tools feathering is also applied directly from the context toolbar."
     primitive_domain: selection_mask
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.selections-modifying-pixel-selections"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Selections/selections_modify.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.selections-and-masks.photo-selection-smooth"
     name: "Smooth selection"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Smooths jagged selection boundaries."
+    app_behavior: "Smooths jagged selection boundaries by adjusting the curvature of the selection edge (radius-controlled)."
     primitive_domain: selection_mask
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.selections-modifying-pixel-selections"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Selections/selections_modify.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.selections-and-masks.photo-refine-selection-dialog"
     name: "Refine Selection dialog (matte/edge refinement)"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Refines selection edges for hair/fine detail with border width, smoothing, feathering and matte brushing, with output to selection, mask or new layer."
+    app_behavior: "Refines selection edges for hair/fine detail with Matte Edges, Border width, Smooth, Feather and Ramp controls, an adjustment brush (Matte/Foreground/Background/Feather modes) and preview modes (Overlay/Black Matte/White Matte/Black & White/Transparent), outputting to Selection, Mask, New Layer or New Layer With Mask."
     primitive_domain: selection_mask
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.selections-refining-pixel-selection-edges"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Selections/selections_refine.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.selections-and-masks.photo-quick-mask-modes"
     name: "Quick Mask (edit selection as layer)"
     record_role: "feature_deep_delta"
@@ -2941,13 +2958,14 @@ records:
     name: "Select tonal range (shadows/midtones/highlights)"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Creates selections from tonal ranges of the image (select by range)."
+    app_behavior: "Creates selections from tonal ranges via Select > Tonal Range with Select Shadows, Select Midtones and Select Highlights; all pixels falling in the chosen range join the selection."
     primitive_domain: selection_mask
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.selections-creating-pixel-selections-by-range"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Selections/selections_range.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.selections-and-masks.photo-luminosity-alpha-selection"
     name: "Selection from layer luminosity/alpha content"
     record_role: "feature_deep_delta"
@@ -3002,7 +3020,8 @@ records:
     deepens_leaf_id: "affinity_photo.leaf.selections-creating-pixel-selections-by-drawing"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Selections/selections_freehand.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-AFFINITY-DEEP-DELTA.color-and-formats] Color Depth, Management, Palettes
@@ -3057,23 +3076,25 @@ records:
     name: "Palette types: document, application, system"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Swatches panel manages palettes scoped to the document, the application, or the OS system palette, plus import/export of palette files."
+    app_behavior: "Swatches panel manages palettes scoped to the document, the application, the OS system palette and PANTONE categories, plus import/export of custom palettes as .afpalette or Adobe Swatch Exchange (ASE) files via Panel Preferences."
     primitive_domain: color
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.desktop.leaf.panels-swatchespanel"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Panels/swatchesPanel.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.color-and-formats.suite-pantone-libraries"
     name: "PANTONE swatch libraries"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Bundled PANTONE libraries are selectable in the Swatches panel for spot/brand color workflows."
+    app_behavior: "Built-in PANTONE palette libraries are selectable from the Swatches panel category list without separate installation and are accessible across Affinity documents."
     primitive_domain: color
     dedupe_status: new_surface
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Panels/swatchesPanel.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.color-and-formats.suite-global-colors-propagation"
     name: "Global colors with live propagation"
     record_role: "feature_deep_delta"
@@ -3089,13 +3110,14 @@ records:
     name: "Color chooser: multi-model sliders/wheel/hex entry"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Color panel and chooser expose HSL wheel, sliders and boxes across RGB/HSL/CMYK/LAB/Gray with hex entry and 32-bit intensity handling."
+    app_behavior: "Color panel and chooser expose the HSL color wheel plus sliders and boxes across RGB, RGB Hex, HSL, CMYK, LAB and Grayscale models with 8-bit, 16-bit or percentage value modes; help page does not document a 32-bit intensity mode here."
     primitive_domain: color
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.color-selecting-colors"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Clr/selectingClr.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.color-and-formats.suite-color-chords"
     name: "Color chords (harmony palette generation)"
     record_role: "feature_deep_delta"
@@ -3128,18 +3150,20 @@ records:
     deepens_leaf_id: "affinity_photo.leaf.color-gradients"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Clr/gradientEditor.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.color-and-formats.photo-32bit-preview-panel"
     name: "32-bit Preview panel (display transform/exposure preview)"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Controls preview exposure and display transform (including OCIO/EDR display paths) for unbounded 32-bit documents."
+    app_behavior: "Controls non-destructive preview exposure and gamma plus display transform choice (ICC Display Transform, Unmanaged linear light, OCIO Display Transform) with EDR/HDR display options for unbounded 32-bit documents; screen presentation only, document values unchanged."
     primitive_domain: color
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.desktop.leaf.panels-32bitpanel"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Panels/32bitPanel.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.color-and-formats.photo-export-custom-3d-lut"
     name: "Export custom adjustments as 3D LUT"
     record_role: "feature_deep_delta"
@@ -3194,13 +3218,14 @@ records:
     name: "Text on a path (start/end and baseline controls)"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Flows text along any curve/shape with adjustable start/end extents and baseline side/offset handling."
+    app_behavior: "Flows text along any line/curve/shape with green/orange start-end handles restricting flow extent (secondary-path handles when text overflows), per-section baseline distance control, flow-direction control and Reverse Text Path."
     primitive_domain: typography
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.text-text-on-a-path"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Text/pathText.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.typography.suite-opentype-ligatures"
     name: "OpenType toggle: Ligatures"
     record_role: "feature_deep_delta"
@@ -3321,18 +3346,20 @@ records:
     deepens_leaf_id: "affinity_publisher.leaf.text-text-styles-creating-and-managing-text-styles"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Text/textStyles_create.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.typography.publisher-text-frame-options"
     name: "Text frame options (columns, insets, vertical justification, baseline rules)"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "Text Frame panel controls per-frame columns/gutters, insets, vertical alignment and first-baseline/baseline-grid behavior."
+    app_behavior: "Text Frame panel controls per-frame columns/gutters (with column rules and balancing), insets, vertical alignment (top/center/bottom/justified), first-baseline Initial Advance, baseline-grid behavior and frame stroke/fill."
     primitive_domain: typography
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.desktop.leaf.panels-textframepanel"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Panels/textFramePanel.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.typography.publisher-baseline-grid-per-frame"
     name: "Baseline grids (document and per-frame)"
     record_role: "feature_deep_delta"
@@ -3348,13 +3375,14 @@ records:
     name: "Justification/spacing controls (word/letter spacing)"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "Paragraph justification exposes word/letter spacing and glyph scaling ranges for composed text."
+    app_behavior: "Paragraph panel Justification section exposes Minimum/Desired/Maximum Word Spacing and Minimum/Desired/Maximum Letter Spacing; no glyph scaling control is documented in Publisher 2."
     primitive_domain: typography
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.text-paragraph-level-paragraph-formatting"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Text/paragraphs.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.typography.publisher-hyphenation-language-dictionaries"
     name: "Hyphenation with per-language dictionaries"
     record_role: "feature_deep_delta"
@@ -3365,18 +3393,20 @@ records:
     deepens_leaf_id: "affinity_publisher.leaf.text-editing-hyphenation"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Text/hyphenation.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.typography.publisher-flow-keep-options"
     name: "Paragraph flow/keep options (widows/orphans/keep-with-next)"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "Paragraph flow options control widow/orphan prevention and keep-together behavior across frame breaks."
+    app_behavior: "Paragraph panel Flow options control widow/orphan prevention (Prevent orphaned first lines, Prevent widowed last lines), Keep with next (line count), Keep with previous paragraph, Keep paragraph together and paragraph start position (Anywhere/Next Column/Next Frame/Next Page)."
     primitive_domain: typography
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.text-paragraph-level-paragraph-formatting"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Text/paragraphs.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.typography.suite-regex-find-replace"
     name: "Regular-expression find and replace"
     record_role: "feature_deep_delta"
@@ -3398,24 +3428,26 @@ records:
     name: "Multiple master pages per page"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "Pages can receive more than one master page, layering master content stacks."
+    app_behavior: "Pages can receive more than one master page (modifier-drag or Apply Master with Replace Existing unchecked adds a master in addition to those already applied); each applied master appears as its own layer in the Layers panel."
     primitive_domain: layout
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.pages-spreads-and-sections-master-pages-applying-master-pages"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Pages/applyMasterPages.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.publisher-layout.publisher-nested-masters"
     name: "Nested master pages (master applied to master)"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "Master pages can be based on other masters so shared furniture cascades through master hierarchies."
+    app_behavior: "One master page can be applied to another master page (the help page notes that dropping one master onto another applies the former to the latter), enabling master-on-master cascading; documented as a drag-drop behavior rather than an elaborated feature workflow."
     primitive_domain: layout
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.pages-spreads-and-sections-master-pages-creating-master-pages"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Pages/createMasterPages.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.publisher-layout.publisher-multipage-fold-spreads"
     name: "Multiple-page spreads (gatefold/trifold/accordion)"
     record_role: "feature_deep_delta"
@@ -3431,13 +3463,14 @@ records:
     name: "Sections with per-section page numbering formats"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "Document sections restart and reformat page numbering (numeric/roman/alpha) per section."
+    app_behavior: "Section Manager creates named sections that restart page numbering at a chosen number and swap Number style per section, with per-section include-on-export control and multi-section editing."
     primitive_domain: layout
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.pages-spreads-and-sections-adding-sections"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Pages/addingSections.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.publisher-layout.publisher-running-headers"
     name: "Running headers (content-derived headers/footers)"
     record_role: "feature_deep_delta"
@@ -3464,13 +3497,14 @@ records:
     name: "Text wrap styles and editable wrap outline"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "Objects carry wrap settings (wrap style, sides, standoff distances) with an editable wrap outline independent of object geometry."
+    app_behavior: "Objects carry wrap settings — styles None/Jump/Square/Tight/Inside/Edge, side choice (both sides or widest portion), per-side Distance From Text standoffs — with a wrap outline editable via the Node Tool independently of object geometry."
     primitive_domain: layout
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.text-text-frames-text-wrapping"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Text/wrapText.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.publisher-layout.publisher-books-afbook"
     name: "Books (.afbook multi-document binding)"
     record_role: "feature_deep_delta"
@@ -3508,13 +3542,14 @@ records:
     name: "Multiple tables of contents per document"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "A document can host more than one TOC (e.g. contents plus figure list) with independent style rules."
+    app_behavior: "A document can host as many TOCs as required, including secondary section-specific TOCs (e.g. per-chapter), each with independent settings; Update All Tables of Contents refreshes every TOC at once."
     primitive_domain: layout
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.references-table-of-contents"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Advanced/toc.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.publisher-layout.publisher-index-topics-and-marks"
     name: "Index with topics, subtopics and inserted index marks"
     record_role: "feature_deep_delta"
@@ -3525,7 +3560,8 @@ records:
     deepens_leaf_id: "affinity_publisher.leaf.references-index"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Advanced/index.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.publisher-layout.publisher-notes-numbering-options"
     name: "Footnote/sidenote/endnote numbering and placement options"
     record_role: "feature_deep_delta"
@@ -3701,24 +3737,26 @@ records:
     name: "Continuous (automatic) slice export"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Slices can re-export automatically to disk whenever their content changes (continuous export toggle in Export Persona)."
+    app_behavior: "Slices can re-export automatically whenever slice content changes via the Slices panel Continuous option ('slices are re-exported automatically if the content within the slices is modified')."
     primitive_domain: export
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.export-persona-exporting-using-export-persona"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/ExportPersona/exportPersona.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.export-and-formats.suite-export-persona-multi-scale"
     name: "Multi-scale slice export (1x/2x/3x variants)"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Each slice exports at multiple pixel-density scales in one pass with per-scale filename patterns."
+    app_behavior: "Each slice's export format carries multiple export sizes with scaling options (1x, 2x, etc.), and filename tokens include a Scale suffix ('@2x' form, excluding 1x) for per-scale naming; documented on the Slices panel page."
     primitive_domain: export
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.desktop.leaf.exportpersona-exportoptionspanel"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/ExportPersona/exportOptionsPanel.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.export-and-formats.suite-export-settings-dialog"
     name: "Export settings dialog (area, resample, metadata, profile embed)"
     record_role: "feature_deep_delta"
@@ -3729,7 +3767,8 @@ records:
     deepens_leaf_id: "affinity_photo.desktop.leaf.exportpersona-exportsettings"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/ExportPersona/exportSettings.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.export-and-formats.suite-format-native-afphoto-afdesign-afpub"
     name: "Native formats: .afphoto/.afdesign/.afpub interchange"
     record_role: "feature_deep_delta"
@@ -3852,16 +3891,17 @@ records:
     source_ids: [AFD-S14]
     verification_status: VERIFIED
   - id: "affinity.deep.export-and-formats.publisher-format-idml-export-ambiguity"
-    name: "IDML export listing (help-appendix ambiguity)"
+    name: "IDML posture: import-only (no IDML export)"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "The Publisher format appendix groups 'Adobe InDesign (IDML only)' under export-side listings, but independent confirmation of IDML export was not obtained; treat IDML as import-verified, export-unconfirmed."
+    app_behavior: "Verified posture: the Publisher format appendix lists 'Adobe InDesign (IDML only)' under Open/Import only, not under export; its footnote refers to saving IDML from InDesign for import into Publisher, and INDD import is unsupported. Publisher 2 does not export IDML."
     primitive_domain: export
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.appendix-supported-file-formats"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Appendix/fileformat.html"
     source_ids: [AFD-S14]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.export-and-formats.publisher-format-docx-rtf-import"
     name: "DOCX/RTF text import"
     record_role: "feature_deep_delta"
@@ -4130,13 +4170,14 @@ records:
     name: "Print dialog layout models (document/booklet/N-up/tiled)"
     record_role: "feature_deep_delta"
     source_app: affinity_publisher_2
-    app_behavior: "Print dialog offers layout models beyond plain pages, including booklet imposition, N-up and poster tiling, with printer/paper controls."
+    app_behavior: "Print dialog offers four layout models — Single, Tiled (large-format posters/banners), N-Up (multiple copies per sheet) and Booklet (fold/staple imposition) — plus flexible page ranges, paper size, two-sided/short-edge binding, duplex or manual odd/even printing and print-to-PDF."
     primitive_domain: prepress
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_publisher.leaf.publishing-and-sharing-print"
     source_url: "https://affinity.help/publisher2/en-US.lproj/pages/Publishing/print.html"
     source_ids: [AFD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.export-and-formats.suite-bleed-settings"
     name: "Document bleed settings"
     record_role: "feature_deep_delta"
@@ -4202,13 +4243,14 @@ records:
     name: "Batch jobs (multi-file processing)"
     record_role: "feature_deep_delta"
     source_app: affinity_photo_2
-    app_behavior: "Processes file sets in the background applying macros and outputting to one or more formats with size options; monitored in the Batch panel."
+    app_behavior: "Processes an unrestricted number of source files (including raw) asynchronously across processor cores, optionally applying recorded macros, outputting to one or more formats (AFPhoto/JPEG/PNG/TIFF/OpenEXR/WebP/JPEG-XL) with size options; the Batch panel lists and tracks images being processed."
     primitive_domain: automation
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.macros-and-batch-processing-batch-jobs"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Macros_Batch/batchjobs.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.automation-and-integration.photo-photoshop-plugin-support"
     name: "Photoshop plugin (8bf filter) support"
     record_role: "feature_deep_delta"
@@ -4268,13 +4310,14 @@ records:
     name: "GPU hardware acceleration toggle"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Compute acceleration uses the platform GPU stack (Metal on macOS; Windows GPU compute) and can be disabled in settings for troubleshooting."
+    app_behavior: "Compute acceleration uses Metal on macOS and OpenCL on Windows (requires Windows 10.0.19042+ and a Direct3D 12 Feature Level 12.0 GPU); toggled off in Settings/Preferences > Performance for troubleshooting when GPU performance underperforms CPU."
     primitive_domain: diagnostics
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.desktop.leaf.extras-hardwareacceleration"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Extras/hardwareAcceleration.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.automation-and-integration.photo-benchmark"
     name: "Built-in benchmark (CPU/GPU raster and vector scores)"
     record_role: "feature_deep_delta"
@@ -4323,12 +4366,13 @@ records:
     name: "Scripting posture in V2.x (no shipped scripting API)"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "V2 desktop releases through 2.6 ship no official scripting API or console; a JavaScript-based scripting SDK and Scripts panel surface only in later Canva-era Affinity releases (developer.affinity.co / affinity.studio help), so V2 automation is limited to macros/batch."
+    app_behavior: "Verified posture: Serif's official support article states 'Affinity V2 does not have scripting support', so V2 desktop automation is limited to macros/batch; the article points to AI Automation in the successor Affinity by Canva app instead. Note: developer.affinity.co is an unrelated CRM company's REST API and is not Affinity/Serif scripting documentation; no user scripting SDK is documented on affinity.studio."
     primitive_domain: automation
     dedupe_status: new_surface
     source_url: "https://developer.affinity.co/"
     source_ids: [AFD-S31, AFD-S32]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-AFFINITY-DEEP-DELTA.panels-and-workspace] Studio Panels And Workspace Surfaces
@@ -4438,13 +4482,14 @@ records:
     name: "History panel (with save-history-in-document)"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Linear undo history with scrubbing; documents can optionally save their undo history inside the file for later sessions."
+    app_behavior: "Undo history with a Position slider for scrubbing between states; documents can optionally save their undo history inside the file for later sessions; Cycle Future preserves abandoned redo branches, plus Undo Brush source selection and an advanced thumbnail/timestamp view."
     primitive_domain: document
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.studio-panels-history-panel"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/Panels/historyPanel.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.panels-and-workspace.photo-info-panel"
     name: "Info panel"
     record_role: "feature_deep_delta"
@@ -4746,24 +4791,26 @@ records:
     name: "View modes: vector/pixel preview, retina, X-ray, split view"
     record_role: "feature_deep_delta"
     source_app: affinity_designer_2
-    app_behavior: "Document view switches between vector and pixel preview (at different DPI), X-ray outline transparency mode and split-view comparisons; 2.2 added No FX and greyscale view modes."
+    app_behavior: "Document view switches between Vector, Pixel, Retina pixel, Outline (wireframe), X-ray (reduced-opacity fills) and Hairline (CAD) modes, with Grayscale and Hide Effects (No FX) options and single/split-view comparison arrangements; Grayscale and No FX arrived in 2.2."
     primitive_domain: interactive
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_designer.leaf.get-started-viewing-options-and-view-modes"
     source_url: "https://affinity.help/designer2/en-US.lproj/pages/GetStarted/view.html"
     source_ids: [AFD-S02, AFD-S27]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.panels-and-workspace.suite-assistant"
     name: "Assistant (automatic action policy manager)"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Configurable assistant decides automatic behaviors (e.g. creating pixel layers when painting on empty selection, adjustment targeting) with per-action policies."
+    app_behavior: "Configurable assistant decides automatic behaviors with per-action policies: painting with no layer selected (add new pixel layer and paint / no action), erasing or retouch-brushing on vector layers (pixel mask / rasterize / no action), and adjustment targeting (new adjustment layer vs child layer), with toggleable alerts and an Enable assistant master switch. V2 help page blocked to fetcher (HTTP 403); behavior cross-verified against Serif's archived Assistant Manager help and the V2 help TOC leaf."
     primitive_domain: interactive
     dedupe_status: deepens_existing
     deepens_leaf_id: "affinity_photo.leaf.design-aids-assistant"
     source_url: "https://affinity.help/photo2/en-US.lproj/pages/DesignAids/assistant.html"
     source_ids: [AFD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "affinity.deep.panels-and-workspace.suite-isolation-mode"
     name: "Isolation mode (solo editing scope)"
     record_role: "feature_deep_delta"
@@ -4935,12 +4982,13 @@ records:
     name: "Canva-era posture: V2 remains local, free since 2.6-era announcement"
     record_role: "feature_deep_delta"
     source_app: affinity_suite
-    app_behavior: "Post-acquisition V2 releases added no cloud-required features; ML runs on-device, and the successor all-in-one Affinity app (affinity.studio) is a separate product line outside V2 scope."
+    app_behavior: "Post-acquisition V2 releases added no cloud-required features (2.1-2.6 release evidence; ML runs on-device per help); the successor all-in-one Affinity by Canva app (affinity.studio, free for individuals, Vector/Pixel/Layout studios) is a separate product line outside V2 scope, with optional Canva AI limited to that app for Canva Premium subscribers."
     primitive_domain: document
     dedupe_status: new_surface
     source_url: "https://www.affinity.studio/"
     source_ids: [AFD-S32, AFD-S19]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-AFFINITY-DEEP-DELTA.sources] Sources
@@ -5039,8 +5087,26 @@ sources:
     note: "2.3 notes feature plus release coverage (spiral tool, pixel grid, password PDFs, tags panel); search-verified 2026-07-09."
   - id: AFD-S31
     url: "https://developer.affinity.co/"
-    note: "Affinity developer documentation signaling scripting SDK outside V2.x scope; search-verified 2026-07-09."
+    note: "CORRECTED 2026-07-09: fetched page is an unrelated CRM company's REST API docs, not Affinity/Serif scripting documentation; V2 scripting posture is instead verified by AFD-S36."
   - id: AFD-S32
     url: "https://www.affinity.studio/help/release-notes/"
     note: "Canva-era Affinity help/release-notes hub used for release-history cross-checks; search-verified 2026-07-09."
+  - id: AFD-S33
+    url: "https://affinity.help/photo2/en-US.lproj/pages/ExportPersona/slicesPanel.html"
+    note: "Slices panel: Continuous auto re-export and multi-scale export sizes with '@2x' Scale suffix token; fetched 2026-07-09. Verifies suite-export-persona-continuous-export and suite-export-persona-multi-scale."
+  - id: AFD-S34
+    url: "https://affinity.help/publisher2/en-US.lproj/pages/Panels/paragraphPanel.html"
+    note: "Paragraph panel: Justification min/desired/max word and letter spacing (no glyph scaling) and Flow options (orphans/widows, keep with next/previous, keep together, start position); fetched 2026-07-09. Verifies publisher-justification-controls and publisher-flow-keep-options."
+  - id: AFD-S35
+    url: "https://affinity.help/photo2/en-US.lproj/pages/Panels/batchPanel.html"
+    note: "Batch panel lists/tracks images processed by batch jobs; fetched 2026-07-09. Verifies photo-batch-jobs."
+  - id: AFD-S36
+    url: "https://support.serif.com/hc/en-us/articles/10259359235599-Does-Affinity-V2-have-scripting-support"
+    note: "Official Serif support answer: 'Affinity V2 does not have scripting support'; points to AI Automation in Affinity by Canva instead; fetched 2026-07-09 via reader proxy. Verifies suite-scripting-posture-v2x."
+  - id: AFD-S37
+    url: "https://s3-eu-west-1.amazonaws.com/affinity-docs/help/designer/en-US.lproj/pages/DesignAids/AssistantManager.html"
+    note: "Serif Assistant Manager help (archived V1 mirror) documenting per-action assistant policies; fetched 2026-07-09 because the V2 assistant.html pages returned HTTP 403 to the fetcher. Cross-verifies suite-assistant."
+  - id: AFD-S38
+    url: "https://www.affinity.studio/"
+    note: "Affinity by Canva homepage: free-for-individuals all-in-one app (Vector/Pixel/Layout), separate from V2 suite, optional Canva AI for Premium subscribers, no scripting mentioned; fetched 2026-07-09 via reader proxy. Verifies suite-canva-era-posture and scripting-posture context."
 ```

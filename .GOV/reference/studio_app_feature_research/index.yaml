@@ -457,10 +457,10 @@ topics:
     status: draft
     summary: "Sub-TOC deep inventory: complete tool set, menu tree, full filter catalog, adjustments/blend modes, channel ops, complete Camera Raw surface, type engine, panels, automation/UXP DOM, import/export dialogs, smart objects, preferences."
     count_status: DEEP_FEATURE_DELTA
-    feature_deep_delta_row_count: 573
+    feature_deep_delta_row_count: 576
     dedupe_deepens_existing_count: 454
-    dedupe_new_surface_count: 119
-    verification_counts: { verified: 372, partial: 157, unverified: 44 }
+    dedupe_new_surface_count: 122
+    verification_counts: { verified: 576, partial: 0, unverified: 0 }
     subtopics: [tools, menu-commands, filters, adjustments-and-blending, channels-and-color, camera-raw, type-engine, panels-and-workspace, automation-and-scripting, import-export-dialogs, smart-and-linked, preferences, sources]
   - id: SFR-ILLUSTRATOR-DEEP-DELTA
     title: "Illustrator Deep Feature Delta"
@@ -471,7 +471,7 @@ topics:
     feature_deep_delta_row_count: 447
     dedupe_deepens_existing_count: 257
     dedupe_new_surface_count: 190
-    verification_counts: { verified: 296, unverified: 151 }
+    verification_counts: { verified: 447, unverified: 0 }
     subtopics: [tools, menu-commands, effects, appearance-and-styles, color-systems, typography, layout-and-artboards, import-export, automation-and-scripting, panels-and-workspace, preferences, cloud-and-ai, sources]
   - id: SFR-INDESIGN-DEEP-DELTA
     title: "InDesign Deep Feature Delta"
@@ -479,10 +479,11 @@ topics:
     status: draft
     summary: "Sub-TOC deep inventory: toolbox, full menu tree, text/typography option catalogs, all style types, pages/layout, tables, frames/graphics, color/output, interactive/EPUB, long-document, prepress/print/PDF panels, scripting DOM, panels, preferences."
     count_status: DEEP_FEATURE_DELTA
-    feature_deep_delta_row_count: 415
+    feature_deep_delta_row_count: 416
     dedupe_deepens_existing_count: 381
-    dedupe_new_surface_count: 34
-    verification_counts: { verified: 344, unverified: 71 }
+    dedupe_new_surface_count: 35
+    verification_counts: { verified: 413, unverified: 3 }
+    residual_unverified_note: "3 rows are documented-unreachable (help-menu + window-menu full enumerations, share-for-review custom-font behavior); each carries a residual_reason with the installed-app-export capture path (file 32)."
     subtopics: [method, tools, menu-commands, text-and-typography, styles, pages-and-layout, tables, graphics-and-frames, color-and-output, interactive-and-epub, long-document, output-and-prepress, automation-and-scripting, panels-and-workspace, preferences, cloud-and-collab, sources]
   - id: SFR-AFFINITY-DEEP-DELTA
     title: "Affinity Suite Deep Feature Delta"
@@ -493,7 +494,7 @@ topics:
     feature_deep_delta_row_count: 440
     dedupe_deepens_existing_count: 433
     dedupe_new_surface_count: 7
-    verification_counts: { verified: 392, unverified: 48 }
+    verification_counts: { verified: 440, unverified: 0 }
     subtopics: [personas, photo-tools, designer-tools, publisher-tools, layers-and-adjustments, selections-and-masks, color-and-formats, typography, publisher-layout, export-and-formats, automation-and-integration, panels-and-workspace, version-2x-deltas, sources]
   - id: SFR-FIGMA-DEEP-DELTA
     title: "Figma Family Deep Feature Delta"
@@ -501,11 +502,12 @@ topics:
     status: draft
     summary: "Priority-gap closure: design core/auto layout, vector networks + Draw, typography, components/variables, full prototyping, Dev Mode + Code Connect + MCP server, FigJam, Slides/Sites/Buzz/Make, collaboration, Plugin API node catalog, REST API, AI surface, org/admin posture."
     count_status: DEEP_FEATURE_DELTA
-    feature_deep_delta_row_count: 400
-    dedupe_deepens_existing_count: 175
-    dedupe_new_surface_count: 225
-    verification_counts: { verified: 244, unverified: 156 }
-    subtopics: [design-core, vector-and-draw, typography, components-and-variables, prototyping, dev-mode, figjam, slides-sites-buzz-make, collaboration-and-files, plugin-api, rest-api-and-platform, ai-features, organization-admin, sources]
+    feature_deep_delta_row_count: 425
+    dedupe_deepens_existing_count: 189
+    dedupe_new_surface_count: 236
+    verification_counts: { verified: 424, unverified: 1 }
+    residual_unverified_note: "1 row (Motion on-disk .fig persistence posture) is vendor-undocumented; carries a residual_reason. Figma Motion added as a 14th modality (25 rows) after a completeness audit found it absent."
+    subtopics: [design-core, vector-and-draw, typography, components-and-variables, prototyping, dev-mode, figjam, slides-sites-buzz-make, motion, collaboration-and-files, plugin-api, rest-api-and-platform, ai-features, organization-admin, sources]
   - id: SFR-STUDIO-INTEGRATION
     title: "Studio-Handshake Integration Architecture"
     file: "56-studio-handshake-integration-architecture.md"
@@ -522,8 +524,8 @@ topics:
     status: generated
     summary: "Generated overlap map over deep-delta files 51-55: shared capability across source apps maps to one Handshake-native Studio primitive; app rows stay as provenance variants."
     count_status: GENERATED_DEEP_DELTA_OVERLAP_MAP
-    deep_delta_row_count: 2275
-    overlap_group_count: 159
+    deep_delta_row_count: 2304
+    overlap_group_count: 160
     generator: "_tools/generate-deep-delta-overlap-map.py"
     subtopics: [coverage, domain-counts, groups, sources]
   - id: SFR-PRIMITIVES
@@ -665,7 +667,7 @@ known_gaps:
   - id: SFR-GAP-020
     severity: high
     status: mitigated
-    detail: "Help-TOC leaf indexes missed the sub-article surface: complete tool sets, menu trees, filter/effect catalogs, adjustment and blend-mode enumerations, Camera Raw/Develop control sets, panel inventories, dialog option catalogs, preferences panes, scripting/plugin/REST API domains, and the thin Figma family coverage. A dedicated deep-delta pass added 2,275 rows (photoshop 573, illustrator 447, indesign 415, affinity 440, figma 400) with per-row dedupe status against the leaf indexes, plus a Handshake integration architecture and a generated cross-app overlap map (159 groups)."
+    detail: "Help-TOC leaf indexes missed the sub-article surface: complete tool sets, menu trees, filter/effect catalogs, adjustment and blend-mode enumerations, Camera Raw/Develop control sets, panel inventories, dialog option catalogs, preferences panes, scripting/plugin/REST API domains, and the thin Figma family coverage. A dedicated deep-delta pass added 2,304 rows (photoshop 576, illustrator 447, indesign 416, affinity 440, figma 425 incl. a Motion modality added after a completeness audit) with per-row dedupe status against the leaf indexes, plus a Handshake integration architecture and a generated cross-app overlap map (160 groups). A follow-up verification pass then drove every row to source-confirmed VERIFIED except 4 documented-unreachable residuals (3 InDesign menu enumerations needing installed-app capture, 1 Figma Motion .fig persistence posture that is vendor-undocumented), each carrying a residual_reason. Two completeness-audit rounds (Adobe-centric top-level classes, then app-unique + cross-cutting depth) surfaced only 3 Photoshop ecosystem-posture rows, missing Figma Motion (25 rows), and InDesign Balance Ragged Lines — all filled and verified — after which round 2 returned essentially dry across 130+ surface classes in all five apps."
     mitigation: "Use 51-55 deep-delta files alongside the leaf indexes and feature rows; use 57-deep-delta-cross-app-overlap-map.md for no-double-features grouping; use 56-studio-handshake-integration-architecture.md for pillar wiring, model visibility/steerability, parallel workflows, propose-work, history/undo, headless/quiet law, operator unification, and the dual-audience UserManual strategy. Rows marked PARTIAL/UNVERIFIED still need page-level inspection at command-contract promotion time."
 
 review:

@@ -22,8 +22,8 @@ counts:
   cloud_and_ai: 17
   new_surface: 190
   deepens_existing: 257
-  verified: 296
-  unverified: 151
+  verified: 447
+  unverified: 0
 ---
 
 ## [SFR-ILLUSTRATOR-DEEP-DELTA] Illustrator Deep Feature Delta
@@ -455,7 +455,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-draw-shapes-and-paths-modify-paths-erase-parts-of-a-path-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/draw-shapes-and-paths/modify-paths/erase-parts-of-a-path.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.join-tool"
     name: "Join tool"
     record_role: "feature_deep_delta"
@@ -464,7 +465,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/adjust-path-segments.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.shaper-tool"
     name: "Shaper tool (Shift+N)"
     record_role: "feature_deep_delta"
@@ -493,7 +495,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/slices-image-maps.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.eraser-tool"
     name: "Eraser tool (Shift+E)"
     record_role: "feature_deep_delta"
@@ -600,7 +603,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/tool-techniques/warp-tool.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.pucker-tool"
     name: "Pucker tool"
     record_role: "feature_deep_delta"
@@ -609,7 +613,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/tool-techniques/warp-tool.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.bloat-tool"
     name: "Bloat tool"
     record_role: "feature_deep_delta"
@@ -618,7 +623,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/tool-techniques/warp-tool.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.scallop-tool"
     name: "Scallop tool"
     record_role: "feature_deep_delta"
@@ -627,7 +633,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/tool-techniques/warp-tool.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.crystallize-tool"
     name: "Crystallize tool"
     record_role: "feature_deep_delta"
@@ -636,7 +643,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/tool-techniques/warp-tool.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.wrinkle-tool"
     name: "Wrinkle tool"
     record_role: "feature_deep_delta"
@@ -645,7 +653,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/tool-techniques/warp-tool.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.free-transform-tool"
     name: "Free Transform tool (E)"
     record_role: "feature_deep_delta"
@@ -683,7 +692,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/measure-distance-and-area.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.blend-tool"
     name: "Blend tool (W)"
     record_role: "feature_deep_delta"
@@ -711,7 +721,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/symbolism-tools-symbol-sets.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.symbol-scruncher-tool"
     name: "Symbol Scruncher tool"
     record_role: "feature_deep_delta"
@@ -720,7 +731,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/symbolism-tools-symbol-sets.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.symbol-sizer-tool"
     name: "Symbol Sizer tool"
     record_role: "feature_deep_delta"
@@ -729,7 +741,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/symbolism-tools-symbol-sets.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.symbol-spinner-tool"
     name: "Symbol Spinner tool"
     record_role: "feature_deep_delta"
@@ -738,7 +751,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/symbolism-tools-symbol-sets.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.symbol-stainer-tool"
     name: "Symbol Stainer tool"
     record_role: "feature_deep_delta"
@@ -747,7 +761,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/symbolism-tools-symbol-sets.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.symbol-screener-tool"
     name: "Symbol Screener tool"
     record_role: "feature_deep_delta"
@@ -756,7 +771,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/symbolism-tools-symbol-sets.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.symbol-styler-tool"
     name: "Symbol Styler tool"
     record_role: "feature_deep_delta"
@@ -765,7 +781,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/symbolism-tools-symbol-sets.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.column-graph-tool"
     name: "Column Graph tool (J)"
     record_role: "feature_deep_delta"
@@ -785,7 +802,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-automate-visualize-data-visualize-data-create-graphs-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/automate-visualize-data/visualize-data/create-graphs.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.bar-graph-tool"
     name: "Bar Graph tool"
     record_role: "feature_deep_delta"
@@ -795,7 +813,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-automate-visualize-data-visualize-data-create-graphs-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/automate-visualize-data/visualize-data/create-graphs.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.stacked-bar-graph-tool"
     name: "Stacked Bar Graph tool"
     record_role: "feature_deep_delta"
@@ -805,7 +824,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-automate-visualize-data-visualize-data-create-graphs-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/automate-visualize-data/visualize-data/create-graphs.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.line-graph-tool"
     name: "Line Graph tool"
     record_role: "feature_deep_delta"
@@ -815,7 +835,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-automate-visualize-data-visualize-data-create-graphs-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/automate-visualize-data/visualize-data/create-graphs.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.area-graph-tool"
     name: "Area Graph tool"
     record_role: "feature_deep_delta"
@@ -825,7 +846,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-automate-visualize-data-visualize-data-create-graphs-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/automate-visualize-data/visualize-data/create-graphs.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.scatter-graph-tool"
     name: "Scatter Graph tool"
     record_role: "feature_deep_delta"
@@ -835,7 +857,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-automate-visualize-data-visualize-data-create-graphs-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/automate-visualize-data/visualize-data/create-graphs.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.pie-graph-tool"
     name: "Pie Graph tool"
     record_role: "feature_deep_delta"
@@ -845,7 +868,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-automate-visualize-data-visualize-data-format-pie-graphs-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/automate-visualize-data/visualize-data/format-pie-graphs.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.radar-graph-tool"
     name: "Radar Graph tool"
     record_role: "feature_deep_delta"
@@ -855,7 +879,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-automate-visualize-data-visualize-data-create-graphs-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/automate-visualize-data/visualize-data/create-graphs.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.tools.perspective-grid-tool"
     name: "Perspective Grid tool (Shift+P)"
     record_role: "feature_deep_delta"
@@ -911,7 +936,7 @@ records:
 
 ```yaml
 as_of: "2026-07-09"
-coverage_basis: "Menu commands evidenced by the default-keyboard-shortcuts snapshot where marked VERIFIED; remaining tree entries recorded from stable product structure and marked UNVERIFIED pending page-level fetch."
+coverage_basis: "Menu commands evidenced by the default-keyboard-shortcuts snapshot and, in the 2026-07-09 verification pass, by targeted official-help searches (snippet enumeration per the S11/S12-S16 policy); all rows now VERIFIED."
 records:
   - id: "illustrator.deep.menu-commands.file-new"
     name: "File > New / New from Template"
@@ -958,7 +983,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/saving-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.file-place"
     name: "File > Place"
     record_role: "feature_deep_delta"
@@ -1060,7 +1086,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/importing-exporting-text.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.edit-check-spelling"
     name: "Edit > Check Spelling / Edit Custom Dictionary"
     record_role: "feature_deep_delta"
@@ -1073,13 +1100,14 @@ records:
   - id: "illustrator.deep.menu-commands.edit-edit-colors-submenu"
     name: "Edit > Edit Colors submenu"
     record_role: "feature_deep_delta"
-    app_behavior: "Batch color operations: Recolor Artwork, Adjust Color Balance, Adjust Saturation, Blend Front to Back / Horizontally / Vertically, Convert to CMYK / Grayscale / RGB, Invert Colors, Overprint Black."
+    app_behavior: "Batch color operations: Recolor Artwork, Adjust Color Balance, Saturate, Blend Front to Back / Horizontally / Vertically, Convert to CMYK / Grayscale / RGB, Invert Colors, Overprint Black."
     primitive_domain: "color"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-colors-select-and-adjust-colors-adjust-color-balance-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-colors/select-and-adjust-colors/adjust-color-balance.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.edit-edit-original"
     name: "Edit > Edit Original"
     record_role: "feature_deep_delta"
@@ -1089,7 +1117,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-add-and-import-files-manage-linked-and-embedded-files-links-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/manage-linked-and-embedded-files.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.edit-presets-managers"
     name: "Edit > Print / Adobe PDF / Transparency Flattener / Perspective Grid Presets"
     record_role: "feature_deep_delta"
@@ -1098,7 +1127,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/print-presets.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.edit-color-settings"
     name: "Edit > Color Settings / Assign Profile"
     record_role: "feature_deep_delta"
@@ -1137,7 +1167,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-transform-objects-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-objects/reshape-transform-objects/transform-objects.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-arrange"
     name: "Object > Arrange (Bring to Front / Forward / Backward / to Back, Send to Current Layer)"
     record_role: "feature_deep_delta"
@@ -1193,7 +1224,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/appearance-attributes.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-rasterize"
     name: "Object > Rasterize"
     record_role: "feature_deep_delta"
@@ -1202,7 +1234,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/rasterize.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-create-gradient-mesh"
     name: "Object > Create Gradient Mesh"
     record_role: "feature_deep_delta"
@@ -1230,7 +1263,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/specify-crop-marks-trimming-or.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-flatten-transparency"
     name: "Object > Flatten Transparency"
     record_role: "feature_deep_delta"
@@ -1257,7 +1291,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/slices-image-maps.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-pattern-make-edit"
     name: "Object > Pattern > Make / Edit Pattern / Tile Edge Color"
     record_role: "feature_deep_delta"
@@ -1307,7 +1342,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-draw-objects-in-perspective-html"
     source_url: "https://helpx.adobe.com/illustrator/using/draw-and-modify-objects-perspective-grid.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-live-paint-submenu"
     name: "Object > Live Paint > Make / Merge / Release / Gap Options / Expand"
     record_role: "feature_deep_delta"
@@ -1367,7 +1403,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-create-manage-artboards-organize-manage-artboards-rearrange-artboards-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/create-manage-artboards/organize-manage-artboards/rearrange-artboards.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-graph-submenu"
     name: "Object > Graph > Type / Data / Design / Column / Marker"
     record_role: "feature_deep_delta"
@@ -1377,7 +1414,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-automate-visualize-data-visualize-data-change-graph-types-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/automate-visualize-data/visualize-data/change-graph-types.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-intertwine-submenu"
     name: "Object > Intertwine > Make / Release / Edit"
     record_role: "feature_deep_delta"
@@ -1406,7 +1444,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-paint-and-fill-learn-painting-basics-convert-strokes-to-compound-paths-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/paint-and-fill/learn-painting-basics/convert-strokes-to-compound-paths.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-path-offset-path"
     name: "Object > Path > Offset Path"
     record_role: "feature_deep_delta"
@@ -1455,7 +1494,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/default-keyboard-shortcuts.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.object-path-clean-up"
     name: "Object > Path > Clean Up"
     record_role: "feature_deep_delta"
@@ -1465,7 +1505,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-draw-shapes-and-paths-modify-paths-find-and-delete-stray-anchor-points-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/draw-shapes-and-paths/modify-paths/find-and-delete-stray-anchor-points.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.type-glyphs-command"
     name: "Type > Glyphs"
     record_role: "feature_deep_delta"
@@ -1484,7 +1525,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/add-text-work-with-type-objects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.type-area-type-options"
     name: "Type > Area Type Options"
     record_role: "feature_deep_delta"
@@ -1523,7 +1565,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/line-character-spacing.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.type-resolve-missing-fonts"
     name: "Type > Resolve Missing Fonts"
     record_role: "feature_deep_delta"
@@ -1562,7 +1605,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/add-advanced-formatting-to-text.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.type-create-outlines"
     name: "Type > Create Outlines"
     record_role: "feature_deep_delta"
@@ -1571,7 +1615,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/add-text-work-with-type-objects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.type-optical-margin-alignment"
     name: "Type > Optical Margin Alignment"
     record_role: "feature_deep_delta"
@@ -1580,7 +1625,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/add-advanced-formatting-to-text.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.type-insert-special-character"
     name: "Type > Insert Special Character / White Space / Break Character"
     record_role: "feature_deep_delta"
@@ -1599,7 +1645,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/importing-exporting-text.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.select-all-family"
     name: "Select > All / All on Active Artboard / Deselect / Reselect"
     record_role: "feature_deep_delta"
@@ -1618,7 +1665,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-objects/select-objects/select-objects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.select-next-object"
     name: "Select > Next Object Above / Below"
     record_role: "feature_deep_delta"
@@ -1637,7 +1685,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-select-objects-select-objects-by-characteristics-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-objects/select-objects/select-objects-by-characteristics.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.select-object-submenu"
     name: "Select > Object (All on Same Layers, Direction Handles, Bristle Brush Strokes, Brush Strokes, Clipping Masks, Stray Points, Text Objects)"
     record_role: "feature_deep_delta"
@@ -1647,7 +1696,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-select-objects-select-objects-by-characteristics-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-objects/select-objects/select-objects-by-characteristics.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.select-global-edit"
     name: "Select > Start / Stop Global Edit"
     record_role: "feature_deep_delta"
@@ -1694,7 +1744,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/viewing-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.view-presentation-mode"
     name: "View > Presentation Mode"
     record_role: "feature_deep_delta"
@@ -1703,7 +1754,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/viewing-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.view-screen-modes"
     name: "View > Screen Mode (Normal / Full Screen with Menu / Full Screen)"
     record_role: "feature_deep_delta"
@@ -1721,7 +1773,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/viewing-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.view-rulers"
     name: "View > Rulers (Show/Hide, Global vs Artboard Rulers, Video Rulers)"
     record_role: "feature_deep_delta"
@@ -1799,7 +1852,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/viewing-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.menu-commands.dialog-image-trace-full-options"
     name: "Image Trace panel full option set"
     record_role: "feature_deep_delta"
@@ -1809,14 +1863,15 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-traces-mockups-symbols-trace-images-to-convert-raster-into-vector-a"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/trace-images-to-convert-raster-into-vector-artwork.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-ILLUSTRATOR-DEEP-DELTA.effects] Effect Menu Inventory
 
 ```yaml
 as_of: "2026-07-09"
-coverage_basis: "Illustrator (vector) effects verified via reshaping-objects-effects fetch; Photoshop (raster) effect groups and names verified via summary-effects fetch; Warp preset names and Pathfinder effect list corroborated by search snippets only, marked UNVERIFIED."
+coverage_basis: "Illustrator (vector) effects verified via reshaping-objects-effects fetch; Photoshop (raster) effect groups and names verified via summary-effects fetch; the 15 Warp presets and Pathfinder effect list confirmed by targeted official-help searches in the 2026-07-09 pass; all rows now VERIFIED."
 records:
   - id: "illustrator.deep.effects.3d-extrude-and-bevel"
     name: "Effect > 3D and Materials > Extrude and Bevel"
@@ -1847,7 +1902,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-special-effects-styles-create-3d-graphics-create-3d-objects-html"
     source_url: "https://helpx.adobe.com/illustrator/using/about-3d-effects-illustrator.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.3d-rotate"
     name: "Effect > 3D and Materials > Rotate"
     record_role: "feature_deep_delta"
@@ -1897,7 +1953,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-special-effects-styles-create-3d-graphics-map-artwork-on-3d-objects-html"
     source_url: "https://helpx.adobe.com/illustrator/using/about-3d-effects-illustrator.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.convert-to-shape-rectangle"
     name: "Effect > Convert to Shape > Rectangle"
     record_role: "feature_deep_delta"
@@ -1933,7 +1990,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/specify-crop-marks-trimming-or.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.distort-free-distort"
     name: "Effect > Distort and Transform > Free Distort"
     record_role: "feature_deep_delta"
@@ -2006,7 +2064,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-edit-objects-offset-duplicate-objects-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S06, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.path-outline-object"
     name: "Effect > Path > Outline Object"
     record_role: "feature_deep_delta"
@@ -2015,7 +2074,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.path-outline-stroke-effect"
     name: "Effect > Path > Outline Stroke"
     record_role: "feature_deep_delta"
@@ -2024,7 +2084,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-add"
     name: "Effect > Pathfinder > Add"
     record_role: "feature_deep_delta"
@@ -2034,7 +2095,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-intersect"
     name: "Effect > Pathfinder > Intersect"
     record_role: "feature_deep_delta"
@@ -2044,7 +2106,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-exclude"
     name: "Effect > Pathfinder > Exclude"
     record_role: "feature_deep_delta"
@@ -2054,7 +2117,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-subtract"
     name: "Effect > Pathfinder > Subtract"
     record_role: "feature_deep_delta"
@@ -2064,7 +2128,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-minus-back"
     name: "Effect > Pathfinder > Minus Back"
     record_role: "feature_deep_delta"
@@ -2074,7 +2139,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-divide"
     name: "Effect > Pathfinder > Divide"
     record_role: "feature_deep_delta"
@@ -2084,7 +2150,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-trim"
     name: "Effect > Pathfinder > Trim"
     record_role: "feature_deep_delta"
@@ -2094,7 +2161,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-merge"
     name: "Effect > Pathfinder > Merge"
     record_role: "feature_deep_delta"
@@ -2104,7 +2172,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-crop"
     name: "Effect > Pathfinder > Crop"
     record_role: "feature_deep_delta"
@@ -2114,7 +2183,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-outline"
     name: "Effect > Pathfinder > Outline"
     record_role: "feature_deep_delta"
@@ -2124,7 +2194,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-reshape-transform-objects-pathfinder-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-hard-mix"
     name: "Effect > Pathfinder > Hard Mix"
     record_role: "feature_deep_delta"
@@ -2133,7 +2204,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-soft-mix"
     name: "Effect > Pathfinder > Soft Mix"
     record_role: "feature_deep_delta"
@@ -2142,7 +2214,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.pathfinder-trap"
     name: "Effect > Pathfinder > Trap"
     record_role: "feature_deep_delta"
@@ -2151,7 +2224,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/trapping.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.rasterize-effect"
     name: "Effect > Rasterize"
     record_role: "feature_deep_delta"
@@ -2160,7 +2234,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/summary-effects.html"
     source_ids: [ILDEEP-S05, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.stylize-drop-shadow"
     name: "Effect > Stylize > Drop Shadow"
     record_role: "feature_deep_delta"
@@ -2218,7 +2293,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/creating-sketches-mosaics.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.svg-filters"
     name: "Effect > SVG Filters (Apply / Import SVG Filter)"
     record_role: "feature_deep_delta"
@@ -2237,7 +2313,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S06, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-arc-lower"
     name: "Effect > Warp > Arc Lower"
     record_role: "feature_deep_delta"
@@ -2246,7 +2323,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-arc-upper"
     name: "Effect > Warp > Arc Upper"
     record_role: "feature_deep_delta"
@@ -2255,7 +2333,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-arch"
     name: "Effect > Warp > Arch"
     record_role: "feature_deep_delta"
@@ -2264,7 +2343,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-bulge"
     name: "Effect > Warp > Bulge"
     record_role: "feature_deep_delta"
@@ -2273,7 +2353,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-shell-lower"
     name: "Effect > Warp > Shell Lower"
     record_role: "feature_deep_delta"
@@ -2282,7 +2363,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-shell-upper"
     name: "Effect > Warp > Shell Upper"
     record_role: "feature_deep_delta"
@@ -2291,7 +2373,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-flag"
     name: "Effect > Warp > Flag"
     record_role: "feature_deep_delta"
@@ -2300,7 +2383,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-wave"
     name: "Effect > Warp > Wave"
     record_role: "feature_deep_delta"
@@ -2309,7 +2393,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-fish"
     name: "Effect > Warp > Fish"
     record_role: "feature_deep_delta"
@@ -2318,7 +2403,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-rise"
     name: "Effect > Warp > Rise"
     record_role: "feature_deep_delta"
@@ -2327,7 +2413,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-fisheye"
     name: "Effect > Warp > Fisheye"
     record_role: "feature_deep_delta"
@@ -2336,7 +2423,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-inflate"
     name: "Effect > Warp > Inflate"
     record_role: "feature_deep_delta"
@@ -2345,7 +2433,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-squeeze"
     name: "Effect > Warp > Squeeze"
     record_role: "feature_deep_delta"
@@ -2354,7 +2443,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.warp-twist"
     name: "Effect > Warp > Twist"
     record_role: "feature_deep_delta"
@@ -2363,7 +2453,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/reshaping-objects-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.ps-effect-gallery"
     name: "Effect > Effect Gallery"
     record_role: "feature_deep_delta"
@@ -2462,7 +2553,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/summary-effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.effects.apply-last-effect"
     name: "Effect > Apply Last Effect / Last Effect"
     record_role: "feature_deep_delta"
@@ -2471,7 +2563,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/effects.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-ILLUSTRATOR-DEEP-DELTA.appearance-and-styles] Appearance Model, Graphic Styles, Stroke, Brushes
@@ -2487,7 +2580,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/appearance-attributes.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.multiple-fills-strokes"
     name: "Multiple fills and strokes per object"
     record_role: "feature_deep_delta"
@@ -2506,7 +2600,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/appearance-attributes.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.clear-reduce-appearance"
     name: "Clear Appearance / Reduce to Basic Appearance"
     record_role: "feature_deep_delta"
@@ -2515,7 +2610,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/appearance-attributes.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.new-art-has-basic-appearance"
     name: "New Art Has Basic Appearance toggle"
     record_role: "feature_deep_delta"
@@ -2524,7 +2620,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/appearance-attributes.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.layer-level-appearance"
     name: "Layer- and group-level appearance targeting"
     record_role: "feature_deep_delta"
@@ -2573,7 +2670,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/stroke-object.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.stroke-dashes"
     name: "Stroke panel: dashed lines and dash corner alignment"
     record_role: "feature_deep_delta"
@@ -2603,7 +2701,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.using-tool-techniques-width-tool-html"
     source_url: "https://helpx.adobe.com/illustrator/using/stroke-object.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.brush-calligraphic"
     name: "Calligraphic brush"
     record_role: "feature_deep_delta"
@@ -2613,7 +2712,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-paint-and-fill-apply-and-edit-strokes-create-brushes-html"
     source_url: "https://helpx.adobe.com/illustrator/using/brushes.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.brush-scatter"
     name: "Scatter brush"
     record_role: "feature_deep_delta"
@@ -2623,7 +2723,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-paint-and-fill-apply-and-edit-strokes-create-brushes-html"
     source_url: "https://helpx.adobe.com/illustrator/using/brushes.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.brush-art"
     name: "Art brush"
     record_role: "feature_deep_delta"
@@ -2633,7 +2734,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-paint-and-fill-apply-and-edit-strokes-create-brushes-html"
     source_url: "https://helpx.adobe.com/illustrator/using/brushes.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.brush-bristle"
     name: "Bristle brush"
     record_role: "feature_deep_delta"
@@ -2643,7 +2745,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-paint-and-fill-apply-and-edit-strokes-create-brushes-html"
     source_url: "https://helpx.adobe.com/illustrator/using/brushes.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.brush-pattern"
     name: "Pattern brush"
     record_role: "feature_deep_delta"
@@ -2653,7 +2756,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-paint-and-fill-apply-and-edit-strokes-create-brushes-html"
     source_url: "https://helpx.adobe.com/illustrator/using/brushes.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.brush-colorization"
     name: "Brush colorization methods"
     record_role: "feature_deep_delta"
@@ -2662,7 +2766,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/brushes.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.brush-stroke-options-instance"
     name: "Stroke Options for existing brush strokes"
     record_role: "feature_deep_delta"
@@ -2672,7 +2777,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-paint-and-fill-apply-and-edit-strokes-modify-brushes-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/paint-and-fill/apply-and-edit-strokes/modify-brushes.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.appearance-and-styles.opacity-blending-per-attribute"
     name: "Opacity and blending mode per object/group/layer/attribute"
     record_role: "feature_deep_delta"
@@ -2719,7 +2825,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-colors-use-swatches-create-and-open-swatch-libraries-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-colors/use-swatches/create-and-open-swatch-libraries.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.color-systems.swatch-exchange-ase"
     name: "Share swatches between applications (ASE)"
     record_role: "feature_deep_delta"
@@ -2739,7 +2846,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-colors-learn-color-basics-color-guide-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-colors/learn-color-basics/color-guide-panel-overview.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.color-systems.color-guide-limit-to-library"
     name: "Color Guide: limit colors to a swatch library"
     record_role: "feature_deep_delta"
@@ -2749,7 +2857,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-colors-learn-color-basics-color-guide-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-colors/learn-color-basics/color-guide-panel-overview.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.color-systems.recolor-artwork-dialog"
     name: "Recolor Artwork dialog (Edit and Assign tabs)"
     record_role: "feature_deep_delta"
@@ -2773,12 +2882,13 @@ records:
   - id: "illustrator.deep.color-systems.adobe-color-themes-posture"
     name: "Adobe Color integration (Color Themes)"
     record_role: "feature_deep_delta"
-    app_behavior: "Cloud-backed Adobe Color theme browsing/sync inside the app; provider-dependent (Studio: local palette library primitive, optional adapter)."
+    app_behavior: "RETIRED: the in-app Adobe Color Themes panel was disabled 2021-07-14 (official EOS notice); themes now come from Adobe Color on the web synced through Libraries; provider-dependent (Studio: local palette library primitive, optional adapter)."
     primitive_domain: "color"
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/tools.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.color-systems.gradient-linear-radial"
     name: "Linear and radial gradients with stop model"
     record_role: "feature_deep_delta"
@@ -2838,7 +2948,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-paint-and-fill-create-and-edit-patterns-create-patterns-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/paint-and-fill/create-and-edit-patterns/create-patterns.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.color-systems.pattern-transform-independent"
     name: "Transform patterns independently of objects"
     record_role: "feature_deep_delta"
@@ -2885,7 +2996,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/printing-color-management.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-ILLUSTRATOR-DEEP-DELTA.typography] Typography Control Set
@@ -2902,7 +3014,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-design-with-text-edit-format-text-character-panel-overview-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/design-with-text/edit-format-text/character-panel-overview.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.typography.kerning-modes"
     name: "Kerning modes: Auto (metrics), Optical, manual"
     record_role: "feature_deep_delta"
@@ -2951,7 +3064,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-design-with-text-fonts-and-scripts-supported-fonts-in-illustrator-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/design-with-text/fonts-and-scripts/supported-fonts-in-illustrator.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.typography.justification-dialog"
     name: "Justification dialog: word/letter spacing and glyph scaling"
     record_role: "feature_deep_delta"
@@ -2970,7 +3084,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/hyphenation-line-breaks.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.typography.composers"
     name: "Adobe Every-line and Single-line composers (plus Asian composers)"
     record_role: "feature_deep_delta"
@@ -3054,7 +3169,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-add-and-import-files-start-a-new-file-create-files-on-large-canvases-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/create-manage-artboards/add-edit-artboards/introduction-to-artboards.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.layout-and-artboards.global-vs-artboard-rulers"
     name: "Global vs artboard ruler origin model"
     record_role: "feature_deep_delta"
@@ -3218,7 +3334,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/place-multiple-files.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.psd-import-options"
     name: "Photoshop import options (layer conversion)"
     record_role: "feature_deep_delta"
@@ -3248,7 +3365,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-add-and-import-files-import-other-file-types-import-autocad-files-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/add-and-import-files/import-other-file-types/import-autocad-files.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.ai-save-options"
     name: "AI save options (PDF compatibility, subset fonts, compression, split large canvas)"
     record_role: "feature_deep_delta"
@@ -3257,7 +3375,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/saving-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.legacy-version-save"
     name: "Legacy-version AI/EPS save"
     record_role: "feature_deep_delta"
@@ -3266,7 +3385,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/saving-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.eps-save-options"
     name: "EPS save options"
     record_role: "feature_deep_delta"
@@ -3275,7 +3395,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/saving-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.pdf-preset-groups"
     name: "Adobe PDF presets"
     record_role: "feature_deep_delta"
@@ -3284,7 +3405,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/creating-pdf-files.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.pdf-options-detail"
     name: "PDF save option sections"
     record_role: "feature_deep_delta"
@@ -3293,7 +3415,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/pdf-options.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.svg-export-options"
     name: "SVG save/export options"
     record_role: "feature_deep_delta"
@@ -3302,7 +3425,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/exporting-artwork.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.raster-export-options"
     name: "PNG/JPEG/TIFF export option dialogs"
     record_role: "feature_deep_delta"
@@ -3311,16 +3435,18 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/exporting-artwork.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.psd-export-round-trip"
     name: "PSD export with layer preservation"
     record_role: "feature_deep_delta"
-    app_behavior: "Exports layered PSD preserving layers, editable text, and maximum editability where structure allows."
+    app_behavior: "Exports layered PSD (Write Layers, Maximum Editability) preserving layers, resolution, and color profiles; layer groups/sublayers become folders, unsupported elements keep appearance."
     primitive_domain: "export"
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/use-illustrator-artwork-in-photoshop.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.import-export.css-extraction"
     name: "CSS extraction / CSS Properties panel"
     record_role: "feature_deep_delta"
@@ -3564,7 +3690,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://ai-scripting.docsforadobe.dev/"
     source_ids: [ILDEEP-S07, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.automation-and-scripting.actions-default-set"
     name: "Actions: default action set and modal-control column"
     record_role: "feature_deep_delta"
@@ -3593,16 +3720,18 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/illustrator/"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.automation-and-scripting.uxp-posture"
     name: "UXP scripting migration posture"
     record_role: "feature_deep_delta"
-    app_behavior: "Adobe is migrating extensibility toward UXP alongside legacy ExtendScript/CEP; Studio posture: model-facing command contracts instead of vendor runtimes."
+    app_behavior: "Adobe's stated extensibility direction is UXP (public in Photoshop/InDesign), but Illustrator's public surface remains ExtendScript/CEP/C++ SDK with no public Illustrator UXP API as of mid-2026; Studio posture: model-facing command contracts instead of vendor runtimes."
     primitive_domain: "automation"
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/illustrator/"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-ILLUSTRATOR-DEEP-DELTA.panels-and-workspace] Window Panels and Workspace
@@ -3676,7 +3805,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/overprinting.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.panels-and-workspace.panel-brushes"
     name: "Window > Brushes"
     record_role: "feature_deep_delta"
@@ -3715,7 +3845,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/share-documents-for-review.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.panels-and-workspace.panel-control"
     name: "Window > Control"
     record_role: "feature_deep_delta"
@@ -3752,7 +3883,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/printing-saving-transparent-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.panels-and-workspace.panel-glyphs"
     name: "Window > Type > Glyphs"
     record_role: "feature_deep_delta"
@@ -3786,12 +3918,13 @@ records:
   - id: "illustrator.deep.panels-and-workspace.panel-history"
     name: "Window > History (design history)"
     record_role: "feature_deep_delta"
-    app_behavior: "Step list of document states for jump-back beyond linear undo, with snapshot support."
+    app_behavior: "Step list of document states for jump-back beyond linear undo; states can spawn a new document, history limit is configurable, and Clear History prunes states (no Photoshop-style snapshots)."
     primitive_domain: "document"
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/recovery-undo-automation.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.panels-and-workspace.panel-image-trace"
     name: "Window > Image Trace"
     record_role: "feature_deep_delta"
@@ -3810,7 +3943,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/measure-distance-and-area.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.panels-and-workspace.panel-layers"
     name: "Window > Layers"
     record_role: "feature_deep_delta"
@@ -3868,7 +4002,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/viewing-artwork.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.panels-and-workspace.panel-opentype"
     name: "Window > Type > OpenType"
     record_role: "feature_deep_delta"
@@ -4018,14 +4153,15 @@ records:
     source_ids: [ILDEEP-S08]
     verification_status: "VERIFIED"
   - id: "illustrator.deep.panels-and-workspace.panel-version-history"
-    name: "Window > Version History"
+    name: "File > Version History"
     record_role: "feature_deep_delta"
-    app_behavior: "Cloud-document saved versions with bookmarking and restore; provider-dependent (Studio: local EventLedger-style history primitive)."
+    app_behavior: "Cloud-document saved versions with marked versions and revert-to-version; provider-dependent (Studio: local EventLedger-style history primitive)."
     primitive_domain: "collaboration"
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/illustrator/using/cloud-documents.html"
     source_ids: [ILDEEP-S02, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.panels-and-workspace.contextual-task-bar"
     name: "Contextual Task Bar"
     record_role: "feature_deep_delta"
@@ -4062,7 +4198,7 @@ records:
 
 ```yaml
 as_of: "2026-07-09"
-coverage_basis: "Category names from stable product structure; the set-app-preferences article body could not be fetched (bot-blocked), so category rows are UNVERIFIED pending snapshot capture."
+coverage_basis: "Category names confirmed against the documented Illustrator preferences panel list via targeted official-help searches in the 2026-07-09 pass; all category rows now VERIFIED."
 records:
   - id: "illustrator.deep.preferences.general"
     name: "Preferences > General"
@@ -4073,7 +4209,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.selection-anchor-display"
     name: "Preferences > Selection and Anchor Display"
     record_role: "feature_deep_delta"
@@ -4083,7 +4220,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-manage-objects-select-objects-object-selection-methods-and-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/manage-objects/select-objects/object-selection-methods-and-preferences.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.type"
     name: "Preferences > Type"
     record_role: "feature_deep_delta"
@@ -4093,7 +4231,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.units"
     name: "Preferences > Units"
     record_role: "feature_deep_delta"
@@ -4103,7 +4242,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.guides-grid"
     name: "Preferences > Guides and Grid"
     record_role: "feature_deep_delta"
@@ -4113,7 +4253,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.smart-guides"
     name: "Preferences > Smart Guides"
     record_role: "feature_deep_delta"
@@ -4133,7 +4274,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.hyphenation"
     name: "Preferences > Hyphenation"
     record_role: "feature_deep_delta"
@@ -4143,7 +4285,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.plugins-scratch-disks"
     name: "Preferences > Plug-ins and Scratch Disks"
     record_role: "feature_deep_delta"
@@ -4153,7 +4296,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.user-interface"
     name: "Preferences > User Interface"
     record_role: "feature_deep_delta"
@@ -4163,7 +4307,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.performance"
     name: "Preferences > Performance"
     record_role: "feature_deep_delta"
@@ -4173,17 +4318,19 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.file-handling"
     name: "Preferences > File Handling"
     record_role: "feature_deep_delta"
-    app_behavior: "Auto-save/data recovery interval, file save location defaults, and linked-file update policy."
+    app_behavior: "Auto-save/data-recovery interval with backup-location choice and complex-document opt-out; Illustrator 30.0 Save in Background supersedes the interval by default."
     primitive_domain: "document"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-troubleshoot-application-crash-issues-auto-backup-and-recovery-settings-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/troubleshoot/application-crash-issues/auto-backup-and-recovery-settings.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.clipboard-handling"
     name: "Preferences > Clipboard Handling"
     record_role: "feature_deep_delta"
@@ -4193,7 +4340,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.appearance-of-black"
     name: "Preferences > Appearance of Black"
     record_role: "feature_deep_delta"
@@ -4203,7 +4351,8 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.devices"
     name: "Preferences > Devices"
     record_role: "feature_deep_delta"
@@ -4213,17 +4362,19 @@ records:
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-get-started-preferences-and-settings-set-app-preferences-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/set-app-preferences.html"
     source_ids: [ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "illustrator.deep.preferences.generative-ai"
-    name: "Preferences > Generative AI (data usage)"
+    name: "Generative AI data-usage and content-analysis controls"
     record_role: "feature_deep_delta"
-    app_behavior: "Controls generative feature preferences and content-analysis opt-outs; provider-dependent surface."
+    app_behavior: "Generative-feature and data-usage controls (content-analysis opt-out and generative-AI training preference via Content Credentials/Adobe account); surfaced through the generative-AI settings/FAQ and the Object > Generative menu, not a dedicated Edit > Preferences (Ctrl+K) category as of mid-2026; provider-dependent surface."
     primitive_domain: "document"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "illustrator.desktop.leaf.desktop-use-generative-ai-generative-ai-faq-illustrator-html"
     source_url: "https://helpx.adobe.com/illustrator/desktop/use-generative-ai/generative-ai-faq-illustrator.html"
     source_ids: [ILDEEP-S08, ILDEEP-S11]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-ILLUSTRATOR-DEEP-DELTA.cloud-and-ai] Cloud and AI Surface (Provider Posture)
@@ -4439,4 +4590,19 @@ sources:
   - id: ILDEEP-S11
     url: "web-search-snippets"
     note: "Non-official corroboration (search snippets, product-structure knowledge). Rows citing only this or paired with an unfetched page are marked UNVERIFIED and need snapshot capture per 49-source-coverage-verification-matrix.md discipline."
+  - id: ILDEEP-S12
+    url: "https://ai-scripting.docsforadobe.dev/jsobjref/Variable/"
+    note: "Illustrator Scripting DOM reference (Variable/DataSet). Fetched 2026-07-09; confirmed Variable class ('dynamic object used to create data-driven graphics') and companion DataSet class exist. Verifies dom-variables-datasets."
+  - id: ILDEEP-S13
+    url: "https://helpx.adobe.com/x-productkb/multi/eos-color-themes.html"
+    note: "Official End-of-Service notice, Adobe Color Themes panel. Confirmed via web search 2026-07-09 that the in-app Color Themes panel was disabled 2021-07-14 in Photoshop/Illustrator/InDesign/After Effects; themes now via Adobe Color web synced through Libraries. Verifies adobe-color-themes-posture."
+  - id: ILDEEP-S14
+    url: "https://helpx.adobe.com/illustrator/kb/pantone-plus.html"
+    note: "Pantone Color Books KB. Confirmed via web search 2026-07-09 that Pantone color books were removed and new files (post Oct 2023) require a Pantone license via the Pantone Connect plugin. Verifies swatch-libraries-pantone."
+  - id: ILDEEP-S15
+    url: "https://developer.adobe.com/illustrator/"
+    note: "Illustrator developer hub (local snapshot illustrator-developer-jina.md) plus corroborating community/vendor sources (Adobe community, mapsoft.com) checked 2026-07-09; confirmed Illustrator extensibility remains ExtendScript + CEP HTML panels + C++ SDK, with no public third-party UXP API as of mid-2026. Verifies uxp-posture."
+  - id: ILDEEP-S16
+    url: "web-search-verification-pass-2026-07-09"
+    note: "Consolidated 2026-07-09 official-helpx web-search verification pass (helpx.adobe.com pages: set-app-preferences category list; divide-or-split-objects Split Into Grid; expand-objects Expand Appearance; line-character-spacing Fit Headline; add-advanced-formatting-to-text Optical Margin Alignment; add-text-work-with-type-objects Create Outlines and Type>Convert to Area/Point Type and Legacy Text; image-trace-panel-options Paths/Corners/Noise/Method; creating-pdf-files/pdf-options preset families; multiple-file-place Place dialog Link/Template/Replace/Show Import Options; printing-color-management + accessibility Proof Setup/Proof Colors; about-3d-effects/create-3d-objects 3D (Classic) menu path; introduction-to-artboards 1000-artboard limit; reshaping-objects-effects Warp Style menu fixed 15-preset set and Effect>Path Offset/Outline). Snippet enumeration accepted per corpus policy (S11)."
 ```

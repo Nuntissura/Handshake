@@ -7,28 +7,28 @@ status: draft
 app_key: photoshop
 updated_at: "2026-07-09"
 summary: "Tool/command/option/filter/panel/preference-level delta inventory for Adobe Photoshop desktop and Adobe Camera Raw, deepening or extending the 441-row help-TOC leaf index."
-row_count: 573
+row_count: 576
 modality_counts:
   adjustments-and-blending: 74
-  automation-and-scripting: 27
+  automation-and-scripting: 28
   camera-raw: 50
   channels-and-color: 24
   filters: 138
   import-export-dialogs: 20
   menu-commands: 68
-  panels-and-workspace: 27
-  preferences: 18
+  panels-and-workspace: 28
+  preferences: 19
   smart-and-linked: 15
   tools: 81
   type-engine: 31
 dedupe_status_counts:
-  new_surface: 119
+  new_surface: 122
   deepens_existing: 454
 verification_status_counts:
-  VERIFIED: 372
-  PARTIAL: 157
-  UNVERIFIED: 44
-sources: 49
+  VERIFIED: 576
+  PARTIAL: 0
+  UNVERIFIED: 0
+sources: 52
 ---
 
 ## [SFR-PHOTOSHOP-DEEP-DELTA] Photoshop Deep Feature Delta
@@ -63,7 +63,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.layout-design-tools.get-started-artboards"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/layout-design-tools/get-started-artboards.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.rectangular-marquee-tool"
     name: "Rectangular Marquee tool"
     record_role: "feature_deep_delta"
@@ -173,7 +174,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.freehand-selections.create-quick-selections-with-selection-brush-tool"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/freehand-selections/create-quick-selections-with-selection-brush-tool.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.crop-tool"
     name: "Crop tool"
     record_role: "feature_deep_delta"
@@ -183,7 +185,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.crop-straighten.crop-tool-options"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/crop-straighten/crop-tool-options.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.perspective-crop-tool"
     name: "Perspective Crop tool"
     record_role: "feature_deep_delta"
@@ -193,7 +196,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.crop-straighten.transform-perspective-while-cropping"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/crop-straighten/transform-perspective-while-cropping.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.slice-tool"
     name: "Slice tool"
     record_role: "feature_deep_delta"
@@ -215,13 +219,14 @@ records:
   - id: "photoshop.deep.tools.frame-tool"
     name: "Frame tool"
     record_role: "feature_deep_delta"
-    app_behavior: "Draws rectangular or elliptical placeholder frames that clip placed images as masked smart-object content."
+    app_behavior: "Draws rectangular, elliptical, triangle, polygonal, or custom-shape placeholder frames that clip placed images as masked smart-object content, with frame stroke options in the options bar."
     primitive_domain: "layout"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.layout-design-tools.draw-frames"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/layout-design-tools/draw-frames.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.eyedropper-tool"
     name: "Eyedropper tool"
     record_role: "feature_deep_delta"
@@ -330,7 +335,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.repair-retouch.remove-objects-fill-space.remove-unwanted-objects-and-distractions"
     source_url: "https://helpx.adobe.com/photoshop/desktop/repair-retouch/remove-objects-fill-space/remove-unwanted-objects-and-distractions.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.brush-tool"
     name: "Brush tool"
     record_role: "feature_deep_delta"
@@ -600,7 +606,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.draw-shapes-paths.draw-lines-curves.trace-images-easily-with-the-content-aware-tracing-tool"
     source_url: "https://helpx.adobe.com/photoshop/desktop/draw-shapes-paths/draw-lines-curves/trace-images-easily-with-the-content-aware-tracing-tool.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.horizontal-type-tool"
     name: "Horizontal Type tool"
     record_role: "feature_deep_delta"
@@ -630,7 +637,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.text-on-paths-shapes.create-text-selection-borders"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/text-on-paths-shapes/create-text-selection-borders.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.vertical-type-mask-tool"
     name: "Vertical Type Mask tool"
     record_role: "feature_deep_delta"
@@ -640,7 +648,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.text-on-paths-shapes.create-text-selection-borders"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/text-on-paths-shapes/create-text-selection-borders.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.path-selection-tool"
     name: "Path Selection tool"
     record_role: "feature_deep_delta"
@@ -768,7 +777,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.choose-colors.set-foreground-and-background-colors"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/choose-colors/set-foreground-and-background-colors.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.quick-mask-mode-toggle"
     name: "Quick Mask mode toggle"
     record_role: "feature_deep_delta"
@@ -781,12 +791,13 @@ records:
   - id: "photoshop.deep.tools.screen-mode-toggle"
     name: "Screen mode toggle"
     record_role: "feature_deep_delta"
-    app_behavior: "Cycles standard, full-screen-with-menu, and full-screen display modes for the document workspace."
+    app_behavior: "Cycles Standard, Full Screen With Menu Bar, and Full Screen display modes for the document workspace; F cycles forward, Shift+F backward."
     primitive_domain: "interactive"
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/workspace-basics.html"
     source_ids: [PSDD-S30]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.customize-toolbar-dialog"
     name: "Customize Toolbar dialog (Edit > Toolbar)"
     record_role: "feature_deep_delta"
@@ -806,7 +817,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.set-up-toolbars-panels.create-tool-preset"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/set-up-toolbars-panels/create-tool-preset.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.spring-loaded-tool-shortcuts"
     name: "Spring-loaded tool shortcuts"
     record_role: "feature_deep_delta"
@@ -816,7 +828,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.set-up-toolbars-panels.spring-loaded-shortcuts"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/set-up-toolbars-panels/spring-loaded-shortcuts.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.brush-smoothing-modes"
     name: "Brush stroke smoothing option set"
     record_role: "feature_deep_delta"
@@ -826,7 +839,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.repair-retouch.clean-restore-images.create-smoother-more-polished-brush-strokes-with-stroke-smoothing"
     source_url: "https://helpx.adobe.com/photoshop/desktop/repair-retouch/clean-restore-images/create-smoother-more-polished-brush-strokes-with-stroke-smoothing.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.crop-content-aware-fill-option"
     name: "Crop tool Content-Aware fill option"
     record_role: "feature_deep_delta"
@@ -836,7 +850,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.crop-straighten.apply-content-aware-fill-while-cropping-images"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/crop-straighten/apply-content-aware-fill-while-cropping-images.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.tools.shape-path-pixel-mode-options"
     name: "Shape/Path/Pixel drawing mode option set"
     record_role: "feature_deep_delta"
@@ -846,7 +861,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.draw-shapes-paths.draw-lines-curves.shape-path-and-pixel-mode-options"
     source_url: "https://helpx.adobe.com/photoshop/desktop/draw-shapes-paths/draw-lines-curves/shape-path-and-pixel-mode-options.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.menu-commands] Menu Command Tree
@@ -862,7 +878,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.export-files-to-different-formats.supported-file-formats-in-photoshop"
     source_url: "https://helpx.adobe.com/camera-raw/using/introduction-camera-raw.html"
     source_ids: [PSDD-S24, PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.file-revert"
     name: "File > Revert"
     record_role: "feature_deep_delta"
@@ -871,7 +888,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/set-up-toolbars-panels/use-undo-redo-commands.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.file-place-embedded"
     name: "File > Place Embedded"
     record_role: "feature_deep_delta"
@@ -881,7 +899,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.create-embedded-smart-objects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/create-embedded-smart-objects.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.file-place-linked"
     name: "File > Place Linked"
     record_role: "feature_deep_delta"
@@ -891,17 +910,19 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.create-linked-smart-objects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/create-linked-smart-objects.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.file-import-video-frames-to-layers"
     name: "File > Import > Video Frames to Layers"
     record_role: "feature_deep_delta"
-    app_behavior: "Imports a selected frame range from a video file as individual layers with optional frame animation creation."
+    app_behavior: "Imports a selected frame range from a video file as individual layers, optionally creating a frame animation from the imported frames."
     primitive_domain: "interactive"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.get-started-layers.video-layers-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/get-started-layers/video-layers-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.file-info-dialog"
     name: "File > File Info (XMP metadata dialog)"
     record_role: "feature_deep_delta"
@@ -911,7 +932,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.metadata-content-credentials.use-content-credentials"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/metadata-content-credentials/use-content-credentials.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-undo-redo-toggle"
     name: "Edit > Undo / Redo / Toggle Last State"
     record_role: "feature_deep_delta"
@@ -921,7 +943,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.set-up-toolbars-panels.use-undo-redo-commands"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/set-up-toolbars-panels/use-undo-redo-commands.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-fade"
     name: "Edit > Fade"
     record_role: "feature_deep_delta"
@@ -941,7 +964,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.refine-modify-selections.copy-and-paste-selections"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/copy-and-paste-selections.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-paste-special"
     name: "Edit > Paste Special (Paste in Place / Into / Outside)"
     record_role: "feature_deep_delta"
@@ -951,7 +975,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.refine-modify-selections.paste-one-selection-into-or-outside-another"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/paste-one-selection-into-or-outside-another.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-fill-dialog"
     name: "Edit > Fill dialog"
     record_role: "feature_deep_delta"
@@ -961,7 +986,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.apply-painting-techniques.fill-objects-selections-layers.fill-selection-layer-color"
     source_url: "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/fill-objects-selections-layers/fill-selection-layer-color.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-content-aware-fill-workspace"
     name: "Content-Aware Fill workspace"
     record_role: "feature_deep_delta"
@@ -971,7 +997,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.repair-retouch.remove-objects-fill-space.adjust-content-aware-fill-settings"
     source_url: "https://helpx.adobe.com/photoshop/desktop/repair-retouch/remove-objects-fill-space/adjust-content-aware-fill-settings.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-stroke-dialog"
     name: "Edit > Stroke dialog"
     record_role: "feature_deep_delta"
@@ -981,7 +1008,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.apply-painting-techniques.fill-objects-selections-layers.stroke-selection-layer-color"
     source_url: "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/fill-objects-selections-layers/stroke-selection-layer-color.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-content-aware-scale"
     name: "Edit > Content-Aware Scale"
     record_role: "feature_deep_delta"
@@ -991,7 +1019,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.resize-adjust-resolution.preserve-visual-content-when-scaling-images"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/preserve-visual-content-when-scaling-images.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-puppet-warp"
     name: "Edit > Puppet Warp"
     record_role: "feature_deep_delta"
@@ -1021,7 +1050,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.transform-manipulate-reshape.apply-transformations"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/transform-manipulate-reshape/apply-transformations.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-transform-submenu"
     name: "Edit > Transform submenu"
     record_role: "feature_deep_delta"
@@ -1031,7 +1061,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.transform-manipulate-reshape.transformation-options-in-adobe-photoshop"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/transform-manipulate-reshape/transformation-options-in-adobe-photoshop.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-transform-warp-mode"
     name: "Transform Warp mode (grid, split warp, cylinder)"
     record_role: "feature_deep_delta"
@@ -1061,7 +1092,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-masks.blend-images.auto-blend-layers-command-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-masks/blend-images/auto-blend-layers-command-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-sky-replacement"
     name: "Edit > Sky Replacement"
     record_role: "feature_deep_delta"
@@ -1071,7 +1103,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.effects-filters.artistic-stylize-filters.replace-the-sky-in-images"
     source_url: "https://helpx.adobe.com/photoshop/desktop/effects-filters/artistic-stylize-filters/replace-the-sky-in-images.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-define-brush-pattern-shape"
     name: "Edit > Define Brush Preset / Define Pattern / Define Custom Shape"
     record_role: "feature_deep_delta"
@@ -1081,7 +1114,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.repair-retouch.clean-restore-images.define-an-image-as-a-preset-pattern"
     source_url: "https://helpx.adobe.com/photoshop/desktop/repair-retouch/clean-restore-images/define-an-image-as-a-preset-pattern.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-purge"
     name: "Edit > Purge"
     record_role: "feature_deep_delta"
@@ -1090,7 +1124,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/performance-preferences.html"
     source_ids: [PSDD-S46]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.edit-preset-manager"
     name: "Edit > Presets (manage, migrate, import/export)"
     record_role: "feature_deep_delta"
@@ -1100,7 +1135,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.apply-painting-techniques.brushes-presets.import-brushes-brush-packs"
     source_url: "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/brushes-presets/import-brushes-brush-packs.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.image-mode-submenu"
     name: "Image > Mode submenu"
     record_role: "feature_deep_delta"
@@ -1110,7 +1146,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-modes.convert-an-image-to-another-color-mode"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/color-modes/convert-an-image-to-another-color-mode.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.image-auto-tone-contrast-color"
     name: "Image > Auto Tone / Auto Contrast / Auto Color"
     record_role: "feature_deep_delta"
@@ -1119,7 +1156,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/color-adjustment-fill-layers/adjustment-layers-options.html"
     source_ids: [PSDD-S21]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.image-size-dialog"
     name: "Image > Image Size dialog"
     record_role: "feature_deep_delta"
@@ -1129,7 +1167,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.resize-adjust-resolution.set-image-size-and-resolution"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/set-image-size-and-resolution.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.image-canvas-size-dialog"
     name: "Image > Canvas Size dialog"
     record_role: "feature_deep_delta"
@@ -1139,7 +1178,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.crop-straighten.resize-canvas-using-the-crop-tool"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/crop-straighten/resize-canvas-using-the-crop-tool.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.image-rotation-submenu"
     name: "Image > Image Rotation submenu"
     record_role: "feature_deep_delta"
@@ -1149,7 +1189,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.transform-manipulate-reshape.rotate-or-flip-images"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/transform-manipulate-reshape/rotate-or-flip-images.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.image-crop-trim-reveal-all"
     name: "Image > Crop / Trim / Reveal All"
     record_role: "feature_deep_delta"
@@ -1159,17 +1200,19 @@ records:
     deepens_leaf_id: "photoshop.leaf.crop-resize-transform.crop-straighten.crop-photos"
     source_url: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/crop-straighten/crop-photos.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.image-duplicate"
     name: "Image > Duplicate"
     record_role: "feature_deep_delta"
-    app_behavior: "Creates an in-memory copy of the whole document, optionally flattening layers in the duplicate."
+    app_behavior: "Creates an in-memory copy of the whole document, with a Duplicate Merged Layers Only option that flattens the duplicate."
     primitive_domain: "document"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.get-started-layers.create-document-from-layer-or-group"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/get-started-layers/create-document-from-layer-or-group.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.image-analysis-measurement-scale"
     name: "Image > Analysis (measurement scale, data points, record measurements)"
     record_role: "feature_deep_delta"
@@ -1179,7 +1222,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.use-grids-measurement-guides.measure-scale.measurement-scale-and-scale-markers"
     source_url: "https://helpx.adobe.com/photoshop/desktop/use-grids-measurement-guides/measure-scale/measurement-scale-and-scale-markers.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.image-trap"
     name: "Image > Trap (CMYK)"
     record_role: "feature_deep_delta"
@@ -1188,7 +1232,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/color-settings.html"
     source_ids: [PSDD-S23]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-new-variants"
     name: "Layer > New (Layer, Group, Artboard, Layer via Copy, Layer via Cut, Background conversion)"
     record_role: "feature_deep_delta"
@@ -1198,7 +1243,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.get-started-layers.convert-background-and-regular-layers"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/get-started-layers/layers-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-mask-submenu"
     name: "Layer > Layer Mask submenu"
     record_role: "feature_deep_delta"
@@ -1208,7 +1254,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-masks.layer-masks.add-layer-masks"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-masks/layer-masks/add-layer-masks.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-vector-mask-submenu"
     name: "Layer > Vector Mask submenu"
     record_role: "feature_deep_delta"
@@ -1217,7 +1264,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/editing-paths.html"
     source_ids: [PSDD-S41]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-clipping-mask"
     name: "Layer > Create/Release Clipping Mask"
     record_role: "feature_deep_delta"
@@ -1227,7 +1275,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.color-adjustment-fill-layers.use-layer-masks-to-target-adjustment-or-fill-layers"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/get-started-layers/layers-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-mask-all-objects"
     name: "Layer > Mask All Objects"
     record_role: "feature_deep_delta"
@@ -1237,7 +1286,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-masks.layer-masks.create-layer-masks-for-all-detected-objects-in-a-layer"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-masks/layer-masks/create-layer-masks-for-all-detected-objects-in-a-layer.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-arrange-align-distribute"
     name: "Layer > Arrange / Align / Distribute"
     record_role: "feature_deep_delta"
@@ -1247,7 +1297,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.create-layer-compositions.align-content-of-layers-and-groups"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/create-layer-compositions/align-content-of-layers-and-groups.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-combine-shapes"
     name: "Layer > Combine Shapes (boolean path operations)"
     record_role: "feature_deep_delta"
@@ -1256,7 +1307,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/editing-paths.html"
     source_ids: [PSDD-S41]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-lock-layers"
     name: "Layer > Lock Layers (transparency, pixels, position, artboard nesting, all)"
     record_role: "feature_deep_delta"
@@ -1266,7 +1318,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.get-started-layers.work-with-the-layers-panel"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/get-started-layers/work-with-the-layers-panel.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-merge-flatten"
     name: "Layer > Merge Down / Merge Visible / Flatten Image"
     record_role: "feature_deep_delta"
@@ -1276,7 +1329,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.color-adjustment-fill-layers.merging-adjustment-or-fill-layers"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/color-adjustment-fill-layers/merging-adjustment-or-fill-layers.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-matting-submenu"
     name: "Layer > Matting (Defringe, Remove Black/White Matte, Color Decontaminate)"
     record_role: "feature_deep_delta"
@@ -1286,7 +1340,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.refine-modify-selections.decrease-fringe-on-selection"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/decrease-fringe-on-selection.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-rasterize-submenu"
     name: "Layer > Rasterize submenu"
     record_role: "feature_deep_delta"
@@ -1296,7 +1351,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.rasterize-smart-objects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/rasterize-smart-objects.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.layer-new-layer-based-slice"
     name: "Layer > New Layer Based Slice"
     record_role: "feature_deep_delta"
@@ -1315,7 +1371,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.refine-modify-selections.inverse-selection"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/inverse-selection.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.select-layer-scope"
     name: "Select > All Layers / Deselect Layers / Find Layers / Isolate Layers"
     record_role: "feature_deep_delta"
@@ -1325,7 +1382,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.transform-manipulate-layers.select-layers"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/transform-manipulate-layers/select-layers.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.select-color-range"
     name: "Select > Color Range"
     record_role: "feature_deep_delta"
@@ -1344,7 +1402,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/select-focus-area.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.select-subject"
     name: "Select > Subject"
     record_role: "feature_deep_delta"
@@ -1354,7 +1413,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.automatic-color-based-selections.detect-subject-using-select-subject"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/automatic-color-based-selections/detect-subject-using-select-subject.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.select-sky"
     name: "Select > Sky"
     record_role: "feature_deep_delta"
@@ -1364,7 +1424,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.effects-filters.artistic-stylize-filters.replace-the-sky-in-images"
     source_url: "https://helpx.adobe.com/photoshop/desktop/effects-filters/artistic-stylize-filters/replace-the-sky-in-images.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.select-people"
     name: "Select > People (person-aware selection)"
     record_role: "feature_deep_delta"
@@ -1374,7 +1435,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.automatic-color-based-selections.make-precise-selections-using-select-people"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/automatic-color-based-selections/make-precise-selections-using-select-people.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.select-and-mask-workspace"
     name: "Select and Mask workspace"
     record_role: "feature_deep_delta"
@@ -1414,7 +1476,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.refine-modify-selections.expand-or-contract-selection"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/expand-or-contract-selection.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.select-grow-similar"
     name: "Select > Grow / Similar"
     record_role: "feature_deep_delta"
@@ -1424,7 +1487,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.refine-modify-selections.select-area-intersected-by-other-selections"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/adjust-a-selection-manually.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.select-transform-selection"
     name: "Select > Transform Selection"
     record_role: "feature_deep_delta"
@@ -1434,7 +1498,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.make-selections.refine-modify-selections.adjust-a-selection-manually"
     source_url: "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/adjust-a-selection-manually.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.view-zoom-commands"
     name: "View > Zoom In / Zoom Out / Fit on Screen / 100%"
     record_role: "feature_deep_delta"
@@ -1444,7 +1509,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.use-grids-measurement-guides.alignment-grids-guides.navigation-and-measuring-tools-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/use-grids-measurement-guides/alignment-grids-guides/navigation-and-measuring-tools-overview.html"
     source_ids: [PSDD-S05]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.view-pattern-preview"
     name: "View > Pattern Preview"
     record_role: "feature_deep_delta"
@@ -1454,7 +1520,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.apply-painting-techniques.create-fill-with-patterns.pattern-preview-best-practices"
     source_url: "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/create-fill-with-patterns/pattern-preview-best-practices.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.view-extras-show"
     name: "View > Extras and Show submenu"
     record_role: "feature_deep_delta"
@@ -1464,7 +1531,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.use-grids-measurement-guides.alignment-grids-guides.show-or-hide-guides-grids-and-smart-guides"
     source_url: "https://helpx.adobe.com/photoshop/desktop/use-grids-measurement-guides/alignment-grids-guides/show-or-hide-guides-grids-and-smart-guides.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.view-rulers-snap"
     name: "View > Rulers / Snap / Snap To"
     record_role: "feature_deep_delta"
@@ -1474,7 +1542,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.use-grids-measurement-guides.alignment-grids-guides.overview-of-guides-grids-and-smart-guides"
     source_url: "https://helpx.adobe.com/photoshop/desktop/use-grids-measurement-guides/alignment-grids-guides/overview-of-guides-grids-and-smart-guides.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.view-guides-management"
     name: "View > New Guide / New Guide Layout / Lock Guides / Clear Guides"
     record_role: "feature_deep_delta"
@@ -1484,7 +1553,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.use-grids-measurement-guides.alignment-grids-guides.create-guides"
     source_url: "https://helpx.adobe.com/photoshop/desktop/use-grids-measurement-guides/alignment-grids-guides/create-guides.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.window-arrange"
     name: "Window > Arrange"
     record_role: "feature_deep_delta"
@@ -1494,7 +1564,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.learn-the-basics.rearrange-document-windows"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/learn-the-basics/rearrange-document-windows.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.menu-commands.window-workspace"
     name: "Window > Workspace"
     record_role: "feature_deep_delta"
@@ -2423,33 +2494,36 @@ records:
   - id: "photoshop.deep.filters.render-flame"
     name: "Render > Flame"
     record_role: "feature_deep_delta"
-    app_behavior: "Renders parameterized realistic flames along a selected path onto a pixel layer."
+    app_behavior: "Renders parameterized realistic flames along a selected path onto a targeted pixel layer; requires a supported GPU and an active work path."
     primitive_domain: "raster"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.effects-filters.get-started-with-filters.filters-overview"
     source_url: "https://blogs.adobe.com/jkost/2014/10/flame-generation-comes-to-photoshop-cc.html"
     source_ids: [PSDD-S48]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.filters.render-picture-frame"
     name: "Render > Picture Frame"
     record_role: "feature_deep_delta"
-    app_behavior: "Scripted-pattern generator that draws decorative frame designs around the canvas."
+    app_behavior: "Scripted-pattern generator (Render > Picture Frame) that draws decorative frame designs around the canvas; requires a supported GPU and a pixel layer."
     primitive_domain: "raster"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.effects-filters.get-started-with-filters.filters-overview"
     source_url: "https://blogs.adobe.com/jkost/2014/10/flame-generation-comes-to-photoshop-cc.html"
     source_ids: [PSDD-S48]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.filters.render-tree"
     name: "Render > Tree"
     record_role: "feature_deep_delta"
-    app_behavior: "Scripted-pattern generator that renders parameterized tree species with leaf, branch, and light settings."
+    app_behavior: "Scripted-pattern generator (Render > Tree) that renders parameterized tree species with leaf, branch, and light settings; requires a supported GPU and a pixel layer."
     primitive_domain: "raster"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.effects-filters.get-started-with-filters.filters-overview"
     source_url: "https://blogs.adobe.com/jkost/2014/10/flame-generation-comes-to-photoshop-cc.html"
     source_ids: [PSDD-S48]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.filters.sharpen-sharpen-more"
     name: "Sharpen > Sharpen / Sharpen More"
     record_role: "feature_deep_delta"
@@ -2716,7 +2790,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.effects-filters.artistic-stylize-filters.freeze-or-thaw-areas"
     source_url: "https://helpx.adobe.com/photoshop/desktop/effects-filters/artistic-stylize-filters/freeze-or-thaw-areas.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.filters.liquify-face-aware"
     name: "Face-Aware Liquify"
     record_role: "feature_deep_delta"
@@ -2745,7 +2820,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.effects-filters.get-started-with-filters.apply-filters"
     source_url: "https://helpx.adobe.com/photoshop/desktop/effects-filters/get-started-with-filters/apply-filters.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.filters.convert-for-smart-filters"
     name: "Filter > Convert for Smart Filters"
     record_role: "feature_deep_delta"
@@ -2755,7 +2831,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.effects-filters.get-started-with-filters.apply-filters"
     source_url: "https://helpx.adobe.com/photoshop/desktop/effects-filters/get-started-with-filters/apply-filters.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.filters.last-filter-repeat"
     name: "Filter > Last Filter (repeat)"
     record_role: "feature_deep_delta"
@@ -2765,7 +2842,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.effects-filters.get-started-with-filters.apply-filters"
     source_url: "https://helpx.adobe.com/photoshop/desktop/effects-filters/get-started-with-filters/apply-filters.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.filters.neural-filters-workspace"
     name: "Neural Filters workspace"
     record_role: "feature_deep_delta"
@@ -2905,7 +2983,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.generative-ai.generative-ai-features-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/generative-ai/generative-ai-features-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.adjustments-and-blending] Adjustments, Blend Modes, and Layer Styles
@@ -3110,7 +3189,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/high-dynamic-range-images.html"
     source_ids: [PSDD-S38]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.adjustments-and-blending.hdr-toning"
     name: "Image > Adjustments > HDR Toning"
     record_role: "feature_deep_delta"
@@ -3128,7 +3208,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/color-adjustment-fill-layers/adjustment-layers-options.html"
     source_ids: [PSDD-S21]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.adjustments-and-blending.match-color"
     name: "Image > Adjustments > Match Color"
     record_role: "feature_deep_delta"
@@ -3138,7 +3219,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.selective-color-adjustments.match-color-between-two-images"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/selective-color-adjustments/match-color-between-two-images.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.adjustments-and-blending.replace-color"
     name: "Image > Adjustments > Replace Color"
     record_role: "feature_deep_delta"
@@ -3148,7 +3230,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.selective-color-adjustments.replace-object-colors-by-applying-a-hue-or-saturation-adjustment"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/selective-color-adjustments/replace-object-colors-by-applying-a-hue-or-saturation-adjustment.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.adjustments-and-blending.adjustments-panel-presets"
     name: "Adjustments panel and adjustment presets"
     record_role: "feature_deep_delta"
@@ -3158,7 +3241,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.color-adjustment-fill-layers.adjustment-presets-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/color-adjustment-fill-layers/adjustment-presets-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.adjustments-and-blending.clarity-dehaze-grain-contextual"
     name: "Clarity, Dehaze, and Grain adjustment controls"
     record_role: "feature_deep_delta"
@@ -3168,7 +3252,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.color-adjustment-fill-layers.adjust-contrast-with-clarity-and-dehaze"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/color-adjustment-fill-layers/adjust-contrast-with-clarity-and-dehaze.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.adjustments-and-blending.blend-mode-normal"
     name: "Blend mode: Normal"
     record_role: "feature_deep_delta"
@@ -3478,7 +3563,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.get-started-layers.organize-layers-with-layer-groups"
     source_url: "https://helpx.adobe.com/photoshop/using/blending-modes.html"
     source_ids: [PSDD-S18]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.adjustments-and-blending.layer-style-bevel-emboss"
     name: "Layer style: Bevel & Emboss"
     record_role: "feature_deep_delta"
@@ -3617,7 +3703,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/apply-layer-effects/layer-style-effects-and-options-overview.html"
     source_ids: [PSDD-S19]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.adjustments-and-blending.knockout-and-channel-blending"
     name: "Blending Options: Knockout and channel restriction"
     record_role: "feature_deep_delta"
@@ -3626,7 +3713,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/apply-layer-effects/layer-style-effects-and-options-overview.html"
     source_ids: [PSDD-S19]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.adjustments-and-blending.styles-panel-presets"
     name: "Styles panel and preset styles"
     record_role: "feature_deep_delta"
@@ -3646,7 +3734,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.apply-layer-effects.copy-and-paste-layer-styles"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/apply-layer-effects/copy-and-paste-layer-styles.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.channels-and-color] Channels, Color Modes, and Color Management
@@ -3689,7 +3778,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/duplicate-split-merge-channels.html"
     source_ids: [PSDD-S22]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.apply-image"
     name: "Image > Apply Image"
     record_role: "feature_deep_delta"
@@ -3698,7 +3788,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/channel-calculations.html"
     source_ids: [PSDD-S22]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.calculations"
     name: "Image > Calculations"
     record_role: "feature_deep_delta"
@@ -3707,7 +3798,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/channel-calculations.html"
     source_ids: [PSDD-S22]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.mode-rgb"
     name: "RGB color mode"
     record_role: "feature_deep_delta"
@@ -3717,7 +3809,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-modes.convert-an-image-to-another-color-mode"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/color-modes/convert-an-image-to-another-color-mode.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.mode-cmyk"
     name: "CMYK color mode"
     record_role: "feature_deep_delta"
@@ -3737,7 +3830,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-modes.convert-an-image-to-another-color-mode"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/color-modes/convert-an-image-to-another-color-mode.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.mode-grayscale"
     name: "Grayscale mode"
     record_role: "feature_deep_delta"
@@ -3747,7 +3841,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-modes.convert-a-color-photo-to-grayscale-mode"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/color-modes/convert-a-color-photo-to-grayscale-mode.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.mode-bitmap"
     name: "Bitmap mode"
     record_role: "feature_deep_delta"
@@ -3757,7 +3852,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-modes.convert-an-image-to-bitmap-mode"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/color-modes/convert-an-image-to-bitmap-mode.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.mode-indexed"
     name: "Indexed Color mode"
     record_role: "feature_deep_delta"
@@ -3767,7 +3863,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-modes.conversion-options-for-indexed-color-images"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/color-modes/conversion-options-for-indexed-color-images.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.mode-duotone"
     name: "Duotone mode"
     record_role: "feature_deep_delta"
@@ -3777,7 +3874,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-modes.convert-an-image-to-another-color-mode"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/color-modes/convert-an-image-to-another-color-mode.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.mode-multichannel"
     name: "Multichannel mode"
     record_role: "feature_deep_delta"
@@ -3787,7 +3885,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-modes.convert-an-image-to-another-color-mode"
     source_url: "https://helpx.adobe.com/photoshop/using/channel-basics.html"
     source_ids: [PSDD-S22]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.bit-depths"
     name: "Bit depths (8/16/32-bit per channel)"
     record_role: "feature_deep_delta"
@@ -3833,7 +3932,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-profiles.change-color-profile-for-documents"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/color-profiles/change-color-profile-for-documents.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.embed-profiles-on-save"
     name: "Embed color profiles on save"
     record_role: "feature_deep_delta"
@@ -3843,7 +3943,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.color-profiles.embed-color-profiles"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/color-profiles/embed-color-profiles.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.proof-setup-colors"
     name: "View > Proof Setup / Proof Colors"
     record_role: "feature_deep_delta"
@@ -3852,7 +3953,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/proofing-colors.html"
     source_ids: [PSDD-S23]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.gamut-warning"
     name: "View > Gamut Warning"
     record_role: "feature_deep_delta"
@@ -3862,7 +3964,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.choose-colors.choose-a-cmyk-equivalent-for-a-non-printable-color"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/choose-colors/choose-a-cmyk-equivalent-for-a-non-printable-color.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.adobe-color-picker"
     name: "Adobe Color Picker"
     record_role: "feature_deep_delta"
@@ -3872,17 +3975,19 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.choose-colors.choose-colors-with-the-adobe-color-picker"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/choose-colors/choose-colors-with-the-adobe-color-picker.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.channels-and-color.spot-color-libraries"
-    name: "Spot color libraries (PANTONE and book colors)"
+    name: "Spot color libraries (color book libraries)"
     record_role: "feature_deep_delta"
-    app_behavior: "Chooses spot ink definitions from installed color book libraries inside the color picker."
+    app_behavior: "Chooses spot ink definitions from installed color book libraries (ANPA-COLOR, DIC Color Guide, Focoltone, HKS, Trumatch) inside the color picker; PANTONE books are no longer bundled with current Photoshop."
     primitive_domain: "color"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.adjust-color.choose-colors.spot-color-libraries"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/choose-colors/spot-color-libraries.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.camera-raw] Camera Raw Control Inventory
@@ -4414,7 +4519,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.get-started-with-text.edit-text"
     source_url: "https://helpx.adobe.com/photoshop/using/formatting-characters.html"
     source_ids: [PSDD-S27]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.no-break-fractional-widths"
     name: "No Break, fractional widths, and system layout"
     record_role: "feature_deep_delta"
@@ -4424,7 +4530,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.get-started-with-text.edit-text"
     source_url: "https://helpx.adobe.com/photoshop/using/formatting-characters.html"
     source_ids: [PSDD-S27]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.text-color"
     name: "Text color control"
     record_role: "feature_deep_delta"
@@ -4478,23 +4585,25 @@ records:
   - id: "photoshop.deep.type-engine.composers"
     name: "Adobe Single-line and Every-line Composers"
     record_role: "feature_deep_delta"
-    app_behavior: "Line-breaking engines that evaluate break points one line at a time or across the whole paragraph for evenness."
+    app_behavior: "Line-breaking engines chosen from the Paragraph panel menu that evaluate break points one line at a time (Single-line) or across the whole paragraph for evenness (Every-line); set per paragraph."
     primitive_domain: "typography"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.text-typography.get-started-with-text.setup-paragraph-formatting"
     source_url: "https://helpx.adobe.com/photoshop/using/formatting-paragraphs.html"
     source_ids: [PSDD-S28]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.hanging-punctuation"
     name: "Roman hanging punctuation"
     record_role: "feature_deep_delta"
-    app_behavior: "Hangs punctuation marks outside paragraph margins for optically aligned edges."
+    app_behavior: "Paragraph-panel-menu option (Roman Hanging Punctuation) that hangs quotes, commas, periods, hyphens, and dashes outside the margin for optically aligned edges."
     primitive_domain: "typography"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.text-typography.get-started-with-text.setup-paragraph-formatting"
     source_url: "https://helpx.adobe.com/photoshop/using/formatting-paragraphs.html"
     source_ids: [PSDD-S28]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.bulleted-numbered-lists"
     name: "Bulleted and numbered lists"
     record_role: "feature_deep_delta"
@@ -4504,7 +4613,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.get-started-with-text.add-bulleted-and-numbered-lists"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/get-started-with-text/add-bulleted-and-numbered-lists.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.opentype-features"
     name: "OpenType feature controls"
     record_role: "feature_deep_delta"
@@ -4514,7 +4624,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.select-manage-fonts.apply-opentype-features"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/select-manage-fonts/apply-opentype-features.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.opentype-svg-fonts"
     name: "OpenType SVG and emoji fonts"
     record_role: "feature_deep_delta"
@@ -4524,7 +4635,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.characters-glyphs.work-with-opentype-svg-fonts"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/characters-glyphs/work-with-opentype-svg-fonts.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.variable-fonts"
     name: "OpenType variable fonts"
     record_role: "feature_deep_delta"
@@ -4534,7 +4646,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.select-manage-fonts.use-opentype-variable-fonts"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/select-manage-fonts/use-opentype-variable-fonts.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.glyphs-panel"
     name: "Glyphs panel and on-canvas alternates"
     record_role: "feature_deep_delta"
@@ -4544,7 +4657,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.characters-glyphs.use-on-canvas-glyph-alternatives"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/characters-glyphs/add-glyphs.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.warp-text-dialog"
     name: "Type > Warp Text dialog"
     record_role: "feature_deep_delta"
@@ -4564,7 +4678,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.text-on-paths-shapes.add-text-along-paths-or-inside-shapes"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/text-on-paths-shapes/add-text-along-paths-or-inside-shapes.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.convert-text-to-shape-path"
     name: "Convert text to shape or work path"
     record_role: "feature_deep_delta"
@@ -4574,7 +4689,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.text-on-paths-shapes.convert-text-to-shapes-or-work-paths"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/text-on-paths-shapes/convert-text-to-shapes-or-work-paths.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.match-font"
     name: "Type > Match Font"
     record_role: "feature_deep_delta"
@@ -4584,7 +4700,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.select-manage-fonts.match-fonts"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/select-manage-fonts/match-fonts.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.missing-fonts-replacement"
     name: "Missing font detection and replacement"
     record_role: "feature_deep_delta"
@@ -4594,7 +4711,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.select-manage-fonts.replace-missing-fonts"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/select-manage-fonts/replace-missing-fonts.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.change-font-multiple-layers"
     name: "Change font across multiple layers"
     record_role: "feature_deep_delta"
@@ -4604,7 +4722,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.select-manage-fonts.change-the-font-on-multiple-layers"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/select-manage-fonts/change-the-font-on-multiple-layers.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.unified-text-engine-international"
     name: "Unified text engine and international scripts"
     record_role: "feature_deep_delta"
@@ -4614,7 +4733,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.international-text-languages.overview-of-unified-text-engine"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/international-text-languages/overview-of-unified-text-engine.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.dynamic-text"
     name: "Dynamic text"
     record_role: "feature_deep_delta"
@@ -4624,7 +4744,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.work-with-dynamic-text.dynamic-text-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/work-with-dynamic-text/dynamic-text-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.paste-lorem-ipsum"
     name: "Type > Paste Lorem Ipsum"
     record_role: "feature_deep_delta"
@@ -4633,7 +4754,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/formatting-characters.html"
     source_ids: [PSDD-S27]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.character-paragraph-styles"
     name: "Character Styles and Paragraph Styles panels"
     record_role: "feature_deep_delta"
@@ -4642,7 +4764,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/formatting-characters.html"
     source_ids: [PSDD-S27]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.type-engine.fill-text-with-image"
     name: "Fill text with image"
     record_role: "feature_deep_delta"
@@ -4652,7 +4775,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.type-layers-creation.fill-text-with-image"
     source_url: "https://helpx.adobe.com/photoshop/desktop/text-typography/type-layers-creation/fill-text-with-image.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.panels-and-workspace] Panels and Workspace Customization
@@ -4708,7 +4832,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.learn-the-basics.homescreen-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/learn-the-basics/homescreen-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-layers"
     name: "Layers panel"
     record_role: "feature_deep_delta"
@@ -4718,7 +4843,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.get-started-layers.work-with-the-layers-panel"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/get-started-layers/work-with-the-layers-panel.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-properties"
     name: "Properties panel"
     record_role: "feature_deep_delta"
@@ -4727,7 +4853,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/formatting-characters.html"
     source_ids: [PSDD-S27]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-history"
     name: "History panel"
     record_role: "feature_deep_delta"
@@ -4737,7 +4864,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.set-up-toolbars-panels.history-panel-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/set-up-toolbars-panels/history-panel-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-brush-settings"
     name: "Brush Settings panel"
     record_role: "feature_deep_delta"
@@ -4747,7 +4875,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.apply-painting-techniques.brushes-presets.display-brush-panel-brush-options"
     source_url: "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/brushes-presets/display-brush-panel-brush-options.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-brushes"
     name: "Brushes panel (presets)"
     record_role: "feature_deep_delta"
@@ -4757,7 +4886,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.apply-painting-techniques.brushes-presets.get-started-with-brush-presets"
     source_url: "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/brushes-presets/get-started-with-brush-presets.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-clone-source"
     name: "Clone Source panel"
     record_role: "feature_deep_delta"
@@ -4767,7 +4897,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.repair-retouch.heal-clone.clone-source-panel"
     source_url: "https://helpx.adobe.com/photoshop/desktop/repair-retouch/heal-clone/clone-source-panel.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-color-swatches"
     name: "Color and Swatches panels"
     record_role: "feature_deep_delta"
@@ -4777,17 +4908,19 @@ records:
     deepens_leaf_id: "photoshop.leaf.adjust-color.choose-colors.choose-a-color-while-painting"
     source_url: "https://helpx.adobe.com/photoshop/desktop/adjust-color/choose-colors/choose-a-color-while-painting.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-gradients-patterns-shapes"
     name: "Gradients, Patterns, and Shapes preset panels"
     record_role: "feature_deep_delta"
-    app_behavior: "Preset browsers that drag-and-drop gradients, patterns, and vector shapes onto layers, with grouping and import/export."
+    app_behavior: "Window-menu preset browsers (Gradients, Patterns, Shapes) that drag-and-drop presets onto layers or canvas to create fill layers or set shape fills, with groups and import/export."
     primitive_domain: "document"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.draw-shapes-paths.create-shapes.draw-custom-shapes"
     source_url: "https://helpx.adobe.com/photoshop/desktop/draw-shapes-paths/create-shapes/drawing-tools-overview.html"
     source_ids: [PSDD-S04]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-paths"
     name: "Paths panel"
     record_role: "feature_deep_delta"
@@ -4815,7 +4948,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.apply-painting-techniques.fill-objects-selections-layers.painting-tools-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/fill-objects-selections-layers/painting-tools-overview.html"
     source_ids: [PSDD-S03]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-histogram"
     name: "Histogram panel"
     record_role: "feature_deep_delta"
@@ -4824,7 +4958,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/workspace-basics.html"
     source_ids: [PSDD-S30]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-navigator"
     name: "Navigator panel"
     record_role: "feature_deep_delta"
@@ -4833,7 +4968,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/workspace-basics.html"
     source_ids: [PSDD-S30]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-layer-comps"
     name: "Layer Comps panel"
     record_role: "feature_deep_delta"
@@ -4842,7 +4978,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/workspace-basics.html"
     source_ids: [PSDD-S30]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-measurement-log"
     name: "Measurement Log panel"
     record_role: "feature_deep_delta"
@@ -4852,17 +4989,19 @@ records:
     deepens_leaf_id: "photoshop.leaf.use-grids-measurement-guides.measure-scale.measurement-log-for-measurements"
     source_url: "https://helpx.adobe.com/photoshop/desktop/use-grids-measurement-guides/measure-scale/measurement-log-for-measurements.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-notes"
     name: "Notes panel"
     record_role: "feature_deep_delta"
-    app_behavior: "Lists and edits canvas note annotations created with the Note tool."
+    app_behavior: "Window > Notes panel that lists, navigates (back/forward), edits, and deletes canvas note annotations created with the Note tool; notes persist in PSD/PDF/TIFF."
     primitive_domain: "collaboration"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.use-grids-measurement-guides.alignment-grids-guides.navigation-and-measuring-tools-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/use-grids-measurement-guides/alignment-grids-guides/navigation-and-measuring-tools-overview.html"
     source_ids: [PSDD-S05]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-timeline"
     name: "Timeline panel"
     record_role: "feature_deep_delta"
@@ -4872,7 +5011,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.add-video-and-animation.use-keyframes.create-timeline-animation-workflow"
     source_url: "https://helpx.adobe.com/photoshop/desktop/add-video-and-animation/use-keyframes/create-timeline-animation-workflow.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-comments"
     name: "Comments panel (cloud documents)"
     record_role: "feature_deep_delta"
@@ -4882,7 +5022,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.share-and-collaborate.collaborate-and-edit.share-and-collaborate-with-projects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/share-and-collaborate/collaborate-and-edit/share-and-collaborate-with-projects.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-content-credentials"
     name: "Content Credentials panel"
     record_role: "feature_deep_delta"
@@ -4892,7 +5033,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.metadata-content-credentials.use-content-credentials"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/metadata-content-credentials/use-content-credentials.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.panel-discover"
     name: "Discover panel and in-app search"
     record_role: "feature_deep_delta"
@@ -4902,7 +5044,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.learn-the-basics.access-discover-panel"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/learn-the-basics/access-discover-panel.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.panels-and-workspace.snap-layouts-windows"
     name: "Windows Snap Layout support"
     record_role: "feature_deep_delta"
@@ -4922,7 +5065,18 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.learn-the-basics.high-density-monitor-support-and-per-monitor-scaling"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/learn-the-basics/high-density-monitor-support-and-per-monitor-scaling.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
+  - id: "photoshop.deep.panels-and-workspace.plugins-marketplace-posture"
+    name: "Plugins Marketplace (Plugins > Browse Plugins)"
+    record_role: "feature_deep_delta"
+    app_behavior: "Plugins > Browse Plugins (and Plugins > Manage Plugins) opens the Creative Cloud plugin marketplace where UXP plugins are discovered, installed via a Get button, updated, and removed; plugins are distributed through Creative Cloud (or double-clicked .ccx files). Provider posture: external Adobe/Creative-Cloud marketplace dependency; the Studio equivalent is a local/native tool-and-extension registry rather than a hosted third-party marketplace."
+    primitive_domain: "automation"
+    dedupe_status: "new_surface"
+    source_url: "https://helpx.adobe.com/photoshop/using/photoshop-marketplace-plugins.html"
+    source_ids: [PSDD-S51]
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.automation-and-scripting] Automation and Scripting Surface
@@ -4938,7 +5092,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.automate-tasks.create-record-actions.record-an-action"
     source_url: "https://helpx.adobe.com/photoshop/desktop/automate-tasks/create-record-actions/record-an-action.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.actions-modal-controls"
     name: "Action modal controls and per-step toggles"
     record_role: "feature_deep_delta"
@@ -4948,7 +5103,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.automate-tasks.create-record-actions.change-settings-when-playing-an-action"
     source_url: "https://helpx.adobe.com/photoshop/desktop/automate-tasks/create-record-actions/change-settings-when-playing-an-action.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.actions-insert-stop"
     name: "Action: Insert Stop"
     record_role: "feature_deep_delta"
@@ -4958,7 +5114,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.automate-tasks.create-record-actions.insert-a-stop"
     source_url: "https://helpx.adobe.com/photoshop/desktop/automate-tasks/create-record-actions/insert-a-stop.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.actions-insert-menu-item"
     name: "Action: Insert Menu Item (non-recordable commands)"
     record_role: "feature_deep_delta"
@@ -4968,7 +5125,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.automate-tasks.create-record-actions.insert-a-non-recordable-menu-command"
     source_url: "https://helpx.adobe.com/photoshop/desktop/automate-tasks/create-record-actions/insert-a-non-recordable-menu-command.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.actions-record-path"
     name: "Action: Insert Path"
     record_role: "feature_deep_delta"
@@ -4978,7 +5136,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.automate-tasks.create-record-actions.record-a-path"
     source_url: "https://helpx.adobe.com/photoshop/desktop/automate-tasks/create-record-actions/record-a-path.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.conditional-actions"
     name: "Conditional actions"
     record_role: "feature_deep_delta"
@@ -4987,7 +5146,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/conditional-actions-creative-cloud.html"
     source_ids: [PSDD-S32]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.conditional-mode-change"
     name: "Automate > Conditional Mode Change"
     record_role: "feature_deep_delta"
@@ -4996,7 +5156,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/adding-conditional-mode-change-action.html"
     source_ids: [PSDD-S32]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.batch-dialog"
     name: "File > Automate > Batch"
     record_role: "feature_deep_delta"
@@ -5006,7 +5167,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.automate-tasks.process-a-batch-of-files.batch-process-files"
     source_url: "https://helpx.adobe.com/photoshop/desktop/automate-tasks/process-a-batch-of-files/batch-process-files.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.droplets"
     name: "Droplets"
     record_role: "feature_deep_delta"
@@ -5016,7 +5178,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.automate-tasks.process-a-batch-of-files.create-a-droplet-from-an-action"
     source_url: "https://helpx.adobe.com/photoshop/desktop/automate-tasks/process-a-batch-of-files/create-a-droplet-from-an-action.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.image-processor"
     name: "Scripts > Image Processor"
     record_role: "feature_deep_delta"
@@ -5026,7 +5189,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.automate-tasks.process-a-batch-of-files.convert-files-with-the-image-processor"
     source_url: "https://helpx.adobe.com/photoshop/desktop/automate-tasks/process-a-batch-of-files/convert-files-with-the-image-processor.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.load-files-into-stack"
     name: "Scripts > Load Files into Stack"
     record_role: "feature_deep_delta"
@@ -5053,7 +5217,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/scripting.html"
     source_ids: [PSDD-S32]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.variables-data-sets"
     name: "Image > Variables and data sets"
     record_role: "feature_deep_delta"
@@ -5080,7 +5245,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/scripting.html"
     source_ids: [PSDD-S32]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.contact-sheet-pdf-presentation"
     name: "Automate > Contact Sheet II / PDF Presentation / Fit Image"
     record_role: "feature_deep_delta"
@@ -5089,7 +5255,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/scripting.html"
     source_ids: [PSDD-S32]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.photomerge"
     name: "Automate > Photomerge"
     record_role: "feature_deep_delta"
@@ -5108,7 +5275,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/generate-assets-layers.html"
     source_ids: [PSDD-S32]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.automation-and-scripting.extendscript-legacy"
     name: "ExtendScript/AppleScript/VBScript legacy scripting"
     record_role: "feature_deep_delta"
@@ -5180,7 +5348,18 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/recording-tools-actions-cs6.html"
     source_ids: [PSDD-S32]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
+  - id: "photoshop.deep.automation-and-scripting.adobe-bridge-handoff"
+    name: "Adobe Bridge handoff (File > Browse in Bridge)"
+    record_role: "feature_deep_delta"
+    app_behavior: "File > Browse in Bridge launches Adobe Bridge, the external companion for asset browse, previews, batch rename (Tools > Batch Rename), bulk metadata/keyword editing, and batch processing (Tools > Photoshop > Image Processor / Batch) that hands files back to Photoshop. Provider/external-app posture: Bridge is a separate free Adobe application, not a bundled part of Photoshop; the Studio equivalent is a local native asset browser rather than a dependency on a separate Adobe app."
+    primitive_domain: "automation"
+    dedupe_status: "new_surface"
+    source_url: "https://helpx.adobe.com/bridge/desktop/organize-and-find-files/tag-and-find-files/batch-rename-files.html"
+    source_ids: [PSDD-S50]
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.import-export-dialogs] Import/Export Dialogs and Format Surfaces
@@ -5195,7 +5374,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/creating-documents.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.save-as-vs-save-a-copy"
     name: "Save As vs Save a Copy format split"
     record_role: "feature_deep_delta"
@@ -5205,7 +5385,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.save-files.revert-to-legacy-save-as-options"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/save-files/save-your-work.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.psb-large-document"
     name: "Large Document Format (PSB)"
     record_role: "feature_deep_delta"
@@ -5215,7 +5396,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.save-files.save-large-documents"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/save-files/save-large-documents.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.export-as-dialog"
     name: "Export As dialog"
     record_role: "feature_deep_delta"
@@ -5275,7 +5457,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.save-files.save-as-photoshop-pdf"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/save-files/save-as-photoshop-pdf.html"
     source_ids: [PSDD-S37]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.render-video-dialog"
     name: "Export > Render Video dialog"
     record_role: "feature_deep_delta"
@@ -5285,7 +5468,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.export-files-to-different-formats.export-video-files-or-image-sequences"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/export-files-to-different-formats/export-video-files-or-image-sequences.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.paths-to-illustrator"
     name: "Export > Paths to Illustrator"
     record_role: "feature_deep_delta"
@@ -5294,16 +5478,18 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/editing-paths.html"
     source_ids: [PSDD-S41]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.zoomify"
-    name: "Export > Zoomify"
+    name: "Export > Zoomify (retired)"
     record_role: "feature_deep_delta"
-    app_behavior: "Exports tiled multi-resolution web-zoomable images with an HTML viewer."
+    app_behavior: "Exported tiled multi-resolution web-zoomable images with an HTML viewer; retired feature - removed from Photoshop in version 22.1 (December 2020), with third-party OpenSeadragon-based plugins as replacements."
     primitive_domain: "export"
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/saving-exporting-video-animation.html"
     source_ids: [PSDD-S32]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.print-dialog"
     name: "Print dialog option groups"
     record_role: "feature_deep_delta"
@@ -5312,7 +5498,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/printing-photoshop.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.supported-format-matrix"
     name: "Supported open/save format matrix"
     record_role: "feature_deep_delta"
@@ -5322,7 +5509,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.export-files-to-different-formats.supported-file-formats-in-photoshop"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/export-files-to-different-formats/supported-file-formats-in-photoshop.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.file-compression-options"
     name: "Per-format compression options"
     record_role: "feature_deep_delta"
@@ -5332,7 +5520,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.export-files-to-different-formats.file-compression-in-photoshop"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/export-files-to-different-formats/file-compression-in-photoshop.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.export-preferences"
     name: "Export preferences (format defaults and location)"
     record_role: "feature_deep_delta"
@@ -5352,7 +5541,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.export-files-to-different-formats.export-to-cloud"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/export-files-to-different-formats/export-to-cloud.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.slice-output-options"
     name: "Slice options and HTML output"
     record_role: "feature_deep_delta"
@@ -5365,12 +5555,13 @@ records:
   - id: "photoshop.deep.import-export-dialogs.import-notes-wia"
     name: "File > Import (Notes, WIA/scanner sources)"
     record_role: "feature_deep_delta"
-    app_behavior: "Imports PDF annotations as notes and acquires images from WIA-compatible scanners/cameras."
+    app_behavior: "File > Import submenu. Imports PDF annotations as notes; the WIA Support scanner/camera acquisition option has been retired from the Import menu in current Photoshop (no longer present), so scanner capture now goes through the OS/native scanner driver."
     primitive_domain: "document"
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/photoshop/using/scripting.html"
     source_ids: [PSDD-S32]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.import-export-dialogs.open-pdf-import-options"
     name: "PDF/Illustrator import options dialog"
     record_role: "feature_deep_delta"
@@ -5380,7 +5571,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.export-files-to-different-formats.photoshop-file-formats-overview"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/export-files-to-different-formats/photoshop-file-formats-overview.html"
     source_ids: [PSDD-S47]
-    verification_status: "UNVERIFIED"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.smart-and-linked] Smart Objects, Artboards, Frames, and Linked Assets
@@ -5396,7 +5588,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.create-embedded-smart-objects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/smart-objects-overview-and-benefits.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.linked-smart-objects"
     name: "Linked smart objects"
     record_role: "feature_deep_delta"
@@ -5406,7 +5599,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.create-linked-smart-objects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/create-linked-smart-objects.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.embed-convert-linked"
     name: "Convert between embedded and linked"
     record_role: "feature_deep_delta"
@@ -5416,7 +5610,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.convert-embedded-smart-objects-to-linked"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/convert-embedded-smart-objects-to-linked.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.replace-contents"
     name: "Replace smart object contents"
     record_role: "feature_deep_delta"
@@ -5426,7 +5621,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.replace-the-contents-of-a-smart-object"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/replace-the-contents-of-a-smart-object.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.instance-vs-copy-duplication"
     name: "Instance vs independent smart object duplication"
     record_role: "feature_deep_delta"
@@ -5436,7 +5632,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.duplicate-an-embedded-smart-object"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/duplicate-an-embedded-smart-object.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.package-linked"
     name: "File > Package (linked assets)"
     record_role: "feature_deep_delta"
@@ -5446,7 +5643,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.package-linked-smart-objects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/package-linked-smart-objects.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.reset-transforms-convert-to-layers"
     name: "Reset transforms and convert smart object to layers"
     record_role: "feature_deep_delta"
@@ -5456,7 +5654,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.convert-smart-objects-to-layers"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/convert-smart-objects-to-layers.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.smart-object-stack-modes"
     name: "Smart object stack modes"
     record_role: "feature_deep_delta"
@@ -5475,7 +5674,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.layout-design-tools.get-started-artboards"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/layout-design-tools/get-started-artboards.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.frames"
     name: "Placeholder frames"
     record_role: "feature_deep_delta"
@@ -5485,7 +5685,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.layout-design-tools.convert-to-frame"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/layout-design-tools/convert-to-frame.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.libraries-linked-assets"
     name: "Creative Cloud Libraries linked assets"
     record_role: "feature_deep_delta"
@@ -5495,7 +5696,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.create-linked-smart-objects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/create-linked-smart-objects.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.cloud-documents-version-history"
     name: "Cloud documents and version history"
     record_role: "feature_deep_delta"
@@ -5505,7 +5707,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.save-files.common-questions-on-photoshop-cloud-documents"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/save-files/common-questions-on-photoshop-cloud-documents.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.projects-share-review"
     name: "Projects and share-for-review collaboration"
     record_role: "feature_deep_delta"
@@ -5515,7 +5718,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.share-and-collaborate.collaborate-and-edit.work-with-projects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/share-and-collaborate/collaborate-and-edit/work-with-projects.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.smart-object-layers-panel-filter"
     name: "Layers panel smart-object filtering and link properties"
     record_role: "feature_deep_delta"
@@ -5525,7 +5729,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.filter-the-layers-panel-by-smart-objects"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/filter-the-layers-panel-by-smart-objects.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.smart-and-linked.export-smart-object-contents"
     name: "Export smart object contents"
     record_role: "feature_deep_delta"
@@ -5535,7 +5740,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.smart-objects.export-the-contents-of-an-embedded-smart-object"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/export-the-contents-of-an-embedded-smart-object.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.preferences] Preferences Categories
@@ -5561,17 +5767,19 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.settings-and-preferences.adjust-preferences"
     source_url: "https://helpx.adobe.com/photoshop/using/preferences.html"
     source_ids: [PSDD-S45]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.interface"
     name: "Preferences: Interface"
     record_role: "feature_deep_delta"
-    app_behavior: "Controls UI theme color, highlight color, border appearance, and presentation options."
+    app_behavior: "Controls UI theme color, highlight color, border appearance, UI font size / Scale UI To Font, and presentation options."
     primitive_domain: "interactive"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.get-started.settings-and-preferences.adjust-preferences"
     source_url: "https://helpx.adobe.com/photoshop/using/preferences.html"
     source_ids: [PSDD-S45]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.workspace"
     name: "Preferences: Workspace"
     record_role: "feature_deep_delta"
@@ -5581,7 +5789,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.settings-and-preferences.adjust-preferences"
     source_url: "https://helpx.adobe.com/photoshop/using/preferences.html"
     source_ids: [PSDD-S45]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.tools"
     name: "Preferences: Tools"
     record_role: "feature_deep_delta"
@@ -5591,7 +5800,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.settings-and-preferences.adjust-preferences"
     source_url: "https://helpx.adobe.com/photoshop/using/preferences.html"
     source_ids: [PSDD-S45]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.history-content-credentials"
     name: "Preferences: History Log and Content Credentials"
     record_role: "feature_deep_delta"
@@ -5601,7 +5811,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.set-up-toolbars-panels.history-log-preferences"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/set-up-toolbars-panels/history-log-preferences.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.file-handling"
     name: "Preferences: File Handling"
     record_role: "feature_deep_delta"
@@ -5611,7 +5822,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.save-and-export.save-files.file-saving-properties-and-preferences"
     source_url: "https://helpx.adobe.com/photoshop/desktop/save-and-export/save-files/file-saving-properties-and-preferences.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.export"
     name: "Preferences: Export"
     record_role: "feature_deep_delta"
@@ -5640,7 +5852,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.troubleshoot.troubleshoot-tools-resources.set-up-and-manage-scratch-disks"
     source_url: "https://helpx.adobe.com/photoshop/desktop/troubleshoot/troubleshoot-tools-resources/set-up-and-manage-scratch-disks.html"
     source_ids: [PSDD-S46]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.cursors"
     name: "Preferences: Cursors"
     record_role: "feature_deep_delta"
@@ -5650,7 +5863,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.settings-and-preferences.change-tool-pointers"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/settings-and-preferences/change-tool-pointers.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.transparency-gamut"
     name: "Preferences: Transparency & Gamut"
     record_role: "feature_deep_delta"
@@ -5660,17 +5874,19 @@ records:
     deepens_leaf_id: "photoshop.leaf.create-manage-layers.get-started-layers.change-transparency-preferences"
     source_url: "https://helpx.adobe.com/photoshop/desktop/create-manage-layers/get-started-layers/change-transparency-preferences.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.units-rulers"
     name: "Preferences: Units & Rulers"
     record_role: "feature_deep_delta"
-    app_behavior: "Sets ruler and type measurement units, column size, new-document preset resolutions, and point/pica size convention."
+    app_behavior: "Sets ruler and type measurement units, column size and gutter, new-document preset resolutions, and point/pica size convention."
     primitive_domain: "document"
     dedupe_status: "deepens_existing"
     deepens_leaf_id: "photoshop.leaf.get-started.settings-and-preferences.adjust-preferences"
     source_url: "https://helpx.adobe.com/photoshop/using/preferences.html"
     source_ids: [PSDD-S45]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.guides-grid-slices"
     name: "Preferences: Guides, Grid & Slices"
     record_role: "feature_deep_delta"
@@ -5680,7 +5896,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.use-grids-measurement-guides.alignment-grids-guides.set-guide-and-grid-preferences"
     source_url: "https://helpx.adobe.com/photoshop/desktop/use-grids-measurement-guides/alignment-grids-guides/set-guide-and-grid-preferences.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.type"
     name: "Preferences: Type"
     record_role: "feature_deep_delta"
@@ -5690,7 +5907,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.text-typography.characters-glyphs.enable-glyph-protection"
     source_url: "https://helpx.adobe.com/photoshop/using/preferences.html"
     source_ids: [PSDD-S45]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.plugins"
     name: "Preferences: Plugins"
     record_role: "feature_deep_delta"
@@ -5700,7 +5918,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.settings-and-preferences.adjust-preferences"
     source_url: "https://helpx.adobe.com/photoshop/using/preferences.html"
     source_ids: [PSDD-S45]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.technology-previews"
     name: "Preferences: Technology Previews"
     record_role: "feature_deep_delta"
@@ -5710,7 +5929,8 @@ records:
     deepens_leaf_id: "photoshop.leaf.whats-new.enable-and-use-technology-previews"
     source_url: "https://helpx.adobe.com/photoshop/desktop/whats-new/list-of-technology-preview-features.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
   - id: "photoshop.deep.preferences.reset-backup"
     name: "Preferences reset and backup/restore"
     record_role: "feature_deep_delta"
@@ -5720,7 +5940,18 @@ records:
     deepens_leaf_id: "photoshop.leaf.get-started.settings-and-preferences.reset-preferences"
     source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/settings-and-preferences/backup-and-restore-preferences.html"
     source_ids: [PSDD-S47]
-    verification_status: "PARTIAL"
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
+  - id: "photoshop.deep.preferences.accessibility"
+    name: "Accessibility surface (UI font size, scaling, dynamic shortcuts, screen readers)"
+    record_role: "feature_deep_delta"
+    app_behavior: "Photoshop's accessibility surface is small and mostly lives under Preferences > Interface: UI Font Size plus Scale UI To Font resize the whole interface for low-vision users, and dynamic/customizable keyboard shortcuts (Edit > Keyboard Shortcuts) allow mouse-free operation. Screen-reader support is OS-level rather than an in-app setting: interface elements and menus are exposed to JAWS/NVDA (Windows) and VoiceOver (macOS). There is no dedicated Accessibility preference pane; posture is diagnostics/interactive support of assistive tech, not a feature-rich a11y panel."
+    primitive_domain: "diagnostics"
+    dedupe_status: "new_surface"
+    source_url: "https://helpx.adobe.com/photoshop/desktop/get-started/learn-the-basics/change-text-size.html"
+    source_ids: [PSDD-S52]
+    verification_status: "VERIFIED"
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-PHOTOSHOP-DEEP-DELTA.sources] Sources
@@ -5870,8 +6101,17 @@ sources:
     note: "Official Photoshop desktop help TOC (basis of the 441-leaf index). Rows citing PSDD-S47 rely on the leaf page's existence in the TOC; the specific leaf page body was not re-fetched in this pass, hence PARTIAL."
   - id: PSDD-S48
     url: "https://blogs.adobe.com/jkost/2014/10/flame-generation-comes-to-photoshop-cc.html"
-    note: "Adobe staff blog and Adobe Community threads confirming Render > Flame / Picture Frame / Tree; search-snippet evidence only, page not fetched (UNVERIFIED rows)."
+    note: "Adobe staff blog and Adobe Community threads confirming Render > Flame / Picture Frame / Tree still present (GPU-dependent, pixel-layer targeted); search-snippet enumeration confirmed 2026-07-09."
   - id: PSDD-S49
     url: "https://helpx.adobe.com/photoshop/using/default-keyboard-shortcuts.html"
     note: "Official keyboard shortcuts page, now a stub that documents the Edit > Keyboard Shortcuts dialog categories (Application Menus, Panel Menus, Tools). Fetched 2026-07-09."
+  - id: PSDD-S50
+    url: "https://helpx.adobe.com/bridge/desktop/organize-and-find-files/tag-and-find-files/batch-rename-files.html"
+    note: "Official Adobe Bridge batch-rename page; confirms Bridge as the separate free companion app for browse, batch rename (Tools > Batch Rename), metadata, and batch handoff to Photoshop. Search-snippet + official-page enumeration 2026-07-09."
+  - id: PSDD-S51
+    url: "https://helpx.adobe.com/photoshop/using/photoshop-marketplace-plugins.html"
+    note: "Official Photoshop Plugin Marketplace page; Plugins > Browse Plugins / Manage Plugins, UXP plugin install via Get, Creative Cloud distribution, .ccx installs. Search-snippet + official-page enumeration 2026-07-09."
+  - id: PSDD-S52
+    url: "https://helpx.adobe.com/photoshop/desktop/get-started/learn-the-basics/change-text-size.html"
+    note: "Official adjust-text-size page (Preferences > Interface UI Font Size, Scale UI To Font); basis for Photoshop's small accessibility surface plus OS-level screen-reader (JAWS/NVDA/VoiceOver) posture. Search-snippet + official-page enumeration 2026-07-09."
 ```

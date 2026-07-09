@@ -7,8 +7,8 @@ status: generated
 updated_at: "2026-07-09"
 generator: _tools/generate-deep-delta-overlap-map.py
 source_files: [51, 52, 53, 54, 55]
-deep_delta_row_count: 2275
-overlap_group_count: 159
+deep_delta_row_count: 2304
+overlap_group_count: 160
 ---
 
 ## [SFR-DEEP-DELTA-OVERLAP] Deep-Delta Cross-App Overlap Map
@@ -19,13 +19,13 @@ overlap_group_count: 159
 
 ```yaml
 coverage:
-  deep_delta_row_count: 2275
+  deep_delta_row_count: 2304
   affinity_rows: 440
-  figma_rows: 400
+  figma_rows: 425
   illustrator_rows: 447
-  indesign_rows: 415
-  photoshop_rows: 573
-  overlap_group_count: 159
+  indesign_rows: 416
+  photoshop_rows: 576
+  overlap_group_count: 160
   policy: shared_behavior_maps_to_one_studio_primitive_source_rows_stay_as_variants
 ```
 
@@ -35,16 +35,16 @@ coverage:
 domain_counts:
   automation:
     affinity: 14
-    figma: 84
+    figma: 86
     illustrator: 29
     indesign: 32
-    photoshop: 28
+    photoshop: 30
   camera_raw:
     affinity: 24
     photoshop: 51
   collaboration:
     affinity: 2
-    figma: 28
+    figma: 29
     illustrator: 7
     indesign: 19
     photoshop: 6
@@ -55,13 +55,13 @@ domain_counts:
     indesign: 21
     photoshop: 47
   component_system:
-    figma: 38
+    figma: 40
   diagnostics:
     affinity: 8
     figma: 17
     illustrator: 6
     indesign: 9
-    photoshop: 11
+    photoshop: 12
   document:
     affinity: 16
     figma: 38
@@ -70,13 +70,13 @@ domain_counts:
     photoshop: 25
   export:
     affinity: 37
-    figma: 23
+    figma: 26
     illustrator: 42
     indesign: 26
     photoshop: 22
   interactive:
     affinity: 16
-    figma: 6
+    figma: 23
     illustrator: 1
     indesign: 21
     photoshop: 29
@@ -113,7 +113,7 @@ domain_counts:
     affinity: 24
     figma: 22
     illustrator: 48
-    indesign: 82
+    indesign: 83
     photoshop: 36
   vector:
     affinity: 55
@@ -237,6 +237,13 @@ overlap_groups:
   member_ids:
   - affinity.deep.layers-and-adjustments.suite-adjustment-brightness-contrast
   - photoshop.deep.adjustments-and-blending.brightness-contrast
+- overlap_key: "browse bridge"
+  apps: [indesign, photoshop]
+  primitive_domains: [automation, document]
+  studio_primitive_rule: one_studio_primitive_multiple_source_variants
+  member_ids:
+  - indesign.deep.menu-commands.file-browse-in-bridge
+  - photoshop.deep.automation-and-scripting.adobe-bridge-handoff
 - overlap_key: "brushe panel"
   apps: [affinity, photoshop]
   primitive_domains: [raster]

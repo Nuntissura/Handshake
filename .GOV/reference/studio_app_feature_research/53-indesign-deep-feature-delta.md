@@ -7,16 +7,16 @@ status: draft
 app_key: indesign
 updated_at: "2026-07-09"
 counts:
-  total_rows: 415
+  total_rows: 416
   modalities: 15
-  new_surface_rows: 34
+  new_surface_rows: 35
   deepens_existing_rows: 381
-  verified_rows: 344
-  unverified_rows: 71
+  verified_rows: 413
+  unverified_rows: 3
   rows_per_modality:
     tools: 42
     menu-commands: 87
-    text-and-typography: 47
+    text-and-typography: 48
     styles: 17
     pages-and-layout: 26
     tables: 15
@@ -48,9 +48,10 @@ evidence_paths:
   - "07-indesign-leaf-index.md (542 official help leaves used for dedupe anchoring)"
 fetch_blockers:
   - "Direct WebFetch to helpx.adobe.com timed out (60s) for all attempted pages on 2026-07-09."
-  - "Jina Reader relay returned 422 (HTTP/2 framing error against helpx.adobe.com) on 2026-07-09."
+  - "Jina Reader relay returned 422 (HTTP/2 framing error against helpx.adobe.com) on 2026-07-09 (authoring pass)."
   - "web.archive.org is not fetchable from this environment."
-verification_policy: "VERIFIED = named in a local official snapshot, an official help leaf page title/URL, or an explicit web-search snippet enumeration. UNVERIFIED = option-level detail reconstructed from search snippets or domain knowledge without an inspectable official page body; retained per instruction rather than dropped."
+  - "Verification pass later on 2026-07-09: Jina Reader relay now returns helpx.adobe.com desktop pages (HTTP 200) but only the JS-shell navigation, not article bodies; legacy /indesign/using/ URLs still 422 via Jina; web.archive.org and help.adobe.com CS-era docs remain unreachable; developer.adobe.com (UXP docs and the scripting DOM API reference at /indesign/dom/api/) is directly fetchable with full bodies."
+verification_policy: "VERIFIED = named in a local official snapshot, an official help leaf page title/URL, an explicit web-search snippet enumeration, or a directly fetched official developer.adobe.com page body. UNVERIFIED = option-level detail reconstructed from search snippets or domain knowledge without an inspectable official page body; retained per instruction rather than dropped. 2026-07-09 verification pass upgraded 68 of 71 flagged rows via per-topic web-search snippet enumeration plus direct developer.adobe.com DOM API fetches (DD-S27/DD-S28); the 3 rows still UNVERIFIED (help-menu, window-menu-inventory, view-custom-fonts-review) enumerate menu/panel inventories or hosted-view behavior that no reachable evidence surface confirms at option level."
 ```
 
 ### [SFR-INDESIGN-DEEP-DELTA.tools] Toolbox Tools
@@ -115,7 +116,8 @@ records:
     deepens_leaf_id: "indesign.leaf.automation-and-scripting.document-automation.link-and-update-content-across-documents"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.tools.content-placer"
     name: "Content Placer tool"
     record_role: "feature_deep_delta"
@@ -125,7 +127,8 @@ records:
     deepens_leaf_id: "indesign.leaf.automation-and-scripting.document-automation.link-and-update-content-across-documents"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.tools.type"
     name: "Type tool"
     record_role: "feature_deep_delta"
@@ -215,7 +218,8 @@ records:
     deepens_leaf_id: "indesign.leaf.create-lines-and-shapes.edit-and-style-paths.edit-and-reshape-paths"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.tools.erase"
     name: "Erase tool"
     record_role: "feature_deep_delta"
@@ -225,7 +229,8 @@ records:
     deepens_leaf_id: "indesign.leaf.create-lines-and-shapes.edit-and-style-paths.edit-and-reshape-paths"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.tools.rectangle-frame"
     name: "Rectangle Frame tool"
     record_role: "feature_deep_delta"
@@ -245,7 +250,8 @@ records:
     deepens_leaf_id: "indesign.leaf.add-graphics-and-media.manage-frames-and-objects.add-frames-paths-as-objects"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.tools.polygon-frame"
     name: "Polygon Frame tool"
     record_role: "feature_deep_delta"
@@ -255,7 +261,8 @@ records:
     deepens_leaf_id: "indesign.leaf.add-graphics-and-media.manage-frames-and-objects.add-frames-paths-as-objects"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.tools.rectangle"
     name: "Rectangle tool"
     record_role: "feature_deep_delta"
@@ -285,7 +292,8 @@ records:
     deepens_leaf_id: "indesign.leaf.create-lines-and-shapes.draw-lines-and-shapes.draw-basic-lines-and-shapes"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.tools.frame-grid-horizontal"
     name: "Horizontal Frame Grid tool"
     record_role: "feature_deep_delta"
@@ -385,7 +393,8 @@ records:
     deepens_leaf_id: "indesign.leaf.collaborate-and-review.track-changes-and-review.add-editorial-notes"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.tools.color-theme"
     name: "Color Theme tool"
     record_role: "feature_deep_delta"
@@ -395,7 +404,8 @@ records:
     deepens_leaf_id: "indesign.leaf.apply-color.define-and-manage-color-assets.sample-colors-from-placed-graphics"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.tools.eyedropper"
     name: "Eyedropper tool"
     record_role: "feature_deep_delta"
@@ -473,7 +483,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
     source_ids: [DD-S02]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-INDESIGN-DEEP-DELTA.menu-commands] Menu Command Tree
@@ -688,7 +699,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/settings-and-preferences/keyboard-shortcuts.html"
     source_ids: [DD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.edit-duplicate-step-repeat"
     name: "Edit > Duplicate and Step and Repeat"
     record_role: "feature_deep_delta"
@@ -697,7 +709,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/desktop/add-graphics-and-media/transform-and-arrange-objects/transform-multiple-objects.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.edit-place-and-link"
     name: "Edit > Place and Link"
     record_role: "feature_deep_delta"
@@ -716,7 +729,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/using/using-quick-apply.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.edit-find-change"
     name: "Edit > Find/Change"
     record_role: "feature_deep_delta"
@@ -766,7 +780,8 @@ records:
     deepens_leaf_id: "indesign.leaf.print.color-output-and-separations.use-color-management-when-printing"
     source_url: "https://helpx.adobe.com/indesign/desktop/print/color-output-and-separations/use-color-management-when-printing.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.edit-keyboard-shortcuts"
     name: "Edit > Keyboard Shortcuts"
     record_role: "feature_deep_delta"
@@ -825,7 +840,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/desktop/layout-and-grid-tools/rulers-and-measure-tools/create-ruler-guides.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.layout-liquid-layout"
     name: "Layout > Liquid Layout"
     record_role: "feature_deep_delta"
@@ -903,7 +919,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/using/aligning-text.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.type-create-outlines"
     name: "Type > Create Outlines"
     record_role: "feature_deep_delta"
@@ -1013,7 +1030,8 @@ records:
     deepens_leaf_id: "indesign.leaf.language-and-proofing.glyphs-characters-and-expressions.insert-glyphs-and-special-characters"
     source_url: "https://helpx.adobe.com/indesign/desktop/language-and-proofing/glyphs-characters-and-expressions/insert-glyphs-and-special-characters.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.type-insert-white-space"
     name: "Type > Insert White Space"
     record_role: "feature_deep_delta"
@@ -1023,7 +1041,8 @@ records:
     deepens_leaf_id: "indesign.leaf.language-and-proofing.glyphs-characters-and-expressions.hidden-character-glossary"
     source_url: "https://helpx.adobe.com/indesign/desktop/language-and-proofing/glyphs-characters-and-expressions/hidden-character-glossary.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.type-insert-break-character"
     name: "Type > Insert Break Character"
     record_role: "feature_deep_delta"
@@ -1033,7 +1052,8 @@ records:
     deepens_leaf_id: "indesign.leaf.language-and-proofing.glyphs-characters-and-expressions.hidden-character-glossary"
     source_url: "https://helpx.adobe.com/indesign/desktop/language-and-proofing/glyphs-characters-and-expressions/hidden-character-glossary.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.type-fill-with-placeholder-text"
     name: "Type > Fill with Placeholder Text"
     record_role: "feature_deep_delta"
@@ -1043,7 +1063,8 @@ records:
     deepens_leaf_id: "indesign.leaf.add-and-manage-text.add-and-import-text.add-text-to-documents"
     source_url: "https://helpx.adobe.com/indesign/desktop/add-and-manage-text/add-and-import-text/add-text-to-documents.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.type-show-hidden-characters"
     name: "Type > Show Hidden Characters"
     record_role: "feature_deep_delta"
@@ -1142,7 +1163,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/desktop/add-graphics-and-media/manage-frames-and-objects/add-frames-paths-as-objects.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.object-effects-menu"
     name: "Object > Effects menu"
     record_role: "feature_deep_delta"
@@ -1172,7 +1194,8 @@ records:
     deepens_leaf_id: "indesign.leaf.add-graphics-and-media.add-edit-graphics.import-options-for-adobe-files"
     source_url: "https://helpx.adobe.com/indesign/desktop/add-graphics-and-media/add-edit-graphics/import-options-for-adobe-files.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.object-object-export-options"
     name: "Object > Object Export Options"
     record_role: "feature_deep_delta"
@@ -1211,7 +1234,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/desktop/print/color-output-and-separations/use-color-management-when-printing.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.object-interactive-submenu"
     name: "Object > Interactive submenu"
     record_role: "feature_deep_delta"
@@ -1251,7 +1275,8 @@ records:
     deepens_leaf_id: "indesign.leaf.create-lines-and-shapes.edit-and-style-paths.edit-and-reshape-paths"
     source_url: "https://helpx.adobe.com/indesign/desktop/create-lines-and-shapes/edit-and-style-paths/edit-and-reshape-paths.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.view-screen-modes"
     name: "View > Screen Mode"
     record_role: "feature_deep_delta"
@@ -1330,7 +1355,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/desktop/get-started/settings-and-preferences/customize-panels.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.menu-commands.help-menu"
     name: "Help menu"
     record_role: "feature_deep_delta"
@@ -1340,6 +1366,7 @@ records:
     source_url: "https://helpx.adobe.com/indesign/desktop.html"
     source_ids: [DD-S25]
     verification_status: UNVERIFIED
+    residual_reason: "Complete Help-menu entry enumeration is not published as a single official article and helpx was bot-blocked this pass. Capture the exact menu tree from an installed InDesign via the installed-app export playbook (32-adobe-installed-ui-export-playbook.md) before command-contract promotion; the row's surface (Help menu exists) is not in doubt, only the exact leaf enumeration."
 ```
 
 ### [SFR-INDESIGN-DEEP-DELTA.text-and-typography] Text and Typography Engine
@@ -1356,6 +1383,16 @@ records:
     source_url: "https://helpx.adobe.com/indesign/using/text-composition.html"
     source_ids: [DD-S17]
     verification_status: VERIFIED
+  - id: "indesign.deep.text-and-typography.balance-ragged-lines"
+    name: "Balance Ragged Lines"
+    record_role: "feature_deep_delta"
+    app_behavior: "Paragraph/Control panel menu option that redistributes line breaks to even out ragged (non-justified) line lengths for multi-line headings, pull-quotes, and centered paragraphs; requires the Adobe Paragraph Composer and applies to Align Left/Center/Right paragraphs."
+    primitive_domain: "typography"
+    dedupe_status: "new_surface"
+    source_url: "https://helpx.adobe.com/indesign/using/aligning-text.html"
+    source_ids: [DD-S29]
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.text-and-typography.single-line-composer"
     name: "Adobe Single-line Composer"
     record_role: "feature_deep_delta"
@@ -1405,7 +1442,8 @@ records:
     deepens_leaf_id: "indesign.leaf.format-and-style-text.composition-and-text-wrapping.control-hyphenation-and-word-breaks"
     source_url: "https://helpx.adobe.com/indesign/desktop/format-and-style-text/composition-and-text-wrapping/control-hyphenation-and-word-breaks.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.text-and-typography.keep-options"
     name: "Keep Options"
     record_role: "feature_deep_delta"
@@ -1424,7 +1462,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/using/paragraph-formatting.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.text-and-typography.drop-caps"
     name: "Drop caps"
     record_role: "feature_deep_delta"
@@ -1524,7 +1563,8 @@ records:
     deepens_leaf_id: "indesign.leaf.language-and-proofing.glyphs-characters-and-expressions.insert-glyphs-and-special-characters"
     source_url: "https://helpx.adobe.com/indesign/desktop/language-and-proofing/glyphs-characters-and-expressions/insert-glyphs-and-special-characters.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.text-and-typography.story-editor"
     name: "Story Editor window"
     record_role: "feature_deep_delta"
@@ -1544,7 +1584,8 @@ records:
     deepens_leaf_id: "indesign.leaf.add-and-manage-text.add-and-import-text.thread-text-frames"
     source_url: "https://helpx.adobe.com/indesign/desktop/add-and-manage-text/add-and-import-text/thread-text-frames.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.text-and-typography.smart-text-reflow"
     name: "Smart Text Reflow"
     record_role: "feature_deep_delta"
@@ -1624,7 +1665,8 @@ records:
     deepens_leaf_id: "indesign.leaf.add-and-manage-text.conditional-and-variable-text.text-variables-overview"
     source_url: "https://helpx.adobe.com/indesign/using/text-variables.html"
     source_ids: [DD-S09]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.text-and-typography.variable-last-page-number"
     name: "Text variable: Last Page Number"
     record_role: "feature_deep_delta"
@@ -1814,7 +1856,8 @@ records:
     deepens_leaf_id: "indesign.leaf.format-and-style-text.composition-and-text-wrapping.apply-text-wrap"
     source_url: "https://helpx.adobe.com/indesign/desktop/format-and-style-text/composition-and-text-wrapping/apply-text-wrap.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-INDESIGN-DEEP-DELTA.styles] Style System
@@ -1890,7 +1933,8 @@ records:
     deepens_leaf_id: "indesign.leaf.format-and-style-text.text-styles.create-and-edit-text-styles"
     source_url: "https://helpx.adobe.com/indesign/desktop/format-and-style-text/text-styles/create-and-edit-text-styles.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.styles.next-style"
     name: "Next Style chaining"
     record_role: "feature_deep_delta"
@@ -1930,7 +1974,8 @@ records:
     deepens_leaf_id: "indesign.leaf.format-and-style-text.text-styles.create-and-edit-text-styles"
     source_url: "https://helpx.adobe.com/indesign/desktop/format-and-style-text/text-styles/create-and-edit-text-styles.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.styles.load-styles"
     name: "Load/import styles across documents"
     record_role: "feature_deep_delta"
@@ -2036,7 +2081,8 @@ records:
     deepens_leaf_id: "indesign.leaf.create-and-organize-pages.create-and-manage-parent-pages.about-parent-pages"
     source_url: "https://helpx.adobe.com/indesign/desktop/create-and-organize-pages/create-and-manage-parent-pages/about-parent-pages.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.pages-and-layout.liquid-rule-scale"
     name: "Liquid page rule: Scale"
     record_role: "feature_deep_delta"
@@ -2126,7 +2172,8 @@ records:
     deepens_leaf_id: "indesign.leaf.create-and-organize-pages.create-documents.create-multi-page-spreads"
     source_url: "https://helpx.adobe.com/indesign/desktop/create-and-organize-pages/create-documents/create-multi-page-spreads.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.pages-and-layout.rotate-spread-view"
     name: "Rotate spread view"
     record_role: "feature_deep_delta"
@@ -2146,7 +2193,8 @@ records:
     deepens_leaf_id: "indesign.leaf.layout-and-grid-tools.rulers-and-measure-tools.change-ruler-measurement-units"
     source_url: "https://helpx.adobe.com/indesign/desktop/layout-and-grid-tools/rulers-and-measure-tools/change-ruler-measurement-units.html"
     source_ids: [DD-S01]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.pages-and-layout.smart-guides"
     name: "Smart guides and smart spacing"
     record_role: "feature_deep_delta"
@@ -2438,7 +2486,8 @@ records:
     deepens_leaf_id: "indesign.leaf.add-graphics-and-media.add-edit-graphics.import-options-for-adobe-files"
     source_url: "https://helpx.adobe.com/indesign/desktop/add-graphics-and-media/add-edit-graphics/import-options-for-adobe-files.html"
     source_ids: [DD-S03]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.graphics-and-frames.indd-placement"
     name: "INDD-in-INDD placement"
     record_role: "feature_deep_delta"
@@ -2448,7 +2497,8 @@ records:
     deepens_leaf_id: "indesign.leaf.add-graphics-and-media.add-edit-graphics.import-options-for-adobe-files"
     source_url: "https://helpx.adobe.com/indesign/desktop/add-graphics-and-media/add-edit-graphics/import-options-for-adobe-files.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.graphics-and-frames.image-import-options"
     name: "Raster image import options"
     record_role: "feature_deep_delta"
@@ -2668,7 +2718,8 @@ records:
     deepens_leaf_id: "indesign.leaf.automation-and-scripting.document-automation.link-and-update-content-across-documents"
     source_url: "https://helpx.adobe.com/indesign/desktop/automation-and-scripting/document-automation/link-and-update-content-across-documents.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.graphics-and-frames.edit-original-with"
     name: "Edit Original / Edit With"
     record_role: "feature_deep_delta"
@@ -2764,7 +2815,8 @@ records:
     deepens_leaf_id: "indesign.leaf.apply-color.define-and-manage-color-assets.import-and-share-swatch-libraries"
     source_url: "https://helpx.adobe.com/indesign/desktop/apply-color/define-and-manage-color-assets/import-and-share-swatch-libraries.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.color-and-output.tints"
     name: "Tint swatches and tint slider"
     record_role: "feature_deep_delta"
@@ -2929,7 +2981,8 @@ records:
     deepens_leaf_id: "indesign.leaf.interactive-elements-and-forms.buttons.create-interactive-buttons-with-actions"
     source_url: "https://helpx.adobe.com/indesign/using/interactivity-5.html"
     source_ids: [DD-S08]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.interactive-and-epub.button-epub-actions"
     name: "Button actions (SWF/EPUB set)"
     record_role: "feature_deep_delta"
@@ -2939,7 +2992,8 @@ records:
     deepens_leaf_id: "indesign.leaf.interactive-elements-and-forms.buttons.create-interactive-buttons-with-actions"
     source_url: "https://helpx.adobe.com/indesign/using/interactivity-5.html"
     source_ids: [DD-S08]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.interactive-and-epub.button-appearance-states"
     name: "Button appearance states"
     record_role: "feature_deep_delta"
@@ -2959,7 +3013,8 @@ records:
     deepens_leaf_id: "indesign.leaf.interactive-elements-and-forms.forms-and-pdfs.create-fillable-forms"
     source_url: "https://helpx.adobe.com/indesign/using/interactivity-5.html"
     source_ids: [DD-S08]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.interactive-and-epub.tab-order"
     name: "Form/button tab order"
     record_role: "feature_deep_delta"
@@ -3039,7 +3094,8 @@ records:
     deepens_leaf_id: "indesign.leaf.add-graphics-and-media.page-transitions.apply-page-transitions"
     source_url: "https://helpx.adobe.com/indesign/desktop/add-graphics-and-media/page-transitions/apply-page-transitions.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.interactive-and-epub.epub-reflowable-general"
     name: "EPUB (Reflowable) export: General options"
     record_role: "feature_deep_delta"
@@ -3079,7 +3135,8 @@ records:
     deepens_leaf_id: "indesign.leaf.save-export-and-publish.export-to-epub.epub-export-options"
     source_url: "https://helpx.adobe.com/indesign/using/export-content-epub-cc.html"
     source_ids: [DD-S13]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.interactive-and-epub.epub-fixed-layout"
     name: "EPUB (Fixed Layout) export"
     record_role: "feature_deep_delta"
@@ -3165,7 +3222,8 @@ records:
     deepens_leaf_id: "indesign.leaf.create-and-organize-pages.create-and-manage-book-files.sync-documents-books"
     source_url: "https://helpx.adobe.com/indesign/desktop/create-and-organize-pages/create-and-manage-book-files/sync-documents-books.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.long-document.book-numbering"
     name: "Book page/chapter numbering"
     record_role: "feature_deep_delta"
@@ -3225,7 +3283,8 @@ records:
     deepens_leaf_id: "indesign.leaf.indexes-and-references.create-an-index.create-index-entries"
     source_url: "https://helpx.adobe.com/indesign/desktop/indexes-and-references/create-an-index/create-index-entries.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.long-document.index-cross-references"
     name: "Index cross-references"
     record_role: "feature_deep_delta"
@@ -3235,7 +3294,8 @@ records:
     deepens_leaf_id: "indesign.leaf.indexes-and-references.create-an-index.add-items-manually-to-an-index"
     source_url: "https://helpx.adobe.com/indesign/desktop/indexes-and-references/create-an-index/add-items-manually-to-an-index.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.long-document.generate-index"
     name: "Generate Index dialog"
     record_role: "feature_deep_delta"
@@ -3431,7 +3491,8 @@ records:
     deepens_leaf_id: "indesign.leaf.print.print-production-and-file-creation.produce-print-ready-pdf-files"
     source_url: "https://helpx.adobe.com/indesign/using/pdf-options.html"
     source_ids: [DD-S11]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.output-and-prepress.tagged-pdf-accessibility"
     name: "Tagged PDF and accessibility pipeline"
     record_role: "feature_deep_delta"
@@ -3491,7 +3552,8 @@ records:
     deepens_leaf_id: "indesign.leaf.automation-and-scripting.document-automation.import-xml-data-into-indesign"
     source_url: "https://helpx.adobe.com/indesign/desktop/automation-and-scripting/document-automation/import-xml-data-into-indesign.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.output-and-prepress.xml-export"
     name: "Export XML with images"
     record_role: "feature_deep_delta"
@@ -3531,7 +3593,8 @@ records:
     deepens_leaf_id: "indesign.leaf.automation-and-scripting.merge-data.merge-records"
     source_url: "https://helpx.adobe.com/indesign/desktop/automation-and-scripting/merge-data/merge-records.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.output-and-prepress.data-merge-qr"
     name: "Data merge QR code fields"
     record_role: "feature_deep_delta"
@@ -3550,7 +3613,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/desktop/troubleshoot/file-and-output-issues/pdf-export-hangs-in-background.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.output-and-prepress.pdf-comments-export"
     name: "Review-ready PDF with comments round-trip"
     record_role: "feature_deep_delta"
@@ -3596,7 +3660,8 @@ records:
     deepens_leaf_id: "indesign.leaf.automation-and-scripting.document-automation.automate-workflows-with-scripts"
     source_url: "https://developer.adobe.com/indesign/uxp/scripts/"
     source_ids: [DD-S04, DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.startup-scripts"
     name: "Startup scripts"
     record_role: "feature_deep_delta"
@@ -3625,7 +3690,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
     source_ids: [DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.dom-document"
     name: "Scripting DOM: Document"
     record_role: "feature_deep_delta"
@@ -3634,7 +3700,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
     source_ids: [DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.dom-spread-page"
     name: "Scripting DOM: Spread, Page, Layer"
     record_role: "feature_deep_delta"
@@ -3643,7 +3710,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
     source_ids: [DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.dom-pageitems"
     name: "Scripting DOM: PageItem hierarchy"
     record_role: "feature_deep_delta"
@@ -3652,7 +3720,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
     source_ids: [DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.dom-text"
     name: "Scripting DOM: Story and Text hierarchy"
     record_role: "feature_deep_delta"
@@ -3661,7 +3730,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
     source_ids: [DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.dom-styles"
     name: "Scripting DOM: style collections"
     record_role: "feature_deep_delta"
@@ -3670,7 +3740,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
     source_ids: [DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.dom-tables"
     name: "Scripting DOM: Table, Row, Column, Cell"
     record_role: "feature_deep_delta"
@@ -3679,7 +3750,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
     source_ids: [DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.dom-books-xml"
     name: "Scripting DOM: Book, XML, hyperlink, index objects"
     record_role: "feature_deep_delta"
@@ -3688,7 +3760,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
     source_ids: [DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.dom-export-prefs"
     name: "Scripting DOM: preference and export objects"
     record_role: "feature_deep_delta"
@@ -3697,7 +3770,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
     source_ids: [DD-S05]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.automation-and-scripting.dom-events"
     name: "Scripting events and menu actions"
     record_role: "feature_deep_delta"
@@ -3755,7 +3829,8 @@ records:
     deepens_leaf_id: "indesign.leaf.language-and-proofing.glyphs-characters-and-expressions.construct-a-grep-expression"
     source_url: "https://helpx.adobe.com/indesign/desktop/language-and-proofing/glyphs-characters-and-expressions/construct-a-grep-expression.html"
     source_ids: [DD-S14]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
 ```
 
 ### [SFR-INDESIGN-DEEP-DELTA.panels-and-workspace] Panels and Workspace
@@ -3771,6 +3846,7 @@ records:
     source_url: "https://helpx.adobe.com/indesign/using/workspace-basics.html"
     source_ids: [DD-S25]
     verification_status: UNVERIFIED
+    residual_reason: "The complete Window-menu panel enumeration is not published as one official list and helpx was bot-blocked this pass. Capture the exact panel inventory from an installed InDesign via the installed-app export playbook (32-adobe-installed-ui-export-playbook.md) before command-contract promotion; individual panels are already covered as their own rows, only the exhaustive menu roster is unconfirmed."
   - id: "indesign.deep.panels-and-workspace.properties-panel"
     name: "Properties panel"
     record_role: "feature_deep_delta"
@@ -3828,7 +3904,8 @@ records:
     deepens_leaf_id: "indesign.leaf.layout-and-grid-tools.rulers-and-measure-tools.measure-distance-between-points"
     source_url: "https://helpx.adobe.com/indesign/desktop/layout-and-grid-tools/rulers-and-measure-tools/measure-distance-between-points.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.panels-and-workspace.attributes-panel"
     name: "Attributes panel"
     record_role: "feature_deep_delta"
@@ -3887,7 +3964,8 @@ records:
     dedupe_status: "new_surface"
     source_url: "https://helpx.adobe.com/indesign/using/overlays-panel.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.panels-and-workspace.workspaces"
     name: "Named workspaces"
     record_role: "feature_deep_delta"
@@ -3897,7 +3975,8 @@ records:
     deepens_leaf_id: "indesign.leaf.get-started.settings-and-preferences.create-and-manage-workspaces"
     source_url: "https://helpx.adobe.com/indesign/using/customizing-workspace.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.panels-and-workspace.panel-docking"
     name: "Panel docking and stashing"
     record_role: "feature_deep_delta"
@@ -4130,7 +4209,8 @@ records:
     deepens_leaf_id: "indesign.leaf.save-export-and-publish.publish-work-online.publish-online-faq"
     source_url: "https://helpx.adobe.com/indesign/desktop/save-export-and-publish/publish-work-online/publish-online-faq.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.preferences.preference-files"
     name: "Preference file model"
     record_role: "feature_deep_delta"
@@ -4166,7 +4246,8 @@ records:
     deepens_leaf_id: "indesign.leaf.collaborate-and-review.share-and-collaborate.share-for-review-overview"
     source_url: "https://helpx.adobe.com/indesign/desktop/collaborate-and-review/share-and-collaborate/share-for-review-overview.html"
     source_ids: [DD-S25]
-    verification_status: UNVERIFIED
+    verification_status: VERIFIED
+    verified_at: "2026-07-09"
   - id: "indesign.deep.cloud-and-collab.review-link-management"
     name: "Review link management"
     record_role: "feature_deep_delta"
@@ -4237,6 +4318,7 @@ records:
     source_url: "https://helpx.adobe.com/indesign/desktop/collaborate-and-review/share-and-collaborate/view-custom-fonts.html"
     source_ids: [DD-S25]
     verification_status: UNVERIFIED
+    residual_reason: "The exact hosted-view custom-font rendering/substitution behavior in Share-for-Review is not surfaced by the reachable docs and helpx was bot-blocked this pass. This is a provider/cloud path (Studio maps it to a local-first review surface per 48-provider-offline-parity-registry.md); verify exact behavior against a live Share-for-Review session before command-contract promotion."
   - id: "indesign.deep.cloud-and-collab.incopy-file-workflow"
     name: "InCopy assignment workflow posture"
     record_role: "feature_deep_delta"
@@ -4268,7 +4350,7 @@ sources:
     note: "Official keyboard shortcuts page; local snapshot _source_snapshots/indesign-keyboard-shortcuts-jina.md (body captured) verifies tool names, shortcut sets, and panel actions."
   - id: DD-S02
     url: "https://helpx.adobe.com/indesign/desktop/get-started/toolbox/view-select-tools.html"
-    note: "Official toolbox page; local snapshot _source_snapshots/indesign-tools-jina.md captured TOC only (page body JS-rendered), so tool rows citing only this source stay UNVERIFIED."
+    note: "Official toolbox page; local snapshot _source_snapshots/indesign-tools-jina.md captured TOC only (page body JS-rendered). Tool rows citing this source were verified 2026-07-09 via per-tool web-search snippet enumeration."
   - id: DD-S03
     url: "https://helpx.adobe.com/indesign/desktop/get-started/system-and-product-info/supported-file-formats.html"
     note: "Official supported file formats page; local snapshot _source_snapshots/indesign-supported-file-formats-jina.md (body captured) verifies open/save/export/place/package format tables."
@@ -4286,7 +4368,7 @@ sources:
     note: "Official liquid page rules page; five rules confirmed via web-search snippet enumeration."
   - id: DD-S08
     url: "https://helpx.adobe.com/indesign/using/interactivity-5.html"
-    note: "Official buttons and forms page; events/actions partially confirmed via search snippets, full action lists marked UNVERIFIED."
+    note: "Official buttons and forms page; events/actions confirmed via search snippets. PDF and SWF/EPUB action sets and form-field option lists verified 2026-07-09 via snippet enumeration."
   - id: DD-S09
     url: "https://helpx.adobe.com/indesign/using/text-variables.html"
     note: "Official text variables page; variable types confirmed via search snippet enumeration."
@@ -4301,7 +4383,7 @@ sources:
     note: "Official preflight pages; rule categories confirmed via search snippet enumeration."
   - id: DD-S13
     url: "https://helpx.adobe.com/indesign/using/export-content-epub-cc.html"
-    note: "Official EPUB export page; reflowable option tabs confirmed via search snippets; CSS/JavaScript/Viewing Apps panes marked UNVERIFIED."
+    note: "Official EPUB export page; reflowable option tabs confirmed via search snippets. CSS/JavaScript/Metadata/Viewing Apps panes verified 2026-07-09 via snippet enumeration."
   - id: DD-S14
     url: "https://helpx.adobe.com/indesign/using/find-change.ug.html"
     note: "Official Find/Change page; Text/GREP/Glyph/Object modes confirmed, Color mode confirmed as dialog function via search snippets."
@@ -4341,5 +4423,14 @@ sources:
   - id: DD-S26
     url: "https://ebookreading.net/view/book/EB9780470607169_10.html"
     note: "Third-party book excerpt enumerating the classic 18 Preferences panes, used as corroboration while direct helpx fetch was blocked."
-fetch_blocker_note: "helpx.adobe.com direct fetch timed out and Jina Reader relay returned 422 on 2026-07-09; web.archive.org not fetchable. Option-level rows without snapshot or snippet confirmation are marked UNVERIFIED per instruction instead of being dropped."
+  - id: DD-S27
+    url: "https://developer.adobe.com/indesign/dom/api/"
+    note: "Official InDesign scripting DOM API reference; class pages Application, Document, Spread, Layer, PageItem, Story, Table, PDFExportPreference, EPubExportPreference, and CrossReferenceType fetched directly with full bodies on 2026-07-09; verifies the automation-and-scripting DOM rows and the index cross-reference type list (See, See also, See herein, See also herein, Custom)."
+  - id: DD-S28
+    url: "https://developer.adobe.com/indesign/uxp/resources/fundamentals/object-model/"
+    note: "Official UXP object-model overview fetched directly on 2026-07-09; confirms Application/Document/Story containment hierarchy and preference-object pattern (notes the diagram is non-comprehensive)."
+  - id: DD-S29
+    url: "https://helpx.adobe.com/indesign/using/aligning-text.html"
+    note: "Official 'Align or justify text' help page; confirms Balance Ragged Lines (Paragraph/Control panel menu, requires Adobe Paragraph Composer, applies to Align Left/Center/Right). Added by the 2026-07-09 completeness-audit round 2 fill."
+fetch_blocker_note: "Authoring pass 2026-07-09: helpx.adobe.com direct fetch timed out and Jina Reader relay returned 422; web.archive.org not fetchable. Verification pass later on 2026-07-09: Jina relay reaches helpx desktop pages but returns JS-shell navigation only (no article bodies); web.archive.org and help.adobe.com remain unreachable; developer.adobe.com fetches directly with full bodies. 68 of 71 flagged rows were upgraded to VERIFIED via per-topic web-search snippet enumeration and DD-S27/DD-S28 fetches; the remaining 3 UNVERIFIED rows are retained per instruction instead of being dropped."
 ```

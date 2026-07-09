@@ -7,12 +7,12 @@ status: draft
 app_key: figma
 updated_at: "2026-07-09"
 counts:
-  total_rows: 400
-  modalities: 13
-  new_surface_rows: 225
-  deepens_existing_rows: 175
-  verified_rows: 244
-  unverified_rows: 156
+  total_rows: 425
+  modalities: 14
+  new_surface_rows: 236
+  deepens_existing_rows: 189
+  verified_rows: 424
+  unverified_rows: 1
 ---
 
 ## [SFR-FIGMA-DEEP-DELTA] Figma Family Deep Feature Delta
@@ -33,7 +33,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039832054-the-difference-between-frames-and-groups"
   source_url: "https://help.figma.com/hc/en-us/articles/360039832054"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.frame-clip-content"
   name: "Frame clip content toggle"
   record_role: "feature_deep_delta"
@@ -44,7 +45,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041539473-frames-in-figma-design"
   source_url: "https://help.figma.com/hc/en-us/articles/360041539473"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.frame-presets"
   name: "Frame device/size presets"
   record_role: "feature_deep_delta"
@@ -55,7 +57,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041539473-frames-in-figma-design"
   source_url: "https://help.figma.com/hc/en-us/articles/360041539473"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.frame-resize-to-fit"
   name: "Resize frame to fit contents"
   record_role: "feature_deep_delta"
@@ -66,7 +69,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041539473-frames-in-figma-design"
   source_url: "https://help.figma.com/hc/en-us/articles/360041539473"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.sections-container"
   name: "Sections as canvas organizers"
   record_role: "feature_deep_delta"
@@ -77,7 +81,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.9771500257687-organize-your-canvas-with-sections"
   source_url: "https://help.figma.com/hc/en-us/articles/9771500257687"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.pages-model"
   name: "Multi-page file model"
   record_role: "feature_deep_delta"
@@ -87,7 +92,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.constraints-horizontal"
   name: "Horizontal constraints (left/right/left-and-right/center/scale)"
   record_role: "feature_deep_delta"
@@ -191,7 +197,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360040451373"
   source_ids: [DEEP-S01]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.auto-layout-canvas-stacking"
   name: "Canvas stacking order (first/last on top)"
   record_role: "feature_deep_delta"
@@ -201,7 +208,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360040451373"
   source_ids: [DEEP-S01]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.auto-layout-padding"
   name: "Auto layout padding (uniform/axis/per-side)"
   record_role: "feature_deep_delta"
@@ -261,7 +269,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360040451373"
   source_ids: [DEEP-S01]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.auto-layout-nesting"
   name: "Nested auto layout frames"
   record_role: "feature_deep_delta"
@@ -336,7 +345,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040449713-add-guides-to-the-canvas-or-frames"
   source_url: "https://help.figma.com/hc/en-us/articles/360040449713"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.measure-distances"
   name: "Alt-hover distance measurement (red lines)"
   record_role: "feature_deep_delta"
@@ -347,7 +357,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039956974-measure-distances-between-layers"
   source_url: "https://help.figma.com/hc/en-us/articles/360039956974"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.snapping-alignment-guides"
   name: "Object snapping and alignment guide lines"
   record_role: "feature_deep_delta"
@@ -357,7 +368,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.snap-to-pixel-grid"
   name: "Pixel grid display and snap-to-pixel"
   record_role: "feature_deep_delta"
@@ -367,7 +379,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.smart-selection-tidy"
   name: "Smart selection tidy-up and spacing handles"
   record_role: "feature_deep_delta"
@@ -378,7 +391,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040450233-arrange-layers-with-smart-selection"
   source_url: "https://help.figma.com/hc/en-us/articles/360040450233"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.align-distribute-commands"
   name: "Align and distribute commands"
   record_role: "feature_deep_delta"
@@ -388,7 +402,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.multi-edit"
   name: "Multi-edit matching objects across frames"
   record_role: "feature_deep_delta"
@@ -399,7 +414,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.21635177948567-edit-objects-on-the-canvas-in-bulk"
   source_url: "https://help.figma.com/hc/en-us/articles/21635177948567"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.selection-descend-model"
   name: "Selection descend/deep-select model"
   record_role: "feature_deep_delta"
@@ -410,7 +426,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040449873-select-layers-and-objects"
   source_url: "https://help.figma.com/hc/en-us/articles/360040449873"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.nudge-values"
   name: "Small/big nudge amounts"
   record_role: "feature_deep_delta"
@@ -421,7 +438,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.4404575206295-set-small-and-big-nudge-values"
   source_url: "https://help.figma.com/hc/en-us/articles/4404575206295"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.object-z-ordering"
   name: "Z-order commands (bring forward/send backward)"
   record_role: "feature_deep_delta"
@@ -431,7 +449,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.lock-layers"
   name: "Layer locking"
   record_role: "feature_deep_delta"
@@ -442,7 +461,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041596573-lock-and-unlock-layers"
   source_url: "https://help.figma.com/hc/en-us/articles/360041596573"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.hide-layers"
   name: "Layer visibility toggling"
   record_role: "feature_deep_delta"
@@ -453,7 +473,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041112614-toggle-visibility-to-hide-layers"
   source_url: "https://help.figma.com/hc/en-us/articles/360041112614"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.scale-tool"
   name: "Scale tool vs resize semantics"
   record_role: "feature_deep_delta"
@@ -464,7 +485,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040451453-scale-layers-while-maintaining-proportions"
   source_url: "https://help.figma.com/hc/en-us/articles/360040451453"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.rotation-flip"
   name: "Rotation and flip transforms"
   record_role: "feature_deep_delta"
@@ -475,7 +497,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039956914-adjust-alignment-rotation-position-and-dimensions"
   source_url: "https://help.figma.com/hc/en-us/articles/360039956914"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.math-in-fields"
   name: "Math expressions in numeric input fields"
   record_role: "feature_deep_delta"
@@ -485,7 +508,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.bulk-rename"
   name: "Batch rename with patterns"
   record_role: "feature_deep_delta"
@@ -496,7 +520,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039958934-rename-layers"
   source_url: "https://help.figma.com/hc/en-us/articles/360039958934"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.component-outlines-view"
   name: "Layer outline view mode"
   record_role: "feature_deep_delta"
@@ -507,7 +532,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.5724448965527-view-layer-outlines-in-figma-design"
   source_url: "https://help.figma.com/hc/en-us/articles/5724448965527"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.find-replace-scope"
   name: "Find and replace with scope filters"
   record_role: "feature_deep_delta"
@@ -518,7 +544,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.9141292269847-find-and-replace-in-figma"
   source_url: "https://help.figma.com/hc/en-us/articles/9141292269847"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.zoom-view-options"
   name: "Zoom modes (fit/selection/100%) and view options"
   record_role: "feature_deep_delta"
@@ -529,7 +556,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041065034-adjust-your-zoom-and-view-options"
   source_url: "https://help.figma.com/hc/en-us/articles/360041065034"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.paste-semantics"
   name: "Paste semantics (in place, over selection, to replace)"
   record_role: "feature_deep_delta"
@@ -540,7 +568,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.4409078832791-copy-and-paste-objects"
   source_url: "https://help.figma.com/hc/en-us/articles/4409078832791"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.duplicate-repeat"
   name: "Duplicate with offset repetition"
   record_role: "feature_deep_delta"
@@ -550,7 +579,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.keyboard-shortcut-panel"
   name: "Keyboard shortcut reference panel"
   record_role: "feature_deep_delta"
@@ -561,7 +591,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040328653-use-figma-products-with-a-keyboard"
   source_url: "https://help.figma.com/hc/en-us/articles/360040328653"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.design-core.quick-actions-palette"
   name: "Quick actions command palette"
   record_role: "feature_deep_delta"
@@ -572,7 +603,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.23570416033943-use-the-actions-menu-in-figma-design"
   source_url: "https://help.figma.com/hc/en-us/articles/23570416033943"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.vector-and-draw] Vector Networks, Strokes, Fills, Effects, Draw
@@ -589,7 +621,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040450213-vector-networks"
   source_url: "https://help.figma.com/hc/en-us/articles/360040450213"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.vector-region-fill"
   name: "Paint-bucket region fills in vector networks"
   record_role: "feature_deep_delta"
@@ -600,7 +633,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040450213-vector-networks"
   source_url: "https://help.figma.com/hc/en-us/articles/360040450213"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.pen-tool"
   name: "Pen tool point/edge placement"
   record_role: "feature_deep_delta"
@@ -611,7 +645,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039957634-edit-vector-layers"
   source_url: "https://help.figma.com/hc/en-us/articles/360039957634"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.bend-tool"
   name: "Bend tool curve toggling"
   record_role: "feature_deep_delta"
@@ -622,7 +657,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039957634-edit-vector-layers"
   source_url: "https://help.figma.com/hc/en-us/articles/360039957634"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.vector-handle-mirroring"
   name: "Tangent handle mirroring modes"
   record_role: "feature_deep_delta"
@@ -633,7 +669,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039957634-edit-vector-layers"
   source_url: "https://help.figma.com/hc/en-us/articles/360039957634"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.pencil-tool"
   name: "Pencil freehand sketching"
   record_role: "feature_deep_delta"
@@ -775,7 +812,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039957534-boolean-operations"
   source_url: "https://help.figma.com/hc/en-us/articles/360039957534"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.flatten"
   name: "Flatten to single vector layer"
   record_role: "feature_deep_delta"
@@ -786,7 +824,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.30101373312279-flatten-layers"
   source_url: "https://help.figma.com/hc/en-us/articles/30101373312279"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.outline-stroke"
   name: "Outline stroke conversion"
   record_role: "feature_deep_delta"
@@ -797,7 +836,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.33052305733015-convert-strokes-to-vector-paths"
   source_url: "https://help.figma.com/hc/en-us/articles/33052305733015"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.corner-radius-per-corner"
   name: "Per-corner independent radius"
   record_role: "feature_deep_delta"
@@ -807,7 +847,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.corner-smoothing"
   name: "Corner smoothing (squircle) control"
   record_role: "feature_deep_delta"
@@ -817,7 +858,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.shape-rectangle-line-ellipse"
   name: "Shape primitives: rectangle, line, ellipse"
   record_role: "feature_deep_delta"
@@ -828,7 +870,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040450133-shape-tools"
   source_url: "https://help.figma.com/hc/en-us/articles/360040450133"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.shape-polygon-star"
   name: "Polygon and star parametric shapes"
   record_role: "feature_deep_delta"
@@ -839,7 +882,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040450133-shape-tools"
   source_url: "https://help.figma.com/hc/en-us/articles/360040450133"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.arc-parameters"
   name: "Ellipse arc parameters (start/sweep/ratio)"
   record_role: "feature_deep_delta"
@@ -850,7 +894,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040450173-arc-tool-create-arcs-semi-circles-and-rings"
   source_url: "https://help.figma.com/hc/en-us/articles/360040450173"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.masks-use-as-mask"
   name: "Use-as-mask sibling masking"
   record_role: "feature_deep_delta"
@@ -861,7 +906,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040450253-masks"
   source_url: "https://help.figma.com/hc/en-us/articles/360040450253"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.mask-types"
   name: "Mask modes: alpha, vector, luminance"
   record_role: "feature_deep_delta"
@@ -872,7 +918,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040450253-masks"
   source_url: "https://help.figma.com/hc/en-us/articles/360040450253"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.fill-solid"
   name: "Solid fill"
   record_role: "feature_deep_delta"
@@ -905,7 +952,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041098433-adjust-the-properties-of-an-image"
   source_url: "https://help.figma.com/hc/en-us/articles/360041098433"
   source_ids: [DEEP-S36]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.image-adjustments"
   name: "Non-destructive image adjustments"
   record_role: "feature_deep_delta"
@@ -916,7 +964,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041098433-adjust-the-properties-of-an-image"
   source_url: "https://help.figma.com/hc/en-us/articles/360041098433"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.fill-video"
   name: "Video fills"
   record_role: "feature_deep_delta"
@@ -1039,7 +1088,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040667874-apply-blend-modes-to-layers-fills-and-effects"
   source_url: "https://help.figma.com/hc/en-us/articles/360040667874"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.color-picker-models"
   name: "Color picker models and inputs"
   record_role: "feature_deep_delta"
@@ -1050,7 +1100,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041003774-update-fills-using-the-color-picker"
   source_url: "https://help.figma.com/hc/en-us/articles/360041003774"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.document-color-profile"
   name: "Document color profile (sRGB / Display P3)"
   record_role: "feature_deep_delta"
@@ -1061,7 +1112,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360043042113-about-color-models"
   source_url: "https://help.figma.com/hc/en-us/articles/360043042113"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.shape-builder-modes"
   name: "Shape builder merge/extract modes"
   record_role: "feature_deep_delta"
@@ -1072,7 +1124,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.31616004109847-create-custom-shapes-with-the-shape-builder-tool"
   source_url: "https://help.figma.com/hc/en-us/articles/31616004109847"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.offset-path-options"
   name: "Offset path distance/join options"
   record_role: "feature_deep_delta"
@@ -1083,7 +1136,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.33792861450263-offset-a-vector-path"
   source_url: "https://help.figma.com/hc/en-us/articles/33792861450263"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.simplify-path-strength"
   name: "Simplify path point reduction"
   record_role: "feature_deep_delta"
@@ -1094,7 +1148,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.33792593975575-simplify-a-vector-path"
   source_url: "https://help.figma.com/hc/en-us/articles/33792593975575"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.eyedropper-anywhere"
   name: "Eyedropper screen sampling"
   record_role: "feature_deep_delta"
@@ -1105,7 +1160,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.27643269375767-sample-colors-with-the-eyedropper-tool"
   source_url: "https://help.figma.com/hc/en-us/articles/27643269375767"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.image-crop-transform"
   name: "Image crop with in-bounds transform"
   record_role: "feature_deep_delta"
@@ -1116,7 +1172,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040675194-crop-an-image"
   source_url: "https://help.figma.com/hc/en-us/articles/360040675194"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.vector-and-draw.mixed-selection-color-listing"
   name: "Selection colors aggregate editing"
   record_role: "feature_deep_delta"
@@ -1127,7 +1184,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360042553434-view-and-adjust-colors-in-a-mixed-selection"
   source_url: "https://help.figma.com/hc/en-us/articles/360042553434"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.typography] Typography
@@ -1298,7 +1356,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360045942953-add-links-to-text"
   source_url: "https://help.figma.com/hc/en-us/articles/360045942953"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.typography.text-styles"
   name: "Text styles with per-property overrides"
   record_role: "feature_deep_delta"
@@ -1309,7 +1368,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039957034-create-and-apply-text-styles"
   source_url: "https://help.figma.com/hc/en-us/articles/360039957034"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.typography.typography-variables"
   name: "Variable binding to text properties and content"
   record_role: "feature_deep_delta"
@@ -1320,7 +1380,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.15343107263511-apply-variables-to-designs"
   source_url: "https://help.figma.com/hc/en-us/articles/15343107263511"
   source_ids: [DEEP-S07]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.typography.font-loading"
   name: "Font sources: system, shared org fonts, local agent"
   record_role: "feature_deep_delta"
@@ -1331,7 +1392,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039956894-add-a-font-to-figma"
   source_url: "https://help.figma.com/hc/en-us/articles/360039956894"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.typography.missing-fonts"
   name: "Missing font detection and replacement"
   record_role: "feature_deep_delta"
@@ -1341,7 +1403,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.typography.text-to-outlines"
   name: "Convert text to vector outlines"
   record_role: "feature_deep_delta"
@@ -1352,7 +1415,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360047239073-convert-text-to-vector-paths"
   source_url: "https://help.figma.com/hc/en-us/articles/360047239073"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.typography.text-on-path"
   name: "Text on path"
   record_role: "feature_deep_delta"
@@ -1373,7 +1437,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041308034-browse-and-apply-fonts"
   source_url: "https://help.figma.com/hc/en-us/articles/360041308034"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.typography.spell-check"
   name: "Spell check on text layers"
   record_role: "feature_deep_delta"
@@ -1383,7 +1448,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.components-and-variables] Components, Variants, Properties, Variables, Styles, Libraries
@@ -1400,7 +1466,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360038663154-create-components-to-reuse-in-designs"
   source_url: "https://help.figma.com/hc/en-us/articles/360038663154"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.variant-sets"
   name: "Variant sets (component sets) with named properties"
   record_role: "feature_deep_delta"
@@ -1411,7 +1478,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360056440594-create-and-use-variants"
   source_url: "https://help.figma.com/hc/en-us/articles/360056440594"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.variant-conflict-detection"
   name: "Variant conflict/duplicate detection"
   record_role: "feature_deep_delta"
@@ -1422,7 +1490,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360056440594-create-and-use-variants"
   source_url: "https://help.figma.com/hc/en-us/articles/360056440594"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.property-boolean"
   name: "Boolean component property"
   record_role: "feature_deep_delta"
@@ -1433,7 +1502,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.5579474826519-explore-component-properties"
   source_url: "https://help.figma.com/hc/en-us/articles/5579474826519"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.property-text"
   name: "Text component property"
   record_role: "feature_deep_delta"
@@ -1444,7 +1514,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.5579474826519-explore-component-properties"
   source_url: "https://help.figma.com/hc/en-us/articles/5579474826519"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.property-instance-swap"
   name: "Instance-swap property with preferred values"
   record_role: "feature_deep_delta"
@@ -1455,7 +1526,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.5579474826519-explore-component-properties"
   source_url: "https://help.figma.com/hc/en-us/articles/5579474826519"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.property-exposed-nested"
   name: "Exposed nested instance properties"
   record_role: "feature_deep_delta"
@@ -1466,7 +1538,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.5579474826519-explore-component-properties"
   source_url: "https://help.figma.com/hc/en-us/articles/5579474826519"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.slots"
   name: "Slots (structural placeholder children)"
   record_role: "feature_deep_delta"
@@ -1488,7 +1561,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039150733-apply-changes-to-instances"
   source_url: "https://help.figma.com/hc/en-us/articles/360039150733"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.restore-main-component"
   name: "Restore deleted main component"
   record_role: "feature_deep_delta"
@@ -1499,7 +1573,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360038665934-edit-main-components"
   source_url: "https://help.figma.com/hc/en-us/articles/360038665934"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.component-descriptions"
   name: "Component/style descriptions and doc links"
   record_role: "feature_deep_delta"
@@ -1510,7 +1585,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.7938814091287-add-descriptions-to-styles-components-and-variables"
   source_url: "https://help.figma.com/hc/en-us/articles/7938814091287"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.library-publishing"
   name: "Library publish with change review"
   record_role: "feature_deep_delta"
@@ -1521,7 +1597,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360025508373-publish-a-library"
   source_url: "https://help.figma.com/hc/en-us/articles/360025508373"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.library-update-review"
   name: "Accept/review incoming library updates"
   record_role: "feature_deep_delta"
@@ -1532,7 +1609,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039234193-review-and-accept-library-updates"
   source_url: "https://help.figma.com/hc/en-us/articles/360039234193"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.variable-type-color"
   name: "Color variables"
   record_role: "feature_deep_delta"
@@ -1598,7 +1676,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.15343816063383-modes-for-variables"
   source_url: "https://help.figma.com/hc/en-us/articles/15343816063383"
   source_ids: [DEEP-S07]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.variable-scoping"
   name: "Variable scoping to property surfaces"
   record_role: "feature_deep_delta"
@@ -1631,7 +1710,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.15339657135383-guide-to-variables-in-figma"
   source_url: "https://help.figma.com/hc/en-us/articles/15339657135383"
   source_ids: [DEEP-S07]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.extended-collections"
   name: "Extended variable collections (multi-brand)"
   record_role: "feature_deep_delta"
@@ -1653,7 +1733,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.15871097384471-the-difference-between-variables-and-styles"
   source_url: "https://help.figma.com/hc/en-us/articles/15871097384471"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.assets-panel-search"
   name: "Assets panel component browsing/search"
   record_role: "feature_deep_delta"
@@ -1664,7 +1745,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039150173-create-and-insert-component-instances"
   source_url: "https://help.figma.com/hc/en-us/articles/360039150173"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.styles-vs-variables-contract"
   name: "Styles vs variables division of labor"
   record_role: "feature_deep_delta"
@@ -1686,7 +1768,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041051154-guide-to-libraries-in-figma"
   source_url: "https://help.figma.com/hc/en-us/articles/360041051154"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.slash-folder-naming"
   name: "Slash-path folder organization for styles/components"
   record_role: "feature_deep_delta"
@@ -1697,7 +1780,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360038663994-name-and-organize-components"
   source_url: "https://help.figma.com/hc/en-us/articles/360038663994"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.components-and-variables.instance-swap-picker"
   name: "Instance swap picker with override carry-over"
   record_role: "feature_deep_delta"
@@ -1708,7 +1792,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039150173-create-and-insert-component-instances"
   source_url: "https://help.figma.com/hc/en-us/articles/360039150173"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.prototyping] Prototyping: Triggers, Actions, Animation, Overlays, Flows
@@ -1994,13 +2079,14 @@ records:
   name: "Overlay positioning and background settings"
   record_role: "feature_deep_delta"
   source_product: figma_design
-  app_behavior: "Overlays position manually or via nine anchor presets, with optional background dim color and close-on-click-outside behavior."
+  app_behavior: "Overlays position manually or via seven default position presets, with optional background color and opacity behind the overlay and close-on-click-outside behavior."
   primitive_domain: prototype
   dedupe_status: deepens_existing
   deepens_leaf_id: "figma.platform.leaf.360039818254-create-overlays-in-your-prototypes"
   source_url: "https://help.figma.com/hc/en-us/articles/360039818254"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.scroll-overflow"
   name: "Overflow scrolling (horizontal/vertical/both)"
   record_role: "feature_deep_delta"
@@ -2011,7 +2097,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039818734-prototype-scroll-and-overflow-behavior"
   source_url: "https://help.figma.com/hc/en-us/articles/360039818734"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.sticky-scroll-position"
   name: "Fixed/sticky elements while scrolling"
   record_role: "feature_deep_delta"
@@ -2022,7 +2109,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039818734-prototype-scroll-and-overflow-behavior"
   source_url: "https://help.figma.com/hc/en-us/articles/360039818734"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.preserve-scroll"
   name: "Preserve scroll position across navigation"
   record_role: "feature_deep_delta"
@@ -2033,7 +2121,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360051747774-preserve-scroll-position-in-prototypes"
   source_url: "https://help.figma.com/hc/en-us/articles/360051747774"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.flows-starting-points"
   name: "Flows and starting points"
   record_role: "feature_deep_delta"
@@ -2044,7 +2133,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360039823894-create-and-manage-prototype-flows"
   source_url: "https://help.figma.com/hc/en-us/articles/360039823894"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.device-frames"
   name: "Prototype device frames and background"
   record_role: "feature_deep_delta"
@@ -2055,7 +2145,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.21158597546391-set-prototype-device-and-background-settings"
   source_url: "https://help.figma.com/hc/en-us/articles/21158597546391"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.inline-preview"
   name: "Inline preview inside the editor"
   record_role: "feature_deep_delta"
@@ -2065,7 +2156,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.presentation-view-options"
   name: "Presentation view options (fit/fill, hotspot hints, sidebar)"
   record_role: "feature_deep_delta"
@@ -2076,7 +2168,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040318013-play-your-prototypes"
   source_url: "https://help.figma.com/hc/en-us/articles/360040318013"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.interactive-components"
   name: "Interactive components (default variant interactions)"
   record_role: "feature_deep_delta"
@@ -2087,7 +2180,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360061175334-create-interactive-components-with-variants"
   source_url: "https://help.figma.com/hc/en-us/articles/360061175334"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.state-preservation"
   name: "Component state preservation across navigation"
   record_role: "feature_deep_delta"
@@ -2098,7 +2192,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.14397859494295-state-management-for-prototypes"
   source_url: "https://help.figma.com/hc/en-us/articles/14397859494295"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.connection-visualization"
   name: "Connection noodle visualization and bulk edit"
   record_role: "feature_deep_delta"
@@ -2109,7 +2204,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.4411431245335-view-prototype-connections"
   source_url: "https://help.figma.com/hc/en-us/articles/4411431245335"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.export-animations"
   name: "Export prototype animations to video/GIF"
   record_role: "feature_deep_delta"
@@ -2120,7 +2216,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.41307983648407-export-animations-from-figma"
   source_url: "https://help.figma.com/hc/en-us/articles/41307983648407"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.viewer-keyboard-navigation"
   name: "Presentation keyboard navigation"
   record_role: "feature_deep_delta"
@@ -2131,7 +2228,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040318013-play-your-prototypes"
   source_url: "https://help.figma.com/hc/en-us/articles/360040318013"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.mobile-device-viewing"
   name: "Prototype viewing on mobile devices"
   record_role: "feature_deep_delta"
@@ -2142,7 +2240,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040321093-view-prototypes-on-a-mobile-device"
   source_url: "https://help.figma.com/hc/en-us/articles/360040321093"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.prototyping.prototype-only-sharing"
   name: "Prototype-only share links"
   record_role: "feature_deep_delta"
@@ -2152,7 +2251,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.dev-mode] Dev Mode, Code Connect, MCP Server
@@ -2454,7 +2554,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/categories/360002051633"
   source_ids: [DEEP-S15]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.figjam.washi-tape"
   name: "Washi tape decoration"
   record_role: "feature_deep_delta"
@@ -2636,7 +2737,8 @@ records:
   deepens_leaf_id: "figma.figjam.leaf.import-export"
   source_url: "https://help.figma.com/hc/en-us/categories/360002051633"
   source_ids: [DEEP-S15]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.figjam.stencils-quick-create"
   name: "Stencils and quick create"
   record_role: "feature_deep_delta"
@@ -2656,7 +2758,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/categories/360002051633"
   source_ids: [DEEP-S15]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.figjam.copy-to-design"
   name: "Copy board content into design files"
   record_role: "feature_deep_delta"
@@ -2667,7 +2770,8 @@ records:
   deepens_leaf_id: "figma.figjam.leaf.import-export"
   source_url: "https://help.figma.com/hc/en-us/categories/360002051633"
   source_ids: [DEEP-S15]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.slides-sites-buzz-make] Slides, Sites, Buzz, Make
@@ -2773,7 +2877,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/categories/24146015318551"
   source_ids: [DEEP-S49]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.sites.site-file-model"
   name: "Site file with pages and canvas editing"
   record_role: "feature_deep_delta"
@@ -2923,7 +3028,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/31271589645079"
   source_ids: [DEEP-S22]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.make.prompt-to-app"
   name: "Prompt-to-app chat generation"
   record_role: "feature_deep_delta"
@@ -3023,7 +3129,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/categories/24146015318551"
   source_ids: [DEEP-S49]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.slides.skip-hide-slides"
   name: "Skip/hide slides from presentation"
   record_role: "feature_deep_delta"
@@ -3033,7 +3140,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/categories/24146015318551"
   source_ids: [DEEP-S49]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.sites.seo-page-settings"
   name: "Per-page SEO/meta settings"
   record_role: "feature_deep_delta"
@@ -3043,7 +3151,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/categories/31823555275671"
   source_ids: [DEEP-S19]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.sites.republish-unpublish"
   name: "Republish updates and unpublish"
   record_role: "feature_deep_delta"
@@ -3063,17 +3172,314 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/31271566667543"
   source_ids: [DEEP-S22]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.make.local-file-copy"
   name: ".make local file copy"
   record_role: "feature_deep_delta"
   source_product: figma_make
-  app_behavior: "Make projects save/load as .make local copies containing prompt history and code, a Studio import/export compatibility target."
+  app_behavior: "Make projects save/load as .make local copies via Save local copy and re-import through the file browser; version history and comments are not included and the format's internal contents are undocumented (prompt-history/code preservation unstated in vendor docs) - a Studio import/export compatibility target."
   primitive_domain: export
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/categories/31304285531543"
   source_ids: [DEEP-S16]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+```
+
+### [SFR-FIGMA-DEEP-DELTA.motion] Figma Motion
+
+```yaml
+records:
+- id: "figma.deep.motion.release-posture-open-beta"
+  name: "Motion release posture (open beta)"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Figma Motion shipped from Config 2026 with rollout starting 2026-06-24 and is in open beta on all plans (vendor warns features may change and performance may vary); Starter users get motion with limited exports while design-system integration and agent features require paid plans (provider-dependent gating)."
+  primitive_domain: interactive
+  dedupe_status: new_surface
+  source_url: "https://www.figma.com/blog/introducing-figma-motion/"
+  source_ids: [DEEP-S174, DEEP-S167]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.motion-mode-toolbar-toggle"
+  name: "Motion mode toolbar toggle"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Motion is entered per design file via a Motion button in the Figma Design toolbar, which docks a timeline panel at the bottom of the editor; the toggle is only visible to users with can-edit access."
+  primitive_domain: interactive
+  dedupe_status: new_surface
+  source_url: "https://help.figma.com/hc/en-us/articles/41274629073303-Explore-Figma-Motion"
+  source_ids: [DEEP-S167]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.timeline-panel"
+  name: "Timeline panel with resize and zoom"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "The Motion timeline docks at the bottom of the screen, resizes or collapses by dragging its top edge, zooms via a slider, trackpad pinch, or Cmd/Ctrl plus mouse wheel, and offers a single control to collapse or expand all layer tracks."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41405906446999-Use-the-Figma-Motion-timeline"
+  source_ids: [DEEP-S168]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.timeline-tracks-and-sequencing"
+  name: "Per-layer tracks and drag sequencing"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Each animated layer occupies a timeline track whose animation clips can be dragged to reposition them in time, with side handles that stretch or shrink the duration of all animations on an object, enabling stacked (simultaneous) or sequenced motion."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41405906446999-Use-the-Figma-Motion-timeline"
+  source_ids: [DEEP-S168, DEEP-S174]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.playback-modes-and-scrub"
+  name: "Playback modes, scrubbing, time display"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Playback runs via a Play button or Spacebar with Loop, Once, and Ping-pong modes; the playhead scrubs to preview any moment, jumps to entered times, and the time ruler toggles between seconds and milliseconds display."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41405906446999-Use-the-Figma-Motion-timeline"
+  source_ids: [DEEP-S168]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.animation-duration-default"
+  name: "Animation duration model (2000 ms default)"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "New Motion animations default to a 2000 millisecond duration that is adjustable by entering a value or dragging the right-side handle of the timeline range."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41405906446999-Use-the-Figma-Motion-timeline"
+  source_ids: [DEEP-S168]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.keyframe-property-set"
+  name: "Keyframable property set"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Position, scale, rotation, and opacity are keyframed independently per layer, and shader/material properties exposed as sliders or input fields are also animatable; keyframe-supporting properties show a diamond control in the right sidebar."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://www.figma.com/blog/introducing-figma-motion/"
+  source_ids: [DEEP-S174, DEEP-S169]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.keyframe-add-select-edit"
+  name: "Keyframe add/select/move/delete editing"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Keyframes are added at the playhead via a per-property diamond in the sidebar, selected singly, shift-clicked, marquee-dragged, or per-layer, moved by dragging with Shift-snap to the playhead or other keyframes, jumped to by double-click, and deleted per keyframe or for a whole property; unselected keyframes render as outline diamonds and selected ones as filled diamonds."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41307938657559-Add-select-and-delete-keyframes"
+  source_ids: [DEEP-S169]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.auto-keyframe-mode"
+  name: "Auto-keyframe recording mode"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "An auto-keyframe toggle in the timeline controls records every design change as a keyframe at the current playhead position while active, indicated by a red bar."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41307938657559-Add-select-and-delete-keyframes"
+  source_ids: [DEEP-S169, DEEP-S168]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.easing-preset-curves"
+  name: "Easing preset Bezier curves incl. Hold"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Segment easing presets cover Linear, Ease in, Ease out, Ease in and out, Ease in back, Ease out back, Ease in and out back, and Hold (jump immediately to final value), applied by clicking the line between two keyframes and choosing from the Easing menu."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41414048690839-Adjust-an-animation-s-easing"
+  source_ids: [DEEP-S170]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.custom-bezier-easing"
+  name: "Custom cubic-bezier easing curves"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Custom easing curves are defined by four values representing two control points, where a control point y value outside the 0-1 range produces overshoot or wind-up, and custom curves can be saved as variables for design-system reuse."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41414048690839-Adjust-an-animation-s-easing"
+  source_ids: [DEEP-S170]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.spring-presets"
+  name: "Spring animation presets"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Four spring presets are available as physics-based easing: Gentle (slow, minimal overshoot), Quick (fast, short settle), Bouncy (high energy, noticeable overshoot), and Slow (steady, longer settle)."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41414048690839-Adjust-an-animation-s-easing"
+  source_ids: [DEEP-S170]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.easing-and-motion-variables"
+  name: "Easing/timing variables with modes"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Easing and timing values can be stored as motion variables with multiple modes, so switching the mode at page level updates every animation referencing those variables for team-wide motion-system consistency."
+  primitive_domain: component_system
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://www.figma.com/blog/introducing-figma-motion/"
+  source_ids: [DEEP-S174, DEEP-S170]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.anchor-point-editing"
+  name: "Per-layer anchor point editing"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Rotation and scale transforms pivot around a per-layer anchor point that defaults to the object center and is repositioned by dragging a target on canvas via Edit anchor point in the Transform section or Alt/Option R."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41352588622615-Move-a-layer-s-anchor-point"
+  source_ids: [DEEP-S172]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.preset-animation-styles"
+  name: "Preset animation styles"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Preset animation styles such as fade, move, and scale are applied to selected layers from a plus button in the Animations sidebar section, land on the timeline at the current playhead, and remain editable afterward for type, settings, duration, and easing."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41307886266135-Quickly-add-motion-with-preset-animations"
+  source_ids: [DEEP-S171, DEEP-S174]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.composite-animation-styles"
+  name: "Composite animation styles"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Composite animation styles apply multiple preset animations to the selected layers in one action, chosen from a list in the Animations section."
+  primitive_domain: interactive
+  dedupe_status: deepens_existing
+  deepens_leaf_id: "figma.motion.leaf.category"
+  source_url: "https://help.figma.com/hc/en-us/articles/41307886266135-Quickly-add-motion-with-preset-animations"
+  source_ids: [DEEP-S171]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.motion-path-editing"
+  name: "On-canvas motion path editing"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Position keyframes render an on-canvas motion path shown as easing-spaced dots with a box per keyframe, where keyframe boxes drag to new canvas positions and Cmd/Ctrl plus a keyframe handle bends the path into a Bezier curve."
+  primitive_domain: interactive
+  dedupe_status: new_surface
+  source_url: "https://help.figma.com/hc/en-us/articles/41780233501591-Edit-a-motion-path"
+  source_ids: [DEEP-S173]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.animated-components"
+  name: "Animated components"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Animations can be converted into reusable animated components whose motion travels with the component across files, supporting shared motion systems."
+  primitive_domain: component_system
+  dedupe_status: new_surface
+  source_url: "https://help.figma.com/hc/en-us/articles/41274629073303-Explore-Figma-Motion"
+  source_ids: [DEEP-S167, DEEP-S174]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.timestamped-comments"
+  name: "Time-stamped comments on the timeline"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Comments in Motion can be anchored to a specific timeline moment so reviewers reference exact animation frames (comment sync provider-dependent; anchoring model local)."
+  primitive_domain: collaboration
+  dedupe_status: new_surface
+  source_url: "https://help.figma.com/hc/en-us/articles/41274629073303-Explore-Figma-Motion"
+  source_ids: [DEEP-S167, DEEP-S174]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.animated-export-formats"
+  name: "Animated export: MP4, WebM, GIF, SVG"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Frames containing animated layers export from an Animated tab in the Export section as MP4, WebM, GIF, or animated SVG with size and frame-rate settings, a quality control for MP4/WebM, and a loop toggle for GIF; Lottie is announced as a future format and is not shipped."
+  primitive_domain: export
+  dedupe_status: new_surface
+  source_url: "https://help.figma.com/hc/en-us/articles/41307983648407-Export-animations-from-Figma"
+  source_ids: [DEEP-S112, DEEP-S174]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.dev-mode-motion-tab"
+  name: "Dev Mode Motion tab with code output"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Dev Mode gains a Motion tab exposing the full timeline read-only with every timing value, easing curve, and keyframe inspectable, and animation code copyable as CSS, JSON, or framework-ready React/motion.dev."
+  primitive_domain: export
+  dedupe_status: new_surface
+  source_url: "https://www.figma.com/blog/introducing-figma-motion/"
+  source_ids: [DEEP-S174, DEEP-S167]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.mcp-animation-code"
+  name: "Animation code via MCP server"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Motion animation code can be sent to agentic coding tools through the Dev Mode MCP server (provider-dependent tooling bridge)."
+  primitive_domain: automation
+  dedupe_status: new_surface
+  source_url: "https://help.figma.com/hc/en-us/articles/41274629073303-Explore-Figma-Motion"
+  source_ids: [DEEP-S167]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.ai-agent-keyframe-generation"
+  name: "AI agent keyframe generation"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "The Figma agent generates real editable keyframes on the timeline from natural-language prompts, grounded in the file's components and tokens, and can run multiple prompts simultaneously (AI provider-dependent; paid-plan gated)."
+  primitive_domain: automation
+  dedupe_status: new_surface
+  source_url: "https://www.figma.com/blog/introducing-figma-motion/"
+  source_ids: [DEEP-S174, DEEP-S167]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
+- id: "figma.deep.motion.design-file-embedded-posture"
+  name: "Motion embedded in design files (file posture)"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Motion is a per-file mode of Figma Design entered from the editor toolbar rather than a separate app or file type (page-verified), implying animation data persists inside the design file and follows the existing .fig local-copy path, though vendor docs do not explicitly state the persistence format."
+  primitive_domain: export
+  dedupe_status: new_surface
+  source_url: "https://help.figma.com/hc/en-us/articles/41274629073303-Explore-Figma-Motion"
+  source_ids: [DEEP-S167]
   verification_status: UNVERIFIED
+  residual_reason: "Vendor docs confirm Motion is a toolbar mode inside Figma Design files but do not state the on-disk persistence format / .fig-path semantics for Motion animation data. No official source publishes this; treat as vendor-undocumented and confirm empirically if a .fig round-trip becomes an implementation target. Not a missing surface class — the Motion feature set itself is covered by the 24 verified rows in this subtopic."
+- id: "figma.deep.motion.3d-transforms-announced"
+  name: "3D transforms (announced, not shipped)"
+  record_role: "feature_deep_delta"
+  source_product: figma_motion
+  app_behavior: "Vendor announced 3D transforms as coming soon to Motion with native z-axis rotation controls, full editability, and CSS/MCP export; not shipped as of 2026-07-09."
+  primitive_domain: interactive
+  dedupe_status: new_surface
+  source_url: "https://www.figma.com/blog/introducing-figma-motion/"
+  source_ids: [DEEP-S174]
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.collaboration-and-files] Multiplayer, Comments, Versions, File Organization
@@ -3089,27 +3495,30 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.observation-mode"
-  name: "Observation mode (follow a collaborator)"
+  name: "Follow a collaborator (observation mode)"
   record_role: "feature_deep_delta"
   source_product: figma_platform
-  app_behavior: "Clicking a collaborator's avatar locks the local viewport to follow their navigation until the observer interacts, used for demos and reviews."
+  app_behavior: "Clicking a collaborator's avatar locks the local viewport to follow their cursor and navigation until the observer clicks Stop following or starts navigating themselves; vendor docs now brand this as following/spotlight rather than observation mode. Used for demos and reviews."
   primitive_domain: collaboration
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.spotlight-me"
   name: "Spotlight my cursor across products"
   record_role: "feature_deep_delta"
   source_product: figma_platform
-  app_behavior: "A presenter forces all participants into follow mode via spotlight, available across design, whiteboard, and slides surfaces."
+  app_behavior: "A presenter can spotlight themselves so participants are pulled into following their view across design, whiteboard, and slides surfaces; spotlighted participants get a prompt with a few seconds to decline (Not now) before auto-following, so follow is default-on but not forced."
   primitive_domain: collaboration
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.audio-huddles"
   name: "In-file audio conversations"
   record_role: "feature_deep_delta"
@@ -3119,7 +3528,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.comment-threads"
   name: "Comment threads with mentions and attachments"
   record_role: "feature_deep_delta"
@@ -3130,7 +3540,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041068574-add-comments-to-files"
   source_url: "https://help.figma.com/hc/en-us/articles/360041068574"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.comment-filtering"
   name: "Comment list filtering/sorting"
   record_role: "feature_deep_delta"
@@ -3141,7 +3552,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360041547593-view-and-manage-comments"
   source_url: "https://help.figma.com/hc/en-us/articles/360041547593"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.version-checkpoints"
   name: "Autosave checkpoints every 30 minutes"
   record_role: "feature_deep_delta"
@@ -3192,7 +3604,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360063144053-guide-to-branching"
   source_url: "https://help.figma.com/hc/en-us/articles/360063144053"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.file-hierarchy"
   name: "Teams / projects / files / drafts hierarchy"
   record_role: "feature_deep_delta"
@@ -3203,7 +3616,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040328273-plans-and-teams-in-figma"
   source_url: "https://help.figma.com/hc/en-us/articles/360040328273"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.file-browser-search"
   name: "File browser with search and recents"
   record_role: "feature_deep_delta"
@@ -3213,7 +3627,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.trash-restore"
   name: "Deleted file trash and restore"
   record_role: "feature_deep_delta"
@@ -3223,7 +3638,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.sharing-link-permissions"
   name: "Share links with role scoping"
   record_role: "feature_deep_delta"
@@ -3233,7 +3649,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.community-publish"
   name: "Community publish and duplicate posture"
   record_role: "feature_deep_delta"
@@ -3244,7 +3661,8 @@ records:
   deepens_leaf_id: "figma.community.leaf.category"
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.local-file-copies"
   name: "Local copies: .fig/.jam/.deck save and open"
   record_role: "feature_deep_delta"
@@ -3255,7 +3673,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.8403626871063-save-a-local-copy-of-files"
   source_url: "https://help.figma.com/hc/en-us/articles/8403626871063"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.offline-editing"
   name: "Offline editing with reconnect sync"
   record_role: "feature_deep_delta"
@@ -3265,7 +3684,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360040328553"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.notifications-center"
   name: "Notification center (mentions/comments/updates)"
   record_role: "feature_deep_delta"
@@ -3275,7 +3695,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.favorites"
   name: "Favorite/starred files"
   record_role: "feature_deep_delta"
@@ -3285,7 +3706,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.move-duplicate-files"
   name: "Move and duplicate files across projects"
   record_role: "feature_deep_delta"
@@ -3295,7 +3717,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.collaboration-and-files.ask-to-edit"
   name: "Ask-to-edit access requests"
   record_role: "feature_deep_delta"
@@ -3305,7 +3728,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.plugin-api] Plugin API Surface
@@ -3572,7 +3996,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/api/nodes/"
   source_ids: [DEEP-S25]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.plugin-api.manifest-editor-types"
   name: "Manifest editorType targeting"
   record_role: "feature_deep_delta"
@@ -3642,7 +4067,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/"
   source_ids: [DEEP-S27]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.plugin-api.private-plugins"
   name: "Private org plugin/widget distribution"
   record_role: "feature_deep_delta"
@@ -3652,7 +4078,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/"
   source_ids: [DEEP-S27]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.plugin-api.plugin-data"
   name: "Node plugin data (private + shared)"
   record_role: "feature_deep_delta"
@@ -3662,7 +4089,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/api/nodes/"
   source_ids: [DEEP-S25]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.plugin-api.traversal-helpers"
   name: "Tree traversal helpers (findAll/findOne/findAllWithCriteria)"
   record_role: "feature_deep_delta"
@@ -3672,7 +4100,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/api/nodes/"
   source_ids: [DEEP-S25, DEEP-S26]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.plugin-api.local-styles-api"
   name: "Local styles API (create/list paint/text/effect/grid styles)"
   record_role: "feature_deep_delta"
@@ -3682,7 +4111,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/api/figma/"
   source_ids: [DEEP-S26]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.plugin-api.font-listing"
   name: "Font enumeration and loading"
   record_role: "feature_deep_delta"
@@ -3692,7 +4122,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/api/figma/"
   source_ids: [DEEP-S26]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.plugin-api.user-apis"
   name: "figma.currentUser and activeUsers"
   record_role: "feature_deep_delta"
@@ -3702,7 +4133,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/manifest/"
   source_ids: [DEEP-S26, DEEP-S27]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.plugin-api.payments-api"
   name: "figma.payments plugin monetization"
   record_role: "feature_deep_delta"
@@ -3722,7 +4154,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/api/figma/"
   source_ids: [DEEP-S26]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.plugin-api.get-css-async"
   name: "Node getCSSAsync extraction"
   record_role: "feature_deep_delta"
@@ -3732,7 +4165,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/plugins/api/nodes/"
   source_ids: [DEEP-S25]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.rest-api-and-platform] REST API, Webhooks, Embeds, Formats, Export
@@ -3879,18 +4313,20 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/8403626871063"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.rest-api-and-platform.sketch-import"
   name: "Sketch file import"
   record_role: "feature_deep_delta"
   source_product: figma_design
-  app_behavior: ".sketch files import as editable documents converting artboards, symbols, and styles with documented fidelity limits."
+  app_behavior: ".sketch files import as editable documents converting artboards to frames and symbols to components, but styles are not retained and must be recreated after import; other documented fidelity limits apply (no sync back to source, very large files can fail)."
   primitive_domain: export
   dedupe_status: deepens_existing
   deepens_leaf_id: "figma.platform.leaf.360040514273-import-sketch-files"
   source_url: "https://help.figma.com/hc/en-us/articles/360040514273"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.rest-api-and-platform.export-settings-model"
   name: "Per-layer export settings model"
   record_role: "feature_deep_delta"
@@ -3901,7 +4337,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.13402894554519-export-formats-and-settings"
   source_url: "https://help.figma.com/hc/en-us/articles/13402894554519"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.rest-api-and-platform.svg-export-options"
   name: "SVG export options"
   record_role: "feature_deep_delta"
@@ -3912,7 +4349,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.13402894554519-export-formats-and-settings"
   source_url: "https://help.figma.com/hc/en-us/articles/13402894554519"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.rest-api-and-platform.pdf-export"
   name: "PDF export of frames and slides"
   record_role: "feature_deep_delta"
@@ -3923,7 +4361,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.13402894554519-export-formats-and-settings"
   source_url: "https://help.figma.com/hc/en-us/articles/13402894554519"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.rest-api-and-platform.copy-as"
   name: "Copy as CSS/SVG/PNG"
   record_role: "feature_deep_delta"
@@ -3934,7 +4373,8 @@ records:
   deepens_leaf_id: "figma.platform.leaf.360040030374-copy-assets-between-design-tools"
   source_url: "https://help.figma.com/hc/en-us/articles/360040030374"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.rest-api-and-platform.rate-limits"
   name: "API rate limiting posture"
   record_role: "feature_deep_delta"
@@ -3944,7 +4384,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/rest-api/"
   source_ids: [DEEP-S28]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.rest-api-and-platform.image-fills-endpoint"
   name: "Image fills download endpoint"
   record_role: "feature_deep_delta"
@@ -3954,7 +4395,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/rest-api/"
   source_ids: [DEEP-S28]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.rest-api-and-platform.file-metadata-endpoint"
   name: "File metadata endpoint"
   record_role: "feature_deep_delta"
@@ -3964,7 +4406,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://developers.figma.com/docs/rest-api/"
   source_ids: [DEEP-S28]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.rest-api-and-platform.users-me-endpoint"
   name: "Users/me identity endpoint"
   record_role: "feature_deep_delta"
@@ -4143,7 +4586,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us"
   source_ids: [DEEP-S47]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.organization-admin] Organization/Admin (Provider Posture; Local Concepts Noted)
@@ -4179,7 +4623,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360039829474"
   source_ids: [DEEP-S42]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.organization-admin.admin-dashboard"
   name: "Org admin dashboard (members/teams/billing)"
   record_role: "feature_deep_delta"
@@ -4199,7 +4644,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360040328273"
   source_ids: [DEEP-S42]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.organization-admin.library-analytics"
   name: "Library/design-system analytics"
   record_role: "feature_deep_delta"
@@ -4229,7 +4675,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360039829474"
   source_ids: [DEEP-S42]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.organization-admin.plugin-approval"
   name: "Plugin/widget allowlisting"
   record_role: "feature_deep_delta"
@@ -4239,7 +4686,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360039829474"
   source_ids: [DEEP-S42]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.organization-admin.sharing-policy-defaults"
   name: "Org sharing/public-link policy defaults"
   record_role: "feature_deep_delta"
@@ -4249,7 +4697,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/31242876956183"
   source_ids: [DEEP-S42]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.organization-admin.workspaces"
   name: "Workspaces (enterprise org subdivisions)"
   record_role: "feature_deep_delta"
@@ -4259,7 +4708,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360039829474"
   source_ids: [DEEP-S42]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 - id: "figma.deep.organization-admin.guest-management"
   name: "Guest access management"
   record_role: "feature_deep_delta"
@@ -4269,7 +4719,8 @@ records:
   dedupe_status: new_surface
   source_url: "https://help.figma.com/hc/en-us/articles/360039829474"
   source_ids: [DEEP-S42]
-  verification_status: UNVERIFIED
+  verification_status: VERIFIED
+  verified_at: "2026-07-09"
 ```
 
 ### [SFR-FIGMA-DEEP-DELTA.sources] Sources
@@ -4326,6 +4777,130 @@ sources:
 - { id: DEEP-S48, url: "https://www.figma.com/release-notes/", note: "Release notes; recency cross-check." }
 - { id: DEEP-S49, url: "https://help.figma.com/hc/en-us/categories/24146015318551-Figma-Slides", note: "Slides category TOC." }
 - { id: DEEP-S50, url: "https://developers.figma.com/docs/widgets/api/figma-widget/", note: "figma.widget global." }
+- { id: DEEP-S51, url: "https://help.figma.com/hc/en-us/articles/360039832054", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S52, url: "https://help.figma.com/hc/en-us/articles/360041539473", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S53, url: "https://help.figma.com/hc/en-us/articles/9771500257687", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S54, url: "https://help.figma.com/hc/en-us/articles/360040449713", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S55, url: "https://help.figma.com/hc/en-us/articles/360039956974", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S56, url: "https://help.figma.com/hc/en-us/articles/360040450233", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S57, url: "https://help.figma.com/hc/en-us/articles/21635177948567", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S58, url: "https://help.figma.com/hc/en-us/articles/360040449873", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S59, url: "https://help.figma.com/hc/en-us/articles/4404575206295", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S60, url: "https://help.figma.com/hc/en-us/articles/360041596573", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S61, url: "https://help.figma.com/hc/en-us/articles/360041112614", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S62, url: "https://help.figma.com/hc/en-us/articles/360040451453", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S63, url: "https://help.figma.com/hc/en-us/articles/360039956914", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S64, url: "https://help.figma.com/hc/en-us/articles/360039958934", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S65, url: "https://help.figma.com/hc/en-us/articles/5724448965527", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S66, url: "https://help.figma.com/hc/en-us/articles/9141292269847", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S67, url: "https://help.figma.com/hc/en-us/articles/360041065034", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S68, url: "https://help.figma.com/hc/en-us/articles/4409078832791", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S69, url: "https://help.figma.com/hc/en-us/articles/360040328653", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S70, url: "https://help.figma.com/hc/en-us/articles/23570416033943", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S71, url: "https://help.figma.com/hc/en-us/articles/360040450213", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S72, url: "https://help.figma.com/hc/en-us/articles/360039957634", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S73, url: "https://help.figma.com/hc/en-us/articles/360039957534", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S74, url: "https://help.figma.com/hc/en-us/articles/30101373312279", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S75, url: "https://help.figma.com/hc/en-us/articles/33052305733015", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S76, url: "https://help.figma.com/hc/en-us/articles/360040450133", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S77, url: "https://help.figma.com/hc/en-us/articles/360040450173", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S78, url: "https://help.figma.com/hc/en-us/articles/360040450253", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S79, url: "https://help.figma.com/hc/en-us/articles/360041098433", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S80, url: "https://help.figma.com/hc/en-us/articles/360040667874", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S81, url: "https://help.figma.com/hc/en-us/articles/360041003774", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S82, url: "https://help.figma.com/hc/en-us/articles/360043042113", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S83, url: "https://help.figma.com/hc/en-us/articles/31616004109847", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S84, url: "https://help.figma.com/hc/en-us/articles/33792861450263", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S85, url: "https://help.figma.com/hc/en-us/articles/33792593975575", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S86, url: "https://help.figma.com/hc/en-us/articles/27643269375767", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S87, url: "https://help.figma.com/hc/en-us/articles/360040675194", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S88, url: "https://help.figma.com/hc/en-us/articles/360042553434", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S89, url: "https://help.figma.com/hc/en-us/articles/360038663154", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S90, url: "https://help.figma.com/hc/en-us/articles/360056440594", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S91, url: "https://help.figma.com/hc/en-us/articles/5579474826519", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S92, url: "https://help.figma.com/hc/en-us/articles/360039150733", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S93, url: "https://help.figma.com/hc/en-us/articles/7938814091287", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S94, url: "https://help.figma.com/hc/en-us/articles/360025508373", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S95, url: "https://help.figma.com/hc/en-us/articles/360039234193", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S96, url: "https://help.figma.com/hc/en-us/articles/15343816063383", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S97, url: "https://help.figma.com/hc/en-us/articles/15145852043927", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S98, url: "https://help.figma.com/hc/en-us/articles/15871097384471", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S99, url: "https://help.figma.com/hc/en-us/articles/360039150173", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S100, url: "https://help.figma.com/hc/en-us/articles/360041051154", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S101, url: "https://help.figma.com/hc/en-us/articles/360038663994", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S102, url: "https://help.figma.com/hc/en-us/articles/360039150413", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S103, url: "https://help.figma.com/hc/en-us/articles/360039818254", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S104, url: "https://help.figma.com/hc/en-us/articles/360039818734", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S105, url: "https://help.figma.com/hc/en-us/articles/360051747774", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S106, url: "https://help.figma.com/hc/en-us/articles/360039823894", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S107, url: "https://help.figma.com/hc/en-us/articles/21158597546391", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S108, url: "https://help.figma.com/hc/en-us/articles/360040318013-Play-your-prototypes", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S109, url: "https://help.figma.com/hc/en-us/articles/360061175334", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S110, url: "https://help.figma.com/hc/en-us/articles/14397859494295", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S111, url: "https://help.figma.com/hc/en-us/articles/4411431245335", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S112, url: "https://help.figma.com/hc/en-us/articles/41307983648407", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S113, url: "https://help.figma.com/hc/en-us/articles/360040321093", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S114, url: "https://help.figma.com/hc/en-us/articles/360040531773-Share-files-and-prototypes", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S115, url: "https://help.figma.com/hc/en-us/articles/360045942953", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S116, url: "https://help.figma.com/hc/en-us/articles/360039957034", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S117, url: "https://help.figma.com/hc/en-us/articles/15343107263511", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S118, url: "https://help.figma.com/hc/en-us/articles/360039956894", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S119, url: "https://help.figma.com/hc/en-us/articles/360039956994-Missing-font-alert-in-Figma-Design", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S120, url: "https://help.figma.com/hc/en-us/articles/360047239073", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S121, url: "https://help.figma.com/hc/en-us/articles/360041308034", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S122, url: "https://help.figma.com/hc/en-us/articles/27323589692055-Use-spell-check", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S123, url: "https://help.figma.com/hc/en-us/articles/1500006775761-How-many-people-can-be-in-a-file-at-once", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S124, url: "https://help.figma.com/hc/en-us/articles/360040322673-Follow-Along-with-Observation-Mode", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S125, url: "https://help.figma.com/hc/en-us/articles/24260248467735-Spotlight-yourself-or-other-presenters", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S126, url: "https://help.figma.com/hc/en-us/articles/1500004414622-Use-audio-to-chat-with-your-team", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S127, url: "https://help.figma.com/hc/en-us/articles/4422774037271-Search-for-files-projects-and-people", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S128, url: "https://help.figma.com/hc/en-us/articles/360047512294-Delete-and-restore-files", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S129, url: "https://help.figma.com/hc/en-us/articles/1500007609322-Guide-to-sharing-and-permissions", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S130, url: "https://help.figma.com/hc/en-us/articles/360040035974-Publish-files-to-the-Figma-Community", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S131, url: "https://help.figma.com/hc/en-us/articles/360039813234-Manage-your-notification-preferences", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S132, url: "https://help.figma.com/hc/en-us/articles/360038511513-Favorite-files-and-projects", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S133, url: "https://help.figma.com/hc/en-us/articles/360038511573-Move-a-file", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S134, url: "https://help.figma.com/hc/en-us/articles/4408435431319-Request-to-edit-a-file", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S135, url: "https://help.figma.com/hc/en-us/articles/17725942479127-Manage-AI-settings-and-content-training-for-your-team-or-organization", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S136, url: "https://help.figma.com/hc/en-us/articles/360041068574", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S137, url: "https://help.figma.com/hc/en-us/articles/360041547593", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S138, url: "https://help.figma.com/hc/en-us/articles/360063144053", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S139, url: "https://help.figma.com/hc/en-us/articles/360040328273", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S140, url: "https://help.figma.com/hc/en-us/articles/8403626871063", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S141, url: "https://help.figma.com/hc/en-us/articles/360040328553", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S142, url: "https://help.figma.com/hc/en-us/articles/360039960434", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S143, url: "https://help.figma.com/hc/en-us/articles/31242876956183", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S144, url: "https://developers.figma.com/docs/plugins/api/properties/nodes-exportasync/", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S145, url: "https://developers.figma.com/docs/plugins/typescript/", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S146, url: "https://help.figma.com/hc/en-us/articles/4404228629655-Create-private-plugins-for-an-organization", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S147, url: "https://developers.figma.com/docs/plugins/api/properties/nodes-setplugindata/", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S148, url: "https://developers.figma.com/docs/plugins/api/properties/nodes-findall/", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S149, url: "https://developers.figma.com/docs/plugins/working-in-dev-mode/", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S150, url: "https://help.figma.com/hc/en-us/articles/360040514273", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S151, url: "https://help.figma.com/hc/en-us/articles/13402894554519", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S152, url: "https://help.figma.com/hc/en-us/articles/360040030374", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S153, url: "https://developers.figma.com/docs/rest-api/rate-limits/", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S154, url: "https://developers.figma.com/docs/rest-api/file-endpoints/", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S155, url: "https://help.figma.com/hc/en-us/articles/1500004414442-Doodle-and-highlight-in-FigJam-with-drawing-tools", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S156, url: "https://help.figma.com/hc/en-us/articles/4407699832855-Export-your-FigJam-board", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S157, url: "https://help.figma.com/hc/en-us/articles/1500004291281-Create-text-and-links-in-FigJam", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S158, url: "https://help.figma.com/hc/en-us/articles/1500005916661-Work-between-Figma-and-FigJam", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S159, url: "https://help.figma.com/hc/en-us/articles/24848334599447-Export-from-Figma-Slides", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S160, url: "https://help.figma.com/hc/en-us/articles/34324344840855-Resize-assets-in-Figma-Buzz", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S161, url: "https://help.figma.com/hc/en-us/articles/24244588378007-Use-slide-transitions", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S162, url: "https://help.figma.com/hc/en-us/articles/25311102970263-Skip-or-unskip-slides", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S163, url: "https://help.figma.com/hc/en-us/articles/31242875661591-Edit-website-settings", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S164, url: "https://help.figma.com/hc/en-us/articles/360038511293-Create-and-manage-pages", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S165, url: "https://help.figma.com/hc/en-us/articles/360050986854-Adjust-corner-radius-and-smoothing", note: "Verification fetch for UNVERIFIED-row upgrade; fetched 2026-07-09." }
+- { id: DEEP-S166, url: "https://help.figma.com/hc/en-us/categories/41274596092695-Figma-Motion", note: "Motion category TOC (7 articles, marked New); fetched 2026-07-09." }
+- { id: DEEP-S167, url: "https://help.figma.com/hc/en-us/articles/41274629073303-Explore-Figma-Motion", note: "Motion overview: open beta, toolbar entry, four animation methods, Dev Mode/MCP, animated components; fetched 2026-07-09." }
+- { id: DEEP-S168, url: "https://help.figma.com/hc/en-us/articles/41405906446999-Use-the-Figma-Motion-timeline", note: "Timeline: playback modes, 2000 ms default, zoom/resize, track sequencing, auto-keyframe; fetched 2026-07-09." }
+- { id: DEEP-S169, url: "https://help.figma.com/hc/en-us/articles/41307938657559-Add-select-and-delete-keyframes", note: "Keyframe add/select/move/delete, diamond states, auto-keyframe red bar; fetched 2026-07-09." }
+- { id: DEEP-S170, url: "https://help.figma.com/hc/en-us/articles/41414048690839-Adjust-an-animation-s-easing", note: "Easing presets incl. back variants and Hold, four spring presets, custom bezier, curve variables; fetched 2026-07-09." }
+- { id: DEEP-S171, url: "https://help.figma.com/hc/en-us/articles/41307886266135-Quickly-add-motion-with-preset-animations", note: "Preset and composite animation styles, playhead placement, post-apply editing; fetched 2026-07-09." }
+- { id: DEEP-S172, url: "https://help.figma.com/hc/en-us/articles/41352588622615-Move-a-layer-s-anchor-point", note: "Anchor point default center, Edit anchor point / Alt-Option R; fetched 2026-07-09." }
+- { id: DEEP-S173, url: "https://help.figma.com/hc/en-us/articles/41780233501591-Edit-a-motion-path", note: "Motion path dots/boxes visualization, on-canvas keyframe drag, Cmd/Ctrl bezier handles; fetched 2026-07-09." }
+- { id: DEEP-S174, url: "https://www.figma.com/blog/introducing-figma-motion/", note: "Motion announcement: Config 2026 rollout 2026-06-24, keyframable property set, export formats, Dev Mode Motion tab code output, motion variables, plan gating, 3D transforms coming soon; fetched 2026-07-09." }
 ```
 
 
