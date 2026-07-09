@@ -300,6 +300,23 @@ pub struct EditorPrefs {
     pub sticky_scroll: bool,
     /// WP-KERNEL-012 MT-035: show the code editor gutter line numbers. Default `true`.
     pub line_numbers: bool,
+    /// WP-KERNEL-012 MT-035 wave-7: the row-height MULTIPLIER applied to the code editor's measured line
+    /// height (clamped to [`EDITOR_LINE_HEIGHT_RANGE`]). `1.0` = single-spaced (default); larger values
+    /// space lines further apart. Threaded live to `CodeEditorPanel::set_line_height`.
+    pub line_height: f32,
+    /// WP-KERNEL-012 MT-035 wave-7: highlight the bracket matching the one the caret is on/next to.
+    /// Default `true` (the matching-bracket highlight was always on before this toggle existed). Threaded
+    /// live to `CodeEditorPanel::set_bracket_matching_enabled`.
+    pub bracket_matching: bool,
+    /// WP-KERNEL-012 MT-035 wave-7: draw vertical indent-guide lines at each indent level in the code
+    /// editor body. Default `true` (indent guides were always on before this toggle existed). Threaded
+    /// live to `CodeEditorPanel::set_indent_guides_enabled`.
+    pub indent_guides: bool,
+    /// WP-KERNEL-012 MT-035 wave-7: seed a freshly-opened rich document into Reading (read-only) view
+    /// instead of Edit. Default `false` (documents open editable). Threaded live to
+    /// `RichEditorState::set_reading_mode_default`; a document the operator has already toggled keeps its
+    /// remembered per-document choice.
+    pub reading_mode_default: bool,
 }
 
 impl Default for EditorPrefs {
@@ -313,6 +330,10 @@ impl Default for EditorPrefs {
             minimap_enabled: true,
             sticky_scroll: true,
             line_numbers: true,
+            line_height: DEFAULT_EDITOR_LINE_HEIGHT,
+            bracket_matching: true,
+            indent_guides: true,
+            reading_mode_default: false,
         }
     }
 }
@@ -328,6 +349,15 @@ pub const EDITOR_FONT_SIZE_RANGE: std::ops::RangeInclusive<f32> = 6.0..=48.0;
 /// The inclusive tab-size clamp range.
 pub const TAB_SIZE_RANGE: std::ops::RangeInclusive<u8> = 1..=16;
 
+/// WP-KERNEL-012 MT-035 wave-7: the inclusive editor line-height MULTIPLIER clamp range. `1.0` is the
+/// natural single-spaced row height the font measures; `2.0` is double-spaced. The UI `DragValue`
+/// enforces it and the loader clamps a stored value too, so a hand-edited out-of-range PostgreSQL row
+/// cannot smuggle an invalid multiplier.
+pub const EDITOR_LINE_HEIGHT_RANGE: std::ops::RangeInclusive<f32> = 1.0..=2.0;
+
+/// The default editor line-height multiplier (single-spaced — the font's natural row height).
+pub const DEFAULT_EDITOR_LINE_HEIGHT: f32 = 1.0;
+
 impl EditorPrefs {
     /// Serialize to the persisted JSON object.
     pub fn to_json(&self) -> Value {
@@ -340,6 +370,10 @@ impl EditorPrefs {
             "minimap_enabled": self.minimap_enabled,
             "sticky_scroll": self.sticky_scroll,
             "line_numbers": self.line_numbers,
+            "line_height": self.line_height,
+            "bracket_matching": self.bracket_matching,
+            "indent_guides": self.indent_guides,
+            "reading_mode_default": self.reading_mode_default,
         })
     }
 
@@ -390,6 +424,28 @@ impl EditorPrefs {
             .get("line_numbers")
             .and_then(Value::as_bool)
             .unwrap_or(fallback.line_numbers);
+        let line_height = obj
+            .get("line_height")
+            .and_then(Value::as_f64)
+            .map(|v| {
+                (v as f32).clamp(
+                    *EDITOR_LINE_HEIGHT_RANGE.start(),
+                    *EDITOR_LINE_HEIGHT_RANGE.end(),
+                )
+            })
+            .unwrap_or(fallback.line_height);
+        let bracket_matching = obj
+            .get("bracket_matching")
+            .and_then(Value::as_bool)
+            .unwrap_or(fallback.bracket_matching);
+        let indent_guides = obj
+            .get("indent_guides")
+            .and_then(Value::as_bool)
+            .unwrap_or(fallback.indent_guides);
+        let reading_mode_default = obj
+            .get("reading_mode_default")
+            .and_then(Value::as_bool)
+            .unwrap_or(fallback.reading_mode_default);
         EditorPrefs {
             editor_font_size,
             tab_size,
@@ -399,6 +455,10 @@ impl EditorPrefs {
             minimap_enabled,
             sticky_scroll,
             line_numbers,
+            line_height,
+            bracket_matching,
+            indent_guides,
+            reading_mode_default,
         }
     }
 }
@@ -1269,6 +1329,11 @@ mod tests {
             minimap_enabled: false,
             sticky_scroll: false,
             line_numbers: false,
+            // MT-035 wave-7: non-default values so the round-trip proves the new fields serialize too.
+            line_height: 1.5,
+            bracket_matching: false,
+            indent_guides: false,
+            reading_mode_default: true,
         };
         settings.syntax_palette = SyntaxPalette {
             mode: SyntaxPaletteMode::Custom,

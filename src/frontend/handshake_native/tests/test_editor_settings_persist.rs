@@ -444,6 +444,112 @@ fn mt035_visibility_and_whitespace_toggles_drive_live_code_panel() {
     );
 }
 
+// ── WP-KERNEL-012 MT-035 wave-7: line-height / bracket-matching / indent-guides / reading-mode-default ──
+
+/// Each MT-035 wave-7 editor setting is FULLY live-wired: changing it through the wired `EditorPrefsChanged`
+/// outcome drives the MOUNTED editor state BOTH directions. line_height -> the code panel's
+/// `line_height_multiplier`; bracket_matching -> `bracket_matching_enabled`; indent_guides ->
+/// `indent_guides_enabled`; reading_mode_default -> the mounted rich state's `reading_mode_default`. No dead
+/// toggles — the feature-effect gating is proven per-panel in the `code_editor::panel` + `reading_mode` unit
+/// tests; this proves the settings->mounted-state wiring end to end.
+#[test]
+fn mt035_wave7_settings_drive_live_mounted_editors() {
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport);
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+
+    // Baseline: the wave-7 features default to their always-on / single-spaced / editable state.
+    let panel = harness.state().mounted_code_panel();
+    assert!(
+        (panel.line_height_multiplier() - 1.0).abs() < 1e-4,
+        "line height defaults to 1.0 (single-spaced)"
+    );
+    assert!(panel.bracket_matching_enabled(), "bracket matching defaults on");
+    assert!(panel.indent_guides_enabled(), "indent guides default on");
+    assert!(
+        !harness
+            .state()
+            .mounted_rich_state()
+            .lock()
+            .unwrap()
+            .reading_mode_default(),
+        "reading-mode default is off (docs open editable)"
+    );
+
+    // Change all four through the SAME wired outcome the live controls produce.
+    let prefs = EditorPrefs {
+        line_height: 1.8,
+        bracket_matching: false,
+        indent_guides: false,
+        reading_mode_default: true,
+        ..EditorPrefs::default()
+    };
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs));
+    harness.run();
+
+    let panel = harness.state().mounted_code_panel();
+    assert!(
+        (panel.line_height_multiplier() - 1.8).abs() < 1e-4,
+        "wave-7: line_height=1.8 reached the LIVE code panel (set_line_height)"
+    );
+    assert!(
+        !panel.bracket_matching_enabled(),
+        "wave-7: bracket_matching=false disabled the LIVE matching-bracket highlight"
+    );
+    assert!(
+        !panel.indent_guides_enabled(),
+        "wave-7: indent_guides=false disabled the LIVE indent guides"
+    );
+    assert!(
+        harness
+            .state()
+            .mounted_rich_state()
+            .lock()
+            .unwrap()
+            .reading_mode_default(),
+        "wave-7: reading_mode_default=true reached the LIVE rich state (set_reading_mode_default)"
+    );
+
+    // The OTHER direction: restore single-spaced + re-enable the chrome + turn reading-default back off.
+    let prefs2 = EditorPrefs {
+        line_height: 1.0,
+        bracket_matching: true,
+        indent_guides: true,
+        reading_mode_default: false,
+        ..EditorPrefs::default()
+    };
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs2));
+    harness.run();
+
+    let panel = harness.state().mounted_code_panel();
+    assert!(
+        (panel.line_height_multiplier() - 1.0).abs() < 1e-4,
+        "wave-7: line height reset to single-spaced"
+    );
+    assert!(panel.bracket_matching_enabled(), "wave-7: bracket matching re-enabled");
+    assert!(panel.indent_guides_enabled(), "wave-7: indent guides re-enabled");
+    assert!(
+        !harness
+            .state()
+            .mounted_rich_state()
+            .lock()
+            .unwrap()
+            .reading_mode_default(),
+        "wave-7: reading-mode default turned back off"
+    );
+}
+
 #[test]
 fn syntax_palette_change_drives_the_live_code_panel_immediately() {
     let transport = StubSettingsTransport::with_loaded(None);

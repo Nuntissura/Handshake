@@ -6638,12 +6638,20 @@ impl HandshakeApp {
         // S6 item 3: LIVE font size + Custom syntax palette on mounted editors.
         panel.set_font_size(prefs.editor_font_size);
         panel.set_syntax_palette(self.workspace_settings.syntax_palette.clone());
+        // MT-035 wave-7: LIVE row-height multiplier + matching-bracket / indent-guide chrome gating onto
+        // the mounted code panel (each drives a real, visible editor behavior — no dead toggles).
+        panel.set_line_height(prefs.line_height);
+        panel.set_bracket_matching_enabled(prefs.bracket_matching);
+        panel.set_indent_guides_enabled(prefs.indent_guides);
         let mut rich_state = self
             .editor_mounts
             .rich_state
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         rich_state.set_editor_font_size(prefs.editor_font_size);
+        // MT-035 wave-7: seed the rich editor's reading-mode default so a freshly-opened doc with no
+        // remembered per-document choice starts in Reading view when the operator sets this preference.
+        rich_state.set_reading_mode_default(prefs.reading_mode_default);
         match prefs.word_wrap {
             WordWrapMode::Off => {
                 panel.set_wrap_enabled(false);

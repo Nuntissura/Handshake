@@ -350,6 +350,17 @@ impl PaneFactory for RichEditorPaneMount {
             .map(|id| id.to_owned())
             .unwrap_or_else(|| format!("pane:{}", ctx.record.pane_id));
         let mut store = crate::rich_editor::reading_mode::reading_mode_store(ui.ctx());
+        // WP-KERNEL-012 MT-035 wave-7: seed a FRESHLY-opened document (one with no remembered per-document
+        // choice) from the operator's `editor_prefs.reading_mode_default` preference (threaded onto the
+        // shared rich state via `RichEditorState::set_reading_mode_default`). A document the operator has
+        // already toggled keeps its remembered choice — the default never overrides a per-document toggle.
+        if !store.contains(&doc_key) {
+            let default_reading = {
+                let s = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                s.reading_mode_default()
+            };
+            store.ensure_seeded(&doc_key, default_reading);
+        }
         let mode = crate::rich_editor::reading_mode::view_mode_toggle(ui, &doc_key, &mut store);
         crate::rich_editor::reading_mode::write_reading_mode_store(ui.ctx(), &store);
         if mode.is_read_only() {

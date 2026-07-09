@@ -61,6 +61,11 @@ pub struct RichEditorState {
     pub theme: HsTheme,
     /// Live body font size for rich document content, synchronized from editor settings.
     pub editor_font_size: f32,
+    /// WP-KERNEL-012 MT-035 wave-7: when `true`, a freshly-opened rich document with no remembered
+    /// per-document view choice starts in Reading (read-only) view instead of Edit. Synchronized from
+    /// `editor_prefs.reading_mode_default`; consumed by the host mount to seed the per-document
+    /// `ReadingModeStore`. Default `false` (documents open editable).
+    pub reading_mode_default: bool,
     /// Actor id for transaction provenance.
     pub actor_id: String,
     /// MT-014 embed runtime: per-editor asset-resolution + texture caches, slideshow/album/video
@@ -265,6 +270,7 @@ impl RichEditorState {
             preedit: PreeditState::default(),
             theme: HsTheme::Dark,
             editor_font_size: super::line_layout::BASE_FONT_SIZE,
+            reading_mode_default: false,
             actor_id: "operator".to_owned(),
             embeds,
             wikilinks,
@@ -319,6 +325,24 @@ impl RichEditorState {
     /// Current live rich document base font size.
     pub fn editor_font_size(&self) -> f32 {
         super::line_layout::resolved_base_font_size(self.editor_font_size)
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: apply the operator's reading-mode-default preference. Returns whether
+    /// the stored value changed (so a caller can avoid redundant work). The host mount reads
+    /// [`reading_mode_default`](Self::reading_mode_default) to seed a freshly-opened document's view.
+    pub fn set_reading_mode_default(&mut self, default_reading: bool) -> bool {
+        if self.reading_mode_default != default_reading {
+            self.reading_mode_default = default_reading;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: whether a freshly-opened rich document (with no remembered per-document
+    /// choice) should start in Reading view. Synchronized from `editor_prefs.reading_mode_default`.
+    pub fn reading_mode_default(&self) -> bool {
+        self.reading_mode_default
     }
 
     /// WP-KERNEL-012 MT-058: install the cached MT-023 tag list (display names) the inline-tag `#`

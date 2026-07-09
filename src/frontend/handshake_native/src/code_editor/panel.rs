@@ -1081,6 +1081,26 @@ pub struct CodeEditorPanel {
     /// LIVE [`resolve_scope_color`](crate::code_editor::resolve_scope_color) resolver, so a Custom swatch
     /// edit repaints the running editor. Behind a `Mutex` for the same `Sync` reason as the buffer.
     syntax_palette: Mutex<Option<crate::workspace_settings::SyntaxPalette>>,
+    /// WP-KERNEL-012 MT-035 wave-7: the LIVE row-height MULTIPLIER the shell threads in from
+    /// `editor_prefs.line_height` via [`set_line_height`](Self::set_line_height). `None` = `1.0`
+    /// (single-spaced — the font's natural measured row height). [`line_height`](Self::line_height)
+    /// multiplies the measured mono-font row height by this, so every stride/decoration/overlay that
+    /// derives from `line_height` spaces uniformly; `set_line_height` clears the `line_height_px` cache so
+    /// the next frame re-measures. Behind a `Mutex` for the same `Sync` reason as the buffer.
+    line_height_multiplier: Mutex<Option<f32>>,
+    /// WP-KERNEL-012 MT-035 wave-7: whether the matching-bracket highlight renders (the shell threads
+    /// `editor_prefs.bracket_matching` in via
+    /// [`set_bracket_matching_enabled`](Self::set_bracket_matching_enabled)). Default `true` (the highlight
+    /// was always on before). When `false`, [`matching_bracket_at`](Self::matching_bracket_at) returns
+    /// `None` and `paint_chrome_decorations` skips the matched-bracket box. Atomic so the `&self` draw path
+    /// reads it without locking.
+    bracket_matching_enabled: std::sync::atomic::AtomicBool,
+    /// WP-KERNEL-012 MT-035 wave-7: whether vertical indent-guide lines render (the shell threads
+    /// `editor_prefs.indent_guides` in via [`set_indent_guides_enabled`](Self::set_indent_guides_enabled)).
+    /// Default `true` (indent guides were always on before). When `false`, `paint_chrome_decorations`
+    /// skips the indent-guide pass and [`indent_guide_count_for_line`](Self::indent_guide_count_for_line)
+    /// reports `0`. Atomic so the `&self` draw path reads it without locking.
+    indent_guides_enabled: std::sync::atomic::AtomicBool,
 
     // ── MT-054 editor chrome: word wrap + bracket match/colorize + indent guides ──────────────────
     /// MT-054 the word-wrap configuration (Alt+Z). `enabled == false` by default (the MT-002 baseline
@@ -1635,6 +1655,12 @@ impl CodeEditorPanel {
             // them in from editor settings (None -> built-in MONO_FONT_SIZE + theme syntax tokens).
             font_size: Mutex::new(None),
             syntax_palette: Mutex::new(None),
+            // MT-035 wave-7: no live line-height multiplier until the shell threads it in (None -> 1.0
+            // single-spaced), and the matching-bracket + indent-guide chrome default ENABLED to match the
+            // always-on pre-toggle behavior.
+            line_height_multiplier: Mutex::new(None),
+            bracket_matching_enabled: std::sync::atomic::AtomicBool::new(true),
+            indent_guides_enabled: std::sync::atomic::AtomicBool::new(true),
             // MT-054 word wrap: OFF by default so the first render is the MT-002 1:1 baseline
             // (RISK-006 / MC-006). The viewport width is filled in each frame from the live editor-area
             // width before the wrap layout runs.
@@ -5059,6 +5085,119 @@ impl CodeEditorPanel {
         }
     }
 
+    // ── WP-KERNEL-012 MT-035 wave-7: LIVE line-height multiplier + bracket-match/indent-guide gating ──
+
+    /// The LIVE row-height multiplier — the shell-threaded `editor_prefs.line_height`, or `1.0`
+    /// (single-spaced) when the shell has not set one. [`line_height`](Self::line_height) multiplies the
+    /// measured mono-font row height by this so lines are spaced by the multiplier.
+    pub fn line_height_multiplier(&self) -> f32 {
+        self.line_height_multiplier
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or(1.0)
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: thread the LIVE row-height multiplier in from the operator's
+    /// `editor_prefs.line_height` (the shell calls this from `sync_editor_prefs_to_panel`). Clamped to the
+    /// settings range (1.0..=2.0). When the multiplier actually changes, the measured row-height cache
+    /// (`line_height_px`) is invalidated so the next frame re-measures and re-scales — that is what respaces
+    /// the running editor's rows (no restart). A no-op when unchanged, so a per-frame sync stays cheap.
+    pub fn set_line_height(&self, multiplier: f32) {
+        let clamped = multiplier.clamp(
+            *crate::workspace_settings::EDITOR_LINE_HEIGHT_RANGE.start(),
+            *crate::workspace_settings::EDITOR_LINE_HEIGHT_RANGE.end(),
+        );
+        let changed = {
+            let mut slot = self
+                .line_height_multiplier
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let current = slot.unwrap_or(1.0);
+            if (current - clamped).abs() > f32::EPSILON {
+                *slot = Some(clamped);
+                true
+            } else {
+                false
+            }
+        };
+        if changed {
+            *self
+                .line_height_px
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+        }
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: whether the matching-bracket highlight renders (the shell threads
+    /// `editor_prefs.bracket_matching` in via [`set_bracket_matching_enabled`](Self::set_bracket_matching_enabled)).
+    pub fn bracket_matching_enabled(&self) -> bool {
+        self.bracket_matching_enabled.load(Ordering::Relaxed)
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: enable/disable the matching-bracket highlight. When `false`,
+    /// [`matching_bracket_at`](Self::matching_bracket_at) returns `None` and `paint_chrome_decorations`
+    /// paints no matched-bracket box.
+    pub fn set_bracket_matching_enabled(&self, enabled: bool) {
+        self.bracket_matching_enabled
+            .store(enabled, Ordering::Relaxed);
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: whether vertical indent-guide lines render (the shell threads
+    /// `editor_prefs.indent_guides` in via [`set_indent_guides_enabled`](Self::set_indent_guides_enabled)).
+    pub fn indent_guides_enabled(&self) -> bool {
+        self.indent_guides_enabled.load(Ordering::Relaxed)
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: enable/disable the indent-guide lines. When `false`,
+    /// `paint_chrome_decorations` skips the guide pass and
+    /// [`indent_guide_count_for_line`](Self::indent_guide_count_for_line) reports `0`.
+    pub fn set_indent_guides_enabled(&self, enabled: bool) {
+        self.indent_guides_enabled.store(enabled, Ordering::Relaxed);
+    }
+
+    /// The gated matching-bracket computation shared by the render path (which passes its already-held
+    /// buffer lock) and the public [`matching_bracket_at`](Self::matching_bracket_at) accessor. Returns the
+    /// `(open_byte, close_byte)` of the pair the caret at `cursor_byte` is on/next to, or `None` when the
+    /// toggle is OFF or no bracket is adjacent. One logic path so the render and the test never drift.
+    fn matching_bracket_pair(
+        &self,
+        buffer: &TextBuffer,
+        cursor_byte: usize,
+    ) -> Option<(usize, usize)> {
+        if !self.bracket_matching_enabled() {
+            return None;
+        }
+        find_matching_bracket(buffer, cursor_byte).map(
+            |BracketMatch {
+                 open_byte,
+                 close_byte,
+             }| (open_byte, close_byte),
+        )
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: the `(open_byte, close_byte)` of the bracket pair the caret at
+    /// `cursor_byte` is on/next to (VS Code adjacency), gated by the bracket-matching toggle — `None` when
+    /// the toggle is OFF or no bracket is adjacent. This is the SAME gated computation the
+    /// `paint_chrome_decorations` matched-bracket box uses, exposed so a test can prove the toggle drives
+    /// the mounted panel BOTH directions without manipulating cursor state.
+    pub fn matching_bracket_at(&self, cursor_byte: usize) -> Option<(usize, usize)> {
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        self.matching_bracket_pair(&buffer, cursor_byte)
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: the number of vertical indent guides that WOULD be drawn for
+    /// `buffer_line` (equal to the line's indent level — `paint_chrome_decorations` draws one guide per
+    /// level `1..=level`), gated by the indent-guides toggle — `0` when the toggle is OFF. Exposed so a
+    /// test can prove the toggle drives the mounted panel BOTH directions.
+    pub fn indent_guide_count_for_line(&self, buffer_line: usize) -> usize {
+        if !self.indent_guides_enabled() {
+            return 0;
+        }
+        let (tab_width, _) = self.indent_settings();
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        indent_level_of(&buffer, buffer_line, tab_width.max(1))
+    }
+
     // ── MT-054 word wrap (Alt+Z) — toggle + state ─────────────────────────────────────────────────
 
     /// MT-054: the current word-wrap configuration (for tests / the host / the AccessKit node value).
@@ -7744,7 +7883,12 @@ impl CodeEditorPanel {
         // decoration y. Deriving it from any other metric re-opens the ghost-bracket / gutter-drift
         // unit mismatch the Wave-B audit measured.
         let font = self.mono_font();
-        let h = ui.fonts_mut(|f| f.row_height(&font)).max(1.0);
+        // MT-035 wave-7: scale the measured natural row height by the LIVE line-height multiplier so lines
+        // are spaced by the multiplier. The glyph galley still paints at the font's natural height; the
+        // extra height is inter-line spacing (a >1.0 multiplier is a real, cache-invalidated respacing —
+        // NOT a dead toggle). The single row unit (`line_height`) feeds the `show_rows` stride, the gutter,
+        // the cursor/whitespace/decoration overlays, so multiplying HERE respaces everything consistently.
+        let h = (ui.fonts_mut(|f| f.row_height(&font)) * self.line_height_multiplier()).max(1.0);
         *cached = Some(h);
         h
     }
@@ -8461,21 +8605,26 @@ impl CodeEditorPanel {
                 painter.vline(x, y0..=y1, egui::Stroke::new(1.0, color));
             }
         };
-        match wrap_rows {
-            None => {
-                // FOLD-AWARE (Wave-B fix): the painted rows are exactly `painted_lines` — one buffer
-                // line per row, in row order, with fold-hidden lines absent. Enumerating THIS list (not
-                // a contiguous `first..end` line range, which the old code wrongly assumed mapped 1:1 to
-                // row offsets) puts every guide on its real painted row and never draws a hidden line's
-                // guide.
-                for (row_offset, &line) in painted_lines.iter().enumerate() {
-                    paint_guides_for(row_offset, line);
+        // MT-035 wave-7: the indent-guide pass is gated by the `editor_prefs.indent_guides` toggle the shell
+        // threads in via `set_indent_guides_enabled`. When OFF, no guides are painted (and
+        // `indent_guide_count_for_line` reports 0) — the toggle drives a real, visible chrome change.
+        if self.indent_guides_enabled() {
+            match wrap_rows {
+                None => {
+                    // FOLD-AWARE (Wave-B fix): the painted rows are exactly `painted_lines` — one buffer
+                    // line per row, in row order, with fold-hidden lines absent. Enumerating THIS list (not
+                    // a contiguous `first..end` line range, which the old code wrongly assumed mapped 1:1 to
+                    // row offsets) puts every guide on its real painted row and never draws a hidden line's
+                    // guide.
+                    for (row_offset, &line) in painted_lines.iter().enumerate() {
+                        paint_guides_for(row_offset, line);
+                    }
                 }
-            }
-            Some(rows) => {
-                for (row_offset, row) in rows.iter().enumerate() {
-                    if row.is_first_fragment() {
-                        paint_guides_for(row_offset, row.logical_line);
+                Some(rows) => {
+                    for (row_offset, row) in rows.iter().enumerate() {
+                        if row.is_first_fragment() {
+                            paint_guides_for(row_offset, row.logical_line);
+                        }
                     }
                 }
             }
@@ -8542,16 +8691,15 @@ impl CodeEditorPanel {
         }
 
         // 3) MATCHING-BRACKET HIGHLIGHT: a rounded box behind the two matched brackets when the cursor is
-        //    adjacent to a bracket (VS Code adjacency). Painted last so it sits on top.
+        //    adjacent to a bracket (VS Code adjacency). Painted last so it sits on top. MT-035 wave-7: gated
+        //    by the `editor_prefs.bracket_matching` toggle via the shared `matching_bracket_pair` helper —
+        //    when OFF it returns None and no box is painted (the same gate `matching_bracket_at` exposes to
+        //    tests, so render + test never drift).
         let cursor_byte = {
             let set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
             set.primary().head
         };
-        if let Some(BracketMatch {
-            open_byte,
-            close_byte,
-        }) = find_matching_bracket(&buffer, cursor_byte)
-        {
+        if let Some((open_byte, close_byte)) = self.matching_bracket_pair(&buffer, cursor_byte) {
             let stroke = egui::Stroke::new(1.0, active_guide_color);
             for b in [open_byte, close_byte] {
                 if let Some((x, y)) =
@@ -12025,6 +12173,135 @@ fn main() {
         assert!(
             h_tiny < h_default,
             "S6 item 3: a smaller font size SHRANK the measured row height ({h_default} -> {h_tiny})"
+        );
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: the LIVE line-height MULTIPLIER respaces the mounted editor's rows.
+    /// Driven through the REAL render path (like the font-size proof) and inspected via the module-private
+    /// cached row-height measurement: a 1.8x multiplier makes the computed row height ~1.8x taller, and
+    /// resetting to 1.0 restores the natural single-spaced height — a real, cache-invalidated respacing,
+    /// NOT a dead toggle.
+    #[test]
+    fn line_height_multiplier_respaces_measured_row_height_through_render_path() {
+        use std::sync::Arc;
+
+        use egui_kittest::Harness;
+
+        let panel = Arc::new(CodeEditorPanel::new("fn main() {\n    let x = 1;\n}", "rs"));
+        let panel_for_harness = Arc::clone(&panel);
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(640.0, 300.0))
+            .build_ui(move |ui| {
+                panel_for_harness.show(ui);
+            });
+
+        harness.run();
+        let h_single = panel
+            .line_height_px
+            .lock()
+            .unwrap()
+            .expect("row height measured at the default 1.0 multiplier");
+        assert!(h_single > 0.0, "sane single-spaced row height: {h_single}");
+        assert!(
+            (panel.line_height_multiplier() - 1.0).abs() < f32::EPSILON,
+            "default multiplier is 1.0 (single-spaced)"
+        );
+
+        panel.set_line_height(1.8);
+        harness.run();
+        let h_scaled = panel
+            .line_height_px
+            .lock()
+            .unwrap()
+            .expect("row height re-measured at the 1.8 multiplier");
+        assert!(
+            (panel.line_height_multiplier() - 1.8).abs() < 1e-4,
+            "the multiplier reached the panel"
+        );
+        assert!(
+            (h_scaled - h_single * 1.8).abs() < 0.5,
+            "MT-035 wave-7: a 1.8x line-height GREW the computed row height ~1.8x ({h_single} -> \
+             {h_scaled}, expected ~{})",
+            h_single * 1.8
+        );
+
+        // The OTHER direction: back to single-spaced restores the natural row height.
+        panel.set_line_height(1.0);
+        harness.run();
+        let h_restored = panel
+            .line_height_px
+            .lock()
+            .unwrap()
+            .expect("row height re-measured back at 1.0");
+        assert!(
+            (h_restored - h_single).abs() < 0.5,
+            "MT-035 wave-7: resetting to 1.0 restored the single-spaced height ({h_scaled} -> \
+             {h_restored}, expected ~{h_single})"
+        );
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: the bracket-matching toggle GATES the matched-bracket computation the
+    /// render path highlights. With a caret next to `(`, the enabled toggle computes the matching `)`
+    /// position; disabling it yields `None` (no highlight); re-enabling restores it — proving both
+    /// directions drive a real feature, not a dead toggle.
+    #[test]
+    fn bracket_matching_toggle_gates_match_computation() {
+        // "()" — caret byte 0 sits immediately BEFORE the '(' (VS Code before-open adjacency).
+        let panel = CodeEditorPanel::new("()", "rs");
+        assert!(
+            panel.bracket_matching_enabled(),
+            "bracket matching defaults on (always-on pre-toggle behavior)"
+        );
+        assert_eq!(
+            panel.matching_bracket_at(0),
+            Some((0, 1)),
+            "MT-035 wave-7: enabled -> the caret next to '(' matches the ')' at byte 1"
+        );
+
+        panel.set_bracket_matching_enabled(false);
+        assert_eq!(
+            panel.matching_bracket_at(0),
+            None,
+            "MT-035 wave-7: disabled -> no matching bracket is computed (no highlight)"
+        );
+
+        panel.set_bracket_matching_enabled(true);
+        assert_eq!(
+            panel.matching_bracket_at(0),
+            Some((0, 1)),
+            "MT-035 wave-7: re-enabled -> the match is computed again"
+        );
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: the indent-guides toggle GATES the guide computation the render path
+    /// paints. An indented line reports its indent-guide count when enabled and `0` when disabled — both
+    /// directions drive a real feature, not a dead toggle.
+    #[test]
+    fn indent_guides_toggle_gates_guide_count() {
+        // Line index 1 ("\tlet x = 1;") is indented one tab -> one indent level -> one guide.
+        let panel = CodeEditorPanel::new("fn main() {\n\tlet x = 1;\n}", "rs");
+        assert!(
+            panel.indent_guides_enabled(),
+            "indent guides default on (always-on pre-toggle behavior)"
+        );
+        let guides_on = panel.indent_guide_count_for_line(1);
+        assert!(
+            guides_on >= 1,
+            "MT-035 wave-7: enabled -> the indented line exposes >=1 indent guide (got {guides_on})"
+        );
+
+        panel.set_indent_guides_enabled(false);
+        assert_eq!(
+            panel.indent_guide_count_for_line(1),
+            0,
+            "MT-035 wave-7: disabled -> the panel exposes no indent guides"
+        );
+
+        panel.set_indent_guides_enabled(true);
+        assert_eq!(
+            panel.indent_guide_count_for_line(1),
+            guides_on,
+            "MT-035 wave-7: re-enabled -> the guide count is computed again"
         );
     }
 

@@ -136,6 +136,31 @@ impl ReadingModeStore {
         self.modes.insert(document_id.to_owned(), mode);
     }
 
+    /// True when `document_id` has a remembered (explicitly-set) choice. Distinguishes a document the
+    /// operator has toggled from a never-seen document (which [`get`](Self::get) reports as the default
+    /// `Edit`). WP-KERNEL-012 MT-035 wave-7: the host mount uses this to seed a FRESHLY-opened document
+    /// from the reading-mode-default preference WITHOUT overriding a document's remembered choice.
+    pub fn contains(&self, document_id: &str) -> bool {
+        self.modes.contains_key(document_id)
+    }
+
+    /// WP-KERNEL-012 MT-035 wave-7: return `document_id`'s remembered mode, or — for a never-seen
+    /// document — seed and return the reading-mode default (Reading when `default_reading`, else Edit). A
+    /// document that already has a remembered choice is returned unchanged (the default never overrides a
+    /// per-document toggle). The seed is written so the choice is stable across frames.
+    pub fn ensure_seeded(&mut self, document_id: &str, default_reading: bool) -> ViewMode {
+        if let Some(mode) = self.modes.get(document_id).copied() {
+            return mode;
+        }
+        let seeded = if default_reading {
+            ViewMode::Reading
+        } else {
+            ViewMode::Edit
+        };
+        self.modes.insert(document_id.to_owned(), seeded);
+        seeded
+    }
+
     /// Flip `document_id` between Edit and Reading and return the NEW mode. A document with no
     /// remembered choice toggles from its default (Edit) to Reading.
     pub fn toggle(&mut self, document_id: &str) -> ViewMode {
@@ -318,6 +343,35 @@ mod tests {
     fn default_view_mode_is_edit() {
         assert_eq!(ViewMode::default(), ViewMode::Edit);
         assert!(ReadingModeStore::new().is_empty());
+    }
+
+    // WP-KERNEL-012 MT-035 wave-7: the reading-mode-default preference seeds a FRESHLY-opened document
+    // (one with no remembered choice) into Reading when the default is on, and Edit when off — while a
+    // document the operator has already toggled keeps its remembered choice (the default never overrides
+    // a per-document toggle). This is the store-side proof of "setting true -> a fresh rich doc starts in
+    // reading mode."
+    #[test]
+    fn reading_mode_default_seeds_fresh_doc_both_directions() {
+        // default ON: a never-seen doc is seeded to Reading and remembered.
+        let mut store = ReadingModeStore::new();
+        assert!(!store.contains("fresh"), "the doc is unseen before seeding");
+        assert_eq!(store.ensure_seeded("fresh", true), ViewMode::Reading);
+        assert!(store.contains("fresh"), "seeding remembers the choice");
+        assert_eq!(store.get("fresh"), ViewMode::Reading);
+
+        // default OFF: a never-seen doc is seeded to Edit (the editor default).
+        let mut store_off = ReadingModeStore::new();
+        assert_eq!(store_off.ensure_seeded("fresh", false), ViewMode::Edit);
+        assert_eq!(store_off.get("fresh"), ViewMode::Edit);
+
+        // A document the operator has already toggled to Edit is NOT overridden by a Reading default.
+        let mut store_toggled = ReadingModeStore::new();
+        store_toggled.set("kept", ViewMode::Edit);
+        assert_eq!(
+            store_toggled.ensure_seeded("kept", true),
+            ViewMode::Edit,
+            "the default never overrides a remembered per-document choice"
+        );
     }
 
     // The store round-trips through serde (the egui-persistence shape) — a Reading choice survives

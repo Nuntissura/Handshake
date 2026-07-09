@@ -73,6 +73,14 @@ pub const EDITOR_MINIMAP_AUTHOR_ID: &str = "settings-editor-minimap";
 pub const EDITOR_STICKY_SCROLL_AUTHOR_ID: &str = "settings-editor-sticky-scroll";
 /// WP-KERNEL-012 MT-035: AccessKit author_id for the gutter line-numbers on/off `Checkbox`.
 pub const EDITOR_LINE_NUMBERS_AUTHOR_ID: &str = "settings-editor-line-numbers";
+/// WP-KERNEL-012 MT-035 wave-7: AccessKit author_id for the line-height multiplier `DragValue`.
+pub const EDITOR_LINE_HEIGHT_AUTHOR_ID: &str = "settings-editor-line-height";
+/// WP-KERNEL-012 MT-035 wave-7: AccessKit author_id for the bracket-matching on/off `Checkbox`.
+pub const EDITOR_BRACKET_MATCHING_AUTHOR_ID: &str = "settings-editor-bracket-matching";
+/// WP-KERNEL-012 MT-035 wave-7: AccessKit author_id for the indent-guides on/off `Checkbox`.
+pub const EDITOR_INDENT_GUIDES_AUTHOR_ID: &str = "settings-editor-indent-guides";
+/// WP-KERNEL-012 MT-035 wave-7: AccessKit author_id for the rich-editor reading-mode-default `Checkbox`.
+pub const EDITOR_READING_MODE_DEFAULT_AUTHOR_ID: &str = "settings-editor-reading-mode-default";
 /// AccessKit author_id for the bounded-wrap-column `DragValue` (shown only when word_wrap = Bounded).
 pub const EDITOR_WRAP_COLUMN_AUTHOR_ID: &str = "settings-editor-wrap-column";
 /// AccessKit author_id for the syntax-palette mode `ComboBox`.
@@ -529,6 +537,65 @@ impl EditorSettingsSection {
             );
             if cb.changed() {
                 prefs.line_numbers = line_numbers;
+                changed = true;
+            }
+        });
+
+        // WP-KERNEL-012 MT-035 wave-7: line-height multiplier, bracket-matching, indent-guides, and the
+        // rich-editor reading-mode default. Each rides the SAME EditorPrefsChanged outcome + the shell's
+        // sync-to-panel path, so a change takes effect LIVE on the mounted editor (set_line_height /
+        // set_bracket_matching_enabled / set_indent_guides_enabled / RichEditorState::set_reading_mode_default)
+        // — none are dead toggles.
+        ui.horizontal(|ui| {
+            ui.label("Line height");
+            let dv = ui.add(
+                egui::DragValue::new(&mut prefs.line_height)
+                    .speed(0.05)
+                    .range(crate::workspace_settings::EDITOR_LINE_HEIGHT_RANGE)
+                    .suffix("×"),
+            );
+            set_author_id_and_label(ui, dv.id, EDITOR_LINE_HEIGHT_AUTHOR_ID, "Line height multiplier");
+            changed |= dv.changed();
+        });
+        ui.horizontal(|ui| {
+            let mut bracket_matching = prefs.bracket_matching;
+            let cb = ui.checkbox(&mut bracket_matching, "Bracket matching");
+            set_author_id_and_label(
+                ui,
+                cb.id,
+                EDITOR_BRACKET_MATCHING_AUTHOR_ID,
+                "Highlight the matching bracket at the caret",
+            );
+            if cb.changed() {
+                prefs.bracket_matching = bracket_matching;
+                changed = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            let mut indent_guides = prefs.indent_guides;
+            let cb = ui.checkbox(&mut indent_guides, "Indent guides");
+            set_author_id_and_label(
+                ui,
+                cb.id,
+                EDITOR_INDENT_GUIDES_AUTHOR_ID,
+                "Show vertical indent-guide lines",
+            );
+            if cb.changed() {
+                prefs.indent_guides = indent_guides;
+                changed = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            let mut reading_mode_default = prefs.reading_mode_default;
+            let cb = ui.checkbox(&mut reading_mode_default, "Open notes in Reading view");
+            set_author_id_and_label(
+                ui,
+                cb.id,
+                EDITOR_READING_MODE_DEFAULT_AUTHOR_ID,
+                "Open rich documents in Reading (read-only) view by default",
+            );
+            if cb.changed() {
+                prefs.reading_mode_default = reading_mode_default;
                 changed = true;
             }
         });
