@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "depends_on": [
       "MT-001"
     ],
@@ -27,7 +27,7 @@
       "MT-008"
     ],
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "claimed_by": "KERNEL_BUILDER-20260628-220906",
     "claimed_at_utc": "2026-06-28T22:32:08.601Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
@@ -43,7 +43,9 @@
     "last_runtime_status_ref": "Implemented Rust PostgreSQL/EventLedger ModelLane storage, Dexterity SwarmCoordinator launch recording, fail-closed validators, UserManual coverage, and exact proof commands.",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
-    "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_AND_TESTS"
+    "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_AND_TESTS",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z"
   },
   "scope": {
     "summary": "Add backend schemas/types for ModelLaneRun, ModelLane, ModelLaneMessage, and lane status.",
@@ -248,5 +250,24 @@
     "no_context_model_requirement": "A model with no chat history must be able to implement and verify this MT from this contract, SPEC_CURRENT/master spec, product code paths, UserManual/backend navigation, and listed proof targets.",
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
+  },
+  "validator_verdict": "PASS_V1",
+  "validation_v1": {
+    "verdict": "PASS_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z",
+    "session": "INTEGRATION_VALIDATOR-20260710-211903",
+    "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "head_sha": "9ea46427",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
+    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
+    "basis": "ModelLaneRun/ModelLane/ModelLaneMessage typed schemas + Locus fail-closed (validate_locus) + idempotency-conflict fail-closed. Proof model_lane_schema_pg_tests uses knowledge_pg().expect() (fail-closed, panics without real PG) and asserts EventLedger evidence (event_ledger_event_id KE- prefix, event_ledger_seq>0). Negative proof model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict present. UserManual entry current.",
+    "concerns": [
+      "Disclosed scope note: MT-002 commit also touched revoke_cloud_consent_receipt (MT-006 behavior) inside the shared swarm_orchestration/ path; disclosed and in-scope-directory, allow-with-note."
+    ]
   }
 }

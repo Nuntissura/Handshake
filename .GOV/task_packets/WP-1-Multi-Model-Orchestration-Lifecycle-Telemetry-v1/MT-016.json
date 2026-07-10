@@ -16,13 +16,13 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "depends_on": [
       "MT-014"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "claimed_by": "KERNEL_BUILDER-20260704-003205",
     "claimed_at_utc": "2026-07-04T00:32:05Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260704-003205",
@@ -34,7 +34,9 @@
     "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL: shared ModelRegistry/ModelCatalog capability validation, embedded local-runtime dedicated embedding registration, LoomSearchV2 no-chat-fallback route with stable embedding-space persistence, PostgreSQL same-space vector filtering, and UserManual startup/recovery/evidence coverage.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
     "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
-    "adversarial_findings_status": "POST_REVIEW_FINDINGS_APPLIED: stable embedding-space key replaces per-boot UUID persistence/search matching; router rejects runtime embedding dimension mismatch with typed error; dedicated embedding capabilities no longer overdeclare chat/LoRA/KV/steering; UserManual event family and tool-entry proof targets updated; optional bad embedding-model load remains fail-closed under existing boot contract and is not claimed as separate fail-open behavior."
+    "adversarial_findings_status": "POST_REVIEW_FINDINGS_APPLIED: stable embedding-space key replaces per-boot UUID persistence/search matching; router rejects runtime embedding dimension mismatch with typed error; dedicated embedding capabilities no longer overdeclare chat/LoRA/KV/steering; UserManual event family and tool-entry proof targets updated; optional bad embedding-model load remains fail-closed under existing boot contract and is not claimed as separate fail-open behavior.",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z"
   },
   "scope": {
     "summary": "Dedicated embedding model distinct from the chat model: a second local-model registration whose ModelCapabilities declares supports_embedding + embedding dimension as an MT-016 product extension, so LoomSearchV2 embeds via the embedding-capable model resolved from the shared registry rather than via the single chat model's profile().model_id.",
@@ -147,5 +149,21 @@
     "native_rust_backend_first": true,
     "rust_only_implementation": "Rust backend + native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real engine-free proofs; COMPLETED is validator-only."
+  },
+  "validator_verdict": "PASS_V1",
+  "validation_v1": {
+    "verdict": "PASS_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z",
+    "session": "INTEGRATION_VALIDATOR-20260710-211903",
+    "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "head_sha": "9ea46427",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
+    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
+    "basis": "Dedicated embedding model distinct from chat model. ModelCapabilities supports_embedding + embedding_dimension consistency rejection; second embedding model config (HANDSHAKE_LOCAL_EMBEDDING_MODEL_*) loaded/registered distinct from chat (boot.rs); router rejects embedding on non-embedding-capable models; Loom routes to embedding-capable model. Both loom proofs use pg_required(...) (FAIL-CLOSED, panics if PG absent) - mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model + mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call query real loom_block_search_index.embedding_model column on live PG. This MT is the correct fail-closed pattern MT-014 should copy."
   }
 }

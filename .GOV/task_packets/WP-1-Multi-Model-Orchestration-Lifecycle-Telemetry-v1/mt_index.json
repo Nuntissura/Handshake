@@ -1,14 +1,14 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-09T00:35:00Z",
+  "generated_at_utc": "2026-07-10T21:19:03Z",
   "total": 17,
   "range": "MT-001..MT-017",
-  "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes. KERNEL_BUILDER HEAD re-proof 2026-07-09: every MT re-verified at HEAD via its declared proof targets on managed PostgreSQL; stale greens from ancestor commits replaced. Deferred gaps captured in MT-017.",
+  "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes. KERNEL_BUILDER HEAD re-proof 2026-07-09: every MT re-verified at HEAD via its declared proof targets on managed PostgreSQL; stale greens from ancestor commits replaced. Deferred gaps captured in MT-017. | INTEGRATION_VALIDATOR per-MT verdicts applied 2026-07-10T21:19:03Z: 001=PASS_V1,002=PASS_V1,004=PASS_V1,005=PASS_V1,006=PASS_V1,007=PASS_V1,008=PASS_V1,010=PASS_V1,011=PASS_V1,012=PASS_V1,015=PASS_V1,016=PASS_V1,003=FAIL_V1,009=FAIL_V1,013=FAIL_V1,014=FAIL_V1; MT-017 DEFERRED (not validated). 4 FAIL -> whole-WP validation + merge withheld.",
   "microtasks": [
     {
       "mt_id": "MT-001",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [],
       "summary": "Keep SPEC_CURRENT and the packet contract aligned with the modern ModelLane exchange architecture.",
       "unlocks": "Unlocks current spec/packet authority so later MTs implement the same ModelLane contract.",
@@ -31,7 +31,7 @@
     },
     {
       "mt_id": "MT-002",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-001"
       ],
@@ -52,7 +52,7 @@
     },
     {
       "mt_id": "MT-003",
-      "status": "READY_FOR_VALIDATION",
+      "status": "FAIL_V1",
       "depends_on": [
         "MT-002"
       ],
@@ -71,7 +71,7 @@
     },
     {
       "mt_id": "MT-004",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-002"
       ],
@@ -90,7 +90,7 @@
     },
     {
       "mt_id": "MT-005",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-002",
         "MT-004"
@@ -109,7 +109,7 @@
     },
     {
       "mt_id": "MT-006",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -128,7 +128,7 @@
     },
     {
       "mt_id": "MT-007",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-002",
         "MT-003",
@@ -151,7 +151,7 @@
     },
     {
       "mt_id": "MT-008",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-002",
         "MT-004",
@@ -172,7 +172,7 @@
     },
     {
       "mt_id": "MT-009",
-      "status": "READY_FOR_VALIDATION",
+      "status": "FAIL_V1",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -193,7 +193,7 @@
     },
     {
       "mt_id": "MT-010",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-007",
         "MT-008",
@@ -210,7 +210,7 @@
     },
     {
       "mt_id": "MT-011",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-009",
         "MT-010"
@@ -226,7 +226,7 @@
     },
     {
       "mt_id": "MT-012",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-003",
         "MT-008",
@@ -245,7 +245,7 @@
     },
     {
       "mt_id": "MT-013",
-      "status": "READY_FOR_VALIDATION",
+      "status": "FAIL_V1",
       "depends_on": [
         "MT-003"
       ],
@@ -260,7 +260,7 @@
     },
     {
       "mt_id": "MT-014",
-      "status": "READY_FOR_VALIDATION",
+      "status": "FAIL_V1",
       "depends_on": [
         "MT-003"
       ],
@@ -275,7 +275,7 @@
     },
     {
       "mt_id": "MT-015",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-006"
       ],
@@ -290,7 +290,7 @@
     },
     {
       "mt_id": "MT-016",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PASS_V1",
       "depends_on": [
         "MT-014"
       ],

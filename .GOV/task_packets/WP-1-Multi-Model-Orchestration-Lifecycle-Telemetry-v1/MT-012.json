@@ -16,7 +16,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "depends_on": [
       "MT-003",
       "MT-008",
@@ -26,7 +26,7 @@
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "claimed_by": "KERNEL_BUILDER-20260704-030347",
     "claimed_at_utc": "2026-07-04T03:03:47Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260704-030347",
@@ -38,7 +38,9 @@
     "hbr_status": "PASS_HBR_VIS_INT_SWARM_QUIET_MAN_FOR_MT012_OPERATOR_CHAT_SURFACE: native egui/Argus surface, LOCAL/CLOUD/CLI/SUBAGENT inventory rows, SwarmCoordinator Dexterity launch route fail-closed, SUBAGENT no-OS launch records RuntimeBinding::Subagent and LaunchAuthority::SubagentManager without process ownership, ModelLaneMessage capture + Flight Recorder/EventLedger evidence for process-backed lanes, UserManual coverage, stable author_id controls, official-CLI runtime duplicate FR-EVT-AGENT producer suppressed for replay-captured Operator Chat while LLM infer telemetry remains wired.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review_BUILD_AFTER_MT014_MT015",
     "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_POST_REVIEW_NO_OPEN_BLOCKERS_AFTER_DUPLICATE_AGENT_EVENT_FIX",
-    "adversarial_findings_status": "POST_REVIEW_BLOCKER_APPLIED: production Operator Chat official-CLI providers use replay-captured builder; runtime-level FR-EVT-AGENT emission can be suppressed independently from FR-EVT-LLM-INFER telemetry; local/cloud picker selection audit and unavailable-row disable behavior proven."
+    "adversarial_findings_status": "POST_REVIEW_BLOCKER_APPLIED: production Operator Chat official-CLI providers use replay-captured builder; runtime-level FR-EVT-AGENT emission can be suppressed independently from FR-EVT-LLM-INFER telemetry; local/cloud picker selection audit and unavailable-row disable behavior proven.",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z"
   },
   "scope": {
     "summary": "Operator work-surface: an interactive native chat/launch pane where the operator selects a local or cloud model lane and a folder/worktree, launches a session through the Dexterity SwarmCoordinator contract, and sees the CLI-wrapper conversation, model-exposed reasoning/thought, and tool calls captured as typed ModelLaneMessage records wired to Flight Recorder.",
@@ -173,5 +175,24 @@
     "native_rust_backend_first": true,
     "rust_only_implementation": "Rust backend plus native egui/Argus only. TypeScript/React/app-src/app-src-tauri/npm are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch real resources; COMPLETED is validator-only."
+  },
+  "validator_verdict": "PASS_V1",
+  "validation_v1": {
+    "verdict": "PASS_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z",
+    "session": "INTEGRATION_VALIDATOR-20260710-211903",
+    "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "head_sha": "9ea46427",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
+    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
+    "basis": "Operator chat/launch native pane + RUN-menu leaf. Launch resolves through real SwarmCoordinator::spawn_session with LoopbackCliSpawner (fake only at subprocess boundary), real CLI-capture parser, real ModelLaneStore::record_message, real CapturingRecorder; operator_chat_launch_route_performs_real_launch_when_wired binds a real HTTP server + asserts durable operator row + captured transcript rows; fail-closed proven by operator_chat_launch_without_model_lane_store_fails_closed. ARGUS ADEQUATE (independently verified): test_operator_chat_launch_argus.rs drives real egui_kittest::Harness over HandshakeApp::ui, reads author_id from the LIVE AccessKit tree, navigates via RUN menu leaf, before/after transcript-row observation, unique author_ids, offline error path renders ERROR_AUTHOR_ID.",
+    "concerns": [
+      "Could not locate an explicit assertion that launched-subprocess cwd == operator selection (P0-F10); cwd plumbing claimed in commit. Recommend confirm at whole-WP integration. Non-blocking for per-MT surface."
+    ]
   }
 }

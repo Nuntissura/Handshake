@@ -16,13 +16,13 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T18:12:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260704-040151",
@@ -34,7 +34,9 @@
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT013_REAL_CANDLE_LEDGER_FR_MANUAL_PROOFS_GREEN",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
     "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_REVIEW_OVERFLOW_BLOCKER_FIXED_AND_REPROVEN",
-    "adversarial_findings_status": "APPLIED_F1_GRACEFUL_SHUTDOWN_STOP_PLUS_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_USERMANUAL_COVERAGE_2026-07-04_REAL_PROOF_FALSE_GREEN_REPLACED_LEDGER_START_FAIL_CLOSED_MULTI_EMBEDDING_HANDLE_LOSSLESS_OVERFLOW_FAIL_CLOSED"
+    "adversarial_findings_status": "APPLIED_F1_GRACEFUL_SHUTDOWN_STOP_PLUS_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_USERMANUAL_COVERAGE_2026-07-04_REAL_PROOF_FALSE_GREEN_REPLACED_LEDGER_START_FAIL_CLOSED_MULTI_EMBEDDING_HANDLE_LOSSLESS_OVERFLOW_FAIL_CLOSED",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z"
   },
   "scope": {
     "summary": "Embedded ModelRuntime real-load conformance hardening: box the default embedded-model load path under a SandboxAdapter and emit ProcessOwnershipLedger START/STOP rows, and emit a Flight Recorder event on the DisabledLlmClient / fail-closed error paths, all validated with a REAL Candle model load.",
@@ -158,5 +160,22 @@
     "native_rust_backend_first": true,
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after a REAL Candle model load proves boxing+ledger; COMPLETED is validator-only."
+  },
+  "validator_verdict": "FAIL_V1",
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z",
+    "session": "INTEGRATION_VALIDATOR-20260710-211903",
+    "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "head_sha": "9ea46427",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
+    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
+    "fail_report": "SPEC-REALISM descriptor/runtime mismatch (same root as MT-003). scope.summary, acceptance_criteria[0] (AC#1), and proof_status all assert the default embedded-model load 'loads the model under the configured SandboxAdapter (default HandshakeNativeSandboxAdapter)'. Verified against git ground truth: git diff 6519f4e2..HEAD -- src/backend/handshake_core/src/sandbox/ is EMPTY (zero sandbox files changed); grep SandboxAdapter src/llm/boot.rs = 0 hits; src/llm/embedded_ledger.rs documents the 3.6.2 boxing clause as 'satisfied VACUOUSLY'. No SandboxAdapter boxing shipped. The Spec-Realism Gate rejects descriptor/runtime mismatch even when tests pass. NOTE (not the FAIL basis - the ledger work is genuinely good): the ProcessOwnershipLedger START/STOP obligation IS well implemented (idempotent shutdown via compare_exchange, Drop safety net, rollback on lossless-record failure, honest os_pid=None with os_pid_absent_reason). The FAIL is the false boxing claim, not the code. SECONDARY (advisory, not FAIL basis): the real-Candle proof leg (candle_e2e_smoke.rs mt013_real_candle_default_load_emits_process_ledger_start_stop) is #[ignore]+feature-gated; it was proven 2026-07-04 (log at ../Handshake_Artifacts/handshake-test/wp1-final-audit/mt013-real-candle-ledger-proof.log with matching process_uuid 019f2b98-... + sha256 49c20f32...) but was NOT re-run in the 2026-07-09 HEAD re-proof set.",
+    "remediation_plan": "STEP 1 (contract-truth, governance/spec-owner action - Coder MUST NOT edit /.GOV/): mark AC#1's SandboxAdapter-boxing clause NOT_APPLICABLE with recorded reason 'in-process Candle/llama.cpp library load spawns no OS process/child/guest; master-spec 3.6.2 clause(1) vacuous; the enforced obligation is ProcessOwnershipLedger START-on-load/STOP-on-unload (4.6.1), implemented in src/backend/handshake_core/src/llm/embedded_ledger.rs with os_pid=None + os_pid_absent_reason=in_process_library_load_no_os_process'. Strike 'box the default embedded model-load under a SandboxAdapter' from scope.summary and proof_status. STEP 2 (durable runtime evidence): re-run mt013_real_candle_default_load_emits_process_ledger_start_stop at HEAD with HANDSHAKE_TEST_CANDLE_MODEL_DIR pointing at the cached peft-internal-testing/tiny-random-LlamaForCausalLM snapshot and '--features candle-runtime-engine -- --ignored', and cite the captured [MT-013_REAL_CANDLE_LEDGER_DUMP] artifact path in proof_commands (not only in the proof_status narrative). STEP 3: re-handoff to READY_FOR_VALIDATION."
   }
 }

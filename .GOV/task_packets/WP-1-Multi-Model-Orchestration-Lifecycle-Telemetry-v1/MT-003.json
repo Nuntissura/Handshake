@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [
       "MT-002"
     ],
@@ -25,7 +25,7 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-01T19:02:22Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
@@ -41,7 +41,9 @@
     "last_runtime_status_ref": "PASS: cargo test --test model_lane_launch_tests 8/8 including missing SpawnRequest::with_dexterity_launch rejection before factory creation and public constructor fail-closed proof; cargo test --test model_lane_schema_pg_tests 4/4; exact UserManual schema and launch tests passed. POST_REVIEW_P1_FIXED: public SwarmCoordinator::new now requires Dexterity and fails closed without ModelLaneStore, new_with_model_lane_store requires a concrete ModelLaneStore, legacy no-Dexterity construction is test/test-utils named only, and SwarmSchedulerState::new attaches Dexterity by default. REQUEST_SOURCE_GUARD_EVIDENCE_ONLY: cargo test --manifest-path app/src-tauri/Cargo.toml --lib dexterity_contract passed 5/5, exact production_runtime_without_model_lane_store_fails_closed_for_dexterity_command_spawn passed 1/1, and cargo check --manifest-path app/src-tauri/Cargo.toml --lib passed, proving live Rust Tauri IPC/scheduled request sources attach core-generated Dexterity launch contracts, BYOK scheduled spin-ups require byok_cloud_provider, no-store production request paths fail closed, and test-only helpers do not block production app compilation. App/src-tauri evidence is bypass-closure evidence and does not satisfy WP proof authority. PASS: JSON parse, git diff --check, and hbr-matrix-check after live-path/spec/status patch. BLOCKED_EXTERNAL: spec-current/spec-bundle fail on indexed hash mismatch for spec-modules/04-llm-infrastructure.md.",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
-    "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_TESTS_AND_MT_STATUS; MISSING_DEXTERITY_CONTRACT_BYPASS_CLOSED; LIVE_TAURI_IPC_AND_SCHEDULE_REQUEST_SOURCE_BYPASS_CLOSED; PUBLIC_COORDINATOR_AND_SCHEDULER_CONSTRUCTOR_BYPASS_CLOSED_AFTER_ADVERSARIAL_FAIL_REVIEW_RETRY_PASS; APP_REQUEST_SOURCE_EVIDENCE_RECLASSIFIED_NON_AUTHORITY; EXTERNAL_SPEC_MANIFEST_DRIFT_RECORDED"
+    "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_TESTS_AND_MT_STATUS; MISSING_DEXTERITY_CONTRACT_BYPASS_CLOSED; LIVE_TAURI_IPC_AND_SCHEDULE_REQUEST_SOURCE_BYPASS_CLOSED; PUBLIC_COORDINATOR_AND_SCHEDULER_CONSTRUCTOR_BYPASS_CLOSED_AFTER_ADVERSARIAL_FAIL_REVIEW_RETRY_PASS; APP_REQUEST_SOURCE_EVIDENCE_RECLASSIFIED_NON_AUTHORITY; EXTERNAL_SPEC_MANIFEST_DRIFT_RECORDED",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z"
   },
   "scope": {
     "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes.",
@@ -89,7 +91,7 @@
       "REOPENED SCOPE (wiring approach per pre-impl review): the embedded-runtime LlmClient bridge already exists (llm/local_router.rs: LocalRouter + LocalModelRuntimeLlmClient, LlmClient-implementing, LlamaCpp-default/Candle-for-hooks, currently constructed only in tests). MT-003 does NOT add a new LlmClient impl; it (a) adds a net-new local-model config surface to llm/registry.rs from_env (GGUF artifact_path + sha256 + RuntimeBinding + display name); (b) in main.rs init_llm_client replaces the ProviderKind::Ollama auto-detect arm with a local-runtime arm that builds LlamaCppRuntime+CandleRuntime, loads+registers the artifact (minting a UUIDv7 ModelId, provider=Local, matching binding; ModelRegistry.register requires non-empty artifact_path + non-zero sha256; validate_binding forbids LlamaCpp+activation_steering so steering lanes use Candle), constructs LocalRouter + LocalModelRuntimeLlmClient with a DisabledLlmClient fallback; (c) fails closed to DisabledLlmClient AT INIT (no /api/tags probe, no daemon fallback) when no local model is configured or load() fails (do not hard-abort startup, mirror existing degradations at main.rs:396/407/439).",
       "REOPENED SCOPE (HIGH regression guard 1 - profile.model_id identity): the wired client's profile().model_id MUST be the minted UUIDv7 of the registered model, because call sites pass profile().model_id as CompletionRequest.model_id and LocalModelRuntimeLlmClient::completion only routes to the runtime for UUIDv7 ids (non-UUID silently falls back to the DisabledLlmClient fallback). A test MUST prove completion routes to the embedded runtime, not the fallback.",
       "REOPENED SCOPE (HIGH regression guard 2 - embedding not dropped): OllamaAdapter implemented embedding(); LocalModelRuntimeLlmClient inherits the trait default embedding()->EmbeddingUnsupported. The swap MUST wire LlmClient::embedding() to ModelRuntime::embed() in llm/local_router.rs (or record an explicit operator waiver), else semantic embeddings silently drop and LoomSearchV2 degrades to keyword/trigram. A test MUST prove embedding() is not silently unsupported after the swap.",
-    "SCOPE ACCURACY (post-review): 'kill' is LlmClient-DEFAULT-scoped, not repo-wide. The OllamaAdapter type + InMemoryLlmClient are retained ONLY as test doubles (never constructed in the default path; no ProviderKind::Ollama variant remains). Ollama couplings intentionally remain OUTSIDE the default LlmClient path and are NOT part of MT-003: tokenization.rs OllamaTokenizerConfigCache, atelier ollama: model-server scheme, bin/capability_registry_workflow.rs OLLAMA_MODEL, dependency_policy tripwires. Removing those is out of MT-003 scope; if desired, a future WP/MT should own it."
+      "SCOPE ACCURACY (post-review): 'kill' is LlmClient-DEFAULT-scoped, not repo-wide. The OllamaAdapter type + InMemoryLlmClient are retained ONLY as test doubles (never constructed in the default path; no ProviderKind::Ollama variant remains). Ollama couplings intentionally remain OUTSIDE the default LlmClient path and are NOT part of MT-003: tokenization.rs OllamaTokenizerConfigCache, atelier ollama: model-server scheme, bin/capability_registry_workflow.rs OLLAMA_MODEL, dependency_policy tripwires. Removing those is out of MT-003 scope; if desired, a future WP/MT should own it."
     ],
     "proof_targets": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact",
@@ -274,5 +276,22 @@
     "no_context_model_requirement": "A model with no chat history must be able to implement and verify this MT from this contract, SPEC_CURRENT/master spec, product code paths, UserManual/backend navigation, and listed proof targets.",
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
+  },
+  "validator_verdict": "FAIL_V1",
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z",
+    "session": "INTEGRATION_VALIDATOR-20260710-211903",
+    "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "head_sha": "9ea46427",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
+    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
+    "fail_report": "TWO independent failures. (1) SPEC-REALISM descriptor/runtime mismatch: AC#15 (REOPENED SCOPE, master-spec 3.6.2/4.6.1) requires the embedded default engine load path to 'box under a SandboxAdapter (default HandshakeNativeSandboxAdapter) and emit ProcessOwnershipLedger START/STOP'. proof_status/hbr_status defer the SandboxAdapter boxing clause 'DEFERRED-to-MT-013'; MT-013 in turn declares that boxing clause 'satisfied VACUOUSLY' (llm/embedded_ledger.rs). Net: the AC#15 SandboxAdapter-boxing clause is satisfied in NO microtask. The Spec-Realism Gate rejects descriptor/runtime mismatch even when tests pass. (2) SCOPE/BOUNDARY (WP Validator Job 2): MT-003 committed 490 insertions into app/src-tauri/ (commit 321543ca: swarm_runtime.rs +298, swarm_schedule.rs +171, lib.rs ModelLaneStore launch wiring, Cargo.toml feature change) - a path EVERY MT contract lists in forbidden_paths as 'app/src-tauri launch or IPC authority for this WP'. Verified: git diff --stat 6519f4e2..HEAD -- app/src-tauri = 490 insertions; git diff -- src/backend/handshake_core/src/sandbox/ = EMPTY (no SandboxAdapter shipped); grep SandboxAdapter llm/boot.rs = 0 hits.",
+    "remediation_plan": "STEP 1 (contract-truth, governance/spec-owner action - Coder MUST NOT edit /.GOV/): In the packet PACKET_ACCEPTANCE_MATRIX and MT-003 AC#15, mark the SandboxAdapter-boxing clause NOT_APPLICABLE with recorded reason 'in-process Candle/llama.cpp library load spawns no OS process/child/guest; master-spec 3.6.2 clause(1) vacuous; the enforced obligation is ProcessOwnershipLedger START-on-load/STOP-on-unload (4.6.1), implemented in src/backend/handshake_core/src/llm/embedded_ledger.rs'. Strike 'box ... under a SandboxAdapter' from proof_status wording. (If the spec owner instead rules that in-process loads MUST be boxed, that is new product work: implement a real SandboxAdapter wrap on the boot.rs load path and add a test that observes the boxed process, then re-handoff.) STEP 2 (product scope): EITHER (a) obtain an Operator scope amendment adding app/src-tauri/src/commands/swarm_runtime.rs, swarm_schedule.rs, swarm_schedule_store.rs, src/lib.rs, Cargo.toml to WP-1 allowed_paths with justification (embedded-engine default feature migration removes candle-runtime-engine from the Tauri shell; ModelLaneStore is wired into the app launch runtime), OR (b) revert the app/src-tauri changes from feat/WP-1 and route them to a WP that owns app-shell launch/IPC authority. The WP cannot merge with an unresolved forbidden-path violation. STEP 3: re-handoff MT-003 to READY_FOR_VALIDATION (Coder MUST NOT self-certify COMPLETED)."
   }
 }

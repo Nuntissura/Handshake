@@ -16,13 +16,13 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T16:45:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
@@ -34,7 +34,9 @@
     "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
     "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a8285d2bd49d98916_HIGH1_FIXED_cb2fd516_MED1_DEFERRED_MT012_MED2_MED3_LOW_DISCLOSED",
-    "adversarial_findings_status": "APPLIED_HIGH1_RESOLVER_WIRED_MED1_SELECTION_AUDIT_DEFERRED_MT012"
+    "adversarial_findings_status": "APPLIED_HIGH1_RESOLVER_WIRED_MED1_SELECTION_AUDIT_DEFERRED_MT012",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z"
   },
   "scope": {
     "summary": "Make the default LlmClient's embedded model registry shared, enumerable, and labeled (UUIDv7 -> display_name/base_model_tag) so downstream pillars can name and list the local model, and give LoomSearchV2 a real embedding-model contract that degrades (not hard-errors) on dimension mismatch.",
@@ -148,5 +150,22 @@
     "native_rust_backend_first": true,
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs; COMPLETED is validator-only."
+  },
+  "validator_verdict": "FAIL_V1",
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z",
+    "session": "INTEGRATION_VALIDATOR-20260710-211903",
+    "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "head_sha": "9ea46427",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
+    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
+    "fail_report": "Two independent failures. (1) SPEC-REALISM silent-skip false-green: MT-014's ONLY managed-resource (real PG) proof, mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search (src/backend/handshake_core/tests/loom_search_v2_tests.rs:809), uses the pg_or_skip!() macro (defined :100-110) which prints 'SKIP ...' and returns GREEN when PostgreSQL binaries are absent. Every other MT-014 proof (registry/catalog/provider_ref) is in-memory by design. So MT-014 can report success with ZERO real-resource touch (Spec-Realism SR-2 NEEDS_MANAGED_RESOURCE_PROOF). MT-016 in the SAME FILE uses pg_required(...) (panics) - MT-014 was left inconsistent. (2) UNFINALIZED PROOF CONTRACT: MT-014 scope.proof_targets is still the literal placeholder string 'TO_BE_FINALIZED_AT_ACTIVATION: exact Rust tests for ...' - never finalized, despite its own text 'Proof commands MUST name exact tests and fail on zero matching tests.'",
+    "remediation_plan": "STEP 1 (test-only, no product code): convert mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search from pg_or_skip!() to pg_required(\"mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search\") - the pg_required helper is already defined at loom_search_v2_tests.rs:92 and used by MT-016 at :581/:757 - so the real-PG degrade proof fails-closed (panics) when PG is absent instead of silently returning green. STEP 2 (finalize proof contract): replace MT-014 scope.proof_targets TO_BE_FINALIZED placeholder with the exact test invocations: (a) UUIDv7->display_name registry enumeration/label join (cargo test --test model_catalog_tests ... -- --exact), (b) the now-pg_required dim-mismatch degrade test (cargo test --test loom_search_v2_tests mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search -- --exact), (c) Work Profiles provider_ref resolution/migration (cargo test --test work_profile_provider_ref_tests ... -- --exact); each must fail on zero matching tests. STEP 3: re-run all three against real managed PG and re-handoff to READY_FOR_VALIDATION."
   }
 }

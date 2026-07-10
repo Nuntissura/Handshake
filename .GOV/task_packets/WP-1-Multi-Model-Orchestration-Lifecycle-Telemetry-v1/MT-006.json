@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -25,7 +25,7 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "claimed_by": null,
     "claimed_at_utc": null,
     "ready_for_validation_by": "Codex",
@@ -41,7 +41,9 @@
     "last_runtime_status_ref": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_projection_and_consent_receipts_persist_and_replay -j 1 -- --exact --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent -j 1 -- --exact --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence -j 1 -- --exact --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -j 1 -- --exact --nocapture; cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils -j 1 --message-format short",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
-    "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FR_EVT_CLOUD_EMIT_RECORDED_AS_FOLLOW_ON_NOT_CLAIMED_WIRED"
+    "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FR_EVT_CLOUD_EMIT_RECORDED_AS_FOLLOW_ON_NOT_CLAIMED_WIRED",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z"
   },
   "scope": {
     "summary": "Enforce cloud projection, consent, and authority boundaries for cloud lanes.",
@@ -229,5 +231,24 @@
     "no_context_model_requirement": "A model with no chat history must be able to implement and verify this MT from this contract, SPEC_CURRENT/master spec, product code paths, UserManual/backend navigation, and listed proof targets.",
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
+  },
+  "validator_verdict": "PASS_V1",
+  "validation_v1": {
+    "verdict": "PASS_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z",
+    "session": "INTEGRATION_VALIDATOR-20260710-211903",
+    "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "head_sha": "9ea46427",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
+    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
+    "basis": "Cloud consent/authority boundary enforced at runtime: coordinator.rs spawn path calls store.preflight_cloud_spawn_request BEFORE factory.create for ByokCloud; missing/expired/mismatched/revoked consent fails closed. Real EventLedger touch proven (cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence asserts consent_status=CX-MM-007, provider_call_cancelled=true). ADVERSARIAL FINDING REFUTED BY INTEGRATION VALIDATOR: a sub-agent flagged a possible consent-bypass when dexterity_launch_required=false; verified false - both production constructors SwarmCoordinator::new and ::new_with_model_lane_store pass dexterity_launch_required=true; the only false path is new_legacy_without_dexterity_for_tests, gated #[cfg(any(test, feature=\"test-utils\"))] with zero production call sites. Consent cannot be bypassed in a production build.",
+    "concerns": [
+      "lifecycle.claimed_by=null (audit-trail hygiene)."
+    ]
   }
 }

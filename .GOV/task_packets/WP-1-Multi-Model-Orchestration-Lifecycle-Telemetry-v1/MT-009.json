@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -27,7 +27,7 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T02:33:02Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
@@ -43,7 +43,9 @@
     "last_runtime_status_ref": null,
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
-    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL"
+    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z"
   },
   "scope": {
     "summary": "Build validation harnesses and negative cases for mixed cloud/local/subagent lane runs.",
@@ -255,5 +257,22 @@
     "no_context_model_requirement": "A model with no chat history must be able to implement and verify this MT from this contract, SPEC_CURRENT/master spec, product code paths, UserManual/backend navigation, and listed proof targets.",
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
+  },
+  "validator_verdict": "FAIL_V1",
+  "validation_v1": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
+    "validated_at_utc": "2026-07-10T21:19:03Z",
+    "session": "INTEGRATION_VALIDATOR-20260710-211903",
+    "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "head_sha": "9ea46427",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
+    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
+    "fail_report": "Two declared acceptance criteria are unproven and openly conceded as gaps. (1) AC#4 requires each lane to 'honor cooperative cancellation between streaming chunks/tool-call boundaries'. Verified: NO CancellationToken usage and NO .cancel() call exists in mixed_model_lane_integration_pg_tests.rs (grep count 0); cancellation_ref is only a static string field (line 2281: format!(\"cancel-token://mt009/{lane_id}\")). The behavior is never exercised. (2) AC#5 requires 'snapshot compaction preserves update hashes, state vectors, and replay metadata' and stable derived state_vector. Verified: ZERO occurrences of 'compaction' in any WP-1 test file; crdt_state_vector is a static sample value (\"sv:mt009:3\"), not derived/computed. mt_index.json MT-009 openly concedes 'GAPS: snapshot compaction / derived state_vector / real cancellation -> MT-017 AC-2..AC-4' with NO contract amendment and NO operator descope. The genuine concurrency test mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key DOES pass at HEAD (Coder log g1_swarm.out.log 2026-07-09, 1104s) but is not in scope.proof_targets and does not cover AC#4/AC#5.",
+    "remediation_plan": "STEP 1 (cancellation, product+test): add a test to src/backend/handshake_core/tests/mixed_model_lane_integration_pg_tests.rs that drives a real CancellationToken.cancel() mid-stream between streamed activity blocks and asserts (a) partial capture up to the cancel point persists, (b) a terminal cancelled lane state is written to PG/EventLedger, (c) no ModelLaneMessage chunks are recorded after cancel. STEP 2 (compaction + derived state_vector, product+test): add a test asserting snapshot compaction preserves per-update hashes, state vectors, and replay metadata, and that state_vector is COMPUTED (not a static string) and stable across varied replay orders + duplicates. STEP 3: add mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key and the two new tests to MT-009 scope.proof_targets (its own contract says proof commands MUST name exact tests). ALTERNATIVE to STEP 1-2: obtain an Operator-approved contract amendment formally moving AC#4 (cancellation) and AC#5 (compaction, derived state_vector) to MT-017, and STRIKE them from MT-009 acceptance_criteria - the mt_index.json 'GAPS->MT-017' note is NOT a substitute for a contract amendment. STEP 4: re-handoff to READY_FOR_VALIDATION."
   }
 }
