@@ -193,6 +193,58 @@ fn typing_slash_in_url_does_not_open_menu() {
     println!("RISK-1: `/` inside a URL did not open the menu");
 }
 
+// ── MT-108 (MT-016 residual): Escape dismisses the menu but keeps the `/` char ──────────────
+
+#[test]
+fn escape_closes_slash_menu_but_keeps_the_slash_char() {
+    // MT-108 (MT-016 residual): Escape to dismiss the slash menu must CLOSE the menu but LEAVE the typed
+    // `/` (and any filter text) in the document — Escape is a dismiss, not a delete (widget AC-5).
+    let doc = BlockNode::doc(vec![BlockNode::paragraph("")]);
+    let state = Arc::new(Mutex::new(RichEditorState::new(doc)));
+    {
+        let mut st = state.lock().unwrap();
+        st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(600.0, 300.0));
+    harness.step();
+    focus_editor(&mut harness);
+
+    // Type `/` -> the menu opens and the `/` is inserted into the text.
+    harness.event(egui::Event::Text("/".into()));
+    harness.step();
+    assert!(
+        state.lock().unwrap().slash_menu.is_some(),
+        "typing `/` opened the slash menu"
+    );
+    assert_eq!(
+        block_plain_text(&state, 0),
+        "/",
+        "the `/` is inserted into the text when the menu opens"
+    );
+
+    // Press Escape -> the menu closes but the `/` REMAINS.
+    harness.event(egui::Event::Key {
+        key: egui::Key::Escape,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.step();
+    harness.step();
+
+    assert!(
+        state.lock().unwrap().slash_menu.is_none(),
+        "MT-016: Escape closed the slash menu"
+    );
+    assert_eq!(
+        block_plain_text(&state, 0),
+        "/",
+        "MT-016: Escape leaves the `/` char in the text (dismiss, not delete)"
+    );
+    println!("MT-108 (MT-016): Escape closed the slash menu and kept the `/` char");
+}
+
 // ── AC-6 / AC-7: live AccessKit Role::Menu popup + Role::MenuItem rows ──────────────────────
 
 #[test]

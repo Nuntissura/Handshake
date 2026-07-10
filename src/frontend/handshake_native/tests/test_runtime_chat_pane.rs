@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
@@ -104,6 +105,100 @@ fn production_runtime_chat_send_returns_typed_endpoint_missing_without_assistant
             .is_some_and(ChatSendError::is_endpoint_missing),
         "panel stores the visible typed blocker"
     );
+}
+
+// ── MT-108 (MT-098 residual): LIVE type-and-click send observes EndpointMissing ────────────────────
+
+#[test]
+fn live_type_and_click_send_observes_endpoint_missing_without_assistant_turn() {
+    // Drive the REAL widget end to end: seed a typed draft (the nested frameless singleline is not
+    // reliably driven by kittest keystroke simulation, so the message text is seeded through the panel's
+    // documented test API — the same "type" input the existing send test uses), render so the Send
+    // button reflects the non-empty draft, then CLICK the live Send button through the AccessKit tree.
+    // Observe that the live send surfaced the typed `EndpointMissing` blocker (probed route is the
+    // aligned `/api/runtime_chat/messages`) and fabricated NO assistant reply. The button click + the
+    // observed blocker are the live-UI proof (distinct from the `send_current_message_for_test` shortcut).
+    let panel = Arc::new(Mutex::new(RuntimeChatPanel::production(HsTheme::Dark.palette())));
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(640.0, 420.0))
+        .build_ui(move |ui| {
+            panel_ui.lock().unwrap_or_else(|p| p.into_inner()).show(ui);
+        });
+    harness.run();
+
+    // Precondition: Send is disabled with an empty draft.
+    assert!(
+        live_author_nodes_ui(&harness)
+            .get(RUNTIME_CHAT_SEND_AUTHOR_ID)
+            .is_some_and(|disabled| *disabled),
+        "Send starts disabled with an empty draft"
+    );
+
+    // Seed the typed message, then render so the Send button reflects the non-empty draft.
+    panel
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .set_draft_for_test("hello from the live UI");
+    harness.run();
+    harness.run();
+
+    // A non-empty draft enabled the live Send button (the rendered UI reflects the message text).
+    assert!(
+        live_author_nodes_ui(&harness)
+            .get(RUNTIME_CHAT_SEND_AUTHOR_ID)
+            .is_some_and(|disabled| !*disabled),
+        "a non-empty draft enabled the Send button"
+    );
+
+    // CLICK the live Send button through the AccessKit tree (the genuine live-UI send trigger).
+    let send_id = harness
+        .root()
+        .children_recursive()
+        .find_map(|n| {
+            let ak = n.accesskit_node();
+            (ak.author_id() == Some(RUNTIME_CHAT_SEND_AUTHOR_ID)).then(|| ak.id())
+        })
+        .expect("runtime-chat-send node present");
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: send_id,
+            data: None,
+        },
+    ));
+    harness.run();
+    harness.run();
+
+    // The live send observed the typed EndpointMissing blocker, and no assistant turn was fabricated.
+    let p = panel.lock().unwrap_or_else(|e| e.into_inner());
+    assert!(
+        p.last_error_for_test()
+            .is_some_and(ChatSendError::is_endpoint_missing),
+        "MT-098: the live click-send surfaced the typed EndpointMissing blocker"
+    );
+    assert!(
+        !p.turns_for_test()
+            .iter()
+            .any(|turn| turn.role == ChatRole::Assistant),
+        "MT-098: a missing endpoint must not fabricate an assistant reply"
+    );
+    println!(
+        "MT-108 (MT-098): live click-send observed EndpointMissing (probed {}) with no assistant turn",
+        RuntimeChatClient::production().probed_path()
+    );
+}
+
+/// author_id -> is_disabled for every live node (a lightweight view for the send-enabled assertions).
+fn live_author_nodes_ui(harness: &Harness<'_, ()>) -> HashMap<String, bool> {
+    let mut found = HashMap::new();
+    for node in harness.root().children_recursive() {
+        let ak = node.accesskit_node();
+        if let Some(author_id) = ak.author_id() {
+            found.insert(author_id.to_owned(), ak.is_disabled());
+        }
+    }
+    found
 }
 
 #[test]

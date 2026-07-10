@@ -428,7 +428,10 @@ pub const SLASH_COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         id: "code-block",
         label: "Code Block",
-        description: "Fenced monospace code (prompts for language)",
+        // MT-108 (MT-013/MT-016 residual): the action is `InsertNode(new_code_block)`, which inserts an
+        // empty fenced code block WITHOUT opening any language prompt. The old description ("prompts for
+        // language") promised a prompt that does not exist; corrected to match the real behavior.
+        description: "Fenced monospace code block",
         keywords: &["code", "fence", "pre", "monospace"],
         category: SlashCategory::Blocks,
         action: SlashAction::InsertNode(new_code_block),

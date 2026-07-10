@@ -240,6 +240,197 @@ fn typing_query_scans_and_count_advances() {
     println!("AC-3: 'foo' scanned to 5 matches; count advanced to '1 of 5' on next");
 }
 
+// ── MT-108 (MT-018 residual): keystroke-driven find input + replace-one/all click kittests ──────
+
+/// Dispatch an AccessKit `Action::Click` to the live node carrying `author_id` (the out-of-process
+/// invoke path a swarm agent uses), robust to the target button being clipped.
+fn click_author_id(harness: &mut Harness<()>, author_id: &str) {
+    let node_id = harness
+        .root()
+        .children_recursive()
+        .find_map(|n| {
+            let ak = n.accesskit_node();
+            (ak.author_id() == Some(author_id)).then(|| ak.id())
+        })
+        .unwrap_or_else(|| panic!("author_id '{author_id}' not found in the live tree"));
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: node_id,
+            data: None,
+        },
+    ));
+}
+
+/// Collect all leaf text in a doc (recursively) into one string, for assertions on replace results.
+fn collect_doc_text(node: &BlockNode) -> String {
+    use handshake_native::rich_editor::document_model::node::Child;
+    let mut out = String::new();
+    for child in &node.children {
+        match child {
+            Child::Text(leaf) => out.push_str(&leaf.text.to_string()),
+            Child::Block(block) => {
+                out.push_str(&collect_doc_text(block));
+                out.push('\n');
+            }
+            // Inline atoms (links / transclusions) carry no searchable body text for these proofs.
+            _ => {}
+        }
+    }
+    out
+}
+
+#[test]
+fn keystroke_typing_into_find_input_scans_matches() {
+    // MT-108 (MT-018 residual): Ctrl+F auto-focuses the find input, so real per-frame Text keystrokes
+    // land in it and drive the live scan — the harder proof the existing AC-3 test set the query via API.
+    let state = Arc::new(Mutex::new(RichEditorState::new(foo_doc())));
+    {
+        let mut st = state.lock().unwrap();
+        st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(700.0, 360.0));
+    harness.step();
+    focus_editor(&mut harness);
+
+    ctrl_key(&mut harness, egui::Key::F); // opens the panel + requests find-input focus
+    harness.step();
+    harness.step(); // focus applied to the find input
+
+    // Type "foo" as real keystrokes into the auto-focused find input.
+    harness.event(egui::Event::Text("foo".to_owned()));
+    harness.step();
+    harness.step(); // the host rescans against the typed query
+
+    let st = state.lock().unwrap();
+    let panel = st
+        .find_replace
+        .as_ref()
+        .expect("the find panel is open");
+    assert_eq!(
+        panel.query.pattern, "foo",
+        "MT-018: the typed keystrokes became the find query"
+    );
+    assert_eq!(
+        panel.scan.len(),
+        5,
+        "MT-018: live-typed 'foo' scanned all five occurrences; got {}",
+        panel.scan.len()
+    );
+    println!("MT-108 (MT-018): keystroke-typed 'foo' into the find input -> 5 live matches");
+}
+
+#[test]
+fn replace_one_button_click_replaces_active_match_only() {
+    // MT-108 (MT-018 residual): clicking the live Replace button replaces ONLY the active match.
+    let state = Arc::new(Mutex::new(RichEditorState::new(foo_doc())));
+    {
+        let mut st = state.lock().unwrap();
+        st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+        let mut panel = FindReplaceState::open(true); // replace mode
+        panel.query = FindQuery::literal("foo");
+        panel.replacement = "XYZ".to_owned();
+        panel.rescan(&st.doc);
+        panel.select_next(); // active = first match
+        st.find_replace = Some(panel);
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(820.0, 420.0));
+    focus_editor(&mut harness);
+    harness.step();
+    assert_eq!(collect_doc_text(&state.lock().unwrap().doc).matches("foo").count(), 5);
+
+    click_author_id(&mut harness, "replace-one");
+    harness.step();
+    harness.step();
+
+    let text = collect_doc_text(&state.lock().unwrap().doc);
+    assert_eq!(
+        text.matches("foo").count(),
+        4,
+        "MT-018: Replace replaced exactly ONE 'foo' (4 remain); got text {text:?}"
+    );
+    assert!(
+        text.contains("XYZ"),
+        "MT-018: the replacement text is present after Replace"
+    );
+    println!("MT-108 (MT-018): Replace button click replaced the active match only (5 -> 4)");
+}
+
+#[test]
+fn replace_all_button_click_replaces_every_match() {
+    // MT-108 (MT-018 residual): clicking the live Replace All button replaces EVERY match.
+    let state = Arc::new(Mutex::new(RichEditorState::new(foo_doc())));
+    {
+        let mut st = state.lock().unwrap();
+        st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+        let mut panel = FindReplaceState::open(true);
+        panel.query = FindQuery::literal("foo");
+        panel.replacement = "XYZ".to_owned();
+        panel.rescan(&st.doc);
+        panel.select_next();
+        st.find_replace = Some(panel);
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(820.0, 420.0));
+    focus_editor(&mut harness);
+    harness.step();
+
+    click_author_id(&mut harness, "replace-all");
+    harness.step();
+    harness.step();
+
+    let text = collect_doc_text(&state.lock().unwrap().doc);
+    assert_eq!(
+        text.matches("foo").count(),
+        0,
+        "MT-018: Replace All replaced every 'foo'; got text {text:?}"
+    );
+    assert_eq!(
+        text.matches("XYZ").count(),
+        5,
+        "MT-018: all five occurrences became the replacement text"
+    );
+    println!("MT-108 (MT-018): Replace All button click replaced all five matches");
+}
+
+#[test]
+fn scrolled_tall_doc_scan_covers_matches_beyond_the_viewport() {
+    // MT-108 (MT-018 residual): a tall document (far more paragraphs than fit the viewport) with a find
+    // query scans EVERY match, including those below the fold — the highlight source data spans the whole
+    // scrolled doc, not only the visible rows. Proven at the scan layer (the highlight overlay is fed
+    // from this scan), so it holds without a GPU pixel readback on a headless host.
+    let tall = {
+        let mut paras = Vec::new();
+        for i in 0..120 {
+            paras.push(BlockNode::paragraph(&format!("line {i} has foo here")));
+        }
+        BlockNode::doc(paras)
+    };
+    let state = Arc::new(Mutex::new(RichEditorState::new(tall)));
+    {
+        let mut st = state.lock().unwrap();
+        st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+        let mut panel = FindReplaceState::open(false);
+        panel.query = FindQuery::literal("foo");
+        panel.rescan(&st.doc);
+        st.find_replace = Some(panel);
+    }
+    // A short viewport so most matches are below the fold; the scan must still cover all 120.
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(500.0, 200.0));
+    focus_editor(&mut harness);
+    harness.step();
+    harness.step();
+
+    let st = state.lock().unwrap();
+    let panel = st.find_replace.as_ref().expect("panel open");
+    assert_eq!(
+        panel.scan.len(),
+        120,
+        "MT-018: the scan covers every 'foo' across the tall (scrolled) doc, not just the viewport; got {}",
+        panel.scan.len()
+    );
+    println!("MT-108 (MT-018): tall-doc scan covered all 120 matches beyond the viewport");
+}
+
 // ── AC-10: every contract AccessKit id is present in the live tree when the panel is open ───────
 
 #[test]

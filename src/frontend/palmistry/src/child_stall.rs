@@ -70,6 +70,12 @@ pub struct ChildStallReport {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChildStallState {
     Healthy,
+    /// MT-108 (MT-106 residual): a registered child that has NOT established a liveness baseline and has
+    /// now been watched past the threshold without one while its process is alive/unknown. Surfaced so a
+    /// child whose registration-time baseline never materialized is not silently un-watched forever —
+    /// the mandatory-baseline observability rule. Distinct from `Suspected` (which requires a baseline to
+    /// have existed and then gone stale).
+    NoBaseline { waited_ms: u64 },
     Suspected { stale_ms: u64 },
     Stalled(ChildStallReport),
     Exited,
@@ -91,6 +97,10 @@ pub struct ChildStallDetector {
     last_progress_ts_nanos: u64,
     last_advance: Option<Instant>,
     reported_current_stall: bool,
+    /// MT-108 (MT-106 residual): the first poll instant, used to measure how long a child has been
+    /// watched WITHOUT ever establishing a baseline, so a never-baselined child becomes observable
+    /// (`NoBaseline`) past the threshold instead of silently staying `Healthy` forever.
+    first_polled: Option<Instant>,
 }
 
 impl ChildStallDetector {
@@ -103,7 +113,13 @@ impl ChildStallDetector {
             last_progress_ts_nanos: 0,
             last_advance: None,
             reported_current_stall: false,
+            first_polled: None,
         }
+    }
+
+    /// Whether this child has ever established a liveness baseline (a first observed progress counter).
+    pub fn has_baseline(&self) -> bool {
+        self.last_advance.is_some()
     }
 
     pub fn poll(
@@ -119,6 +135,10 @@ impl ChildStallDetector {
                 report: None,
             };
         }
+
+        // MT-108 (MT-106 residual): remember the first time we watched this child, so a child that never
+        // establishes a baseline can be surfaced as `NoBaseline` past the threshold.
+        let first_polled = *self.first_polled.get_or_insert(now);
 
         let source_available = progress.is_some();
         if let Some(progress) = progress {
@@ -136,6 +156,19 @@ impl ChildStallDetector {
         }
 
         let Some(last_advance) = self.last_advance else {
+            // No baseline ever established. MT-108 (MT-106 residual): once we have watched this child past
+            // the threshold without a baseline (and it is not proven exited), surface `NoBaseline` so the
+            // never-baselined child is observable instead of silently un-watched forever. Before the
+            // threshold elapses it is still `Healthy` (a fresh registration is not a stall).
+            let waited = now.checked_duration_since(first_polled).unwrap_or_default();
+            if waited >= self.threshold {
+                return ChildStallPoll {
+                    state: ChildStallState::NoBaseline {
+                        waited_ms: waited.as_millis() as u64,
+                    },
+                    report: None,
+                };
+            }
             return ChildStallPoll {
                 state: ChildStallState::Healthy,
                 report: None,
@@ -226,6 +259,52 @@ mod tests {
             Some(progress(1)),
         );
         assert!(second.report.is_none(), "same stale edge is debounced");
+    }
+
+    #[test]
+    fn no_baseline_past_threshold_surfaces_nobaseline_observation() {
+        // MT-108 (MT-106 residual): a registered child that never establishes a baseline is surfaced as
+        // NoBaseline once watched past the threshold (mandatory-baseline observability), NOT a silent
+        // forever-Healthy.
+        let start = Instant::now();
+        let mut detector = ChildStallDetector::new(42, 7, Duration::from_millis(100));
+        // First poll (no progress source yet) starts the watch; still Healthy (fresh registration).
+        let first = detector.poll(start, ChildProcessState::Alive, None);
+        assert_eq!(first.state, ChildStallState::Healthy);
+        assert!(!detector.has_baseline(), "no baseline established yet");
+        // A later poll past the threshold with STILL no baseline surfaces NoBaseline.
+        let later = detector.poll(
+            start + Duration::from_millis(150),
+            ChildProcessState::Alive,
+            None,
+        );
+        assert!(
+            matches!(later.state, ChildStallState::NoBaseline { waited_ms } if waited_ms >= 100),
+            "no-baseline past the threshold is surfaced as NoBaseline; got {:?}",
+            later.state
+        );
+        assert!(
+            later.report.is_none(),
+            "NoBaseline is an observation, not a confirmed durable stall report"
+        );
+    }
+
+    #[test]
+    fn once_a_baseline_exists_nobaseline_is_never_taken() {
+        let start = Instant::now();
+        let mut detector = ChildStallDetector::new(42, 7, Duration::from_millis(100));
+        detector.poll(start, ChildProcessState::Alive, Some(progress(1)));
+        assert!(detector.has_baseline());
+        let later = detector.poll(
+            start + Duration::from_millis(150),
+            ChildProcessState::Alive,
+            Some(progress(1)),
+        );
+        assert!(
+            matches!(later.state, ChildStallState::Stalled(_)),
+            "a baselined-then-stale child is Stalled, never NoBaseline; got {:?}",
+            later.state
+        );
     }
 
     #[test]

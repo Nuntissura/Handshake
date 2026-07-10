@@ -97,7 +97,7 @@ use super::formatting::{self, FormatOutcome};
 use super::breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 use super::code_actions::{self, AppliedAction, CodeActionController, MenuAction};
 use super::cursor::MoveDir;
-use super::find_replace::{FindEngine, FindQuery, Match};
+use super::find_replace::{FindEngine, FindQuery, Match, REPLACE_ALL_CAP};
 use super::folding::{FoldProvider, FoldSet};
 use super::gutter::{
     DiagnosticSeverity, Gutter, GutterConfig, GutterGeometry, GutterMarker, GutterMarkerKind,
@@ -147,6 +147,17 @@ pub const CODE_EDITOR_FIND_BAR_AUTHOR_ID: &str = "code_editor_find_bar";
 pub const CODE_EDITOR_REPLACE_BAR_AUTHOR_ID: &str = "code_editor_replace_bar";
 pub const CODE_EDITOR_FIND_NEXT_AUTHOR_ID: &str = "code_editor_find_next";
 pub const CODE_EDITOR_FIND_PREV_AUTHOR_ID: &str = "code_editor_find_prev";
+
+/// MT-108 (MT-004 residual, RISK-004): find-bar geometry used both to render the pinned bar and to
+/// inset the "scroll to current match" so a match never lands hidden BEHIND the bar. The bar is pinned
+/// to the top of the editor viewport; scrolling a match to the very top (`line * line_height`) would
+/// occlude it. [`CodeEditorPanel::scroll_to_match_line`] subtracts the bar height (taller in replace
+/// mode) plus the top margin and a small gap so the current match lands just below the bar. These MUST
+/// stay in sync with `render_find_bar`'s `bar_height` / `bar_min` values.
+const FIND_BAR_HEIGHT_SINGLE_PX: f32 = 34.0;
+const FIND_BAR_HEIGHT_REPLACE_PX: f32 = 64.0;
+const FIND_BAR_TOP_MARGIN_PX: f32 = 4.0;
+const FIND_BAR_MATCH_REVEAL_GAP_PX: f32 = 6.0;
 
 /// The MT-005 author_id PREFIX for each foldable-region node (AC-005: `code_editor_fold_{start_line}`).
 /// Region starting on buffer line `L` gets `code_editor_fold_{L}` with accesskit `Role::TreeItem` and
@@ -688,6 +699,11 @@ pub struct CodeEditorPanel {
     /// opens/closes it on Ctrl+F / Ctrl+H / Escape. Behind a `Mutex` for the same `Sync` reason as the
     /// buffer.
     find_state: Mutex<Option<FindState>>,
+    /// MT-108 (MT-004 residual): set true when the find bar is opened so `render_find_bar` requests
+    /// keyboard focus on the find input on the FIRST frame after opening (VS Code auto-focuses the find
+    /// box on Ctrl+F), then swap-clears it so focus is not stolen every frame. This is also what lets a
+    /// kittest type real characters into the find TextEdit.
+    find_focus_pending: std::sync::atomic::AtomicBool,
     /// MT-005 code-folding state: the fold regions derived from the tree-sitter parse tree plus their
     /// folded flags. Recomputed only when `buffer_version` changes (MT impl note 3 — tracked by
     /// `fold_version`), then carried across frames so a user's collapsed regions stay collapsed. Behind
@@ -1402,6 +1418,11 @@ pub struct FindState {
     /// The regex compile error string for the current `query`, or empty when the pattern compiles / is
     /// not a regex (AC-003: an invalid regex shows this, never panics).
     pub error: String,
+    /// MT-108 (MT-004 residual): how many matches a capped Replace All left un-replaced because the set
+    /// exceeded [`REPLACE_ALL_CAP`]. 0 when the last Replace All finished the set (the common case) or
+    /// none ran. The find bar shows a "N more — click Replace All again" progress hint when > 0. Reset
+    /// when the query changes.
+    pub replace_all_remaining: usize,
     /// The `query.pattern` value the `matches` were last computed for, so the render loop can detect a
     /// query change (typing in the input) without re-searching every frame.
     last_searched: String,
@@ -1522,6 +1543,7 @@ impl CodeEditorPanel {
             last_visible_range: Mutex::new(0..0),
             last_scroll_offset_px: Mutex::new(0.0),
             pending_scroll_offset: Mutex::new(None),
+            find_focus_pending: std::sync::atomic::AtomicBool::new(false),
             instance,
             cursor_set: Mutex::new(CursorSet::new()),
             box_drag_start: Mutex::new(None),
@@ -2046,6 +2068,9 @@ impl CodeEditorPanel {
                 }
             }
         }
+        // MT-108 (MT-004 residual): auto-focus the find input on the next frame (VS Code parity), so the
+        // operator can type immediately after Ctrl+F and a kittest can drive the real TextEdit.
+        self.find_focus_pending.store(true, Ordering::Release);
         self.refresh_find_matches();
     }
 
@@ -2085,7 +2110,7 @@ impl CodeEditorPanel {
     }
 
     fn step_match(&self, forward: bool) {
-        let target_line = {
+        let target = {
             let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
             let Some(state) = guard.as_mut() else { return };
             if state.matches.is_empty() {
@@ -2097,11 +2122,36 @@ impl CodeEditorPanel {
             } else {
                 (state.current_match + n - 1) % n
             };
-            state.current().map(|m| m.line)
+            let show_replace = state.show_replace;
+            state.current().map(|m| (m.line, show_replace))
         };
-        if let Some(line) = target_line {
-            self.scroll_to_line(line);
+        if let Some((line, show_replace)) = target {
+            // RISK-004: scroll so the match lands just BELOW the pinned find bar, not hidden behind it.
+            self.scroll_to_match_line(line, show_replace);
         }
+    }
+
+    /// Scroll so `line` lands just BELOW the floating find bar instead of at the very top of the
+    /// viewport, where the pinned find widget would occlude it (MT-108 residual for MT-004 / RISK-004).
+    /// The inset is the find-bar height (taller in replace mode) plus its top margin and a reveal gap.
+    /// Clamped to 0 so a match near the top of the document still scrolls to the top (it cannot scroll
+    /// above it). Uses the cached measured line height; before the first measure the offset is 0 and the
+    /// following frame re-derives it once the height is known (same one-shot contract as
+    /// [`scroll_to_line`](Self::scroll_to_line)).
+    fn scroll_to_match_line(&self, line: usize, show_replace: bool) {
+        let lh = self
+            .line_height_px
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or(0.0);
+        let bar_height = if show_replace {
+            FIND_BAR_HEIGHT_REPLACE_PX
+        } else {
+            FIND_BAR_HEIGHT_SINGLE_PX
+        };
+        let inset = FIND_BAR_TOP_MARGIN_PX + bar_height + FIND_BAR_MATCH_REVEAL_GAP_PX;
+        let offset = (line as f32 * lh - inset).max(0.0);
+        self.scroll_to_offset_px(offset);
     }
 
     /// Set the query pattern (called by the find input each frame when the text changes) and re-search.
@@ -2111,6 +2161,8 @@ impl CodeEditorPanel {
             let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
             let Some(state) = guard.as_mut() else { return };
             state.query.pattern = pattern.into();
+            // A new query clears any leftover capped-replace progress hint (MT-108 / MT-004 residual).
+            state.replace_all_remaining = 0;
         }
         self.refresh_find_matches();
     }
@@ -2173,16 +2225,28 @@ impl CodeEditorPanel {
             };
             (state.matches.clone(), state.replace_text.clone())
         };
-        if matches.is_empty() {
+        let original = matches.len();
+        if original == 0 {
             return 0;
         }
+        // MT-108 (MT-004 residual): cap the per-click work so a Replace All over a huge match set cannot
+        // block the UI thread for an unbounded time. The remainder is surfaced as a progress hint and
+        // finished by clicking Replace All again (each click walks the document top-to-bottom).
         let applied = {
             let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            FindEngine::replace_all(&mut buffer, &matches, &replacement)
+            FindEngine::replace_all_capped(&mut buffer, &matches, &replacement, REPLACE_ALL_CAP)
         };
         if applied > 0 {
             self.refresh();
             self.refresh_find_matches();
+        }
+        // Record how many matches remain un-replaced this click (0 for the common under-cap case), after
+        // the re-search above so it is not clobbered.
+        {
+            let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(state) = guard.as_mut() {
+                state.replace_all_remaining = original.saturating_sub(applied);
+            }
         }
         applied
     }
@@ -7668,8 +7732,15 @@ impl CodeEditorPanel {
         // Pin to the top-right corner of the editor area (VS Code style — a floating widget, not a side
         // panel — MT step 6). Width 400 px, height grows with the replace row.
         let bar_width = 400.0_f32.min(panel_rect.width().max(120.0));
-        let bar_height = if state.show_replace { 64.0 } else { 34.0 };
-        let bar_min = egui::pos2(panel_rect.right() - bar_width - 4.0, panel_rect.top() + 4.0);
+        let bar_height = if state.show_replace {
+            FIND_BAR_HEIGHT_REPLACE_PX
+        } else {
+            FIND_BAR_HEIGHT_SINGLE_PX
+        };
+        let bar_min = egui::pos2(
+            panel_rect.right() - bar_width - 4.0,
+            panel_rect.top() + FIND_BAR_TOP_MARGIN_PX,
+        );
         let bar_rect = egui::Rect::from_min_size(bar_min, egui::vec2(bar_width, bar_height));
 
         let mut query_changed = false;
@@ -7692,6 +7763,11 @@ impl CodeEditorPanel {
                         .desired_width(150.0)
                         .hint_text("Find"),
                 );
+                // MT-108 (MT-004 residual): auto-focus the find input on the first frame after the bar
+                // opens (VS Code parity), then swap-clear so focus is not re-stolen every frame.
+                if self.find_focus_pending.swap(false, Ordering::AcqRel) {
+                    find_resp.request_focus();
+                }
                 if find_resp.changed() {
                     query_changed = true;
                 }
@@ -7763,6 +7839,16 @@ impl CodeEditorPanel {
                         self.replace_all();
                     }
                 });
+                // MT-108 (MT-004 residual): capped Replace All progress hint. Read fresh so it reflects
+                // the click that just ran this frame.
+                if let Some(remaining) =
+                    self.find_state().map(|s| s.replace_all_remaining).filter(|r| *r > 0)
+                {
+                    ui.colored_label(
+                        syntax.string,
+                        format!("{remaining} more not yet replaced — click Replace All again"),
+                    );
+                }
             }
         });
 
@@ -12063,6 +12149,117 @@ mod tests {
         );
         // A non-overridden scope in Custom mode falls back to a concrete color (never missing/panics).
         let _ = panel.resolve_highlight_color(HighlightScope::Comment, &dark);
+    }
+
+    /// MT-108 (MT-004 residual, RISK-004): stepping to a match deep in the document scrolls it to just
+    /// BELOW the pinned find bar, not to the very top of the viewport where the floating bar would
+    /// occlude it. The requested scroll offset is `line*line_height - find_bar_inset`, strictly less
+    /// than `line*line_height` (the naive scroll-to-top), which is the whole point of the inset.
+    #[test]
+    fn find_step_scrolls_current_match_below_the_find_bar() {
+        let mut doc = String::new();
+        for i in 0..200 {
+            doc.push_str(&format!("line {i}\n"));
+        }
+        doc.push_str("needle here\n"); // the only match, on line 200
+        let panel = CodeEditorPanel::new(&doc, "txt");
+        // Pin a known measured line height so the offset math is deterministic (no render needed).
+        *panel.line_height_px.lock().unwrap() = Some(15.0);
+
+        panel.open_find(false);
+        panel.set_find_query("needle");
+        let state = panel.find_state().expect("bar open");
+        assert_eq!(state.matches.len(), 1, "one 'needle' match");
+        assert_eq!(state.matches[0].line, 200, "the match is on line 200");
+
+        // Step to the current match (single match -> stays index 0 but still requests the scroll).
+        panel.next_match();
+
+        let offset = panel
+            .pending_scroll_offset
+            .lock()
+            .unwrap()
+            .expect("stepping to a match requested a scroll");
+        let lh = 15.0_f32;
+        let top_of_line = 200.0_f32 * lh;
+        let inset =
+            FIND_BAR_TOP_MARGIN_PX + FIND_BAR_HEIGHT_SINGLE_PX + FIND_BAR_MATCH_REVEAL_GAP_PX;
+        assert!(
+            (offset - (top_of_line - inset)).abs() < 0.01,
+            "scroll offset insets by the find-bar height: got {offset}, want {}",
+            top_of_line - inset
+        );
+        assert!(
+            offset < top_of_line,
+            "the inset actually pushes the match below the bar (offset {offset} < scroll-to-top \
+             {top_of_line})"
+        );
+    }
+
+    /// MT-108 (MT-006 residual): with a fold ACTIVE above the navigation target, `navigate_to_line`
+    /// must land on the FOLD-ADJUSTED visible row (a collapsed region above the target shifts its
+    /// visible row up), not the raw buffer line. This is the outline-click / go-to-line landing-row
+    /// behavior when folds are present.
+    #[test]
+    fn navigate_to_line_lands_on_fold_adjusted_visible_row_when_a_fold_is_active() {
+        let mut src = String::from("fn top() {\n");
+        for i in 0..8 {
+            src.push_str(&format!("    let _x{i} = {i};\n"));
+        }
+        src.push_str("}\n"); // top()'s body is a foldable region
+        for i in 0..5 {
+            src.push_str(&format!("// gap {i}\n"));
+        }
+        src.push_str("fn target() {}\n"); // the navigation target (below the foldable region)
+        let panel = CodeEditorPanel::new(&src, "rs");
+        *panel.line_height_px.lock().unwrap() = Some(10.0);
+
+        let target_line = panel.with_buffer(|b| b.len_lines()) - 1;
+
+        // Baseline: nothing folded -> visible row == buffer line, scroll offset == target_line * lh.
+        assert_eq!(
+            panel.buffer_line_to_visible_line(target_line),
+            target_line,
+            "with nothing folded the visible row equals the buffer line"
+        );
+        panel.navigate_to_line(target_line);
+        let unfolded_offset = panel
+            .pending_scroll_offset
+            .lock()
+            .unwrap()
+            .expect("navigate requested a scroll");
+        assert!((unfolded_offset - target_line as f32 * 10.0).abs() < 0.01);
+
+        // Fold the top() function body (a region enclosing line 1). This hides its inner lines.
+        assert!(
+            panel.fold_at_line(1),
+            "the top() function body is foldable and is now folded"
+        );
+
+        // Now the target's visible row is SHIFTED UP by the hidden lines.
+        let visible = panel.buffer_line_to_visible_line(target_line);
+        assert!(
+            visible < target_line,
+            "a fold above the target shifts its visible landing row up (visible {visible} < buffer \
+             line {target_line})"
+        );
+
+        // Navigating again lands on the fold-adjusted visible row (a lower scroll offset).
+        panel.navigate_to_line(target_line);
+        let folded_offset = panel
+            .pending_scroll_offset
+            .lock()
+            .unwrap()
+            .expect("navigate requested a scroll");
+        assert!(
+            (folded_offset - visible as f32 * 10.0).abs() < 0.01,
+            "the landing scroll offset equals the fold-adjusted visible row * line height"
+        );
+        assert!(
+            folded_offset < unfolded_offset,
+            "folding above the target lowers the landing scroll offset ({folded_offset} < \
+             {unfolded_offset})"
+        );
     }
 
     /// WP-KERNEL-012 wave-6 (S6 item 3): `set_font_size` changes the panel's LIVE font size + invalidates

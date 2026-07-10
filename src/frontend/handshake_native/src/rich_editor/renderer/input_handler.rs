@@ -616,10 +616,17 @@ mod tests {
         if let Selection::Text { head, .. } = &sel {
             assert_eq!(head.char_offset, 4);
         }
-        // Backspace at offset 0 is a no-op in the vertical slice.
+        // MT-108 (MT-013 residual) comment fix: Backspace at offset 0 now ROUTES to the structural
+        // `MergeBackward` command (it is no longer an unconditional no-op). Here the doc is a single
+        // paragraph with no previous sibling to merge into, so MergeBackward has nothing to do and
+        // returns false, leaving the text unchanged — that is what this asserts, NOT a blanket
+        // "offset-0 backspace does nothing".
         let mut sel0 = Selection::caret(DocPosition::new(vec![0, 0], 0));
         let mut ctx0 = ctx_at(&mut doc, &mut sel0, &mut undo);
-        assert!(!apply_action(&mut ctx0, EditAction::DeleteBackward));
+        assert!(
+            !apply_action(&mut ctx0, EditAction::DeleteBackward),
+            "offset-0 backspace routes to MergeBackward, which is a no-op with no previous sibling"
+        );
         assert_eq!(leaf_text(&doc), "Hell");
     }
 

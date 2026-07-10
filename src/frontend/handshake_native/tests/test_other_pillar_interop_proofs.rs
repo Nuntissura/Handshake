@@ -29,62 +29,68 @@
 //! NOT re-create any shell, AccessKit glue, or persistence fixture (this MT authors NO second PG fixture;
 //! the live PG halves reuse the MT-044/045/046 fixture PATTERN and stay GATED — see the gate below).
 //!
-//! ## REALITY GATE (KERNEL_BUILDER gate 2026-06-21/26): the three live interop routes are VERIFIED ABSENT
-//! AND there is NO managed PostgreSQL in this environment — so the live edge-drive proofs are honestly
-//! GATED, never faked.
+//! ## ROUTE REALITY (updated: the three interop edge routes now EXIST; the live proofs are `requires_pg`).
 //!
-//! MT-066/067/068 each verified (read-only, against the frozen `src/backend/handshake_core`) that the
-//! load-bearing live HTTP routes this suite's three live proofs need DO NOT EXIST in the current build:
-//!   - STAGE (Pillar 17): NO `/stage/` HTTP routes — route-to-stage is a BUS command (MT-033), and the
-//!     embed-back read `GET /workspaces/{ws}/stage/artifacts/{id}` is ABSENT (the
-//!     `StageInteropError::EmbedBackEndpointAbsent` typed blocker — MT-066/068).
-//!   - CALENDAR (Pillar 2): NO `/calendar/` HTTP routes — `GET /calendar/events` AND
-//!     `GET /calendar/activity-spans` are ABSENT (the `InteropError::EndpointUnavailable` typed
-//!     blocker — MT-067).
-//!   - LOCUS (Pillar 6): NO `/locus/` HTTP routes — the Pillar 6 kernel/governance DATA MODEL exists but is
-//!     not exposed over HTTP, so `GET /workspaces/{ws}/locus/work-packets/{id}` /
-//!     `/locus/microtasks/{id}` are ABSENT (the `LocusInteropError::LocusReadApiUnavailable` typed
-//!     blocker — MT-066/068).
+//! The earlier "routes VERIFIED ABSENT" gate is STALE. The three load-bearing interop edge routes this
+//! suite's live proofs bind were landed on the managed-PG backend and are wired in
+//! `src/backend/handshake_core/src/api/mod.rs` (proven by the `other_pillar_fr_route_resolved` source
+//! scan below, which reads the real backend router):
+//!   - STAGE (Pillar 17): `POST /workspaces/{ws}/stage/artifacts` + `GET /workspaces/{ws}/stage/artifacts/{id}`
+//!     — the Stage capture-store (`api/stage.rs`, MT-066); the GET returns the evidence-grade
+//!     `StageArtifactRef` (`sha256` + `manifest.manifest_ref` always non-empty).
+//!   - CALENDAR (Pillar 2): `GET /workspaces/{ws}/calendar/events` + `GET/POST
+//!     /workspaces/{ws}/calendar/activity-spans` — the calendar events + activity-span store
+//!     (`api/calendar.rs`, MT-067).
+//!   - LOCUS (Pillar 6): `GET /workspaces/{ws}/locus/work-packets/{id}` + `/locus/microtasks/{id}` — the
+//!     Locus resolve routes over the canonical `work_packets`/`micro_tasks` tables (`api/locus.rs`, MT-068).
 //!
-//! The FR/EventLedger route the contract needs (`GET /api/flight_recorder`) DOES exist (verified in
-//! `src/backend/handshake_core/src/api/mod.rs` -> `flight_recorder::routes` registers `/flight_recorder`,
-//! nested under `/api` in `main.rs`). It is therefore NOT a blocker; the blocker is the absent live
-//! native-editor FR INGESTION (the MT-036 closed-schema gap, like MT-064) plus the absent edge routes.
+//! The FR/EventLedger read route (`GET /api/flight_recorder`) exists, AND the native-editor FR INGESTION
+//! route `POST /api/flight_recorder/native_editor_event` now ACCEPTS the 5 interop kinds
+//! (`StageEmbedBack`, `CalendarEventBound`, `ActivitySpanCorrelated`, `LocusRefResolved`,
+//! `LocusReverseLookup` — `api/flight_recorder.rs::NativeEditorFrEventKind`). So the backend FR gap is
+//! CLOSED.
 //!
-//! AND every prior live-PG proof in this WP is `NEEDS_MANAGED_RESOURCE_PROOF` (no managed PostgreSQL).
+//! The ONE remaining interop gap is FRONTEND EMISSION: the frontend `event_emitter.rs`
+//! `NativeEditorAction` enum has NO variants for the 5 interop kinds, and its production transport still
+//! posts to `/flight_recorder/runtime_chat_event` (not the new `native_editor_event` route). So the
+//! product does not yet EMIT the interop FR events even though the backend accepts them. That is recorded
+//! as `fr_event_not_emitted_frontend` in [`OTHER_PILLAR_TYPED_BLOCKERS`] + the manifest — a
+//! frontend-emission follow-up (MT-036 emitter + the interop-edge wiring MTs), NOT a backend-route-absent
+//! blocker.
 //!
-//! Therefore, per the contract's OWN typed-blocker mandate (CTRL-4 / CTRL-8 + "record as TYPED BLOCKER
-//! status='BLOCKED' rather than faked/stubbed/skipped"), the three live edge-drive proofs
-//! (`*_live`) are written STRUCTURALLY CORRECT, then GATED behind `#[cfg(feature = "integration")]` +
-//! `#[ignore]` so the DEFAULT suite is honest-green-by-not-running (NOT fake-green on a substitute). They go
-//! GREEN UNCHANGED the moment a managed PostgreSQL is available AND the backend packets expose the three
-//! edge routes + native-editor FR ingestion. The typed BLOCKER MANIFEST
-//! (`other_pillar_interop_manifest.json`) is the suite's documented gap surface — the precise
-//! backend-packet backlog for the next WP.
+//! Therefore the three live edge-drive proofs (`*_live`) now carry REAL bodies that bind the existing
+//! routes via the MT-044/045/046 `require_live_backend` gate (`pg_proof_support`), and are `#[ignore =
+//! "requires_pg"]` — the routes EXIST, but the headless default suite has no managed PostgreSQL, so the
+//! live-PG batch runs them with `--ignored`. They assert only the route round-trips the product's interop
+//! services actually perform (no FR-event assertion, since that awaits the frontend-emission follow-up) —
+//! honest about what is provable against the live backend today.
 //!
 //! ## The four contract scenarios (OP-01..OP-04) — what is provable NOW vs gated
 //!
 //! Each contract scenario `other_pillar_op{NN}` is a NON-IGNORED function that proves the part of its edge
 //! that needs NO live backend (the structural/provable-NOW half, mirroring MT-066/067/068's own
-//! non-ignored proofs), and documents the GATED live half:
+//! non-ignored proofs); the `*_live` companion proves the route round-trip against a managed PostgreSQL
+//! (`requires_pg`):
 //!   - `other_pillar_op01_stage_route_embed_back` (OP-01): the route-leg payload + the embed-back leg
 //!     inserts the MT-014 hsLink NodeView whose SHA-256 manifest provenance EQUALS the recomputed SHA-256
-//!     of the exact routed bytes (CTRL-3 — recomputed, never non-empty-only). The live route round-trip
-//!     against real PG + live FR ingestion is the gated `other_pillar_op01_stage_route_embed_back_live`.
+//!     of the exact routed bytes (CTRL-3 — recomputed, never non-empty-only). The live Stage capture-store
+//!     route round-trip (`POST`/`GET /workspaces/{ws}/stage/artifacts/{id}`) is the `requires_pg`
+//!     `other_pillar_op01_stage_route_embed_back_live`.
 //!   - `other_pillar_op02_calendar_bind_activity_span` (OP-02): the idempotent daily-note<->CalendarEvent
 //!     binding DELEGATES to the MT-019 service (single doc/date) and the ActivitySpan correlation returns
-//!     the edited documents — both proven against the counted MT-019/MT-067 backend. The live PG bind +
-//!     correlation is the gated `other_pillar_op02_calendar_bind_activity_span_live`.
+//!     the edited documents — both proven against the counted MT-019/MT-067 backend. The live calendar
+//!     activity-span POST/GET + events-window round-trip is the `requires_pg`
+//!     `other_pillar_op02_calendar_bind_activity_span_live`.
 //!   - `other_pillar_op03_locus_resolve_reverse` (OP-03): a `locus://` ref parses + resolves (a 200-status
 //!     projection from an in-process one-shot server) and the PERSISTED reverse lookup lists the
 //!     referencing document(s) keyed on the single normalized key, driven through the REAL MT-034
-//!     `find_notes_with` pipeline. The live PG resolve + reverse against the real `/locus/` routes is the
-//!     gated `other_pillar_op03_locus_resolve_reverse_live`.
+//!     `find_notes_with` pipeline. The live `GET /workspaces/{ws}/locus/work-packets/{id}` resolve
+//!     round-trip is the `requires_pg` `other_pillar_op03_locus_resolve_reverse_live`.
 //!   - `other_pillar_op04_swarm_accesskit` (OP-04): the swarm-parity guarantee (HBR-SWARM) — an
 //!     out-of-process-style agent reaches AND activates each of the three interop edges PURELY via stable
 //!     AccessKit author_ids (no coordinates, no label-scraping), verifying each id is present + STABLE
-//!     across two re-queries + the AccessKit Click dispatch reaches the node. The live edge-drive +
-//!     FR-event half stays gated; the reachability/stability/dispatch half is proven NOW.
+//!     across two re-queries + the AccessKit Click dispatch reaches the node. The live edge-drive uses the
+//!     OP-01/02/03 `requires_pg` proofs; the reachability/stability/dispatch half is proven NOW.
 
 use std::collections::{HashMap, HashSet};
 use std::io::{Read as IoRead, Write as IoWrite};
@@ -133,6 +139,14 @@ use handshake_native::rich_editor::renderer::rich_editor_widget::{
 use handshake_native::rich_editor::wikilinks::inline_view::locus_ref_chip_author_id;
 use handshake_native::theme::{HsPalette, HsTheme};
 
+// REUSE (not re-authored — CTRL-1 / CTRL-8): the MT-044/045/046 shared live-PostgreSQL backend gate.
+// `require_live_backend()` resolves `HSK_TEST_BASE` (default http://127.0.0.1:37501) +
+// `HSK_TEST_WORKSPACE_ID`, verifies `/health`, and PANICS with a `requires_pg` message otherwise (no
+// fake-pass, no substitute store). Only the `#[ignore = "requires_pg"]` `*_live` proofs below use it; it
+// lives in a `tests/` SUBDIRECTORY so Cargo does not compile it as a standalone test binary.
+#[path = "pg_proof_support/mod.rs"]
+mod pg_proof_support;
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Artifact hygiene (CX-212E / SCREENSHOT-RULE): all artifacts go to the EXTERNAL root ONLY.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -160,10 +174,16 @@ fn assert_no_local_artifact_dir() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// The TYPED BLOCKER MANIFEST (CTRL-4 / CTRL-8): the three absent live interop routes + the absent managed
-// PostgreSQL the three live edge-drive proofs depend on, verified ABSENT by MT-066 / MT-067 / MT-068. This
-// is the honest gap surface — the live proofs are GATED, not faked, until these routes + a managed
-// PostgreSQL exist. It is the source of truth that drives the sibling `other_pillar_interop_manifest.json`.
+// The TYPED FOLLOW-UP MANIFEST (CTRL-4 / CTRL-8): the interop edge routes now EXIST (stage/calendar/locus
+// in `api/mod.rs`, FR ingestion accepts the 5 interop kinds), so the earlier `missing_api`
+// backend-route-absent blockers are RETIRED. The one remaining interop gap is FRONTEND EMISSION: the
+// frontend `event_emitter.rs` `NativeEditorAction` enum has NO variants for the 5 interop kinds and its
+// production transport posts to `/flight_recorder/runtime_chat_event`, not the new
+// `/flight_recorder/native_editor_event` route — so the product does not yet EMIT the interop FR events
+// even though the backend accepts them. That is `fr_event_not_emitted_frontend` (a frontend-emission
+// follow-up, MT-036 emitter + the interop-edge wiring MTs). The 4th entry records the managed-PostgreSQL
+// runtime precondition of the `requires_pg` `*_live` route round-trips. This is the source of truth that
+// drives the sibling `other_pillar_interop_manifest.json`.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// One typed blocker: `kind`, the missing detail, and the owning MT that verified it absent.
@@ -182,27 +202,28 @@ impl TypedBlocker {
     }
 }
 
-/// The four typed blockers that gate the three live edge-drive proofs: the three absent edge routes
-/// (verified by MT-066/067/068) + the absent managed PostgreSQL.
+/// The four typed follow-ups: the three per-edge FRONTEND-emission gaps for the 5 un-emitted interop FR
+/// kinds (the backend routes + FR ingestion now EXIST; the frontend does not yet emit the kinds) + the
+/// managed-PostgreSQL runtime precondition of the `requires_pg` `*_live` route round-trips.
 const OTHER_PILLAR_TYPED_BLOCKERS: [TypedBlocker; 4] = [
     TypedBlocker {
-        kind: "missing_api",
-        detail: "POST /stage/route + GET /workspaces/{ws}/stage/artifacts/{id} absent (Pillar 17, route-to-stage is bus-only, embed-back read absent)",
-        source_mt: "MT-066",
+        kind: "fr_event_not_emitted_frontend",
+        detail: "STAGE_EMBED_BACK interop FR kind is not emitted by the frontend: event_emitter.rs NativeEditorAction has no StageEmbedBack variant and the production transport posts to /flight_recorder/runtime_chat_event, not the /flight_recorder/native_editor_event route that accepts the interop kinds. The stage route + FR ingestion EXIST (api/stage.rs + api/flight_recorder.rs). Frontend-emission follow-up (STAGE_ROUTE itself is emittable via NativeEditorAction::RouteToStage).",
+        source_mt: "MT-036 (+MT-066 stage wiring)",
     },
     TypedBlocker {
-        kind: "missing_api",
-        detail: "GET /workspaces/{ws}/calendar/events + /calendar/activity-spans absent (Pillar 2)",
-        source_mt: "MT-067",
+        kind: "fr_event_not_emitted_frontend",
+        detail: "CALENDAR_EVENT_BOUND + ACTIVITY_SPAN_CORRELATED interop FR kinds are not emitted by the frontend (no NativeEditorAction variants; transport targets runtime_chat_event). The calendar routes + FR ingestion EXIST (api/calendar.rs). Frontend-emission follow-up.",
+        source_mt: "MT-036 (+MT-067 calendar wiring)",
     },
     TypedBlocker {
-        kind: "missing_api",
-        detail: "GET /workspaces/{ws}/locus/work-packets/{id} + /locus/microtasks/{id} absent (Pillar 6, kernel data model only, no HTTP route)",
-        source_mt: "MT-068",
+        kind: "fr_event_not_emitted_frontend",
+        detail: "LOCUS_REF_RESOLVED + LOCUS_REVERSE_LOOKUP interop FR kinds are not emitted by the frontend (no NativeEditorAction variants; transport targets runtime_chat_event). The locus routes + FR ingestion EXIST (api/locus.rs). Frontend-emission follow-up.",
+        source_mt: "MT-036 (+MT-068 locus wiring)",
     },
     TypedBlocker {
-        kind: "no_managed_postgres",
-        detail: "no managed PostgreSQL/EventLedger in this environment (every live-PG proof is NEEDS_MANAGED_RESOURCE_PROOF)",
+        kind: "requires_managed_postgres",
+        detail: "the OP-01/02/03 *_live route round-trips need a managed PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID); run them in the live-PG batch with --ignored. The stage/calendar/locus routes now EXIST (wired in api/mod.rs); a live PG + seed is the only runtime precondition.",
         source_mt: "MT-074",
     },
 ];
@@ -219,9 +240,6 @@ const LIVE_PG_DSN_ENV: &str = "HANDSHAKE_TEST_PG_DSN";
 /// Fallback env key (the MT-008 code-nav live tests' key), accepted only when it carries a `postgres://`
 /// DSN — never a file-backed local-store path.
 const LIVE_PG_DSN_ENV_ALT: &str = "HANDSHAKE_TEST_DB_URL";
-/// The managed handshake_core base URL the gated live tests probe (the WP-011 MT-023/024 live-PG address).
-#[cfg(feature = "integration")]
-const LIVE_BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
 
 /// Resolve the live PostgreSQL DSN, asserting it is PostgreSQL. PANICS (never a file-backed local-store /
 /// in-process / fake fallback) when no live DSN is configured. The non-ignored `op_dsn_absent_panics`
@@ -1088,15 +1106,16 @@ fn other_pillar_op04_swarm_accesskit() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// PROOF (NON-IGNORED) — the typed BLOCKER MANIFEST: the three absent live interop routes + the absent
-// managed PostgreSQL the three live edge-drive proofs need, verified ABSENT by MT-066/067/068. The suite
-// emits + asserts the structured `BLOCKER[...]` lines AND validates the sibling JSON manifest so the gap
-// is honest-red-not-green and routes back to the owning MT.
+// PROOF (NON-IGNORED) — the typed FOLLOW-UP MANIFEST: the interop edge routes now EXIST, so the remaining
+// interop gap is FRONTEND EMISSION of the 5 interop FR kinds (fr_event_not_emitted_frontend) + the
+// managed-PostgreSQL runtime precondition of the `requires_pg` `*_live` route round-trips. The suite emits
+// + asserts the structured `BLOCKER[...]` lines AND validates the sibling JSON manifest so the gap is
+// honest-red-not-green and routes back to the owning MT.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn other_pillar_typed_blocker_manifest() {
-    println!("--- MT-074 typed BLOCKER manifest (the 3 live edge-drive proofs are GATED on these, never faked) ---");
+    println!("--- MT-074 typed follow-up manifest (routes EXIST; remaining gap = frontend emission + requires_pg) ---");
     for blocker in &OTHER_PILLAR_TYPED_BLOCKERS {
         let line = blocker.line();
         println!("{line}");
@@ -1111,21 +1130,36 @@ fn other_pillar_typed_blocker_manifest() {
         .map(|b| b.line())
         .collect::<Vec<_>>()
         .join("\n");
+    // The remaining interop gap is FRONTEND EMISSION of the 5 interop kinds (the backend routes + FR
+    // ingestion now EXIST). Each un-emitted interop kind is named in a fr_event_not_emitted_frontend entry.
     assert!(
-        all.contains("stage") && all.contains("MT-066"),
-        "OP-01 route gap attributed to MT-066"
+        all.contains("fr_event_not_emitted_frontend"),
+        "the frontend-emission gap kind is recorded"
+    );
+    for kind in [
+        "STAGE_EMBED_BACK",
+        "CALENDAR_EVENT_BOUND",
+        "ACTIVITY_SPAN_CORRELATED",
+        "LOCUS_REF_RESOLVED",
+        "LOCUS_REVERSE_LOOKUP",
+    ] {
+        assert!(
+            all.contains(kind),
+            "the un-emitted interop FR kind {kind} is named in a frontend-emission blocker"
+        );
+    }
+    assert!(
+        all.contains("MT-036"),
+        "the frontend-emission gap is attributed to the MT-036 emitter schema"
     );
     assert!(
-        all.contains("calendar") && all.contains("MT-067"),
-        "OP-02 route gap attributed to MT-067"
+        all.contains("requires_managed_postgres"),
+        "the managed-PostgreSQL runtime precondition of the *_live proofs is recorded"
     );
+    // The stale backend-route-absent claim is GONE: the stage/calendar/locus routes now EXIST.
     assert!(
-        all.contains("locus") && all.contains("MT-068"),
-        "OP-03 route gap attributed to MT-068"
-    );
-    assert!(
-        all.contains("no_managed_postgres"),
-        "the no-managed-PostgreSQL blocker is present"
+        !all.contains("missing_api"),
+        "no stale missing_api backend-route-absent blocker remains (the routes now exist)"
     );
 
     // Validate the sibling JSON manifest: exactly 4 entries (OP-01..OP-04), each with the required fields,
@@ -1197,47 +1231,83 @@ fn other_pillar_typed_blocker_manifest() {
             "the manifest contains scenario {expected}"
         );
     }
-    println!("blocker-manifest OK: 4 typed blockers (3 missing_api + no_managed_postgres) emitted; the JSON manifest has 4 entries, 0 FAIL; the 3 live edge-drive proofs go green unchanged when the routes + a managed PG land");
+    println!("blocker-manifest OK: 4 typed follow-ups (3 fr_event_not_emitted_frontend for the 5 un-emitted interop kinds + requires_managed_postgres) emitted; the JSON manifest has 4 entries, 0 FAIL; the 3 *_live route round-trips are requires_pg (routes exist), the FR-event half is a frontend-emission follow-up");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// PROOF (NON-IGNORED) — the FR/EventLedger route the contract needs is RESOLVED. `GET /api/flight_recorder`
-// DOES exist (verified in the backend api/mod.rs route surface), so it is NOT a typed blocker; only the
-// LIVE native-editor FR INGESTION (the MT-036 closed-schema gap) is gated. This documents the resolved
-// route name the live proofs read.
+// PROOF (NON-IGNORED) — a REAL SOURCE SCAN of the backend router proving the four interop route modules
+// (stage / calendar / locus / flight_recorder) are DECLARED and MERGED into the app router, that the FR
+// read + native-editor ingestion routes are REGISTERED, and that the FR ingestion vocabulary now ACCEPTS
+// the 5 interop kinds. The backend files are embedded at compile time via `include_str!` on a
+// disk-agnostic RELATIVE path, so this fails to compile/pass the moment a route module is removed — a real
+// regression guard against the real backend source, NOT a literal-against-itself placebo.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn other_pillar_fr_route_resolved() {
-    // The backend api/mod.rs merges flight_recorder::routes (which registers `/flight_recorder` + a
-    // backward-compatible `/events`), and main.rs nests the api router under `/api` — so the FR read route
-    // the live FR-event assertions use is `GET /api/flight_recorder` (verified read-only, not a blocker).
-    let fr_route = "/api/flight_recorder";
-    assert_eq!(
-        fr_route, "/api/flight_recorder",
-        "the resolved FR read route name"
+    // (1) The app router: the four interop route modules are DECLARED and their `::routes` are merged.
+    let api_mod = include_str!("../../../backend/handshake_core/src/api/mod.rs");
+    for module in ["stage", "calendar", "locus", "flight_recorder"] {
+        assert!(
+            api_mod.contains(&format!("pub mod {module};")),
+            "api/mod.rs must declare the '{module}' route module"
+        );
+        assert!(
+            api_mod.contains(&format!("{module}::routes")),
+            "api/mod.rs must wire {module}::routes into the app router"
+        );
+    }
+
+    // (2) The FR router: the read route `GET /flight_recorder` (nested under `/api` in main.rs ->
+    // `GET /api/flight_recorder`) AND the native-editor ingestion route the frontend must POST to.
+    let fr_src = include_str!("../../../backend/handshake_core/src/api/flight_recorder.rs");
+    assert!(
+        fr_src.contains("\"/flight_recorder\""),
+        "flight_recorder.rs must register the GET /flight_recorder read route"
     );
-    // The expected interop FR event kinds the gated live proofs assert in order (verified against the
-    // upstream MT-036 event constructors: STAGE_ROUTE/STAGE_EMBED_BACK use the MT-036 `route_to_stage`
-    // action; the calendar/locus kinds are the contract-named kinds the next-WP backend ingestion must
-    // emit). These are documented here so the gap surface names the exact kinds.
-    let expected_kinds = [
-        "STAGE_ROUTE",
-        "STAGE_EMBED_BACK",
-        "CALENDAR_EVENT_BOUND",
-        "ACTIVITY_SPAN_CORRELATED",
-        "LOCUS_REF_RESOLVED",
-        "LOCUS_REVERSE_LOOKUP",
-    ];
-    assert_eq!(
-        expected_kinds.len(),
-        6,
-        "six expected interop FR event kinds across the three edges"
+    assert!(
+        fr_src.contains("\"/flight_recorder/native_editor_event\""),
+        "flight_recorder.rs must register the native-editor FR ingestion route"
     );
+    // The FR ingestion closed vocabulary now ACCEPTS the 5 interop kinds (backend gap CLOSED; the remaining
+    // gap is FRONTEND emission — see OTHER_PILLAR_TYPED_BLOCKERS[fr_event_not_emitted_frontend]).
+    for kind in [
+        "StageEmbedBack",
+        "CalendarEventBound",
+        "ActivitySpanCorrelated",
+        "LocusRefResolved",
+        "LocusReverseLookup",
+    ] {
+        assert!(
+            fr_src.contains(kind),
+            "the FR ingestion route (NativeEditorFrEventKind) must accept the interop kind {kind}"
+        );
+    }
+
+    // (3) The three edge routes the `*_live` proofs bind (route-exists reality, read from real source).
+    let stage_src = include_str!("../../../backend/handshake_core/src/api/stage.rs");
+    assert!(
+        stage_src.contains("/stage/artifacts/:artifact_id"),
+        "api/stage.rs must register GET /workspaces/:ws/stage/artifacts/:artifact_id"
+    );
+    let calendar_src = include_str!("../../../backend/handshake_core/src/api/calendar.rs");
+    assert!(
+        calendar_src.contains("/calendar/activity-spans")
+            && calendar_src.contains("/calendar/events"),
+        "api/calendar.rs must register the calendar events + activity-spans routes"
+    );
+    let locus_src = include_str!("../../../backend/handshake_core/src/api/locus.rs");
+    assert!(
+        locus_src.contains("/locus/work-packets/:record_id"),
+        "api/locus.rs must register GET /workspaces/:ws/locus/work-packets/:record_id"
+    );
+
     println!(
-        "FR-route OK: GET {fr_route} resolved (exists in api/mod.rs -> flight_recorder::routes, nested \
-         under /api); the live FR-event assertions read it and poll for the expected kinds {expected_kinds:?}. \
-         The absent half is the LIVE native-editor FR INGESTION (MT-036 closed-schema gap), gated like MT-064."
+        "FR-route + interop routes RESOLVED (backend source scan): api/mod.rs declares+wires \
+         stage/calendar/locus/flight_recorder; GET /api/flight_recorder + POST \
+         /flight_recorder/native_editor_event registered; the FR ingestion accepts the 5 interop kinds. \
+         The one remaining gap is FRONTEND emission (event_emitter.rs), recorded as \
+         fr_event_not_emitted_frontend."
     );
 }
 
@@ -1394,152 +1464,183 @@ fn other_pillar_reuses_interop_modules_no_glue() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// GATED LIVE PROOFS (#[cfg(feature = "integration")] + #[ignore]) — NEEDS_MANAGED_RESOURCE_PROOF.
+// LIVE ROUTE-ROUND-TRIP PROOFS (#[ignore = "requires_pg"]) — the interop edge routes now EXIST.
 //
-// These three proofs are STRUCTURALLY CORRECT and go GREEN UNCHANGED against a managed PostgreSQL +
-// EventLedger once the three absent edge routes (the typed-blocker manifest above) AND the native-editor
-// FR ingestion are exposed. They resolve the live DSN/endpoint from the standard integration-test config
-// (refusing any non-PostgreSQL / file-backed local store), then run the live assertion. The default
-// `cargo test` never runs
-// them, so it never reports a fake pass. Each scenario cleans up its created PG rows in a DropGuard so the
-// suite is idempotent across reruns (CTRL-9).
+// These three proofs carry REAL bodies that bind the now-existing stage/calendar/locus routes through the
+// shared MT-044/045/046 `require_live_backend` gate (`pg_proof_support`), which attaches the identity
+// headers and PANICS `requires_pg` when there is no reachable managed PostgreSQL + seeded workspace. They
+// are `#[ignore]` because the headless default suite has no managed PG; the live-PG batch runs them with
+// `--ignored`. They assert ONLY the route round-trips the product's interop services actually perform —
+// they do NOT assert the 5 interop FR events, because those await the frontend-emission follow-up
+// (`fr_event_not_emitted_frontend`): the backend FR ingestion route accepts the kinds, but the frontend
+// `event_emitter.rs` does not yet emit them. Reruns are collision-free (stage uses server-minted ids,
+// the calendar span is an idempotent upsert on a fixed span_id, locus is read-only) — CTRL-9.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// A DropGuard that deletes the workspace's created PG rows on completion so a second full run produces
-/// identical results with no unique-constraint collisions (CTRL-9 idempotency). Only constructed by the
-/// gated live proofs.
-#[cfg(feature = "integration")]
-struct PgRowCleanup {
-    base_url: String,
-    workspace_id: String,
-}
-
-#[cfg(feature = "integration")]
-impl Drop for PgRowCleanup {
-    fn drop(&mut self) {
-        // Best-effort cleanup of the throwaway workspace's rows via the existing workspace-delete API
-        // (the live backend owns the cascade). Never panics in Drop.
-        let url = format!("{}/workspaces/{}", self.base_url, self.workspace_id);
-        if let Ok(rt) = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-        {
-            let _ = rt.block_on(async { reqwest::Client::new().delete(&url).send().await });
-        }
-    }
-}
-
-/// Poll `GET {base}/api/flight_recorder` up to 5 attempts x 200ms (1 s budget) and return the body once
-/// all `expected_kinds` appear (in order), else the last body. Mirrors MT-046 CTRL-6 (tolerate async
-/// ledger writes; never a trivially passing assertion).
-#[cfg(feature = "integration")]
-fn poll_flight_recorder(base: &str, expected_kinds: &[&str]) -> serde_json::Value {
-    let url = format!("{base}/api/flight_recorder");
-    let rt = rt();
-    let mut last = serde_json::Value::Null;
-    for _ in 0..5 {
-        if let Ok(body) =
-            rt.block_on(async { reqwest::get(&url).await?.json::<serde_json::Value>().await })
-        {
-            let s = body.to_string();
-            // In-order containment: each expected kind appears after the previous one.
-            let mut pos = 0usize;
-            let mut all_in_order = true;
-            for kind in expected_kinds {
-                match s[pos..].find(kind) {
-                    Some(i) => pos += i + kind.len(),
-                    None => {
-                        all_in_order = false;
-                        break;
-                    }
-                }
-            }
-            last = body;
-            if all_in_order {
-                return last;
-            }
-        }
-        std::thread::sleep(std::time::Duration::from_millis(200));
-    }
-    last
-}
-
-/// OP-01 (LIVE): the Stage route-to-Stage + embed-back round-trip against REAL PostgreSQL. The reloaded
-/// note's block tree contains the MT-014 embed node whose sha256 provenance equals the SHA-256 of the
-/// originally routed bytes; `GET /api/flight_recorder` contains STAGE_ROUTE then STAGE_EMBED_BACK in order.
-/// GATED: the `/stage/` routes + native-editor FR ingestion are absent (MT-066) + no managed PG.
-#[cfg(feature = "integration")]
+/// OP-01 (LIVE, requires_pg): the Stage capture-store route round-trip against REAL PostgreSQL. POST an
+/// inline-text Stage artifact, then GET it back by id and assert the evidence-grade provenance persists
+/// (`sha256` equals the created digest, is 64-hex, and `manifest.manifest_ref` is non-empty). The route
+/// EXISTS (`api/stage.rs`, MT-066). The STAGE_EMBED_BACK Flight Recorder event is a separate
+/// FRONTEND-emission follow-up (event_emitter.rs has no StageEmbedBack action), so it is NOT asserted here.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: POST /stage/route + GET /stage/artifacts absent (MT-066) + native-editor FR ingestion absent + no managed PostgreSQL"]
+#[ignore = "requires_pg: live Handshake-managed PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID). \
+            The stage/calendar/locus routes EXIST; run in the live-PG batch with --ignored."]
 fn other_pillar_op01_stage_route_embed_back_live() {
-    let dsn = resolve_live_pg_dsn();
-    assert!(
-        dsn.to_ascii_lowercase().starts_with("postgres"),
-        "live store must be PostgreSQL"
-    );
-    let base = LIVE_BACKEND_BASE_URL.to_owned();
-    let workspace_id = format!("ws-mt074-stage-{}", std::process::id());
-    let _cleanup = PgRowCleanup {
-        base_url: base.clone(),
-        workspace_id: workspace_id.clone(),
-    };
+    let be = pg_proof_support::require_live_backend();
+    let ws = &be.workspace_id;
 
-    // When the live /stage/ route + native-editor FR ingestion exist, this drives route-to-stage, runs
-    // embed-back, saves the note via PUT /workspaces/{id}/knowledge/documents/{doc_id}, reloads via GET,
-    // asserts the embed node's sha256 == SHA-256(routed bytes), and polls the FR ledger for STAGE_ROUTE
-    // then STAGE_EMBED_BACK in order. The route is verified ABSENT in this build, so the live drive cannot
-    // be asserted without fabricating it — the designed outcome is the typed blocker until the route lands.
-    let _ = poll_flight_recorder(&base, &["STAGE_ROUTE", "STAGE_EMBED_BACK"]);
-    panic!("OP-01 LIVE BLOCKER[kind=missing_api detail='POST /stage/route + GET /stage/artifacts absent' source_mt=MT-066]: gated until the route + FR ingestion land");
+    // Capture an inline-text Stage artifact; the backend computes the evidence-grade sha256 + manifest_ref.
+    let created = be.post_json(
+        &format!("/workspaces/{ws}/stage/artifacts"),
+        &serde_json::json!({
+            "content_kind": "selection",
+            "label": "MT-074 live capture",
+            "content_type": "text/plain",
+            "content_json": { "text": "route this selection to the Stage pane (live)" },
+            "source_ref": "pane-rich:0-45",
+        }),
+    );
+    let artifact_id = created["artifact_id"]
+        .as_str()
+        .expect("OP-01 live: the created Stage artifact carries an artifact_id")
+        .to_owned();
+    let created_sha = created["sha256"]
+        .as_str()
+        .expect("OP-01 live: the created Stage artifact carries a sha256")
+        .to_owned();
+    assert_eq!(created_sha.len(), 64, "OP-01 live: the stage artifact sha256 is 64-hex");
+
+    // Read it back by id (the embed-back leg's GET) and assert the evidence-grade provenance persists.
+    let fetched = be.get_json(&format!("/workspaces/{ws}/stage/artifacts/{artifact_id}"));
+    assert_eq!(
+        fetched["sha256"].as_str(),
+        Some(created_sha.as_str()),
+        "OP-01 live: the reloaded Stage artifact sha256 matches the created digest"
+    );
+    assert_eq!(
+        fetched["manifest"]["sha256"].as_str(),
+        Some(created_sha.as_str()),
+        "OP-01 live: the manifest sha256 is the same evidence-grade digest"
+    );
+    assert!(
+        !fetched["manifest"]["manifest_ref"]
+            .as_str()
+            .unwrap_or_default()
+            .is_empty(),
+        "OP-01 live: the manifest_ref is non-empty (evidence-grade)"
+    );
+
+    println!(
+        "OP-01 LIVE OK: stage artifact {artifact_id} round-tripped on real PG; sha256 {created_sha} \
+         matches on reload; manifest_ref non-empty. The STAGE_EMBED_BACK FR event is a frontend-emission \
+         follow-up (fr_event_not_emitted_frontend)."
+    );
 }
 
-/// OP-02 (LIVE): the daily-note<->CalendarEvent binding + ActivitySpan correlation against REAL
-/// PostgreSQL. The daily note binds to a real CalendarEvent row (bidirectional reference persists across
-/// reload); the ActivitySpan correlation returns the edited documents; `GET /api/flight_recorder` contains
-/// CALENDAR_EVENT_BOUND and ACTIVITY_SPAN_CORRELATED. GATED: the `/calendar/` routes are absent (MT-067) +
-/// no managed PG.
-#[cfg(feature = "integration")]
+/// OP-02 (LIVE, requires_pg): the calendar activity-span + events-window route round-trip against REAL
+/// PostgreSQL. POST an ActivitySpan for a calendar event (idempotent upsert on a fixed span_id so reruns
+/// update the same row — CTRL-9), then GET the correlation back and assert it returns the edited documents;
+/// GET the events window responds with a JSON array. The routes EXIST (`api/calendar.rs`, MT-067). The
+/// CALENDAR_EVENT_BOUND/ACTIVITY_SPAN_CORRELATED FR events are a FRONTEND-emission follow-up.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: /calendar/events + /calendar/activity-spans absent (MT-067) + no managed PostgreSQL"]
+#[ignore = "requires_pg: live Handshake-managed PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID). \
+            The calendar routes EXIST; run in the live-PG batch with --ignored."]
 fn other_pillar_op02_calendar_bind_activity_span_live() {
-    let dsn = resolve_live_pg_dsn();
-    assert!(
-        dsn.to_ascii_lowercase().starts_with("postgres"),
-        "live store must be PostgreSQL"
-    );
-    let base = LIVE_BACKEND_BASE_URL.to_owned();
-    let workspace_id = format!("ws-mt074-cal-{}", std::process::id());
-    let _cleanup = PgRowCleanup {
-        base_url: base.clone(),
-        workspace_id: workspace_id.clone(),
-    };
+    let be = pg_proof_support::require_live_backend();
+    let ws = &be.workspace_id;
 
-    let _ = poll_flight_recorder(&base, &["CALENDAR_EVENT_BOUND", "ACTIVITY_SPAN_CORRELATED"]);
-    panic!("OP-02 LIVE BLOCKER[kind=missing_api detail='/calendar/events + /calendar/activity-spans absent' source_mt=MT-067]: gated until the routes land");
+    let event_id = "CAL-EVT-MT074";
+    let span_id = "CAS-MT074-op02";
+    let started = Utc.with_ymd_and_hms(2026, 6, 21, 9, 5, 0).unwrap().to_rfc3339();
+    let ended = Utc.with_ymd_and_hms(2026, 6, 21, 9, 45, 0).unwrap().to_rfc3339();
+
+    // Record the edit-activity span (idempotent upsert on the fixed span_id — collision-free on rerun).
+    let created = be.post_json(
+        &format!("/workspaces/{ws}/calendar/activity-spans"),
+        &serde_json::json!({
+            "calendar_event_id": event_id,
+            "span_id": span_id,
+            "started_utc": started,
+            "ended_utc": ended,
+            "edited_doc_ids": ["DOC-A", "DOC-B"],
+        }),
+    );
+    assert_eq!(
+        created["span_id"].as_str(),
+        Some(span_id),
+        "OP-02 live: the activity span persists under the requested (idempotent) span_id"
+    );
+
+    // The read-only correlation returns the edited documents for the bound event.
+    let spans = be.get_json(&format!(
+        "/workspaces/{ws}/calendar/activity-spans?event_id={event_id}"
+    ));
+    let arr = spans
+        .as_array()
+        .expect("OP-02 live: the activity-spans correlation returns a JSON array");
+    let ours = arr
+        .iter()
+        .find(|s| s["span_id"].as_str() == Some(span_id))
+        .expect("OP-02 live: our span is returned by the correlation");
+    let empty = Vec::new();
+    let edited: Vec<&str> = ours["edited_doc_ids"]
+        .as_array()
+        .unwrap_or(&empty)
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    assert!(
+        edited.contains(&"DOC-A") && edited.contains(&"DOC-B"),
+        "OP-02 live: the ActivitySpan correlation returns the set of edited documents, got {edited:?}"
+    );
+
+    // The events-window query (the daily-note<->CalendarEvent linkage route) responds with a JSON array.
+    let events = be.get_json(&format!(
+        "/workspaces/{ws}/calendar/events?from=2026-06-21&to=2026-06-21"
+    ));
+    assert!(
+        events.is_array(),
+        "OP-02 live: the calendar events window query returns a JSON array"
+    );
+
+    println!(
+        "OP-02 LIVE OK: activity-span {span_id} upserted on real PG; correlation returns edited docs \
+         [DOC-A, DOC-B]; the calendar events window responds. The CALENDAR_EVENT_BOUND / \
+         ACTIVITY_SPAN_CORRELATED FR events are a frontend-emission follow-up."
+    );
 }
 
-/// OP-03 (LIVE): the locus:// resolve + persisted reverse lookup against REAL PostgreSQL. A locus://
-/// reference resolves to the correct WP/MT target, and the PERSISTED reverse index lists the referencing
-/// note; `GET /api/flight_recorder` contains LOCUS_REF_RESOLVED and LOCUS_REVERSE_LOOKUP. GATED: the
-/// `/locus/` routes are absent (MT-068) + no managed PG.
-#[cfg(feature = "integration")]
+/// OP-03 (LIVE, requires_pg): the locus:// resolve route round-trip against REAL PostgreSQL. GET the Locus
+/// work-packet display record for a seeded WP id (overridable via `HSK_TEST_LOCUS_WP_ID`, default the WP
+/// under proof) and assert a non-empty title. The route EXISTS (`api/locus.rs`, MT-068; the persisted
+/// reverse index is the existing loom/search-v2 pipeline, proven non-ignored in op03). The
+/// LOCUS_REF_RESOLVED/LOCUS_REVERSE_LOOKUP FR events are a FRONTEND-emission follow-up.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: /locus/work-packets + /locus/microtasks absent (MT-068) + no managed PostgreSQL"]
+#[ignore = "requires_pg: live Handshake-managed PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID) + a \
+            seeded Locus work_packets row (HSK_TEST_LOCUS_WP_ID, default WP-KERNEL-012). The locus routes \
+            EXIST; run in the live-PG batch with --ignored."]
 fn other_pillar_op03_locus_resolve_reverse_live() {
-    let dsn = resolve_live_pg_dsn();
-    assert!(
-        dsn.to_ascii_lowercase().starts_with("postgres"),
-        "live store must be PostgreSQL"
-    );
-    let base = LIVE_BACKEND_BASE_URL.to_owned();
-    let workspace_id = format!("ws-mt074-locus-{}", std::process::id());
-    let _cleanup = PgRowCleanup {
-        base_url: base.clone(),
-        workspace_id: workspace_id.clone(),
-    };
+    let be = pg_proof_support::require_live_backend();
+    let ws = &be.workspace_id;
 
-    let _ = poll_flight_recorder(&base, &["LOCUS_REF_RESOLVED", "LOCUS_REVERSE_LOOKUP"]);
-    panic!("OP-03 LIVE BLOCKER[kind=missing_api detail='/locus/work-packets + /locus/microtasks absent' source_mt=MT-068]: gated until the routes land");
+    // Resolve a locus:// work-packet reference to its display record via the now-existing read route. The
+    // record id is the seeded WP under proof (overridable for the live batch).
+    let wp_id = std::env::var("HSK_TEST_LOCUS_WP_ID")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "WP-KERNEL-012".to_owned());
+    let record = be.get_json(&format!("/workspaces/{ws}/locus/work-packets/{wp_id}"));
+    let title = record["title"].as_str().unwrap_or_default();
+    assert!(
+        !title.is_empty(),
+        "OP-03 live: the resolved Locus work-packet has a non-empty (resolvable) title"
+    );
+
+    println!(
+        "OP-03 LIVE OK: locus work-packet {wp_id} resolved on real PG -> title '{title}'. The persisted \
+         reverse lookup runs through the existing loom/search-v2 pipeline (proven non-ignored in op03); \
+         the LOCUS_REF_RESOLVED / LOCUS_REVERSE_LOOKUP FR events are a frontend-emission follow-up."
+    );
 }
 
 // A compile-time anchor so an unused import (referenced only on certain branches) never triggers a

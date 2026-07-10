@@ -108,6 +108,82 @@ fn ticking_and_completed_operations_do_not_false_flag() {
 }
 
 #[test]
+fn forever_ticking_operation_is_flagged_by_hard_total_runtime_cap() {
+    // MT-108 residual for MT-105: an operation that keeps ticking resets the progress-GAP bounds every
+    // tick, so those bounds alone never catch a "forever-ticking" operation. The hard total-runtime cap
+    // flags it once its ABSOLUTE runtime since registration exceeds the cap, REGARDLESS of ticks.
+    let _guard = lock_watchdog_tests();
+    let before = stalled_events().len();
+    let watchdog = OperationWatchdog::new(Duration::from_millis(20));
+    // Progress-gap deadline + interval are long (they would never trip in this test); only the short
+    // hard total-runtime cap can catch the ticking operation.
+    let handle = watchdog.register_with_runtime_cap(
+        OperationCode::ModelSession,
+        Duration::from_secs(30),
+        Some(Duration::from_secs(30)),
+        Some(Duration::from_millis(100)),
+    );
+
+    // Tick frequently so the progress-gap bounds keep resetting; only the runtime cap can flag it.
+    let mut emitted = 0;
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while emitted == 0 && Instant::now() < deadline {
+        handle.tick();
+        std::thread::sleep(Duration::from_millis(20));
+        emitted += watchdog.poll_once();
+    }
+    assert_eq!(
+        emitted, 1,
+        "the hard total-runtime cap flags the forever-ticking operation exactly once"
+    );
+
+    let events = stalled_events();
+    assert_eq!(
+        events.len() - before,
+        1,
+        "exactly one StalledOperation event from the runtime cap"
+    );
+    let event = events.last().expect("a stalled event was recorded");
+    assert_eq!(
+        event.counter_a,
+        OperationCode::ModelSession.as_u64(),
+        "the flagged operation is the ModelSession we registered with the cap"
+    );
+    let elapsed_ms = event.metric_micros / 1000;
+    assert!(
+        elapsed_ms >= 100,
+        "the flagged operation's elapsed_ms {elapsed_ms} is at least the 100ms hard cap"
+    );
+    handle.complete();
+}
+
+#[test]
+fn ticking_operation_without_a_cap_is_never_flagged() {
+    // The default register (no cap) preserves pure progress-gap behavior: a healthy ticking operation
+    // may run arbitrarily long without being flagged.
+    let _guard = lock_watchdog_tests();
+    let before = stalled_events().len();
+    let watchdog = OperationWatchdog::new(Duration::from_millis(20));
+    let handle = watchdog.register(
+        OperationCode::ModelSession,
+        Duration::from_millis(200),
+        Some(Duration::from_millis(200)),
+    );
+    // Tick past what the short hard cap in the previous test would have caught; no cap -> no flag.
+    for _ in 0..10 {
+        handle.tick();
+        std::thread::sleep(Duration::from_millis(20));
+        assert_eq!(watchdog.poll_once(), 0);
+    }
+    assert_eq!(
+        stalled_events().len(),
+        before,
+        "an uncapped ticking operation is never flagged"
+    );
+    handle.complete();
+}
+
+#[test]
 fn stalled_operation_is_debounced_to_one_event() {
     let _guard = lock_watchdog_tests();
     let before = stalled_events().len();

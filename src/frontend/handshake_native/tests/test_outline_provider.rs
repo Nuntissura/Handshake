@@ -20,6 +20,26 @@ use handshake_native::code_editor::{
     CodeEditorPanel, OutlineKind, OutlineProvider, TextBuffer, CODE_EDITOR_OUTLINE_AUTHOR_ID,
 };
 
+/// Dispatch an AccessKit `Action::Click` to the live node carrying `author_id` — the out-of-process
+/// invoke path a swarm agent uses (HBR-SWARM), robust to the target row being scrolled/clipped.
+fn click_author_id<S>(harness: &mut Harness<'_, S>, author_id: &str) {
+    let node_id = harness
+        .root()
+        .children_recursive()
+        .find_map(|n| {
+            let ak = n.accesskit_node();
+            (ak.author_id() == Some(author_id)).then(|| ak.id())
+        })
+        .unwrap_or_else(|| panic!("author_id '{author_id}' not found in the live tree"));
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: node_id,
+            data: None,
+        },
+    ));
+}
+
 /// A 20-line Rust file with two functions (AC-001).
 const RUST_TWO_FNS: &str = "\
 // twenty-line two-function module
@@ -195,5 +215,72 @@ fn outline_navigate_click_scrolls_editor_and_emits_tree_node() {
     );
     println!(
         "PT-004 outline_navigate: target line {far_line}, painted before {before:?}, after {after:?}, caret line {caret_line}"
+    );
+}
+
+// ── MT-108 (MT-006 residual): a RAW CLICK on the outline row node navigates the editor ─────────────
+
+#[test]
+fn outline_row_raw_click_navigates_editor_to_symbol_line() {
+    // The existing test funnels through `navigate_to_line` directly; this one dispatches a real click to
+    // the addressable `code_editor_outline_row_{idx}` node and asserts the click drove navigation end to
+    // end (caret moved to the symbol's line AND the editor scrolled toward it).
+    let mut src = String::from("// header\n");
+    for i in 0..60 {
+        src.push_str(&format!("// filler line {i}\n"));
+    }
+    src.push_str("fn near_top() {\n    let _a = 1;\n}\n");
+    for i in 0..60 {
+        src.push_str(&format!("// more filler {i}\n"));
+    }
+    src.push_str("fn far_down() {\n    let _b = 2;\n}\n");
+
+    let panel = Arc::new(CodeEditorPanel::new(&src, "rs"));
+    let items = panel.outline_items();
+    let far_idx = items
+        .iter()
+        .position(|i| i.name == "far_down")
+        .expect("far_down symbol present in the outline");
+    let far_line = items[far_idx].line;
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 360.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    harness.run();
+    harness.run();
+
+    let before = panel.last_visible_range();
+    assert!(
+        !before.contains(&far_line),
+        "precondition: far_down's line {far_line} is NOT yet in the painted window {before:?}"
+    );
+
+    // RAW CLICK the outline row node (not a direct navigate_to_line call).
+    let row_author = format!("code_editor_outline_row_{far_idx}");
+    click_author_id(&mut harness, &row_author);
+    harness.run();
+    harness.run(); // settle the one-shot scroll request
+
+    let cursors = panel.cursors();
+    let buffer = panel.buffer();
+    let (caret_line, _) =
+        handshake_native::code_editor::byte_to_line_col(cursors.primary().head, &buffer);
+    assert_eq!(
+        caret_line, far_line,
+        "MT-006: clicking the outline row moved the caret to the symbol's line"
+    );
+
+    let after = panel.last_visible_range();
+    assert!(
+        after.contains(&far_line) || (after.start >= before.start && after != before),
+        "MT-006: the outline-row click scrolled the editor toward the symbol line (before {before:?}, \
+         after {after:?}, target {far_line})"
+    );
+    println!(
+        "MT-108 (MT-006): raw click on '{row_author}' navigated to line {far_line}; caret line \
+         {caret_line}, painted {after:?}"
     );
 }

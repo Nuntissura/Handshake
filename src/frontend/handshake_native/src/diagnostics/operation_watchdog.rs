@@ -64,6 +64,12 @@ struct OperationSlot {
     last_progress_nanos: AtomicU64,
     deadline_ms: u64,
     progress_interval_ms: u64,
+    /// MT-108 residual for MT-105: an absolute HARD cap on total runtime measured from registration.
+    /// `deadline_ms` / `progress_interval_ms` are progress-GAP bounds that a ticking operation keeps
+    /// resetting, so a "forever-ticking" operation is never flagged by them. When `> 0`, an operation
+    /// alive at least this long is flagged as stalled REGARDLESS of ticks. `0` disables the cap (pure
+    /// progress-gap behavior, unchanged for existing callers).
+    max_total_runtime_ms: u64,
     state: AtomicU8,
 }
 
@@ -108,12 +114,32 @@ impl OperationWatchdog {
 
     /// Register an operation. The deadline is interpreted as the maximum allowed gap since the last
     /// progress tick; `progress_interval` can provide a tighter gap. This reset-on-progress rule is
-    /// what prevents long but healthy ticking operations from false-flagging.
+    /// what prevents long but healthy ticking operations from false-flagging. No hard total-runtime cap
+    /// (a healthy ticking operation may run indefinitely); use [`register_with_runtime_cap`] to bound
+    /// total runtime for operations that must not tick forever.
     pub fn register(
         &self,
         operation_code: OperationCode,
         deadline: Duration,
         progress_interval: Option<Duration>,
+    ) -> OperationHandle {
+        self.register_with_runtime_cap(operation_code, deadline, progress_interval, None)
+    }
+
+    /// Register an operation with an optional HARD total-runtime cap (MT-108 residual for MT-105).
+    ///
+    /// `deadline` / `progress_interval` are progress-GAP bounds: a healthy operation that keeps ticking
+    /// resets them and is never flagged, which leaves a "forever-ticking" operation (one that reports
+    /// progress indefinitely but never completes) undetectable by them alone. `max_total_runtime`, when
+    /// `Some`, is an absolute cap measured from registration — once the operation has been alive that
+    /// long it is flagged as stalled REGARDLESS of ticks, so a runaway ticking operation cannot hide
+    /// forever. `None` preserves the pure progress-gap behavior.
+    pub fn register_with_runtime_cap(
+        &self,
+        operation_code: OperationCode,
+        deadline: Duration,
+        progress_interval: Option<Duration>,
+        max_total_runtime: Option<Duration>,
     ) -> OperationHandle {
         let now = Instant::now();
         let operation_id = self.inner.next_operation_id.fetch_add(1, Ordering::Relaxed);
@@ -125,6 +151,7 @@ impl OperationWatchdog {
             last_progress_nanos: AtomicU64::new(now_nanos),
             deadline_ms: duration_millis_u64(deadline),
             progress_interval_ms: progress_interval.map_or(0, duration_millis_u64),
+            max_total_runtime_ms: max_total_runtime.map_or(0, duration_millis_u64),
             state: AtomicU8::new(OPERATION_STATE_ACTIVE),
         });
         self.lock_operations().insert(operation_id, slot.clone());
@@ -197,7 +224,11 @@ impl OperationWatchdog {
             let deadline_exceeded = last_progress_ms >= slot.deadline_ms;
             let progress_exceeded =
                 slot.progress_interval_ms > 0 && last_progress_ms >= slot.progress_interval_ms;
-            if deadline_exceeded || progress_exceeded {
+            // MT-108 residual for MT-105: a forever-ticking operation resets the progress-gap bounds
+            // every tick, so also flag once the ABSOLUTE runtime since registration exceeds the hard cap.
+            let runtime_exceeded =
+                slot.max_total_runtime_ms > 0 && elapsed_ms >= slot.max_total_runtime_ms;
+            if deadline_exceeded || progress_exceeded || runtime_exceeded {
                 if slot
                     .state
                     .compare_exchange(

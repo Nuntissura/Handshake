@@ -7,7 +7,9 @@
 //! offsets). The panel-level tests prove the find_state match list is re-searched after a replace so a
 //! stale offset can never replace the wrong bytes (RISK-003).
 
-use handshake_native::code_editor::{CodeEditorPanel, FindEngine, FindQuery, TextBuffer};
+use handshake_native::code_editor::{
+    CodeEditorPanel, FindEngine, FindQuery, TextBuffer, REPLACE_ALL_CAP,
+};
 
 #[test]
 fn replace_one_replaces_correct_match() {
@@ -86,6 +88,59 @@ fn panel_replace_all_clears_matches() {
         after.matches.is_empty(),
         "no matches remain after replace-all of the only term"
     );
+}
+
+#[test]
+fn panel_replace_all_caps_large_set_and_reports_remaining() {
+    // MT-108 (MT-004 residual): a Replace All over a match set larger than REPLACE_ALL_CAP applies at
+    // most `cap` replacements per click (bounding UI-thread work) and reports the remainder so a
+    // progress hint can be shown; a second click finishes the set.
+    let text = "x ".repeat(REPLACE_ALL_CAP + 500); // 1500 "x" matches
+    let panel = CodeEditorPanel::new(&text, "txt");
+    panel.open_find(true);
+    panel.set_find_query("x");
+    panel.set_replace_text("y");
+
+    assert_eq!(
+        panel.find_state().unwrap().matches.len(),
+        REPLACE_ALL_CAP + 500,
+        "all matches found before replacing"
+    );
+
+    // First click: capped at REPLACE_ALL_CAP, with the remainder reported.
+    let applied = panel.replace_all();
+    assert_eq!(applied, REPLACE_ALL_CAP, "first click capped at the per-click limit");
+    assert_eq!(
+        panel.find_state().unwrap().replace_all_remaining,
+        500,
+        "the remainder is surfaced for the progress hint"
+    );
+
+    // Second click: finishes the rest, no remainder left.
+    let applied2 = panel.replace_all();
+    assert_eq!(applied2, 500, "second click replaces the remaining matches");
+    assert_eq!(
+        panel.find_state().unwrap().replace_all_remaining,
+        0,
+        "no remainder after the set is exhausted"
+    );
+    assert!(
+        !panel.buffer().to_string().contains('x'),
+        "every 'x' was replaced across the two clicks"
+    );
+}
+
+#[test]
+fn panel_replace_all_under_cap_leaves_no_remainder() {
+    // The common case (< cap matches) replaces everything in one click with a zero remainder.
+    let panel = CodeEditorPanel::new("foo foo foo", "txt");
+    panel.open_find(true);
+    panel.set_find_query("foo");
+    panel.set_replace_text("bar");
+    let applied = panel.replace_all();
+    assert_eq!(applied, 3);
+    assert_eq!(panel.find_state().unwrap().replace_all_remaining, 0);
+    assert_eq!(panel.buffer().to_string(), "bar bar bar");
 }
 
 #[test]

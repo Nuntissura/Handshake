@@ -179,7 +179,7 @@ pub use editor_view::{
     CODE_EDITOR_HOVER_AUTHOR_ID, CODE_EDITOR_HOVER_GOTODEF_AUTHOR_ID,
 };
 pub use file_meta::{detect_indent, Encoding, Eol, IndentKind, IndentStyle, RenderWhitespace};
-pub use find_replace::{FindEngine, FindQuery, Match, MAX_PATTERN_LEN};
+pub use find_replace::{FindEngine, FindQuery, Match, MAX_PATTERN_LEN, REPLACE_ALL_CAP};
 pub use folding::{FoldProvider, FoldRegion, FoldSet, FoldableNodeTypes};
 pub use formatting::{
     apply_text_edits, apply_text_edits_to_string as apply_format_edits_to_string,

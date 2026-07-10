@@ -641,30 +641,55 @@ fn spawn_child_stall_poll(
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         while run.load(Ordering::SeqCst) {
-            let reports = registry.poll(std::time::Instant::now());
-            for report in reports {
-                tracing::warn!(
-                    diag_event_code = handshake_diag_ring::DiagEventCode::Other.as_u16(),
-                    child_pid = report.child_pid,
-                    child_session_id = report.child_session_id,
-                    stale_ms = report.stale_ms,
-                    last_progress_counter = report.last_progress_counter,
-                    "CHILD STALL CONFIRMED (child alive + passive progress stale); persisting durable survivor record"
-                );
-                let last_events = reader.read_last_events(reader.capacity().min(64));
-                let record = survivor_store::SurvivorRecord::from_child_stall(
-                    &session_id,
-                    parent_pid,
-                    &report,
-                    survivor_store::last_event_count(&last_events),
-                );
-                match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
-                    Ok(path) => tracing::warn!(
-                        path = %path.display(),
-                        "durable child-stall survivor record persisted (§6.13.7/MT-106)"
-                    ),
-                    Err(err) => {
-                        tracing::warn!(%err, "failed to persist the child-stall survivor record")
+            // MT-108 (MT-106 residual): use the full observation stream so Suspected and NoBaseline child
+            // stalls are surfaced as diagnostics events too, not only confirmed stalls. Confirmed stalls
+            // additionally persist a durable survivor record.
+            let observations = registry.poll_observations(std::time::Instant::now());
+            for observation in observations {
+                match observation.kind {
+                    child_registry::ChildObservationKind::Stalled(report) => {
+                        tracing::warn!(
+                            diag_event_code = handshake_diag_ring::DiagEventCode::Other.as_u16(),
+                            child_pid = report.child_pid,
+                            child_session_id = report.child_session_id,
+                            stale_ms = report.stale_ms,
+                            last_progress_counter = report.last_progress_counter,
+                            "CHILD STALL CONFIRMED (child alive + passive progress stale); persisting durable survivor record"
+                        );
+                        let last_events = reader.read_last_events(reader.capacity().min(64));
+                        let record = survivor_store::SurvivorRecord::from_child_stall(
+                            &session_id,
+                            parent_pid,
+                            &report,
+                            survivor_store::last_event_count(&last_events),
+                        );
+                        match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
+                            Ok(path) => tracing::warn!(
+                                path = %path.display(),
+                                "durable child-stall survivor record persisted (§6.13.7/MT-106)"
+                            ),
+                            Err(err) => {
+                                tracing::warn!(%err, "failed to persist the child-stall survivor record")
+                            }
+                        }
+                    }
+                    child_registry::ChildObservationKind::Suspected { stale_ms } => {
+                        tracing::warn!(
+                            diag_event_code = handshake_diag_ring::DiagEventCode::Other.as_u16(),
+                            child_pid = observation.child_pid,
+                            child_session_id = observation.child_session_id,
+                            stale_ms,
+                            "CHILD STALL SUSPECTED (progress stale but process not proven alive / source unavailable); observation only, no durable record"
+                        );
+                    }
+                    child_registry::ChildObservationKind::NoBaseline { waited_ms } => {
+                        tracing::warn!(
+                            diag_event_code = handshake_diag_ring::DiagEventCode::Other.as_u16(),
+                            child_pid = observation.child_pid,
+                            child_session_id = observation.child_session_id,
+                            waited_ms,
+                            "CHILD NO LIVENESS BASELINE (registered child never established a progress baseline within the threshold); observation only, no durable record"
+                        );
                     }
                 }
             }

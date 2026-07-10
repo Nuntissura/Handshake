@@ -103,6 +103,151 @@ fn author_ids(harness: &Harness<()>) -> HashSet<String> {
     ids
 }
 
+/// Resolve a stable `author_id` to its live AccessKit NodeId in the harness tree.
+fn node_id_for(harness: &Harness<()>, author_id: &str) -> egui::accesskit::NodeId {
+    for node in harness.root().children_recursive() {
+        let ak = node.accesskit_node();
+        if ak.author_id() == Some(author_id) {
+            return ak.id();
+        }
+    }
+    panic!("author_id '{author_id}' not found in the live tree");
+}
+
+/// Click the live node addressed by `author_id` via an AccessKit `Action::Click` request — the exact
+/// out-of-process dispatch a swarm agent / the UIA adapter uses (HBR-SWARM), not a label lookup.
+fn click_author_id(harness: &mut Harness<()>, author_id: &str) {
+    let node_id = node_id_for(harness, author_id);
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: node_id,
+            data: None,
+        },
+    ));
+}
+
+// ── MT-108 (MT-013 residual): a real Bold TOOLBAR BUTTON click toggles bold on the selection ───────
+
+/// Build editor state with a single paragraph "hello" and the whole leaf selected, so a Bold toggle
+/// has an unambiguous target.
+fn hello_selected_state() -> RichEditorState {
+    let mut st = RichEditorState::demo();
+    st.doc = BlockNode::doc(vec![BlockNode::paragraph("hello")]);
+    st.selection = Selection::text(
+        DocPosition::new(vec![0, 0], 0),
+        DocPosition::new(vec![0, 0], 5),
+    );
+    st
+}
+
+fn leaf_has_bold(state: &Arc<Mutex<RichEditorState>>) -> bool {
+    let st = state.lock().unwrap();
+    st.doc.children[0]
+        .as_block()
+        .unwrap()
+        .children[0]
+        .as_text()
+        .unwrap()
+        .has_mark_type(&Mark::Bold)
+}
+
+#[test]
+fn bold_toolbar_button_click_toggles_bold_on_selection() {
+    // Drives the LIVE toolbar: find the `toolbar-btn-toggle_bold` node in the AccessKit tree and click
+    // it through the out-of-process AccessKit Click action, then assert the borrowed doc gained the bold
+    // mark. This proves the toolbar BUTTON path (distinct from the Ctrl+B keymap path), end to end.
+    let state = Arc::new(Mutex::new(hello_selected_state()));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 120.0))
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            let mut st = state_for_ui.lock().unwrap();
+            let RichEditorState {
+                doc,
+                selection,
+                undo,
+                actor_id,
+                ..
+            } = &mut *st;
+            let cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
+            EditorToolbar::new(cctx).show(ui);
+        });
+
+    harness.run();
+    assert!(
+        !leaf_has_bold(&state),
+        "precondition: the selection is not bold before the click"
+    );
+
+    let bold_btn = toolbar_button_author_id(&FormattingCommand::ToggleBold);
+    click_author_id(&mut harness, &bold_btn);
+    harness.run(); // the click dispatches ToggleBold through the command layer this frame
+
+    assert!(
+        leaf_has_bold(&state),
+        "clicking the '{bold_btn}' toolbar button toggled bold on the selection"
+    );
+    println!("MT-108 (MT-013): Bold toolbar-button click toggled bold via AccessKit Click dispatch");
+}
+
+// ── MT-108 (MT-013 residual): opening the overflow popup keeps its items across 2 frames (MC-005) ───
+
+#[test]
+fn overflow_popup_opens_and_survives_two_frames() {
+    // A forced-narrow toolbar spills commands into the `…` overflow popup. Clicking `…` OPENS the popup;
+    // its per-command nodes (`toolbar-overflow-*`) must then be addressable AND must STAY open across a
+    // second frame (MC-005: a fresh-id popup would vanish on the next frame).
+    let state = Arc::new(Mutex::new(RichEditorState::demo()));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(200.0, 160.0))
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            let mut st = state_for_ui.lock().unwrap();
+            let RichEditorState {
+                doc,
+                selection,
+                undo,
+                actor_id,
+                ..
+            } = &mut *st;
+            let cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
+            EditorToolbar::new(cctx).with_forced_max_width(120.0).show(ui);
+        });
+
+    harness.run();
+    // The `…` overflow control is present but the popup is closed -> no overflow item nodes yet.
+    assert!(
+        author_ids(&harness).contains("toolbar-btn-overflow"),
+        "the forced-narrow toolbar renders the '…' overflow button"
+    );
+
+    // Click `…` to OPEN the popup.
+    click_author_id(&mut harness, "toolbar-btn-overflow");
+    harness.run();
+
+    let has_overflow_items = |h: &Harness<()>| {
+        author_ids(h)
+            .iter()
+            .any(|id| id.starts_with("toolbar-overflow-"))
+    };
+    assert!(
+        has_overflow_items(&harness),
+        "frame 1 after opening: the overflow popup lists its commands (toolbar-overflow-*)"
+    );
+
+    // Advance a SECOND frame WITHOUT re-clicking; the popup must remain open (stable id — MC-005).
+    harness.run();
+    assert!(
+        has_overflow_items(&harness),
+        "frame 2: the overflow popup survives the next-frame repaint (MC-005 stable id), items still \
+         addressable"
+    );
+    println!("MT-108 (MT-013): overflow popup opened and stayed open across 2 frames (MC-005)");
+}
+
 // ── AC-10: the toolbar exposes a `toolbar-btn-toggle_bold` Button node ─────────────────
 
 #[test]

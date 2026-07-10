@@ -28,6 +28,12 @@ use egui_kittest::Harness;
 
 use handshake_native::code_editor::{CodeEditorPanel, CODE_EDITOR_FIND_BAR_AUTHOR_ID};
 
+// MT-108 residual item (11) / AC-108-2: typed screenshot marker so a headless run records a DEFERRED
+// marker instead of silently passing the pixel proof.
+#[path = "native_gui_support/screenshot_marker.rs"]
+mod screenshot_marker;
+use screenshot_marker::{record_screenshot_outcome, ScreenshotStatus};
+
 /// A multi-line Rust snippet with several `fn` occurrences so "fn" highlights are unambiguous.
 const SNIPPET: &str = "fn main() {}\nfn helper() {}\nlet fname = 1;";
 
@@ -131,6 +137,50 @@ fn find_bar_accesskit_ctrl_f_makes_find_bar_node() {
         root.children_recursive()
             .any(|n| n.accesskit_node().author_id() == Some("code_editor_find_next")),
         "AC-004: the find-next button is AccessKit-addressable"
+    );
+}
+
+// ── MT-108 (MT-004 residual): typing real characters into the focused find TextEdit ───────────────
+
+#[test]
+fn find_bar_typing_into_textedit_updates_query_and_matches() {
+    // Ctrl+F auto-focuses the find input (MT-108 residual), so real per-character Text events land in
+    // the TextEdit and drive the query through the SAME render path a user's keystrokes take — proving
+    // the find input is wired end-to-end, not just via the `set_find_query` API shortcut.
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(700.0, 220.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+
+    harness.run();
+    harness.event(ctrl_f());
+    harness.run(); // open + request focus
+    harness.run(); // focus applied to the find input
+
+    // Type "fn" as real character events into the focused find TextEdit.
+    harness.event(egui::Event::Text("f".to_owned()));
+    harness.run();
+    harness.event(egui::Event::Text("n".to_owned()));
+    harness.run();
+    harness.run(); // settle: TextEdit pushes the query back into find_state
+
+    let state = panel.find_state().expect("bar open");
+    assert_eq!(
+        state.query.pattern, "fn",
+        "typed characters landed in the find input and became the query"
+    );
+    assert!(
+        state.matches.len() >= 2,
+        "the typed query matched at least the two fn keywords; got {}",
+        state.matches.len()
+    );
+    println!(
+        "MT-108: typed 'fn' into the find TextEdit -> pattern={:?}, matches={}",
+        state.query.pattern,
+        state.matches.len()
     );
 }
 
@@ -243,6 +293,14 @@ fn find_bar_highlight_screenshot_has_yellow_rect() {
                 png_path.display()
             );
 
+            // MT-108 (11): record a typed CAPTURED marker so the artifact proves real pixels here.
+            let marker = record_screenshot_outcome(
+                "MT-108",
+                "MT-004-find-highlight",
+                Ok(png_path.display().to_string()),
+            );
+            assert_eq!(marker.status, ScreenshotStatus::Captured);
+
             // A single "fn" highlight rect over a ~13px line height and ~2 glyphs wide is dozens of
             // pixels; two matches are well over 50. Assert a generous lower bound so the proof is the
             // PRESENCE of the yellow highlight, not an exact count.
@@ -253,10 +311,24 @@ fn find_bar_highlight_screenshot_has_yellow_rect() {
             );
         }
         Err(e) => {
+            // MT-108 residual item (11) / AC-108-2: instead of a silent GREEN pass, record a typed
+            // DEFERRED marker so a headless run never implies pixels were captured.
+            let marker = record_screenshot_outcome(
+                "MT-108",
+                "MT-004-find-highlight",
+                Err(format!("{e}")),
+            );
+            assert_eq!(
+                marker.status,
+                ScreenshotStatus::Deferred,
+                "AC-108-2: a headless screenshot proof records a typed DEFERRED marker, not silent GREEN"
+            );
             println!(
-                "BLOCKER(non-fatal): MT-004 find-highlight screenshot render unavailable (no wgpu \
+                "DEFERRED(typed marker): MT-004 find-highlight screenshot render unavailable (no wgpu \
                  adapter): {e}. The match-state + highlight-overlay logic is proven by the find_bar \
-                 AccessKit test and the engine tests; the PNG + yellow-pixel check is a GPU-host item."
+                 AccessKit test and the engine tests; the PNG + yellow-pixel check is a GPU-host item. \
+                 Marker: {}",
+                marker.to_jsonl_line()
             );
         }
     }

@@ -59,6 +59,41 @@ struct WatchedChild {
     detector: ChildStallDetector,
     liveness: ChildLivenessSource,
     probe: Box<dyn ChildProcessProbe + Send + Sync>,
+    /// MT-108 (MT-106 residual): the last non-healthy observation discriminant emitted for this child,
+    /// so `poll_observations` fires a Suspected/NoBaseline diagnostic ONCE on entry (edge-triggered)
+    /// rather than every poll while the condition persists.
+    last_observation: Option<ObservationDiscriminant>,
+}
+
+/// The variant of a non-healthy child observation, used only to edge-debounce repeated Suspected /
+/// NoBaseline observations (their `*_ms` payload grows every poll, so debounce keys on the variant).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ObservationDiscriminant {
+    NoBaseline,
+    Suspected,
+    Stalled,
+}
+
+/// A non-healthy observation for one watched child on a poll. MT-108 (MT-106 residual): the diagnostics
+/// surface emits an event per observation so Suspected + NoBaseline child stalls are visible, not only
+/// confirmed `Stalled` edges.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChildObservation {
+    pub child_pid: u32,
+    pub child_session_id: u64,
+    pub kind: ChildObservationKind,
+}
+
+/// The kind of a [`ChildObservation`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChildObservationKind {
+    /// The child never established a liveness baseline and has been watched past the threshold.
+    NoBaseline { waited_ms: u64 },
+    /// A baselined child's progress went stale, but the process is not proven alive / the source is
+    /// unavailable — a suspicion, not a confirmed durable stall.
+    Suspected { stale_ms: u64 },
+    /// A confirmed durable child stall (process alive + progress stale). Carries the durable report.
+    Stalled(ChildStallReport),
 }
 
 impl ChildRegistry {
@@ -94,6 +129,7 @@ impl ChildRegistry {
             detector,
             liveness: ChildLivenessSource::FileCounter(liveness_path),
             probe: (self.probe_factory)(pid),
+            last_observation: None,
         };
         let mut guard = self
             .children
@@ -121,7 +157,26 @@ impl ChildRegistry {
             .is_some()
     }
 
+    /// Poll every watched child and return only the CONFIRMED durable stall reports (the healthy ->
+    /// stalled edges). This is the survivor-record stream. For the full diagnostics stream — which also
+    /// surfaces Suspected and NoBaseline child stalls — use [`poll_observations`](Self::poll_observations).
     pub fn poll(&self, now: Instant) -> Vec<ChildStallReport> {
+        self.poll_observations(now)
+            .into_iter()
+            .filter_map(|obs| match obs.kind {
+                ChildObservationKind::Stalled(report) => Some(report),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Poll every watched child and return ALL non-healthy observations — confirmed `Stalled` edges,
+    /// plus (MT-108 / MT-106 residual) `Suspected` and `NoBaseline` observations that were previously
+    /// computed by the detector and then dropped. Suspected/NoBaseline are edge-triggered (emitted once
+    /// on entry) so the diagnostics stream is not spammed every poll; confirmed `Stalled` uses the
+    /// detector's own report edge. Exited children are removed. This is the diagnostics-facing surface:
+    /// the run loop emits one diagnostics event per observation.
+    pub fn poll_observations(&self, now: Instant) -> Vec<ChildObservation> {
         let sources = {
             let Ok(guard) = self.children.lock() else {
                 return Vec::new();
@@ -144,24 +199,64 @@ impl ChildRegistry {
         let Ok(mut guard) = self.children.lock() else {
             return Vec::new();
         };
-        let mut reports = Vec::new();
+        let mut observations = Vec::new();
         let mut exited = Vec::new();
         for (key, progress) in readings {
             let Some(watched) = guard.get_mut(&key) else {
                 continue;
             };
             let poll = watched.detector.poll(now, watched.probe.state(), progress);
-            if let Some(report) = poll.report {
-                reports.push(report);
-            }
-            if matches!(poll.state, ChildStallState::Exited) {
-                exited.push(key);
+            match &poll.state {
+                ChildStallState::Exited => {
+                    watched.last_observation = None;
+                    exited.push(key);
+                }
+                ChildStallState::Healthy => {
+                    watched.last_observation = None;
+                }
+                ChildStallState::Stalled(report) => {
+                    watched.last_observation = Some(ObservationDiscriminant::Stalled);
+                    // Confirmed stalls use the detector's own edge (report is Some only on the edge).
+                    if poll.report.is_some() {
+                        observations.push(ChildObservation {
+                            child_pid: key.pid,
+                            child_session_id: key.child_session_id,
+                            kind: ChildObservationKind::Stalled(report.clone()),
+                        });
+                    }
+                }
+                ChildStallState::Suspected { stale_ms } => {
+                    let edge = watched.last_observation != Some(ObservationDiscriminant::Suspected);
+                    watched.last_observation = Some(ObservationDiscriminant::Suspected);
+                    if edge {
+                        observations.push(ChildObservation {
+                            child_pid: key.pid,
+                            child_session_id: key.child_session_id,
+                            kind: ChildObservationKind::Suspected {
+                                stale_ms: *stale_ms,
+                            },
+                        });
+                    }
+                }
+                ChildStallState::NoBaseline { waited_ms } => {
+                    let edge = watched.last_observation != Some(ObservationDiscriminant::NoBaseline);
+                    watched.last_observation = Some(ObservationDiscriminant::NoBaseline);
+                    if edge {
+                        observations.push(ChildObservation {
+                            child_pid: key.pid,
+                            child_session_id: key.child_session_id,
+                            kind: ChildObservationKind::NoBaseline {
+                                waited_ms: *waited_ms,
+                            },
+                        });
+                    }
+                }
             }
         }
         for key in exited {
             guard.remove(&key);
         }
-        reports
+        observations
     }
 
     #[cfg(test)]
@@ -387,5 +482,104 @@ mod tests {
         assert_eq!(registry.len(), 1);
         assert!(registry.poll(Instant::now()).is_empty());
         assert_eq!(registry.len(), 0);
+    }
+
+    #[test]
+    fn poll_observations_surfaces_nobaseline_once_for_a_never_baselined_child() {
+        // MT-108 (MT-106 residual): a registered child that never establishes a baseline is surfaced as
+        // a NoBaseline observation past the threshold (mandatory-baseline observability), edge-triggered.
+        let state = Arc::new(AtomicU8::new(1)); // Alive
+        let factory_state = Arc::clone(&state);
+        let registry = ChildRegistry::new(Arc::new(move |_| {
+            Box::new(FakeProbe(Arc::clone(&factory_state)))
+        }));
+        let path = temp_file("nobaseline-obs"); // never written -> no baseline is ever established
+        let start = Instant::now();
+        registry
+            .register_file_child(55, 99, &path, Duration::from_millis(100), start)
+            .unwrap();
+
+        // Before the threshold, a fresh registration is not an observation.
+        assert!(registry
+            .poll_observations(start + Duration::from_millis(10))
+            .is_empty());
+
+        // Past the threshold with still no baseline -> exactly one NoBaseline observation.
+        let obs = registry.poll_observations(start + Duration::from_millis(200));
+        assert_eq!(obs.len(), 1);
+        assert_eq!(obs[0].child_pid, 55);
+        assert_eq!(obs[0].child_session_id, 99);
+        assert!(
+            matches!(obs[0].kind, ChildObservationKind::NoBaseline { waited_ms } if waited_ms >= 100),
+            "got {:?}",
+            obs[0].kind
+        );
+
+        // Edge-triggered: while still no-baseline, a subsequent poll does not re-emit.
+        assert!(registry
+            .poll_observations(start + Duration::from_millis(300))
+            .is_empty());
+
+        // The confirmed-only stream never surfaces NoBaseline.
+        assert!(registry
+            .poll(start + Duration::from_millis(400))
+            .is_empty());
+    }
+
+    #[test]
+    fn poll_observations_surfaces_suspected_when_source_unavailable_after_baseline() {
+        // MT-108 (MT-106 residual): a baselined child whose progress source disappears is surfaced as a
+        // Suspected observation (process not proven alive / source gone), NOT a confirmed durable stall.
+        let state = Arc::new(AtomicU8::new(1)); // Alive
+        let factory_state = Arc::clone(&state);
+        let registry = ChildRegistry::new(Arc::new(move |_| {
+            Box::new(FakeProbe(Arc::clone(&factory_state)))
+        }));
+        let path = temp_file("suspected-obs");
+        fs::write(&path, "1\n").unwrap();
+        let start = Instant::now();
+        registry
+            .register_file_child(55, 99, &path, Duration::from_millis(100), start)
+            .unwrap();
+        fs::remove_file(&path).unwrap(); // source unavailable after a baseline existed
+
+        let obs = registry.poll_observations(start + Duration::from_millis(200));
+        assert_eq!(obs.len(), 1);
+        assert!(
+            matches!(obs[0].kind, ChildObservationKind::Suspected { .. }),
+            "source-unavailable after a baseline is Suspected; got {:?}",
+            obs[0].kind
+        );
+
+        // Confirmed-only stream stays empty for the same condition (not a durable stall).
+        // (poll() re-polls the same detector; use a later instant so the edge-debounce does not hide it —
+        // Suspected never enters the confirmed stream regardless.)
+        assert!(registry
+            .poll(start + Duration::from_millis(400))
+            .is_empty());
+    }
+
+    #[test]
+    fn poll_observations_surfaces_confirmed_stall() {
+        // The confirmed-stall edge also appears in the observation stream (as a Stalled kind).
+        let state = Arc::new(AtomicU8::new(1)); // Alive
+        let factory_state = Arc::clone(&state);
+        let registry = ChildRegistry::new(Arc::new(move |_| {
+            Box::new(FakeProbe(Arc::clone(&factory_state)))
+        }));
+        let path = temp_file("confirmed-obs");
+        let _g = FileGuard(path.clone());
+        fs::write(&path, "1\n").unwrap();
+        let start = Instant::now();
+        registry
+            .register_file_child(55, 99, &path, Duration::from_millis(100), start)
+            .unwrap();
+        let obs = registry.poll_observations(start + Duration::from_millis(150));
+        assert_eq!(obs.len(), 1);
+        assert!(
+            matches!(&obs[0].kind, ChildObservationKind::Stalled(r) if r.child_pid == 55),
+            "confirmed stall surfaces as a Stalled observation; got {:?}",
+            obs[0].kind
+        );
     }
 }
