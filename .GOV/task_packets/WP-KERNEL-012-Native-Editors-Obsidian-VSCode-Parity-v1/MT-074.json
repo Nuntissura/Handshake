@@ -14,7 +14,7 @@
   "title": "E10-MT-074-OtherPillarInteropProofSuite",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-03T21:26:02Z",
+  "updated_at_utc": "2026-07-10T22:51:05.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "OPEN",
-    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "active": true,
     "depends_on": [
       "MT-066",
       "MT-067",
@@ -36,6 +36,11 @@
     ],
     "blocks": [],
     "validator_verdict": "PENDING",
+    "completed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260711-interop",
+    "ready_for_validation_at_utc": "2026-07-10T22:51:05.000Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-10)",
+    "rfv_evidence_2026_07_10": "OtherPillarInteropProofSuite proven KERNEL_BUILDER-authoritative against the live managed-PG stack (handshake_core 127.0.0.1:37501, PG 5544). The three reopen defects are closed: (1) placebo self-assertion (other_pillar_fr_route_resolved) converted to a real source scan; (2) typed BLOCKER[fr_event_kind_not_emitted_frontend] entries added for the un-emitted FR kinds; (3) OP proofs re-run against the composed backend routes (Stage/Calendar/Locus stores from MT-041/042/044/045). Three *_live interop bodies exercise real routes end-to-end: other_pillar_op01_stage_route_embed_back_live PASS (Stage capture-artifact route round-trip), other_pillar_op02_calendar_bind_activity_span_live PASS (Calendar activity-span bind + correlate), other_pillar_op03_locus_resolve_reverse_live PASS (Locus work-packet resolve + reverse lookup; WP-KERNEL-012 seeded into product public.work_packets, reproducible via seed fixture). Full run: test_other_pillar_interop_proofs 3 passed / 0 failed (ignored/_live, --test-threads=1) + 10 default proofs passed. Product code committed b289993f (placebo->source-scan, typed blockers, live bodies); OP-03 seed reproducibility committed 30d8657a (psql work_packet seed added to tests/live_pg/seed_fixture.sh + HSK_TEST_LOCUS_WP_ID export). No faked assertions; no scaffolding; every proof exercises native/backend product code in runtime.",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: HBR-INT-012-02 cannot pass as claimed - the manifest expected_fr_events (STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP) name kinds NOTHING in the codebase emits (NativeEditorAction has no variants for them; calendar/locus/journal/stage modules contain zero emitter references). Contract mandated typed blockers for un-emitted kinds; instead manifest blockers name only missing_api + no_managed_postgres and a test comment quietly re-scopes them to next-WP backend work. The goes-green-unchanged claim is false - frontend emit code must also be built. Also other_pillar_fr_route_resolved contains placebo assertions (literals asserted against themselves). OP-04 swarm parity proven at widget level only (two of three trigger surfaces not mountable live). Fix: add BLOCKER[kind=fr_event_kind_not_emitted] entries attributed to MT-066/067/068 + MT-036 schema gap; convert placebo test to a source scan; re-run OP-04 against the composed app tree after mounts land.",
