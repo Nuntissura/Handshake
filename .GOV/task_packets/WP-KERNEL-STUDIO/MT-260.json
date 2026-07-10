@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-260",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-260.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-260.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-242",
+      "MT-254",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Native spot-color posture + branded library adapter (Pantone) [STU-COL-020,STU-COL-021]",
+  "spec_anchor": [
+    "STU-COL-020",
+    "STU-COL-021",
+    "STU-OVR-002"
+  ],
+  "scope": {
+    "summary": "Native spot color is first-class: StudioSwatch(spot) ([STU-COL-007]) — a named separation ink with optional Lab definition, tint control, and separation/preview behavior — is a native Studio primitive that ships and functions with NO external library and NO license ([STU-OVR-002]); spot inks separate, proof, overprint, and appear in Ink Manager/Separations Preview regardless of any branded library. Branded spot libraries (Pantone, DIC, HKS, Focoltone, Trumatch, ANPA, Toyo, and equivalents) are LICENSE-GATED EXTERNAL DATA and MUST be modeled as an OPTIONAL adapter (a StudioModelAdapter/import path that populates native StudioSwatch(spot) entries), never a required bundled dependency or a Studio-owned name. Loading a branded book maps its inks onto native spot swatches with library-defined Lab/CMYK values; absence of the adapter degrades only branded-name lookup, never spot-color functionality. Operator adapter-load surface + model command.",
+    "allowed_paths": [
+      "src/studio/color/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "native spot first-class with no library/license; branded books optional adapter populating native spots; graceful degrade"
+    ],
+    "proof_targets": [
+      "native-spot-without-library + optional-branded-adapter test"
+    ],
+    "code_surfaces": [
+      "src/studio/color/spot_posture.rs",
+      "src/studio/color/branded_library_adapter.rs",
+      "src/frontend/handshake_native/src/studio/color/library_loader.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::color::spot_posture",
+      "live: native StudioSwatch(spot) separates/proofs/overprints/appears in ink-manager+separations with NO library loaded",
+      "test: branded book adapter maps inks onto native spot swatches (Lab/CMYK); absent adapter degrades only name lookup, spot functionality intact"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "branded library loader"
+    ],
+    "argus_targets": [
+      "studio.color.library_loader"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Color / Spot colors & branded libraries"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-SWARM-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Branded library bundled as hard dependency (license risk) or spot color unusable without it.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

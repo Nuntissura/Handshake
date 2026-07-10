@@ -1,0 +1,120 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-272",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-272.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-272.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-261",
+      "MT-264"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Render & Generative-Pattern family - CPU procedural [STU-FX-017]",
+  "spec_anchor": [
+    "STU-FX-017",
+    "STU-FX-011"
+  ],
+  "scope": {
+    "summary": "Implement the CPU procedural render/generate kinds that synthesize pixels from parameters+seed (replace or blend, marked): Clouds (random cloud between two colors, replaces layer data, seeded), Difference Clouds (blends generated clouds in Difference mode, seeded), Fibers (woven fiber from two colors, variance/strength/randomize), Lens Flare (placeable center + lens-type presets), Procedural Texture / formula (user pixel-math formulas, scriptable deterministic generator). Seeded for reproducibility.",
+    "allowed_paths": [
+      "src/studio/effects/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "Clouds, Difference Clouds, Fibers, Lens Flare, Procedural Texture (formula) implemented; seeded/deterministic"
+    ],
+    "proof_targets": [
+      "seeded procedural generate correctness"
+    ],
+    "code_surfaces": [
+      "studio-engine/src/render/generate/cpu.rs",
+      "src/studio/effects/families/render_cpu.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio_engine::render::generate",
+      "test: seeded Clouds/Difference Clouds/Fibers reproducible; Lens Flare placement; Procedural Texture formula deterministic per inputs"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-VIS-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Procedural pattern generators missing.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

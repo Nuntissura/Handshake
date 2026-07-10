@@ -1,0 +1,124 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-552",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-552.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-552.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-011",
+      "STU-CON-006(1)-resolution"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Open contract point: redo depth beyond one level [STU-CON-006(1)]",
+  "spec_anchor": [
+    "STU-CON-006",
+    "STU-HIS-003"
+  ],
+  "scope": {
+    "summary": "Resolve and implement redo depth beyond one level (14.19). BLOCKED until STU-CON-006(1) (redo depth beyond one level) is resolved via governed enrichment/refinement; the foundation floor (deep undo + >=1-level redo, MT-011) holds until then. This MT hardens the exact redo depth once the open point is resolved and MUST NOT invent a depth locally.",
+    "allowed_paths": [
+      "src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "redo depth per resolved STU-CON-006(1); BLOCKED until that open point resolved; floor >=1 holds"
+    ],
+    "proof_targets": [
+      "resolved-depth redo runtime test (post-resolution)"
+    ],
+    "code_surfaces": [
+      "src/studio/history.rs"
+    ],
+    "expected_tests": [
+      "live: redo to the resolved depth is ledger-recorded + replayable (post-resolution)",
+      "test: depth matches the resolved STU-CON-006(1) contract, not a local invention"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "history panel"
+    ],
+    "argus_targets": [
+      "studio.redo"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / History / Redo depth"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "BLOCKED until STU-CON-006(1) resolved; redo depth beyond one level is spec-debt until then.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

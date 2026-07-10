@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-385",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-385.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-385.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-371",
+      "MT-346",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Easing catalog: bezier presets + custom cubic-bezier + spring presets + custom spring [STU-PRO-019]",
+  "spec_anchor": [
+    "STU-PRO-019",
+    "STU-PRO-019a",
+    "STU-PRO-019b",
+    "STU-PRO-019c",
+    "STU-PRO-019d",
+    "STU-PRO-019e",
+    "STU-PRO-019f",
+    "STU-PRO-019g"
+  ],
+  "scope": {
+    "summary": "Implement the normative easing catalog shared between prototype transitions and the motion timeline (MT-391): bezier presets (Linear; Ease in/out/in-and-out; Ease in/out/in-and-out back with overshoot; Hold as a step), a custom cubic-bezier editor (two control points; out-of-[0,1] y produces overshoot), spring presets (Gentle/Quick/Bouncy/Slow), and a custom spring parameterized by stiffness, damping, mass. Easing/timing values MAY be stored as StudioVariables with modes so a mode switch updates every referencing animation. The easing editor is an operator surface.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "shared easing catalog: bezier + custom bezier + spring presets + custom spring; variable-storable; author_id + manual entry"
+    ],
+    "proof_targets": [
+      "Argus easing-catalog + custom bezier/spring test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/easing_editor.rs",
+      "src/studio/prototype/easing.rs"
+    ],
+    "expected_tests": [
+      "argus: easing editor (bezier presets + custom bezier + spring presets + custom spring) reachable via author_id",
+      "live: custom cubic-bezier with out-of-range overshoot; four spring presets + custom spring (stiffness/damping/mass); easing storable as a StudioVariable"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "easing editor",
+      "cubic-bezier curve",
+      "spring controls"
+    ],
+    "argus_targets": [
+      "studio.prototype.easing_editor"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Prototyping / Easing (bezier and spring)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No easing catalog; motion inconsistent across prototype and timeline.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

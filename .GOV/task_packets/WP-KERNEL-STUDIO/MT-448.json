@@ -1,0 +1,126 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-448",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-448.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-448.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-442",
+      "MT-443",
+      "MT-444",
+      "MT-445",
+      "MT-017"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Format family — PNG/JPEG/GIF/WebP web raster (rows 4,5,6,7, SOX) [STU-IO-006]",
+  "spec_anchor": [
+    "STU-IO-006",
+    "STU-IO-004"
+  ],
+  "scope": {
+    "summary": "Implement StudioImportProfile + StudioExportRecipe for the flat-raster web family: .png (row 4, I·X, 8/16-bit + alpha, rasterized on export), .jpg/.jpeg (row 5, I·X, lossy, metadata/ICC preserved, quality options), .gif (row 6, I·X, indexed color + animation frames, editable color table), .webp (row 7, I·X, raster+alpha+animation, lossy/lossless options). Five-artifact gate + fixtures + receipts + recovery each.",
+    "allowed_paths": [
+      "src/studio/interop/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "PNG/JPEG/GIF/WebP I·X with alpha/animation/quality/color-table; fixtures+receipts+recovery; manual entry"
+    ],
+    "proof_targets": [
+      "web-raster fixtures + round-trip + rasterize-receipt + recovery test"
+    ],
+    "code_surfaces": [
+      "src/studio/interop/formats/web_raster.rs",
+      "studio-engine/src/interop/web_raster/**"
+    ],
+    "expected_tests": [
+      "fixtures: png/jpeg/gif/webp import+export fixtures",
+      "round-trip: flat-raster import->export bounded envelope; alpha/animation/quality/color-table options",
+      "receipt: layers-rasterized-on-export receipt; recovery: malformed input fails closed"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Import & Export / PNG, JPEG, GIF & WebP"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No mainstream web-raster interop.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

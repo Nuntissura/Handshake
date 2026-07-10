@@ -1,0 +1,127 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-173",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-173.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-173.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-168",
+      "MT-151"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Tables of contents [STU-LAY-044]",
+  "spec_anchor": [
+    "STU-LAY-044",
+    "STU-LAY-036",
+    "STU-LAY-065",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement style-driven tables of contents: included paragraph styles map to TOC entry styles and levels, with page-number placement (before/after/none) and number character style, between-entry separators, alphabetical sort, run-in vs nested format, include-book-documents, include-hidden-layer text, numbered-paragraph handling, and generate-bookmarks. Multiple TOCs per document MUST be supported (contents, figures, tables, secondary per-section TOCs), each with independent settings, and an update-all-TOCs command refreshes every TOC. TOC entries MUST be able to become live hyperlinks and bookmarks for interactive output (handoff to 14.11). TOC definitions stored as TOC styles in StudioStyleRegistry (MT-168).",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "style-driven TOC with levels/placement/separators/sort/format; multiple TOCs + update-all; hyperlink/bookmark entries"
+    ],
+    "proof_targets": [
+      "TOC generation + update-all runtime; multi-TOC + bookmark test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/longdoc/toc.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::longdoc::toc",
+      "live: TOC generates from included paragraph styles with levels + page-number placement + separators; update-all refreshes",
+      "test: multiple independent TOCs per document; entries become hyperlinks/bookmarks; include-book-documents"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "TOC dialog"
+    ],
+    "argus_targets": [
+      "studio.layout.toc"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Tables of contents"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No contents/figure/table lists; long documents lack navigation; interactive TOC handoff broken.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

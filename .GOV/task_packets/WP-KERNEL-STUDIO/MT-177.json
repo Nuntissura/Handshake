@@ -1,0 +1,128 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-177",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-177.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-177.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-018"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Text variables [STU-LAY-048]",
+  "spec_anchor": [
+    "STU-LAY-048",
+    "STU-LAY-015",
+    "STU-LAY-016",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement text variables as resolvable placeholders whose single edit updates every instance. The variable set is enumerable and normative: Chapter Number (with before/after text + numbering style), Creation Date, Modification Date, Output Date (of current print/export/package), Custom Text (reusable placeholder), File Name (include-path + include-extension options), Image Name / Metadata Caption (metadata pulled from a nearby placed image driving live captions), Last Page Number (section or document, for page-x-of-y — shared with MT-151), Running Header (first/last on-page styled text — shared with MT-151), Document Fields (author + other metadata + user-defined custom variables). Resolved at composition; participates in book synchronization (MT-172).",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "full enumerated text-variable set resolves at composition; single edit updates all instances"
+    ],
+    "proof_targets": [
+      "single-edit-updates-all runtime; per-variable resolution test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/longdoc/text_variables.rs",
+      "studio-engine/src/layout/variable_resolve.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::longdoc::text_variables",
+      "live: editing a variable updates every instance at composition",
+      "test: each enumerated variable resolves (chapter/dates/custom/filename/image-metadata/last-page/running-header/document-fields)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "text variables dialog"
+    ],
+    "argus_targets": [
+      "studio.layout.text_variables"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Text variables"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No live placeholders; captions, dates, and file-name fields require manual maintenance.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-034",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-034.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-034.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-032",
+      "MT-017"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Content-based selection: quick/selection brush, flood/magic-wand, color-range, tonal-range, luminosity [STU-RAS-018]",
+  "spec_anchor": [
+    "STU-RAS-018"
+  ],
+  "scope": {
+    "summary": "Implement the deduped content-based (non-ML) selection tools onto StudioSelectionSet: quick/selection brush (painted selection that grows to matching regions and snaps to edges, add/subtract by stroke, on-canvas overlay); color-range/magic-wand flood select (similar color/tone by tolerance, contiguous + sample-all-layers); tonal-range select (Shadows/Midtones/Highlights bands); luminosity/alpha select (from layer luminosity or content/alpha); and eyedropper color-range select (fuzziness-masked by color similarity with live preview).",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "selection brush + magic-wand + color-range + tonal-range + luminosity select all produce StudioSelectionSet",
+      "tolerance/contiguous/sample-all-layers + live preview proven"
+    ],
+    "proof_targets": [
+      "magic-wand + luminosity-select runtime + snapshots"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/select_content.rs",
+      "studio-engine/src/raster/flood_select.rs",
+      "src/frontend/handshake_native/src/studio/raster/select_tools.rs"
+    ],
+    "expected_tests": [
+      "live: magic-wand flood-selects a similar-tone region by tolerance with contiguous vs sample-all-layers; tonal-range select isolates highlights",
+      "live: luminosity select builds a selection from a layer's luminosity; color-range preview updates with fuzziness",
+      "argus: selection snapshot per tool"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "selection brush",
+      "magic wand",
+      "color-range dialog"
+    ],
+    "argus_targets": [
+      "studio.tool_select_brush",
+      "studio.tool_magic_wand",
+      "studio.select_color_range",
+      "studio.select_tonal_range",
+      "studio.select_luminosity"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Raster / Color-range, tonal & luminosity selection"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No tolerance/tonal/luminosity selection; masking and adjustment scoping workflows crippled.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

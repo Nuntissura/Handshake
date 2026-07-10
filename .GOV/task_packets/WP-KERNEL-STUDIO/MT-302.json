@@ -1,0 +1,122 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-302",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-302.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-302.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-261",
+      "MT-007",
+      "MT-263"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Generative/ML adapter lane framework (OPTIONAL, adapter-backed) [STU-FX-032,STU-FX-033]",
+  "spec_anchor": [
+    "STU-FX-032",
+    "STU-FX-033",
+    "STU-OVR-002"
+  ],
+  "scope": {
+    "summary": "OPTIONAL adapter lane framework: expose generative/ML filters as StudioLiveFilter entries whose filter_kind binds to a StudioModelAdapter (14.23); when no adapter is configured the effect surfaces a determinate EFFECT_ADAPTER_UNAVAILABLE result (never a silent no-op); a local downloadable model and a cloud provider are the SAME effect kind with different adapter bindings. Adapter output MUST land as a non-destructive stack entry or a new masked layer (current / new / masked / new document) selectable by operator/model, never overwriting source; provider calls obey the headless/quiet law (bounded, observable, attributable, no foreground popup). Includes the ML Filter lane workspace host. MARK optional; not required for Studio parity.",
+    "allowed_paths": [
+      "src/studio/effects/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "OPTIONAL adapter lane: StudioModelAdapter binding, EFFECT_ADAPTER_UNAVAILABLE, local==cloud effect kind, non-destructive output landing, headless/quiet; ML Filter lane workspace host"
+    ],
+    "proof_targets": [
+      "adapter-unavailable determinate state + non-destructive landing + quiet test"
+    ],
+    "code_surfaces": [
+      "src/studio/effects/adapter_lane.rs",
+      "src/studio/effects/families/ml_lane.rs"
+    ],
+    "expected_tests": [
+      "test: no adapter configured -> EFFECT_ADAPTER_UNAVAILABLE (not silent no-op); same effect_kind binds local vs cloud adapter",
+      "test: adapter output lands as non-destructive entry / new masked layer (never overwrites source); quiet (no popup, bounded, attributable)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-VIS-001",
+    "HBR-QUIET-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Generative filters silently no-op or overwrite source; optional lane unsafe.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

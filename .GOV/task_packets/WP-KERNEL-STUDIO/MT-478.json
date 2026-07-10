@@ -1,0 +1,139 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-478",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-478.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-478.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-477",
+      "MT-464",
+      "MT-019"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Unified export surfaces II — PDF presets, batch/packaging, video/animation, print [STU-IO-010]",
+  "spec_anchor": [
+    "STU-IO-010",
+    "STU-IO-004",
+    "STU-PRO-043",
+    "STU-SOT"
+  ],
+  "scope": {
+    "summary": "Implement the second StudioExportRecipe surface group: PDF export (option groups for preset/standard incl. PDF/X, general/preserve-editing, compression/downsampling, output color conversion, security, with named reusable PDF presets); batch and packaging (export each layer or artboard to individual files, artboards-to-PDF packaging); video/animation render (timeline to encoder presets or image sequences with range/size/frame-rate options); and print output (printer setup; Studio- vs printer-managed color with rendering intent + soft-proof; position + scaled print size; printing marks; bleed/background/border). Each is a StudioExportRecipe configuration; export area resolves against the canonical document/selection/slice set, not the rendered/visible subset.",
+    "allowed_paths": [
+      "src/studio/interop/**",
+      "studio-engine/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "PDF presets + batch/packaging + video render + print output as StudioExportRecipe on canonical set; Argus + manual"
+    ],
+    "proof_targets": [
+      "PDF-preset/batch/video/print export + canonical-set resolution test"
+    ],
+    "code_surfaces": [
+      "src/studio/interop/export/pdf_presets.rs",
+      "src/studio/interop/export/batch.rs",
+      "src/studio/interop/export/video.rs",
+      "src/studio/interop/export/print.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::interop::export::pdf_batch_video_print",
+      "test: named PDF presets + batch layer/artboard-to-files + artboards-to-PDF",
+      "test: video timeline->encoder-presets/image-sequence; print managed-color + intent + marks + bleed; canonical-set resolution"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "PDF export dialog",
+      "batch export",
+      "video render",
+      "print dialog"
+    ],
+    "argus_targets": [
+      "studio.export.pdf",
+      "studio.export.batch",
+      "studio.export.video",
+      "studio.export.print"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Import & Export / Export surfaces — PDF, batch, video & print"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No PDF/batch/video/print export; production output gap.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

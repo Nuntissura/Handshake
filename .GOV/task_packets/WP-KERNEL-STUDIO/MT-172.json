@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-172",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-172.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-172.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-150",
+      "MT-168",
+      "MT-183",
+      "MT-184"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Books + book synchronization/numbering/output [STU-LAY-042,STU-LAY-043]",
+  "spec_anchor": [
+    "STU-LAY-042",
+    "STU-LAY-043",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement books binding multiple chapter StudioDocuments into one publication unit sharing numbering and output. Book surface: add/remove/reorder documents, designate a style-source document, show per-document status, open documents from the book list. Book synchronization propagates selected categories from the style-source document across book documents: styles (with smart style-group matching), swatches, text variables, numbered lists, cross-reference formats, conditional-text conditions, parent pages, and trap presets. Book numbering continues page and chapter numbering across documents (continue, continue-on-next-odd/even with inserted blanks), updates on demand, and supports disabling automatic numbering; numbered lists continuable across stories and book documents for figure/table numbering. Book-wide output prints, exports (PDF/reflowable), preflights, and packages the whole book or selected documents.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "migrations/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "books bind chapters with shared numbering + category sync from style-source + book-wide output"
+    ],
+    "proof_targets": [
+      "book numbering-continuation + sync runtime; book-wide output test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/book/book_model.rs",
+      "src/studio/layout/book/book_sync.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::book",
+      "live: book binds chapters, continues numbering across documents (continue-on-next-odd with blank insertion), sync propagates styles/swatches/variables from style-source",
+      "test: book-wide preflight/package/export over selected documents"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "book panel"
+    ],
+    "argus_targets": [
+      "studio.layout.book_panel",
+      "studio.layout.book_sync"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Books & synchronization"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No multi-chapter publications; cross-document numbering and synchronized styling impossible.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

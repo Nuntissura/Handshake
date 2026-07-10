@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-400",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-400.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-400.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-399",
+      "MT-397",
+      "MT-007",
+      "MT-015",
+      "MT-008",
+      "MT-441"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Prototype/motion model API + steerability + aggregate GUI/Argus/UserManual/HBR closure + export touchpoint [STU-PRO-043,STU-PRO-043a,STU-PRO-043b,STU-PRO-043c,STU-PRO-044,STU-PRO-044a,STU-PRO-044b,STU-PRO-045]",
+  "spec_anchor": [
+    "STU-PRO-043",
+    "STU-PRO-043a",
+    "STU-PRO-043b",
+    "STU-PRO-043c",
+    "STU-PRO-044",
+    "STU-PRO-044a",
+    "STU-PRO-044b",
+    "STU-PRO-045",
+    "STU-MDL-001"
+  ],
+  "scope": {
+    "summary": "Close out 14.11: (1) ensure every prototyping/motion command (flows, triggers, actions, animations, overlays, scroll, device/presentation, timeline, interactive-document objects) is model-visible and typed-steerable through the Studio command surface (MT-007) with typed I/O, dry_run, receipts, and undo semantics; (2) aggregate GUI/Argus/UserManual closure asserting every panel/control/visible state is headlessly inspectable, steerable, and screenshot-capturable through Argus with no focus steal and ships dual-audience UserManual entries kept same-change current; and (3) the interactive/animated EXPORT touchpoint that enumerates targets and their option surfaces WITHOUT duplicating the export engine: all interactive/motion output is produced through 14.13 StudioExportRecipe (MT-441) - interactive PDF (general/compression/advanced/security options), reflowable + fixed-layout EPUB (version/cover/nav-TOC/content-order/split/image-conversion/CSS+JS/metadata, carrying buttons/MSO/animations/media), HTML (content order/image conversion/CSS; shared article threads across EPUB/HTML/tagged-PDF), animated frames from StudioMotionTimeline + prototype transitions as MP4/WebM/GIF/animated-SVG (size/frame-rate/quality/loop), Lottie optional-only (its absence never blocks authoring or other formats), and an optional read-only motion-inspection adapter exposing timing/easing/keyframes as CSS/JSON/framework code via 14.14.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "src/manual/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "entire 14.11 model-steerable + Argus/manual-complete; interactive/animated export defers to 14.13 StudioExportRecipe; Lottie optional; no exporter fork"
+    ],
+    "proof_targets": [
+      "model-API typed-I/O + Argus coverage + manual self-consistency + export-via-14.13 test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/argus_targets.rs",
+      "src/studio/prototype/model_api.rs",
+      "src/manual/studio/prototype/**"
+    ],
+    "expected_tests": [
+      "live: every prototyping/motion command exposes typed I/O + dry_run + receipt + undo through the Studio command surface",
+      "HBR-MAN-003 self-consistency: every prototype/motion command_id has a dual-audience manual entry; Argus target registry covers all studio.prototype.* surfaces with no focus steal",
+      "test: interactive/animated export routes through 14.13 StudioExportRecipe (MT-441) for PDF/EPUB/HTML + MP4/WebM/GIF/SVG; Lottie-absent does not block authoring or other formats; no exporter duplicated here"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "prototype/motion Argus target registry",
+      "manual (prototyping/motion section)",
+      "export target option surfaces"
+    ],
+    "argus_targets": [
+      "studio.prototype.argus_index",
+      "manual.studio.prototype",
+      "studio.prototype.export_targets"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Prototyping & Motion / (section coverage index + export targets)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-MAN-003",
+    "HBR-QUIET-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Prototype/motion surface not fully model-steerable/Argus-covered/manual-complete, or export forks a second exporter; closure unmet.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

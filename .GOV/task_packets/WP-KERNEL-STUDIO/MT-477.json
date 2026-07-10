@@ -1,0 +1,135 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-477",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-477.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-477.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-441",
+      "MT-442",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Unified export surfaces I — single-target, export-for-screens/slices, legacy web optimizer [STU-IO-010]",
+  "spec_anchor": [
+    "STU-IO-010",
+    "STU-IO-004",
+    "STU-SOT"
+  ],
+  "scope": {
+    "summary": "Implement the first StudioExportRecipe surface group (one primitive, many recipes, NO separate per-surface subsystem): single-target export (per-document, per-layer, per-artboard — deduped Export As / Save a Copy) plus a one-click Quick Export default with preferred format+location; export-for-screens/slices (independent named regions from areas/layers/artboards, each with its own format+scale set; multi-scale 1x/2x/3x with scale-suffix filename tokens; continuous/automatic re-export when slice content changes); and the legacy web optimizer (2-up/4-up preview, GIF/JPEG/PNG-8/PNG-24 settings, dither, transparency matte, color-table editing, image-size, slice-aware HTML/image output). Export area MUST resolve against the canonical document/selection/slice set, NOT the currently rendered/visible subset.",
+    "allowed_paths": [
+      "src/studio/interop/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "single-target + screens/slices + web optimizer as StudioExportRecipe on canonical set; Argus + manual"
+    ],
+    "proof_targets": [
+      "single/slice/web export + canonical-set resolution test"
+    ],
+    "code_surfaces": [
+      "src/studio/interop/export/single_target.rs",
+      "src/studio/interop/export/slices.rs",
+      "src/studio/interop/export/web_optimizer.rs",
+      "src/frontend/handshake_native/src/studio/export_panel.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::interop::export::single",
+      "test: per-document/layer/artboard + Quick Export; slices with per-region format/scale + scale-suffix tokens + auto re-export",
+      "test: export area resolves against canonical set, not visible subset; web-optimizer 2-up/4-up + color-table"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "export panel",
+      "export-for-screens",
+      "web optimizer"
+    ],
+    "argus_targets": [
+      "studio.export.single",
+      "studio.export.slices",
+      "studio.export.web"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Import & Export / Export surfaces — single, screens & web"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No export surfaces; per-surface subsystem fork; visible-subset export bug.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

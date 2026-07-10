@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-159",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-159.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-159.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-018",
+      "MT-009",
+      "MT-171"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Story editor + placed-text import [STU-LAY-026]",
+  "spec_anchor": [
+    "STU-LAY-026",
+    "STU-LAY-040",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement a text-only editing surface (story editor) presenting a StudioTextStory as linear text with a style column, depth indicator, overset marker, and inline display of notes, tracked changes, tables, and structure tags, editing the SAME story authority as the layout view. Placed-text import MUST honor saved option sets: word-processor/RTF import maps incoming styles (MT-171) or preserves them and carries footnotes, endnotes, and tables; plain-text import controls encoding, target dictionary, and carriage-return cleanup; spreadsheet import selects sheet, range, and formatting mode (MT-166/MT-167 tables). Concrete import formats owned by 14.13.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "story editor over shared story authority with full inline display; import honors saved option sets across WP/RTF/plain/spreadsheet"
+    ],
+    "proof_targets": [
+      "story-editor shared-authority runtime; import option-set test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/story_editor.rs",
+      "src/studio/layout/text_import.rs",
+      "src/frontend/handshake_native/src/studio/layout/story_editor_view.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::story_editor",
+      "live: story editor edits the same StudioTextStory authority as layout view; shows style column/overset/notes/tables/tags",
+      "test: WP/RTF import maps-or-preserves styles + carries footnotes/endnotes/tables; plain-text encoding/dictionary/CR cleanup"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "story editor"
+    ],
+    "argus_targets": [
+      "studio.layout.story_editor"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Story editor & importing text"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No linear text editing; importing external copy loses styles/notes/tables.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-230",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-230.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-230.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-191",
+      "MT-198"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Warp / envelope text touchpoint [STU-TYP-033]",
+  "spec_anchor": [
+    "STU-TYP-033"
+  ],
+  "scope": {
+    "summary": "Warping/enveloping a StudioTextStory (arc, arch, bulge, wave, flag, fish, rise, and free-form envelope distortions, with orientation, bend, and horizontal/vertical distortion) is a StudioEffectStack operation owned by 14.5 (envelope/warp mesh) and 14.9 (live effects), applied non-destructively over a still-editable story. 14.7's contract is ONLY that the story remains a live, editable, re-shapeable StudioTextStory under the warp and that the shaping engine re-runs on edit; 14.7 does NOT define warp styles or the distortion mesh. Implement the type-side re-shape-on-edit contract + StudioEffectStack touchpoint.",
+    "allowed_paths": [
+      "src/studio/typography/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "story stays live/editable under StudioEffectStack warp; shaping re-runs on edit; warp mesh owned by 14.5/14.9"
+    ],
+    "proof_targets": [
+      "editable-under-warp + re-shape-on-edit test"
+    ],
+    "code_surfaces": [
+      "src/studio/typography/warp_touchpoint.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::typography::warp_touchpoint",
+      "live: story stays editable under a StudioEffectStack warp; editing text re-runs shaping under the distortion",
+      "test: 14.7 does not define warp styles/mesh (owned by 14.5/14.9), only the type-side re-shape contract"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Warped text bakes/loses editability; effect-engine ownership blurred.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

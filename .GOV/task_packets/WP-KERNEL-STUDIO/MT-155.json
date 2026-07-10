@@ -1,0 +1,133 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-155",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-155.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-155.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-152",
+      "MT-018",
+      "MT-170"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Span/split columns + paragraph-level layout-flow attributes [STU-LAY-021,STU-LAY-022]",
+  "spec_anchor": [
+    "STU-LAY-021",
+    "STU-LAY-022",
+    "STU-LAY-050",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement span/split columns as a paragraph-level attribute: a paragraph may span all or N columns of its frame or split into sub-columns, with before/after spacing and inside/outside gutter controls; applied through the paragraph style/override system (MT-170). Implement paragraph-level layout-flow attributes stored on paragraph style records and overrides (glyph rendering owned by 14.7): keep options (keep-with-previous, keep-with-next N lines, keep-lines-together all-or-start/end counts, start-paragraph anywhere/next-column/frame/page/odd/even), paragraph rules above/below (weight, type, color, tint, width, indents, offset), paragraph shading and borders (per-side widths, corner shapes, offsets, merge-consecutive, clip-to-frame, do-not-print), drop caps (line/character count, character style, scale-for-descenders), align-to-baseline-grid (all lines or first line only), and balance-ragged-lines. Composition executed by TextEngine (14.7).",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "span/split columns + full paragraph layout-flow attribute set stored on styles/overrides and composed by TextEngine"
+    ],
+    "proof_targets": [
+      "span/split compose runtime; paragraph-flow-attribute composition test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/para_flow_attrs.rs",
+      "studio-engine/src/layout/paragraph_flow.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::para_flow_attrs",
+      "live: span-all/span-N/split-N columns with spacing+gutter compose correctly",
+      "test: keep options, para rules above/below, shading/borders, drop caps, baseline-grid align, balance-ragged applied via paragraph style/override and executed by TextEngine"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "span columns control",
+      "paragraph layout attributes"
+    ],
+    "argus_targets": [
+      "studio.layout.span_split_columns",
+      "studio.layout.para_flow_attrs"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Span columns & paragraph flow attributes"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No spanning heads, keeps, rules, or drop caps; professional paragraph composition impossible.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-289",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-289.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-289.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-261",
+      "MT-016",
+      "MT-287",
+      "MT-288"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Vector live-effect evaluation path + vector Stylize [STU-FX-027,STU-FX-020a]",
+  "spec_anchor": [
+    "STU-FX-027",
+    "STU-FX-020a",
+    "STU-FX-005"
+  ],
+  "scope": {
+    "summary": "Implement the vector live-effect evaluation path: StudioLiveFilter kinds operating on the live StudioVectorPath/StudioVectorNetwork geometry inside the effect stack, re-evaluated on geometry/parameter change, expandable to real geometry on explicit EFFECT_BAKE. Raster-group vector effects (artistic/blur applied to vector art) render through the document raster-effect resolution setting and REUSE the group-10 catalog (no redefinition). Vector Stylize = the round-corners + scribble native-vector kinds plus the shadow/glow/feather layer-fx reused from MT-287/288 evaluated on live geometry (NOT the raster Stylize family of MT-275).",
+    "allowed_paths": [
+      "src/studio/effects/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "vector live-effect eval on live geometry + EFFECT_BAKE expand; Stylize = round corners/scribble/shadow/glow/feather reused; raster-on-vector reuses group-10"
+    ],
+    "proof_targets": [
+      "live-geometry re-eval + bake-expand test"
+    ],
+    "code_surfaces": [
+      "studio-engine/src/vector/live_effect.rs",
+      "src/studio/effects/vector/eval_path.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::effects::vector::eval",
+      "test: effect re-evaluates on geometry edit; EFFECT_BAKE expands to real geometry; raster-on-vector uses doc raster-effect resolution",
+      "test: vector Stylize reuses layer-fx kinds (no fork of raster Stylize)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-VIS-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Vector effects pre-rasterize / fork; live-geometry re-eval + bake-expand missing.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

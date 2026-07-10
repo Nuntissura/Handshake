@@ -1,0 +1,125 @@
+{
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "refinement_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "activation_manager": {
+    "required": true,
+    "status": "PREPARED_BY_KERNEL_BUILDER",
+    "handoff_summary": "Studio spec merge complete (Section 14 v02.199); WP stub + refinement + MT set prepared for activation. Worktree + launch deferred to next session per operator.",
+    "readiness_status": "READY_FOR_ORCHESTRATOR_REVIEW"
+  },
+  "refinement": {
+    "operator_request": "Merge the Studio research into the Master Spec without losing detail (done: Section 14 v02.199, sole authority, no sidecars); then create the WP stub and all needed MTs (hundreds+, no-context-implementable, small enough for state recovery and small/fast coding models), using the WP and MT templates, prepped for activation. Activation + worktree next session. USER_SIGNATURE ilja090720260901.",
+    "approved_spec_enrichment": [
+      ".GOV/spec/master-spec-v02.199/spec-modules/14-studio-creative-suite.md (Section 14, 14.1-14.24, ~626 [STU-*] anchors)",
+      ".GOV/spec/master-spec-v02.199/spec-modules/12-end-of-file-appendices.md (FEAT-STUDIO*/PRIM-Studio*/IMX-STUDIO*/feature-links rows)"
+    ],
+    "spec_anchors": [
+      "STU-SECTION-001..003", "STU-OVR-001..003", "STU-ARC-001..006", "STU-DOC-001..004",
+      "STU-RAS-*", "STU-VEC-*", "STU-LAY-*", "STU-TYP-*", "STU-COL-*", "STU-FX-*",
+      "STU-DS-*", "STU-PRO-*", "STU-RAW-*", "STU-IO-*", "STU-AUT-*", "STU-WB-*",
+      "STU-MDL-*", "STU-PAR-*", "STU-PW-*", "STU-HIS-*", "STU-QUIET-*", "STU-UNI-*",
+      "STU-MAN-*", "STU-CON-001..006", "STU-VAL-001..006"
+    ],
+    "scope_edges": [
+      "IN: handshake_core::studio + studio-engine crate; StudioDocument unified model + 38 canonical primitives; studio_* Postgres tables + dated migrations; STUDIO_* EventLedger variants; StudioValidationDescriptor; StudioModelAdapter + MCP command surface; StudioEditProposal propose-work; per-file StudioHistoryEntry undo/redo; native egui/wgpu/AccessKit operator surface + Argus; dual-audience UserManual; import/export + format-compat.",
+      "OUT: source-app menu-tree clones; pixel-perfect UI clone; vendor cloud services; vendor product naming; new invented interchange format; provider generative-AI as core dependency (adapter-only)."
+    ],
+    "assumptions": [
+      "Kernel baseline (sandbox, PromotionGate, CRDT, native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough before Studio product implementation (STU-ARC-006).",
+      "internal_diagnostics + Palmistry are DEFERRED-until-shipped (WP-KERNEL-012/016); observable-behavior MTs record DEFERRED-with-reason per HBR-INT-009.",
+      "studio-engine crates may be prototyped in isolation before kernel binding."
+    ],
+    "non_goals": [
+      "Activation (signature->packet promotion is prepared; worktree creation + coder launch are NEXT SESSION).",
+      "Product code implementation this session (spec + WP/MT governance authoring only).",
+      "Replacing the research corpus as authority (it is non-normative provenance per STU-SECTION-002)."
+    ],
+    "acceptance_criteria": [
+      "Section 14 merged as sole authority, all spec checks pass (DONE).",
+      "WP stub + refinement + full MT set authored, each MT no-context-implementable + small + runtime-proof-bearing.",
+      "Every MT carries CLAUSE/CODE_SURFACES/EXPECTED_TESTS/DEPENDS_ON/RISK_IF_MISSED/gui_obligation/user_manual_obligation/hbr per Section 14.24 + Activation Manager large-WP decomposition rules.",
+      "MT index + task board + build order + traceability updated; ACTIVATION_READINESS emitted."
+    ],
+    "hbr_pillar_review": {
+      "INT": { "applicable": true, "evidence_path": "14.24 [STU-VAL-002]; FR-EVT-STUDIO-* WIRED, internal_diagnostics/Palmistry DEFERRED" },
+      "SWARM": { "applicable": true, "evidence_path": "14.17 [STU-PAR-001..005] parallel multi-file/multi-model + operator concurrency" },
+      "VIS": { "applicable": true, "evidence_path": "14.16/14.24 [STU-MDL-002, STU-VAL-003] Argus on every operator surface" },
+      "QUIET": { "applicable": true, "evidence_path": "14.20 [STU-QUIET-001..005] headless/no-focus-steal law" },
+      "MAN": { "applicable": true, "evidence_path": "14.22 [STU-MAN-001..004] dual-audience UserManual, same-change currency" }
+    },
+    "hbr_int_009_three_tier_diagnostic": {
+      "applicable": true, "verdict": "DEFERRED_WITH_REASON",
+      "tier_flight_recorder": { "status": "WIRED", "notes": "FR-EVT-STUDIO-* business events wired at build (14.23 [STU-CON-003], 14.24 [STU-VAL-002])" },
+      "tier_internal_diagnostics": { "status": "DEFERRED", "notes": "built by WP-KERNEL-012, retrofit WP-KERNEL-016; observable-behavior MTs record DEFERRED-with-reason" },
+      "tier_palmistry": { "status": "DEFERRED", "notes": "external watcher shipped later; DEFERRED-with-reason per HBR-INT-009" }
+    },
+    "research_basis": {
+      "currency_required": "NO",
+      "reason": "Studio research is already exhaustively captured and verified in the corpus and merged into Section 14; this is internal spec-anchored + local-code work. External research NOT_APPLICABLE per Activation Manager standard for spec-anchored WPs.",
+      "provenance": ".GOV/reference/studio_app_feature_research/ (5,034+ verified rows, 160-group overlap map, integration architecture) - NON-NORMATIVE per STU-SECTION-002",
+      "pattern_source": "Tailor Section 13 creative-module kernel-binding precedent (13.11/13.13/13.14)"
+    },
+    "open_contract_points": [
+      "STU-CON-006(1) redo depth beyond one level",
+      "STU-CON-006(2) STUDIO_* event granularity/coalescing for high-frequency edits",
+      "STU-CON-006(3) auto-accept policy class for low-risk model proposals",
+      "STU-CON-006(4) raster authority storage shape (tile table vs artifact-ref) + CRDT representation",
+      "STU-CON-006(5) FR-EVT-STUDIO-* family registration",
+      "STU-CON-006(6) plugin capability/permission schema",
+      "RESOLUTION: refinement flags these; the implementing MTs for each must not harden until the point is resolved (tracked as spec-debt)."
+    ],
+    "microtask_decomposition_plan": {
+      "authority": "Section 14 domains; foundation-first then per-domain then cross-cutting",
+      "id_ranges": {
+        "MT-001..020": "Foundation: kernel binding, canonical contracts (14.23), StudioDocument model (14.3), studio_* tables+migrations, STUDIO_* EventLedger variants, engine trait boundaries (14.2), StudioValidationDescriptor + sandbox/PromotionGate wiring, StudioModelAdapter + StudioRenderHarness scaffolding",
+        "MT-021..080": "Raster (14.4)",
+        "MT-081..140": "Vector (14.5)",
+        "MT-141..190": "Layout/Publishing (14.6)",
+        "MT-191..230": "Typography (14.7)",
+        "MT-231..260": "Color (14.8)",
+        "MT-261..320": "Effects/Filters (14.9)",
+        "MT-321..370": "Design Systems (14.10)",
+        "MT-371..410": "Prototyping/Motion (14.11)",
+        "MT-411..440": "Camera Raw/Develop (14.12)",
+        "MT-441..480": "Import/Export/Format-Compat (14.13)",
+        "MT-481..520": "Automation/Scripting/API (14.14)",
+        "MT-521..540": "Whiteboard (14.15)",
+        "MT-541..600": "Cross-cutting: model API/MCP (14.16), parallel-workflow harness (14.17), propose-work (14.18), history/undo (14.19), headless/quiet harness (14.20), operator unification (14.21), UserManual system (14.22), validation/HBR harnesses (14.24)"
+      },
+      "granularity_rule": "No upper MT-count bias; each MT narrow, no-context-implementable, small-model-sized, independently reviewable + crash-recoverable; foundation MTs own shared schema/helpers and later MTs depend on them.",
+      "mt_index": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json"
+    }
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "findings": [
+      "Scaffold-only risk: Section 14 has many declarative contracts; each implementing MT must exercise the executable runtime or a Handshake-managed resource boundary (Spec-Realism Gate) - encoded per-MT.",
+      "Dedup drift risk: a domain MT could reimplement a shared primitive; MTs MUST reference the canonical primitive (14.23), not fork it.",
+      "SQLite-creep risk: enforce no_sqlite_tripwire on every studio_* write path (14.24 [STU-VAL-005]).",
+      "Open-contract-point risk: MTs touching STU-CON-006 items must block until resolved.",
+      "Headless-GPU proof risk: pixel screenshot readback may crash on headless hosts; MTs fall back to AccessKit-tree assertions (14.20 [STU-QUIET-005])."
+    ],
+    "minimum_controls": [
+      "Per-MT runtime-proof obligation; per-MT GUI/Argus + UserManual obligation.",
+      "HBR matrix closure gate before any PASS.",
+      "Canonical-primitive reference enforced; no shadow primitives in domain MTs."
+    ]
+  }
+}

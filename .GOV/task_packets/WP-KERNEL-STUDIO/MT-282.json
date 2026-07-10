@@ -1,0 +1,134 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-282",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-282.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-282.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-265",
+      "MT-268",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Interactive workspace: Mesh-Push (Liquify) [STU-FX-023,STU-FX-024]",
+  "spec_anchor": [
+    "STU-FX-023",
+    "STU-FX-024",
+    "STU-FX-038"
+  ],
+  "scope": {
+    "summary": "Implement the Mesh-Push (Liquify) workspace as ONE re-editable StudioLiveFilter kind storing a re-editable mesh on the stack entry (dedup of destructive workspace + live mesh-warp): sub-tools forward-warp, pucker, bloat, twirl (cw/ccw), freeze-mask, thaw-mask, reconstruct/smooth; face-aware mode with parametric eye/nose/mouth/face-shape sliders; shared brush size/pressure/density + preview toggle. GPU-required with real-GPU proof + headless fallback; exposes an equivalent headless typed-data path (mesh points) so a model applies it without on-canvas UI. Operator-visible on-canvas workspace.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/effects/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "Mesh-Push (Liquify) workspace: forward/pucker/bloat/twirl, freeze/thaw, reconstruct/smooth, face-aware sliders, re-editable mesh; GPU proof + headless path; operator-visible"
+    ],
+    "proof_targets": [
+      "real-GPU liquify render + headless typed-mesh path + Argus workspace"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/effects/liquify.rs",
+      "studio-engine/src/render/liquify.rs",
+      "src/studio/effects/families/liquify.rs"
+    ],
+    "expected_tests": [
+      "real-GPU: forward/pucker/bloat/twirl warp + freeze/thaw + reconstruct render; headless: mesh applied via typed data (no on-canvas UI) + EFFECT_GPU_UNAVAILABLE fallback",
+      "argus: Liquify workspace reachable stable author_ids; re-editable mesh stored on stack entry",
+      "test: face-aware sliders parametric"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "liquify workspace"
+    ],
+    "argus_targets": [
+      "studio.effects.liquify",
+      "studio.effects.liquify_tool"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Effects / Liquify (Mesh-Push)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-QUIET-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No liquify/mesh-push; destructive-only warp; no headless mesh path.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

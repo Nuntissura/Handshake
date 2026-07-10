@@ -1,0 +1,128 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-118",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-118.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-118.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-117"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Brush colorization + per-stroke overrides + apply-as-stroke-type [STU-VEC-027,STU-VEC-020 brush stroke]",
+  "spec_anchor": [
+    "STU-VEC-027",
+    "STU-VEC-020"
+  ],
+  "scope": {
+    "summary": "Implement brush colorization methods remapping brush art to the current stroke color (none / tints / tints-and-shades / hue-shift), per-path stroke-option overrides that alter brush parameters on one applied stroke without editing the shared definition, switching a stroke entry's rendering to a StudioVectorBrush with direction control, and StudioStyleRegistry storage + cross-document sharing of brush definitions.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/vector/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "4 colorization methods + per-stroke overrides + brush-as-stroke with direction; author_ids + manual entry"
+    ],
+    "proof_targets": [
+      "Argus colorization + non-mutating-override test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/vector/brush_color.rs",
+      "src/studio/vector/brush_color.rs"
+    ],
+    "expected_tests": [
+      "argus: colorization + per-stroke override controls reachable via author_id",
+      "test: none/tints/tints-and-shades/hue-shift remap; per-stroke override doesn't mutate shared brush; stroke uses brush with direction"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "brush colorization controls",
+      "per-stroke override controls"
+    ],
+    "argus_targets": [
+      "studio.vector.brush_colorization",
+      "studio.vector.brush_stroke_override"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Vector / Brush colorization & stroke overrides"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Brushes uncolorable/non-overridable; brush-as-stroke missing.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

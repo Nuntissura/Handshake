@@ -1,0 +1,130 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-096",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-096.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-096.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-081",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Vector selection + select-by-attribute query [STU-VEC-071]",
+  "spec_anchor": [
+    "STU-VEC-071",
+    "STU-DOC-004"
+  ],
+  "scope": {
+    "summary": "Implement vector selection over the shared StudioSelectionSet primitive: object selection, direct anchor/segment/region selection, marquee + lasso selection, and selection-by-attribute (magic-wand-style query gathering objects/regions matching a paint or geometry attribute within a tolerance). Selection scope is model-addressable as a typed query (e.g. 'all objects with stroke color X'), not only mouse-driven.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/vector/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "object/node/region + marquee/lasso + typed select-by-attribute; author_ids + manual entry"
+    ],
+    "proof_targets": [
+      "Argus selection + typed attribute-query test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/vector/selection.rs",
+      "src/studio/vector/selection.rs"
+    ],
+    "expected_tests": [
+      "argus: marquee/lasso selection reachable via author_id",
+      "test: select-by-attribute typed query gathers matching objects within tolerance; model-addressable"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "selection tools",
+      "select-same query panel"
+    ],
+    "argus_targets": [
+      "studio.vector.marquee_tool",
+      "studio.vector.lasso_tool",
+      "studio.vector.select_by_attribute"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Vector / Selecting objects, nodes & by attribute"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No model-addressable selection; bulk attribute edits impossible.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

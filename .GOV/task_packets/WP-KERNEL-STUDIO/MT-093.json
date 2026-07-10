@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-093",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-093.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-093.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-081",
+      "MT-084",
+      "MT-085",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Auxiliary vector tools: Corner, Join, Vector Crop, Point Transform [STU-VEC-007]",
+  "spec_anchor": [
+    "STU-VEC-007",
+    "STU-VEC-005",
+    "STU-VEC-006"
+  ],
+  "scope": {
+    "summary": "Implement four auxiliary operator tools bound to existing typed commands: Corner (apply live corner treatment [STU-VEC-005] to selected anchors), Join (join selected open endpoints + average positions, combined corner/smooth join), Vector Crop (non-destructively crop vector/placed objects to a region without discarding content), and Point Transform (transform an object around a movable node-keyed origin).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/vector/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "Corner/Join/Vector Crop/Point Transform tools operational; author_ids + manual entry"
+    ],
+    "proof_targets": [
+      "Argus aux-tool inspect + non-destructive-crop test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/vector/aux_tools.rs",
+      "src/studio/vector/tools/aux.rs"
+    ],
+    "expected_tests": [
+      "argus: Corner/Join/Vector-Crop/Point-Transform reachable via author_id",
+      "test: corner tool applies corner spec; join merges endpoints; vector crop non-destructive recoverable; point transform around node origin"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "corner tool",
+      "join tool",
+      "vector crop tool",
+      "point transform tool"
+    ],
+    "argus_targets": [
+      "studio.vector.corner_tool",
+      "studio.vector.join_tool",
+      "studio.vector.crop_tool",
+      "studio.vector.point_transform_tool"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Vector / Corner, Join, Crop & Point Transform"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Auxiliary editing tools missing; corner/join/crop/point-transform workflows unavailable.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

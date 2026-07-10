@@ -1,0 +1,130 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-187",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-187.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-187.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-181",
+      "MT-171",
+      "MT-188"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "PDF (print) export + tagged/accessible PDF [STU-LAY-061]",
+  "spec_anchor": [
+    "STU-LAY-061",
+    "STU-LAY-041",
+    "STU-LAY-054",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement PDF (print) export exposing its full enumerable panel surface as StudioExportRecipe executions: General (preset + PDF/X standard choice, compatibility version, pages/spreads, view/layout open settings, layer export, include bookmarks/hyperlinks/non-printing-objects/visible-guides-grids); Compression (per image class color/grayscale/monochrome downsampling method+threshold, codec JPEG/ZIP/JPEG2000/CCITT, quality tier, crop-to-frames); Marks & Bleeds (printer marks, bleed/slug inclusion); Output (color conversion none/convert-preserve-numbers, destination profile, PDF/X output intent, ink-manager access); Advanced (font-subsetting threshold, OPI omission, flattener preset); Security (open + permissions passwords, print/copy restrictions); Summary. Tagged/accessible PDF MUST be produced from style-to-tag mapping (MT-171), per-object alt text and roles, article/reading-order driven order, tab order, and document-title metadata. PDF/X intents + ink math driven by MT-188/14.8.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "full PDF panel surface as recipe + tagged/accessible PDF from style-tag mapping/alt-text/reading-order/metadata"
+    ],
+    "proof_targets": [
+      "headless PDF export runtime; tagged/accessible-PDF test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/output/pdf_export.rs",
+      "src/studio/layout/output/tagged_pdf.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::output::pdf_export",
+      "live: PDF export runs headlessly across all panels producing a valid PDF; security passwords + compression codecs applied",
+      "test: tagged/accessible PDF carries style-derived tags + alt text + reading order + tab order + document-title metadata"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "export PDF dialog (all panels)"
+    ],
+    "argus_targets": [
+      "studio.layout.pdf_export"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / PDF export & accessible PDF"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-QUIET-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No PDF deliverable; accessible/tagged output impossible; primary publishing format missing.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

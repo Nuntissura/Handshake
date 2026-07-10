@@ -1,0 +1,133 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-141",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-141.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-141.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-020"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Page/spread container model + multi-page island spreads [STU-LAY-001,STU-LAY-002]",
+  "spec_anchor": [
+    "STU-LAY-001",
+    "STU-LAY-002",
+    "STU-LAY-067",
+    "STU-CON-001"
+  ],
+  "scope": {
+    "summary": "Implement the layout page/spread model over the canonical StudioPageSpread primitive (never fork): a layout StudioDocument holds an ordered set of StudioPageSpread containers; facing-pages documents pair pages across a binding spine and non-facing hold single-page spreads; the spread is the unit of parent-page application, spanning-object placement, and imposition. Multi-page (island) spreads MUST hold >2 pages up to a document-configured max of at least ten (gatefold/trifold/accordion), with per-document and per-spread allow-shuffle flags controlling whether repagination reflows pages into/out of a spread; disabling shuffle preserves the island during page insert/delete. Applied through studio-engine LayoutEngine; typed command + studio.layout events.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "src/api/studio.rs",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "StudioPageSpread ordered set with facing/non-facing + island >2 pages (max>=10) + per-doc/per-spread allow-shuffle; no forked layout doc model"
+    ],
+    "proof_targets": [
+      "Argus pages-navigator inspect; island-spread + allow-shuffle runtime test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/spread_model.rs",
+      "studio-engine/src/layout/spread.rs",
+      "src/api/studio.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::spread_model",
+      "live: island spread holds >2 pages up to configured max; allow-shuffle=false preserves island on page insert/delete",
+      "test: facing vs non-facing spread pairing round-trips on StudioPageSpread"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "pages navigator"
+    ],
+    "argus_targets": [
+      "studio.layout.pages_navigator",
+      "studio.layout.spread"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Pages, spreads & island spreads"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No spread container model; all page-layout MTs blocked; island/fold formats impossible.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

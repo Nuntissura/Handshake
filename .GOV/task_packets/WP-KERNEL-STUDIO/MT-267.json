@@ -1,0 +1,123 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-267",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-267.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-267.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-265",
+      "MT-266"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Blur family - GPU pin/gallery blurs + shared bokeh styling (GPU-required) [STU-FX-013]",
+  "spec_anchor": [
+    "STU-FX-013",
+    "STU-FX-036",
+    "STU-FX-018"
+  ],
+  "scope": {
+    "summary": "Implement the GPU pin/gallery blurs with on-canvas pin/handle controls exposed also as headless typed data: Lens Blur (depth-map + iris blades/rotation/curvature + specular), Depth-of-Field Blur (radial/linear in-focus region), Spin Blur (rotational around movable centers), Field Blur (multi-pin blur gradient), Iris Blur (elliptical sharp-focus + feathered falloff), Tilt-Shift Blur (sharpness band + distortion), Path Blur (motion along editable multi-point paths, speed/taper/end-velocity), Background Blur (backdrop, render_scope=below), Progressive Blur (gradient blur ramp, backdrop-capable), plus the shared Bokeh/Motion/Noise styling row (light bokeh, bokeh color, light range, strobe, restored grain). All GPU-Req: real-GPU proof + EFFECT_GPU_UNAVAILABLE headless fallback.",
+    "allowed_paths": [
+      "src/studio/effects/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "Lens, Depth-of-Field, Spin, Field, Iris, Tilt-Shift, Path, Background(backdrop), Progressive blurs + Bokeh/Motion/Noise styling; real-GPU proof + headless fallback"
+    ],
+    "proof_targets": [
+      "real-GPU pin-blur render + headless fallback"
+    ],
+    "code_surfaces": [
+      "studio-engine/src/render/blur/gpu.rs",
+      "src/studio/effects/families/blur_gpu.rs"
+    ],
+    "expected_tests": [
+      "real-GPU: Lens/Iris/Field/Tilt-Shift/Path/Spin/Background/Progressive blur render + pin controls as typed data",
+      "headless: EFFECT_GPU_UNAVAILABLE fallback (AccessKit assert)",
+      "test: Background/Progressive read backdrop (render_scope=below); bokeh styling shared params"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-VIS-001",
+    "HBR-QUIET-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Pin-based cinematic blur set missing; backdrop blur unavailable.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

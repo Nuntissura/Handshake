@@ -1,0 +1,127 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-411",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-411.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-411.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-004",
+      "MT-017"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "StudioRawDevelop non-destructive parametric graph + authority persistence [STU-RAW-001,STU-RAW-002]",
+  "spec_anchor": [
+    "STU-RAW-001",
+    "STU-RAW-002",
+    "STU-DOC-002",
+    "STU-ARC-004"
+  ],
+  "scope": {
+    "summary": "Implement the canonical StudioRawDevelop primitive (schema id hsk.studio.raw_develop@1, field-owned by 14.23) as a non-destructive, re-editable, ordered parametric graph over an immutable decoded raw input: every Basic/Curve/Detail/Color/Optics/Geometry/Effects/Calibration adjustment, mask, and Enhance result stored as parameters+derived buffers, fully reversible to the as-decoded state, and bit-reproducible under a fixed process version. Develop authority persists as studio_* authority rows bound to EventLedger (studio.raw/studio.raster family) per [STU-ARC-003]/[STU-ARC-004] with NO XMP sidecar, NO proprietary raw-settings DB, NO SQLite cache.",
+    "allowed_paths": [
+      "src/studio/raw/**",
+      "studio-engine/**",
+      "migrations/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "StudioRawDevelop compiles + derives JsonSchema; non-destructive reversible graph; authority-row persistence; no sidecar/SQLite"
+    ],
+    "proof_targets": [
+      "bit-reproducible render + reversibility + authority-row persistence test"
+    ],
+    "code_surfaces": [
+      "src/studio/raw/mod.rs",
+      "src/studio/raw/pipeline.rs",
+      "studio-engine/src/raw/mod.rs",
+      "migrations/2026_MM_DD_studio_raw_develop.sql"
+    ],
+    "expected_tests": [
+      "cargo test studio::raw::pipeline",
+      "test: same raw+params+process-version renders bit-identical on same engine build",
+      "test: pipeline fully reversible to as-decoded state",
+      "test: develop state persists as authority rows (no XMP sidecar / no SQLite)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No re-editable develop core; raw edits fork types or leak to sidecar files (dedup + no-SQLite violation).",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

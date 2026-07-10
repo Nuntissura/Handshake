@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-367",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-367.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-367.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-366",
+      "MT-015",
+      "MT-008"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Design-system aggregate GUI/Argus/UserManual/HBR closure [STU-DS-051]",
+  "spec_anchor": [
+    "STU-DS-051"
+  ],
+  "scope": {
+    "summary": "Aggregate closure for 14.10: assert every design-system panel/picker/inspector/visible state is headlessly inspectable, steerable, and screenshot-capturable through Argus with no foreground focus steal, and ships dual-audience UserManual entries (operator layer + model layer: command ids, typed I/O, receipts, undo semantics, Argus targets, failure/recovery) kept same-change current. This MT verifies coverage completeness across all design-system operator-surface MTs (MT-323..MT-365) rather than authoring a new feature.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/manual/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "all 14.10 surfaces Argus-inspectable + dual-audience manual complete; coverage-completeness proven; no focus steal"
+    ],
+    "proof_targets": [
+      "Argus coverage audit + manual self-consistency test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/argus_targets.rs",
+      "src/manual/studio/design_system/**"
+    ],
+    "expected_tests": [
+      "argus: every design-system operator surface inspectable + screenshot-capturable with no focus steal",
+      "HBR-MAN-003 self-consistency: every design-system command_id has a dual-audience manual entry",
+      "test: Argus target registry covers all studio.design_system.* surfaces"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "design-system Argus target registry",
+      "manual (design-system section)"
+    ],
+    "argus_targets": [
+      "studio.design_system.argus_index",
+      "manual.studio.design_system"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Design Systems / (section coverage index)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-MAN-003",
+    "HBR-QUIET-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Design-system surfaces not fully Argus/manual-covered; no-context models cannot discover or verify them.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-444",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-444.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-444.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-442",
+      "MT-443",
+      "MT-008"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Interop fixture + round-trip harness (15-target native fixture plan) [STU-IO-011]",
+  "spec_anchor": [
+    "STU-IO-011",
+    "STU-IO-004"
+  ],
+  "scope": {
+    "summary": "Implement the fixture + round-trip test harness that every format family MT plugs into: representative fixtures + receipts for each supported app-and-direction; round-trip expectations stated as a BOUNDED fidelity envelope (not 'identical') verified by fixture comparison rather than capability memory. Seed the native 15-target fixture plan by family — Affinity (5), Figma family (6), Illustrator (3), InDesign (2), Photoshop (2) — each declaring all four support directions (import, edit-preserve, export, round-trip) and its schema-public status (documented interchange XML / partly-documented native / vendor-private native / vendor-private-or-PDF-compatible / vendor-private local-copy / vendor-private template) governing how much is semantically imported versus preservation-blobbed.",
+    "allowed_paths": [
+      "src/studio/interop/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "fixture + bounded round-trip harness live; 15 native targets seeded; no memory-asserted parity"
+    ],
+    "proof_targets": [
+      "round-trip harness + 15-target fixture-plan test"
+    ],
+    "code_surfaces": [
+      "tests/studio/interop/fixtures/**",
+      "tests/studio/interop/roundtrip_harness.rs",
+      "src/studio/interop/fixture.rs"
+    ],
+    "expected_tests": [
+      "test: round-trip harness compares import->export against a bounded fidelity envelope (not identity)",
+      "test: 15 native targets registered by family with 4 directions + schema-public status",
+      "test: a format with no passing fixtures is not parity-complete"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-VIS-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Format claims asserted from memory; no round-trip proof surface.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

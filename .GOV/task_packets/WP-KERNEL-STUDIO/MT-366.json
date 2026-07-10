@@ -1,0 +1,124 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-366",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-366.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-366.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-007",
+      "MT-357",
+      "MT-353",
+      "MT-362",
+      "MT-363"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Design-system model API + steerability [STU-DS-051,STU-MDL-001]",
+  "spec_anchor": [
+    "STU-DS-051",
+    "STU-MDL-001",
+    "STU-MDL-003"
+  ],
+  "scope": {
+    "summary": "Ensure every design-system panel, picker, inspector field, and visible state (component/variant editors, component-property inspector, variable/collection/mode editor, style registry, auto-layout/constraint/grid controls) is model-visible and typed-steerable through the Studio command surface (MT-007): typed command ids, auto-generated input/outputSchema, dry_run, receipts, and undo semantics for the whole design-system command family. This is the backend model-control closure over 14.10, distinct from the aggregate GUI/Argus/manual closure (MT-367).",
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "entire 14.10 command family model-visible + typed-steerable with dry_run/receipt/undo"
+    ],
+    "proof_targets": [
+      "design-system command typed-I/O + dry_run/receipt/undo test"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/model_api.rs",
+      "src/api/studio.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::model_api",
+      "live: every design-system command exposes typed I/O + dry_run + receipt + undo through the Studio command surface; no operator-only design-system mutation"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Design-system surface not fully model-steerable; models cannot drive components/variables/styles/layout.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-225",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-225.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-225.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-202",
+      "MT-208"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Type-style binding engine + style features [STU-TYP-025,STU-TYP-026]",
+  "spec_anchor": [
+    "STU-TYP-025",
+    "STU-TYP-026"
+  ],
+  "scope": {
+    "summary": "StudioTypeStyle (character-scope and paragraph-scope) is the canonical reusable named-text-style primitive. A StudioTextStory binds character ranges and paragraphs to StudioTypeStyle entries; the story stores the binding plus any local overrides, while definitions live in the StudioStyleRegistry. 14.7 owns the ENGINE that resolves a bound style into concrete character/paragraph attributes (groups 3-6); it does NOT own registry storage, application UI, override/redefine lifecycle, based-on inheritance, or next-style cascade (governed by 14.6/14.10, referenced not duplicated). Support through that binding: paragraph and character styles; based-on inheritance and next-style/following-paragraph cascade; override indicators, redefine-from-selection, clear-overrides; nested/nested-line/GREP styles ([STU-TYP-015]); object/frame styles for area containers.",
+    "allowed_paths": [
+      "src/studio/typography/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "type-style resolution engine binding StudioTypeStyle/StudioStyleRegistry (no fork); inheritance/next-style/override support; storage upstream"
+    ],
+    "proof_targets": [
+      "style-resolution + override-layering test"
+    ],
+    "code_surfaces": [
+      "src/studio/typography/type_style_bind.rs",
+      "studio-engine/src/text/style_resolve.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio_engine::text::style_resolve",
+      "live: bound StudioTypeStyle resolves to concrete char/para attributes; local overrides layered over style",
+      "test: based-on inheritance + next-style cascade + override/redefine/clear resolve via engine (registry storage owned upstream, referenced not forked)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No style resolution engine; named styles do not apply; forks StudioTypeStyle storage.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

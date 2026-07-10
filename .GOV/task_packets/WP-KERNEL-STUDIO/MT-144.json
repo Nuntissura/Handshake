@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-144",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-144.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-144.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-141",
+      "MT-143"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Parent (master) pages model [STU-LAY-006]",
+  "spec_anchor": [
+    "STU-LAY-006",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement parent pages (the deduped Studio name for master pages; source product/panel names are never Studio names) as reusable page templates applied to document pages. The model MUST support: multiple parents applied to one page simultaneously (each applied parent surfaces as its own StudioLayer band in the layer graph); parent-based-on-parent inheritance (cascading changes down the chain); nested parents (one parent applied onto another); application to page ranges; and loading parents from another document. Backed by StudioPageSpread parent records; typed command + studio.layout events.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "src/api/studio.rs",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "parent pages with multiple-applied, based-on, nested, range-apply, and load-from-document; each parent a layer band"
+    ],
+    "proof_targets": [
+      "multi-parent layer-band + based-on cascade runtime; load-from-document test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/parent_pages.rs",
+      "studio-engine/src/layout/parent.rs",
+      "src/api/studio.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::parent_pages",
+      "live: multiple parents on one page each surface as a layer band; based-on edit cascades to children",
+      "test: apply-to-range + load-parents-from-another-document"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "parent pages panel"
+    ],
+    "argus_targets": [
+      "studio.layout.parent_pages_panel",
+      "studio.layout.apply_parent"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Parent (master) pages"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No reusable page templates; furniture must be hand-placed per page; long-doc consistency impossible.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

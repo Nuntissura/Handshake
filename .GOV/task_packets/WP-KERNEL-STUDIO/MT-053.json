@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-053",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-053.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-053.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-019",
+      "MT-009",
+      "MT-050"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Raster color-management consumption: assign/convert profile, soft-proof, gamut, picker, spot [STU-RAS-034]",
+  "spec_anchor": [
+    "STU-RAS-034"
+  ],
+  "scope": {
+    "summary": "Consume the 14.8 color pipeline (ColorEngine MT-019) at the raster surface WITHOUT forking it: working-space profile settings (RGB/CMYK/Gray/Spot) + mismatch policies as saved presets; Assign-Profile (retag without changing values) and Convert-to-Profile (convert values with rendering-intent choice); embed-profile-on-save; soft-proof (proof setup / proof colors) previewing an output condition without converting; gamut warning; a color picker (HSB/RGB/Lab/CMYK/hex with out-of-gamut warning); and spot-color library selection from installed color books. Soft-proof and OCIO are also exposed as adjustments (MT-058).",
+    "allowed_paths": [
+      "src/studio/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "assign/convert profile, soft-proof, gamut warning, multi-model picker, spot books",
+      "consumes ColorEngine; does not fork the CMM"
+    ],
+    "proof_targets": [
+      "assign-vs-convert profile + soft-proof/gamut runtime"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/color_management.rs",
+      "src/frontend/handshake_native/src/studio/raster/color_picker.rs"
+    ],
+    "expected_tests": [
+      "live: Assign-Profile changes tag without changing pixel values; Convert-to-Profile with a rendering intent changes values; soft-proof preview + gamut warning render without converting the document",
+      "live: color picker returns HSB/RGB/Lab/CMYK/hex with an out-of-gamut flag",
+      "test: consumes ColorEngine (no forked CMM)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "color settings",
+      "assign/convert profile dialogs",
+      "soft-proof",
+      "color picker"
+    ],
+    "argus_targets": [
+      "studio.assign_profile",
+      "studio.convert_profile",
+      "studio.soft_proof",
+      "studio.gamut_warning",
+      "studio.color_picker"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Raster / Color management & soft-proofing"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No color management at the raster surface, or a forked CMM diverging from 14.8.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

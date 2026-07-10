@@ -1,0 +1,128 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-012",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-012.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-012.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-006"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "StudioEditProposal propose-work path (CRDT draft + DCC inbox) [STU-PW-001,STU-PW-004]",
+  "spec_anchor": [
+    "STU-PW-001",
+    "STU-PW-004",
+    "STU-CON-002"
+  ],
+  "scope": {
+    "summary": "Implement StudioEditProposal (hsk.studio.edit_proposal@1): model authors a command batch + preview artifacts (before/after render + structured diff) + receipt into sandbox/CRDT draft space via the existing kernel ai_edit_proposal path; surface in DCC Approval Inbox; rejected proposals persist as replayable evidence.",
+    "allowed_paths": [
+      "src/studio/**",
+      "src/api/studio.rs",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "StudioEditProposal path live; draft-only until promoted; DCC inbox; rejected persists replayable"
+    ],
+    "proof_targets": [
+      "proposal draft-space + inbox + replayable-rejection test"
+    ],
+    "code_surfaces": [
+      "src/studio/proposal.rs",
+      "src/api/studio.rs"
+    ],
+    "expected_tests": [
+      "live: proposal enters draft space, not authority; appears in DCC inbox",
+      "test: rejected proposal persists + replayable",
+      "test: preview artifacts (before/after + diff) attached"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "DCC approval inbox (Studio proposals)"
+    ],
+    "argus_targets": [
+      "dcc.approval_inbox"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Model proposals & approval"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No propose-work system; model edits lack the gated proposal lane.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

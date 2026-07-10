@@ -1,0 +1,127 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-263",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-263.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-263.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-261",
+      "MT-006",
+      "MT-007",
+      "MT-003"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Effect command surface + STUDIO_EFFECT_* events + gated lifecycle [STU-FX-007,STU-FX-008,STU-FX-009,STU-FX-011a]",
+  "spec_anchor": [
+    "STU-FX-007",
+    "STU-FX-008",
+    "STU-FX-009",
+    "STU-FX-011a",
+    "STU-ARC-005"
+  ],
+  "scope": {
+    "summary": "Implement the model-steerable typed effect commands STUDIO_EFFECT_APPLY / _UPDATE / _REORDER / _TOGGLE / _REMOVE / _MASK_EDIT / _BAKE on event_family=studio.effect, each routed sandbox -> StudioValidationDescriptor -> PromotionGate (never a direct authority write). Blend-options fold into the standard StudioBlendMode+opacity surface (no separate fade command). Repeat-last-effect + repeat-with-new-settings as ONE deduped command. Effect on placed_asset/smart-object applies to the rendered proxy; convert-for-filters collapses to a no-op (layers are filter-hosting by default).",
+    "allowed_paths": [
+      "src/studio/effects/**",
+      "src/api/studio.rs",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "7 STUDIO_EFFECT_* commands+events gated through promotion; deduped fade into blend; single repeat-last; smart-object proxy apply"
+    ],
+    "proof_targets": [
+      "command-contract + fail-closed direct-write negative + event-registration test"
+    ],
+    "code_surfaces": [
+      "src/studio/effects/command.rs",
+      "src/studio/effects/events.rs",
+      "src/api/studio.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::effects::command",
+      "live: model effect mutation blocked from direct authority write (sandbox->validation->promotion)",
+      "test: 7 STUDIO_EFFECT_* variants registered + wire strings; repeat-last is one command; placed-asset proxy application"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-SWARM-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No model-steerable effect API; effect mutations bypass validation/promotion.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

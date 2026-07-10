@@ -1,0 +1,130 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-249",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-249.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-249.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-234",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Soft-proof (proof setup / colors + color-blindness sim) [STU-COL-013,STU-COL-022]",
+  "spec_anchor": [
+    "STU-COL-013",
+    "STU-COL-022",
+    "STU-COL-OBLIG-001"
+  ],
+  "scope": {
+    "summary": "Provide the color-management/prepress surface as one deduped set (this MT owns soft-proof; MT-250..MT-256 deepen the rest). Soft-proof: simulate a chosen output condition on screen using a device StudioColorProfile and a rendering intent WITHOUT converting document values, toggleable on/off, and MUST include color-blindness simulation profiles as proof conditions. The proof state is inspectable via Argus per [STU-COL-OBLIG-001] (PS/AI/ID proof setup + proof colors, deduped). Operator proof controls + model command.",
+    "allowed_paths": [
+      "src/studio/color/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "soft-proof by device profile+intent without converting values; color-blindness sim; Argus-inspectable state"
+    ],
+    "proof_targets": [
+      "soft-proof non-destructive + Argus-inspectable test"
+    ],
+    "code_surfaces": [
+      "studio-engine/src/color/soft_proof.rs",
+      "src/frontend/handshake_native/src/studio/color/proof_control.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio_engine::color::soft_proof",
+      "live: soft-proof simulates device profile + intent on screen WITHOUT changing document values; toggle on/off",
+      "argus: color-blindness proof condition + proof state inspectable"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "proof setup/colors"
+    ],
+    "argus_targets": [
+      "studio.color.soft_proof"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Color / Soft-proofing"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No soft-proof; output preview + accessibility simulation unmet.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

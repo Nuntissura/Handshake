@@ -1,0 +1,133 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-162",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-162.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-162.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-161",
+      "MT-157"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Fitting + clipping/masking of placed content [STU-LAY-029,STU-LAY-031]",
+  "spec_anchor": [
+    "STU-LAY-029",
+    "STU-LAY-031",
+    "STU-LAY-024",
+    "STU-LAY-038",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement fitting: fit-content-to-frame, fit-frame-to-content, fit-content-proportionally, fill-frame-proportionally, center-content, clear-fitting, plus a stored frame content-fit rule (scale-to-max-fit, scale-to-min-fit, stretch-to-fit, none) and an anchor point for placed content; fitting MUST be expressible as an object-style property (MT-170). Implement clipping and masking of placed content: applying an embedded clipping path, detecting edges, using an alpha channel, or a frame-as-mask, feeding BOTH display clipping AND the text-wrap contour source (MT-157).",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "all fitting modes + stored fit rule + anchor as object-style property; clipping/masking feeds display + wrap contour"
+    ],
+    "proof_targets": [
+      "fitting-mode runtime; clip+contour-feed test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/fitting.rs",
+      "src/studio/layout/clipping_mask.rs",
+      "studio-engine/src/layout/fit.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::fitting",
+      "live: each fitting mode + stored content-fit rule + anchor point positions placed content",
+      "test: clipping via embedded-path/edge-detect/alpha/frame-as-mask clips display AND supplies text-wrap contour"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "fitting controls",
+      "clipping path options"
+    ],
+    "argus_targets": [
+      "studio.layout.fitting",
+      "studio.layout.clipping"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Fitting, clipping & masking"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Placed content cannot be sized/cropped; masking and contour-wrap unavailable.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

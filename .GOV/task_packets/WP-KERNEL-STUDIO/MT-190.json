@@ -1,0 +1,137 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-190",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-190.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-190.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-149",
+      "MT-164",
+      "MT-173",
+      "MT-012",
+      "MT-013"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Structured interchange + interactive/EPUB touchpoint + collaboration posture [STU-LAY-064,STU-LAY-065,STU-LAY-066,STU-LAY-067]",
+  "spec_anchor": [
+    "STU-LAY-064",
+    "STU-LAY-065",
+    "STU-LAY-066",
+    "STU-LAY-067",
+    "STU-ARC-005"
+  ],
+  "scope": {
+    "summary": "Fix that layout content is representable in structured exchange form: round-trip interchange formats (layout markup export/open for cross-version exchange, tagged-text plain-format round-trip, and structured-XML tagging with a structure tree, tag mapping to/from styles, schema validation, and image-copying export); concrete file formats/matrices owned by 14.13 (hand off, do not fork). Carry layout-side authoring of interactive objects — hyperlinks, bookmarks, buttons, MSO (MT-164), placed media (MT-161), interactive TOCs (MT-173), reflowable/fixed-layout EPUB — on the object StudioLayer and hand the interactive payload to 14.11 for export; MUST NOT define a second interactive runtime. Implement local-first review/collaboration: the native review surface (comments, annotations, markup anchored to layout positions, and a document-states/history surface beyond linear undo, 14.19/MT-149) is first-class, backed by kernel CRDT collaboration, requiring no external account/cloud; hosted/cloud capabilities (share-for-review, cloud docs/version-history, invite-to-edit, hosted fonts, generative-AI assists) are optional adapter-backed rows, never primary; file-based assignment/check-in-check-out copy-editing is native over shared local/network storage. Import of external review comments back into the layout (position-anchored) via the interchange path (14.13). This MT also records the STU-LAY-067 cross-cutting obligation (dual operator-UI + model/MCP projections, 14.16/14.17 model-visibility & parallel-workflow, headless/quiet output law 14.20, dual-audience UserManual + GUI/diagnostic/accessibility 14.22, and the sandbox->validation->PromotionGate propose-work lifecycle 14.18/MT-012) as satisfied across this plan.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "structured interchange representable; interactive payload handed to 14.11 without a second runtime; local-first CRDT review primary, hosted optional; STU-LAY-067 obligation recorded"
+    ],
+    "proof_targets": [
+      "structured interchange round-trip runtime; local-first CRDT review + adapter-optional test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/interchange.rs",
+      "src/studio/layout/interactive_handoff.rs",
+      "src/studio/layout/review.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::review",
+      "live: structured-XML export round-trips layout content with style<->tag mapping + schema validation; interactive payload handed to 14.11 (no second runtime)",
+      "test: native CRDT-backed comments/annotations anchored to positions with no external account; hosted capabilities are optional adapter rows; import external review comments position-anchored"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "comments/review panel",
+      "interchange import/export"
+    ],
+    "argus_targets": [
+      "studio.layout.review_panel",
+      "studio.layout.interchange"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Interchange, interactive handoff & review"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-SWARM-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No cross-version/structured interchange; interactive export forks a second runtime; collaboration forced onto cloud, violating local-first posture.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

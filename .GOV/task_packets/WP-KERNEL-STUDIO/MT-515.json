@@ -1,0 +1,128 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-515",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-515.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-515.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-514",
+      "MT-496",
+      "MT-008"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Developer inspect + codegen surface [STU-AUT-022]",
+  "spec_anchor": [
+    "STU-AUT-022"
+  ],
+  "scope": {
+    "summary": "Implement the native, read-oriented inspect/codegen surface (deduped design-to-code inspect + native MCP server equivalent): structured design context + framework-shaped generated code for a selection/node reference; the variables/tokens and styles used within a selection; a rendered selection screenshot for visual verification (ties to the visual-inspection duty 14.16); and a component-to-code mapping that substitutes a team's real component code for auto-generated snippets. Read-oriented; any writeback is a normal promotion-gated command. Framework set is codegen-plugin-extensible.",
+    "allowed_paths": [
+      "src/studio/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "read-oriented inspect/codegen; context+code+tokens+screenshot+component-map; writeback promotion-gated"
+    ],
+    "proof_targets": [
+      "inspect context+codegen+screenshot runtime test"
+    ],
+    "code_surfaces": [
+      "src/studio/automation/inspect_codegen.rs",
+      "src/frontend/handshake_native/src/studio/inspect_panel.rs"
+    ],
+    "expected_tests": [
+      "live: inspect returns structured context + code + token defs for a selection",
+      "live: selection screenshot rendered for verification",
+      "test: component-to-code map overrides generated snippet"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "inspect/dev-mode panel"
+    ],
+    "argus_targets": [
+      "studio.inspect_panel",
+      "studio.inspect.codegen"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Automation / Inspect & code generation"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No design-to-code inspect/handoff; agent visual verification gap.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

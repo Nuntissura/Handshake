@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-193",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-193.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-193.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-191",
+      "MT-016",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Text-on-path (text_kind=path) flow [STU-TYP-004]",
+  "spec_anchor": [
+    "STU-TYP-004",
+    "STU-CON-001"
+  ],
+  "scope": {
+    "summary": "Implement text_kind=path: a StudioTextStory binds to the SAME StudioVectorPath primitive (14.5, no text-only path type) and flows glyphs along it with editable flow-extent handles (start/end), per-section baseline-distance offset, flow-direction control, side-flip, and reverse-path-direction (provenance Affinity path-text handles + baseline control + Reverse Text Path; Photoshop type-on-path/inside-shape; Figma TextPath; Illustrator/InDesign type-on-a-path). Text remains editable while following path geometry; shaping engine re-runs on edit.",
+    "allowed_paths": [
+      "src/studio/typography/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "text-on-path over shared StudioVectorPath; flow handles/baseline/side-flip/reverse; stays editable"
+    ],
+    "proof_targets": [
+      "path-flow handles + re-editability argus test"
+    ],
+    "code_surfaces": [
+      "src/studio/typography/text_on_path.rs",
+      "studio-engine/src/text/path_flow.rs",
+      "src/frontend/handshake_native/src/studio/typography/path_tool.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio_engine::text::path_flow",
+      "live: glyphs flow along shared StudioVectorPath; start/end handles, baseline offset, side-flip, reverse-direction",
+      "test: text stays editable + re-shapes after path edit"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "path-text handles"
+    ],
+    "argus_targets": [
+      "studio.type.path_flow"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Typography / Text on a path"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No text-on-path; logo/badge/curved-type workflows unmet.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

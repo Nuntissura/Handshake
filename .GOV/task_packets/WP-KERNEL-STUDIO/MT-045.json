@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-045",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-045.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-045.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-039",
+      "MT-017"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Local tonal/detail retouch brushes: dodge, burn, sponge, blur, sharpen, median, smudge [STU-RAS-027]",
+  "spec_anchor": [
+    "STU-RAS-027"
+  ],
+  "scope": {
+    "summary": "Implement the local-effect brushes as brush-engine tools: Dodge (lighten) and Burn (darken) with tonal-range targeting (shadows/midtones/highlights), exposure, and protect-tones; Sponge (saturate/desaturate) with vibrance protection; and the local-effect brushes Blur (soften), Sharpen (edge contrast with protect-detail), Median (edge-preserving noise reduction), and Smudge (smear pixels in the drag direction, with finger-painting).",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "dodge/burn (tonal-range+protect) + sponge (vibrance-protect) work",
+      "blur/sharpen/median/smudge local brushes proven on snapshot"
+    ],
+    "proof_targets": [
+      "dodge/burn + smudge runtime + before/after snapshot"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/dodge_burn.rs",
+      "studio-engine/src/raster/local_effects.rs",
+      "src/frontend/handshake_native/src/studio/raster/retouch_tools.rs"
+    ],
+    "expected_tests": [
+      "live: dodge lightens with shadows/midtones/highlights targeting + protect-tones; sponge desaturates with vibrance protection",
+      "live: blur softens, sharpen increases edge contrast (protect-detail), smudge smears in the drag direction",
+      "argus: before/after snapshot per brush"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "dodge/burn/sponge tools",
+      "blur/sharpen/smudge tools"
+    ],
+    "argus_targets": [
+      "studio.tool_dodge",
+      "studio.tool_burn",
+      "studio.tool_sponge",
+      "studio.tool_blur",
+      "studio.tool_sharpen",
+      "studio.tool_smudge"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Raster / Dodge, burn, sponge, blur, sharpen & smudge"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No local tonal/detail retouch; dodge/burn photo workflows absent.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

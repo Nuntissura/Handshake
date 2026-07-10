@@ -1,0 +1,138 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-061",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-061.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-061.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-017",
+      "MT-042",
+      "MT-060",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "StudioEffectStack layer effects/styles [STU-RAS-040]",
+  "spec_anchor": [
+    "STU-RAS-040"
+  ],
+  "scope": {
+    "summary": "Implement StudioEffectStack, the single canonical layer-effects/styles primitive, with non-destructive, re-editable, re-orderable, independently maskable effects: Bevel & Emboss (style/technique/depth/direction/size/soften/angle/altitude/gloss-contour + contour & texture sub-effects), Stroke (color/gradient/pattern at outside/inside/center), Inner Shadow, Inner Glow, Satin, Color Overlay, Gradient Overlay, Pattern Overlay, Outer Glow, Drop Shadow (angle/distance/spread-choke/size/contour/noise/knockout). Provide a document-wide shareable Global Light angle, a contour/gloss-contour editor, saveable reusable styles (StudioStyleRegistry entries), and effects copyable/pasteable/scalable/hideable/removable/convertible-to-pixel-layers.",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "all 10 effect types non-destructive, re-orderable, independently maskable",
+      "Global Light shareable; styles saveable/pasteable/scalable; effect->pixel-layer convert"
+    ],
+    "proof_targets": [
+      "effect-stack + saved-style paste + global-light runtime + snapshot"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/effect_stack.rs",
+      "studio-engine/src/raster/effects.rs",
+      "src/frontend/handshake_native/src/studio/raster/effects_ui.rs"
+    ],
+    "expected_tests": [
+      "live: add Drop Shadow + Stroke + Bevel to a layer, reorder them, mask one, and save the combination as a reusable style; paste the style onto another layer",
+      "live: Global Light angle change updates all shadow/bevel effects; convert an effect to a standalone pixel layer",
+      "argus: effects snapshot"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "effects/styles panel",
+      "contour editor",
+      "styles library"
+    ],
+    "argus_targets": [
+      "studio.effects",
+      "studio.effect_add",
+      "studio.styles_library",
+      "studio.global_light"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Raster / Layer effects & styles"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No layer styles; shadows/glows/strokes/overlays and reusable styles absent.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

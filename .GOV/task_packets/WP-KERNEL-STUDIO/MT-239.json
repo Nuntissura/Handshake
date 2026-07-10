@@ -1,0 +1,129 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-239",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-239.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-239.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-231",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "StudioSwatch primitive + swatch kinds [STU-COL-007]",
+  "spec_anchor": [
+    "STU-COL-007",
+    "STU-CON-001"
+  ],
+  "scope": {
+    "summary": "Author the canonical named-color primitive StudioSwatch (schema id hsk.studio.swatch@1): declares a swatch_kind, a StudioColorProfile-tagged value, and membership in an optional swatch group. Swatch kinds: process (ordinary process color), global (process color that live-updates every object using it when edited), spot (named separation ink, first-class native primitive, optional Lab definition for accurate screen/proof simulation independent of CMYK, tintable), mixed_ink (one spot + process inks in one swatch), mixed_ink_group (stepped series generated from base inks with editable steps), tint (percentage tint of a base swatch that follows base edits), plus reserved built-ins (None, Paper/Background, Registration, Black). Reference canonical StudioSwatch from MT-002; never fork.",
+    "allowed_paths": [
+      "src/studio/color/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "StudioSwatch@1 with all 6 kinds + reserved built-ins; profile-tagged; swatch panel; no fork"
+    ],
+    "proof_targets": [
+      "StudioSwatch kinds round-trip + panel test"
+    ],
+    "code_surfaces": [
+      "src/studio/color/swatch.rs",
+      "studio-engine/src/color/swatch.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::color::swatch",
+      "test: StudioSwatch@1 with swatch_kind {process,global,spot,mixed_ink,mixed_ink_group,tint,reserved} round-trips; StudioColorProfile-tagged value",
+      "argus: swatch panel renders kinds with stable author_ids"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "swatch panel"
+    ],
+    "argus_targets": [
+      "studio.color.swatch_panel"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Color / Swatches"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No named-color primitive; swatches forked; color reuse unmet.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

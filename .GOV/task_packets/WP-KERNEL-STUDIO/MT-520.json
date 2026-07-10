@@ -1,0 +1,140 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-520",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-520.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-520.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-501",
+      "MT-504",
+      "MT-507",
+      "MT-508",
+      "MT-513",
+      "MT-515",
+      "MT-518",
+      "MT-015"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Automation surface GUI/diagnostics/manual coverage obligation [STU-AUT-027]",
+  "spec_anchor": [
+    "STU-AUT-027",
+    "STU-MAN-001",
+    "STU-MDL-002"
+  ],
+  "scope": {
+    "summary": "Prove every automation surface (command contract, macros, batch runner, data-driven graphics, find/change, plugin surface, inspect/codegen, asset/OS/clipboard handoff) is operable from BOTH the native operator UI and the typed model/plugin surface, honors the headless/quiet law for all background/batch execution, exposes stable AccessKit/author_id targets + structured state to Argus so a no-context model can drive and re-observe every automation control, and is documented in the dual-audience Studio UserManual with operator workflows + model/plugin command reference derived from the command inputSchemas.",
+    "allowed_paths": [
+      "src/studio/**",
+      "src/manual/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "every automation surface dual-operable, quiet-law-honoring, Argus-visible, manual-covered"
+    ],
+    "proof_targets": [
+      "automation Argus coverage + dual-operability + manual self-consistency"
+    ],
+    "code_surfaces": [
+      "src/studio/automation/coverage_audit.rs",
+      "tests/studio/automation_coverage.rs"
+    ],
+    "expected_tests": [
+      "argus: every automation control reachable + re-observable by author_id",
+      "test: dual-operability (UI + model surface) for each automation surface",
+      "HBR-MAN-003: every automation command_id has a manual entry"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "automation surfaces (aggregate)"
+    ],
+    "argus_targets": [
+      "studio.macro_panel",
+      "studio.batch_panel",
+      "studio.find_change_panel",
+      "studio.asset_browser"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Automation / (coverage & command reference)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-QUIET-001",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Automation surfaces not model-discoverable/steerable or undocumented; no-context models blocked.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

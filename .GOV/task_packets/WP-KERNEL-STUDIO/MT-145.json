@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-145",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-145.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-145.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-144",
+      "MT-020"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Parent item override semantics + primary text frame [STU-LAY-007,STU-LAY-008]",
+  "spec_anchor": [
+    "STU-LAY-007",
+    "STU-LAY-008",
+    "STU-LAY-020",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Preserve parent item override semantics exactly: override a single parent item on a document page, override-all parent items on a page, detach an overridden item from its parent (severing the link), remove overrides (restoring inheritance), and a per-item allow-overrides flag that can be disabled so an item cannot be locally altered. Implement the primary text frame on a parent page: a designated text frame that new pages auto-adopt, re-threads automatically when the applied parent changes, and resizes to new page geometry without manual override; primary text frames are the anchor for smart text reflow (MT-154).",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "exact override semantics incl allow-overrides lock; primary text frame auto-adopts, re-threads, resizes"
+    ],
+    "proof_targets": [
+      "override lifecycle + allow-overrides lock runtime; primary-frame auto-adopt/re-thread test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/parent_overrides.rs",
+      "src/studio/layout/primary_text_frame.rs",
+      "studio-engine/src/layout/parent.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::parent_overrides",
+      "live: override-single / override-all / detach / remove-overrides restore inheritance; allow-overrides=false blocks local edit",
+      "test: primary text frame auto-adopted by new page + re-threads on parent change + resizes to page geometry"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "parent override controls"
+    ],
+    "argus_targets": [
+      "studio.layout.parent_override",
+      "studio.layout.primary_text_frame"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Overriding parent items & primary text frames"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Override edits corrupt inheritance; primary text frame missing breaks auto-page reflow anchor.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

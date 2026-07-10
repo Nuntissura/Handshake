@@ -1,0 +1,4009 @@
+[
+  {
+    "id": "MT-321",
+    "clause": "Design-system domain binding: studio.design_system command family + primitive layer bindings + engine boundary [STU-DS-001,STU-DS-035,STU-ARC-002]",
+    "summary": "Wire the handshake_core::studio::design_system domain to the studio-engine LayoutEngine (MT-020) through the typed boundary only: register the studio.design_system.<command>.v<N> command family over the MT-007 command surface, bind the canonical primitives StudioComponent/StudioComponentInstance/StudioVariable/StudioVariableCollection/StudioStyleRegistry/StudioAutoLayout/StudioConstraint/StudioLayoutGrid (MT-002) to StudioLayer nodes, and route every mutation through STUDIO_* EventLedger events (MT-003) + studio_* Postgres authority (MT-004). No solver/tessellation dep leaks into handshake_core; auto-layout/constraint solving lives behind the LayoutEngine trait.",
+    "spec_anchor": [
+      "STU-DS-001",
+      "STU-DS-035",
+      "STU-ARC-002",
+      "STU-CON-001"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/mod.rs",
+      "src/studio/design_system/domain.rs",
+      "studio-engine/src/layout/**"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::domain",
+      "live: studio.design_system command mutation emits ledger event + lands in studio_* authority via PromotionGate",
+      "test: no solver/GPU dep leak into handshake_core; primitives bound to StudioLayer without forking types"
+    ],
+    "depends_on": [
+      "MT-002",
+      "MT-007",
+      "MT-003",
+      "MT-004",
+      "MT-020"
+    ],
+    "risk_if_missed": "No design-system domain wiring; all 14.10 MTs unroutable and unauditable.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "command-family + ledger/authority routing test"
+    ],
+    "acceptance": [
+      "studio.design_system command family routes through LayoutEngine boundary + ledger + Postgres; canonical primitives bound; no dep leak"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-322",
+    "clause": "studio_* design-system authority tables + dated migrations [STU-DS-049,STU-CON-004]",
+    "summary": "Author the design-system studio_* tables as dated migrations (YYYY_MM_DD_studio_*.sql + .down.sql) with TEXT PRIMARY KEY prefixed ids and event_ledger_event_id NOT NULL FK: studio_components (SCMP-), studio_component_instances (SCIN-), studio_variables (SVAR-), studio_variable_collections (SVCL-), studio_styles (SSTY-). StudioAutoLayout/StudioConstraint/StudioLayoutGrid persist as typed fields on the owning studio_layers row (MT-004), not new tables. guard_authority_write(Postgres) on every write; no SQLite.",
+    "spec_anchor": [
+      "STU-DS-049",
+      "STU-CON-004",
+      "STU-ARC-004"
+    ],
+    "code_surfaces": [
+      "migrations/2026_MM_DD_studio_design_system.sql",
+      "src/studio/design_system/storage_glue.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "migrations/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "live-PG: migrations up+down clean",
+      "test: no_sqlite_tripwire fires on any design-system authority write without Postgres",
+      "test: prefixed-id + event_ledger_event_id FK enforced on all five tables"
+    ],
+    "depends_on": [
+      "MT-321",
+      "MT-004"
+    ],
+    "risk_if_missed": "No durable design-system authority store; components/variables/styles cannot promote.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "live PostgreSQL migration up/down + write-guard test"
+    ],
+    "acceptance": [
+      "design-system tables migrate on managed Postgres; layout primitives as layer fields; no SQLite; write-guard proven"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-323",
+    "clause": "StudioComponent create-from-selection (single + bulk) [STU-DS-001,STU-DS-002]",
+    "summary": "Implement StudioComponent (hsk.studio.component@1) as the single canonical reusable-definition primitive that subsumes both the component and the symbol, created from a StudioSelectionSet of one or more StudioLayer nodes. Support single-component creation (whole selection -> one main component) and bulk creation (one component per selected top-level node) in one typed command. No source product name ('component','symbol','master') is a Studio type or command name.",
+    "spec_anchor": [
+      "STU-DS-001",
+      "STU-DS-002"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/component_create.rs",
+      "src/studio/design_system/component.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: create-component action reachable via stable author_id; single + bulk paths",
+      "test: single creates one main component from selection; bulk creates one component per top-level node in one command"
+    ],
+    "depends_on": [
+      "MT-321",
+      "MT-322"
+    ],
+    "risk_if_missed": "No component authoring; the whole design-system reuse model has no source definitions.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "create-component command",
+        "component context menu"
+      ],
+      "targets": [
+        "studio.design_system.component_create",
+        "studio.design_system.component_bulk_create"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Creating components from a selection"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus create + single/bulk-creation test"
+    ],
+    "acceptance": [
+      "StudioComponent created single + bulk from selection; one canonical primitive; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-324",
+    "clause": "StudioComponentInstance live-reference model + typed placement [STU-DS-003,STU-DS-005]",
+    "summary": "Implement StudioComponentInstance (hsk.studio.component_instance@1) as a live reference to a StudioComponent (renders the current definition plus its own local overrides, never a copy) and the typed insert/place command used by model lanes (typed-insert) and the asset browser (drag-insert, MT-328). Instance re-renders when the main component definition changes except on locally overridden surfaces (MT-339).",
+    "spec_anchor": [
+      "STU-DS-003",
+      "STU-DS-005"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/instance.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::instance",
+      "live: placing an instance emits ledger event + authority row; editing the main component re-renders the instance (live reference, not copy)"
+    ],
+    "depends_on": [
+      "MT-323"
+    ],
+    "risk_if_missed": "No instance model; components cannot be reused; design system is inert.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "live-reference re-render test"
+    ],
+    "acceptance": [
+      "StudioComponentInstance is a live reference with typed placement; re-renders on definition change; not a copy"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-325",
+    "clause": "Instance-valid-on-main-deletion + restore-main-from-instance [STU-DS-003a]",
+    "summary": "Guarantee StudioComponentInstance nodes remain valid and renderable when their main StudioComponent is deleted, and implement a restore command that regenerates the main StudioComponent from any surviving instance. The command routes through the sandbox->validation->PromotionGate lifecycle before writing the regenerated main definition to authority.",
+    "spec_anchor": [
+      "STU-DS-003a",
+      "STU-ARC-005"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/restore.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::restore",
+      "live: deleting the main component leaves instances renderable; restore regenerates a valid main from a surviving instance via PromotionGate"
+    ],
+    "depends_on": [
+      "MT-324",
+      "MT-006"
+    ],
+    "risk_if_missed": "Deleting a main component orphans instances irrecoverably; no restore path.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "orphan-survival + restore-regeneration test"
+    ],
+    "acceptance": [
+      "instances survive main deletion; restore regenerates main from instance via promotion"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-326",
+    "clause": "Symbol-set placement/manipulation dedup onto instance transforms [STU-DS-002a]",
+    "summary": "Implement the symbol-set placement and manipulation tooling (the spray/shift/scrunch/size/spin/stain/screen/style family) as per-instance transform and style operations over a group of StudioComponentInstance nodes; a symbol set is a group of instances, not a distinct primitive. No symbol-tool product name is a Studio command name; each operation is a typed command on the selected instance group.",
+    "spec_anchor": [
+      "STU-DS-002a",
+      "STU-DS-003"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/instance_set.rs",
+      "src/studio/design_system/instance_set.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: instance-set tools reachable via author_id",
+      "test: spray/shift/scrunch/size/spin/stain/screen/style apply as per-instance transform/style ops on an instance group; no distinct symbol-set primitive"
+    ],
+    "depends_on": [
+      "MT-324"
+    ],
+    "risk_if_missed": "Symbol-set tooling forks a second primitive; dedup violation.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "instance-set toolset"
+      ],
+      "targets": [
+        "studio.design_system.instance_set_tools"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Instance sets (spray, size, spin, style)"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus instance-set + per-instance-op test"
+    ],
+    "acceptance": [
+      "symbol-set behaviors dedup onto instance transforms/styles; no separate primitive; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-327",
+    "clause": "Description + documentation-link shared contract (components/styles/variables) [STU-DS-004]",
+    "summary": "Add the optional description and documentation-link field to StudioComponent, StudioComponentInstance, StudioStyleRegistry entries, and StudioVariable, surfaced in the operator asset browser, the instance inspector, and the model/UserManual surfaces. This is one shared contract across all three primitive families, not three separate fields.",
+    "spec_anchor": [
+      "STU-DS-004",
+      "STU-DS-024a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/description.rs",
+      "src/studio/design_system/description.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: description + documentation-link editable in inspector via author_id",
+      "test: shared contract present on component/instance/style/variable; persists to authority; surfaced to model read API"
+    ],
+    "depends_on": [
+      "MT-324"
+    ],
+    "risk_if_missed": "No description/doc-link surface; design-system assets undiscoverable and undocumented.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "asset description field",
+        "instance inspector description"
+      ],
+      "targets": [
+        "studio.design_system.description_field"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Describing and documenting assets"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus description-field + shared-contract test"
+    ],
+    "acceptance": [
+      "shared description + documentation-link across components/styles/variables; inspector + model surfaces; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-328",
+    "clause": "Asset-browser panel + slash-path nested folders [STU-DS-005,STU-DS-005a]",
+    "summary": "Implement the asset-browser surface that lists local and enabled-library components with text search, section grouping by library and by document page, and drag-to-insert (operator) / typed-insert (model, MT-324) instantiation. Component and style organization uses slash-path names (e.g. Button/Primary/Large) that render as nested picker folders; the slash-path is a naming convention on the name, not a distinct folder entity.",
+    "spec_anchor": [
+      "STU-DS-005",
+      "STU-DS-005a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/asset_browser.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: asset browser reachable with stable author_ids; text search + library/page grouping + drag-insert",
+      "test: slash-path names render as nested folders without a folder entity; typed-insert parity with drag-insert"
+    ],
+    "depends_on": [
+      "MT-324",
+      "MT-009"
+    ],
+    "risk_if_missed": "No asset browser; components not discoverable or insertable by operator.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "asset browser panel",
+        "component search",
+        "insert-on-drag"
+      ],
+      "targets": [
+        "studio.design_system.asset_browser",
+        "studio.design_system.asset_search"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / The asset browser"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus asset-browser + slash-path folder test"
+    ],
+    "acceptance": [
+      "asset browser lists local+library components with search/grouping/drag-insert; slash-path folders; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-329",
+    "clause": "Variant-set model: one component with variant-property schema [STU-DS-006]",
+    "summary": "Implement the variant set as one StudioComponent carrying a variant-property schema addressed by named property=value pairs (e.g. state=hover, size=large); each variant is a member definition selected by its property assignment, not N separate components. The model stores the variant-property schema and the member definitions on a single StudioComponent.",
+    "spec_anchor": [
+      "STU-DS-006"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/variant.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::variant",
+      "live: a variant set is one StudioComponent with a variant-property schema + member definitions; member selected by property assignment"
+    ],
+    "depends_on": [
+      "MT-323"
+    ],
+    "risk_if_missed": "Variants fork into N components; variant explosion and dedup violation.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "single-component variant-schema test"
+    ],
+    "acceptance": [
+      "variant set is one StudioComponent with variant-property schema + member definitions selected by assignment"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-330",
+    "clause": "Combine into variant set / extract member + variant-property editing [STU-DS-006a]",
+    "summary": "Implement combining separate components into a variant set and extracting a member back to a standalone component, plus adding, renaming, reordering, and value-editing variant properties on the set. All operations are typed commands with an operator variant editor surface.",
+    "spec_anchor": [
+      "STU-DS-006a",
+      "STU-DS-006"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/variant_editor.rs",
+      "src/studio/design_system/variant_editor.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: variant editor reachable via author_id; combine/extract + add/rename/reorder/edit variant properties",
+      "test: combine yields one variant set; extract yields a standalone component; property edits update the schema"
+    ],
+    "depends_on": [
+      "MT-329",
+      "MT-009"
+    ],
+    "risk_if_missed": "No variant authoring; variant sets cannot be built or maintained.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "variant editor",
+        "variant-property list"
+      ],
+      "targets": [
+        "studio.design_system.variant_editor",
+        "studio.design_system.variant_property_edit"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Building variant sets"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus combine/extract + property-edit test"
+    ],
+    "acceptance": [
+      "combine/extract + variant-property add/rename/reorder/edit; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-331",
+    "clause": "Variant conflict detection as StudioValidationDescriptor check [STU-DS-007]",
+    "summary": "Implement variant-conflict detection as a StudioValidationDescriptor check (14.24): two member definitions with identical variant-property assignments are a validation error flagged on the component until made unique. This is a validation-descriptor finding with a stable code and severity, not merely a UI hint, and surfaces in the SimulationReceipt.",
+    "spec_anchor": [
+      "STU-DS-007",
+      "STU-VAL-001"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/variant_conflict.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::variant_conflict",
+      "test: duplicate variant-property assignment raises a blocking descriptor finding with stable code; resolves when assignments unique"
+    ],
+    "depends_on": [
+      "MT-329",
+      "MT-005"
+    ],
+    "risk_if_missed": "Conflicting variants silently coexist; broken variant selection at runtime.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "variant-conflict validation-descriptor test"
+    ],
+    "acceptance": [
+      "duplicate variant assignments are a blocking validation-descriptor finding; not a UI-only hint"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-332",
+    "clause": "Instance variant-property switchable fields [STU-DS-008]",
+    "summary": "Expose a variant-set instance's variant properties as switchable fields on the instance inspector; setting a variant property re-selects the member definition in place while preserving compatible overrides (MT-340). Runtime variant switching from a prototype interaction is the change-to action in 14.11 (MT-378) and reuses this switch path.",
+    "spec_anchor": [
+      "STU-DS-008"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/variant_switch.rs",
+      "src/studio/design_system/variant_switch.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: instance inspector shows switchable variant-property fields via author_id",
+      "test: setting a variant property re-selects the member in place + preserves compatible overrides"
+    ],
+    "depends_on": [
+      "MT-329",
+      "MT-340",
+      "MT-009"
+    ],
+    "risk_if_missed": "Instances cannot switch variants; interactive components (14.11) have no switch primitive.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "instance variant-property fields"
+      ],
+      "targets": [
+        "studio.design_system.variant_switch"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Switching instance variants"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus variant-field switch + override-preservation test"
+    ],
+    "acceptance": [
+      "instance exposes switchable variant fields; in-place member re-selection preserves compatible overrides"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-333",
+    "clause": "Component-property declaration model + instance-inspector typed fields [STU-DS-009]",
+    "summary": "Implement named component properties declared on a StudioComponent that surface on every instance's inspector as typed fields, decoupling instance-level configuration from variant explosion. This MT provides the declaration/schema model and the typed-field inspector rendering; the four property-type bindings are MT-334..MT-338. The property-type set is normative and enumerated in the spec.",
+    "spec_anchor": [
+      "STU-DS-009"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/component_property.rs",
+      "src/studio/design_system/component_property.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: component-property editor + instance-inspector typed fields reachable via author_id",
+      "test: declared properties surface as typed fields on every instance; decoupled from variants"
+    ],
+    "depends_on": [
+      "MT-323",
+      "MT-324",
+      "MT-009"
+    ],
+    "risk_if_missed": "No component-property model; authors forced into variant explosion.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "component-property editor",
+        "instance property fields"
+      ],
+      "targets": [
+        "studio.design_system.component_property_editor"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Component properties"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus property-declaration + instance-field test"
+    ],
+    "acceptance": [
+      "component properties declared on component + surfaced as typed instance fields; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-334",
+    "clause": "Boolean component property (nested-layer visibility) [STU-DS-010]",
+    "summary": "Implement the Boolean component-property type binding: a named boolean field on the instance toggles visibility of one or more nested layers of the component without creating new variants. The binding maps the property to the target nested-layer visibility surface declared on the StudioComponent.",
+    "spec_anchor": [
+      "STU-DS-010",
+      "STU-DS-009"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/property_boolean.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::property_boolean",
+      "test: boolean property toggles nested-layer visibility per instance without new variants"
+    ],
+    "depends_on": [
+      "MT-333"
+    ],
+    "risk_if_missed": "Boolean toggles require variant explosion; property model incomplete.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "boolean-property visibility-binding test"
+    ],
+    "acceptance": [
+      "boolean property toggles nested-layer visibility per instance; no new variants"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-335",
+    "clause": "Text component property (per-instance copy) [STU-DS-011]",
+    "summary": "Implement the Text component-property type binding: a named text field on the instance edits the content of one or more nested text layers of the component from a single named field, so copy varies per instance without new variants.",
+    "spec_anchor": [
+      "STU-DS-011",
+      "STU-DS-009"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/property_text.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::property_text",
+      "test: text property edits nested text-layer content per instance from a named field"
+    ],
+    "depends_on": [
+      "MT-333"
+    ],
+    "risk_if_missed": "Per-instance copy requires overrides or variants; property model incomplete.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "text-property content-binding test"
+    ],
+    "acceptance": [
+      "text property edits nested text content per instance from a named field"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-336",
+    "clause": "Instance-swap component property + preferred-values list + search-all fallback [STU-DS-012,STU-DS-015]",
+    "summary": "Implement the Instance-swap component-property type: a named field binds a nested StudioComponentInstance slot and swaps the nested component per instance, constrained to an author-curated preferred-values list that restricts the swap picker to an allowed set while still permitting a full search-all fallback. The swap picker is an operator surface reachable via author_id.",
+    "spec_anchor": [
+      "STU-DS-012",
+      "STU-DS-015"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/property_swap.rs",
+      "src/studio/design_system/property_swap.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: instance-swap property picker reachable via author_id; preferred-values + search-all",
+      "test: swap constrained to preferred-values list; search-all fallback available; per-instance nested swap"
+    ],
+    "depends_on": [
+      "MT-333",
+      "MT-324"
+    ],
+    "risk_if_missed": "No curated nested-instance swapping; open composition forces variant explosion.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "instance-swap property picker",
+        "preferred-values list"
+      ],
+      "targets": [
+        "studio.design_system.property_swap_picker"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Instance-swap properties"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus swap-picker + preferred-values/search-all test"
+    ],
+    "acceptance": [
+      "instance-swap property swaps nested component with curated preferred-values + search-all; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-337",
+    "clause": "Exposed-nested component property [STU-DS-013]",
+    "summary": "Implement the Exposed-nested component-property type: properties of a nested instance marked 'exposed' surface on the outer instance's inspector, so the inner instance's own properties are editable from the outer instance without descending into it.",
+    "spec_anchor": [
+      "STU-DS-013",
+      "STU-DS-009"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/property_exposed.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::property_exposed",
+      "test: nested-instance properties marked exposed appear + edit from the outer instance inspector"
+    ],
+    "depends_on": [
+      "MT-333",
+      "MT-336"
+    ],
+    "risk_if_missed": "Nested component config buried; no exposed-property surfacing.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "exposed-nested surfacing test"
+    ],
+    "acceptance": [
+      "exposed nested-instance properties surface + edit on the outer instance"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-338",
+    "clause": "Slot component property (structural placeholder) [STU-DS-014]",
+    "summary": "Implement the Slot component-property type: a structural placeholder region on the component that lets a consumer insert or replace arbitrary child content per instance, complementing instance-swap for open-ended composition where the inserted content is not a single swappable instance.",
+    "spec_anchor": [
+      "STU-DS-014",
+      "STU-DS-015"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/property_slot.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::property_slot",
+      "test: slot accepts arbitrary per-instance child content (insert/replace); distinct from single-instance swap"
+    ],
+    "depends_on": [
+      "MT-333"
+    ],
+    "risk_if_missed": "No open-ended composition; slot-based layouts impossible.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "slot insert/replace test"
+    ],
+    "acceptance": [
+      "slot property accepts arbitrary per-instance child content; complements instance-swap"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-339",
+    "clause": "Override inheritance model [STU-DS-016]",
+    "summary": "Implement the override model: a StudioComponentInstance inherits every change to its main StudioComponent except properties the consumer has locally overridden. Overridable surfaces are exactly: text content, fills/strokes/paint, effects, visibility, nested instance swaps, and exposed-nested property values. Local overrides are authority fields on the instance.",
+    "spec_anchor": [
+      "STU-DS-016"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/override_model.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::override_model",
+      "live: instance inherits upstream changes except overridden text/paint/effects/visibility/swap/exposed-nested surfaces"
+    ],
+    "depends_on": [
+      "MT-324"
+    ],
+    "risk_if_missed": "Override semantics undefined; instances corrupt on component update.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "override inheritance-vs-local test"
+    ],
+    "acceptance": [
+      "instance inherits all upstream changes except the enumerated locally-overridden surfaces"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-340",
+    "clause": "Override persistence across variant/swap + reset (per-property + wholesale) + name/hierarchy matching [STU-DS-017]",
+    "summary": "Implement override persistence: overrides persist across variant switches and component swaps when the target structure matches by layer name and hierarchy, and are resettable both per-property and wholesale (reset-all-overrides). Override matching uses the same name/hierarchy pairing the smart-animate engine uses in 14.11 (MT-384). Reset controls are an operator override surface.",
+    "spec_anchor": [
+      "STU-DS-017"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/override_reset.rs",
+      "src/studio/design_system/override_match.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: override reset controls (per-property + reset-all) reachable via author_id",
+      "test: overrides persist across variant switch/swap on name+hierarchy match; per-property + wholesale reset restore defaults"
+    ],
+    "depends_on": [
+      "MT-339",
+      "MT-332"
+    ],
+    "risk_if_missed": "Overrides lost on variant switch/swap or unresettable; instance editing unusable.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "override panel",
+        "reset-all-overrides"
+      ],
+      "targets": [
+        "studio.design_system.override_panel",
+        "studio.design_system.override_reset"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Instance overrides and reset"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus override-persistence + reset test"
+    ],
+    "acceptance": [
+      "overrides persist across variant/swap on name/hierarchy match; per-property + wholesale reset; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-341",
+    "clause": "Instance-swap-any-component picker carries/drops overrides [STU-DS-018]",
+    "summary": "Implement the instance-swap operation that replaces an instance with any other component via a searchable picker, carrying compatible overrides onto the new component and dropping incompatible overrides rather than silently reassigning them. Swap and override state are authority fields on StudioComponentInstance (14.23).",
+    "spec_anchor": [
+      "STU-DS-018"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/instance_swap.rs",
+      "src/studio/design_system/instance_swap.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: swap-any-component picker reachable via author_id",
+      "test: compatible overrides carry onto new component; incompatible overrides dropped (not silently reassigned)"
+    ],
+    "depends_on": [
+      "MT-340"
+    ],
+    "risk_if_missed": "Instance swap silently reassigns overrides; corrupted instances.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "swap-instance picker"
+      ],
+      "targets": [
+        "studio.design_system.instance_swap_picker"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Swapping an instance"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus swap-any + override carry/drop test"
+    ],
+    "acceptance": [
+      "swap replaces instance with any component; compatible overrides carried, incompatible dropped; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-342",
+    "clause": "Library publish model (local-first) + publish notes/change list [STU-DS-019,STU-DS-019a]",
+    "summary": "Implement the library as a local-first publish/subscribe surface over StudioComponent, StudioStyleRegistry entries, and StudioVariableCollections. Publishing pushes selected items with a per-item change list and publish notes. The whole publish/consume loop works offline; cross-machine/cross-tenant distribution is an optional adapter, never a runtime requirement.",
+    "spec_anchor": [
+      "STU-DS-019",
+      "STU-DS-019a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/library_publish.rs",
+      "src/studio/design_system/library.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: publish dialog reachable via author_id; per-item change list + publish notes",
+      "live: publish writes a local library authority record offline (no cloud dependency)"
+    ],
+    "depends_on": [
+      "MT-323",
+      "MT-354",
+      "MT-346"
+    ],
+    "risk_if_missed": "No library publishing; design system cannot be shared or versioned.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "publish dialog",
+        "change-list preview"
+      ],
+      "targets": [
+        "studio.design_system.library_publish"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Publishing a library"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus publish + local-first offline test"
+    ],
+    "acceptance": [
+      "local-first publish over components/styles/variables with change list + notes; offline; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-343",
+    "clause": "Library consume + update-review (preview, selective apply, overrides intact) [STU-DS-019b]",
+    "summary": "Implement the consuming side: documents receive update-review prompts, preview pending updates, and apply them selectively while keeping instance overrides intact (MT-339/MT-340). Update review is an operator panel; selective apply is a typed command.",
+    "spec_anchor": [
+      "STU-DS-019b"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/library_update.rs",
+      "src/studio/design_system/library_update.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: update-review panel reachable via author_id; preview + selective apply",
+      "test: selective apply updates chosen items; instance overrides remain intact after update"
+    ],
+    "depends_on": [
+      "MT-342",
+      "MT-340"
+    ],
+    "risk_if_missed": "No update review; consumers cannot safely accept library changes.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "update-review panel",
+        "pending-update preview"
+      ],
+      "targets": [
+        "studio.design_system.library_update_review"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Reviewing library updates"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus update-review + override-intact test"
+    ],
+    "acceptance": [
+      "update-review preview + selective apply keeping overrides intact; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-344",
+    "clause": "Per-document library enable/disable scoping [STU-DS-020]",
+    "summary": "Implement per-document enable/disable of individual published libraries, scoping the visible design-system surface (asset browser, style pickers, variable pickers) per document. Enablement is authority state on the StudioDocument.",
+    "spec_anchor": [
+      "STU-DS-020"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/library_manager.rs",
+      "src/studio/design_system/library_enable.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: library manager reachable via author_id; enable/disable per document",
+      "test: disabling a library removes its items from asset browser + style/variable pickers for that document"
+    ],
+    "depends_on": [
+      "MT-342",
+      "MT-328"
+    ],
+    "risk_if_missed": "All libraries always visible; per-document scoping impossible.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "library manager",
+        "enable/disable toggles"
+      ],
+      "targets": [
+        "studio.design_system.library_manager"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Enabling libraries per document"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus enable/disable scoping test"
+    ],
+    "acceptance": [
+      "per-document library enable/disable scopes asset/style/variable surfaces; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-345",
+    "clause": "Library ops through sandbox->validation->PromotionGate; breaking update = validation failure [STU-DS-021]",
+    "summary": "Route model-authored library publish, update-review, and swap operations through the sandbox -> validation -> PromotionGate lifecycle before authority rows change. A library update that would break instances is a validation failure (a blocking StudioValidationDescriptor finding), not an accepted mutation.",
+    "spec_anchor": [
+      "STU-DS-021",
+      "STU-ARC-005"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/library_promotion.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "live: model library op enters sandbox->validation->PromotionGate before authority write (fails closed)",
+      "negative: an update that would break instances is rejected as a blocking validation finding"
+    ],
+    "depends_on": [
+      "MT-342",
+      "MT-006",
+      "MT-005"
+    ],
+    "risk_if_missed": "Model library edits bypass validation; breaking updates corrupt consumers.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-SWARM-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "promotion fail-closed + breaking-update rejection test"
+    ],
+    "acceptance": [
+      "library ops gated by promotion; instance-breaking update is a validation failure, not a mutation"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-346",
+    "clause": "StudioVariable primitive + four types (color/number/string/boolean) [STU-DS-022,STU-DS-022a,STU-DS-022b,STU-DS-022c,STU-DS-022d]",
+    "summary": "Implement StudioVariable (hsk.studio.variable@1) as the single design-token primitive with the normative four-type set: Color (value carrying an explicit StudioColorProfile ref), Number (typed numeric with unit), String (text), Boolean (true/false). Every variable resolves to exactly one value per active mode of its owning collection (MT-347). There is no separate prototype-only variable type; the same primitive is shared with 14.11 (MT-383).",
+    "spec_anchor": [
+      "STU-DS-022",
+      "STU-DS-022a",
+      "STU-DS-022b",
+      "STU-DS-022c",
+      "STU-DS-022d"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/variable.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::variable",
+      "live: all four variable types round-trip through authority; each resolves one value per active mode"
+    ],
+    "depends_on": [
+      "MT-321",
+      "MT-322"
+    ],
+    "risk_if_missed": "No design-token primitive; variables and prototype logic have no shared value type.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "four-type variable round-trip test"
+    ],
+    "acceptance": [
+      "StudioVariable with color/number/string/boolean types; one value per active mode; shared with prototyping"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-347",
+    "clause": "StudioVariableCollection + modes (no plan-gated cap) [STU-DS-023]",
+    "summary": "Implement StudioVariableCollection (hsk.studio.variable_collection@1) grouping variables and defining the collection's modes (e.g. light/dark, compact/comfortable); every variable stores one value per mode. Studio MUST NOT impose a provider-style plan-gated mode-count cap; mode count is bounded only by document and performance limits documented in 14.23.",
+    "spec_anchor": [
+      "STU-DS-023"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/variable_collection.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::variable_collection",
+      "test: collection defines modes + one value per variable per mode; no plan-gated mode-count cap enforced"
+    ],
+    "depends_on": [
+      "MT-346"
+    ],
+    "risk_if_missed": "No collection/mode grouping; mode-aware tokens impossible.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "collection-mode value-matrix test"
+    ],
+    "acceptance": [
+      "collection groups variables with one value per mode; no plan-gated cap"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-348",
+    "clause": "Mode set/inherit on layer container + re-resolve subtree [STU-DS-024]",
+    "summary": "Implement setting a mode explicitly on any StudioLayer container (frame/section/page) or inheriting (auto) from ancestors; setting or changing a mode re-resolves every bound variable in that subtree. Runtime mode switching from a prototype is the set_variable_mode action in 14.11 (MT-382) and reuses this re-resolution path. The mode selector is an operator surface.",
+    "spec_anchor": [
+      "STU-DS-024"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/mode_selector.rs",
+      "src/studio/design_system/mode_resolve.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: mode selector on a layer container reachable via author_id",
+      "live: setting/changing a mode re-resolves every bound variable in the subtree; auto-inherit from ancestors"
+    ],
+    "depends_on": [
+      "MT-347",
+      "MT-009"
+    ],
+    "risk_if_missed": "Modes cannot be applied; mode-aware theming inert.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "mode selector on container"
+      ],
+      "targets": [
+        "studio.design_system.mode_selector"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Applying modes"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus mode-set + subtree re-resolve test"
+    ],
+    "acceptance": [
+      "mode set/inherit on container re-resolves bound variables in subtree; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-349",
+    "clause": "Bind variable to property (literal vs binding, re-resolve) [STU-DS-024a]",
+    "summary": "Implement binding a StudioVariable to a property: binding replaces a raw literal with a live reference, and changing the variable's per-mode value or the active mode re-resolves every bound property. A property MUST hold either a literal or a variable binding, never an ambiguous mix on the same field. The binding UI is an operator surface enforced in parallel by the model command surface.",
+    "spec_anchor": [
+      "STU-DS-024a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/variable_bind.rs",
+      "src/studio/design_system/variable_bind.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: bind-variable control reachable via author_id on eligible property fields",
+      "test: binding replaces literal with live ref; value/mode change re-resolves; field is literal-XOR-binding (no ambiguous mix)"
+    ],
+    "depends_on": [
+      "MT-347",
+      "MT-009"
+    ],
+    "risk_if_missed": "Variables cannot drive properties; tokens are inert.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "bind-variable control",
+        "literal/binding toggle"
+      ],
+      "targets": [
+        "studio.design_system.variable_bind"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Binding variables to properties"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus bind + literal-XOR-binding test"
+    ],
+    "acceptance": [
+      "variable binds to property as live ref; re-resolves on value/mode change; literal-XOR-binding; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-350",
+    "clause": "Variable scope + hide-from-publishing enforcement [STU-DS-025]",
+    "summary": "Implement per-variable scope that restricts which property pickers offer it (e.g. a color variable scoped to fills only) plus a hide-from-publishing flag. Scoping is enforced in BOTH the operator picker and the model command surface, so a scoped variable is not offered on an ineligible property in either lane.",
+    "spec_anchor": [
+      "STU-DS-025"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/variable_scope.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::variable_scope",
+      "test: scoped variable not offered on ineligible property in operator picker AND model command surface; hide-from-publishing honored"
+    ],
+    "depends_on": [
+      "MT-346",
+      "MT-349"
+    ],
+    "risk_if_missed": "Variables offered on ineligible properties; token misuse and picker noise.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "scope-enforcement dual-lane test"
+    ],
+    "acceptance": [
+      "variable scope + hide-from-publishing enforced in operator picker and model surface"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-351",
+    "clause": "Variable aliasing + cycle-check validation [STU-DS-026]",
+    "summary": "Implement variable aliasing: a variable may reference another variable (semantic-token -> primitive-token chains), resolved through the active mode at bind time. Alias chains MUST be cycle-checked by a StudioValidationDescriptor (14.24); a cyclic alias is a validation error with a stable code.",
+    "spec_anchor": [
+      "STU-DS-026"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/variable_alias.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::variable_alias",
+      "test: alias resolves through active mode; cyclic alias raises a blocking validation-descriptor finding"
+    ],
+    "depends_on": [
+      "MT-346",
+      "MT-005"
+    ],
+    "risk_if_missed": "No aliasing/cycle-check; semantic-token systems impossible or infinite-loop.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "alias-resolution + cycle-detection test"
+    ],
+    "acceptance": [
+      "variable aliasing resolves through active mode; cyclic alias is a validation error"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-352",
+    "clause": "Collection extension (multi-brand) + per-platform code-syntax names [STU-DS-027]",
+    "summary": "Implement collection extension: a StudioVariableCollection may extend another, inheriting its variables while overriding selected values, to support multi-brand token systems. Each variable may additionally store optional per-platform code-syntax names (Web/Android/iOS token names) consumed by the export/codegen surface (14.14) instead of the raw variable name.",
+    "spec_anchor": [
+      "STU-DS-027"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/collection_extend.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::collection_extend",
+      "test: extended collection inherits + overrides selected values; per-platform code-syntax names stored + retrievable for codegen"
+    ],
+    "depends_on": [
+      "MT-347"
+    ],
+    "risk_if_missed": "No multi-brand extension or platform token names; token export incomplete.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "collection-extend + code-syntax-name test"
+    ],
+    "acceptance": [
+      "collection extension inherits/overrides values; per-platform code-syntax names stored for codegen"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-353",
+    "clause": "Variable/collection/mode editor panel [STU-DS-022,STU-DS-023,STU-DS-024]",
+    "summary": "Implement the operator variable/collection/mode editor panel: create/edit variables of all four types, manage collections and their modes, and edit per-mode values in a grid. It is the operator surface over the models in MT-346/347/348 and mirrors the model command surface for parity.",
+    "spec_anchor": [
+      "STU-DS-022",
+      "STU-DS-023",
+      "STU-DS-024"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/variable_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: variable/collection/mode editor reachable with stable author_ids; per-mode value grid",
+      "test: create/edit variables + collections + modes from the panel; parity with model command surface"
+    ],
+    "depends_on": [
+      "MT-346",
+      "MT-347",
+      "MT-348",
+      "MT-009"
+    ],
+    "risk_if_missed": "No operator surface for variables; tokens only model-editable.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "variables panel",
+        "collection editor",
+        "mode value grid"
+      ],
+      "targets": [
+        "studio.design_system.variable_panel",
+        "studio.design_system.collection_editor"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / The variables panel"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus variable-panel CRUD test"
+    ],
+    "acceptance": [
+      "operator variable/collection/mode editor with per-mode grid; parity with model surface; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-354",
+    "clause": "StudioStyleRegistry model + four style kinds + division-of-labor [STU-DS-029,STU-DS-034,STU-DS-034b]",
+    "summary": "Implement StudioStyleRegistry (hsk.studio.style_registry@1) owning named multi-property styles distinct from single-value variables, holding four normative style kinds (color/paint, text, effect, grid). Encode the styles-vs-variables division of labor (styles bundle multi-property definitions; variables are single mode-aware values; a variable MAY be consumed inside a style) and the appearance-stack-as-style rule: the Illustrator-class appearance stack lives on the layer paint model + StudioEffectStack, and a saved appearance preset is a StudioStyleRegistry color/effect entry, not a separate primitive.",
+    "spec_anchor": [
+      "STU-DS-029",
+      "STU-DS-034",
+      "STU-DS-034b"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/style_registry.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::style_registry",
+      "test: registry holds four style kinds; a variable is consumable inside a style; appearance preset maps to a color/effect entry (no new primitive)"
+    ],
+    "depends_on": [
+      "MT-321",
+      "MT-322"
+    ],
+    "risk_if_missed": "No styles registry; multi-property reusable styles fork or are missing.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "style-registry four-kind + variable-in-style test"
+    ],
+    "acceptance": [
+      "StudioStyleRegistry with four style kinds + division-of-labor; appearance preset as registry entry; no fork"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-355",
+    "clause": "Color/paint + effect style kinds [STU-DS-030,STU-DS-032]",
+    "summary": "Implement the color/paint style kind (captures a full paint stack incl. gradients/images, applies to fills and strokes) and the effect style kind (captures a StudioEffectStack of shadows/blurs/glows, applies to any effect-bearing layer). Both bind to the existing layer paint model (14.5) and StudioEffectStack (14.9); no shadow copy.",
+    "spec_anchor": [
+      "STU-DS-030",
+      "STU-DS-032"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/style_paint_effect.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::style_paint_effect",
+      "test: color/paint style applies a full paint stack to fills/strokes; effect style applies an effect stack to a layer"
+    ],
+    "depends_on": [
+      "MT-354"
+    ],
+    "risk_if_missed": "No paint/effect styles; reusable paint and effect definitions missing.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "paint-style + effect-style apply test"
+    ],
+    "acceptance": [
+      "color/paint + effect style kinds bind to paint model + StudioEffectStack; apply correctly"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-356",
+    "clause": "Text + grid style kinds [STU-DS-031,STU-DS-033]",
+    "summary": "Implement the text style kind (captures a complete StudioTypeStyle typographic definition from 14.7, applies to text stories/ranges) and the grid style kind (captures a StudioLayoutGrid configuration, MT-363, applies to frames). Both bind to existing primitives without a separate copy.",
+    "spec_anchor": [
+      "STU-DS-031",
+      "STU-DS-033"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/style_text_grid.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::style_text_grid",
+      "test: text style applies a StudioTypeStyle to a range; grid style applies a StudioLayoutGrid config to a frame"
+    ],
+    "depends_on": [
+      "MT-354"
+    ],
+    "risk_if_missed": "No text/grid styles; reusable type and grid definitions missing.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "text-style + grid-style apply test"
+    ],
+    "acceptance": [
+      "text + grid style kinds bind to StudioTypeStyle + StudioLayoutGrid; apply correctly"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-357",
+    "clause": "Uniform style verbs + styles registry panel [STU-DS-034a]",
+    "summary": "Implement the uniform style operations across all four kinds: apply, merge (additive), break-link (detach), and redefine-from-selection (update all users). These are the registry's uniform verbs and subsume the Illustrator-class graphic-style operations. Provide the operator styles-registry panel exposing all four kinds + the verbs.",
+    "spec_anchor": [
+      "STU-DS-034a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/style_panel.rs",
+      "src/studio/design_system/style_ops.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: styles registry panel reachable via author_id; apply/merge/break-link/redefine",
+      "test: redefine-from-selection updates all users; break-link detaches; merge is additive; verbs uniform across four kinds"
+    ],
+    "depends_on": [
+      "MT-355",
+      "MT-356",
+      "MT-009"
+    ],
+    "risk_if_missed": "No style operations/panel; styles cannot be applied or maintained.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "styles registry panel",
+        "apply/merge/break-link/redefine controls"
+      ],
+      "targets": [
+        "studio.design_system.style_panel",
+        "studio.design_system.style_redefine"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Styles (color, text, effect, grid)"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus style-panel + uniform-verbs test"
+    ],
+    "acceptance": [
+      "uniform apply/merge/break-link/redefine across four style kinds + registry panel; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-358",
+    "clause": "StudioAutoLayout core: flow direction (vertical/horizontal/grid 2D) [STU-DS-035,STU-DS-036]",
+    "summary": "Implement StudioAutoLayout (hsk.studio.auto_layout@1) as the responsive-layout contract on a frame StudioLayer that repositions children automatically as they are added/removed/resized/reordered, with flow direction vertical, horizontal, and grid (two-dimensional). Grid flow arranges children into resizable rows and columns with per-child row/column span controls (CSS-grid-style 2D layout in the same primitive as 1D stacks). Solving lives behind the LayoutEngine (MT-020); the operator auto-layout panel exposes direction + grid controls.",
+    "spec_anchor": [
+      "STU-DS-035",
+      "STU-DS-036"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/auto_layout_panel.rs",
+      "src/studio/design_system/auto_layout.rs",
+      "studio-engine/src/layout/**"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: auto-layout panel reachable via author_id; vertical/horizontal/grid direction",
+      "live: children reposition on add/remove/resize/reorder; grid flow packs into rows/cols with per-child span"
+    ],
+    "depends_on": [
+      "MT-321",
+      "MT-020",
+      "MT-009"
+    ],
+    "risk_if_missed": "No auto layout; responsive components/lists impossible; separate CSS/flex model forced.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "auto-layout panel",
+        "direction + grid controls"
+      ],
+      "targets": [
+        "studio.design_system.auto_layout_panel"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Auto layout basics"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus auto-layout direction + grid-span test"
+    ],
+    "acceptance": [
+      "StudioAutoLayout repositions children; vertical/horizontal/grid flow with per-child span; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-359",
+    "clause": "Auto-layout spacing: wrap, gap (numeric/auto/negative), canvas-stacking, padding [STU-DS-037,STU-DS-038,STU-DS-039,STU-DS-040]",
+    "summary": "Implement auto-layout spacing on StudioAutoLayout: horizontal wrap (overflowing children flow to the next line for responsive multi-row layouts); gap accepting a numeric value, an auto value (space-between distribution), and negative values (overlapping stacks) while preserving flow order; a canvas-stacking setting controlling first-on-top vs last-on-top render for overlapping children; and padding settable uniformly, per axis, or per individual side. Solving is in the LayoutEngine.",
+    "spec_anchor": [
+      "STU-DS-037",
+      "STU-DS-038",
+      "STU-DS-039",
+      "STU-DS-040"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/auto_layout_spacing.rs",
+      "studio-engine/src/layout/**"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::auto_layout_spacing",
+      "test: wrap flows to next line; gap numeric/auto/negative preserving order; canvas-stacking first/last-on-top; padding uniform/per-axis/per-side"
+    ],
+    "depends_on": [
+      "MT-358"
+    ],
+    "risk_if_missed": "Auto-layout spacing incomplete; wrap, negative gaps, stacking, per-side padding missing.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "wrap/gap/stacking/padding solver test"
+    ],
+    "acceptance": [
+      "auto-layout wrap + numeric/auto/negative gap + canvas-stacking + uniform/per-axis/per-side padding"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-360",
+    "clause": "Auto-layout alignment + resizing: 9-position + baseline, primary/counter axis, hug/fill/fixed, min/max clamps [STU-DS-041,STU-DS-041a,STU-DS-042,STU-DS-043]",
+    "summary": "Implement auto-layout alignment and resizing on StudioAutoLayout: a nine-position child-alignment box plus a separate text-baseline alignment toggle; a primary(flow)-axis vs counter-axis distinction where the primary axis governs packing/distribution (incl. the auto/space-between gap) and the counter axis governs cross-alignment, with grid flow resolving alignment per cell; a per-axis resizing mode (hug-contents, fill-container, fixed); and minimum/maximum width/height clamps bounding hug and fill so components neither collapse nor overgrow.",
+    "spec_anchor": [
+      "STU-DS-041",
+      "STU-DS-041a",
+      "STU-DS-042",
+      "STU-DS-043"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/auto_layout_align.rs",
+      "studio-engine/src/layout/**"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::auto_layout_align",
+      "test: 9-pos + baseline align; primary/counter axis packing vs cross-align; hug/fill/fixed per axis; min/max clamps bound hug+fill"
+    ],
+    "depends_on": [
+      "MT-358"
+    ],
+    "risk_if_missed": "No alignment/resizing contract; responsive sizing core missing.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "align + axis + hug/fill/fixed + clamp test"
+    ],
+    "acceptance": [
+      "9-pos+baseline align, primary/counter axis, hug/fill/fixed, min/max clamps solved by LayoutEngine"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-361",
+    "clause": "Auto-layout advanced: absolute-position exclusion, stroke-in-spacing, deep nesting, convert-to-auto-layout [STU-DS-044,STU-DS-045]",
+    "summary": "Implement advanced auto-layout: excluding individual children from the flow (ignore-auto-layout / absolute position) while keeping them inside the frame under constraint-based positioning (MT-362) for overlays such as badges; an advanced setting choosing whether child stroke weights count in spacing; arbitrarily deep nesting of auto-layout frames combining per-level direction/gap/padding/resizing; and a convert-to-auto-layout command (optionally assisted) restructuring a plain frame's contents into an equivalent auto-layout structure as ordinary local StudioDocument state.",
+    "spec_anchor": [
+      "STU-DS-044",
+      "STU-DS-045"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/auto_layout_advanced.rs",
+      "src/studio/design_system/auto_layout_advanced.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: convert-to-auto-layout command + advanced controls reachable via author_id",
+      "test: absolute-position child excluded from flow but framed; stroke-in-spacing toggle; deep nesting; convert restructures a plain frame"
+    ],
+    "depends_on": [
+      "MT-360",
+      "MT-362"
+    ],
+    "risk_if_missed": "No absolute children, nesting, or convert; complete responsive trees impossible.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "convert-to-auto-layout",
+        "advanced auto-layout controls"
+      ],
+      "targets": [
+        "studio.design_system.auto_layout_convert",
+        "studio.design_system.auto_layout_advanced"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Advanced auto layout"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus convert + absolute-exclude + nesting test"
+    ],
+    "acceptance": [
+      "absolute-position exclusion + stroke-in-spacing + deep nesting + convert-to-auto-layout; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-362",
+    "clause": "StudioConstraint: horizontal/vertical/scale + suspend + axis mutual-exclusion [STU-DS-046,STU-DS-046a,STU-DS-046b,STU-DS-046c,STU-DS-046d,STU-DS-048]",
+    "summary": "Implement StudioConstraint (hsk.studio.constraint@1) governing how a non-auto-layout child responds when its parent frame resizes: exactly one horizontal constraint (left, right, left-and-right stretch, center, scale) and one vertical constraint (top, bottom, top-and-bottom stretch, center, scale), default top-left; the scale constraint stores size/position as percentages of the parent for proportional growth; and temporarily suspending child constraints during a modifier-held parent-resize drag. Unify resizing: a child is governed by StudioAutoLayout when the parent is an auto-layout frame and by StudioConstraint otherwise; the two MUST NOT both drive the same child on the same axis, and absolute-positioned auto-layout children fall back to StudioConstraint. The constraint panel is an operator surface.",
+    "spec_anchor": [
+      "STU-DS-046",
+      "STU-DS-046a",
+      "STU-DS-046b",
+      "STU-DS-046c",
+      "STU-DS-046d",
+      "STU-DS-048"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/constraint_panel.rs",
+      "src/studio/design_system/constraint.rs",
+      "studio-engine/src/layout/**"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: constraint panel reachable via author_id; horizontal/vertical/scale selectors",
+      "live: child repositions/resizes per constraint on parent resize; scale = percentage; suspend during modifier drag; no auto-layout+constraint on same axis"
+    ],
+    "depends_on": [
+      "MT-321",
+      "MT-020",
+      "MT-009"
+    ],
+    "risk_if_missed": "No constraint model; non-auto-layout children do not respond to resize.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "constraint panel",
+        "h/v constraint selectors"
+      ],
+      "targets": [
+        "studio.design_system.constraint_panel"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Constraints"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus constraint + scale-percentage + suspend + mutual-exclusion test"
+    ],
+    "acceptance": [
+      "StudioConstraint h/v/scale + suspend + auto-layout/constraint per-axis mutual exclusion; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-363",
+    "clause": "StudioLayoutGrid: uniform + column/row guides + stacked overlays + save-as-grid-style [STU-DS-047,STU-DS-047a,STU-DS-047b,STU-DS-047c,STU-DS-047d]",
+    "summary": "Implement StudioLayoutGrid (hsk.studio.layout_grid@1) as the alignment-guide overlay on a frame StudioLayer (distinct from StudioAutoLayout and StudioConstraint; a frame may carry all three): a uniform square grid with configurable cell size/color/opacity; column and row guides with a count and either fixed size (left/center/right or top/center/bottom anchoring plus offset) or stretch mode (margin + gutter), each guide set with its own color/opacity; multiple stacked overlays that render simultaneously and toggle individually; and saving a configuration as a named grid style in StudioStyleRegistry (MT-356) reapplied across frames/documents. The layout-grid panel is an operator surface.",
+    "spec_anchor": [
+      "STU-DS-047",
+      "STU-DS-047a",
+      "STU-DS-047b",
+      "STU-DS-047c",
+      "STU-DS-047d"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/layout_grid_panel.rs",
+      "src/studio/design_system/layout_grid.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: layout-grid panel reachable via author_id; uniform + column/row + stacked overlays",
+      "test: uniform grid cell/color/opacity; column/row fixed vs stretch; multiple stacked overlays toggle individually; save + reapply grid style"
+    ],
+    "depends_on": [
+      "MT-321",
+      "MT-356",
+      "MT-009"
+    ],
+    "risk_if_missed": "No layout grids; column/row/pixel alignment aids missing.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "layout-grid panel",
+        "overlay list"
+      ],
+      "targets": [
+        "studio.design_system.layout_grid_panel"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Layout grids"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus layout-grid + stacked-overlay + grid-style test"
+    ],
+    "acceptance": [
+      "StudioLayoutGrid uniform + column/row + stacked overlays + save-as-grid-style; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-364",
+    "clause": "Alignment aids: ruler guides, distance measure, object snapping, pixel grid, tidy-up/smart-distribute [STU-DS-047e]",
+    "summary": "Implement the alignment aids that are part of the layout surface but are not StudioLayoutGrid overlays: canvas- and frame-scoped ruler guides that snap objects during moves and clear per scope; live alt-hover distance measurement between objects and frame edges; object snapping with transient alignment lines and equal-spacing badges; a pixel grid visible at high zoom with a snap-to-pixel preference; and a tidy-up / smart-selection command that evenly distributes a rough selection into a row/column/grid with draggable spacing handles.",
+    "spec_anchor": [
+      "STU-DS-047e"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/alignment_aids.rs",
+      "src/studio/design_system/alignment_aids.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: ruler guides, snapping, pixel grid, tidy-up reachable via author_ids",
+      "test: guides snap + clear per scope; alt-hover distance readout; alignment lines + equal-spacing badges; snap-to-pixel; tidy-up distributes into row/col/grid"
+    ],
+    "depends_on": [
+      "MT-363",
+      "MT-009"
+    ],
+    "risk_if_missed": "No ruler guides/snapping/tidy-up; precise alignment work impossible.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "ruler guides",
+        "snapping + measurement",
+        "tidy-up command"
+      ],
+      "targets": [
+        "studio.design_system.ruler_guides",
+        "studio.design_system.tidy_up"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Guides, snapping and tidy-up"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus guides + snapping + tidy-up test"
+    ],
+    "acceptance": [
+      "ruler guides + distance measure + snapping + pixel grid + tidy-up; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-365",
+    "clause": "Design-system local-first analytics report (usage/adoption/detachment/orphaned) [STU-DS-050,STU-DS-049]",
+    "summary": "Implement design-system analytics as a locally computed report over the authority rows: component/variable/style usage counts, adoption, detachment rates, and orphaned-instance reports. The report runs fully offline with no account; any cloud/team aggregation is an optional adapter layered on the local report, never a prerequisite. The analytics report is an operator surface.",
+    "spec_anchor": [
+      "STU-DS-050",
+      "STU-DS-049"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/analytics_report.rs",
+      "src/studio/design_system/analytics.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/design_system/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: analytics report panel reachable via author_id",
+      "live: usage/adoption/detachment/orphaned-instance report computed locally over authority rows with no cloud dependency"
+    ],
+    "depends_on": [
+      "MT-323",
+      "MT-346",
+      "MT-354"
+    ],
+    "risk_if_missed": "No design-system analytics; adoption and orphan cleanup blind.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "analytics report panel"
+      ],
+      "targets": [
+        "studio.design_system.analytics_report"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / Analytics and adoption reports"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus local-analytics report test"
+    ],
+    "acceptance": [
+      "local-first design-system analytics over authority rows; cloud aggregation optional; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-366",
+    "clause": "Design-system model API + steerability [STU-DS-051,STU-MDL-001]",
+    "summary": "Ensure every design-system panel, picker, inspector field, and visible state (component/variant editors, component-property inspector, variable/collection/mode editor, style registry, auto-layout/constraint/grid controls) is model-visible and typed-steerable through the Studio command surface (MT-007): typed command ids, auto-generated input/outputSchema, dry_run, receipts, and undo semantics for the whole design-system command family. This is the backend model-control closure over 14.10, distinct from the aggregate GUI/Argus/manual closure (MT-367).",
+    "spec_anchor": [
+      "STU-DS-051",
+      "STU-MDL-001",
+      "STU-MDL-003"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/model_api.rs",
+      "src/api/studio.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::model_api",
+      "live: every design-system command exposes typed I/O + dry_run + receipt + undo through the Studio command surface; no operator-only design-system mutation"
+    ],
+    "depends_on": [
+      "MT-007",
+      "MT-357",
+      "MT-353",
+      "MT-362",
+      "MT-363"
+    ],
+    "risk_if_missed": "Design-system surface not fully model-steerable; models cannot drive components/variables/styles/layout.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-SWARM-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "design-system command typed-I/O + dry_run/receipt/undo test"
+    ],
+    "acceptance": [
+      "entire 14.10 command family model-visible + typed-steerable with dry_run/receipt/undo"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-367",
+    "clause": "Design-system aggregate GUI/Argus/UserManual/HBR closure [STU-DS-051]",
+    "summary": "Aggregate closure for 14.10: assert every design-system panel/picker/inspector/visible state is headlessly inspectable, steerable, and screenshot-capturable through Argus with no foreground focus steal, and ships dual-audience UserManual entries (operator layer + model layer: command ids, typed I/O, receipts, undo semantics, Argus targets, failure/recovery) kept same-change current. This MT verifies coverage completeness across all design-system operator-surface MTs (MT-323..MT-365) rather than authoring a new feature.",
+    "spec_anchor": [
+      "STU-DS-051"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/design_system/argus_targets.rs",
+      "src/manual/studio/design_system/**"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/manual/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: every design-system operator surface inspectable + screenshot-capturable with no focus steal",
+      "HBR-MAN-003 self-consistency: every design-system command_id has a dual-audience manual entry",
+      "test: Argus target registry covers all studio.design_system.* surfaces"
+    ],
+    "depends_on": [
+      "MT-366",
+      "MT-015",
+      "MT-008"
+    ],
+    "risk_if_missed": "Design-system surfaces not fully Argus/manual-covered; no-context models cannot discover or verify them.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "design-system Argus target registry",
+        "manual (design-system section)"
+      ],
+      "targets": [
+        "studio.design_system.argus_index",
+        "manual.studio.design_system"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Design Systems / (section coverage index)"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-MAN-003",
+      "HBR-QUIET-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus coverage audit + manual self-consistency test"
+    ],
+    "acceptance": [
+      "all 14.10 surfaces Argus-inspectable + dual-audience manual complete; coverage-completeness proven; no focus steal"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-371",
+    "clause": "Prototype domain binding: studio.prototype command family + StudioPrototypeFlow + engine boundary [STU-PRO-001,STU-ARC-002]",
+    "summary": "Wire the handshake_core::studio::prototype domain: register the studio.prototype.<command>.v<N> command family over the MT-007 command surface, bind StudioPrototypeFlow (hsk.studio.prototype_flow@1) as the single prototyping primitive owning the document's interaction graph (hotspot -> trigger -> action bindings between StudioLayer nodes, named flow starting points, per-flow settings), and route every mutation through STUDIO_* EventLedger events (MT-003) + studio_* Postgres authority (MT-004). It replaces every source-suite prototyping surface with one primitive and one command family.",
+    "spec_anchor": [
+      "STU-PRO-001",
+      "STU-ARC-002",
+      "STU-CON-001"
+    ],
+    "code_surfaces": [
+      "src/studio/prototype/mod.rs",
+      "src/studio/prototype/domain.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::prototype::domain",
+      "live: studio.prototype command mutation emits ledger event + lands in studio_* authority via PromotionGate",
+      "test: StudioPrototypeFlow is the single interaction-graph primitive; no source-suite prototyping fork"
+    ],
+    "depends_on": [
+      "MT-002",
+      "MT-007",
+      "MT-003",
+      "MT-004"
+    ],
+    "risk_if_missed": "No prototype domain wiring; all 14.11 prototyping MTs unroutable and unauditable.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "command-family + ledger/authority routing test"
+    ],
+    "acceptance": [
+      "studio.prototype command family routes through ledger + Postgres; StudioPrototypeFlow bound as single primitive"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-372",
+    "clause": "StudioPrototypeFlow + StudioMotionTimeline authority tables + dated migrations [STU-PRO-001,STU-PRO-028,STU-CON-004]",
+    "summary": "Author the prototyping/motion studio_* tables as dated migrations (YYYY_MM_DD_studio_*.sql + .down.sql) with TEXT PRIMARY KEY prefixed ids and event_ledger_event_id NOT NULL FK: studio_prototype_flows (SPFL-), studio_prototype_interactions (SPIN-), studio_motion_timelines (SMTL-), studio_motion_keyframes (SMKF-). Interactive-document roles (buttons/forms/MSO) persist as typed fields on the owning studio_layers row (MT-004), not new tables. guard_authority_write(Postgres) on every write; no SQLite.",
+    "spec_anchor": [
+      "STU-PRO-001",
+      "STU-PRO-028",
+      "STU-CON-004",
+      "STU-ARC-004"
+    ],
+    "code_surfaces": [
+      "migrations/2026_MM_DD_studio_prototype_motion.sql",
+      "src/studio/prototype/storage_glue.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "migrations/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "live-PG: migrations up+down clean",
+      "test: no_sqlite_tripwire fires on any prototype/motion authority write without Postgres",
+      "test: prefixed-id + event_ledger_event_id FK enforced on all four tables"
+    ],
+    "depends_on": [
+      "MT-371",
+      "MT-004"
+    ],
+    "risk_if_missed": "No durable prototype/motion authority store; flows and timelines cannot promote.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "live PostgreSQL migration up/down + write-guard test"
+    ],
+    "acceptance": [
+      "prototype/motion tables migrate on managed Postgres; interactive roles as layer fields; no SQLite; write-guard proven"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-373",
+    "clause": "Flow model + named starting points + per-flow settings [STU-PRO-001,STU-PRO-002,STU-PRO-003,STU-PRO-003a]",
+    "summary": "Implement the flow model on StudioPrototypeFlow: multiple named starting points per page (each defining an entry path, listed in the flow sidebar and independently launchable, several flows per page); and per-flow settings letting interactive-component state and variable values either reset or persist on navigation, optionally preserving the destination's scroll offset from the origin (MT-387), and maintaining navigation history so the back action (MT-378) is well-defined (overlays layer above without pushing history unless configured). The flow sidebar + settings are an operator surface.",
+    "spec_anchor": [
+      "STU-PRO-001",
+      "STU-PRO-002",
+      "STU-PRO-003",
+      "STU-PRO-003a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/flow_sidebar.rs",
+      "src/studio/prototype/flow.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: flow sidebar + starting points + prototype settings reachable via author_ids",
+      "live: multiple named starting points per page launchable; state reset/persist toggle; navigation history maintained for back"
+    ],
+    "depends_on": [
+      "MT-371",
+      "MT-009"
+    ],
+    "risk_if_missed": "No flow starting points or settings; prototypes have no entry paths or state model.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "flow sidebar",
+        "starting-point list",
+        "prototype settings"
+      ],
+      "targets": [
+        "studio.prototype.flow_sidebar",
+        "studio.prototype.flow_settings"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Flows and starting points"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus flow-sidebar + starting-point + settings test"
+    ],
+    "acceptance": [
+      "named starting points per page + reset/persist + nav-history settings; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-374",
+    "clause": "Connections UI: on-canvas arrows + reveal-on-select + per-page connection list [STU-PRO-002a]",
+    "summary": "Implement interaction connections as editable on-canvas arrows: selecting objects reveals their interactions for retargeting or deletion, and a per-page view lists all connections for bulk edit. Connections bind hotspot StudioLayer nodes to triggers/actions on StudioPrototypeFlow.",
+    "spec_anchor": [
+      "STU-PRO-002a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/connections.rs",
+      "src/studio/prototype/connections.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: on-canvas connection arrows + per-page connection list reachable via author_ids",
+      "test: selecting an object reveals its interactions; retarget/delete an arrow; per-page list bulk-edits connections"
+    ],
+    "depends_on": [
+      "MT-373"
+    ],
+    "risk_if_missed": "No connection editing; prototype interactions cannot be authored on canvas.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "on-canvas connection arrows",
+        "per-page connection list"
+      ],
+      "targets": [
+        "studio.prototype.connections",
+        "studio.prototype.connection_list"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Wiring connections"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus connection-arrow + reveal-on-select test"
+    ],
+    "acceptance": [
+      "editable on-canvas connection arrows + reveal-on-select + per-page bulk list; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-375",
+    "clause": "Trigger model + inspector + pointer/touch triggers [STU-PRO-004,STU-PRO-005,STU-PRO-007,STU-PRO-008,STU-PRO-010,STU-PRO-011]",
+    "summary": "Implement the trigger model (the event half of an interaction on a hotspot StudioLayer/frame) with a trigger inspector and the pointer/touch trigger subset: on click/tap; while hovering (auto-reverts on exit); while pressing (reverts on release); mouse enter/leave (no auto-revert); mouse down/up (press state machines, no auto-revert). Touch equivalents map to the same trigger primitives as their pointer forms.",
+    "spec_anchor": [
+      "STU-PRO-004",
+      "STU-PRO-005",
+      "STU-PRO-007",
+      "STU-PRO-008",
+      "STU-PRO-010",
+      "STU-PRO-011"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/trigger_inspector.rs",
+      "src/studio/prototype/trigger.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: trigger inspector reachable via author_id; click/tap, hover, press, enter/leave, down/up",
+      "live: each pointer/touch trigger fires its interaction; hover/press auto-revert; enter/leave + down/up do not auto-revert"
+    ],
+    "depends_on": [
+      "MT-374"
+    ],
+    "risk_if_missed": "No triggers; interactions cannot fire.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "trigger inspector"
+      ],
+      "targets": [
+        "studio.prototype.trigger_inspector"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Triggers (click, hover, press)"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus trigger-inspector + pointer/touch fire test"
+    ],
+    "acceptance": [
+      "pointer/touch trigger set with correct auto-revert semantics; touch maps to pointer primitives; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-376",
+    "clause": "Drag + key/gamepad + timer + media triggers [STU-PRO-006,STU-PRO-009,STU-PRO-012,STU-PRO-013]",
+    "summary": "Implement the remaining triggers on StudioPrototypeFlow: on drag (with continuous movement mapping for swipeable UI); key/gamepad (a key, key combination, or controller button); after delay (a frame-level dwell timer for splash screens/autoplay/timed states); and media timestamp/end (a media-bearing layer reaching a set timestamp or ending playback). These bind into the same trigger model + inspector as MT-375; runtime firing is deterministic.",
+    "spec_anchor": [
+      "STU-PRO-006",
+      "STU-PRO-009",
+      "STU-PRO-012",
+      "STU-PRO-013"
+    ],
+    "code_surfaces": [
+      "src/studio/prototype/trigger_advanced.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::prototype::trigger_advanced",
+      "live: drag maps continuous movement; key/combo/controller fires; after-delay dwell timer fires; media timestamp/end fires"
+    ],
+    "depends_on": [
+      "MT-375"
+    ],
+    "risk_if_missed": "No drag/key/timer/media triggers; swipe, keyboard, timed, and media prototypes impossible.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "drag/key/timer/media trigger-fire test"
+    ],
+    "acceptance": [
+      "drag + key/gamepad + after-delay + media timestamp/end triggers fire deterministically"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-377",
+    "clause": "Action model + chaining + conditional nesting + action inspector [STU-PRO-014]",
+    "summary": "Implement the action model (the response half of an interaction) with an action inspector: multiple actions chained on a single trigger, and actions nestable inside conditional branches (MT-381), so one trigger can run a small runtime program. This MT provides the action framework + inspector; the individual action bindings are MT-378..MT-382.",
+    "spec_anchor": [
+      "STU-PRO-014"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/action_inspector.rs",
+      "src/studio/prototype/action.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: action inspector reachable via author_id; chain multiple actions on one trigger",
+      "test: actions chain on one trigger + nest inside conditional branches (composed runtime program)"
+    ],
+    "depends_on": [
+      "MT-375"
+    ],
+    "risk_if_missed": "No action framework; triggers cannot do anything.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "action inspector",
+        "action chain list"
+      ],
+      "targets": [
+        "studio.prototype.action_inspector"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Actions and chaining"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus action-inspector + chain/nest test"
+    ],
+    "acceptance": [
+      "action model with multi-action chaining + conditional nesting + inspector; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-378",
+    "clause": "Navigation actions: navigate-to-frame, back, open-link + change-to variant switch [STU-PRO-014a,STU-PRO-014b,STU-PRO-014c,STU-PRO-014f]",
+    "summary": "Implement the navigation + variant actions on StudioPrototypeFlow: navigate to frame (replaces the top-level frame, pushing prototype history); back (pops navigation history); open link (opens an external URL, local viewer defers to OS handler); and change-to variant switch (switches an instance, incl. nested, to another variant in place via the MT-332 switch path). Runtime behavior is deterministic and history-correct.",
+    "spec_anchor": [
+      "STU-PRO-014a",
+      "STU-PRO-014b",
+      "STU-PRO-014c",
+      "STU-PRO-014f"
+    ],
+    "code_surfaces": [
+      "src/studio/prototype/action_navigation.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::prototype::action_navigation",
+      "live: navigate pushes history; back pops it; open-link defers to OS handler; change-to switches instance variant in place (incl. nested)"
+    ],
+    "depends_on": [
+      "MT-377",
+      "MT-332"
+    ],
+    "risk_if_missed": "No navigation/variant actions; prototypes cannot move between frames or switch states.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "navigate/back/open-link/change-to runtime test"
+    ],
+    "acceptance": [
+      "navigate-to-frame + back + open-link + change-to variant switch; history-correct; reuses MT-332 switch"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-379",
+    "clause": "Overlay + scroll-to-object actions [STU-PRO-014d,STU-PRO-014e]",
+    "summary": "Implement the overlay actions (open/swap/close overlay: layers a frame above; swaps the active overlay without history; dismisses it) and the scroll-to-object action (scrolls the viewport or a nested scroll container to a target, instant or eased). Overlay presentation details are MT-386; this MT is the action bindings and their runtime semantics.",
+    "spec_anchor": [
+      "STU-PRO-014d",
+      "STU-PRO-014e"
+    ],
+    "code_surfaces": [
+      "src/studio/prototype/action_overlay_scroll.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::prototype::action_overlay_scroll",
+      "live: open/swap/close overlay (swap adds no history); scroll-to-object instant + eased on viewport and nested container"
+    ],
+    "depends_on": [
+      "MT-377"
+    ],
+    "risk_if_missed": "No overlay/scroll actions; modal and scroll-target interactions impossible.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "overlay open/swap/close + scroll-to runtime test"
+    ],
+    "acceptance": [
+      "open/swap/close overlay + scroll-to-object (instant/eased); swap adds no history"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-380",
+    "clause": "Logic actions: set-variable + set-variable-mode + runtime expressions [STU-PRO-015,STU-PRO-016,STU-PRO-025]",
+    "summary": "Implement the logic actions writing/reading the shared StudioVariable primitives (MT-346/347) at runtime: set variable (writes a literal, alias, or expression result into a StudioVariable) and set variable mode (switches the active mode of a StudioVariableCollection for a target scope). Runtime expressions evaluate arithmetic on number variables, string concatenation, comparisons, and boolean logic, including reading mode-specific values. There is no separate prototype-only variable type. The set-variable/mode editor is an operator surface.",
+    "spec_anchor": [
+      "STU-PRO-015",
+      "STU-PRO-016",
+      "STU-PRO-025",
+      "STU-DS-028"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/action_variable.rs",
+      "src/studio/prototype/expression.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: set-variable + set-variable-mode editor reachable via author_ids",
+      "live: set-variable writes literal/alias/expression; set-variable-mode switches collection mode in scope; arithmetic/concat/compare/bool eval reads mode-specific values"
+    ],
+    "depends_on": [
+      "MT-377",
+      "MT-346",
+      "MT-347"
+    ],
+    "risk_if_missed": "No runtime variable writes; stateful/logic prototypes impossible.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "set-variable action editor",
+        "set-variable-mode editor"
+      ],
+      "targets": [
+        "studio.prototype.action_set_variable",
+        "studio.prototype.action_set_variable_mode"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Variables and logic"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus set-variable/mode + expression-eval test"
+    ],
+    "acceptance": [
+      "set-variable + set-variable-mode + runtime expressions over shared StudioVariable; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-381",
+    "clause": "Conditional (if/else) action + deterministic side-effect-scoped eval + cycle-error [STU-PRO-026]",
+    "summary": "Implement the conditional action: evaluate a boolean expression over StudioVariables and branch into distinct action lists; conditionals and multiple chained actions compose so one trigger runs a small runtime program. Expression evaluation MUST be deterministic and side-effect-scoped to variables and navigation, and expression/alias cycles are validation errors (MT-351). The conditional editor is an operator surface.",
+    "spec_anchor": [
+      "STU-PRO-026",
+      "STU-PRO-025"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/action_conditional.rs",
+      "src/studio/prototype/conditional.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: conditional (if/else) editor reachable via author_id",
+      "live: boolean expression branches into distinct action lists; deterministic + side-effect-scoped; expression/alias cycle is a validation error"
+    ],
+    "depends_on": [
+      "MT-380",
+      "MT-351"
+    ],
+    "risk_if_missed": "No conditionals; branching runtime logic impossible.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "conditional editor",
+        "if/else branch lists"
+      ],
+      "targets": [
+        "studio.prototype.action_conditional"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Conditionals"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus conditional-branch + determinism + cycle-error test"
+    ],
+    "acceptance": [
+      "if/else conditional over variables, deterministic + side-effect-scoped, cycles are validation errors; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-382",
+    "clause": "Media playback control action [STU-PRO-017]",
+    "summary": "Implement the media playback control action on StudioPrototypeFlow: play/pause/toggle, mute/unmute/toggle, seek, and jump forward/back by seconds, targeting media-bearing layers. Runtime control is deterministic and pairs with the media triggers (MT-376) and media placement (MT-399).",
+    "spec_anchor": [
+      "STU-PRO-017"
+    ],
+    "code_surfaces": [
+      "src/studio/prototype/action_media.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::prototype::action_media",
+      "live: play/pause/toggle, mute/unmute/toggle, seek, jump-by-seconds control a media-bearing layer"
+    ],
+    "depends_on": [
+      "MT-377"
+    ],
+    "risk_if_missed": "No media control action; media-driven prototypes cannot control playback.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "media-control runtime test"
+    ],
+    "acceptance": [
+      "media playback control (play/pause/mute/seek/jump) on media layers; deterministic"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-383",
+    "clause": "Transition animations: instant/dissolve/move/push/slide + duration/easing [STU-PRO-018]",
+    "summary": "Implement the fixed transition types on navigation actions: instant (no transition), dissolve (cross-fade with duration + easing), and directional move-in/out, push, and slide-in/out (left/right/up/down) with duration + easing. Easing draws from the shared catalog (MT-385). The transition picker is an operator surface on the interaction.",
+    "spec_anchor": [
+      "STU-PRO-018"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/transition.rs",
+      "src/studio/prototype/transition.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: transition picker (instant/dissolve/move/push/slide + duration/easing) reachable via author_id",
+      "live: each transition type plays with the configured duration + easing"
+    ],
+    "depends_on": [
+      "MT-378",
+      "MT-385"
+    ],
+    "risk_if_missed": "No transitions; navigations are abrupt with no motion vocabulary.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "transition picker",
+        "duration + easing controls"
+      ],
+      "targets": [
+        "studio.prototype.transition_picker"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Transitions"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus transition-type + duration/easing test"
+    ],
+    "acceptance": [
+      "instant/dissolve/move/push/slide transitions with duration + easing; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-384",
+    "clause": "Smart-animate layer pairing + tween [STU-PRO-018]",
+    "summary": "Implement smart-animate: pair layers across origin and destination frames by name and hierarchy and tween position, size, rotation, opacity, and fill differences, fading unmatched layers. It uses the same name/hierarchy pairing as instance override matching (MT-340). A source product name ('Smart Animate') is never a Studio command or panel name; this is the deduped tween engine behind transitions.",
+    "spec_anchor": [
+      "STU-PRO-018",
+      "STU-DS-017"
+    ],
+    "code_surfaces": [
+      "src/studio/prototype/smart_animate.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::prototype::smart_animate",
+      "live: matched layers tween position/size/rotation/opacity/fill; unmatched layers fade; pairing = name+hierarchy (shared with override matching)"
+    ],
+    "depends_on": [
+      "MT-383",
+      "MT-340"
+    ],
+    "risk_if_missed": "No smart-animate tween; state-to-state animation limited to fixed transitions.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "smart-animate pairing + tween test"
+    ],
+    "acceptance": [
+      "smart-animate pairs by name/hierarchy + tweens pos/size/rot/opacity/fill + fades unmatched; shared pairing rule"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-385",
+    "clause": "Easing catalog: bezier presets + custom cubic-bezier + spring presets + custom spring [STU-PRO-019]",
+    "summary": "Implement the normative easing catalog shared between prototype transitions and the motion timeline (MT-391): bezier presets (Linear; Ease in/out/in-and-out; Ease in/out/in-and-out back with overshoot; Hold as a step), a custom cubic-bezier editor (two control points; out-of-[0,1] y produces overshoot), spring presets (Gentle/Quick/Bouncy/Slow), and a custom spring parameterized by stiffness, damping, mass. Easing/timing values MAY be stored as StudioVariables with modes so a mode switch updates every referencing animation. The easing editor is an operator surface.",
+    "spec_anchor": [
+      "STU-PRO-019",
+      "STU-PRO-019a",
+      "STU-PRO-019b",
+      "STU-PRO-019c",
+      "STU-PRO-019d",
+      "STU-PRO-019e",
+      "STU-PRO-019f",
+      "STU-PRO-019g"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/easing_editor.rs",
+      "src/studio/prototype/easing.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: easing editor (bezier presets + custom bezier + spring presets + custom spring) reachable via author_id",
+      "live: custom cubic-bezier with out-of-range overshoot; four spring presets + custom spring (stiffness/damping/mass); easing storable as a StudioVariable"
+    ],
+    "depends_on": [
+      "MT-371",
+      "MT-346",
+      "MT-009"
+    ],
+    "risk_if_missed": "No easing catalog; motion inconsistent across prototype and timeline.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "easing editor",
+        "cubic-bezier curve",
+        "spring controls"
+      ],
+      "targets": [
+        "studio.prototype.easing_editor"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Easing (bezier and spring)"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus easing-catalog + custom bezier/spring test"
+    ],
+    "acceptance": [
+      "shared easing catalog: bezier + custom bezier + spring presets + custom spring; variable-storable; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-386",
+    "clause": "Overlays: positioning, background, close-on-click-outside, open/swap/close [STU-PRO-020,STU-PRO-020a,STU-PRO-020b,STU-PRO-020c]",
+    "summary": "Implement overlay presentation on StudioPrototypeFlow: an overlay is a frame layered above the current frame with manual positioning or default position presets; an optional background color and opacity behind it and a close-on-click-outside behavior; and the open/swap/close semantics (open layers a new overlay, swap replaces the active overlay without adding navigation history, close dismisses it). The overlay settings surface is operator-facing; actions are wired via MT-379.",
+    "spec_anchor": [
+      "STU-PRO-020",
+      "STU-PRO-020a",
+      "STU-PRO-020b",
+      "STU-PRO-020c"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/overlay.rs",
+      "src/studio/prototype/overlay.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: overlay settings (position presets, background, close-on-click-outside) reachable via author_id",
+      "live: manual/preset positioning; background color+opacity; close-on-click-outside; open/swap/close semantics (swap = no history)"
+    ],
+    "depends_on": [
+      "MT-379",
+      "MT-009"
+    ],
+    "risk_if_missed": "No overlay presentation; modal/popup UI cannot be prototyped.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "overlay settings",
+        "position presets"
+      ],
+      "targets": [
+        "studio.prototype.overlay_settings"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Overlays"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus overlay position/background/close + open/swap/close test"
+    ],
+    "acceptance": [
+      "overlays: positioning + background/opacity + close-on-click-outside + open/swap/close; author_id + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-387",
+    "clause": "Scroll and overflow behaviors: overflow scroll + fixed/sticky + scroll-offset preserve [STU-PRO-021,STU-PRO-022,STU-PRO-023]",
+    "summary": "Implement scroll behaviors that reproduce real app scrolling in a running prototype: a frame declares overflow scrolling (none, horizontal, vertical, or both, creating nested scroll containers); layers support fixed positioning (stay in the viewport while content scrolls) and sticky positioning (stick to the top when reached); and navigation actions optionally preserve the origin frame's scroll offset onto the destination frame for continuity. Scroll settings are an operator surface.",
+    "spec_anchor": [
+      "STU-PRO-021",
+      "STU-PRO-022",
+      "STU-PRO-023"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/scroll.rs",
+      "src/studio/prototype/scroll.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: overflow-scroll + fixed/sticky + scroll-offset-preserve settings reachable via author_ids",
+      "live: overflow none/h/v/both nested scroll containers; fixed + sticky positioning; scroll offset preserved across navigation"
+    ],
+    "depends_on": [
+      "MT-378",
+      "MT-009"
+    ],
+    "risk_if_missed": "No scroll behaviors; scrollable app prototypes impossible.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "scroll/overflow settings",
+        "fixed/sticky toggles"
+      ],
+      "targets": [
+        "studio.prototype.scroll_settings"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Scrolling, fixed and sticky"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus overflow + fixed/sticky + scroll-preserve test"
+    ],
+    "acceptance": [
+      "overflow none/h/v/both + fixed/sticky + scroll-offset preserve; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-388",
+    "clause": "Device frames + inline live preview [STU-PRO-024,STU-PRO-024a]",
+    "summary": "Implement wrapping the running prototype in a device frame from a catalog (phones, tablets, desktops, watches, custom) with a configurable background, and an in-editor inline preview panel that plays the prototype without leaving the editor and updates live with edits. Both are local operator surfaces; the inline preview runs headlessly-capturable via the render harness (MT-008).",
+    "spec_anchor": [
+      "STU-PRO-024",
+      "STU-PRO-024a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/device_preview.rs",
+      "src/studio/prototype/device.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: device-frame catalog + inline preview panel reachable via author_ids; screenshot-capturable",
+      "live: device frame wraps prototype with background; inline preview plays + updates live on edit"
+    ],
+    "depends_on": [
+      "MT-373",
+      "MT-008",
+      "MT-009"
+    ],
+    "risk_if_missed": "No device frames or inline preview; prototypes cannot be played in-editor.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "device-frame catalog",
+        "inline preview panel"
+      ],
+      "targets": [
+        "studio.prototype.device_frame",
+        "studio.prototype.inline_preview"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Device frames and preview"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus device-frame + inline-preview capture test"
+    ],
+    "acceptance": [
+      "device-frame catalog + live inline preview; local + headlessly capturable; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-389",
+    "clause": "Full presentation view (zoom, hotspot hint, sidebar, restart, keyboard nav) + touch mapping [STU-PRO-024b,STU-PRO-024c]",
+    "summary": "Implement the full presentation view: fit / fill / actual-size zoom, optional hotspot hinting on misclick, a flow sidebar, restart-flow control, and keyboard navigation across flow frames. Presentation and preview are local; any shared-link or mobile-device viewer is an optional adapter, never required. Touch-gesture triggers (click/tap, drag) map natively when a prototype runs on a touch surface.",
+    "spec_anchor": [
+      "STU-PRO-024b",
+      "STU-PRO-024c"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/presentation.rs",
+      "src/studio/prototype/presentation.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: presentation view (zoom modes, hotspot hint, flow sidebar, restart, keyboard nav) reachable via author_ids",
+      "live: fit/fill/actual zoom; hotspot hint on misclick; keyboard nav across frames; touch triggers map on a touch surface; no cloud dependency"
+    ],
+    "depends_on": [
+      "MT-388"
+    ],
+    "risk_if_missed": "No presentation view; prototypes cannot be reviewed full-screen.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "presentation view",
+        "zoom modes",
+        "hotspot hint"
+      ],
+      "targets": [
+        "studio.prototype.presentation_view"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping / Presenting a prototype"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus presentation zoom/hint/keyboard-nav test"
+    ],
+    "acceptance": [
+      "full presentation view: zoom + hotspot hint + sidebar + restart + keyboard nav + touch mapping; local; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-390",
+    "clause": "Interactive components: variant interactions run automatically in every instance [STU-PRO-027]",
+    "summary": "Implement interactive components: variant-to-variant interactions authored on a variant-set StudioComponent (MT-329) run automatically inside every instance, so hover/press/toggle states work without per-screen wiring. Whether these states and their bound variables reset or persist across navigation is governed by the flow's state-preservation setting (MT-373). This is runtime behavior over the existing variant + trigger/action primitives; no new primitive.",
+    "spec_anchor": [
+      "STU-PRO-027"
+    ],
+    "code_surfaces": [
+      "src/studio/prototype/interactive_component.rs"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::prototype::interactive_component",
+      "live: variant interactions authored on a variant set run automatically in every instance without per-screen wiring; reset/persist honors flow setting"
+    ],
+    "depends_on": [
+      "MT-329",
+      "MT-375",
+      "MT-378",
+      "MT-373"
+    ],
+    "risk_if_missed": "No interactive components; common states must be re-wired per screen.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "interactive-component auto-run test"
+    ],
+    "acceptance": [
+      "variant interactions run automatically in every instance; state reset/persist honors flow setting; no new primitive"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-391",
+    "clause": "StudioMotionTimeline domain binding + engine boundary [STU-PRO-028]",
+    "summary": "Wire the motion timeline: bind StudioMotionTimeline (hsk.studio.motion_timeline@1) as the keyframe-animation primitive that docks a timeline over the document with one track per animated StudioLayer, as a mode of the unified editor (not a separate app or file type). Motion data persists inside the StudioDocument authority (MT-004) and follows the document's history/undo surface (MT-011). Register the studio.prototype.motion.<command>.v<N> commands through MT-007 and route mutations through ledger + authority.",
+    "spec_anchor": [
+      "STU-PRO-028"
+    ],
+    "code_surfaces": [
+      "src/studio/prototype/motion/mod.rs",
+      "src/studio/prototype/motion/timeline.rs",
+      "studio-engine/src/motion/**"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::prototype::motion::timeline",
+      "live: motion command emits ledger event + lands in studio_* authority; timeline is a mode of the unified editor with one track per layer; follows document history"
+    ],
+    "depends_on": [
+      "MT-371",
+      "MT-372",
+      "MT-011"
+    ],
+    "risk_if_missed": "No motion timeline binding; keyframe animation unroutable/unauditable.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "motion binding + ledger/authority/history test"
+    ],
+    "acceptance": [
+      "StudioMotionTimeline bound as unified-editor mode; per-layer tracks; ledger + authority + document history"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-392",
+    "clause": "Timeline editor UI: dock/resize/collapse/zoom + tracks + clip drag/stretch [STU-PRO-028,STU-PRO-028a]",
+    "summary": "Implement the timeline editor UI docked over the document: resize/collapse the timeline, zoom (slider, pinch, modifier+wheel), and collapse/expand all tracks; per-layer clips drag to reposition in time and stretch/shrink via side handles, enabling stacked (simultaneous) or sequenced motion.",
+    "spec_anchor": [
+      "STU-PRO-028",
+      "STU-PRO-028a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/motion/timeline_ui.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: timeline editor (dock, resize/collapse, zoom, track collapse/expand, clip drag/stretch) reachable via author_ids",
+      "live: clips drag to reposition + stretch via handles for stacked or sequenced motion"
+    ],
+    "depends_on": [
+      "MT-391",
+      "MT-009"
+    ],
+    "risk_if_missed": "No timeline UI; keyframe animation cannot be authored.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "motion timeline",
+        "track list",
+        "clip handles"
+      ],
+      "targets": [
+        "studio.prototype.motion.timeline",
+        "studio.prototype.motion.clip"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Motion / The timeline"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus timeline dock/zoom + clip drag/stretch test"
+    ],
+    "acceptance": [
+      "timeline dock/resize/zoom + track collapse + clip drag/stretch (stacked/sequenced); author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-393",
+    "clause": "Keyframable properties + per-property keyframe control [STU-PRO-029]",
+    "summary": "Implement keyframable properties per layer: position, scale, rotation, and opacity, plus animatable effect/material properties exposed as numeric fields; keyframe-eligible properties show an explicit per-property keyframe control (toggle) in the timeline/inspector.",
+    "spec_anchor": [
+      "STU-PRO-029"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/motion/keyframable.rs",
+      "src/studio/prototype/motion/keyframable.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: per-property keyframe controls for position/scale/rotation/opacity + numeric effect/material fields reachable via author_ids",
+      "live: toggling a property's keyframe control makes it animatable; keyframes recorded on the track"
+    ],
+    "depends_on": [
+      "MT-392"
+    ],
+    "risk_if_missed": "No keyframable properties; nothing can be animated on the timeline.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "keyframe property controls"
+      ],
+      "targets": [
+        "studio.prototype.motion.keyframe_property"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Motion / Animatable properties"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus keyframe-property toggle + animate test"
+    ],
+    "acceptance": [
+      "position/scale/rotation/opacity + effect/material numerics keyframable with per-property control; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-394",
+    "clause": "Keyframe editing + auto-keyframe recording [STU-PRO-029a,STU-PRO-029b]",
+    "summary": "Implement keyframe editing: add-at-playhead, single / shift / marquee / per-layer selection, drag-move with snap to the playhead and to other keyframes, jump-to (double-click), and per-keyframe or per-property deletion; plus an auto-keyframe recording mode that records design changes as keyframes at the current playhead position while active, with a clear active-state indicator.",
+    "spec_anchor": [
+      "STU-PRO-029a",
+      "STU-PRO-029b"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/motion/keyframe_edit.rs",
+      "src/studio/prototype/motion/keyframe_edit.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: keyframe editing (add/select/drag-snap/jump/delete) + auto-keyframe recording indicator reachable via author_ids",
+      "live: add-at-playhead; selection modes; drag-snap to playhead/keyframes; jump-to; delete; auto-keyframe records changes at playhead with active indicator"
+    ],
+    "depends_on": [
+      "MT-393"
+    ],
+    "risk_if_missed": "No keyframe editing; timelines cannot be refined; no recording mode.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "keyframe edit controls",
+        "auto-keyframe toggle + indicator"
+      ],
+      "targets": [
+        "studio.prototype.motion.keyframe_edit",
+        "studio.prototype.motion.auto_keyframe"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Motion / Editing keyframes and recording"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus keyframe add/select/drag/delete + auto-record test"
+    ],
+    "acceptance": [
+      "keyframe add/select/drag-snap/jump/delete + auto-keyframe recording with indicator; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-395",
+    "clause": "Anchor point + timeline segment easing [STU-PRO-029c,STU-PRO-030]",
+    "summary": "Implement the per-layer anchor point that rotation and scale pivot around (defaults to object center, repositionable on canvas) and timeline segment easing using the shared easing catalog (MT-385), including Hold and custom cubic-bezier with overshoot and the four spring presets plus custom spring, applied per segment between two keyframes.",
+    "spec_anchor": [
+      "STU-PRO-029c",
+      "STU-PRO-030"
+    ],
+    "code_surfaces": [
+      "src/studio/prototype/motion/anchor_easing.rs",
+      "studio-engine/src/motion/**"
+    ],
+    "allowed_paths": [
+      "src/studio/prototype/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::prototype::motion::anchor_easing",
+      "live: rotation/scale pivot around per-layer anchor (default center, repositionable); per-segment easing uses shared catalog incl. hold/bezier/spring"
+    ],
+    "depends_on": [
+      "MT-393",
+      "MT-385"
+    ],
+    "risk_if_missed": "No anchor pivot or segment easing; rotation/scale and motion timing wrong.",
+    "gui": {
+      "operator_surface_required": "NO"
+    },
+    "manual": {
+      "update": "NO"
+    },
+    "hbr": [
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "anchor-pivot + per-segment-easing test"
+    ],
+    "acceptance": [
+      "per-layer anchor pivot (default center, repositionable) + per-segment shared easing (hold/bezier/spring)"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-396",
+    "clause": "Playback modes + on-canvas motion path [STU-PRO-030a,STU-PRO-031]",
+    "summary": "Implement timeline playback (Loop, Once, Ping-pong modes, a scrubbable playhead, jump-to-time, a seconds/milliseconds time ruler, new animations default to an adjustable duration) and the on-canvas motion path for position keyframes: rendered as easing-spaced dots with a per-keyframe box; boxes drag to reposition and a modifier+handle bends the path into a bezier curve.",
+    "spec_anchor": [
+      "STU-PRO-030a",
+      "STU-PRO-031"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/motion/playback_path.rs",
+      "src/studio/prototype/motion/motion_path.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: playback controls (loop/once/ping-pong, scrub, jump-to-time, ruler) + on-canvas motion path reachable via author_ids",
+      "live: playback modes + scrub + jump; motion path shows easing-spaced dots; box drag repositions; modifier+handle bends to bezier"
+    ],
+    "depends_on": [
+      "MT-393",
+      "MT-395"
+    ],
+    "risk_if_missed": "No playback control or motion path; timelines cannot be played or spatially edited.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "playback controls",
+        "on-canvas motion path"
+      ],
+      "targets": [
+        "studio.prototype.motion.playback",
+        "studio.prototype.motion.motion_path"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Motion / Playback and motion paths"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus playback + motion-path bezier-bend test"
+    ],
+    "acceptance": [
+      "loop/once/ping-pong + scrub/jump/ruler + on-canvas motion path with bezier bend; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-397",
+    "clause": "Preset/composite animation styles + animation-to-reusable-component + AI-keyframe optional lane [STU-PRO-031a,STU-PRO-031b,STU-PRO-032]",
+    "summary": "Implement preset animation styles (fade, move, scale) and composite styles (multiple presets in one action) applicable to a selection, landing on the timeline at the playhead, and remaining editable for type/settings/duration/easing; converting an animation into a reusable animated StudioComponent (MT-323) whose motion travels with the component across documents; and the OPTIONAL AI-assisted keyframe generation as a model-lane capability that emits real editable StudioMotionTimeline keyframes grounded in the document's components and variables, routed through the sandbox -> validation -> PromotionGate lifecycle and never required to author motion by hand. The AI lane is clearly marked optional/adapter-backed and separable.",
+    "spec_anchor": [
+      "STU-PRO-031a",
+      "STU-PRO-031b",
+      "STU-PRO-032",
+      "STU-ARC-005"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/motion/presets.rs",
+      "src/studio/prototype/motion/presets.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: preset/composite animation styles + convert-to-animated-component + AI-keyframe lane (marked optional) reachable via author_ids",
+      "live: preset lands on timeline editable; animation converts to reusable animated component; AI keyframes route through PromotionGate (fails closed) and build/validate with the AI lane absent"
+    ],
+    "depends_on": [
+      "MT-396",
+      "MT-323",
+      "MT-006"
+    ],
+    "risk_if_missed": "No animation presets/reuse; AI lane inseparable or bypasses promotion.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "animation preset styles",
+        "convert-to-animated-component",
+        "AI-keyframe lane (optional)"
+      ],
+      "targets": [
+        "studio.prototype.motion.preset",
+        "studio.prototype.motion.to_component",
+        "studio.prototype.motion.ai_keyframe"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Motion / Presets, animated components and AI keyframes (optional)"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-SWARM-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus preset + to-component + AI-keyframe promotion/separability test"
+    ],
+    "acceptance": [
+      "preset/composite styles + animation-to-reusable-component + optional AI-keyframe lane via PromotionGate; separable; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-398",
+    "clause": "Interactive-document objects model + buttons + form fields + MSO [STU-PRO-033,STU-PRO-034,STU-PRO-034a,STU-PRO-034b,STU-PRO-034c,STU-PRO-034d,STU-PRO-034e,STU-PRO-035,STU-PRO-036,STU-PRO-037,STU-PRO-038,STU-PRO-038a,STU-PRO-039]",
+    "summary": "Implement InDesign-class interactive-document objects as interactive roles on StudioLayer nodes (not a separate document silo) for interactive PDF, fixed/reflowable EPUB, and HTML, authored with the same selection/override/history surfaces: buttons with the event set (on release/tap, on click; on roll over/off; on focus/blur), the action set (navigation/PDF: go to destination/first/last/next/previous page, URL, next/previous view, open file, view zoom; show/hide & forms: show/hide buttons+forms, clear/print/submit form; media & state: animation, go to page, go to/next/previous state, sound, video), Normal/Rollover/Click appearance states + hidden-until-triggered, per-page tab order, and a sample library of preconfigured buttons/form elements; PDF form fields (check box, combo box, list box, radio button, signature, text) with the option set (description, required, printable, multiline, password, read-only, sort-items, export values); and multi-state objects (convert a selection into ordered states that add/reorder/delete, add-objects-to-state, paste-into-state, reset-all, hidden-until-triggered), driven by the button state actions.",
+    "spec_anchor": [
+      "STU-PRO-033",
+      "STU-PRO-034",
+      "STU-PRO-034a",
+      "STU-PRO-034b",
+      "STU-PRO-034c",
+      "STU-PRO-034d",
+      "STU-PRO-034e",
+      "STU-PRO-035",
+      "STU-PRO-036",
+      "STU-PRO-037",
+      "STU-PRO-038",
+      "STU-PRO-038a",
+      "STU-PRO-039"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/interactive_doc.rs",
+      "src/studio/prototype/interactive_doc.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: button editor + form-field editor + MSO panel reachable via author_ids",
+      "live: button events + action groups fire; Normal/Rollover/Click states + hidden-until-triggered; tab order; PDF form fields + options; MSO ordered states add/reorder/delete/paste-into/reset-all driven by state actions"
+    ],
+    "depends_on": [
+      "MT-371",
+      "MT-011",
+      "MT-009"
+    ],
+    "risk_if_missed": "No interactive-document objects; interactive PDF/EPUB/HTML authoring impossible.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "button editor",
+        "form-field editor",
+        "multi-state object panel"
+      ],
+      "targets": [
+        "studio.prototype.button_editor",
+        "studio.prototype.form_field",
+        "studio.prototype.mso_panel"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Interactive Documents / Buttons, forms and multi-state objects"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus button/form/MSO authoring + action test"
+    ],
+    "acceptance": [
+      "interactive roles on layers: buttons (events/actions/states/tab-order) + PDF form fields + MSO; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-399",
+    "clause": "Interactive-document animation + media + hyperlinks + page transitions + preview [STU-PRO-040,STU-PRO-040a,STU-PRO-040b,STU-PRO-040c,STU-PRO-040d,STU-PRO-041,STU-PRO-041a,STU-PRO-042,STU-PRO-042a]",
+    "summary": "Implement the interactive-document animation and media surfaces: motion presets applied to objects with event triggers (on page load, on page click, on click self, on roll over self, on button event) and per-animation duration/play-count/loop/speed-easing/animate-from-to (opacity/rotation/scale/visibility); editable vector motion paths with any drawn path convertible to a motion path; a timing surface sequencing animations per trigger event with delays, reordering, and linked play-together groups with per-group play counts; custom motion presets saveable/duplicable/deletable/importable/exportable; sharing the easing catalog + keyframe/motion-path model with StudioMotionTimeline (two entry points onto ONE motion engine, not two engines); media placement (video with poster frame, controller skin, play-on-load, loop, navigation points; audio) targetable by button media actions and media triggers; hyperlinks (URL/file/email/page-with-zoom/text-anchor/shared-destination with appearance/highlight + auto URL detection) plus nested sortable PDF bookmarks and generated QR codes (web/text/SMS/email/business-card, editable afterward); per-spread or all-spread page transitions (blinds/comb/dissolve/fade/push/wipe/zoom/page-turn with direction + speed, honored in full-screen interactive PDF); and an in-app interactivity-preview surface previewing animations/MSOs/buttons/media for the current spread or whole document before export.",
+    "spec_anchor": [
+      "STU-PRO-040",
+      "STU-PRO-040a",
+      "STU-PRO-040b",
+      "STU-PRO-040c",
+      "STU-PRO-040d",
+      "STU-PRO-041",
+      "STU-PRO-041a",
+      "STU-PRO-042",
+      "STU-PRO-042a"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/interactive_media.rs",
+      "src/studio/prototype/interactive_media.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "argus: interactive-doc animation timing + media + hyperlinks + page transitions + interactivity preview reachable via author_ids",
+      "live: motion presets with event triggers + timing/delays/linked groups; save/import/export custom presets; shared easing/keyframe engine with timeline; video/audio placement; hyperlinks + bookmarks + QR; page transitions honored; in-app preview plays animations/MSO/buttons/media"
+    ],
+    "depends_on": [
+      "MT-398",
+      "MT-396",
+      "MT-385"
+    ],
+    "risk_if_missed": "No interactive-doc animation/media/transitions/preview; EPUB/PDF interactivity incomplete.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "interactive-doc animation + timing",
+        "media placement",
+        "hyperlinks/bookmarks/QR",
+        "page transitions",
+        "interactivity preview"
+      ],
+      "targets": [
+        "studio.prototype.doc_animation",
+        "studio.prototype.media_placement",
+        "studio.prototype.hyperlinks",
+        "studio.prototype.page_transitions",
+        "studio.prototype.interactivity_preview"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Interactive Documents / Animation, media, links and transitions"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "Argus doc-animation + media + links + transitions + preview test"
+    ],
+    "acceptance": [
+      "interactive-doc animation/timing/media/hyperlinks/QR/page-transitions/preview on one shared motion engine; author_ids + manual entry"
+    ],
+    "observable_runtime": true
+  },
+  {
+    "id": "MT-400",
+    "clause": "Prototype/motion model API + steerability + aggregate GUI/Argus/UserManual/HBR closure + export touchpoint [STU-PRO-043,STU-PRO-043a,STU-PRO-043b,STU-PRO-043c,STU-PRO-044,STU-PRO-044a,STU-PRO-044b,STU-PRO-045]",
+    "summary": "Close out 14.11: (1) ensure every prototyping/motion command (flows, triggers, actions, animations, overlays, scroll, device/presentation, timeline, interactive-document objects) is model-visible and typed-steerable through the Studio command surface (MT-007) with typed I/O, dry_run, receipts, and undo semantics; (2) aggregate GUI/Argus/UserManual closure asserting every panel/control/visible state is headlessly inspectable, steerable, and screenshot-capturable through Argus with no focus steal and ships dual-audience UserManual entries kept same-change current; and (3) the interactive/animated EXPORT touchpoint that enumerates targets and their option surfaces WITHOUT duplicating the export engine: all interactive/motion output is produced through 14.13 StudioExportRecipe (MT-441) - interactive PDF (general/compression/advanced/security options), reflowable + fixed-layout EPUB (version/cover/nav-TOC/content-order/split/image-conversion/CSS+JS/metadata, carrying buttons/MSO/animations/media), HTML (content order/image conversion/CSS; shared article threads across EPUB/HTML/tagged-PDF), animated frames from StudioMotionTimeline + prototype transitions as MP4/WebM/GIF/animated-SVG (size/frame-rate/quality/loop), Lottie optional-only (its absence never blocks authoring or other formats), and an optional read-only motion-inspection adapter exposing timing/easing/keyframes as CSS/JSON/framework code via 14.14.",
+    "spec_anchor": [
+      "STU-PRO-043",
+      "STU-PRO-043a",
+      "STU-PRO-043b",
+      "STU-PRO-043c",
+      "STU-PRO-044",
+      "STU-PRO-044a",
+      "STU-PRO-044b",
+      "STU-PRO-045",
+      "STU-MDL-001"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/argus_targets.rs",
+      "src/studio/prototype/model_api.rs",
+      "src/manual/studio/prototype/**"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "src/manual/**",
+      "tests/studio/**"
+    ],
+    "expected_tests": [
+      "live: every prototyping/motion command exposes typed I/O + dry_run + receipt + undo through the Studio command surface",
+      "HBR-MAN-003 self-consistency: every prototype/motion command_id has a dual-audience manual entry; Argus target registry covers all studio.prototype.* surfaces with no focus steal",
+      "test: interactive/animated export routes through 14.13 StudioExportRecipe (MT-441) for PDF/EPUB/HTML + MP4/WebM/GIF/SVG; Lottie-absent does not block authoring or other formats; no exporter duplicated here"
+    ],
+    "depends_on": [
+      "MT-399",
+      "MT-397",
+      "MT-007",
+      "MT-015",
+      "MT-008",
+      "MT-441"
+    ],
+    "risk_if_missed": "Prototype/motion surface not fully model-steerable/Argus-covered/manual-complete, or export forks a second exporter; closure unmet.",
+    "gui": {
+      "operator_surface_required": "YES",
+      "creation": "YES",
+      "argus": "YES",
+      "surfaces": [
+        "prototype/motion Argus target registry",
+        "manual (prototyping/motion section)",
+        "export target option surfaces"
+      ],
+      "targets": [
+        "studio.prototype.argus_index",
+        "manual.studio.prototype",
+        "studio.prototype.export_targets"
+      ]
+    },
+    "manual": {
+      "update": "YES",
+      "entries": [
+        "Studio / Prototyping & Motion / (section coverage index + export targets)"
+      ]
+    },
+    "hbr": [
+      "HBR-VIS-001",
+      "HBR-MAN-001",
+      "HBR-MAN-003",
+      "HBR-QUIET-001",
+      "HBR-INT-003"
+    ],
+    "proof_targets": [
+      "model-API typed-I/O + Argus coverage + manual self-consistency + export-via-14.13 test"
+    ],
+    "acceptance": [
+      "entire 14.11 model-steerable + Argus/manual-complete; interactive/animated export defers to 14.13 StudioExportRecipe; Lottie optional; no exporter fork"
+    ],
+    "observable_runtime": true
+  }
+]

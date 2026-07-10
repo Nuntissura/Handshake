@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-164",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-164.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-164.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-020",
+      "MT-017"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Object effects/transparency layout targeting + MSO authoring [STU-LAY-032,STU-LAY-033]",
+  "spec_anchor": [
+    "STU-LAY-032",
+    "STU-LAY-033",
+    "STU-LAY-065",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement layout targeting of object effects and transparency through the shared StudioEffectStack (14.9, never forked): opacity, blend mode, and each effect independently targetable to Object, Fill, Stroke, or Text of a single frame, presented as an effects tree. Layout effect set: drop shadow, inner shadow, outer glow, inner glow, bevel/emboss, satin, basic feather, directional feather, gradient feather. Blend modes MUST include the standard sixteen (Normal, Multiply, Screen, Overlay, Soft Light, Hard Light, Color Dodge, Color Burn, Darken, Lighten, Difference, Exclusion, Hue, Saturation, Color, Luminosity) plus isolate-blending and knockout-group flags; effect/blend math owned by 14.9/14.8. Implement MSO authoring: convert a selection to a multi-state object, add/reorder/delete states, add objects to the visible state, paste into a state, reset all MSOs, hidden-until-triggered; runtime switching/triggers owned by 14.11.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "effects/opacity/blend targeting Object/Fill/Stroke/Text via shared stack + 16 blends; MSO authoring on StudioLayer"
+    ],
+    "proof_targets": [
+      "effect-target-scope test; MSO authoring runtime"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/effect_targeting.rs",
+      "src/studio/layout/mso.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::effect_targeting",
+      "test: opacity/blend/effect independently target Object/Fill/Stroke/Text via shared StudioEffectStack; 16 blend modes + isolate/knockout flags present",
+      "live: MSO create/add/reorder/delete states + paste-into-state + reset carried on StudioLayer for 14.11 handoff"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "effects tree",
+      "object states panel"
+    ],
+    "argus_targets": [
+      "studio.layout.effects_tree",
+      "studio.layout.mso_panel"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Effects targeting & multi-state objects"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No layout effects targeting; no multi-state authoring; interactive handoff to 14.11 broken.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

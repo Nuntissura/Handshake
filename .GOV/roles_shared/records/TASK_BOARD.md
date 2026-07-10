@@ -102,6 +102,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
+- **[WP-KERNEL-STUDIO]** - [STUB]
 - **[WP-1-Video-Archive-Loom-Integration-v1]** - [STUB]
 - **[WP-1-Media-Downloader-Loom-Bridge-v1]** - [STUB]
 - **[WP-1-Loom-Preview-VideoPosterFrames-v1]** - [STUB]

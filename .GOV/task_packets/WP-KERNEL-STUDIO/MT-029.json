@@ -1,0 +1,137 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-029",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-029.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-029.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-006",
+      "MT-017",
+      "MT-027"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "placed_asset transforms/convert-to-layers/export-contents/statistical stack/package [STU-RAS-014]",
+  "spec_anchor": [
+    "STU-RAS-014"
+  ],
+  "scope": {
+    "summary": "Implement placed_asset non-destructive accumulated transforms with reset-transforms; unpack back into component layers in place (convert-to-layers); export embedded source back to a standalone file in its original format (export-contents touchpoint to 14.13); statistical stack rendering (mean, median, maximum, range and the other stack modes) over a multi-layer container for noise reduction/analysis; and a 'collect linked assets into one portable folder' (package) command as a document-portability touchpoint per [GLOBAL-PORTABILITY].",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "reset-transforms/convert-to-layers/export-contents work",
+      "statistical stack modes render; package produces a relocatable folder"
+    ],
+    "proof_targets": [
+      "statistical-stack render + convert-to-layers + package runtime"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/placed_ops.rs",
+      "studio-engine/src/raster/stack_render.rs",
+      "src/frontend/handshake_native/src/studio/raster/placed_panel.rs"
+    ],
+    "expected_tests": [
+      "live: apply then reset transforms; convert-to-layers unpacks a placed_asset into its component layers; export-contents writes original format to disk (Handshake-managed path)",
+      "live: statistical stack render (median) reduces noise across a multi-layer container; package collects linked assets into one portable folder",
+      "test: reset-transforms restores identity"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "placed-asset ops menu",
+      "stack-mode selector"
+    ],
+    "argus_targets": [
+      "studio.placed_reset_transform",
+      "studio.placed_to_layers",
+      "studio.placed_export_contents",
+      "studio.placed_stack_mode",
+      "studio.placed_package"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Raster / Stack modes, convert to layers & packaging"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No stack-mode noise reduction, no unpack/export-contents, no portable packaging of linked assets.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

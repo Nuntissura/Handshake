@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-099",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-099.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-099.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-098"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Extended parametric shapes [STU-VEC-010 extended,STU-VEC-011]",
+  "spec_anchor": [
+    "STU-VEC-010",
+    "STU-VEC-011"
+  ],
+  "scope": {
+    "summary": "Register the extended parametric shape set against the MT-098 shape-primitive contract with full per-shape parameters preserved (no parameter dropped in dedup): Spiral (type linear/decaying/semicircular/Fibonacci/plotted, turns, decay), Grid rectangular+polar, Triangle/Diamond/Trapezoid, Arrow (head/tail/shaft/length), extended primitives (cog teeth/hole, crescent, heart, tear, cloud, callout tail position/size, double/square star), and QR/data glyph (payload, error-correction level).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/vector/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "extended parametric shapes with full parameters; QR payload; author_ids + manual entry"
+    ],
+    "proof_targets": [
+      "Argus extended-shape inspect + parameter-fidelity test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/vector/shapes_ext.rs",
+      "src/studio/vector/shapes/extended.rs",
+      "studio-engine/src/vector/shapes_ext.rs"
+    ],
+    "expected_tests": [
+      "argus: extended shape tools reachable via author_id",
+      "test: spiral/grid/arrow/cog/callout/QR generate correct geometry with all parameters editable; QR encodes payload at error-correction level"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "extended shape tools"
+    ],
+    "argus_targets": [
+      "studio.vector.spiral_tool",
+      "studio.vector.grid_tool",
+      "studio.vector.arrow_tool",
+      "studio.vector.qr_tool",
+      "studio.vector.shape_ext_params"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Vector / Extended shapes (spiral, grid, arrow, cog, callout, QR)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Extended shapes missing; source-suite parametric coverage incomplete.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

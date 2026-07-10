@@ -1,0 +1,124 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-549",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-549.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-549.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-542",
+      "MT-547"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Argus visual-proof enforcement (HBR-VIS) [STU-VAL-003,STU-MDL-004]",
+  "spec_anchor": [
+    "STU-VAL-003",
+    "STU-MDL-004"
+  ],
+  "scope": {
+    "summary": "Implement the HBR-VIS enforcement path: every GUI/operator-surface/diagnostic-surface/frontend Studio change MUST be inspected and (where steered) verified through Argus with stable author_id targets, before/after observation, and recorded evidence per .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md; missing Argus visibility/steering is HBR-VIS debt with allowed same-MT/WP remediation. Also proves steerability is command-API-first (STU-MDL-004): Argus drives AccessKit controls by author_id, never OS-level input injection.",
+    "allowed_paths": [
+      "src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "every GUI/diagnostic change Argus-inspected with evidence; command-API-first steering; HBR-VIS debt recorded"
+    ],
+    "proof_targets": [
+      "Argus before/after evidence + no-OS-injection steering test"
+    ],
+    "code_surfaces": [
+      "src/studio/validation/argus_proof.rs",
+      "tests/studio/argus_proof.rs"
+    ],
+    "expected_tests": [
+      "argus: a GUI change is inspected with before/after + recorded evidence",
+      "negative: steering uses argus.click/set_value by author_id, never OS input injection",
+      "test: missing Argus target recorded as HBR-VIS debt"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Validation / Argus visual proof (model layer)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-QUIET-002",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "GUI changes ship without visual proof; steering falls to OS input injection.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

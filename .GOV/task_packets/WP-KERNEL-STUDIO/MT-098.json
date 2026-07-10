@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-098",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-098.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-098.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-081",
+      "MT-084",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Parametric shape catalog core + registry + expand [STU-VEC-010 core,STU-VEC-011]",
+  "spec_anchor": [
+    "STU-VEC-010",
+    "STU-VEC-011"
+  ],
+  "scope": {
+    "summary": "Implement the parametric shape catalog core + extensible registry for the primary shapes (Rectangle, Ellipse/Arc, Polygon, Star, Line/Segment) as live StudioVectorPath/StudioVectorNetwork with per-shape editable parameter schemas, plus the explicit history-tracked expand-to-raw-geometry command. Adding a shape is registering a new parameter schema against the same shape-primitive contract (no new layer kind, no parallel geometry model).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/vector/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "core parametric shapes live + expandable via registry; author_ids + manual entry"
+    ],
+    "proof_targets": [
+      "Argus shape-tool inspect + live-param + expand test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/vector/shapes.rs",
+      "src/studio/vector/shapes/mod.rs",
+      "studio-engine/src/vector/shapes.rs"
+    ],
+    "expected_tests": [
+      "argus: shape tools (rect/ellipse/polygon/star/line) reachable via author_id",
+      "test: each shape keeps live parameters; expand is explicit one-history-entry command; registry accepts new schema without new layer kind"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "shape tools",
+      "shape parameter inspector"
+    ],
+    "argus_targets": [
+      "studio.vector.rect_tool",
+      "studio.vector.ellipse_tool",
+      "studio.vector.polygon_tool",
+      "studio.vector.star_tool",
+      "studio.vector.line_tool",
+      "studio.vector.shape_params"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Vector / Parametric shapes (rectangle, ellipse, polygon, star, line)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No parametric shapes; primitive drawing + live parameters missing.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

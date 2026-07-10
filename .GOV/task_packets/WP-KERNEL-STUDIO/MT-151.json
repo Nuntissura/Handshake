@@ -1,0 +1,133 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-151",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-151.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-151.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-150",
+      "MT-177",
+      "MT-018"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Page-number markers + running headers/footers [STU-LAY-015,STU-LAY-016]",
+  "spec_anchor": [
+    "STU-LAY-015",
+    "STU-LAY-016",
+    "STU-LAY-048",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement automatic page-number markers that resolve to the current page's section number wherever placed (parent page, running header, TOC), plus a last-page-number marker (section or document scope) resolving 'page X of Y' constructs; numbering markers are text-variable records (MT-177) resolved at composition time. Implement content-derived running headers/footers: a header/footer field pulls the first or last on-page text carrying a chosen paragraph or character style (dictionary-style headers), with delete-trailing-punctuation and change-case options; running headers resolve per page against the composed StudioTextStory and MUST update as content reflows.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "section-aware page/last-page markers; content-derived running headers with all options, updating on reflow"
+    ],
+    "proof_targets": [
+      "marker resolution runtime; running-header reflow-update test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/number_markers.rs",
+      "src/studio/layout/running_headers.rs",
+      "studio-engine/src/layout/compose.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::running_headers",
+      "live: page-number marker resolves current section number on parent/header/TOC; last-page marker resolves X-of-Y",
+      "test: running header pulls first/last styled on-page text with delete-punctuation + change-case, updates on reflow"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "insert marker menu",
+      "header/footer variable controls"
+    ],
+    "argus_targets": [
+      "studio.layout.page_number_marker",
+      "studio.layout.running_header"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Page numbers & running headers"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No live page numbers or running heads; long documents cannot number/label pages.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

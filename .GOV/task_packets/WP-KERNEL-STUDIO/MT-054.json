@@ -1,0 +1,124 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-054",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-054.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-054.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-006",
+      "MT-017",
+      "MT-024",
+      "MT-030"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "StudioAdjustment framework: adjustment layer + built-in mask + apply-in-place + presets + dedup mapping [STU-RAS-035,STU-RAS-036]",
+  "spec_anchor": [
+    "STU-RAS-035",
+    "STU-RAS-036"
+  ],
+  "scope": {
+    "summary": "Implement the StudioAdjustment framework (single canonical adjustment primitive, 14.23): every adjustment is usable both as a non-destructive adjustment-kind layer (built-in mask, clip-to-parent option, re-editable parameters) and as an explicit destructive apply-in-place command (via MT-024). Support presets and one-click adjustment creation. Enforce the dedup mapping (STU-RAS-036): a named control existing in multiple source suites maps to exactly one StudioAdjustment kind with a merged parameter set. Backend framework consumed by the four adjustment-family MTs.",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "adjustment framework supports layer form + apply-in-place + built-in mask + clip + presets",
+      "dedup mapping to one kind per named control enforced"
+    ],
+    "proof_targets": [
+      "adjustment-layer non-destructive+apply-in-place framework test"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/adjustment.rs",
+      "studio-engine/src/raster/adjustment_pipeline.rs"
+    ],
+    "expected_tests": [
+      "live: create an adjustment layer with a built-in mask + clip-to-parent, edit params non-destructively, then apply-in-place and confirm a distinct history entry",
+      "test: one-click preset creates an adjustment; a control name present in two source suites resolves to exactly one StudioAdjustment kind"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Adjustments fork per-family; no built-in mask/clip/preset framework; dedup violated.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

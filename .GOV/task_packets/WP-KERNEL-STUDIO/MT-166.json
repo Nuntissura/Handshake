@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-166",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-166.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-166.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-004",
+      "MT-153"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Tables: creation, import, structure, and flow [STU-LAY-035:creation/import/setup/structure/flow/nesting]",
+  "spec_anchor": [
+    "STU-LAY-035",
+    "STU-CON-004",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement the table object as a structured object flowed inside a StudioTextStory (cell content is text, graphics, or nested tables), reusing the foundation table storage (MT-004) — never a forked table model. Creation: insert-table with body/header/footer row counts, column count, optional table style; draw-table tool; convert text<->table with selectable row/column separators. Import: spreadsheet import (sheet/view/cell-range as formatted/unformatted table or tabbed text), word-processor tables (retain or strip formatting, optionally kept linked). Table setup: border stroke, spacing before/after, stroke draw order, header/footer counts. Structure: insert/delete/select rows and columns, merge/unmerge, split horizontally/vertically, distribute evenly, paste before/after, drag-duplicate, sort. Flow: break across threaded frames and pages with repeating headers/footers; go-to-row incl header/footer. Nesting & alignment: nested tables in a cell; table alignment left/center/right within the frame column. Field-level model owned by 14.23; cell formatting/styles in MT-167.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "table object flowed in StudioTextStory with creation/import/setup/structure/flow/nesting; reuses foundation storage"
+    ],
+    "proof_targets": [
+      "table create/structure/flow runtime; import + nesting test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/tables/table_object.rs",
+      "src/studio/layout/tables/table_flow.rs",
+      "studio-engine/src/layout/table.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::tables::table_object",
+      "live: insert-table/draw-table/convert text<->table; structure ops (insert/delete/merge/split/distribute/sort); flow breaks across threaded frames with repeating headers",
+      "test: spreadsheet + WP table import (formatted/unformatted/linked); nested tables + table alignment"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "insert table dialog",
+      "table tools"
+    ],
+    "argus_targets": [
+      "studio.layout.table_insert",
+      "studio.layout.table_structure"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Tables (create, import, structure, flow)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No tables; tabular data cannot be laid out; long tables cannot flow across pages.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

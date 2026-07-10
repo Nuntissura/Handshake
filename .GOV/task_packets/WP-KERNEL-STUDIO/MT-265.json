@@ -1,0 +1,128 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-265",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-265.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-265.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-008",
+      "MT-017",
+      "MT-261",
+      "MT-264"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "GPU render-path wiring for effects: RenderEngine binding, EFFECT_GPU_UNAVAILABLE, CPU fallback promotion-equivalence, headless/quiet [STU-FX-036,STU-FX-038,STU-FX-018]",
+  "spec_anchor": [
+    "STU-FX-036",
+    "STU-FX-038",
+    "STU-FX-018",
+    "STU-ARC-002",
+    "STU-QUIET-001"
+  ],
+  "scope": {
+    "summary": "Wire every filter/effect through the studio-engine RenderEngine (wgpu/WGSL) driven by StudioRenderHarness: GPU-Req rows run on a supported backend or return a determinate EFFECT_GPU_UNAVAILABLE state (harness records shortfall, never silent empty output); Opt rows carry a CPU fallback producing promotion-equivalent output; GPU deps stay isolated in studio-engine (never in handshake_core Cargo.toml). Batch/model-driven application runs headless and quiet (14.20): no foreground window, no focus/input steal; interactive group-12 workspaces expose an equivalent headless typed-data path.",
+    "allowed_paths": [
+      "src/studio/effects/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "RenderEngine/StudioRenderHarness binding; GPU-Req -> determinate unavailable state; Opt CPU fallback equivalent; GPU dep isolated; headless+quiet"
+    ],
+    "proof_targets": [
+      "real-GPU render + headless EFFECT_GPU_UNAVAILABLE fallback + quiet negative test"
+    ],
+    "code_surfaces": [
+      "studio-engine/src/render/mod.rs",
+      "studio-engine/src/render/gpu_path.rs",
+      "src/studio/effects/harness_glue.rs"
+    ],
+    "expected_tests": [
+      "real-GPU: GPU-Req effect renders through RenderEngine; headless fallback: no-GPU returns EFFECT_GPU_UNAVAILABLE (AccessKit-tree assert, not empty)",
+      "test: Opt effect CPU fallback promotion-equivalent to GPU within tolerance",
+      "negative: batch effect run pops no window / steals no focus; handshake_core Cargo.toml has no wgpu/wgsl"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-VIS-001",
+    "HBR-QUIET-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "GPU effects silently empty or leak GPU dep into core; agent runs steal focus.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

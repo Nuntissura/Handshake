@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-056",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-056.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-056.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-054",
+      "MT-066",
+      "MT-019"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Color/hue adjustments family (Vibrance, Hue/Sat, White Balance, Color Balance, Photo Filter, Selective Color, Replace Color, Match Color, Recolor, Split Toning) [STU-RAS-035]",
+  "spec_anchor": [
+    "STU-RAS-035"
+  ],
+  "scope": {
+    "summary": "Implement the color/hue StudioAdjustment kinds over the framework (MT-054): Vibrance (skin/saturated-protected saturation + saturation slider), Hue/Saturation (master or per-hue-range with colorize + on-image targeting), White Balance (temperature/tint), Color Balance (CMY/RGB per shadows/midtones/highlights with luminosity preservation), Photo/Lens Filter (warm/cool/custom tint with density + preserve-luminosity), Selective Color (CMYK ink shift per color range, relative/absolute), Replace Color (fuzziness-masked selection with HSL shift), Match Color (color statistics between images/layers/selections, savable), Recolor (monochrome tint by HSL), and Split Toning (independent highlight/shadow tint with balance).",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "all 10 color/hue adjustment kinds as non-destructive layers + apply-in-place",
+      "per-hue targeting, saturation protection, statistics match proven"
+    ],
+    "proof_targets": [
+      "Hue/Sat + Selective-Color + Match-Color adjustment runtime + snapshot"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/adj_color.rs",
+      "studio-engine/src/raster/adj_color.rs",
+      "src/frontend/handshake_native/src/studio/raster/adjustments_ui.rs"
+    ],
+    "expected_tests": [
+      "live: Hue/Saturation per-hue-range shift + colorize; Vibrance protects already-saturated pixels; Selective Color shifts CMYK within a range — each a re-editable adjustment layer",
+      "live: Match Color matches statistics between two layers and saves settings",
+      "argus: before/after snapshot"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "adjustments panel (color)",
+      "hue/sat + color-balance dialogs"
+    ],
+    "argus_targets": [
+      "studio.adj_vibrance",
+      "studio.adj_hue_sat",
+      "studio.adj_white_balance",
+      "studio.adj_color_balance",
+      "studio.adj_selective_color"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Raster / Color adjustments (hue/saturation, color balance)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No color grading/correction; hue/saturation/white-balance workflows absent.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

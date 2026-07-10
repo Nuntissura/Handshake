@@ -1,0 +1,126 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-321",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-321.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-321.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-007",
+      "MT-003",
+      "MT-004",
+      "MT-020"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Design-system domain binding: studio.design_system command family + primitive layer bindings + engine boundary [STU-DS-001,STU-DS-035,STU-ARC-002]",
+  "spec_anchor": [
+    "STU-DS-001",
+    "STU-DS-035",
+    "STU-ARC-002",
+    "STU-CON-001"
+  ],
+  "scope": {
+    "summary": "Wire the handshake_core::studio::design_system domain to the studio-engine LayoutEngine (MT-020) through the typed boundary only: register the studio.design_system.<command>.v<N> command family over the MT-007 command surface, bind the canonical primitives StudioComponent/StudioComponentInstance/StudioVariable/StudioVariableCollection/StudioStyleRegistry/StudioAutoLayout/StudioConstraint/StudioLayoutGrid (MT-002) to StudioLayer nodes, and route every mutation through STUDIO_* EventLedger events (MT-003) + studio_* Postgres authority (MT-004). No solver/tessellation dep leaks into handshake_core; auto-layout/constraint solving lives behind the LayoutEngine trait.",
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "studio.design_system command family routes through LayoutEngine boundary + ledger + Postgres; canonical primitives bound; no dep leak"
+    ],
+    "proof_targets": [
+      "command-family + ledger/authority routing test"
+    ],
+    "code_surfaces": [
+      "src/studio/design_system/mod.rs",
+      "src/studio/design_system/domain.rs",
+      "studio-engine/src/layout/**"
+    ],
+    "expected_tests": [
+      "cargo test studio::design_system::domain",
+      "live: studio.design_system command mutation emits ledger event + lands in studio_* authority via PromotionGate",
+      "test: no solver/GPU dep leak into handshake_core; primitives bound to StudioLayer without forking types"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No design-system domain wiring; all 14.10 MTs unroutable and unauditable.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

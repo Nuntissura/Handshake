@@ -1,0 +1,134 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-423",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-423.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-423.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-411",
+      "MT-419"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Camera/creative profiles, preset browser, snapshots, defaults [STU-RAW-013]",
+  "spec_anchor": [
+    "STU-RAW-013",
+    "STU-RAW-018",
+    "STU-DOC-004"
+  ],
+  "scope": {
+    "summary": "Implement the profile/preset surfaces: a profile stage applied before slider edits (camera-matching/neutral render profiles + look/creative profiles from a registry); a preset browser with hover-preview + preset-amount/intensity slider + user-saved presets; Snapshots (named reappliable develop-state versions); default-settings management (per-camera-model, per-serial-number, per-ISO defaults + a develop output-profile/ICC selection); and per-adjustment/per-panel add/delete/reset-to-default with active toggles. Profiles/presets reuse the StudioSwatch/StudioColorProfile/style-registry machinery of 14.8/14.10 (a source suite's bundled pack is provenance, not a shipped asset name).",
+    "allowed_paths": [
+      "src/studio/raw/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "profiles + preset browser + snapshots + defaults reusing 14.8/14.10 registries; Argus + manual"
+    ],
+    "proof_targets": [
+      "profile/preset/snapshot + defaults resolution test"
+    ],
+    "code_surfaces": [
+      "src/studio/raw/profiles.rs",
+      "src/studio/raw/presets.rs",
+      "src/studio/raw/snapshots.rs",
+      "src/frontend/handshake_native/src/studio/raw/preset_browser.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::raw::presets",
+      "test: profile stage pre-slider + preset browser hover/amount + user presets",
+      "test: snapshots reappliable; per-camera/serial/ISO defaults resolve; reuses 14.8/14.10 registries (no forked asset store)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "preset browser",
+      "profile picker",
+      "snapshots panel"
+    ],
+    "argus_targets": [
+      "studio.raw.presets",
+      "studio.raw.profiles",
+      "studio.raw.snapshots"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Camera Raw & Develop / Profiles, presets & snapshots"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No profile/preset workflow; forked asset store risk.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

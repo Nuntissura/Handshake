@@ -1,0 +1,137 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-021",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-021.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-021.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-003",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-015",
+      "MT-017"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Raster-domain cross-cutting obligations + dedup-completeness conformance harness [STU-RAS-001,STU-RAS-002,STU-RAS-003,STU-RAS-004,STU-RAS-005,STU-RAS-047,STU-RAS-048]",
+  "spec_anchor": [
+    "STU-RAS-001",
+    "STU-RAS-002",
+    "STU-RAS-003",
+    "STU-RAS-004",
+    "STU-RAS-005",
+    "STU-RAS-047",
+    "STU-RAS-048"
+  ],
+  "scope": {
+    "summary": "Build the raster-domain conformance harness that mechanically enforces the 14.4 cross-cutting obligations once for every raster command: each command that creates/changes/removes an operator-visible surface has (a) a GUI control, (b) a schemars inputSchema-carrying typed command, (c) Argus receipts + snapshot path, (d) a UserManual entry; plus quiet-law compliance, sandbox->validation->PromotionGate lifecycle on model mutations, StudioRasterTile-only pixel storage (no full-frame buffers), and per-op StudioHistoryEntry reversibility. Include a dedup-completeness check asserting every 14.4 clause/table-row maps to at least one registered raster command and no source-suite product name leaks as a Studio tool/panel/command name.",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "conformance harness enforces GUI+command+Argus+manual on every raster command",
+      "model mutation cannot bypass sandbox/validation/promotion",
+      "dedup-completeness + no-source-name checks pass"
+    ],
+    "proof_targets": [
+      "fail-closed model-mutation negative test + per-command obligation coverage check"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/mod.rs",
+      "src/studio/raster/conformance.rs",
+      "tests/studio/raster_conformance.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::raster::conformance",
+      "live: model-authored raster mutation is refused a direct authority write and forced through sandbox->validation->PromotionGate (fails closed)",
+      "test: every registered raster command_id has GUI target + inputSchema + Argus receipt + manual entry; no source-suite product name appears as a Studio command/panel name"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-QUIET-001",
+    "HBR-MAN-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Raster features ship without the uniform GUI/command/Argus/manual + promotion guarantees; obligations silently omitted per feature.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

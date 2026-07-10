@@ -1,0 +1,128 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-428",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-428.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-428.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-427",
+      "MT-007"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Enhance — ML-adapter tier + re-editability lifecycle + receipts [STU-RAW-014b,STU-RAW-014c]",
+  "spec_anchor": [
+    "STU-RAW-014",
+    "STU-RAW-014b",
+    "STU-RAW-014c"
+  ],
+  "scope": {
+    "summary": "Implement the ML-model-backed Enhance tier (AI denoise, AI raw-details, AI super-resolution) ONLY as an optional StudioModelAdapter, local model preferred, no required cloud/account. When no adapter is installed the pipeline MUST fall back to the deterministic tier (MT-427) and surface a capability receipt rather than failing. An Enhance result MUST remain re-editable: an update/flatten lifecycle refreshes AI results when models change and flattens to a baked buffer with a documented reset path back to the editable state; every Enhance run MUST emit a receipt naming the adapter, the model identity, and whether it ran locally.",
+    "allowed_paths": [
+      "src/studio/raw/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "ML Enhance optional adapter; degrades to deterministic with receipt; re-editable update/flatten; run receipts"
+    ],
+    "proof_targets": [
+      "ML-adapter + no-adapter-degrade + re-edit lifecycle + receipt test"
+    ],
+    "code_surfaces": [
+      "src/studio/raw/enhance_ml.rs",
+      "src/studio/raw/adapter.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::raw::enhance_ml",
+      "negative: no adapter -> falls back to deterministic tier + capability receipt (no failure)",
+      "test: Enhance result re-editable; update/flatten + reset path; run receipt names adapter+model+local-flag"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Enhance panel (AI)"
+    ],
+    "argus_targets": [
+      "studio.raw.enhance_ml"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Camera Raw & Develop / Enhance — AI (optional)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "ML Enhance becomes hard cloud dependency; results non-re-editable; unaudited model runs.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

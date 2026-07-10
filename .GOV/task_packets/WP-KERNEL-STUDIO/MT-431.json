@@ -1,0 +1,129 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-431",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-431.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-431.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-430",
+      "MT-441"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Develop output routing via StudioExportRecipe + multi-image apply on canonical selection [STU-RAW-017]",
+  "spec_anchor": [
+    "STU-RAW-017",
+    "STU-IO-010",
+    "STU-SOT"
+  ],
+  "scope": {
+    "summary": "Route save/output of a developed raw through StudioExportRecipe (14.13) for derived deliverables (DNG/TIFF/PNG/JPEG and layered document formats) with format-specific options, WITHOUT inventing a raw-develop-only export path that bypasses the 14.13 export contract. Implement multi-image apply — copy develop settings from one raw to a selection of others, paste-settings, previous, and preset apply across a filmstrip selection — operating on the CANONICAL selection set, not the visible/loaded subset.",
+    "allowed_paths": [
+      "src/studio/raw/**",
+      "src/studio/interop/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "develop output via StudioExportRecipe; multi-image apply on canonical selection; no bypass"
+    ],
+    "proof_targets": [
+      "export-via-recipe + canonical-selection apply test"
+    ],
+    "code_surfaces": [
+      "src/studio/raw/output.rs",
+      "src/studio/interop/export_recipe.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::raw::output",
+      "test: developed-raw save routes through StudioExportRecipe (no bypass path)",
+      "test: multi-image apply targets canonical selection set, not visible/loaded subset"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "develop output/apply"
+    ],
+    "argus_targets": [
+      "studio.raw.output",
+      "studio.raw.apply_settings"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Camera Raw & Develop / Output & multi-image apply"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Bypass export path or partial-selection apply (SOT canonical-set violation).",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

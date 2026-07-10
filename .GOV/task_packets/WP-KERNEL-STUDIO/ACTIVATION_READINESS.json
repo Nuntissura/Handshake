@@ -1,0 +1,61 @@
+{
+  "schema_id": "hsk.activation_readiness@1",
+  "wp_id": "WP-KERNEL-STUDIO",
+  "generated_at_utc": "2026-07-09T00:00:00Z",
+  "state_source": "RECOMPUTED_FROM_STUB_REFINEMENT_MT_CONTRACTS",
+  "verdict": "READY_FOR_ORCHESTRATOR_REVIEW",
+  "ready_for_downstream_launch": "NO",
+  "ready_for_downstream_launch_reason": "Operator scoped worktree creation + coder/KERNEL_BUILDER launch to a FUTURE session. This session prepared spec + stub + refinement + full MT set. Next-session activation completes: resolve open contract points [STU-CON-006], promote stub -> official packet (just create-task-packet), create wtc-* worktree + feat/WP-KERNEL-STUDIO branch, launch implementation.",
+  "user_signature": "ilja090720260901",
+  "prepared_artifacts": {
+    "spec_merge": {
+      "status": "COMPLETE",
+      "spec_version": "v02.199",
+      "section": "14 (Studio -- Unified Creative Suite), 24 sub-sections 14.1-14.24, ~626 [STU-*] normative anchors",
+      "sole_authority": true,
+      "no_sidecars": true,
+      "appendix_rows": "FEAT-STUDIO-*(12), PRIM-Studio*(38), IMX-STUDIO-*(3), feature_links(12)",
+      "spec_checks": "spec-current-check PASS, spec-bundle-check PASS (debt/eof-appendices/growth-discipline/governance-reference), validator-spec-regression PASS, self-consistency PASS",
+      "commit": "9752d85f"
+    },
+    "wp_stub": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+    "refinement": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "microtask_contracts": {
+      "count": 503,
+      "id_range": "MT-001..MT-555 (contiguous within domain ranges; some ranges left headroom below their ceiling)",
+      "gui_mt_count": 291,
+      "observable_runtime_mt_count": 495,
+      "open_contract_point_blocked_mts": 6,
+      "index": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json",
+      "domains": {
+        "foundation": "MT-001..020 (20)", "raster": "MT-021..066 (46)", "vector": "MT-081..138 (58)",
+        "layout": "MT-141..190 (50)", "typography": "MT-191..230 (40)", "color": "MT-231..260 (30)",
+        "effects": "MT-261..305 (45)", "design_system": "MT-321..367 (47)", "prototype": "MT-371..400 (30)",
+        "raw": "MT-411..432 (22)", "interop": "MT-441..480 (40)", "automation": "MT-481..520 (40)",
+        "whiteboard": "MT-521..540 (20)", "cross_cutting": "MT-541..555 (15)"
+      }
+    }
+  },
+  "microtask_granularity": "NO_UPPER_COUNT_BIAS; each MT narrow, no-context-implementable, small/fast-model-sized, independently reviewable + crash-recoverable; foundation MTs own shared schema/engines and later MTs depend on them; every MT carries clause + spec_anchor + code_surfaces + expected_tests(>=1 runtime proof) + depends_on + risk_if_missed + gui_obligation + user_manual_obligation + hbr + red_team.",
+  "local_branch": "feat/WP-KERNEL-STUDIO (NOT CREATED - next session)",
+  "local_worktree_dir": "wtc-studio (NOT CREATED - next session)",
+  "gov_kernel_link": "NOT_CHECKED (worktree not created)",
+  "remote_backup_branch": "origin/WP-KERNEL-STUDIO (created at activation)",
+  "backup_push_status": "NOT_REQUIRED_YET",
+  "health_checks": {
+    "spec_current_check": "PASS",
+    "spec_bundle_check": "PASS",
+    "validator_spec_regression": "PASS",
+    "mt_index_integrity": "PASS (503 MTs, 0 dep errors, 0 dupes, 6 intentional open-contract-point blockers)"
+  },
+  "hbr_applicability": {
+    "pillars": ["INT", "SWARM", "VIS", "QUIET", "MAN", "STOP"],
+    "int_009_three_tier": "Flight Recorder WIRED at build (FR-EVT-STUDIO-*); internal_diagnostics + Palmistry DEFERRED-until-shipped (WP-KERNEL-012/016) with typed reason on every observable-runtime MT",
+    "coverage": "291 GUI MTs carry HBR-VIS/HBR-MAN; 495 observable-runtime MTs carry HBR-INT-009 three-tier posture; parallel/quiet MTs carry HBR-SWARM/HBR-QUIET"
+  },
+  "outstanding_issues": [
+    "Open contract points [STU-CON-006] (redo depth, event granularity/coalescing, auto-accept policy, raster authority storage shape, FR-EVT-STUDIO-* registration, plugin capability schema) MUST be resolved before their implementing MTs (MT-509, 545, 552-555) harden - tracked as spec-debt.",
+    "Prerequisite gate [STU-ARC-006]: kernel baseline (sandbox, PromotionGate, CRDT, native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) must be stable before Studio product implementation begins."
+  ],
+  "next_orchestrator_action": "Review prepared bundle; NEXT SESSION: resolve [STU-CON-006] open points, promote stub -> official packet, create wtc-studio worktree + feat/WP-KERNEL-STUDIO branch, then launch KERNEL_BUILDER/Coder implementation."
+}

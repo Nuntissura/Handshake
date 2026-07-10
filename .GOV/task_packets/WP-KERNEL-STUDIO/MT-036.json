@@ -1,0 +1,134 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-036",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-036.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-036.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-032",
+      "MT-017"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Selection refinement ops + unified refine-edge / select-and-mask surface [STU-RAS-020]",
+  "spec_anchor": [
+    "STU-RAS-020"
+  ],
+  "scope": {
+    "summary": "Implement selection-refinement commands on StudioSelectionSet: Grow/Shrink (radius, circular option), Feather (radius), Smooth (radius), Border, Expand/Contract. Provide ONE unified edge-refinement surface (refine-edge / select-and-mask) with matte/edge refinement for hair/fine detail (border width, smooth, feather, ramp), a refinement adjustment brush (matte/foreground/background/feather modes), preview modes (overlay/black matte/white matte/black-and-white/transparent), and output routing to Selection, Mask, New Layer, or New Layer With Mask.",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "grow/shrink/feather/smooth/border/expand-contract commands work",
+      "one refine-edge surface with brush, preview modes, and 4 output routes"
+    ],
+    "proof_targets": [
+      "refine-edge hair extraction + output-routing runtime + preview snapshot"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/select_refine.rs",
+      "studio-engine/src/raster/edge_refine.rs",
+      "src/frontend/handshake_native/src/studio/raster/refine_edge.rs"
+    ],
+    "expected_tests": [
+      "live: grow/shrink/feather/smooth/border modify the selection by radius; refine-edge extracts hair against contrast with the refinement brush",
+      "live: output routing produces each of Selection/Mask/New Layer/New Layer With Mask",
+      "argus: preview-mode snapshot (overlay + black matte)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "refine-edge / select-and-mask workspace",
+      "refinement brush"
+    ],
+    "argus_targets": [
+      "studio.select_grow",
+      "studio.select_feather",
+      "studio.refine_edge",
+      "studio.refine_output"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Raster / Refine edge & select-and-mask"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No edge refinement; hair/fine-detail cutouts impossible; refine-edge and refine-selection not deduped.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

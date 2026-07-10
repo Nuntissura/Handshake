@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-181",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-181.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-181.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-008",
+      "MT-014"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Export recipe dispatch through quiet/headless output path [STU-LAY-054]",
+  "spec_anchor": [
+    "STU-LAY-054",
+    "STU-LAY-066",
+    "STU-QUIET-001",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement the layout output dispatcher: all render-to-output operations are StudioExportRecipe executions (never forked) dispatched through the quiet/headless output path. Output MUST run without stealing focus or popping foreground windows and MUST be observable as a background task with progress and cancel, per the headless/quiet law ([STU-LAY-066], 14.20, MT-014). This MT wires the recipe-execution channel that preflight/package/print/PDF/merge MTs (MT-182..MT-189) dispatch through; render capture via MT-008 harness.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "StudioExportRecipe dispatch as quiet/headless background task with progress+cancel; no focus/window steal"
+    ],
+    "proof_targets": [
+      "background-task progress/cancel runtime; focus-steal negative test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/output/export_dispatch.rs",
+      "studio-engine/src/layout/output_task.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::output::export_dispatch",
+      "live: a StudioExportRecipe runs as a background task with progress + cancel",
+      "negative: output steals no focus + pops no foreground window (quiet law)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "background tasks / output progress"
+    ],
+    "argus_targets": [
+      "studio.layout.output_task"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Output tasks (quiet & headless)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-QUIET-001",
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Output path missing or focus-stealing; all prepress/output MTs cannot dispatch; QUIET law violated.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

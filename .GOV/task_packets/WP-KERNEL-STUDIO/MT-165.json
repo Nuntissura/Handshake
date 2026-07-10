@@ -1,0 +1,134 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-165",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-165.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-165.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-016",
+      "MT-020"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "QR codes + reusable object libraries/snippets + frame stroke options [STU-LAY-034]",
+  "spec_anchor": [
+    "STU-LAY-034",
+    "STU-LAY-063",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement QR codes as editable vector objects of type Web Hyperlink, Plain Text, Text Message, Email, or Contact Card, with color choice and post-generation editing (per-record QR generation is a data-merge capability, MT-189). Implement reusable object libraries and snippets: store, search, sort, and re-place objects (with per-item type/description metadata) and drag-out/export selections that re-place at original or cursor position. Implement frame stroke options (weight, cap, join, miter, align inside/center/outside, dash/dotted/stripe stroke types, custom savable stroke styles, arrowheads with scale, gap color/tint) applied through the shared vector stroke model (14.5, never forked).",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "editable QR of all five types; object library store/search/sort/re-place; frame strokes via shared vector model"
+    ],
+    "proof_targets": [
+      "QR generation runtime; library re-place + shared-stroke test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/qr_codes.rs",
+      "src/studio/layout/object_library.rs",
+      "src/studio/layout/frame_stroke.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::object_library",
+      "live: QR generates as editable vector object of each type with color + post-edit",
+      "test: object library store/search/sort/re-place at original/cursor; frame stroke options via shared 14.5 stroke model"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "QR dialog",
+      "object library panel",
+      "stroke panel"
+    ],
+    "argus_targets": [
+      "studio.layout.qr_code",
+      "studio.layout.object_library",
+      "studio.layout.frame_stroke"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / QR codes, object libraries & frame strokes"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No QR, reusable snippets, or frame strokes; or a forked stroke model (dedup violation).",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

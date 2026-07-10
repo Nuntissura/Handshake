@@ -1,0 +1,120 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-281",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-281.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-281.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-261",
+      "MT-264"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Utility, Channel & Convolution filters [STU-FX-022]",
+  "spec_anchor": [
+    "STU-FX-022"
+  ],
+  "scope": {
+    "summary": "Implement the low-level utility pixel operators as StudioLiveFilter kinds: Custom Convolution (user 5x5 kernel, scale/offset, savable/loadable), Maximum/dilate (radius, squareness/roundness; spread masks), Minimum/erode (radius; choke masks), Offset (h/v shift with wrap/repeat-edge/background fill), De-Interlace (odd/even line removal by duplication/interpolation), Broadcast-Safe Colors (TV-safe gamut). Watermark is a RETIRED third-party surface, recorded as provenance-only and NOT shipped as a native Studio effect.",
+    "allowed_paths": [
+      "src/studio/effects/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "Custom Convolution, Maximum(dilate), Minimum(erode), Offset, De-Interlace, Broadcast-Safe Colors; Watermark provenance-only (not shipped)"
+    ],
+    "proof_targets": [
+      "utility-filter correctness + watermark-excluded assertion"
+    ],
+    "code_surfaces": [
+      "studio-engine/src/render/utility/mod.rs",
+      "src/studio/effects/families/utility.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio_engine::render::utility",
+      "test: Custom Convolution 5x5 kernel savable/loadable; Maximum/Minimum morphology choke/spread; Offset edge modes",
+      "test: Watermark NOT registered as a shippable effect_kind (provenance-only)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-VIS-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Mask morphology/convolution/offset utilities missing.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-480",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-480.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-480.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-446",
+      "MT-447",
+      "MT-448",
+      "MT-449",
+      "MT-450",
+      "MT-451",
+      "MT-452",
+      "MT-453",
+      "MT-454",
+      "MT-455",
+      "MT-456",
+      "MT-457",
+      "MT-458",
+      "MT-459",
+      "MT-460",
+      "MT-461",
+      "MT-462",
+      "MT-463",
+      "MT-464",
+      "MT-465",
+      "MT-466",
+      "MT-467",
+      "MT-468",
+      "MT-469",
+      "MT-470",
+      "MT-471",
+      "MT-472",
+      "MT-473",
+      "MT-474",
+      "MT-475",
+      "MT-476",
+      "MT-477",
+      "MT-478",
+      "MT-479",
+      "MT-006",
+      "MT-015"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Interop model steerability + headless/quiet + manual + validation obligation [STU-IO-014]",
+  "spec_anchor": [
+    "STU-IO-014",
+    "STU-IO-004",
+    "STU-ARC-005",
+    "STU-MDL-001",
+    "STU-QUIET-001",
+    "STU-MAN-001"
+  ],
+  "scope": {
+    "summary": "Enforce the interop cross-cutting obligation: every StudioImportProfile and StudioExportRecipe action is a typed model-steerable command with a stable identifier, observable through Argus (14.16), and runs headless + quiet under 14.20 (no foreground window, no focus steal, bounded + observable) so batch import/export is safe for parallel operator/model co-work. Each format row and export surface carries a dual-audience UserManual entry (14.22) stating compatibility scope, fixtures, round-trip envelope, unsupported-feature receipts, and recovery behavior. A model-authored import/export changing document authority MUST pass sandbox -> StudioValidationDescriptor -> PromotionGate ([STU-ARC-005]); the fixture/receipt gate of [STU-IO-004] is part of that validation and is NOT optional regardless of model confidence.",
+    "allowed_paths": [
+      "src/studio/interop/**",
+      "src/manual/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "all interop ops model-steerable + Argus-observable + headless/quiet + manual-covered + promotion+fixture/receipt-gated"
+    ],
+    "proof_targets": [
+      "manual coverage + fail-closed promotion (fixture/receipt gate) + quiet-headless audit"
+    ],
+    "code_surfaces": [
+      "src/studio/interop/commands.rs",
+      "src/studio/interop/manual.rs"
+    ],
+    "expected_tests": [
+      "HBR-MAN-003: every studio import/export command_id has a manual entry stating scope/fixtures/round-trip/receipts/recovery",
+      "negative: model-authored interop write blocked from direct authority write (fails closed via PromotionGate incl. fixture/receipt gate)",
+      "argus+quiet: batch import/export observable headless with no focus steal"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Import & Export / (coverage-completeness gate)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-VIS-001",
+    "HBR-QUIET-001",
+    "HBR-MAN-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Ungated/unobservable/undocumented interop commands; model interop bypasses fixture/receipt validation.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

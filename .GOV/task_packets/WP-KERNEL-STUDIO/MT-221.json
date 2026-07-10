@@ -1,0 +1,131 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-221",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-221.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-221.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-198",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Glyph browser / insert-glyph + user glyph sets [STU-TYP-020,STU-TYP-021]",
+  "spec_anchor": [
+    "STU-TYP-020",
+    "STU-TYP-021"
+  ],
+  "scope": {
+    "summary": "Provide a glyph panel that browses every glyph in the active font, filters to alternates-for-selection and recently-used, inserts any glyph (including alternates unreachable by keyboard), and offers on-canvas alternate suggestions where the font provides them (PS Glyphs panel + on-canvas alternates; ID/AI Glyphs). User glyph sets: the operator/model MAY define named glyph sets that store chosen glyphs (optionally remembering their font) for reuse across documents (InDesign glyph sets).",
+    "allowed_paths": [
+      "src/studio/typography/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "glyph browser with alternates/recent + on-canvas suggestions; named reusable user glyph sets"
+    ],
+    "proof_targets": [
+      "glyph-browse/insert + user-set test"
+    ],
+    "code_surfaces": [
+      "src/studio/typography/glyphs.rs",
+      "src/frontend/handshake_native/src/studio/typography/glyph_panel.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::typography::glyphs",
+      "live: glyph panel browses all glyphs, filters alternates/recent, inserts keyboard-unreachable alternate; on-canvas alternate suggestion",
+      "test: named user glyph set stores glyphs (+font) reusable across documents"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "glyph panel",
+      "glyph sets"
+    ],
+    "argus_targets": [
+      "studio.type.glyph_panel",
+      "studio.type.glyph_sets"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Typography / Glyphs & glyph sets"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No glyph access; alternates/special glyphs unreachable.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

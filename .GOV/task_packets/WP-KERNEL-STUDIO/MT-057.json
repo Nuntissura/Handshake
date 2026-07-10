@@ -1,0 +1,134 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-057",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-057.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-057.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-054",
+      "MT-042"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Monochrome/tonal-map adjustments (Black&White, Channel Mixer, Gradient Map, Desaturate, Invert, Posterize, Threshold) [STU-RAS-035]",
+  "spec_anchor": [
+    "STU-RAS-035"
+  ],
+  "scope": {
+    "summary": "Implement the monochrome/conversion StudioAdjustment kinds over the framework (MT-054): Black & White (per-hue luminance-weight mono conversion + optional tint), Channel Mixer (weighted source-to-output channel mix + constant offset + monochrome), Gradient Map (maps tonal values onto a StudioGradient with dither + reverse), Desaturate (removes color in place), Invert (negative), Posterize (flat tonal levels per channel), and Threshold (high-contrast black/white around a level).",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "all 7 mono/conversion adjustment kinds as non-destructive layers + apply-in-place",
+      "per-hue weighting, gradient mapping, posterize/threshold proven"
+    ],
+    "proof_targets": [
+      "Black&White + Gradient-Map + Threshold adjustment runtime + snapshot"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/adj_mono.rs",
+      "studio-engine/src/raster/adj_mono.rs",
+      "src/frontend/handshake_native/src/studio/raster/adjustments_ui.rs"
+    ],
+    "expected_tests": [
+      "live: Black & White per-hue weights + tint; Gradient Map maps tone to a gradient; Threshold produces high-contrast B/W — each a re-editable adjustment layer",
+      "argus: before/after snapshot",
+      "test: Channel Mixer monochrome + offset proven"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "adjustments panel (mono)"
+    ],
+    "argus_targets": [
+      "studio.adj_black_white",
+      "studio.adj_channel_mixer",
+      "studio.adj_gradient_map",
+      "studio.adj_posterize",
+      "studio.adj_threshold"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Raster / Monochrome & tonal-map adjustments"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No monochrome conversion / gradient-map / posterize/threshold; mono + stylize workflows absent.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

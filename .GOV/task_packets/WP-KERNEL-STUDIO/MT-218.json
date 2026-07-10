@@ -1,0 +1,129 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-218",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-218.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-218.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-198",
+      "MT-202"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "OpenType feature exposure + application semantics [STU-TYP-017,STU-TYP-049]",
+  "spec_anchor": [
+    "STU-TYP-017",
+    "STU-TYP-049"
+  ],
+  "scope": {
+    "summary": "Expose the font-declared OpenType feature set per character range; a feature is offered only when the active font declares it. Features map to standard OpenType tags and are stored on the character range (never baked into the stream). Normative feature groups: ligatures (liga/dlig/clig/rlig), alternates (salt/calt/titl/swsh/ornm), stylistic sets (ss01-ss20), figure style (lnum/onum), figure width (pnum/tnum), fractions (frac/afrc), ordinals (ordn), super/subscript (sups/subs), numerator/denominator (numr/dnom), slashed zero (zero), caps forms (smcp/c2sc/pcap/cpsp/case), positional forms (init/medi/fina/isol), kerning/marks (kern/mark/mkmk). Semantics [STU-TYP-049]: features are stored as feature-tag toggles/values and applied by the shaping engine at layout time, never rewriting the character stream (text stays searchable/re-editable); a feature is inert when unavailable, and the UI/model surface MUST report which features the font actually provides so a no-context model does not request unavailable features.",
+    "allowed_paths": [
+      "src/studio/typography/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "full OpenType feature-group surface per-range; applied at shaping (stream intact); font-gated + availability reported"
+    ],
+    "proof_targets": [
+      "feature-toggle non-destructive + availability-report test"
+    ],
+    "code_surfaces": [
+      "studio-engine/src/text/opentype.rs",
+      "src/frontend/handshake_native/src/studio/typography/opentype_panel.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio_engine::text::opentype",
+      "live: each feature group toggles at shaping time without rewriting the stream (text stays searchable)",
+      "test: only font-declared features offered; available-feature list reported to UI/model"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "OpenType feature panel"
+    ],
+    "argus_targets": [
+      "studio.type.opentype_panel"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Typography / OpenType features"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No OpenType typography; advanced type + fractions/figures/stylistic sets unmet.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

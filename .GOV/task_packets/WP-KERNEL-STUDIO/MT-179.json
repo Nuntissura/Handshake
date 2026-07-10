@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-179",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-179.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-179.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-020",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Grids & guides + smart guides [STU-LAY-050,STU-LAY-051]",
+  "spec_anchor": [
+    "STU-LAY-050",
+    "STU-LAY-051",
+    "STU-CON-001",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement grid and guide constructs as StudioLayoutGrid records (never forked): a baseline grid (start position, relative-to, increment, view threshold) that paragraphs can snap to (all lines or first line only, per MT-155); a document grid (subdivisions and snap behavior); column and margin guides per page/spread; and ruler guides with per-guide color, view threshold, lock, copy/paste across pages, select-all, and delete-all-on-spread. Implement smart guides giving dynamic alignment feedback against object edges and centers, plus smart-dimension and smart-spacing hints while dragging; snapping MUST be toggleable per construct (grid, guides, objects).",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "baseline/document/column/margin/ruler guides on StudioLayoutGrid + smart guides + per-construct snap toggle"
+    ],
+    "proof_targets": [
+      "StudioLayoutGrid construct runtime; smart-guide Argus proof"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/grids/guides.rs",
+      "studio-engine/src/layout/snap.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::grids::guides",
+      "live: baseline/document grids + column/margin/ruler guides create on StudioLayoutGrid; ruler-guide copy/paste + delete-all-on-spread",
+      "argus: smart guides show alignment/dimension/spacing hints on drag; per-construct snap toggle"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "grids & guides controls",
+      "smart guide overlay"
+    ],
+    "argus_targets": [
+      "studio.layout.grids_guides",
+      "studio.layout.smart_guides"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Grids, guides & smart guides"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No precise alignment infrastructure; grid-based composition impossible.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

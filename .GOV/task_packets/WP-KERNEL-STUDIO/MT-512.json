@@ -1,0 +1,130 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-512",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-512.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-512.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-510",
+      "MT-511"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Plugin data, storage, codegen/text-review extensions, isolated UI [STU-AUT-019,STU-AUT-018]",
+  "spec_anchor": [
+    "STU-AUT-019",
+    "STU-AUT-018"
+  ],
+  "scope": {
+    "summary": "Implement per-node plugin data (private + cross-plugin shared key-value, travelling with the document, namespaced), local client storage (plugin-local key-value separate from document data), codegen extension registration (register languages, emit code for the current selection), text-review extension (participate in a text-review pipeline over document text), and the isolated plugin UI surface with no direct access to native-shell internals, communicating with sandboxed plugin logic through a typed message channel.",
+    "allowed_paths": [
+      "src/studio/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "per-node/shared data + client storage + codegen/text-review extensions + isolated UI via typed channel"
+    ],
+    "proof_targets": [
+      "plugin-data round-trip + isolated-UI negative test"
+    ],
+    "code_surfaces": [
+      "src/studio/plugin/node_data.rs",
+      "src/studio/plugin/client_storage.rs",
+      "src/studio/plugin/extensions.rs",
+      "src/frontend/handshake_native/src/studio/plugin_ui.rs"
+    ],
+    "expected_tests": [
+      "live: per-node private + shared plugin data round-trips with the document",
+      "test: codegen extension emits code for a selection; text-review extension participates",
+      "negative: plugin UI cannot reach native-shell internals (typed message channel only)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "isolated plugin UI host"
+    ],
+    "argus_targets": [
+      "studio.plugin_ui_host"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Automation / Plugin data, storage & UI isolation"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Plugin data/codegen/text-review parity dropped, or plugin UI escapes isolation.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

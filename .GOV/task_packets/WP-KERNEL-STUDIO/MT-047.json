@@ -1,0 +1,138 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-047",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-047.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-047.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-017",
+      "MT-032",
+      "MT-049",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Transform primitives: move, crop, perspective crop, free transform [STU-RAS-029]",
+  "spec_anchor": [
+    "STU-RAS-029"
+  ],
+  "scope": {
+    "summary": "Implement the core deduped transform primitives on layers, selections, and placed-asset containers, with both numeric and handle-based input and explicit typed units per [STU-DOC-003]: Move (with auto-select and layer-bounds hover); Crop (ratio/absolute presets, overlay guides incl. rule-of-thirds and golden-ratio, straighten, delete-vs-hide cropped pixels, crop-to-selection, content-aware fill of newly exposed areas on commit); Perspective crop (corner-handle keystone correction to a straight-on rectangle); Free transform (scale/rotate/skew/distort/flip in one interactive op with numeric entry and reference-point control).",
+    "allowed_paths": [
+      "src/studio/**",
+      "studio-engine/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "move/crop/perspective-crop/free-transform with numeric+handle input",
+      "crop guides, straighten, delete-vs-hide, content-aware fill on commit; typed units"
+    ],
+    "proof_targets": [
+      "free-transform + content-aware crop runtime + snapshot"
+    ],
+    "code_surfaces": [
+      "src/studio/raster/transform_core.rs",
+      "studio-engine/src/raster/resample.rs",
+      "src/frontend/handshake_native/src/studio/raster/transform_ui.rs"
+    ],
+    "expected_tests": [
+      "live: free-transform scale+rotate a layer with numeric entry + reference point and confirm resampled result; crop with a ratio preset and content-aware fill of exposed area on commit",
+      "live: perspective crop corrects a keystoned rectangle",
+      "test: transforms carry explicit typed units"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "move tool",
+      "crop tool",
+      "free-transform"
+    ],
+    "argus_targets": [
+      "studio.tool_move",
+      "studio.tool_crop",
+      "studio.tool_perspective_crop",
+      "studio.free_transform"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Raster / Move, crop & free transform"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No transform/crop; foundational image geometry editing absent.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

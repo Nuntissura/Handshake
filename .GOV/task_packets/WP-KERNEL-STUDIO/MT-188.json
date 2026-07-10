@@ -1,0 +1,135 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-188",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-188.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-188.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-019",
+      "MT-181"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Prepress control surfaces (ink/overprint/trap/separations/flattener) [STU-LAY-062]",
+  "spec_anchor": [
+    "STU-LAY-062",
+    "STU-COL-*",
+    "STU-LAY-067"
+  ],
+  "scope": {
+    "summary": "Implement the prepress control surfaces that drive the color pipeline (14.8, ColorEngine MT-019 — math owned there, never forked here) and are enumerable: PDF/X output intents (at least PDF/X-1a, PDF/X-3, PDF/X-4 with embedded output intents through built-in presets); Ink manager (per-ink spot-to-process conversion, all-spots-to-process, ink aliasing, use-standard-Lab-values-for-spots, per-ink trapping type normal/transparent/opaque/opaque-ignore with neutral density and sequence); Overprint (per-object overprint of fill, stroke, and gap, plus a black-overprint policy); Trap presets (trap width/black width, join/end styles, appearance thresholds, image-trap placement, assignable to page ranges); Separations preview (per-plate on/off preview, ink-limit view with configurable total-ink threshold, per-ink coverage readouts); Transparency flattener (flattener presets plus a flattener preview highlighting rasterized/outlined regions). This MT owns the control surfaces; math/profiles owned by 14.8.",
+    "allowed_paths": [
+      "src/studio/layout/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "PDF/X intents + ink manager + overprint + trap presets + separations preview + flattener surfaces driving ColorEngine (no forked math)"
+    ],
+    "proof_targets": [
+      "separations/ink-limit + flattener preview runtime; ink-manager/trap driving ColorEngine test"
+    ],
+    "code_surfaces": [
+      "src/studio/layout/prepress/ink_trap.rs",
+      "src/studio/layout/prepress/separations.rs",
+      "src/studio/layout/prepress/flattener.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::layout::prepress",
+      "live: separations preview toggles plates + shows ink-limit over configurable threshold; flattener preview highlights rasterized regions",
+      "test: ink manager spot-to-process + trap preset assignment to page range + overprint fill/stroke/gap drive ColorEngine (no forked math)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "ink manager",
+      "trap presets",
+      "separations preview",
+      "flattener preview"
+    ],
+    "argus_targets": [
+      "studio.layout.ink_manager",
+      "studio.layout.trap_presets",
+      "studio.layout.separations_preview",
+      "studio.layout.flattener_preview"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Page Layout / Prepress (ink, trapping, separations, flattener)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No prepress control; commercial print output (spots/traps/separations) unmanageable.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

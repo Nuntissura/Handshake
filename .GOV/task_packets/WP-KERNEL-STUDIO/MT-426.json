@@ -1,0 +1,129 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-426",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-426.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-426.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-424",
+      "MT-425",
+      "MT-007"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "AI-assisted mask sources (optional StudioModelAdapter) [STU-RAW-014a,STU-RAW-014b]",
+  "spec_anchor": [
+    "STU-RAW-014a",
+    "STU-RAW-014b",
+    "STU-RAW-014"
+  ],
+  "scope": {
+    "summary": "Implement AI-assisted mask sources as an OPTIONAL StudioModelAdapter (14.23), local model preferred, no required cloud/account: Subject, Sky, Background, Landscape components, Objects (from a rough brush stroke or drawn rectangle), and People (per-person, with per-person component sub-masks such as skin, hair, clothing). When no adapter is present the masking system MUST degrade to the manual/range sources of MT-424 and surface a capability receipt rather than failing. AI-produced masks are the same StudioMask primitive and participate in compose/manage/review (MT-425).",
+    "allowed_paths": [
+      "src/studio/raw/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "AI mask sources as optional adapter; degrades to manual with capability receipt; no cloud dependency"
+    ],
+    "proof_targets": [
+      "AI-mask adapter + no-adapter-degrade receipt test"
+    ],
+    "code_surfaces": [
+      "src/studio/raw/mask/ai_sources.rs",
+      "src/studio/raw/adapter.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::raw::mask::ai",
+      "test: AI sources produce StudioMask when adapter present; per-person component sub-masks",
+      "negative: no adapter installed -> degrades to manual/range + capability receipt (no failure)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "masking panel (AI sources)"
+    ],
+    "argus_targets": [
+      "studio.raw.mask.ai"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Camera Raw & Develop / Masking — AI sources (optional)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "AI masks become a hard cloud dependency or crash without adapter.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

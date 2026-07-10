@@ -1,0 +1,120 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-443",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-443.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-443.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-441",
+      "MT-442"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Format matrix registry + row-law + NRT preservation-blob families [STU-IO-006,STU-IO-007,STU-IO-008]",
+  "spec_anchor": [
+    "STU-IO-006",
+    "STU-IO-007",
+    "STU-IO-008"
+  ],
+  "scope": {
+    "summary": "Implement the normative 47-row format matrix as a machine-readable registry (one row per format family: direction tokens I/EP/X/RT, fidelity tokens preserved/transformed/rasterized/preservation-blob/unsupported, posture NRT/SOX/ADPT) with each claimed direction fixture-gated per [STU-IO-004]. Enforce the matrix row-law ([STU-IO-007]): the matrix is the COMPLETE deduped format surface; a source-registry format not listed is covered by the nearest category row plus the format.unspecified long-tail (row 12); adding a format = adding a matrix row with its five gate artifacts, NOT a new import/export subsystem. Declare the NRT families (psd/psb, ai/ait, idml/indd, Affinity .af family, Figma local-copy family) as highest-fidelity preservation-blob targets per [STU-IO-008].",
+    "allowed_paths": [
+      "src/studio/interop/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "47-row matrix registry with tokens; row-law fallback; NRT families declared; directions fixture-linked"
+    ],
+    "proof_targets": [
+      "47-row registry + row-law fallback test"
+    ],
+    "code_surfaces": [
+      "src/studio/interop/matrix.rs",
+      "src/studio/interop/registry.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::interop::matrix",
+      "test: 47 rows present with direction/fidelity/posture tokens; every claimed direction references a fixture set",
+      "test: unlisted format resolves to nearest-category row + format.unspecified long-tail (row-law)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No canonical format surface; ad-hoc per-format subsystems (dedup violation).",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

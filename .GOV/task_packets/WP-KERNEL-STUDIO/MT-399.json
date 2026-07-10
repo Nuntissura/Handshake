@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-399",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-399.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-399.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-398",
+      "MT-396",
+      "MT-385"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Interactive-document animation + media + hyperlinks + page transitions + preview [STU-PRO-040,STU-PRO-040a,STU-PRO-040b,STU-PRO-040c,STU-PRO-040d,STU-PRO-041,STU-PRO-041a,STU-PRO-042,STU-PRO-042a]",
+  "spec_anchor": [
+    "STU-PRO-040",
+    "STU-PRO-040a",
+    "STU-PRO-040b",
+    "STU-PRO-040c",
+    "STU-PRO-040d",
+    "STU-PRO-041",
+    "STU-PRO-041a",
+    "STU-PRO-042",
+    "STU-PRO-042a"
+  ],
+  "scope": {
+    "summary": "Implement the interactive-document animation and media surfaces: motion presets applied to objects with event triggers (on page load, on page click, on click self, on roll over self, on button event) and per-animation duration/play-count/loop/speed-easing/animate-from-to (opacity/rotation/scale/visibility); editable vector motion paths with any drawn path convertible to a motion path; a timing surface sequencing animations per trigger event with delays, reordering, and linked play-together groups with per-group play counts; custom motion presets saveable/duplicable/deletable/importable/exportable; sharing the easing catalog + keyframe/motion-path model with StudioMotionTimeline (two entry points onto ONE motion engine, not two engines); media placement (video with poster frame, controller skin, play-on-load, loop, navigation points; audio) targetable by button media actions and media triggers; hyperlinks (URL/file/email/page-with-zoom/text-anchor/shared-destination with appearance/highlight + auto URL detection) plus nested sortable PDF bookmarks and generated QR codes (web/text/SMS/email/business-card, editable afterward); per-spread or all-spread page transitions (blinds/comb/dissolve/fade/push/wipe/zoom/page-turn with direction + speed, honored in full-screen interactive PDF); and an in-app interactivity-preview surface previewing animations/MSOs/buttons/media for the current spread or whole document before export.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "interactive-doc animation/timing/media/hyperlinks/QR/page-transitions/preview on one shared motion engine; author_ids + manual entry"
+    ],
+    "proof_targets": [
+      "Argus doc-animation + media + links + transitions + preview test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/interactive_media.rs",
+      "src/studio/prototype/interactive_media.rs"
+    ],
+    "expected_tests": [
+      "argus: interactive-doc animation timing + media + hyperlinks + page transitions + interactivity preview reachable via author_ids",
+      "live: motion presets with event triggers + timing/delays/linked groups; save/import/export custom presets; shared easing/keyframe engine with timeline; video/audio placement; hyperlinks + bookmarks + QR; page transitions honored; in-app preview plays animations/MSO/buttons/media"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "interactive-doc animation + timing",
+      "media placement",
+      "hyperlinks/bookmarks/QR",
+      "page transitions",
+      "interactivity preview"
+    ],
+    "argus_targets": [
+      "studio.prototype.doc_animation",
+      "studio.prototype.media_placement",
+      "studio.prototype.hyperlinks",
+      "studio.prototype.page_transitions",
+      "studio.prototype.interactivity_preview"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Interactive Documents / Animation, media, links and transitions"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No interactive-doc animation/media/transitions/preview; EPUB/PDF interactivity incomplete.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

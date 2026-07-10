@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-398",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-398.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-398.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-371",
+      "MT-011",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Interactive-document objects model + buttons + form fields + MSO [STU-PRO-033,STU-PRO-034,STU-PRO-034a,STU-PRO-034b,STU-PRO-034c,STU-PRO-034d,STU-PRO-034e,STU-PRO-035,STU-PRO-036,STU-PRO-037,STU-PRO-038,STU-PRO-038a,STU-PRO-039]",
+  "spec_anchor": [
+    "STU-PRO-033",
+    "STU-PRO-034",
+    "STU-PRO-034a",
+    "STU-PRO-034b",
+    "STU-PRO-034c",
+    "STU-PRO-034d",
+    "STU-PRO-034e",
+    "STU-PRO-035",
+    "STU-PRO-036",
+    "STU-PRO-037",
+    "STU-PRO-038",
+    "STU-PRO-038a",
+    "STU-PRO-039"
+  ],
+  "scope": {
+    "summary": "Implement InDesign-class interactive-document objects as interactive roles on StudioLayer nodes (not a separate document silo) for interactive PDF, fixed/reflowable EPUB, and HTML, authored with the same selection/override/history surfaces: buttons with the event set (on release/tap, on click; on roll over/off; on focus/blur), the action set (navigation/PDF: go to destination/first/last/next/previous page, URL, next/previous view, open file, view zoom; show/hide & forms: show/hide buttons+forms, clear/print/submit form; media & state: animation, go to page, go to/next/previous state, sound, video), Normal/Rollover/Click appearance states + hidden-until-triggered, per-page tab order, and a sample library of preconfigured buttons/form elements; PDF form fields (check box, combo box, list box, radio button, signature, text) with the option set (description, required, printable, multiline, password, read-only, sort-items, export values); and multi-state objects (convert a selection into ordered states that add/reorder/delete, add-objects-to-state, paste-into-state, reset-all, hidden-until-triggered), driven by the button state actions.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/prototype/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "interactive roles on layers: buttons (events/actions/states/tab-order) + PDF form fields + MSO; author_ids + manual entry"
+    ],
+    "proof_targets": [
+      "Argus button/form/MSO authoring + action test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/prototype/interactive_doc.rs",
+      "src/studio/prototype/interactive_doc.rs"
+    ],
+    "expected_tests": [
+      "argus: button editor + form-field editor + MSO panel reachable via author_ids",
+      "live: button events + action groups fire; Normal/Rollover/Click states + hidden-until-triggered; tab order; PDF form fields + options; MSO ordered states add/reorder/delete/paste-into/reset-all driven by state actions"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "button editor",
+      "form-field editor",
+      "multi-state object panel"
+    ],
+    "argus_targets": [
+      "studio.prototype.button_editor",
+      "studio.prototype.form_field",
+      "studio.prototype.mso_panel"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Interactive Documents / Buttons, forms and multi-state objects"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No interactive-document objects; interactive PDF/EPUB/HTML authoring impossible.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

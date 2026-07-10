@@ -1,0 +1,129 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-276",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-276.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-276.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-261",
+      "MT-009",
+      "MT-263"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Effect Gallery browser/workspace [STU-FX-021]",
+  "spec_anchor": [
+    "STU-FX-021",
+    "STU-FX-005"
+  ],
+  "scope": {
+    "summary": "Implement the Effect Gallery browser: single operator surface (deduped filter-gallery/effect-gallery) that applies/stacks the artistic families cumulatively as ordered gallery layers with per-effect previews, reorder, and show/hide, each becoming a StudioLiveFilter entry on commit. Available to raster + vector targets via the live-raster-effect path ([STU-FX-005]) governed by the document raster-effect resolution setting. Foreground/background-color-driven sub-effects preserved as typed parameters. Operator-visible surface with stable Argus author_ids + machine-readable state.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/studio/**",
+      "src/studio/effects/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "Effect Gallery workspace applies/stacks artistic effects cumulatively (preview/reorder/show-hide) committing StudioLiveFilter entries; operator-visible + Argus"
+    ],
+    "proof_targets": [
+      "Argus gallery inspect + cumulative-stack test"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/studio/effects/gallery.rs",
+      "src/studio/effects/gallery.rs"
+    ],
+    "expected_tests": [
+      "argus: Effect Gallery reachable with stable author_ids; cumulative stack with reorder/preview/show-hide",
+      "test: gallery layers commit as StudioLiveFilter entries; vector target uses raster-effect resolution setting"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "effect gallery browser"
+    ],
+    "argus_targets": [
+      "studio.effects.gallery",
+      "studio.effects.gallery_layer"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Effects / Effect Gallery"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No gallery browser; artistic families lack their cumulative apply surface.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

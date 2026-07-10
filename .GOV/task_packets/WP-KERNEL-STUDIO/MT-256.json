@@ -1,0 +1,139 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-256",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-256.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-256.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-252",
+      "MT-232",
+      "MT-239"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Flattening preview + appearance-of-black + colorize grayscale + channel cross-ref + find/replace color [STU-COL-029,STU-COL-030,STU-COL-014,STU-COL-015]",
+  "spec_anchor": [
+    "STU-COL-029",
+    "STU-COL-030",
+    "STU-COL-014",
+    "STU-COL-015"
+  ],
+  "scope": {
+    "summary": "Bundle the remaining color-management tails: (1) Transparency-flattening preview MUST highlight page areas affected by flattening (rasterized regions, outlined text/strokes) per a flattener preset, as inspectable state ([STU-COL-029]). (2) Appearance-of-black MUST let the document control whether 100% K displays and prints as rich vs accurate black on RGB devices, independently for screen and for export/print ([STU-COL-030]). (3) Channel operations cross-ref: channel/alpha/spot/apply-image/calculations live in 14.4's StudioLayerGraph/StudioMask/channel surface; 14.8 owns only spot-channel-as-StudioSwatch(spot) + the color-mode conversions of [STU-COL-002] — assert no double feature ([STU-COL-014]). (4) Find/replace color MUST find usages of a color and replace with another across objects and text, operating on StudioSwatch/StudioColorProfile references ([STU-COL-015]).",
+    "allowed_paths": [
+      "src/studio/color/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "studio-engine/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "flattening preview (preset); appearance-of-black screen/export split; find/replace color on refs; channel ops delegated to 14.4"
+    ],
+    "proof_targets": [
+      "flatten-preview + appearance-of-black + find/replace-color + channel-delegation test"
+    ],
+    "code_surfaces": [
+      "studio-engine/src/color/flatten_preview.rs",
+      "src/studio/color/appearance_black.rs",
+      "src/studio/color/find_replace_color.rs",
+      "src/frontend/handshake_native/src/studio/color/prepress_tail.rs"
+    ],
+    "expected_tests": [
+      "cargo test studio::color::prepress_tail",
+      "live: flattener-preset flattening preview highlights rasterized/outlined regions; appearance-of-black rich-vs-accurate independent for screen vs export",
+      "live: find/replace color across objects+text on StudioSwatch/StudioColorProfile refs",
+      "test: channel ops delegated to 14.4 (only spot-as-StudioSwatch + mode-conversion owned here; no double feature)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "flattener preview",
+      "appearance of black",
+      "find/replace color"
+    ],
+    "argus_targets": [
+      "studio.color.flatten_preview",
+      "studio.color.appearance_black",
+      "studio.color.find_replace"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Studio / Color / Flattening, black appearance & find-replace color"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "Flattening/black-appearance surprises + no color find-replace + double-featured channels.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-322",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-322.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-322.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-321",
+      "MT-004"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "studio_* design-system authority tables + dated migrations [STU-DS-049,STU-CON-004]",
+  "spec_anchor": [
+    "STU-DS-049",
+    "STU-CON-004",
+    "STU-ARC-004"
+  ],
+  "scope": {
+    "summary": "Author the design-system studio_* tables as dated migrations (YYYY_MM_DD_studio_*.sql + .down.sql) with TEXT PRIMARY KEY prefixed ids and event_ledger_event_id NOT NULL FK: studio_components (SCMP-), studio_component_instances (SCIN-), studio_variables (SVAR-), studio_variable_collections (SVCL-), studio_styles (SSTY-). StudioAutoLayout/StudioConstraint/StudioLayoutGrid persist as typed fields on the owning studio_layers row (MT-004), not new tables. guard_authority_write(Postgres) on every write; no SQLite.",
+    "allowed_paths": [
+      "src/studio/design_system/**",
+      "migrations/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "design-system tables migrate on managed Postgres; layout primitives as layer fields; no SQLite; write-guard proven"
+    ],
+    "proof_targets": [
+      "live PostgreSQL migration up/down + write-guard test"
+    ],
+    "code_surfaces": [
+      "migrations/2026_MM_DD_studio_design_system.sql",
+      "src/studio/design_system/storage_glue.rs"
+    ],
+    "expected_tests": [
+      "live-PG: migrations up+down clean",
+      "test: no_sqlite_tripwire fires on any design-system authority write without Postgres",
+      "test: prefixed-id + event_ledger_event_id FK enforced on all five tables"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "external watcher shipped later"
+    }
+  ],
+  "risk_if_missed": "No durable design-system authority store; components/variables/styles cannot promote.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+      "Domain MT forking a canonical primitive instead of referencing 14.23.",
+      "SQLite creep on a studio_* write path."
+    ],
+    "minimum_controls": [
+      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+      "Reference canonical primitives (14.23); no shadow primitives.",
+      "no_sqlite_tripwire on every authority write."
+    ]
+  }
+}
