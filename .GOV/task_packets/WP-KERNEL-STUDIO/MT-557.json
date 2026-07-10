@@ -10,38 +10,37 @@
     "model_created_markdown_authority_allowed": false
   },
   "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-340",
+  "mt_id": "MT-557",
   "created_at_utc": "2026-07-09T00:00:00Z",
   "updated_at_utc": null,
   "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.md",
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-557.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-557.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
   },
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-339",
-      "MT-332",
-      "MT-556",
-      "MT-557",
-      "MT-558",
-      "MT-559",
-      "MT-560"
+      "MT-013",
+      "MT-006",
+      "MT-007"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
-  "clause": "Override persistence across variant/swap + reset (per-property + wholesale) + name/hierarchy matching [STU-DS-017]",
+  "clause": "UNIVERSAL parallel-safety conformance gate [STU-CON-007(b),STU-PAR-002,STU-PW-003]",
   "spec_anchor": [
-    "STU-DS-017"
+    "STU-CON-007",
+    "STU-PAR-001",
+    "STU-PAR-002",
+    "STU-PAR-003",
+    "STU-PW-003"
   ],
   "scope": {
-    "summary": "Implement override persistence: overrides persist across variant switches and component swaps when the target structure matches by layer name and hierarchy, and are resettable both per-property and wholesale (reset-all-overrides). Override matching uses the same name/hierarchy pairing the smart-animate engine uses in 14.11 (MT-384). Reset controls are an operator override surface.",
+    "summary": "Suite-wide conformance harness proving [STU-CON-007](b): for EVERY Studio mutating command, the mutation routes through the per-file CRDT document + file-scoped lease + EventLedger-idempotent promotion path (MT-013), never a direct authority write. Runs the swarm harness with N concurrent model agents issuing the SAME and DIFFERENT commands on multiple files AND on one shared file; asserts no corruption, no silent overwrite, deterministic promotion ordering, conflict surfacing, and no interference with a concurrent operator session on a different project. Fails closed on any command that mutates authority outside the CRDT+lease+promotion path.",
     "allowed_paths": [
-      "src/frontend/handshake_native/src/studio/**",
-      "src/studio/design_system/**",
+      "src/studio/**",
       "tests/studio/**"
     ],
     "forbidden_paths": [
@@ -49,48 +48,42 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "overrides persist across variant/swap on name/hierarchy match; per-property + wholesale reset; author_id + manual entry"
+      "every mutating command CRDT+lease+idempotent-promotion routed; multi-model multi-file safe; operator-isolated; direct-write fails closed"
     ],
     "proof_targets": [
-      "Argus override-persistence + reset test"
+      "suite-wide swarm parallel-safety gate"
     ],
     "code_surfaces": [
-      "src/frontend/handshake_native/src/studio/design_system/override_reset.rs",
-      "src/studio/design_system/override_match.rs"
+      "tests/studio/conformance/parallel.rs",
+      "src/studio/conformance/parallel_gate.rs"
     ],
     "expected_tests": [
-      "argus: override reset controls (per-property + reset-all) reachable via author_id",
-      "test: overrides persist across variant switch/swap on name+hierarchy match; per-property + wholesale reset restore defaults"
+      "swarm: N agents x multi-file + N agents x one-file concurrent edits -> no corruption, idempotent promotion, conflicts surfaced",
+      "negative: a command writing authority outside CRDT+lease+promotion fails the gate",
+      "test: concurrent operator on other project unaffected"
     ]
   },
   "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
     "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "override panel",
-      "reset-all-overrides"
-    ],
-    "argus_targets": [
-      "studio.design_system.override_panel",
-      "studio.design_system.override_reset"
-    ],
-    "not_applicable_reason": null
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
   },
   "user_manual_obligation": {
     "required": true,
-    "same_change_update_required": "YES",
+    "same_change_update_required": "NO",
     "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Design Systems / Instance overrides and reset"
-    ],
-    "not_applicable_reason": null
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
   },
   "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-QUIET-003"
   ],
   "hbr_int_009_tier_obligations": [
     {
@@ -109,7 +102,7 @@
       "reason": "external watcher shipped later"
     }
   ],
-  "risk_if_missed": "Overrides lost on variant switch/swap or unresettable; instance editing unusable.",
+  "risk_if_missed": "Parallel multi-model/multi-file editing can corrupt state; STU-CON-007(b) unenforced (the audit's biggest gap).",
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,

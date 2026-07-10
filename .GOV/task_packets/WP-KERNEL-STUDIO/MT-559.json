@@ -10,38 +10,36 @@
     "model_created_markdown_authority_allowed": false
   },
   "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-340",
+  "mt_id": "MT-559",
   "created_at_utc": "2026-07-09T00:00:00Z",
   "updated_at_utc": null,
   "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.md",
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-559.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-559.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
   },
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-339",
-      "MT-332",
-      "MT-556",
-      "MT-557",
-      "MT-558",
-      "MT-559",
-      "MT-560"
+      "MT-007",
+      "MT-543"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
-  "clause": "Override persistence across variant/swap + reset (per-property + wholesale) + name/hierarchy matching [STU-DS-017]",
+  "clause": "UNIVERSAL model-invokability conformance gate [STU-CON-007(a),STU-MDL-006]",
   "spec_anchor": [
-    "STU-DS-017"
+    "STU-CON-007",
+    "STU-MDL-001",
+    "STU-MDL-003",
+    "STU-MDL-005",
+    "STU-MDL-006"
   ],
   "scope": {
-    "summary": "Implement override persistence: overrides persist across variant switches and component swaps when the target structure matches by layer name and hierarchy, and are resettable both per-property and wholesale (reset-all-overrides). Override matching uses the same name/hierarchy pairing the smart-animate engine uses in 14.11 (MT-384). Reset controls are an operator override surface.",
+    "summary": "Suite-wide conformance harness proving [STU-CON-007](a) + [STU-MDL-006]: EVERY Studio editing capability is reachable through the typed model command API with command_id + auto-generated input/output schema + dry_run + SimulationReceipt + undo semantics; any operator-only/headless capability carries a typed reason. Enumerates every operator-facing tool/command/panel action and asserts a matching model command_id exists (or a typed operator_only_reason). Fails closed on any editing capability with no model path and no reason.",
     "allowed_paths": [
-      "src/frontend/handshake_native/src/studio/**",
-      "src/studio/design_system/**",
+      "src/studio/**",
       "tests/studio/**"
     ],
     "forbidden_paths": [
@@ -49,48 +47,39 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "overrides persist across variant/swap on name/hierarchy match; per-property + wholesale reset; author_id + manual entry"
+      "every editing capability model-invokable (dry_run/receipt/undo) or typed-reason operator-only; no unreasoned operator-only"
     ],
     "proof_targets": [
-      "Argus override-persistence + reset test"
+      "suite-wide model-invokability gate"
     ],
     "code_surfaces": [
-      "src/frontend/handshake_native/src/studio/design_system/override_reset.rs",
-      "src/studio/design_system/override_match.rs"
+      "tests/studio/conformance/model_invokable.rs",
+      "src/studio/conformance/model_gate.rs"
     ],
     "expected_tests": [
-      "argus: override reset controls (per-property + reset-all) reachable via author_id",
-      "test: overrides persist across variant switch/swap on name+hierarchy match; per-property + wholesale reset restore defaults"
+      "live: every operator editing action maps to a model command_id (dry_run+receipt+undo) or a typed operator_only_reason",
+      "negative: an editing capability with no model path + no reason fails the gate"
     ]
   },
   "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
     "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "override panel",
-      "reset-all-overrides"
-    ],
-    "argus_targets": [
-      "studio.design_system.override_panel",
-      "studio.design_system.override_reset"
-    ],
-    "not_applicable_reason": null
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
   },
   "user_manual_obligation": {
     "required": true,
-    "same_change_update_required": "YES",
+    "same_change_update_required": "NO",
     "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Design Systems / Instance overrides and reset"
-    ],
-    "not_applicable_reason": null
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
   },
   "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+    "HBR-INT-003",
+    "HBR-SWARM-001"
   ],
   "hbr_int_009_tier_obligations": [
     {
@@ -109,7 +98,7 @@
       "reason": "external watcher shipped later"
     }
   ],
-  "risk_if_missed": "Overrides lost on variant switch/swap or unresettable; instance editing unusable.",
+  "risk_if_missed": "Some tools operator-only; parallel agents cannot drive the full surface; STU-CON-007(a)/STU-MDL-006 unenforced.",
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,

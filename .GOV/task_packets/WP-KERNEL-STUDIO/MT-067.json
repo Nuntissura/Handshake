@@ -10,38 +10,37 @@
     "model_created_markdown_authority_allowed": false
   },
   "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-340",
+  "mt_id": "MT-067",
   "created_at_utc": "2026-07-09T00:00:00Z",
   "updated_at_utc": null,
   "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.md",
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-067.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-067.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
   },
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-339",
-      "MT-332",
-      "MT-556",
-      "MT-557",
-      "MT-558",
-      "MT-559",
-      "MT-560"
+      "MT-017",
+      "MT-002",
+      "MT-008",
+      "MT-013",
+      "MT-007"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
-  "clause": "Override persistence across variant/swap + reset (per-property + wholesale) + name/hierarchy matching [STU-DS-017]",
+  "clause": "Raster focus-stack / seamless-blend (auto-blend layers) composite op [STU-RAS-051,STU-CON-007]",
   "spec_anchor": [
-    "STU-DS-017"
+    "STU-RAS-051",
+    "STU-CON-007"
   ],
   "scope": {
-    "summary": "Implement override persistence: overrides persist across variant switches and component swaps when the target structure matches by layer name and hierarchy, and are resettable both per-property and wholesale (reset-all-overrides). Override matching uses the same name/hierarchy pairing the smart-animate engine uses in 14.11 (MT-384). Reset controls are an operator override surface.",
+    "summary": "Implement the focus-stack / seamless-blend composite operation over a multi-layer stack: auto-align (reuse existing align primitive), then per-region select and blend the sharpest/best-exposed content into one seamless masked composite (extended depth of field + seamless panorama/exposure blending). Non-destructive masked output; model-steerable command reusing auto-align, statistical-stack (STU-RAS-014), masking (STU-RAS-018), HDR/exposure (STU-RAS-033) primitives.",
     "allowed_paths": [
-      "src/frontend/handshake_native/src/studio/**",
-      "src/studio/design_system/**",
+      "src/studio/**",
+      "studio-engine/**",
       "tests/studio/**"
     ],
     "forbidden_paths": [
@@ -49,18 +48,18 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "overrides persist across variant/swap on name/hierarchy match; per-property + wholesale reset; author_id + manual entry"
+      "auto-align + per-region sharpest/best-exposed blend -> seamless masked composite; deterministic; visually verified"
     ],
     "proof_targets": [
-      "Argus override-persistence + reset test"
+      "focus-stack composite runtime + render-harness before/after"
     ],
     "code_surfaces": [
-      "src/frontend/handshake_native/src/studio/design_system/override_reset.rs",
-      "src/studio/design_system/override_match.rs"
+      "src/studio/raster/auto_blend.rs",
+      "studio-engine/src/raster/blend_regions.rs"
     ],
     "expected_tests": [
-      "argus: override reset controls (per-property + reset-all) reachable via author_id",
-      "test: overrides persist across variant switch/swap on name+hierarchy match; per-property + wholesale reset restore defaults"
+      "live: focus-stack over a 3-layer stack produces a seamless masked composite; deterministic (seeded) + byte-stable on backend",
+      "argus: before/after render-harness capture"
     ]
   },
   "gui_obligation": {
@@ -69,12 +68,10 @@
     "argus_required": "YES",
     "trace_projection_required_when_non_ui": true,
     "surfaces": [
-      "override panel",
-      "reset-all-overrides"
+      "auto-blend command"
     ],
     "argus_targets": [
-      "studio.design_system.override_panel",
-      "studio.design_system.override_reset"
+      "studio.auto_blend"
     ],
     "not_applicable_reason": null
   },
@@ -83,14 +80,13 @@
     "same_change_update_required": "YES",
     "manual_version_bump_required": "NO",
     "target_entries": [
-      "Studio / Design Systems / Instance overrides and reset"
+      "Studio / Raster / Focus stack & seamless blend"
     ],
     "not_applicable_reason": null
   },
   "hbr_obligations": [
     "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+    "HBR-MAN-001"
   ],
   "hbr_int_009_tier_obligations": [
     {
@@ -109,7 +105,7 @@
       "reason": "external watcher shipped later"
     }
   ],
-  "risk_if_missed": "Overrides lost on variant switch/swap or unresettable; instance editing unusable.",
+  "risk_if_missed": "Focus-stacking/seamless-blend (a named MD/Photoshop-class op) absent despite enabling primitives existing.",
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,

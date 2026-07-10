@@ -10,38 +10,36 @@
     "model_created_markdown_authority_allowed": false
   },
   "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-340",
+  "mt_id": "MT-560",
   "created_at_utc": "2026-07-09T00:00:00Z",
   "updated_at_utc": null,
   "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.md",
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-560.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-560.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
   },
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-339",
-      "MT-332",
       "MT-556",
       "MT-557",
       "MT-558",
-      "MT-559",
-      "MT-560"
+      "MT-559"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
-  "clause": "Override persistence across variant/swap + reset (per-property + wholesale) + name/hierarchy matching [STU-DS-017]",
+  "clause": "STU-CON-007 aggregate universal-command-contract closeout gate [STU-CON-007,STU-VAL-006]",
   "spec_anchor": [
-    "STU-DS-017"
+    "STU-CON-007",
+    "STU-VAL-006",
+    "STU-MDL-006"
   ],
   "scope": {
-    "summary": "Implement override persistence: overrides persist across variant switches and component swaps when the target structure matches by layer name and hierarchy, and are resettable both per-property and wholesale (reset-all-overrides). Override matching uses the same name/hierarchy pairing the smart-animate engine uses in 14.11 (MT-384). Reset controls are an operator override surface.",
+    "summary": "WP-closeout gate binding the four universal conformance gates (MT-556 determinism, MT-557 parallel-safety, MT-558 visual-verifiability, MT-559 model-invokability) into one [STU-CON-007] pass/fail: the Studio WP MUST NOT close while any of the four gates reports a failing command. Also verifies each per-domain conformance MT (raster MT-021/067, vector, layout MT-190, typography MT-230, color MT-260, effects MT-301, design-system MT-340, prototype MT-386/400, raw MT-432, interop MT-480, automation MT-520, whiteboard MT-540) enumerates all four properties per [STU-CON-007]. Produces the STU-CON-007 conformance report.",
     "allowed_paths": [
-      "src/frontend/handshake_native/src/studio/**",
-      "src/studio/design_system/**",
+      "src/studio/**",
       "tests/studio/**"
     ],
     "forbidden_paths": [
@@ -49,48 +47,40 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "overrides persist across variant/swap on name/hierarchy match; per-property + wholesale reset; author_id + manual entry"
+      "WP cannot close while any STU-CON-007 property fails on any command; conformance report produced; per-domain blocks enumerate all four"
     ],
     "proof_targets": [
-      "Argus override-persistence + reset test"
+      "aggregate STU-CON-007 closeout gate"
     ],
     "code_surfaces": [
-      "src/frontend/handshake_native/src/studio/design_system/override_reset.rs",
-      "src/studio/design_system/override_match.rs"
+      "tests/studio/conformance/universal_contract.rs",
+      "src/studio/conformance/aggregate_gate.rs"
     ],
     "expected_tests": [
-      "argus: override reset controls (per-property + reset-all) reachable via author_id",
-      "test: overrides persist across variant switch/swap on name+hierarchy match; per-property + wholesale reset restore defaults"
+      "gate: all four universal conformance gates green across the full command surface; per-domain conformance MTs enumerate all four properties",
+      "report: STU-CON-007 conformance report generated"
     ]
   },
   "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
     "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "override panel",
-      "reset-all-overrides"
-    ],
-    "argus_targets": [
-      "studio.design_system.override_panel",
-      "studio.design_system.override_reset"
-    ],
-    "not_applicable_reason": null
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
   },
   "user_manual_obligation": {
     "required": true,
-    "same_change_update_required": "YES",
+    "same_change_update_required": "NO",
     "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Design Systems / Instance overrides and reset"
-    ],
-    "not_applicable_reason": null
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
   },
   "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-VIS-001"
   ],
   "hbr_int_009_tier_obligations": [
     {
@@ -109,7 +99,7 @@
       "reason": "external watcher shipped later"
     }
   ],
-  "risk_if_missed": "Overrides lost on variant switch/swap or unresettable; instance editing unusable.",
+  "risk_if_missed": "The universal parallel+deterministic+visual+model guarantee not enforced at closeout; operator's core requirement unproven.",
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,

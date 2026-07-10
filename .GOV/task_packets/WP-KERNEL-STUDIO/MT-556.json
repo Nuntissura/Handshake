@@ -10,38 +10,36 @@
     "model_created_markdown_authority_allowed": false
   },
   "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-340",
+  "mt_id": "MT-556",
   "created_at_utc": "2026-07-09T00:00:00Z",
   "updated_at_utc": null,
   "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-340.md",
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-556.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-556.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
   },
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-339",
-      "MT-332",
-      "MT-556",
-      "MT-557",
-      "MT-558",
-      "MT-559",
-      "MT-560"
+      "MT-007",
+      "MT-005",
+      "MT-006"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
-  "clause": "Override persistence across variant/swap + reset (per-property + wholesale) + name/hierarchy matching [STU-DS-017]",
+  "clause": "UNIVERSAL determinism + promotion-equivalence conformance gate [STU-CON-007(c),STU-CON-005,STU-VAL-006]",
   "spec_anchor": [
-    "STU-DS-017"
+    "STU-CON-007",
+    "STU-CON-005",
+    "STU-VAL-006"
   ],
   "scope": {
-    "summary": "Implement override persistence: overrides persist across variant switches and component swaps when the target structure matches by layer name and hierarchy, and are resettable both per-property and wholesale (reset-all-overrides). Override matching uses the same name/hierarchy pairing the smart-animate engine uses in 14.11 (MT-384). Reset controls are an operator override surface.",
+    "summary": "Suite-wide conformance harness proving [STU-CON-007](c): for EVERY Studio mutating command, the same inputs produce byte-stable output on a given backend and output within the declared tolerance across GPU backends/drivers (MeshComparator/pixel-tolerance per STU-CON-005); any stochastic command exposes an explicit seed making it deterministic. Enumerates all registered command_ids, runs each with fixed inputs+seed twice on one backend (byte-equal) and cross-backend (within epsilon), and asserts full EventLedger replay reproduces the result. Fails closed on any non-deterministic mutating command.",
     "allowed_paths": [
-      "src/frontend/handshake_native/src/studio/**",
-      "src/studio/design_system/**",
+      "src/studio/**",
+      "studio-engine/**",
       "tests/studio/**"
     ],
     "forbidden_paths": [
@@ -49,48 +47,39 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "overrides persist across variant/swap on name/hierarchy match; per-property + wholesale reset; author_id + manual entry"
+      "every mutating command deterministic on-backend + within-tolerance cross-backend + replayable; unseeded stochastic fails closed"
     ],
     "proof_targets": [
-      "Argus override-persistence + reset test"
+      "suite-wide determinism + cross-backend tolerance + replay gate"
     ],
     "code_surfaces": [
-      "src/frontend/handshake_native/src/studio/design_system/override_reset.rs",
-      "src/studio/design_system/override_match.rs"
+      "tests/studio/conformance/determinism.rs",
+      "src/studio/conformance/determinism_gate.rs"
     ],
     "expected_tests": [
-      "argus: override reset controls (per-property + reset-all) reachable via author_id",
-      "test: overrides persist across variant switch/swap on name+hierarchy match; per-property + wholesale reset restore defaults"
+      "live: enumerate all mutating command_ids; each byte-stable on-backend + within-tolerance cross-backend + EventLedger-replay-equal",
+      "negative: an unseeded stochastic command fails the gate"
     ]
   },
   "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
     "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "override panel",
-      "reset-all-overrides"
-    ],
-    "argus_targets": [
-      "studio.design_system.override_panel",
-      "studio.design_system.override_reset"
-    ],
-    "not_applicable_reason": null
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
   },
   "user_manual_obligation": {
     "required": true,
-    "same_change_update_required": "YES",
+    "same_change_update_required": "NO",
     "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Design Systems / Instance overrides and reset"
-    ],
-    "not_applicable_reason": null
+    "target_entries": [],
+    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
   },
   "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+    "HBR-INT-003",
+    "HBR-SWARM-001"
   ],
   "hbr_int_009_tier_obligations": [
     {
@@ -109,7 +98,7 @@
       "reason": "external watcher shipped later"
     }
   ],
-  "risk_if_missed": "Overrides lost on variant switch/swap or unresettable; instance editing unusable.",
+  "risk_if_missed": "Parallel model edits not reproducible; STU-CON-007(c) unenforced across the surface.",
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,

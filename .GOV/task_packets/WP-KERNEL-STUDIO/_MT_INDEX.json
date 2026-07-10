@@ -2,10 +2,10 @@
   "schema_id": "hsk.microtask_index@1",
   "wp_id": "WP-KERNEL-STUDIO",
   "generated_at_utc": "2026-07-09T00:00:00Z",
-  "mt_count": 503,
-  "id_range": "MT-001..MT-555",
-  "gui_mt_count": 291,
-  "observable_runtime_mt_count": 495,
+  "mt_count": 509,
+  "id_range": "MT-001..MT-560",
+  "gui_mt_count": 292,
+  "observable_runtime_mt_count": 501,
   "domains": {
     "foundation": "MT-001..020",
     "raster": "MT-021..080",
@@ -473,7 +473,12 @@
         "MT-006",
         "MT-007",
         "MT-015",
-        "MT-017"
+        "MT-017",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": false,
       "argus": true,
@@ -1502,6 +1507,30 @@
         "HBR-VIS-001",
         "HBR-MAN-001",
         "HBR-INT-009"
+      ],
+      "status": "PENDING"
+    },
+    {
+      "mt_id": "MT-067",
+      "clause": "Raster focus-stack / seamless-blend (auto-blend layers) composite op [STU-RAS-051,STU-CON-007]",
+      "spec_anchor": [
+        "STU-RAS-051",
+        "STU-CON-007"
+      ],
+      "depends_on": [
+        "MT-017",
+        "MT-002",
+        "MT-008",
+        "MT-013",
+        "MT-007"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "observable_runtime": true,
+      "hbr": [
+        "HBR-VIS-001",
+        "HBR-MAN-001"
       ],
       "status": "PENDING"
     },
@@ -2766,7 +2795,12 @@
         "MT-081",
         "MT-011",
         "MT-116",
-        "MT-102"
+        "MT-102",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": false,
       "argus": false,
@@ -3920,7 +3954,12 @@
         "MT-164",
         "MT-173",
         "MT-012",
-        "MT-013"
+        "MT-013",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": true,
       "argus": true,
@@ -4734,7 +4773,12 @@
       ],
       "depends_on": [
         "MT-191",
-        "MT-198"
+        "MT-198",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": false,
       "argus": false,
@@ -5345,7 +5389,12 @@
       "depends_on": [
         "MT-242",
         "MT-254",
-        "MT-009"
+        "MT-009",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": true,
       "argus": true,
@@ -6250,7 +6299,12 @@
         "MT-009",
         "MT-015",
         "MT-263",
-        "MT-265"
+        "MT-265",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": true,
       "argus": true,
@@ -6751,7 +6805,12 @@
       ],
       "depends_on": [
         "MT-339",
-        "MT-332"
+        "MT-332",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": true,
       "argus": true,
@@ -7691,7 +7750,12 @@
       ],
       "depends_on": [
         "MT-379",
-        "MT-009"
+        "MT-009",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": true,
       "argus": true,
@@ -8535,7 +8599,12 @@
         "MT-430",
         "MT-431",
         "MT-006",
-        "MT-015"
+        "MT-015",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": false,
       "argus": true,
@@ -9576,7 +9645,12 @@
         "MT-478",
         "MT-479",
         "MT-006",
-        "MT-015"
+        "MT-015",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": false,
       "argus": true,
@@ -10449,7 +10523,12 @@
         "MT-513",
         "MT-515",
         "MT-518",
-        "MT-015"
+        "MT-015",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": true,
       "argus": true,
@@ -10874,7 +10953,12 @@
         "MT-536",
         "MT-538",
         "MT-539",
-        "MT-015"
+        "MT-015",
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559",
+        "MT-560"
       ],
       "gui": true,
       "argus": true,
@@ -11209,6 +11293,130 @@
         "HBR-INT-003",
         "HBR-SWARM-002",
         "HBR-MAN-001"
+      ],
+      "status": "PENDING"
+    },
+    {
+      "mt_id": "MT-556",
+      "clause": "UNIVERSAL determinism + promotion-equivalence conformance gate [STU-CON-007(c),STU-CON-005,STU-VAL-006]",
+      "spec_anchor": [
+        "STU-CON-007",
+        "STU-CON-005",
+        "STU-VAL-006"
+      ],
+      "depends_on": [
+        "MT-007",
+        "MT-005",
+        "MT-006"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": false,
+      "observable_runtime": true,
+      "hbr": [
+        "HBR-INT-003",
+        "HBR-SWARM-001"
+      ],
+      "status": "PENDING"
+    },
+    {
+      "mt_id": "MT-557",
+      "clause": "UNIVERSAL parallel-safety conformance gate [STU-CON-007(b),STU-PAR-002,STU-PW-003]",
+      "spec_anchor": [
+        "STU-CON-007",
+        "STU-PAR-001",
+        "STU-PAR-002",
+        "STU-PAR-003",
+        "STU-PW-003"
+      ],
+      "depends_on": [
+        "MT-013",
+        "MT-006",
+        "MT-007"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": false,
+      "observable_runtime": true,
+      "hbr": [
+        "HBR-SWARM-001",
+        "HBR-SWARM-002",
+        "HBR-SWARM-003",
+        "HBR-QUIET-003"
+      ],
+      "status": "PENDING"
+    },
+    {
+      "mt_id": "MT-558",
+      "clause": "UNIVERSAL visual-verifiability conformance gate [STU-CON-007(d),STU-VAL-004]",
+      "spec_anchor": [
+        "STU-CON-007",
+        "STU-VAL-004",
+        "STU-VAL-003",
+        "STU-QUIET-005"
+      ],
+      "depends_on": [
+        "MT-008",
+        "MT-547",
+        "MT-007"
+      ],
+      "gui": false,
+      "argus": true,
+      "user_manual_update": false,
+      "observable_runtime": true,
+      "hbr": [
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-QUIET-001"
+      ],
+      "status": "PENDING"
+    },
+    {
+      "mt_id": "MT-559",
+      "clause": "UNIVERSAL model-invokability conformance gate [STU-CON-007(a),STU-MDL-006]",
+      "spec_anchor": [
+        "STU-CON-007",
+        "STU-MDL-001",
+        "STU-MDL-003",
+        "STU-MDL-005",
+        "STU-MDL-006"
+      ],
+      "depends_on": [
+        "MT-007",
+        "MT-543"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": false,
+      "observable_runtime": true,
+      "hbr": [
+        "HBR-INT-003",
+        "HBR-SWARM-001"
+      ],
+      "status": "PENDING"
+    },
+    {
+      "mt_id": "MT-560",
+      "clause": "STU-CON-007 aggregate universal-command-contract closeout gate [STU-CON-007,STU-VAL-006]",
+      "spec_anchor": [
+        "STU-CON-007",
+        "STU-VAL-006",
+        "STU-MDL-006"
+      ],
+      "depends_on": [
+        "MT-556",
+        "MT-557",
+        "MT-558",
+        "MT-559"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": false,
+      "observable_runtime": true,
+      "hbr": [
+        "HBR-INT-003",
+        "HBR-SWARM-001",
+        "HBR-VIS-001"
       ],
       "status": "PENDING"
     }

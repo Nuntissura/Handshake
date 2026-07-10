@@ -10,29 +10,34 @@
   "prepared_artifacts": {
     "spec_merge": {
       "status": "COMPLETE",
-      "spec_version": "v02.199",
+      "spec_version": "v02.200",
       "section": "14 (Studio -- Unified Creative Suite), 24 sub-sections 14.1-14.24, ~626 [STU-*] normative anchors",
       "sole_authority": true,
       "no_sidecars": true,
       "appendix_rows": "FEAT-STUDIO-*(12), PRIM-Studio*(38), IMX-STUDIO-*(3), feature_links(12)",
       "spec_checks": "spec-current-check PASS, spec-bundle-check PASS (debt/eof-appendices/growth-discipline/governance-reference), validator-spec-regression PASS, self-consistency PASS",
-      "commit": "9752d85f"
+      "commit": "9752d85f (merge), f880e9a4 (MTs), v02.200 hardening pending"
     },
     "wp_stub": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
     "refinement": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
     "microtask_contracts": {
-      "count": 503,
-      "id_range": "MT-001..MT-555 (contiguous within domain ranges; some ranges left headroom below their ceiling)",
-      "gui_mt_count": 291,
-      "observable_runtime_mt_count": 495,
+      "count": 509,
+      "id_range": "MT-001..MT-560 (contiguous within domain ranges; some ranges left headroom below their ceiling)",
+      "gui_mt_count": 292,
+      "observable_runtime_mt_count": 501,
       "open_contract_point_blocked_mts": 6,
       "index": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json",
       "domains": {
-        "foundation": "MT-001..020 (20)", "raster": "MT-021..066 (46)", "vector": "MT-081..138 (58)",
+        "foundation": "MT-001..020 (20)", "raster": "MT-021..067 (47)", "vector": "MT-081..138 (58)",
         "layout": "MT-141..190 (50)", "typography": "MT-191..230 (40)", "color": "MT-231..260 (30)",
         "effects": "MT-261..305 (45)", "design_system": "MT-321..367 (47)", "prototype": "MT-371..400 (30)",
         "raw": "MT-411..432 (22)", "interop": "MT-441..480 (40)", "automation": "MT-481..520 (40)",
-        "whiteboard": "MT-521..540 (20)", "cross_cutting": "MT-541..555 (15)"
+        "whiteboard": "MT-521..540 (20)", "cross_cutting": "MT-541..560 (20; incl. STU-CON-007 universal conformance gates MT-556..560)"
+      },
+      "universal_conformance_gates": {
+        "clause": "[STU-CON-007] universal command contract (v02.200): every Studio tool/command/primitive in 14.4-14.15 MUST be model-invokable + parallel-safe + deterministic + visually-verifiable.",
+        "gates": "MT-556 determinism/promotion-equivalence, MT-557 parallel-safety (CRDT+lease+idempotent-promotion), MT-558 visual-verifiability (RenderHarness+Argus), MT-559 model-invokability (typed command API), MT-560 aggregate STU-CON-007 closeout gate.",
+        "domain_conformance_mts": "each domain closure MT (MT-021/067,138,190,230,260,301,340,386,432,480,520,540) enumerates all four properties and depends on MT-556..560."
       }
     }
   },
@@ -46,12 +51,12 @@
     "spec_current_check": "PASS",
     "spec_bundle_check": "PASS",
     "validator_spec_regression": "PASS",
-    "mt_index_integrity": "PASS (503 MTs, 0 dep errors, 0 dupes, 6 intentional open-contract-point blockers)"
+    "mt_index_integrity": "PASS (509 MTs, 0 dep errors, 0 dupes, 6 intentional open-contract-point blockers)"
   },
   "hbr_applicability": {
     "pillars": ["INT", "SWARM", "VIS", "QUIET", "MAN", "STOP"],
     "int_009_three_tier": "Flight Recorder WIRED at build (FR-EVT-STUDIO-*); internal_diagnostics + Palmistry DEFERRED-until-shipped (WP-KERNEL-012/016) with typed reason on every observable-runtime MT",
-    "coverage": "291 GUI MTs carry HBR-VIS/HBR-MAN; 495 observable-runtime MTs carry HBR-INT-009 three-tier posture; parallel/quiet MTs carry HBR-SWARM/HBR-QUIET"
+    "coverage": "292 GUI MTs carry HBR-VIS/HBR-MAN; 501 observable-runtime MTs carry HBR-INT-009 three-tier posture; parallel/quiet MTs carry HBR-SWARM/HBR-QUIET; universal conformance gates MT-556..560 carry HBR-SWARM/HBR-VIS/HBR-INT"
   },
   "outstanding_issues": [
     "Open contract points [STU-CON-006] (redo depth, event granularity/coalescing, auto-accept policy, raster authority storage shape, FR-EVT-STUDIO-* registration, plugin capability schema) MUST be resolved before their implementing MTs (MT-509, 545, 552-555) harden - tracked as spec-debt.",

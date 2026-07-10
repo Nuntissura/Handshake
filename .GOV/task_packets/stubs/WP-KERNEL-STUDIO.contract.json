@@ -48,9 +48,9 @@
     "blocks": []
   },
   "spec_trace": {
-    "spec_target": ".GOV/spec/SPEC_CURRENT.md (v02.199 -> .GOV/spec/master-spec-v02.199/indexed-spec-manifest.json)",
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md (v02.200 -> .GOV/spec/master-spec-v02.200/indexed-spec-manifest.json)",
     "roadmap_pointer": "Section 7.6 Week 5 Atelier-Lens-CKC / creative production feature track; Studio pillar #18 (product reference)",
-    "roadmap_add_coverage": "SPEC=v02.199; MAIN_BODY=Section 14 (14.1-14.24); anchors STU-SECTION-001..003, STU-OVR/ARC/DOC/RAS/VEC/LAY/TYP/COL/FX/DS/PRO/RAW/IO/AUT/WB/MDL/PAR/PW/HIS/QUIET/UNI/MAN/CON/VAL-*"
+    "roadmap_add_coverage": "SPEC=v02.200; MAIN_BODY=Section 14 (14.1-14.24); anchors STU-SECTION-001..003, STU-OVR/ARC/DOC/RAS/VEC/LAY/TYP/COL/FX/DS/PRO/RAW/IO/AUT/WB/MDL/PAR/PW/HIS/QUIET/UNI/MAN/CON/VAL-*; v02.200 adds universal command contract [STU-CON-007], [STU-MDL-006] no-operator-only-by-default, [STU-RAS-051] focus-stack, [STU-OVR-015] video-clip-editing out-of-scope"
   },
   "spec_anchors": [
     "14.1 Overview/Scope/Differentiator [STU-SECTION-001..003, STU-OVR-001..003]",

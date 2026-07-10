@@ -22,7 +22,12 @@
     "status": "PENDING",
     "depends_on": [
       "MT-191",
-      "MT-198"
+      "MT-198",
+      "MT-556",
+      "MT-557",
+      "MT-558",
+      "MT-559",
+      "MT-560"
     ],
     "blocks": [],
     "active": false,
