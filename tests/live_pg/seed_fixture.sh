@@ -215,6 +215,36 @@ ASSET=$(req POST "/workspaces/$WS/loom/import" \
   "{\"bytes_b64\":\"$PNG_B64\",\"mime\":\"image/png\",\"original_filename\":\"seed.png\"}" | json_str asset_id)
 echo "  asset     = ${ASSET:-<none>}" >&2
 
+# ---- 13. locus work-packet (HSK_TEST_LOCUS_WP_ID) via psql ------------------
+# The Locus reverse-lookup proof (MT-074 OP-03: other_pillar_op03_locus_resolve_
+# reverse_live) resolves a REAL row in product `public.work_packets`. That table
+# is kernel/gov state with NO create-route, so it is seeded directly via psql on
+# the managed cluster (default 127.0.0.1:5544, superuser postgres, db handshake).
+# The Locus route itself is also proven by route1_locus_work_packet_resolve, which
+# self-seeds its own work_packet; this step makes the OP-03 interop scenario
+# reproducible instead of a 404 SEED-GAP. Override conn via HSK_PGHOST/PGPORT/
+# PGUSER/PGDB/HSK_PSQL_BIN. Idempotent (ON CONFLICT DO NOTHING).
+LOCUS_WP="${HSK_TEST_LOCUS_WP_ID:-WP-KERNEL-012}"
+PSQL_BIN="${HSK_PSQL_BIN:-}"
+if [ -z "$PSQL_BIN" ]; then
+  for c in "/c/Program Files/PostgreSQL/16/bin/psql" "psql"; do
+    if command -v "$c" >/dev/null 2>&1 || [ -x "$c" ]; then PSQL_BIN="$c"; break; fi
+  done
+fi
+WP_SEEDED=""
+if [ -n "$PSQL_BIN" ]; then
+  if "$PSQL_BIN" -h "${HSK_PGHOST:-127.0.0.1}" -p "${HSK_PGPORT:-5544}" \
+       -U "${HSK_PGUSER:-postgres}" -d "${HSK_PGDB:-handshake}" -v ON_ERROR_STOP=1 -tAc \
+       "INSERT INTO public.work_packets (wp_id,version,title,status,priority,task_board_status,reporter,created_at,updated_at,vector_clock,metadata) VALUES ('$LOCUS_WP',1,'Handshake Native Editor Parity (Obsidian + VS Code)','in_progress',1,'in_progress','operator','2026-07-08T00:00:00Z','2026-07-08T00:00:00Z','{\"operator\":1}','{}') ON CONFLICT (wp_id) DO NOTHING;" >/dev/null 2>&1; then
+    WP_SEEDED="$LOCUS_WP"
+    echo "  locus wp  = $LOCUS_WP (seeded into public.work_packets)" >&2
+  else
+    echo "  SEED-WARN: work_packet insert failed (psql/PG auth?); OP-03 stays gated." >&2
+  fi
+else
+  echo "  SEED-WARN: no psql found; HSK_TEST_LOCUS_WP_ID left for external seed." >&2
+fi
+
 # =============================================================================
 # EXPORT BLOCK  (source/eval this before the cargo batch)
 # =============================================================================
@@ -235,6 +265,7 @@ echo "export HSK_TEST_CONTENT_TYPE=note"
 [ -n "$VIEW_CAL" ]    && echo "export HSK_TEST_VIEW_ID_CALENDAR=$VIEW_CAL"
 [ -n "$WIKI_ID" ]     && echo "export HSK_TEST_WIKI_PROJECTION_ID=$WIKI_ID" || echo "# SEED-GAP HSK_TEST_WIKI_PROJECTION_ID"
 [ -n "$ASSET" ]       && echo "export HSK_TEST_ASSET_ID=$ASSET"             || echo "# SEED-GAP HSK_TEST_ASSET_ID"
+[ -n "$WP_SEEDED" ]   && echo "export HSK_TEST_LOCUS_WP_ID=$WP_SEEDED"      || echo "# SEED-GAP HSK_TEST_LOCUS_WP_ID (psql work_packet seed unavailable)"
 echo "# ---- 8< ---- end export block ---- 8< ----"
 
 # =============================================================================
