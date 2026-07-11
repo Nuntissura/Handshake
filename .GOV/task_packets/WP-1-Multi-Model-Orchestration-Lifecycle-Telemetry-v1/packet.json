@@ -20,7 +20,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "base_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-11T03:36:46Z",
+  "updated_at_utc": "2026-07-11T03:58:41.509Z",
   "source_control": {
     "merge_base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
     "canonical_branch": "main",
@@ -57,19 +57,30 @@
     "communication_health_gate": "REQUIRED_BEFORE_CODER_LAUNCH",
     "agentic_mode": "YES",
     "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
-    "coder_compatible_execution_lane": "MULTI_AGENT_MT_PARALLEL"
+    "coder_compatible_execution_lane": "MULTI_AGENT_MT_PARALLEL",
+    "sub_agent_delegation": {
+      "status": "ALLOWED",
+      "operator_approval_evidence": "operator_directive_2026-07-11_pasted-text-1",
+      "approved_scope": "Read-only adversarial review through different lenses plus disjoint product-code implementation and proof slices needed to finish this WP.",
+      "constraints": [
+        "Product-code helpers work only in the declared WP worktree and never edit .GOV.",
+        "Each helper reads CODER_PROTOCOL.md, CODER_RUBRIC_V2.md, and AGENTIC_PROTOCOL.md before product edits.",
+        "Helpers use only their explicitly assigned paths, target build artifacts under ../Handshake_Artifacts/, do not commit or alter git history, and return a reviewed patch plus proof evidence.",
+        "Review-only helpers do not change product or governance files and perform independent adversarial review through distinct lenses."
+      ]
+    }
   },
   "lifecycle": {
-    "status": "Ready for Validation",
-    "current_wp_status": "READY_FOR_VALIDATION",
+    "status": "In Progress",
+    "current_wp_status": "IN_PROGRESS",
     "main_containment_status": "NOT_STARTED",
     "merged_main_commit": "NONE",
     "main_containment_verified_at_utc": "N/A",
     "current_main_compatibility_status": "NOT_RUN",
     "current_main_compatibility_baseline_sha": "NONE",
     "current_main_compatibility_verified_at_utc": "N/A",
-    "packet_widening_decision": "NONE",
-    "packet_widening_evidence": "N/A",
+    "packet_widening_decision": "OPERATOR_DIRECTIVE_2026-07-11_FULL_WP_IMPLEMENTATION",
+    "packet_widening_evidence": "operator_directive_2026-07-11_pasted-text-1 requires every MT to be implemented, hardened by parallel adversarial review, and exposes the WP through settings plus an operator-facing dropdown/menu entry.",
     "risk_tier": "HIGH",
     "user_signature": "operator_directive_20260628_activation_manager_wp_worktree_mt",
     "packet_format_version": "2026-06-28",
@@ -344,7 +355,7 @@
       "MT-017"
     ],
     "active_id": null,
-    "next_id": "MT-017"
+    "next_id": "MT-003"
   },
   "research_basis": {
     "external_research_status": "CURRENT_EXTERNAL_RESEARCH_COMPLETED_FOR_MT_REFINEMENT_2026-06-28",
