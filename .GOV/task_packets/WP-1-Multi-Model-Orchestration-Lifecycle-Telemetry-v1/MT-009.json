@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-009",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "updated_at_utc": "2026-07-11T03:48:59.146Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -30,33 +30,38 @@
     "validator_verdict": "FAIL_V1",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T02:33:02Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
-    "ready_for_validation_at_utc": "2026-07-02T08:55:41Z",
+    "ready_for_validation_by": "CODEX_REMEDIATION_20260711",
+    "ready_for_validation_at_utc": "2026-07-11T03:30:47.040Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "PASS_MT009_2026-07-02: mixed_model_lane_integration_pg_tests 5/5 PASS (657s, managed PG 5544; commits ba13ca74 + 4a3c8ef9). Prior FALSE self-cert (crate did not compile). FIXES: per-kind recovery catchup (shared with MT-007), cloud-denial aggregate_id message-string, event_seq collision (migration 0337), and diagnostics-projection identity-before-body deser (typed drift, not raw serde). MT-007 recovery re-confirmed 9/9 on the SAME codebase (no cross-suite regression). KB-reviewed, no weakening.",
+    "proof_status": "READY_FOR_VALIDATION_V2_2026-07-11: product commit 28e2e5c8be347e0fa62d09de84f4992aad931c7c; real PostgreSQL CRDT atomicity, cancellation/start fencing, rollback, Argus, UserManual, and shared-CRDT regression proofs passed. validation_v1 remains immutable FAIL_V1.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN",
-    "kb_ready_checklist_receipt_id": null,
-    "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-009:2026-07-11T03:30:47.040Z",
+    "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
     "last_runtime_status_ref": null,
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
-    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
+    "post_implementation_adversarial_review_status": "PASS_V2_2026-07-11_MULTI_LENS_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
+    "adversarial_findings_status": "V2_PASS: atomic PostgreSQL/EventLedger CRDT receipts, server-derived Yjs causality/attribution, cancellation/start fencing with terminal rollback, late-capture authority ordering, real-PG negative probes, Argus and UserManual proofs. Delete-only Yjs updates remain intentionally fail-closed pending durable author attribution.",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
     "validated_at_utc": "2026-07-10T21:19:03Z"
   },
   "scope": {
     "summary": "Build validation harnesses and negative cases for mixed cloud/local/subagent lane runs.",
     "allowed_paths": [
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/Cargo.lock",
       "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/src/kernel/crdt/",
       "src/backend/handshake_core/src/model_runtime/",
+      "src/backend/handshake_core/src/storage/",
       "src/backend/handshake_core/src/swarm_orchestration/",
       "src/backend/handshake_core/migrations/",
       "src/backend/handshake_core/src/process_ledger/",
       "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
       "src/backend/handshake_core/src/inspector_read/",
+      "src/backend/handshake_core/src/user_manual/",
       "src/frontend/handshake_native/"
     ],
     "forbidden_paths": [
@@ -82,10 +87,18 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rolls_back_after_terminal_pg_failure -- --exact --nocapture",
       "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_validation_harness_user_manual_entry_is_current -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact"
     ],
     "risk_if_missed": "The feature can appear designed but fail under the exact mixed-lane scenarios it exists to support.",
     "reference_only_paths": [
@@ -257,6 +270,43 @@
     "no_context_model_requirement": "A model with no chat history must be able to implement and verify this MT from this contract, SPEC_CURRENT/master spec, product code paths, UserManual/backend navigation, and listed proof targets.",
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
+  },
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "remediated_at_utc": "2026-07-11T02:59:39Z",
+    "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+    "v1_verdict_preserved": "FAIL_V1",
+    "remediation_scope": [
+      "Real Yjs v1 ingress validation with deterministic actor-client attribution and server-derived causal receipts.",
+      "Atomic PostgreSQL/EventLedger CRDT receipt transaction with document advisory lock, duplicate idempotency, stale-base denial, and rollback proof.",
+      "Coordinator-owned generation/cancellation fence, terminal-write rollback, durable capture-before-Flight-Recorder ordering, and bounded stream capture.",
+      "Same-change UserManual and Argus proof plus regressions for shared CRDT and operator-chat consumers."
+    ],
+    "adversarial_review": {
+      "verdict": "PASS",
+      "lenses": [
+        "postgres_eventledger_crdt_state_recovery",
+        "runtime_launch_and_model_lane_authority",
+        "rust_native_argus_operator_surface_and_usermanual",
+        "spec_realism_negative_guards_and_mt_status_signaling"
+      ],
+      "residual_uncertainty": "Delete-only Yjs updates intentionally fail closed until durable operation-author attribution exists; this capability boundary is not an MT-009 V2 blocker."
+    },
+    "mechanical_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-07-11T03:48:59.146Z",
+      "product_commit_file_partition": {
+        "this_mt_files": 18,
+        "mt014_files": 3,
+        "partition_matches_product_commit": true
+      },
+      "residual_concern": "LOW BUILD_PASS_EVIDENCE_NOT_FOUND: the existing COMPILE_GATE_LOG row for product commit 28e2e5c8 lacks an mt_id, so the per-MT mechanical tracker cannot associate it. Exact Rust proof targets and the KB-ready receipt provide the V2 evidence."
+    },
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-11T03:30:47.040Z",
+    "shared_regressions": [
+      "MT-012 operator-chat capture suite: all 14 exact tests covered after shared cancellation changes.",
+      "MT-067/070/077/078/080/236/237 shared CRDT suites: real PostgreSQL regressions passed after fixtures were converted from opaque bytes to real Yjs v1 updates."
+    ]
   },
   "validator_verdict": "FAIL_V1",
   "validation_v1": {

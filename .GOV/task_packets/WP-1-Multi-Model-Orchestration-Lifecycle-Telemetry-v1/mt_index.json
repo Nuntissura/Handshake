@@ -1,10 +1,10 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-10T21:19:03Z",
+  "generated_at_utc": "2026-07-11T03:30:47Z",
   "total": 17,
   "range": "MT-001..MT-017",
-  "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes. KERNEL_BUILDER HEAD re-proof 2026-07-09: every MT re-verified at HEAD via its declared proof targets on managed PostgreSQL; stale greens from ancestor commits replaced. Deferred gaps captured in MT-017. | INTEGRATION_VALIDATOR per-MT verdicts applied 2026-07-10T21:19:03Z: 001=PASS_V1,002=PASS_V1,004=PASS_V1,005=PASS_V1,006=PASS_V1,007=PASS_V1,008=PASS_V1,010=PASS_V1,011=PASS_V1,012=PASS_V1,015=PASS_V1,016=PASS_V1,003=FAIL_V1,009=FAIL_V1,013=FAIL_V1,014=FAIL_V1; MT-017 DEFERRED (not validated). 4 FAIL -> whole-WP validation + merge withheld.",
+  "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes. KERNEL_BUILDER HEAD re-proof 2026-07-09: every MT re-verified at HEAD via its declared proof targets on managed PostgreSQL; stale greens from ancestor commits replaced. Deferred gaps captured in MT-017. | INTEGRATION_VALIDATOR per-MT V1 verdicts applied 2026-07-10T21:19:03Z: 001=PASS_V1,002=PASS_V1,004=PASS_V1,005=PASS_V1,006=PASS_V1,007=PASS_V1,008=PASS_V1,010=PASS_V1,011=PASS_V1,012=PASS_V1,015=PASS_V1,016=PASS_V1,003=FAIL_V1,009=FAIL_V1,013=FAIL_V1,014=FAIL_V1; MT-017 DEFERRED (not validated). | V2 remediation 2026-07-11: MT-009 is READY_FOR_VALIDATION after product commit 28e2e5c8 and multi-lens review; MT-014 is BLOCKED by SPEC_CURRENT v02.200 section 4.6.5 persistent model-registry-row requirement. MT-003 and MT-013 remain unchanged FAIL_V1.",
   "microtasks": [
     {
       "mt_id": "MT-001",
@@ -172,7 +172,7 @@
     },
     {
       "mt_id": "MT-009",
-      "status": "FAIL_V1",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -185,11 +185,17 @@
       "blocks": [
         "MT-010"
       ],
-      "proof_status": "PASS_MT009_2026-07-02_MIXED_INTEGRATION_5_5_PASS_657s_COMMITS_ba13ca74_4a3c8ef9_CATCHUP_MSGSTRING_EVENTSEQ_IDENTITY_ORDER_MT007_RECOVERY_RECONFIRMED_9_9 || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: mixed_model_lane_integration_pg_tests 5/5 PASS (WP acceptance #1). NEW mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key 1/1 PASS (commit 750b9447) genuinely closes the REQUIRED HBR-SWARM-001 row: 2 concurrent agent lanes + a HumanOperator lane on ONE CRDT key, no deadlock/lost-update, EventLedger-ordered convergence. GAPS: snapshot compaction / derived state_vector / real cancellation -> MT-017 AC-2..AC-4.",
+      "proof_status": "READY_FOR_VALIDATION_V2_2026-07-11 product commit 28e2e5c8: real PostgreSQL CRDT atomicity/rollback, real cancellation fence/rollback, mixed convergence, Argus, UserManual, and shared-CRDT regressions passed; V1 FAIL remains in MT-009.validation_v1.",
       "hbr_status": "PASS_MT009_MIXED_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
-      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL"
+      "post_implementation_adversarial_review_status": "PASS_V2_2026-07-11_MULTI_LENS_NO_OPEN_BLOCKERS",
+      "adversarial_findings_status": "V2 PASS; delete-only Yjs remains intentionally fail-closed pending durable author attribution.",
+      "remediation_v2": {
+        "status": "READY_FOR_VALIDATION_V2",
+        "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+        "v1_verdict_preserved": "FAIL_V1",
+        "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-11T03:30:47.040Z"
+      }
     },
     {
       "mt_id": "MT-010",
@@ -260,18 +266,23 @@
     },
     {
       "mt_id": "MT-014",
-      "status": "FAIL_V1",
+      "status": "BLOCKED",
       "depends_on": [
         "MT-003"
       ],
       "summary": "Shared/enumerable/labeled default-LlmClient model registry (UUIDv7->display_name) for MT-008 labeling, MT-012 picker, Work Profiles provider_ref resolution; + LoomSearchV2 embedding-model contract (degrade-not-error on 768-dim mismatch). DEFERRED_FROM_MT-003 2026-07-01.",
       "unlocks": "Unlocks local-model labeling in diagnostics, enumeration in the operator picker, Work Profiles resolution, and crash-free Loom reindex on embedding-dim mismatch.",
       "blocks": [],
-      "proof_status": "PASS_MT014_2026-07-02_REGISTRY_4_LOOM_7_PROVIDER_REF_8_KERNEL_WP_4_ALL_GREEN_IMPL_97618d35_HIGH1_WIRED_cb2fd516_MED1_SELECTION_AUDIT_DEFERRED_MT012_AC4b_DEFERRED_MT016 || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: model_registry_tests 8/8 PASS; model_catalog_tests 5/5 PASS; loom_search_v2_tests 9/9 PASS after the F1/F2 compile fix (commit 2e1204f0) - previously this binary did NOT COMPILE (E0432/E0599), so the recorded 7/7 was false-green.",
+      "proof_status": "BLOCKED_V2_2026-07-11 product commit 28e2e5c8: exact catalog, real-PG Loom dimension-degrade, and Work Profile provider-ref tests passed, but SPEC_CURRENT v02.200 section 4.6.5 requires selected-adapter persistence in a model-registry row; current registry/catalog is in-memory only.",
       "hbr_status": "PASS_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-      "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a8285d2bd49d98916_HIGH1_FIXED_MED1_DEFERRED_MT012",
-      "adversarial_findings_status": "APPLIED_HIGH1_WIRED_MED1_DEFERRED_MT012"
+      "post_implementation_adversarial_review_status": "FAIL_V2_2026-07-11_ACTIVE_SPEC_PERSISTENT_REGISTRY_BLOCKER",
+      "adversarial_findings_status": "V2 blocker: ModelRegistry remains HashMap-only and ModelCatalog explicitly documents in-memory-only registry durability.",
+      "remediation_v2": {
+        "status": "BLOCKED_V2",
+        "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+        "v1_verdict_preserved": "FAIL_V1"
+      }
     },
     {
       "mt_id": "MT-015",

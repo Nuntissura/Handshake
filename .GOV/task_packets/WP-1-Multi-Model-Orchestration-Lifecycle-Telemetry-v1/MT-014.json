@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-014",
   "created_at_utc": "2026-07-01T21:15:18Z",
-  "updated_at_utc": "2026-07-01T21:15:18Z",
+  "updated_at_utc": "2026-07-11T03:48:59.146Z",
   "scope_status": "DEFERRED_FROM_MT-003_2026-07-01_SHARED_REGISTRY_AND_LOOM_EMBEDDING_BRIDGE",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json",
@@ -16,7 +16,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "BLOCKED",
     "depends_on": [
       "MT-003"
     ],
@@ -28,13 +28,13 @@
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
     "ready_for_validation_at_utc": "2026-07-02T18:12:13Z",
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": null,
-    "proof_status": "PASS_MT014_2026-07-02: shared model registry + Loom dim-degrade + provider_ref resolver. Impl 97618d35 + HIGH-1 wiring cb2fd516. Proofs all green, independently re-proven: model_catalog_tests 4/4 (enumeration reachable from AppState, single registry, stable cross-session sha256 anchor + per-boot UUIDv7, empty/unknown sentinel, selection-decision FR event primitive); work_profile_provider_ref_tests 8/8 (resolver wired into validate_routes - Unknown rejected LIVE, ollama->local_runtime migrated + surfaced FR-EVT-PROFILE via validate_and_migrate_work_profiles load path, canonical passes); loom_search_v2_tests 7/7 (DimMismatch degrade-not-error on reindex AND search, no 400, typed reason + FR event both paths, real managed PG 1319s); kernel_work_profiles 4/4 regression. Post-impl review (task a8285d2bd49d98916): HIGH-1 unwired-resolver FIXED (cb2fd516); MED-1 selection-audit event ships as a primitive DEFERRED to MT-012 (wires it on operator model-pick, already in MT-012 contract); MED-2 (reindex degrade surfaced only via FR event under recorder outage), MED-3 (dim proof pg_or_skip-gated but RAN vs real PG here), LOW-1/2/3 disclosed-acceptable. AC-4b (dedicated embedding model) deferred to MT-016. False production_factory-registry premise NOT chased; MT-008/012 not reworked.",
+    "blocker": "BLOCKED_V2: SPEC_CURRENT v02.200 section 4.6.5 requires the selected runtime adapter to be persisted in a model-registry row. The current ModelRegistry is HashMap-only and ModelCatalog documents an in-memory boot handle, so the requirement is not met.",
+    "missing_resource": "Persistent model-registry-row storage and load path for the selected runtime adapter required by SPEC_CURRENT v02.200 section 4.6.5.",
+    "proof_status": "V2_TEST_REMEDIATION_PROVED_2026-07-11: exact catalog, real-PG Loom dimension-degrade, and Work Profile provider-ref tests passed at product commit 28e2e5c8be347e0fa62d09de84f4992aad931c7c. READY_FOR_VALIDATION_V2 is blocked by the active persistent-registry requirement; validation_v1 remains immutable FAIL_V1.",
     "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-    "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a8285d2bd49d98916_HIGH1_FIXED_cb2fd516_MED1_DEFERRED_MT012_MED2_MED3_LOW_DISCLOSED",
-    "adversarial_findings_status": "APPLIED_HIGH1_RESOLVER_WIRED_MED1_SELECTION_AUDIT_DEFERRED_MT012",
+    "post_implementation_adversarial_review_status": "FAIL_V2_2026-07-11_ACTIVE_SPEC_PERSISTENT_REGISTRY_BLOCKER",
+    "adversarial_findings_status": "V2_BLOCKER: ModelRegistry remains HashMap-only; ModelCatalog explicitly documents in-memory-only registry durability. Secondary gap: a configured but wrong-dimension model is not independently proven to reach the typed DimMismatch path rather than NoModel.",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
     "validated_at_utc": "2026-07-10T21:19:03Z"
   },
@@ -47,6 +47,7 @@
       "src/backend/handshake_core/src/loom_search/",
       "src/backend/handshake_core/src/api/",
       "src/backend/handshake_core/src/kernel/work_profiles.rs",
+      "src/backend/handshake_core/src/managed_postgres.rs",
       "src/backend/handshake_core/src/user_manual/",
       "src/backend/handshake_core/tests/"
     ],
@@ -64,7 +65,11 @@
       "Pre- and post-implementation adversarial review before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "TO_BE_FINALIZED_AT_ACTIVATION: exact Rust tests for (a) UUIDv7->display_name registry enumeration/label join (engine-free, --features test-utils), (b) LoomSearchV2 degrades (not hard-errors) on embedding-dimension mismatch, (c) Work Profiles provider_ref resolution/migration. Proof commands MUST name exact tests and fail on zero matching tests."
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt014_catalog_enumerates_and_labels_configured_model -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test work_profile_provider_ref_tests mt014_live_validate_and_migrate_migrates_ollama_and_surfaces_event -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test work_profile_provider_ref_tests mt014_live_validate_rejects_unknown_provider_ref -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test work_profile_provider_ref_tests mt014_live_validate_and_migrate_passes_canonical_provider_ref_unchanged -- --exact --nocapture"
     ],
     "risk_if_missed": "The local model is unlabelable in diagnostics (MT-008) and unlistable in the operator picker (MT-012), Work Profiles pinned to the old ollama provider silently break, and configuring a local model can hard-crash LoomSearchV2 reindex on a dimension mismatch.",
     "reference_only_paths": [
@@ -150,6 +155,39 @@
     "native_rust_backend_first": true,
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs; COMPLETED is validator-only."
+  },
+  "remediation_v2": {
+    "status": "BLOCKED_V2",
+    "remediated_at_utc": "2026-07-11T02:59:39Z",
+    "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+    "v1_verdict_preserved": "FAIL_V1",
+    "completed_v1_remediation": [
+      "The Loom dimension-mismatch test now fails closed through pg_required and passed against a real Handshake-managed PostgreSQL cluster.",
+      "The placeholder proof contract was replaced with exact Rust test commands, all of which passed at the product commit."
+    ],
+    "blocking_findings": [
+      "SPEC_CURRENT v02.200 section 4.6.5 requires selected adapter persistence in a model-registry row; current registry/catalog code is explicitly in-memory only.",
+      "The current test-only remediation cannot satisfy the persistent-registry requirement without scoped product implementation and migration work."
+    ],
+    "adversarial_review": {
+      "verdict": "FAIL",
+      "lenses": [
+        "registry_enumeration_and_label_join",
+        "loom_embedding_dimension_degrade_not_error",
+        "work_profiles_provider_ref_migration",
+        "interconnectivity_no_duplicate_registry_world"
+      ]
+    },
+    "mechanical_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-07-11T03:48:59.146Z",
+      "product_commit_file_partition": {
+        "this_mt_files": 3,
+        "mt009_files": 18,
+        "partition_matches_product_commit": true
+      },
+      "residual_concern": "LOW BUILD_PASS_EVIDENCE_NOT_FOUND: the existing COMPILE_GATE_LOG row for product commit 28e2e5c8 lacks an mt_id, so the per-MT mechanical tracker cannot associate it. This does not resolve the active-spec persistent-registry blocker."
+    }
   },
   "validator_verdict": "FAIL_V1",
   "validation_v1": {

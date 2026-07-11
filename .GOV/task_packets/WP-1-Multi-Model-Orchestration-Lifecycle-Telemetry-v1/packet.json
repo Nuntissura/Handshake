@@ -20,7 +20,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "base_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-04T04:45:58Z",
+  "updated_at_utc": "2026-07-11T03:36:46Z",
   "source_control": {
     "merge_base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
     "canonical_branch": "main",
@@ -121,7 +121,9 @@
       "src/frontend/handshake_native/src/mcp/screenshot.rs",
       "src/backend/handshake_core/src/main.rs",
       "src/backend/handshake_core/src/llm/",
-      "src/backend/handshake_core/Cargo.toml"
+      "src/backend/handshake_core/src/managed_postgres.rs",
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/Cargo.lock"
     ],
     "forbidden_paths": [
       "unrelated repo-governance refactors",
