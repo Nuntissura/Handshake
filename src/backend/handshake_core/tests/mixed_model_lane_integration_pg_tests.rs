@@ -7,24 +7,49 @@
 
 mod knowledge_pg_support;
 
+use async_trait::async_trait;
+use base64::Engine;
+use futures::{stream, StreamExt};
+use handshake_core::kernel::crdt::actor_site::{
+    derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
+};
+use handshake_core::kernel::crdt::snapshot::{
+    build_snapshot_bounded_replay_plan, new_crdt_snapshot_record, plan_crdt_compaction,
+    CrdtCompactionAuditMode, CrdtCompactionDisposition, CrdtCompactionPolicyV1,
+    CrdtSnapshotRecordInputV1,
+};
+use handshake_core::kernel::crdt::state_vector::{verify_causal_chain, KnowledgeStateVectorV1};
+use handshake_core::kernel::crdt::yjs_bridge::{
+    pull_yjs_updates, push_yjs_update, read_draft_head, YjsPushDenialReasonV1, YjsPushDenialV1,
+    YjsPushOutcomeV1, YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1, YJS_UPDATE_ENVELOPE_SCHEMA_ID,
+};
+use handshake_core::kernel::{KernelEventType, NewKernelEvent};
+use handshake_core::model_runtime::{
+    CancellationToken, Embedding, GenPrompt, GenerateRequest, GeneratedToken, KvCacheHandle,
+    LoadSpec, LoraStackHandle, ModelCapabilities, ModelId, ModelRuntime, ModelRuntimeError,
+    SamplingParams, Score, SteeringHookHandle, TokenStream,
+};
 use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, LedgerEventKind, LedgerOverflowEvent,
     PostgresProcessLedgerStore, ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink,
     ProcessStart, ProcessStop,
 };
+use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::Database;
 use handshake_core::swarm_orchestration::model_lane::{
     LaunchAuthority, ModelLaneAuthority, ModelLaneCloudConsentReceiptStatus,
     ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanStatus,
     ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
     ModelLaneDiagnosticsLane, ModelLaneKind, ModelLaneLeaseScope, ModelLaneLeaseState,
     ModelLaneLocusBinding, ModelLaneMessageKind, ModelLaneMessageRecord, ModelLaneMtRuntimeStatus,
-    ModelLaneProviderKind, ModelLaneRecord, ModelLaneRecoveryEventKind,
-    ModelLaneRecoveryFailureKind, ModelLaneRecoveryState, ModelLaneRecoveryStatus,
-    ModelLaneRoutingMetadata, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
+    ModelLanePromotionDenialReason, ModelLanePromotionOutcome, ModelLaneProviderKind,
+    ModelLaneRecord, ModelLaneRecoveryEventKind, ModelLaneRecoveryFailureKind,
+    ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneRoutingMetadata,
+    ModelLaneRoutingPolicy, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
     NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
     NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus, NewModelLaneLease,
-    NewModelLaneMessage, NewModelLaneMtRuntimeStatus, NewModelLaneRecoveryCheckpoint,
-    NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
+    NewModelLaneMessage, NewModelLaneMtRuntimeStatus, NewModelLanePromotionDecision,
+    NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -34,6 +59,9 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use tokio::sync::Barrier;
+use yrs::updates::{decoder::Decode, encoder::Encode};
+use yrs::{Doc, GetString, ReadTxn, StateVector, Text, Transact, Update};
 
 const WP_ID: &str = "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
 const MT_ID: &str = "MT-009";
@@ -791,6 +819,1323 @@ async fn mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key()
         materialize_crdt(&shuffled),
         materialized,
         "concurrent shared-key convergence must be order-stable and duplicate-id tolerant"
+    );
+}
+
+/// MT-009 durable storage cancellation boundary: a real `ModelRuntime` token
+/// stream emits one prefix chunk, then the same `CancellationToken` is
+/// cancelled before its next poll. The persisted prefix remains replayable,
+/// while the terminal EventLedger row blocks every late ModelLane message
+/// (including a tool request) at the durable store boundary. The production
+/// coordinator/CLI-capture path is separately exercised by
+/// `operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity`.
+#[tokio::test]
+async fn mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages() {
+    const RUN_ID: &str = "run-mt009-midstream-cancel";
+    const LANE_ID: &str = "lane-mt009-midstream-cancel";
+    const PREFIX_MESSAGE_ID: &str = "msg-mt009-midstream-prefix";
+
+    let (pool, store) = model_lane_store().await;
+    seed_run_lane(&store, RUN_ID, LANE_ID, RuntimeBinding::Local).await;
+
+    let cancellation = CancellationToken::new();
+    let runtime = CancellationProbeRuntime::new();
+    let mut tokens = runtime.generate(cancellation_probe_request(cancellation.clone()));
+    let prefix = tokens
+        .next()
+        .await
+        .expect("runtime must emit a first chunk before cancellation")
+        .expect("first chunk must be successful");
+    assert_eq!(prefix.text, "mt009-prefix");
+
+    let mut prefix_message = sample_message(PREFIX_MESSAGE_ID, RUN_ID, LANE_ID, "local", 1);
+    prefix_message.diagnostic_payload["stream_token_id"] = json!(prefix.token_id);
+    let prefix_record = store
+        .record_message(prefix_message.clone())
+        .await
+        .expect("persist partial capture before cancellation");
+    store
+        .record_context_bundle_artifact_binding(sample_artifact_binding_for_message(
+            &prefix_message,
+        ))
+        .await
+        .expect("persist prefix payload authority before cancellation");
+    record_checkpoint_at_highwater(
+        &pool,
+        &store,
+        RUN_ID,
+        LANE_ID,
+        Some(PREFIX_MESSAGE_ID),
+        vec![prefix_message.payload_ref.clone()],
+        "checkpoint-mt009-midstream-cancel-prefix",
+    )
+    .await;
+
+    cancellation.cancel();
+    assert!(
+        cancellation.is_cancelled(),
+        "the exact GenerateRequest cancellation token must be flipped"
+    );
+    assert!(matches!(
+        tokens
+            .next()
+            .await
+            .expect("runtime must surface cancellation at its midstream boundary"),
+        Err(ModelRuntimeError::Cancelled)
+    ));
+
+    let terminal = store
+        .record_lane_terminal_status(
+            LANE_ID,
+            ModelLaneStatus::Cancelled,
+            "model runtime cancellation token observed after partial capture",
+        )
+        .await
+        .expect("persist cancelled terminal lane state");
+    assert!(terminal.event_ledger_seq > prefix_record.event_ledger_seq);
+    assert_eq!(terminal.status, ModelLaneStatus::Cancelled);
+
+    let late_chunk = sample_message(
+        "msg-mt009-midstream-late-chunk",
+        RUN_ID,
+        LANE_ID,
+        "local",
+        2,
+    );
+    let late_chunk_error = store
+        .record_message(late_chunk.clone())
+        .await
+        .expect_err("a post-cancel chunk must fail closed before EventLedger append");
+    assert!(
+        late_chunk_error
+            .to_string()
+            .contains("terminal source lane"),
+        "late chunk denial must identify the durable terminal source boundary: {late_chunk_error}"
+    );
+    assert_no_message_row(&pool, &late_chunk.message_id).await;
+
+    let mut late_tool =
+        sample_message("msg-mt009-midstream-late-tool", RUN_ID, LANE_ID, "local", 3);
+    late_tool.kind = ModelLaneMessageKind::ToolRequest;
+    let late_tool_error = store
+        .record_message(late_tool.clone())
+        .await
+        .expect_err("a post-cancel tool request must fail closed before EventLedger append");
+    assert!(late_tool_error.to_string().contains("terminal source lane"));
+    assert_no_message_row(&pool, &late_tool.message_id).await;
+
+    // The actual operator-capture persistence shape binds payload + message in
+    // one transaction. A terminal rejection must roll both paths back rather
+    // than leaving the old binding-before-message orphan behind.
+    let late_bound = sample_message(
+        "msg-mt009-midstream-late-bound",
+        RUN_ID,
+        LANE_ID,
+        "local",
+        4,
+    );
+    let late_binding = sample_artifact_binding_for_message(&late_bound);
+    let late_binding_error = store
+        .record_message_with_payload_binding(late_bound.clone(), late_binding.clone())
+        .await
+        .expect_err("terminal rejection must atomically reject payload binding and message");
+    assert!(late_binding_error
+        .to_string()
+        .contains("terminal source lane"));
+    assert_no_message_row(&pool, &late_bound.message_id).await;
+    let late_binding_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE artifact_binding_id = $1",
+    )
+    .bind(&late_binding.artifact_binding_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count atomically rejected artifact bindings");
+    assert_eq!(
+        late_binding_rows, 0,
+        "terminal rejection must not leave an orphan payload binding"
+    );
+
+    let post_terminal_messages: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE session_run_id = $1 \
+           AND aggregate_type = 'model_lane_message' \
+           AND event_sequence > $2",
+    )
+    .bind(event_stream_id(RUN_ID))
+    .bind(terminal.event_ledger_seq)
+    .fetch_one(&pool)
+    .await
+    .expect("count post-terminal ModelLaneMessage EventLedger rows");
+    assert_eq!(
+        post_terminal_messages, 0,
+        "no chunk/tool EventLedger row may follow cancel"
+    );
+
+    let cancelled_terminal_events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE aggregate_type = 'model_lane_terminal' \
+           AND aggregate_id = $1 \
+           AND payload->>'status' = 'cancelled'",
+    )
+    .bind(LANE_ID)
+    .fetch_one(&pool)
+    .await
+    .expect("count cancelled terminal EventLedger rows");
+    assert_eq!(
+        cancelled_terminal_events, 1,
+        "cancel must produce exactly one terminal event"
+    );
+
+    let replay = store
+        .replay_run(RUN_ID)
+        .await
+        .expect("replay cancelled run");
+    assert_eq!(
+        replay.messages.len(),
+        1,
+        "only the prefix remains replayable"
+    );
+    assert_eq!(replay.messages[0].message_id, PREFIX_MESSAGE_ID);
+    assert_eq!(
+        replay
+            .lanes
+            .iter()
+            .find(|lane| lane.lane_id == LANE_ID)
+            .expect("cancelled lane remains visible to replay")
+            .status,
+        ModelLaneStatus::Cancelled
+    );
+    let recovered = store
+        .recover_run_after_restart(RUN_ID)
+        .await
+        .expect("checkpoint recovery preserves cancelled lane and captured prefix");
+    assert_eq!(recovered.replay.messages.len(), 1);
+    assert_eq!(
+        recovered.replay.messages[0].trace_id,
+        prefix_message.trace_id
+    );
+}
+
+/// Source and target lane rows are deliberately locked in a canonical order.
+/// This real-PostgreSQL probe exercises simultaneous A->B and B->A traffic;
+/// it would deadlock with the former source-then-target lock order.
+#[tokio::test]
+async fn mt009_bidirectional_lane_messages_do_not_deadlock() {
+    const RUN_ID: &str = "run-mt009-bidirectional-lock";
+    const LANE_A: &str = "lane-mt009-bidirectional-a";
+    const LANE_B: &str = "lane-mt009-bidirectional-b";
+
+    let (_pool, store) = model_lane_store().await;
+    store
+        .record_run(sample_run(RUN_ID, vec![LANE_A.into(), LANE_B.into()]))
+        .await
+        .expect("record bidirectional run");
+    for lane_id in [LANE_A, LANE_B] {
+        store
+            .record_lane(sample_lane(
+                lane_id,
+                RUN_ID,
+                ModelLaneKind::LocalModel,
+                RuntimeBinding::Local,
+                LaunchAuthority::ModelRuntime,
+            ))
+            .await
+            .expect("record bidirectional local lane");
+    }
+
+    let mut a_to_b = sample_message("msg-mt009-a-to-b", RUN_ID, LANE_A, "local", 1);
+    a_to_b.to_lane = ModelLaneTarget::Lane(LANE_B.into());
+    let mut b_to_a = sample_message("msg-mt009-b-to-a", RUN_ID, LANE_B, "local", 2);
+    b_to_a.to_lane = ModelLaneTarget::Lane(LANE_A.into());
+    let store = Arc::new(store);
+    let first_store = Arc::clone(&store);
+    let second_store = Arc::clone(&store);
+
+    let joined = tokio::time::timeout(Duration::from_secs(5), async move {
+        tokio::join!(
+            first_store.record_message(a_to_b),
+            second_store.record_message(b_to_a)
+        )
+    })
+    .await
+    .expect("opposite-direction messages must not deadlock");
+    joined.0.expect("A->B message persists");
+    joined.1.expect("B->A message persists");
+}
+
+/// MT-009 V2 CRDT boundary: a real PostgreSQL/EventLedger-backed document
+/// receives Yjs-compatible update envelopes from two model lanes and an
+/// operator lane. The proof exercises duplicate idempotency, stale-base
+/// denial, snapshot-bounded replay, append-only compaction planning, and the
+/// exact derived CRDT receipts carried by ModelLane messages.
+#[tokio::test]
+async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge() {
+    const RUN_ID: &str = "run-mt009-real-yjs-crdt";
+    const LOCAL_LANE: &str = "lane-mt009-real-yjs-local";
+    const CLOUD_LANE: &str = "lane-mt009-real-yjs-cloud";
+    const OPERATOR_LANE: &str = "lane-mt009-real-yjs-operator";
+    const DOCUMENT_SCHEMA_ID: &str = "hsk.doc.rich_document@1";
+
+    let Some(kpg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!("PostgreSQL/EventLedger is required for MT-009 Yjs CRDT proof");
+    };
+    let schema_url = kpg.schema_url.clone();
+    let workspace_id = kpg.create_workspace().await;
+    let db = kpg.db;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&schema_url)
+        .await
+        .expect("connect isolated schema for ModelLane CRDT receipts");
+    let store = ModelLaneStore::new(pool);
+    let document_id = format!("doc-mt009-yjs-{workspace_id}");
+    let crdt_document_id = format!("crdt-mt009-yjs-{workspace_id}");
+
+    seed_cloud_authority(&store, RUN_ID, CLOUD_LANE).await;
+    store
+        .record_run(sample_run(
+            RUN_ID,
+            vec![LOCAL_LANE.into(), CLOUD_LANE.into(), OPERATOR_LANE.into()],
+        ))
+        .await
+        .expect("record real Yjs mixed-lane run");
+    for (lane_id, kind, binding, authority) in [
+        (
+            LOCAL_LANE,
+            ModelLaneKind::LocalModel,
+            RuntimeBinding::Local,
+            LaunchAuthority::ModelRuntime,
+        ),
+        (
+            CLOUD_LANE,
+            ModelLaneKind::CloudModel,
+            RuntimeBinding::Cloud,
+            LaunchAuthority::CloudLane,
+        ),
+        (
+            OPERATOR_LANE,
+            ModelLaneKind::HumanOperator,
+            RuntimeBinding::Human,
+            LaunchAuthority::Operator,
+        ),
+    ] {
+        store
+            .record_lane(sample_lane(lane_id, RUN_ID, kind, binding, authority))
+            .await
+            .expect("record local/cloud/operator lane for real Yjs proof");
+    }
+
+    let local_actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "mt009-local-model")
+        .expect("typed local model actor");
+    let cloud_actor = KnowledgeActorIdV1::new(KnowledgeActorKind::CloudModel, "mt009-cloud-model")
+        .expect("typed cloud model actor");
+    let operator_actor = KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "mt009-operator")
+        .expect("typed operator actor");
+    let local_site = derive_knowledge_site_id(&workspace_id, &crdt_document_id, &local_actor);
+    let cloud_site = derive_knowledge_site_id(&workspace_id, &crdt_document_id, &cloud_actor);
+    let operator_site = derive_knowledge_site_id(&workspace_id, &crdt_document_id, &operator_actor);
+
+    let mut state_vector = KnowledgeStateVectorV1::new();
+    let canonical_yjs_doc = Doc::new();
+    let local_pre_snapshot_bytes = mt009_append_yjs_text_update(
+        &canonical_yjs_doc,
+        u64::from(local_site.yjs_client_id),
+        "[local-pre-snapshot]",
+    );
+    let local_pre_snapshot = mt009_push_yjs_update(
+        &db,
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-pre-local",
+        &local_actor,
+        &local_site.site_id,
+        "session-mt009-yjs",
+        &local_pre_snapshot_bytes,
+        &mut state_vector,
+        1,
+    )
+    .await;
+    let cloud_pre_snapshot_bytes = mt009_append_yjs_text_update(
+        &canonical_yjs_doc,
+        u64::from(cloud_site.yjs_client_id),
+        "[cloud-pre-snapshot]",
+    );
+    let cloud_pre_snapshot = mt009_push_yjs_update(
+        &db,
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-pre-cloud",
+        &cloud_actor,
+        &cloud_site.site_id,
+        "session-mt009-yjs",
+        &cloud_pre_snapshot_bytes,
+        &mut state_vector,
+        2,
+    )
+    .await;
+    let operator_pre_snapshot_bytes = mt009_append_yjs_text_update(
+        &canonical_yjs_doc,
+        u64::from(operator_site.yjs_client_id),
+        "[operator-pre-snapshot]",
+    );
+    let operator_pre_snapshot = mt009_push_yjs_update(
+        &db,
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-pre-operator",
+        &operator_actor,
+        &operator_site.site_id,
+        "session-mt009-yjs",
+        &operator_pre_snapshot_bytes,
+        &mut state_vector,
+        3,
+    )
+    .await;
+    let snapshot_state_vector = state_vector.encode();
+    let snapshot_bytes = canonical_yjs_doc
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+
+    let snapshot_identity = knowledge_crdt_identity(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        &operator_actor,
+        "trace-mt009-yjs-snapshot",
+    );
+    let snapshot_event = NewKernelEvent::builder(
+        format!("KTR-MT009-YJS-{workspace_id}"),
+        "session-mt009-yjs".to_string(),
+        KernelEventType::KnowledgeCrdtSnapshotRecorded,
+        operator_actor.to_kernel_actor(),
+    )
+    .aggregate("knowledge_crdt_document", crdt_document_id.clone())
+    .idempotency_key(format!("mt009-yjs:{workspace_id}:snapshot"))
+    .source_component("mixed_model_lane_integration_pg_tests")
+    .payload(json!({
+        "covered_update_seq": 3,
+        "state_vector": &snapshot_state_vector,
+        "document_id": &document_id,
+    }))
+    .build()
+    .expect("build snapshot EventLedger event");
+    let snapshot_event = db
+        .append_kernel_event(snapshot_event)
+        .await
+        .expect("append snapshot EventLedger event");
+    let snapshot = new_crdt_snapshot_record(CrdtSnapshotRecordInputV1 {
+        identity: &snapshot_identity,
+        snapshot_id: "mt009-yjs-snapshot-3",
+        covered_update_seq: 3,
+        snapshot_bytes: &snapshot_bytes,
+        snapshot_bytes_ref: &format!(
+            "postgres://kernel_crdt_snapshots/{crdt_document_id}/mt009-yjs-snapshot-3"
+        ),
+        state_vector: &snapshot_state_vector,
+        event_ledger_event_id: &snapshot_event.event_id,
+        promotion_evidence_update_ids: &["mt009-yjs-pre-cloud"],
+    });
+    db.append_kernel_crdt_snapshot(snapshot.clone(), snapshot_bytes.clone())
+        .await
+        .expect("persist snapshot receipt and bytes in PostgreSQL");
+
+    let local_post_snapshot_bytes = mt009_append_yjs_text_update(
+        &canonical_yjs_doc,
+        u64::from(local_site.yjs_client_id),
+        "[local-post-snapshot]",
+    );
+    let local_post_snapshot = mt009_push_yjs_update(
+        &db,
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-post-local",
+        &local_actor,
+        &local_site.site_id,
+        "session-mt009-yjs",
+        &local_post_snapshot_bytes,
+        &mut state_vector,
+        4,
+    )
+    .await;
+    let cloud_post_snapshot_bytes = mt009_append_yjs_text_update(
+        &canonical_yjs_doc,
+        u64::from(cloud_site.yjs_client_id),
+        "[cloud-post-snapshot]",
+    );
+    let cloud_post_snapshot = mt009_push_yjs_update(
+        &db,
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-post-cloud",
+        &cloud_actor,
+        &cloud_site.site_id,
+        "session-mt009-yjs",
+        &cloud_post_snapshot_bytes,
+        &mut state_vector,
+        5,
+    )
+    .await;
+    let operator_post_snapshot_bytes = mt009_append_yjs_text_update(
+        &canonical_yjs_doc,
+        u64::from(operator_site.yjs_client_id),
+        "[operator-post-snapshot]",
+    );
+    let operator_post_snapshot = mt009_push_yjs_update(
+        &db,
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-post-operator",
+        &operator_actor,
+        &operator_site.site_id,
+        "session-mt009-yjs",
+        &operator_post_snapshot_bytes,
+        &mut state_vector,
+        6,
+    )
+    .await;
+    let final_state_vector = state_vector.encode();
+    let envelopes = vec![
+        local_pre_snapshot,
+        cloud_pre_snapshot,
+        operator_pre_snapshot,
+        local_post_snapshot,
+        cloud_post_snapshot.clone(),
+        operator_post_snapshot,
+    ];
+
+    match push_yjs_update(&db, &cloud_post_snapshot)
+        .await
+        .expect("duplicate update must return a typed outcome")
+    {
+        YjsPushOutcomeV1::AlreadyStored { update_seq, .. } => assert_eq!(update_seq, 5),
+        other => panic!("expected idempotent cloud update replay, got {other:?}"),
+    }
+
+    let mut stale_after = KnowledgeStateVectorV1::new();
+    stale_after.increment(&local_site.site_id);
+    let stale = mt009_yjs_envelope(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-stale-base",
+        &local_actor,
+        "session-mt009-yjs",
+        &local_post_snapshot_bytes,
+        &KnowledgeStateVectorV1::new(),
+        &stale_after,
+    );
+    match push_yjs_update(&db, &stale)
+        .await
+        .expect("stale update returns typed denial rather than writing")
+    {
+        YjsPushOutcomeV1::Denied { denial } => assert!(matches!(
+            denial.reason,
+            YjsPushDenialReasonV1::StaleBase {
+                head_update_seq: 6,
+                ..
+            }
+        )),
+        other => panic!("stale state vector must be denied, got {other:?}"),
+    }
+
+    let mut malformed_after = state_vector.clone();
+    malformed_after.increment(&local_site.site_id);
+    let malformed_hash_consistent = mt009_yjs_envelope(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-malformed-but-hash-consistent",
+        &local_actor,
+        "session-mt009-yjs",
+        b"not-a-yjs-v1-update",
+        &state_vector,
+        &malformed_after,
+    );
+    match push_yjs_update(&db, &malformed_hash_consistent)
+        .await
+        .expect("malformed Yjs bytes must be a typed denial, not a storage failure")
+    {
+        YjsPushOutcomeV1::Denied { denial } => match denial.reason {
+            YjsPushDenialReasonV1::EnvelopeInvalid { messages } => assert!(
+                messages
+                    .iter()
+                    .any(|message| message.contains("decodable Yjs v1 update")),
+                "hash-consistent malformed bytes must be rejected at ingress: {messages:?}"
+            ),
+            other => panic!("expected envelope validation denial, got {other:?}"),
+        },
+        other => panic!("malformed Yjs bytes must never be stored, got {other:?}"),
+    }
+
+    // The client cannot forge a higher or foreign causal clock.  Both fields
+    // are checked against the durable head and the server-derived next vector
+    // before an EventLedger or CRDT row can be appended.
+    let mut forged_after = state_vector.clone();
+    forged_after.increment(&local_site.site_id);
+    forged_after.increment("site-forged-by-client");
+    let forged_state_vector = mt009_yjs_envelope(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-forged-state-vector",
+        &local_actor,
+        "session-mt009-yjs",
+        &local_post_snapshot_bytes,
+        &state_vector,
+        &forged_after,
+    );
+    match push_yjs_update(&db, &forged_state_vector)
+        .await
+        .expect("forged state vector returns a typed denial")
+    {
+        YjsPushOutcomeV1::Denied { denial } => match denial.reason {
+            YjsPushDenialReasonV1::EnvelopeInvalid { messages } => assert!(
+                messages
+                    .iter()
+                    .any(|message| message.contains("server-derived next vector")),
+                "forged vector must be denied before durable append: {messages:?}"
+            ),
+            other => panic!("expected state-vector envelope denial, got {other:?}"),
+        },
+        other => panic!("forged state vector must never be stored, got {other:?}"),
+    }
+
+    // A valid Yjs update from another deterministic client cannot be claimed
+    // by the local actor/site.  This protects the actor-to-Yjs-client binding
+    // at ingress rather than relying on fixture discipline alone.
+    let mut foreign_after = state_vector.clone();
+    foreign_after.increment(&local_site.site_id);
+    let foreign_client_update = mt009_yjs_envelope(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt009-yjs-foreign-client-attribution",
+        &local_actor,
+        "session-mt009-yjs",
+        &cloud_post_snapshot_bytes,
+        &state_vector,
+        &foreign_after,
+    );
+    match push_yjs_update(&db, &foreign_client_update)
+        .await
+        .expect("foreign Yjs client attribution returns a typed denial")
+    {
+        YjsPushOutcomeV1::Denied { denial } => match denial.reason {
+            YjsPushDenialReasonV1::EnvelopeInvalid { messages } => assert!(
+                messages
+                    .iter()
+                    .any(|message| message.contains("deterministic Yjs client id")),
+                "foreign client bytes must be denied before durable append: {messages:?}"
+            ),
+            other => panic!("expected foreign-client envelope denial, got {other:?}"),
+        },
+        other => panic!("foreign client bytes must never be stored, got {other:?}"),
+    }
+
+    let head = read_draft_head(&db, &workspace_id, &document_id, &crdt_document_id)
+        .await
+        .expect("read persisted draft head");
+    assert_eq!(head.head_update_seq, 6);
+    assert_eq!(head.head_state_vector, final_state_vector);
+
+    let records = db
+        .list_kernel_crdt_updates(&workspace_id, &document_id, &crdt_document_id)
+        .await
+        .expect("list real PostgreSQL update receipts");
+    assert_eq!(
+        records.len(),
+        6,
+        "duplicate and stale updates never add rows"
+    );
+    let mut persisted_yjs_update_bytes = Vec::with_capacity(records.len());
+    for (record, envelope) in records.iter().zip(&envelopes) {
+        assert_eq!(record.update_id, envelope.update_id);
+        assert_eq!(record.update_sha256, envelope.update_sha256);
+        assert_eq!(record.state_vector_before, envelope.state_vector_before);
+        assert_eq!(record.state_vector_after, envelope.state_vector_after);
+        assert_eq!(record.replay_metadata.encoding, YJS_UPDATE_ENCODING_V1);
+        let persisted_bytes = db
+            .read_kernel_crdt_update_bytes(&record.update_bytes_ref)
+            .await
+            .expect("read persisted Yjs update bytes");
+        assert_eq!(sha256_hex(&persisted_bytes), envelope.update_sha256);
+        Update::decode_v1(&persisted_bytes)
+            .expect("PostgreSQL-returned update bytes must remain decodable Yjs v1 payloads");
+        persisted_yjs_update_bytes.push(persisted_bytes);
+    }
+
+    let expected_yjs_state = mt009_yjs_materialize_doc(&canonical_yjs_doc);
+    let ledger_yjs_state = mt009_yjs_materialize_updates(&persisted_yjs_update_bytes);
+    assert_eq!(
+        ledger_yjs_state, expected_yjs_state,
+        "materialized document state must come from the exact Yjs bytes returned by PostgreSQL"
+    );
+    let mut varied_yjs_bytes = persisted_yjs_update_bytes.clone();
+    varied_yjs_bytes.reverse();
+    varied_yjs_bytes.push(persisted_yjs_update_bytes[4].clone());
+    assert_eq!(
+        mt009_yjs_materialize_updates(&varied_yjs_bytes),
+        expected_yjs_state,
+        "Yjs materialization and its real state vector must converge across reverse replay and a duplicate update"
+    );
+
+    let causal_proof = verify_causal_chain(&records).expect("prove persisted causal chain");
+    assert_eq!(causal_proof.final_state_vector, final_state_vector);
+    let merged_in_ledger_order =
+        records
+            .iter()
+            .fold(KnowledgeStateVectorV1::new(), |state, row| {
+                state.merge(
+                    &KnowledgeStateVectorV1::parse(&row.state_vector_after)
+                        .expect("persisted state vector must parse"),
+                )
+            });
+    let mut shuffled_with_duplicate = records.clone();
+    shuffled_with_duplicate.reverse();
+    shuffled_with_duplicate.push(records[4].clone());
+    let merged_in_varied_order =
+        shuffled_with_duplicate
+            .iter()
+            .fold(KnowledgeStateVectorV1::new(), |state, row| {
+                state.merge(
+                    &KnowledgeStateVectorV1::parse(&row.state_vector_after)
+                        .expect("persisted state vector must parse"),
+                )
+            });
+    assert_eq!(merged_in_ledger_order.encode(), final_state_vector);
+    assert_eq!(
+        merged_in_varied_order, merged_in_ledger_order,
+        "derived state vector is stable across replay-order variation and duplicate receipts"
+    );
+
+    let snapshots = db
+        .list_kernel_crdt_snapshots(&workspace_id, &document_id, &crdt_document_id)
+        .await
+        .expect("list real snapshot receipts");
+    assert_eq!(snapshots, vec![snapshot.clone()]);
+    assert_eq!(
+        db.read_kernel_crdt_snapshot_bytes(&snapshot.snapshot_bytes_ref)
+            .await
+            .expect("read persisted snapshot bytes"),
+        snapshot_bytes
+    );
+    let bounded_replay = build_snapshot_bounded_replay_plan(&snapshots[0], &records)
+        .expect("snapshot must bound replay to post-snapshot updates");
+    assert_eq!(bounded_replay.replay_from_update_seq, 4);
+    assert_eq!(bounded_replay.ordered_updates.len(), 3);
+    assert_eq!(bounded_replay.final_state_vector, final_state_vector);
+
+    let compaction = plan_crdt_compaction(
+        &snapshots[0],
+        &records,
+        &CrdtCompactionPolicyV1 {
+            policy_id: "mt009-postgres-eventledger-append-only".into(),
+            compact_through_update_seq: 3,
+            audit_mode: CrdtCompactionAuditMode::EventLedgerAuditRefs,
+            preserve_promotion_evidence: true,
+        },
+    )
+    .expect("compaction receipt must retain audit and promotion evidence");
+    assert!(compaction.decisions.iter().any(|decision| {
+        decision.update_id == "mt009-yjs-pre-cloud"
+            && decision.disposition == CrdtCompactionDisposition::RetainPromotionEvidence
+    }));
+    assert!(compaction.decisions.iter().any(|decision| {
+        decision.update_id == "mt009-yjs-pre-local"
+            && decision.disposition == CrdtCompactionDisposition::CompactWithAudit
+            && decision.audit_ref.starts_with("eventledger://")
+    }));
+    assert!(
+        compaction
+            .decisions
+            .iter()
+            .filter(|decision| {
+                decision.update_seq > 3
+                    && decision.disposition == CrdtCompactionDisposition::RetainForReplay
+            })
+            .count()
+            == 3
+    );
+    let records_after_compaction_plan = db
+        .list_kernel_crdt_updates(&workspace_id, &document_id, &crdt_document_id)
+        .await
+        .expect("append-only compaction planning must not destroy receipt rows");
+    assert_eq!(records_after_compaction_plan, records);
+
+    let pulled = pull_yjs_updates(
+        &db,
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        3,
+        DOCUMENT_SCHEMA_ID,
+    )
+    .await
+    .expect("pull post-snapshot replay envelopes from PostgreSQL");
+    assert_eq!(pulled.head_state_vector, final_state_vector);
+    assert_eq!(
+        pulled
+            .updates
+            .iter()
+            .map(|update| update.update_id.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "mt009-yjs-post-local",
+            "mt009-yjs-post-cloud",
+            "mt009-yjs-post-operator",
+        ]
+    );
+    let mut snapshot_bounded_yjs_bytes = vec![snapshot_bytes.clone()];
+    snapshot_bounded_yjs_bytes.extend(pulled.updates.iter().map(|update| {
+        base64::engine::general_purpose::STANDARD
+            .decode(&update.update_b64)
+            .expect("pulled update bytes must decode from the stored wire envelope")
+    }));
+    assert_eq!(
+        mt009_yjs_materialize_updates(&snapshot_bounded_yjs_bytes),
+        expected_yjs_state,
+        "snapshot plus pulled PostgreSQL update bytes must restore the same materialized Yjs state"
+    );
+
+    let mut recorded_messages = Vec::new();
+    for ((message_id, lane_id, lane_label, crdt_value), record) in [
+        (
+            "msg-mt009-yjs-post-local",
+            LOCAL_LANE,
+            "local",
+            "local model merged Yjs edit",
+        ),
+        (
+            "msg-mt009-yjs-post-cloud",
+            CLOUD_LANE,
+            "cloud",
+            "cloud model merged Yjs review",
+        ),
+        (
+            "msg-mt009-yjs-post-operator",
+            OPERATOR_LANE,
+            "operator",
+            "operator merged Yjs decision",
+        ),
+    ]
+    .into_iter()
+    .zip(records.iter().skip(3))
+    {
+        let mut message = sample_message(
+            message_id,
+            RUN_ID,
+            lane_id,
+            lane_label,
+            record.update_seq as i64,
+        );
+        message.crdt_update_ref = Some(record.update_bytes_ref.clone());
+        message.crdt_base_snapshot_ref = Some(snapshot.snapshot_bytes_ref.clone());
+        message.crdt_state_vector = Some(record.state_vector_after.clone());
+        message.diagnostic_payload["crdt_update_id"] = json!(record.update_id);
+        message.diagnostic_payload["crdt_key"] = json!("mt009.yjs.shared-document");
+        message.diagnostic_payload["crdt_value"] = json!(crdt_value);
+        message.payload_sha256 = sha256_hex(&canonical_json_bytes(
+            &artifact_payload_json_for_message(&message),
+        ));
+        let stored_message = store
+            .record_message_with_payload_binding(
+                message.clone(),
+                sample_artifact_binding_for_message(&message),
+            )
+            .await
+            .expect("atomically record ModelLane message and payload authority for persisted Yjs receipt");
+        recorded_messages.push(stored_message);
+    }
+
+    let replay = store
+        .replay_run(RUN_ID)
+        .await
+        .expect("replay lane messages with derived PostgreSQL CRDT receipts");
+    let replayed_crdt_refs = replay
+        .messages
+        .iter()
+        .filter_map(|message| message.crdt_update_ref.as_deref())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        replayed_crdt_refs.len(),
+        3,
+        "each post-snapshot ModelLane replay message must retain its durable CRDT update reference"
+    );
+    let mut replayed_yjs_bytes = vec![snapshot_bytes.clone()];
+    for update_ref in &replayed_crdt_refs {
+        replayed_yjs_bytes.push(
+            db.read_kernel_crdt_update_bytes(update_ref)
+                .await
+                .expect("replayed ModelLane CRDT reference must resolve to PostgreSQL bytes"),
+        );
+    }
+    assert_eq!(
+        mt009_yjs_materialize_updates(&replayed_yjs_bytes),
+        expected_yjs_state,
+        "ModelLane replay must materialize from its PostgreSQL-backed Yjs references, not diagnostic labels"
+    );
+    let mut varied_message_replay = replay.messages.clone();
+    varied_message_replay.reverse();
+    varied_message_replay.push(recorded_messages[0].clone());
+    let mut varied_replayed_yjs_bytes = vec![snapshot_bytes.clone()];
+    for update_ref in varied_message_replay
+        .iter()
+        .filter_map(|message| message.crdt_update_ref.as_deref())
+    {
+        varied_replayed_yjs_bytes.push(
+            db.read_kernel_crdt_update_bytes(update_ref)
+                .await
+                .expect("varied ModelLane replay CRDT reference must resolve to PostgreSQL bytes"),
+        );
+    }
+    assert_eq!(
+        mt009_yjs_materialize_updates(&varied_replayed_yjs_bytes),
+        expected_yjs_state,
+        "ModelLane replay materialization is stable across varied order and a duplicate receipt"
+    );
+
+    let selected_message = &recorded_messages[0];
+    let selected_ref = format!("model-lane-message://{}", selected_message.message_id);
+    let current_state_vector = selected_message
+        .crdt_state_vector
+        .clone()
+        .expect("linked Yjs message has derived state vector");
+    let promotion_input = NewModelLanePromotionDecision {
+        decision_id: "promotion-mt009-yjs-current".into(),
+        run_id: RUN_ID.into(),
+        trace_id: format!("trace-{RUN_ID}"),
+        decision_span_id: "span-promotion-mt009-yjs-current".into(),
+        parent_span_id: Some(selected_message.message_span_id.clone()),
+        linked_span_contexts: vec![format!("trace-link://{RUN_ID}/promotion")],
+        coordinator_session_id: format!("coordinator-{RUN_ID}"),
+        routing_policy: ModelLaneRoutingPolicy::OperatorLane,
+        input_refs: vec![selected_ref.clone()],
+        selected_input_refs: vec![selected_ref],
+        rejected_input_refs: vec![],
+        validator_authority_ref: None,
+        operator_authority_ref: Some("operator://mt009/yjs-merge".into()),
+        expected_event_ledger_aggregate_type: "model_lane_message".into(),
+        expected_event_ledger_aggregate_id: selected_message.message_id.clone(),
+        expected_event_ledger_version: selected_message.event_ledger_seq,
+        base_snapshot_ref: snapshot.snapshot_bytes_ref.clone(),
+        current_base_snapshot_ref: snapshot.snapshot_bytes_ref.clone(),
+        state_vector: current_state_vector.clone(),
+        current_state_vector: current_state_vector.clone(),
+        schema_id: "hsk.model_lane_message@1".into(),
+        deterministic_tie_break_rule: "event_ledger_seq_then_message_id".into(),
+        promotion_gate_ref: "promotion-gate://mt009/yjs/current".into(),
+        promotion_receipt_ref: Some("promotion-receipt://mt009/yjs/current".into()),
+        promoted_artifact_ref: Some("artifact://promoted/mt009/yjs/current".into()),
+        promoted_artifact_sha256: Some(sample_sha256()),
+        promoted_artifact_version: Some("1".into()),
+        direct_authority_mutation_attempt_ref: None,
+        event_ledger_stream_id: event_stream_id(RUN_ID),
+        work_packet_id: Some(WP_ID.into()),
+        micro_task_id: Some(MT_ID.into()),
+        task_board_id: Some(TASK_BOARD_ID.into()),
+        owner_session: OWNER.into(),
+        idempotency_key: "idem-promotion-mt009-yjs-current".into(),
+        replay_order_key: "00000007/promotion/mt009-yjs/current".into(),
+        recovery_hint_ref: Some("usermanual://model-lane-validation-harness#recovery".into()),
+        created_at_utc: "2026-07-01T00:00:00Z".into(),
+        diagnostic_payload: json!({
+            "crdt_snapshot_ref": &snapshot.snapshot_bytes_ref,
+            "crdt_state_vector": selected_message.crdt_state_vector,
+            "denial_probe": "current",
+        }),
+    };
+
+    let mut stale_base_input = promotion_input.clone();
+    stale_base_input.decision_id = "promotion-mt009-yjs-stale-base".into();
+    stale_base_input.decision_span_id = "span-promotion-mt009-yjs-stale-base".into();
+    stale_base_input.base_snapshot_ref = format!("{}-stale", snapshot.snapshot_bytes_ref);
+    stale_base_input.promotion_gate_ref = "promotion-gate://mt009/yjs/stale-base".into();
+    stale_base_input.promotion_receipt_ref =
+        Some("promotion-receipt://mt009/yjs/stale-base".into());
+    stale_base_input.promoted_artifact_ref =
+        Some("artifact://promoted/mt009/yjs/stale-base".into());
+    stale_base_input.idempotency_key = "idem-promotion-mt009-yjs-stale-base".into();
+    stale_base_input.replay_order_key = "00000007/promotion/mt009-yjs/stale-base".into();
+    stale_base_input.diagnostic_payload["denial_probe"] = json!("stale_base_snapshot_ref");
+    let stale_promotion = store
+        .record_promotion_decision(stale_base_input)
+        .await
+        .expect("persist stale-base promotion denial in EventLedger");
+    assert_eq!(stale_promotion.outcome, ModelLanePromotionOutcome::Denied);
+    assert_eq!(
+        stale_promotion.denial_reason,
+        Some(ModelLanePromotionDenialReason::StaleBase),
+        "a promotion that cites a stale snapshot must be denied against the selected persisted receipt"
+    );
+
+    let stale_state_vector = KnowledgeStateVectorV1::new().encode();
+    assert_ne!(
+        stale_state_vector, current_state_vector,
+        "the stale-state probe must differ from the selected persisted Yjs state vector"
+    );
+    let mut stale_state_input = promotion_input;
+    stale_state_input.decision_id = "promotion-mt009-yjs-stale-state-vector".into();
+    stale_state_input.decision_span_id = "span-promotion-mt009-yjs-stale-state-vector".into();
+    stale_state_input.state_vector = stale_state_vector;
+    stale_state_input.promotion_gate_ref = "promotion-gate://mt009/yjs/stale-state-vector".into();
+    stale_state_input.promotion_receipt_ref =
+        Some("promotion-receipt://mt009/yjs/stale-state-vector".into());
+    stale_state_input.promoted_artifact_ref =
+        Some("artifact://promoted/mt009/yjs/stale-state-vector".into());
+    stale_state_input.idempotency_key = "idem-promotion-mt009-yjs-stale-state-vector".into();
+    stale_state_input.replay_order_key = "00000007/promotion/mt009/yjs/stale-state-vector".into();
+    stale_state_input.diagnostic_payload["denial_probe"] = json!("stale_state_vector");
+    let stale_state_promotion = store
+        .record_promotion_decision(stale_state_input)
+        .await
+        .expect("persist stale-state-vector promotion denial in EventLedger");
+    assert_eq!(
+        stale_state_promotion.outcome,
+        ModelLanePromotionOutcome::Denied
+    );
+    assert_eq!(
+        stale_state_promotion.denial_reason,
+        Some(ModelLanePromotionDenialReason::StaleStateVector),
+        "a promotion with the current snapshot but stale state vector must be denied independently"
+    );
+}
+
+/// Two separately pooled PostgreSQL clients race from the same CRDT base. The
+/// database-scoped advisory lock must choose exactly one durable transition;
+/// it must never leave a committed EventLedger success receipt without the
+/// corresponding `kernel_crdt_updates` row. The second half repeats the race
+/// with the same update id to prove idempotency converges on one receipt.
+#[tokio::test]
+async fn mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep() {
+    let Some(kpg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!("real PostgreSQL is required for the MT-009 CRDT atomicity proof");
+    };
+    let db_a = Arc::new(
+        PostgresDatabase::connect(&kpg.schema_url, 5)
+            .await
+            .expect("open first independent PostgreSQL CRDT writer"),
+    );
+    let db_b = Arc::new(
+        PostgresDatabase::connect(&kpg.schema_url, 5)
+            .await
+            .expect("open second independent PostgreSQL CRDT writer"),
+    );
+    let workspace_id = kpg.create_workspace().await;
+    let document_id = format!("doc-mt009-yjs-atomic-{workspace_id}");
+    let crdt_document_id = format!("crdt-mt009-yjs-atomic-{workspace_id}");
+    let local_actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "mt009-race-local")
+        .expect("typed local writer actor");
+    let cloud_actor = KnowledgeActorIdV1::new(KnowledgeActorKind::CloudModel, "mt009-race-cloud")
+        .expect("typed cloud writer actor");
+    let local_site = derive_knowledge_site_id(&workspace_id, &crdt_document_id, &local_actor);
+    let cloud_site = derive_knowledge_site_id(&workspace_id, &crdt_document_id, &cloud_actor);
+    let empty = KnowledgeStateVectorV1::new();
+    let mut local_after = empty.clone();
+    local_after.increment(&local_site.site_id);
+    let mut cloud_after = empty.clone();
+    cloud_after.increment(&cloud_site.site_id);
+    let local_update = mt009_append_yjs_text_update(
+        &Doc::new(),
+        u64::from(local_site.yjs_client_id),
+        "[atomic-local]",
+    );
+    let cloud_update = mt009_append_yjs_text_update(
+        &Doc::new(),
+        u64::from(cloud_site.yjs_client_id),
+        "[atomic-cloud]",
+    );
+    let local_envelope = mt009_yjs_envelope(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        "hsk.doc.rich_document@1",
+        "mt009-yjs-atomic-local",
+        &local_actor,
+        "session-mt009-yjs-atomic",
+        &local_update,
+        &empty,
+        &local_after,
+    );
+    let cloud_envelope = mt009_yjs_envelope(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        "hsk.doc.rich_document@1",
+        "mt009-yjs-atomic-cloud",
+        &cloud_actor,
+        "session-mt009-yjs-atomic",
+        &cloud_update,
+        &empty,
+        &cloud_after,
+    );
+
+    let start = Arc::new(Barrier::new(3));
+    let local_task = {
+        let db = db_a.clone();
+        let envelope = local_envelope.clone();
+        let start = start.clone();
+        tokio::spawn(async move {
+            start.wait().await;
+            push_yjs_update(db.as_ref(), &envelope).await
+        })
+    };
+    let cloud_task = {
+        let db = db_b.clone();
+        let envelope = cloud_envelope.clone();
+        let start = start.clone();
+        tokio::spawn(async move {
+            start.wait().await;
+            push_yjs_update(db.as_ref(), &envelope).await
+        })
+    };
+    start.wait().await;
+    let local_outcome = local_task
+        .await
+        .expect("local task joins")
+        .expect("local CRDT push returns typed outcome");
+    let cloud_outcome = cloud_task
+        .await
+        .expect("cloud task joins")
+        .expect("cloud CRDT push returns typed outcome");
+    let outcomes = [&local_outcome, &cloud_outcome];
+    assert_eq!(
+        outcomes
+            .iter()
+            .filter(|outcome| matches!(outcome, YjsPushOutcomeV1::Stored { .. }))
+            .count(),
+        1,
+        "same-base cross-connection race must commit exactly one CRDT update"
+    );
+    assert_eq!(
+        outcomes
+            .iter()
+            .filter(|outcome| {
+                matches!(
+                    outcome,
+                    YjsPushOutcomeV1::Denied {
+                        denial: YjsPushDenialV1 {
+                            reason: YjsPushDenialReasonV1::StaleBase { .. },
+                            ..
+                        }
+                    }
+                )
+            })
+            .count(),
+        1,
+        "same-base loser must receive StaleBase, not SequenceSlotRace"
+    );
+
+    let records = db_a
+        .list_kernel_crdt_updates(&workspace_id, &document_id, &crdt_document_id)
+        .await
+        .expect("read raced CRDT rows");
+    assert_eq!(records.len(), 1);
+    let events = db_a
+        .list_kernel_events_for_aggregate("knowledge_crdt_document", &crdt_document_id)
+        .await
+        .expect("read EventLedger receipts for raced document");
+    assert_eq!(events.len(), 1, "no orphan EventLedger success receipt");
+    assert_eq!(events[0].event_id, records[0].event_ledger_event_id);
+
+    let duplicate_document_id = format!("doc-mt009-yjs-atomic-duplicate-{workspace_id}");
+    let duplicate_crdt_document_id = format!("crdt-mt009-yjs-atomic-duplicate-{workspace_id}");
+    let duplicate_site =
+        derive_knowledge_site_id(&workspace_id, &duplicate_crdt_document_id, &local_actor);
+    let mut duplicate_after = KnowledgeStateVectorV1::new();
+    duplicate_after.increment(&duplicate_site.site_id);
+    let duplicate_update = mt009_append_yjs_text_update(
+        &Doc::new(),
+        u64::from(duplicate_site.yjs_client_id),
+        "[atomic-duplicate]",
+    );
+    let duplicate_envelope = mt009_yjs_envelope(
+        &workspace_id,
+        &duplicate_document_id,
+        &duplicate_crdt_document_id,
+        "hsk.doc.rich_document@1",
+        "mt009-yjs-atomic-duplicate",
+        &local_actor,
+        "session-mt009-yjs-atomic",
+        &duplicate_update,
+        &KnowledgeStateVectorV1::new(),
+        &duplicate_after,
+    );
+    let duplicate_start = Arc::new(Barrier::new(3));
+    let duplicate_a = {
+        let db = db_a.clone();
+        let envelope = duplicate_envelope.clone();
+        let start = duplicate_start.clone();
+        tokio::spawn(async move {
+            start.wait().await;
+            push_yjs_update(db.as_ref(), &envelope).await
+        })
+    };
+    let duplicate_b = {
+        let db = db_b.clone();
+        let envelope = duplicate_envelope.clone();
+        let start = duplicate_start.clone();
+        tokio::spawn(async move {
+            start.wait().await;
+            push_yjs_update(db.as_ref(), &envelope).await
+        })
+    };
+    duplicate_start.wait().await;
+    let duplicate_outcomes = [
+        duplicate_a
+            .await
+            .expect("first duplicate task joins")
+            .expect("first duplicate returns typed outcome"),
+        duplicate_b
+            .await
+            .expect("second duplicate task joins")
+            .expect("second duplicate returns typed outcome"),
+    ];
+    assert_eq!(
+        duplicate_outcomes
+            .iter()
+            .filter(|outcome| matches!(outcome, YjsPushOutcomeV1::Stored { .. }))
+            .count(),
+        1
+    );
+    assert_eq!(
+        duplicate_outcomes
+            .iter()
+            .filter(|outcome| matches!(outcome, YjsPushOutcomeV1::AlreadyStored { .. }))
+            .count(),
+        1
+    );
+    let duplicate_records = db_a
+        .list_kernel_crdt_updates(
+            &workspace_id,
+            &duplicate_document_id,
+            &duplicate_crdt_document_id,
+        )
+        .await
+        .expect("read duplicate CRDT rows");
+    let duplicate_events = db_a
+        .list_kernel_events_for_aggregate("knowledge_crdt_document", &duplicate_crdt_document_id)
+        .await
+        .expect("read duplicate EventLedger rows");
+    assert_eq!(duplicate_records.len(), 1);
+    assert_eq!(duplicate_events.len(), 1);
+    assert_eq!(
+        duplicate_events[0].event_id,
+        duplicate_records[0].event_ledger_event_id
+    );
+
+    let rollback_document_id = format!("doc-mt009-yjs-atomic-rollback-{workspace_id}");
+    let rollback_crdt_document_id = format!("crdt-mt009-yjs-atomic-rollback-{workspace_id}");
+    let rollback_site =
+        derive_knowledge_site_id(&workspace_id, &rollback_crdt_document_id, &local_actor);
+    let mut rollback_after = KnowledgeStateVectorV1::new();
+    rollback_after.increment(&rollback_site.site_id);
+    let rollback_update = mt009_append_yjs_text_update(
+        &Doc::new(),
+        u64::from(rollback_site.yjs_client_id),
+        "[atomic-rollback]",
+    );
+    let rollback_envelope = mt009_yjs_envelope(
+        &workspace_id,
+        &rollback_document_id,
+        &rollback_crdt_document_id,
+        "hsk.doc.rich_document@1",
+        "mt009-yjs-force-rollback",
+        &local_actor,
+        "session-mt009-yjs-atomic",
+        &rollback_update,
+        &KnowledgeStateVectorV1::new(),
+        &rollback_after,
+    );
+    let mut raw = kpg.raw_connection().await;
+    sqlx::query(
+        r#"
+        CREATE FUNCTION mt009_fail_crdt_insert() RETURNS trigger AS $$
+        BEGIN
+            IF NEW.update_id = 'mt009-yjs-force-rollback' THEN
+                RAISE EXCEPTION 'mt009 forced CRDT insert failure';
+            END IF;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql
+        "#,
+    )
+    .execute(&mut raw)
+    .await
+    .expect("install isolated real-PostgreSQL CRDT failure trigger");
+    sqlx::query(
+        "CREATE TRIGGER mt009_fail_crdt_insert BEFORE INSERT ON kernel_crdt_updates FOR EACH ROW EXECUTE FUNCTION mt009_fail_crdt_insert()",
+    )
+    .execute(&mut raw)
+    .await
+    .expect("install isolated real-PostgreSQL CRDT failure trigger hook");
+    let rollback_error = push_yjs_update(db_a.as_ref(), &rollback_envelope)
+        .await
+        .expect_err("forced CRDT insert failure must roll back the whole atomic write");
+    assert!(
+        rollback_error
+            .to_string()
+            .contains("mt009 forced CRDT insert failure"),
+        "rollback error must retain the real database cause: {rollback_error}"
+    );
+    sqlx::query("DROP TRIGGER mt009_fail_crdt_insert ON kernel_crdt_updates")
+        .execute(&mut raw)
+        .await
+        .expect("remove isolated failure trigger");
+    sqlx::query("DROP FUNCTION mt009_fail_crdt_insert()")
+        .execute(&mut raw)
+        .await
+        .expect("remove isolated failure trigger function");
+    drop(raw);
+    assert!(
+        db_a.list_kernel_crdt_updates(
+            &workspace_id,
+            &rollback_document_id,
+            &rollback_crdt_document_id,
+        )
+        .await
+        .expect("read rollback CRDT rows")
+        .is_empty(),
+        "failed insert must leave no CRDT row"
+    );
+    assert!(
+        db_a.list_kernel_events_for_aggregate(
+            "knowledge_crdt_document",
+            &rollback_crdt_document_id,
+        )
+        .await
+        .expect("read rollback EventLedger rows")
+        .is_empty(),
+        "failed insert must roll back its EventLedger receipt too"
+    );
+    let rollback_head = read_draft_head(
+        db_a.as_ref(),
+        &workspace_id,
+        &rollback_document_id,
+        &rollback_crdt_document_id,
+    )
+    .await
+    .expect("read rollback document head");
+    assert_eq!(rollback_head.head_update_seq, 0);
+    assert_eq!(
+        rollback_head.head_state_vector,
+        KnowledgeStateVectorV1::new().encode()
     );
 }
 
@@ -1974,6 +3319,248 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
             || fr_only_message.contains("internal_diagnostics"),
         "expected FlightRecorder-only HBR failure, got {fr_only_err}"
     );
+}
+
+/// Deterministic production-shaped runtime used only to drive the real
+/// `GenerateRequest` cancellation boundary. PostgreSQL/EventLedger persistence
+/// is never mocked in the MT-009 tests.
+struct CancellationProbeRuntime {
+    capabilities: ModelCapabilities,
+    kv: KvCacheHandle,
+    lora: LoraStackHandle,
+    steering: SteeringHookHandle,
+}
+
+impl CancellationProbeRuntime {
+    fn new() -> Self {
+        Self {
+            capabilities: ModelCapabilities::default(),
+            kv: KvCacheHandle::new("mt009-cancel-kv"),
+            lora: LoraStackHandle::new("mt009-cancel-lora"),
+            steering: SteeringHookHandle::new("mt009-cancel-steering"),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelRuntime for CancellationProbeRuntime {
+    async fn load(&mut self, _spec: LoadSpec) -> Result<ModelId, ModelRuntimeError> {
+        Ok(ModelId::new_v7())
+    }
+
+    async fn unload(&mut self, _id: ModelId) -> Result<(), ModelRuntimeError> {
+        Ok(())
+    }
+
+    fn generate(&self, req: GenerateRequest) -> TokenStream {
+        let cancellation = req.cancel;
+        Box::pin(stream::unfold(
+            (0_u8, cancellation),
+            |(phase, cancellation)| async move {
+                match phase {
+                    0 => Some((
+                        Ok(GeneratedToken {
+                            token_id: 0,
+                            text: "mt009-prefix".into(),
+                            logprob: None,
+                            finish_reason: None,
+                        }),
+                        (1, cancellation),
+                    )),
+                    1 if cancellation.is_cancelled() => {
+                        Some((Err(ModelRuntimeError::Cancelled), (2, cancellation)))
+                    }
+                    1 => Some((
+                        Ok(GeneratedToken {
+                            token_id: 1,
+                            text: "mt009-late-token".into(),
+                            logprob: None,
+                            finish_reason: None,
+                        }),
+                        (2, cancellation),
+                    )),
+                    _ => None,
+                }
+            },
+        ))
+    }
+
+    async fn score(&self, _id: ModelId, _sequence: Vec<u32>) -> Result<Score, ModelRuntimeError> {
+        Ok(Score {
+            token_logprobs: Vec::new(),
+            mean_logprob: 0.0,
+        })
+    }
+
+    async fn embed(&self, _id: ModelId, _text: &str) -> Result<Embedding, ModelRuntimeError> {
+        Ok(Embedding { vector: Vec::new() })
+    }
+
+    fn capabilities(&self, _id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError> {
+        Ok(&self.capabilities)
+    }
+
+    fn kv_cache(&self, _id: ModelId) -> Result<KvCacheHandle, ModelRuntimeError> {
+        Ok(self.kv.clone())
+    }
+
+    fn lora_stack(&self, _id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError> {
+        Ok(self.lora.clone())
+    }
+
+    fn steering_hooks(&self, _id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError> {
+        Ok(self.steering.clone())
+    }
+
+    fn cancel(&self, token: CancellationToken) {
+        token.cancel();
+    }
+}
+
+fn cancellation_probe_request(cancel: CancellationToken) -> GenerateRequest {
+    GenerateRequest {
+        id: ModelId::new_v7(),
+        prompt: GenPrompt::from("MT-009 cancellation boundary"),
+        sampling: SamplingParams::default(),
+        lora_overrides: Vec::new(),
+        steering_overrides: Vec::new(),
+        kv_prefix_handle: None,
+        cancel,
+        max_tokens: 2,
+        stop_sequences: Vec::new(),
+        speculative_mode: None,
+        structured_decoding: None,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+const MT009_YJS_TEXT_NAME: &str = "mt009-shared-document";
+
+/// Generate a real Yjs v1 incremental update from a distinct author replica,
+/// apply it to the canonical authoring document, and return only the binary
+/// update that crossed the persistence boundary. This keeps the test's payload
+/// path identical to a real Yjs client rather than substituting label bytes.
+fn mt009_append_yjs_text_update(canonical: &Doc, client_id: u64, text: &str) -> Vec<u8> {
+    let canonical_state = canonical
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+    let author = Doc::with_client_id(client_id);
+    let author_text = author.get_or_insert_text(MT009_YJS_TEXT_NAME);
+    if !canonical_state.is_empty() {
+        author
+            .transact_mut()
+            .apply_update(Update::decode_v1(&canonical_state).expect("decode canonical Yjs state"))
+            .expect("apply canonical Yjs state to author replica");
+    }
+
+    let before = author.transact().state_vector();
+    {
+        let mut transaction = author.transact_mut();
+        let offset = author_text.len(&transaction);
+        author_text.insert(&mut transaction, offset, text);
+    }
+    let update = author.transact().encode_diff_v1(&before);
+    canonical
+        .transact_mut()
+        .apply_update(Update::decode_v1(&update).expect("decode generated Yjs update"))
+        .expect("apply generated Yjs update to canonical replica");
+    update
+}
+
+fn mt009_yjs_materialize_doc(doc: &Doc) -> (String, String) {
+    let text = doc.get_or_insert_text(MT009_YJS_TEXT_NAME);
+    let transaction = doc.transact();
+    (
+        text.get_string(&transaction),
+        base64::engine::general_purpose::STANDARD.encode(transaction.state_vector().encode_v1()),
+    )
+}
+
+/// Apply persisted Yjs bytes exactly as returned by PostgreSQL. The assertion
+/// helper intentionally does not read ModelLane diagnostic metadata, so a
+/// bogus label cannot make a corrupt update look materialized.
+fn mt009_yjs_materialize_updates(updates: &[Vec<u8>]) -> (String, String) {
+    let document = Doc::new();
+    for update_bytes in updates {
+        document
+            .transact_mut()
+            .apply_update(Update::decode_v1(update_bytes).expect("decode persisted Yjs update"))
+            .expect("apply persisted Yjs update");
+    }
+    mt009_yjs_materialize_doc(&document)
+}
+
+async fn mt009_push_yjs_update(
+    db: &(dyn Database + '_),
+    workspace_id: &str,
+    document_id: &str,
+    crdt_document_id: &str,
+    document_schema_id: &str,
+    update_id: &str,
+    actor: &KnowledgeActorIdV1,
+    site_id: &str,
+    session_id: &str,
+    update_bytes: &[u8],
+    state_vector: &mut KnowledgeStateVectorV1,
+    expected_seq: u64,
+) -> YjsUpdateEnvelopeV1 {
+    let before = state_vector.clone();
+    state_vector.increment(site_id);
+    let envelope = mt009_yjs_envelope(
+        workspace_id,
+        document_id,
+        crdt_document_id,
+        document_schema_id,
+        update_id,
+        actor,
+        session_id,
+        update_bytes,
+        &before,
+        state_vector,
+    );
+    match push_yjs_update(db, &envelope)
+        .await
+        .expect("store real Yjs update in PostgreSQL/EventLedger")
+    {
+        YjsPushOutcomeV1::Stored { update_seq, .. } => {
+            assert_eq!(update_seq, expected_seq, "Yjs updates must be sequenced")
+        }
+        other => panic!("expected stored Yjs update, got {other:?}"),
+    }
+    envelope
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mt009_yjs_envelope(
+    workspace_id: &str,
+    document_id: &str,
+    crdt_document_id: &str,
+    document_schema_id: &str,
+    update_id: &str,
+    actor: &KnowledgeActorIdV1,
+    session_id: &str,
+    update_bytes: &[u8],
+    before: &KnowledgeStateVectorV1,
+    after: &KnowledgeStateVectorV1,
+) -> YjsUpdateEnvelopeV1 {
+    let site = derive_knowledge_site_id(workspace_id, crdt_document_id, actor);
+    YjsUpdateEnvelopeV1 {
+        schema_id: YJS_UPDATE_ENVELOPE_SCHEMA_ID.to_string(),
+        workspace_id: workspace_id.to_string(),
+        document_id: document_id.to_string(),
+        crdt_document_id: crdt_document_id.to_string(),
+        update_id: update_id.to_string(),
+        actor_id: actor.canonical(),
+        site_id: site.site_id,
+        session_id: session_id.to_string(),
+        trace_id: format!("trace-{update_id}"),
+        document_schema_id: document_schema_id.to_string(),
+        update_b64: base64::engine::general_purpose::STANDARD.encode(update_bytes),
+        update_sha256: sha256_hex(update_bytes),
+        state_vector_before: before.encode(),
+        state_vector_after: after.encode(),
+        encoding: YJS_UPDATE_ENCODING_V1.to_string(),
+    }
 }
 
 async fn model_lane_store() -> (PgPool, ModelLaneStore) {

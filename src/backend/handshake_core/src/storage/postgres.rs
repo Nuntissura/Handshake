@@ -6,24 +6,25 @@ use super::{
     CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
     CalendarSourceWritePolicy, CalendarSyncStateStage, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
     DebugBreakpoint, DebugBreakpointInput, DefaultStorageGuard, Document, EmbeddingModelRecord,
-    EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate, LoomBlock,
-    LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult, LoomBlockUpdate,
-    LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementUpdate,
-    LoomCanvasVisualEdge, LoomCollection, LoomCollectionMember, LoomCollectionWithMembers,
-    LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
-    LoomSearchFilters, LoomSearchResultKind, LoomSearchSourceKind, LoomSearchV2Hit,
-    LoomSearchV2Request, LoomSearchV2Response, LoomSourceAnchor, LoomViewFilters, LoomViewGroup,
-    LoomViewResponse, LoomViewType, LoomVisualDebugBacklinkState, LoomVisualDebugBacklinkSummary,
-    LoomVisualDebugCounts, LoomVisualDebugFolderSummary, LoomVisualDebugGraphEdgeSummary,
-    LoomVisualDebugGraphNodeSummary, LoomVisualDebugGraphState, LoomVisualDebugSearchHitSummary,
-    LoomVisualDebugSearchState, LoomVisualDebugSnapshot, MediaAssetTier, MediaTier,
-    MediaTierStatus, MediaTierUpsert, MergeBackArtifact, ModelSession, ModelSessionState,
-    MutationMetadata, NewAiJob, NewAsset, NewBlock, NewBronzeRecord, NewCanvas, NewCanvasEdge,
-    NewCanvasNode, NewDocument, NewLoomBlock, NewLoomCanvasPlacement, NewLoomEdge, NewModelSession,
-    NewNodeExecution, NewSessionMessage, NewSilverRecord, NewWorkspace, PlannedOperation,
-    PreviewStatus, QuickSwitcherRecent, QuickSwitcherRecentInput, SafetyMode, SessionCheckpoint,
-    SessionMessage, SessionMessageRole, SilverRecord, StorageError, StorageGuard, StorageResult,
-    WorkbenchLayoutState, WorkbenchLayoutStateInput, WorkflowNodeExecution, WorkflowRun, Workspace,
+    EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate,
+    KernelCrdtAtomicAppendOutcome, KernelCrdtAtomicAppendRequest, LoomBlock, LoomBlockContentType,
+    LoomBlockDerived, LoomBlockSearchResult, LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView,
+    LoomCanvasPlacement, LoomCanvasPlacementUpdate, LoomCanvasVisualEdge, LoomCollection,
+    LoomCollectionMember, LoomCollectionWithMembers, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType,
+    LoomFolder, LoomGraphSearchResult, LoomSearchFilters, LoomSearchResultKind,
+    LoomSearchSourceKind, LoomSearchV2Hit, LoomSearchV2Request, LoomSearchV2Response,
+    LoomSourceAnchor, LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType,
+    LoomVisualDebugBacklinkState, LoomVisualDebugBacklinkSummary, LoomVisualDebugCounts,
+    LoomVisualDebugFolderSummary, LoomVisualDebugGraphEdgeSummary, LoomVisualDebugGraphNodeSummary,
+    LoomVisualDebugGraphState, LoomVisualDebugSearchHitSummary, LoomVisualDebugSearchState,
+    LoomVisualDebugSnapshot, MediaAssetTier, MediaTier, MediaTierStatus, MediaTierUpsert,
+    MergeBackArtifact, ModelSession, ModelSessionState, MutationMetadata, NewAiJob, NewAsset,
+    NewBlock, NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
+    NewLoomCanvasPlacement, NewLoomEdge, NewModelSession, NewNodeExecution, NewSessionMessage,
+    NewSilverRecord, NewWorkspace, PlannedOperation, PreviewStatus, QuickSwitcherRecent,
+    QuickSwitcherRecentInput, SafetyMode, SessionCheckpoint, SessionMessage, SessionMessageRole,
+    SilverRecord, StorageError, StorageGuard, StorageResult, WorkbenchLayoutState,
+    WorkbenchLayoutStateInput, WorkflowNodeExecution, WorkflowRun, Workspace,
     WorkspaceSearchBookmarkState, WorkspaceSearchBookmarkStateInput, WorkspaceSettingsState,
     WorkspaceSettingsStateInput, WriteContext, BLOCK_VIEW_UNTAGGED_LANE,
     LOOM_CANVAS_BOARD_SCHEMA_ID, LOOM_VISUAL_DEBUG_SCHEMA_ID, WORKBENCH_LAYOUT_SCHEMA_ID,
@@ -47,7 +48,7 @@ use serde_json::{json, Value};
 use sqlx::QueryBuilder;
 use sqlx::{
     postgres::{PgPool, PgPoolOptions, PgRow},
-    Executor, Postgres, Row,
+    Executor, Postgres, Row, Transaction,
 };
 use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::str::FromStr;
@@ -3727,6 +3728,290 @@ async fn ensure_kernel_crdt_event_ref_exists(pool: &PgPool, event_id: &str) -> S
             "kernel CRDT EventLedger event ref is missing",
         ))
     }
+}
+
+async fn ensure_kernel_crdt_event_ref_exists_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    event_id: &str,
+) -> StorageResult<()> {
+    if event_id.trim().is_empty() {
+        return Err(StorageError::Validation(
+            "kernel CRDT EventLedger event ref is missing",
+        ));
+    }
+    let exists = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM kernel_event_ledger WHERE event_id = $1)",
+    )
+    .bind(event_id)
+    .fetch_one(&mut **tx)
+    .await?;
+    if exists {
+        Ok(())
+    } else {
+        Err(StorageError::Validation(
+            "kernel CRDT EventLedger event ref is missing",
+        ))
+    }
+}
+
+/// Build an unambiguous, namespaced key for the transaction-scoped Postgres
+/// advisory lock that serializes one CRDT document across every process. A
+/// hash collision can only serialize unrelated documents conservatively; it
+/// cannot make their rows share a query predicate or authority.
+fn kernel_crdt_document_lock_key(
+    workspace_id: &str,
+    document_id: &str,
+    crdt_document_id: &str,
+) -> String {
+    format!(
+        "handshake.kernel_crdt_update.v1:{}:{workspace_id}:{}:{document_id}:{}:{crdt_document_id}",
+        workspace_id.len(),
+        document_id.len(),
+        crdt_document_id.len(),
+    )
+}
+
+/// Compare caller-authoritative CRDT content while deliberately ignoring
+/// server-derived fields (`update_seq`, replay order key, and EventLedger id).
+/// A retry may arrive after later updates advanced the head, but an identical
+/// `update_id` must still converge on the original committed receipt.
+fn kernel_crdt_existing_matches_provisional(
+    existing: &CrdtUpdateRecordV1,
+    provisional: &CrdtUpdateRecordV1,
+) -> bool {
+    existing.schema_id == provisional.schema_id
+        && existing.workspace_id == provisional.workspace_id
+        && existing.document_id == provisional.document_id
+        && existing.crdt_document_id == provisional.crdt_document_id
+        && existing.update_id == provisional.update_id
+        && existing.update_sha256 == provisional.update_sha256
+        && existing.update_bytes_ref == provisional.update_bytes_ref
+        && existing.actor_id == provisional.actor_id
+        && existing.actor_kind == provisional.actor_kind
+        && existing.session_id == provisional.session_id
+        && existing.trace_id == provisional.trace_id
+        && existing.state_vector_before == provisional.state_vector_before
+        && existing.state_vector_after == provisional.state_vector_after
+        && existing.replay_metadata.dependency_update_ids
+            == provisional.replay_metadata.dependency_update_ids
+        && existing.replay_metadata.encoding == provisional.replay_metadata.encoding
+        && existing.replay_metadata.schema_version == provisional.replay_metadata.schema_version
+        && existing.event_ledger_stream_id == provisional.event_ledger_stream_id
+        && existing.storage_authority == provisional.storage_authority
+}
+
+async fn lock_kernel_crdt_document_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    workspace_id: &str,
+    document_id: &str,
+    crdt_document_id: &str,
+) -> StorageResult<()> {
+    let key = kernel_crdt_document_lock_key(workspace_id, document_id, crdt_document_id);
+    sqlx::query("SELECT pg_advisory_xact_lock(('x' || substr(md5($1), 1, 16))::bit(64)::bigint)")
+        .bind(key)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
+async fn kernel_crdt_update_by_id_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    workspace_id: &str,
+    document_id: &str,
+    crdt_document_id: &str,
+    update_id: &str,
+) -> StorageResult<Option<CrdtUpdateRecordV1>> {
+    let row = sqlx::query(
+        r#"
+        SELECT
+            schema_id,
+            workspace_id,
+            document_id,
+            crdt_document_id,
+            update_id,
+            update_seq,
+            update_sha256,
+            update_bytes_ref,
+            actor_id,
+            actor_kind,
+            session_id,
+            trace_id,
+            state_vector_before,
+            state_vector_after,
+            replay_metadata_json::text AS replay_metadata_json,
+            event_ledger_stream_id,
+            event_ledger_event_id,
+            storage_authority
+        FROM kernel_crdt_updates
+        WHERE workspace_id = $1
+          AND document_id = $2
+          AND crdt_document_id = $3
+          AND update_id = $4
+        FOR UPDATE
+        "#,
+    )
+    .bind(workspace_id)
+    .bind(document_id)
+    .bind(crdt_document_id)
+    .bind(update_id)
+    .fetch_optional(&mut **tx)
+    .await?;
+    row.map(map_kernel_crdt_update).transpose()
+}
+
+async fn kernel_crdt_head_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    workspace_id: &str,
+    document_id: &str,
+    crdt_document_id: &str,
+) -> StorageResult<Option<CrdtUpdateRecordV1>> {
+    let row = sqlx::query(
+        r#"
+        SELECT
+            schema_id,
+            workspace_id,
+            document_id,
+            crdt_document_id,
+            update_id,
+            update_seq,
+            update_sha256,
+            update_bytes_ref,
+            actor_id,
+            actor_kind,
+            session_id,
+            trace_id,
+            state_vector_before,
+            state_vector_after,
+            replay_metadata_json::text AS replay_metadata_json,
+            event_ledger_stream_id,
+            event_ledger_event_id,
+            storage_authority
+        FROM kernel_crdt_updates
+        WHERE workspace_id = $1
+          AND document_id = $2
+          AND crdt_document_id = $3
+        ORDER BY update_seq DESC
+        LIMIT 1
+        FOR UPDATE
+        "#,
+    )
+    .bind(workspace_id)
+    .bind(document_id)
+    .bind(crdt_document_id)
+    .fetch_optional(&mut **tx)
+    .await?;
+    row.map(map_kernel_crdt_update).transpose()
+}
+
+async fn append_kernel_crdt_update_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    record: CrdtUpdateRecordV1,
+    update_bytes: Vec<u8>,
+) -> StorageResult<CrdtUpdateRecordV1> {
+    validate_crdt_update_record(&record)
+        .map_err(|_| StorageError::Validation("invalid kernel CRDT update record"))?;
+    if crdt_sha256_hex(&update_bytes) != record.update_sha256 {
+        return Err(StorageError::Validation(
+            "kernel CRDT update bytes do not match update_sha256",
+        ));
+    }
+    ensure_kernel_crdt_event_ref_exists_tx(tx, &record.event_ledger_event_id).await?;
+    let update_seq = i64::try_from(record.update_seq)
+        .map_err(|_| StorageError::Validation("kernel CRDT update sequence too large"))?;
+    let replay_metadata_json = serde_json::to_string(&record.replay_metadata)?;
+
+    let maybe_row = sqlx::query(
+        r#"
+        INSERT INTO kernel_crdt_updates (
+            schema_id,
+            workspace_id,
+            document_id,
+            crdt_document_id,
+            update_id,
+            update_seq,
+            update_sha256,
+            update_bytes_ref,
+            update_bytes,
+            actor_id,
+            actor_kind,
+            session_id,
+            trace_id,
+            state_vector_before,
+            state_vector_after,
+            replay_metadata_json,
+            event_ledger_stream_id,
+            event_ledger_event_id,
+            storage_authority
+        )
+        VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+            $10, $11, $12, $13, $14, $15, $16::jsonb,
+            $17, $18, $19
+        )
+        ON CONFLICT (workspace_id, document_id, crdt_document_id, update_id) DO NOTHING
+        RETURNING
+            schema_id,
+            workspace_id,
+            document_id,
+            crdt_document_id,
+            update_id,
+            update_seq,
+            update_sha256,
+            update_bytes_ref,
+            actor_id,
+            actor_kind,
+            session_id,
+            trace_id,
+            state_vector_before,
+            state_vector_after,
+            replay_metadata_json::text AS replay_metadata_json,
+            event_ledger_stream_id,
+            event_ledger_event_id,
+            storage_authority
+        "#,
+    )
+    .bind(&record.schema_id)
+    .bind(&record.workspace_id)
+    .bind(&record.document_id)
+    .bind(&record.crdt_document_id)
+    .bind(&record.update_id)
+    .bind(update_seq)
+    .bind(&record.update_sha256)
+    .bind(&record.update_bytes_ref)
+    .bind(update_bytes)
+    .bind(&record.actor_id)
+    .bind(&record.actor_kind)
+    .bind(&record.session_id)
+    .bind(&record.trace_id)
+    .bind(&record.state_vector_before)
+    .bind(&record.state_vector_after)
+    .bind(replay_metadata_json)
+    .bind(&record.event_ledger_stream_id)
+    .bind(&record.event_ledger_event_id)
+    .bind(crdt_storage_authority_str(record.storage_authority))
+    .fetch_optional(&mut **tx)
+    .await?;
+
+    let stored = match maybe_row {
+        Some(row) => map_kernel_crdt_update(row)?,
+        None => kernel_crdt_update_by_id_tx(
+            tx,
+            &record.workspace_id,
+            &record.document_id,
+            &record.crdt_document_id,
+            &record.update_id,
+        )
+        .await?
+        .ok_or(StorageError::Conflict(
+            "kernel CRDT update idempotency conflict",
+        ))?,
+    };
+    if stored != record {
+        return Err(StorageError::Conflict(
+            "kernel CRDT update idempotency conflict",
+        ));
+    }
+    Ok(stored)
 }
 
 fn map_kernel_crdt_update(row: PgRow) -> StorageResult<CrdtUpdateRecordV1> {
@@ -13647,113 +13932,107 @@ impl super::Database for PostgresDatabase {
         record: CrdtUpdateRecordV1,
         update_bytes: Vec<u8>,
     ) -> StorageResult<CrdtUpdateRecordV1> {
-        validate_crdt_update_record(&record)
-            .map_err(|_| StorageError::Validation("invalid kernel CRDT update record"))?;
-        if crdt_sha256_hex(&update_bytes) != record.update_sha256 {
+        let mut tx = self.pool.begin().await?;
+        let stored = append_kernel_crdt_update_tx(&mut tx, record, update_bytes).await?;
+        tx.commit().await?;
+        Ok(stored)
+    }
+
+    async fn append_kernel_crdt_update_with_event_atomic(
+        &self,
+        request: KernelCrdtAtomicAppendRequest,
+    ) -> StorageResult<KernelCrdtAtomicAppendOutcome> {
+        if !request
+            .provisional_record
+            .event_ledger_event_id
+            .trim()
+            .is_empty()
+        {
+            return Err(StorageError::Validation(
+                "atomic CRDT append requires an empty provisional EventLedger event id",
+            ));
+        }
+        if crdt_sha256_hex(&request.update_bytes) != request.provisional_record.update_sha256 {
             return Err(StorageError::Validation(
                 "kernel CRDT update bytes do not match update_sha256",
             ));
         }
-        ensure_kernel_crdt_event_ref_exists(&self.pool, &record.event_ledger_event_id).await?;
-        let update_seq = i64::try_from(record.update_seq)
-            .map_err(|_| StorageError::Validation("kernel CRDT update sequence too large"))?;
-        let replay_metadata_json = serde_json::to_string(&record.replay_metadata)?;
 
-        let maybe_row = sqlx::query(
-            r#"
-            INSERT INTO kernel_crdt_updates (
-                schema_id,
-                workspace_id,
-                document_id,
-                crdt_document_id,
-                update_id,
-                update_seq,
-                update_sha256,
-                update_bytes_ref,
-                update_bytes,
-                actor_id,
-                actor_kind,
-                session_id,
-                trace_id,
-                state_vector_before,
-                state_vector_after,
-                replay_metadata_json,
-                event_ledger_stream_id,
-                event_ledger_event_id,
-                storage_authority
-            )
-            VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9,
-                $10, $11, $12, $13, $14, $15, $16::jsonb,
-                $17, $18, $19
-            )
-            ON CONFLICT (workspace_id, document_id, crdt_document_id, update_id) DO NOTHING
-            RETURNING
-                schema_id,
-                workspace_id,
-                document_id,
-                crdt_document_id,
-                update_id,
-                update_seq,
-                update_sha256,
-                update_bytes_ref,
-                actor_id,
-                actor_kind,
-                session_id,
-                trace_id,
-                state_vector_before,
-                state_vector_after,
-                replay_metadata_json::text AS replay_metadata_json,
-                event_ledger_stream_id,
-                event_ledger_event_id,
-                storage_authority
-            "#,
+        let mut tx = self.pool.begin().await?;
+        lock_kernel_crdt_document_tx(
+            &mut tx,
+            &request.provisional_record.workspace_id,
+            &request.provisional_record.document_id,
+            &request.provisional_record.crdt_document_id,
         )
-        .bind(&record.schema_id)
-        .bind(&record.workspace_id)
-        .bind(&record.document_id)
-        .bind(&record.crdt_document_id)
-        .bind(&record.update_id)
-        .bind(update_seq)
-        .bind(&record.update_sha256)
-        .bind(&record.update_bytes_ref)
-        .bind(update_bytes)
-        .bind(&record.actor_id)
-        .bind(&record.actor_kind)
-        .bind(&record.session_id)
-        .bind(&record.trace_id)
-        .bind(&record.state_vector_before)
-        .bind(&record.state_vector_after)
-        .bind(replay_metadata_json)
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.event_ledger_event_id)
-        .bind(crdt_storage_authority_str(record.storage_authority))
-        .fetch_optional(&self.pool)
         .await?;
 
-        let stored = match maybe_row {
-            Some(row) => map_kernel_crdt_update(row)?,
-            None => {
-                let rows = self
-                    .list_kernel_crdt_updates(
-                        &record.workspace_id,
-                        &record.document_id,
-                        &record.crdt_document_id,
-                    )
-                    .await?;
-                rows.into_iter()
-                    .find(|stored| stored.update_id == record.update_id)
-                    .ok_or(StorageError::Conflict(
-                        "kernel CRDT update idempotency conflict",
-                    ))?
+        if let Some(existing) = kernel_crdt_update_by_id_tx(
+            &mut tx,
+            &request.provisional_record.workspace_id,
+            &request.provisional_record.document_id,
+            &request.provisional_record.crdt_document_id,
+            &request.provisional_record.update_id,
+        )
+        .await?
+        {
+            if kernel_crdt_existing_matches_provisional(&existing, &request.provisional_record) {
+                let head = kernel_crdt_head_tx(
+                    &mut tx,
+                    &request.provisional_record.workspace_id,
+                    &request.provisional_record.document_id,
+                    &request.provisional_record.crdt_document_id,
+                )
+                .await?
+                .ok_or(StorageError::Conflict(
+                    "kernel CRDT idempotency row exists without a document head",
+                ))?;
+                tx.commit().await?;
+                return Ok(KernelCrdtAtomicAppendOutcome::AlreadyStored {
+                    record: existing,
+                    head_update_seq: head.update_seq,
+                    head_state_vector: head.state_vector_after,
+                });
             }
-        };
-        if stored != record {
-            return Err(StorageError::Conflict(
-                "kernel CRDT update idempotency conflict",
-            ));
+            tx.commit().await?;
+            return Ok(KernelCrdtAtomicAppendOutcome::UpdateIdContentMismatch {
+                update_id: request.provisional_record.update_id,
+            });
         }
-        Ok(stored)
+
+        let current_head = kernel_crdt_head_tx(
+            &mut tx,
+            &request.provisional_record.workspace_id,
+            &request.provisional_record.document_id,
+            &request.provisional_record.crdt_document_id,
+        )
+        .await?;
+        let (head_update_seq, head_state_vector) = current_head
+            .map(|record| (record.update_seq, record.state_vector_after))
+            .unwrap_or_else(|| (0, "hsk-sv1:".to_string()));
+        let expected_next_seq = head_update_seq
+            .checked_add(1)
+            .ok_or(StorageError::Validation(
+                "kernel CRDT update sequence overflow",
+            ))?;
+        if request.expected_head_update_seq != head_update_seq
+            || request.expected_head_state_vector != head_state_vector
+            || request.provisional_record.update_seq != expected_next_seq
+            || request.provisional_record.state_vector_before != head_state_vector
+        {
+            tx.commit().await?;
+            return Ok(KernelCrdtAtomicAppendOutcome::StaleHead {
+                head_update_seq,
+                head_state_vector,
+            });
+        }
+
+        let stored_event = append_kernel_event_with_executor(&mut *tx, request.event).await?;
+        let mut record = request.provisional_record;
+        record.event_ledger_event_id = stored_event.event_id;
+        let stored = append_kernel_crdt_update_tx(&mut tx, record, request.update_bytes).await?;
+        tx.commit().await?;
+        Ok(KernelCrdtAtomicAppendOutcome::Stored(stored))
     }
 
     async fn list_kernel_crdt_updates(

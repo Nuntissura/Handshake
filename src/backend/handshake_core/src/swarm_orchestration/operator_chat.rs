@@ -39,7 +39,8 @@ use crate::model_runtime::cloud::{
     CliOutputFormat, ProviderAccessRegistry, ProviderAccessStatus,
 };
 use crate::model_runtime::{
-    CancellationToken, GenPrompt, GenerateRequest, ModelId, ProviderKind, SamplingParams,
+    CancellationToken, FinishReason, GenPrompt, GenerateRequest, ModelId, ProviderKind,
+    SamplingParams,
 };
 use crate::process_ledger::RetainedLedgerBatcher;
 
@@ -496,10 +497,7 @@ fn cloud_provider_kind_for_request(
     }
 }
 
-fn cloud_requested_model_id(
-    request: &SpawnRequest,
-    contract: &DexterityLaunchContract,
-) -> String {
+fn cloud_requested_model_id(request: &SpawnRequest, contract: &DexterityLaunchContract) -> String {
     contract
         .candidate_model_ids
         .first()
@@ -727,20 +725,10 @@ impl ModelLaneCaptureRecorder {
         self
     }
 
-    async fn record_payload_binding(
-        &self,
-        message: &NewModelLaneMessage,
-        payload_json: Value,
-    ) -> Result<(), OperatorChatError> {
-        let binding = build_message_payload_binding(message, payload_json)?;
-        self.store
-            .record_context_bundle_artifact_binding(binding)
-            .await?;
-        Ok(())
-    }
-
-    /// Record ONE captured activity: emit the Flight Recorder `FR-EVT-AGENT-*`
-    /// business event, then persist the typed ModelLaneMessage under the run/lane.
+    /// Record ONE captured activity. Persist the authoritative typed
+    /// ModelLaneMessage/payload binding first, then emit the Flight Recorder
+    /// `FR-EVT-AGENT-*` business event. A terminal lane denial therefore cannot
+    /// leave a misleading Flight Recorder activity with no durable capture.
     pub async fn record_activity(
         &self,
         run: &ModelLaneRunRecord,
@@ -751,7 +739,9 @@ impl ModelLaneCaptureRecorder {
         activity: &AgentActivity,
     ) -> Result<crate::swarm_orchestration::model_lane::ModelLaneMessageRecord, OperatorChatError>
     {
-        // Tier-1 Flight Recorder business event for the raw activity.
+        // Build both representations before either write, but persist ModelLane
+        // authority first so cancellation/terminal guards fail closed without a
+        // phantom activity event.
         let event = agent_activity_event(
             model_id,
             request_id,
@@ -761,13 +751,15 @@ impl ModelLaneCaptureRecorder {
             activity,
             self.redactor.as_ref(),
         );
-        self.recorder.record_event(event).await?;
-
-        // EventLedger-authority ModelLaneMessage.
         let plan = plan_from_activity(activity);
         let message = build_captured_message(run, lane, &plan, ordered_index, "model")?;
-        self.record_payload_binding(&message, plan.payload).await?;
-        Ok(self.store.record_message(message).await?)
+        let binding = build_message_payload_binding(&message, plan.payload)?;
+        let record = self
+            .store
+            .record_message_with_payload_binding(message, binding)
+            .await?;
+        self.recorder.record_event(event).await?;
+        Ok(record)
     }
 
     /// Capture a whole CLI stdout stream: for every line, run the real
@@ -842,10 +834,14 @@ impl ModelLaneCaptureRecorder {
             &activity,
             self.redactor.as_ref(),
         );
-        self.recorder.record_event(event).await?;
         let message = build_captured_message(operator_run, operator_lane, &plan, 0, "operator")?;
-        self.record_payload_binding(&message, plan.payload).await?;
-        Ok(self.store.record_message(message).await?)
+        let binding = build_message_payload_binding(&message, plan.payload)?;
+        let record = self
+            .store
+            .record_message_with_payload_binding(message, binding)
+            .await?;
+        self.recorder.record_event(event).await?;
+        Ok(record)
     }
 }
 
@@ -1595,7 +1591,7 @@ impl OperatorChatLaunchService {
             }
             Err(err) => {
                 let err_text = err.to_string();
-                if let Err(cleanup_err) = self
+                match self
                     .coordinator
                     .cancel_session(
                         instance_id,
@@ -1603,9 +1599,12 @@ impl OperatorChatLaunchService {
                     )
                     .await
                 {
-                    return Err(OperatorChatError::Invalid(format!(
-                        "operator-chat capture failed ({err_text}); session cleanup failed: {cleanup_err}"
-                    )));
+                    Ok(()) | Err(SwarmError::UnknownInstance(_)) => {}
+                    Err(cleanup_err) => {
+                        return Err(OperatorChatError::Invalid(format!(
+                            "operator-chat capture failed ({err_text}); session cleanup failed: {cleanup_err}"
+                        )));
+                    }
                 }
                 return Err(err);
             }
@@ -1689,56 +1688,10 @@ impl OperatorChatLaunchService {
         let store = self.coordinator.model_lane_store().ok_or_else(|| {
             OperatorChatError::Invalid("operator-chat launch requires a ModelLaneStore".into())
         })?;
-        let (Some(runtime), Some(model_id)) = (
-            self.coordinator.session_runtime(instance_id),
-            self.coordinator.session_model_id(instance_id),
-        ) else {
-            return Err(OperatorChatError::Invalid(format!(
-                "operator-chat launch {} has no runnable session runtime/model",
-                instance_id
-            )));
-        };
-
-        // Drive the runtime with the operator's prompt; drain its stdout stream
-        // (each non-terminal GeneratedToken's text is the CLI subprocess's live
-        // stdout). An honest stream error item ends the turn — whatever real
-        // stdout arrived before it is still captured.
-        let request = GenerateRequest {
-            id: model_id,
-            prompt: GenPrompt::new(selection.prompt.clone()),
-            sampling: SamplingParams::default(),
-            lora_overrides: vec![],
-            steering_overrides: vec![],
-            kv_prefix_handle: None,
-            cancel: CancellationToken::new(),
-            max_tokens: OPERATOR_CHAT_MAX_TOKENS,
-            stop_sequences: vec![],
-            speculative_mode: None,
-            structured_decoding: None,
-        };
-        let mut stdout = String::new();
-        let mut stream = runtime.generate(request);
-        let mut stream_error: Option<String> = None;
-        while let Some(item) = stream.next().await {
-            match item {
-                Ok(token) => {
-                    if token.finish_reason.is_none() {
-                        stdout.push_str(&token.text);
-                    }
-                }
-                Err(err) => {
-                    stream_error = Some(format!(
-                        "operator-chat runtime stream failed for {}: {err}",
-                        instance_id
-                    ));
-                    break;
-                }
-            }
-        }
-
-        // Re-home the launched runtime's stdout onto the CLI-capture engine: one
-        // typed ModelLaneMessage per completed activity block, under the run/lane
-        // the coordinator persisted.
+        // Prepare the durable capture surfaces before driving the runtime. This
+        // makes a completed activity block durable before the next stream poll,
+        // so coordinator cancellation preserves that prefix and blocks only
+        // genuinely late output.
         let replay = store
             .replay_run(run_id)
             .await
@@ -1753,26 +1706,109 @@ impl OperatorChatLaunchService {
             .record_lane(operator_lane_for_run(&run, selection)?)
             .await?;
         record_hbr_int_009_tiers(&store, &run).await?;
-        let lines: Vec<&str> = stdout.split('\n').collect();
         let capture = ModelLaneCaptureRecorder::new(store, self.recorder.clone());
         capture
             .record_operator_prompt(&run, &operator_lane, &selection.prompt)
             .await?;
-        let records = capture
-            .capture_cli_stream(
-                &run,
-                &lane,
-                model_id,
-                Uuid::new_v4(),
-                cli_kind_for_selection(selection),
-                1,
-                lines,
-            )
-            .await?;
+
+        let model_id = self
+            .coordinator
+            .session_model_id(instance_id)
+            .ok_or_else(|| {
+                OperatorChatError::Invalid(format!(
+                    "operator-chat launch {instance_id} has no runnable session model"
+                ))
+            })?;
+        let capture_request_id = Uuid::new_v4();
+        // `generate_session` replaces this placeholder token with the
+        // coordinator-owned session token before the runtime receives it.
+        // Callers therefore cannot bypass the coordinator's terminal ledger
+        // transition by supplying their own cancellation token.
+        let request = GenerateRequest {
+            id: model_id,
+            prompt: GenPrompt::new(selection.prompt.clone()),
+            sampling: SamplingParams::default(),
+            lora_overrides: vec![],
+            steering_overrides: vec![],
+            kv_prefix_handle: None,
+            cancel: CancellationToken::new(),
+            max_tokens: OPERATOR_CHAT_MAX_TOKENS,
+            stop_sequences: vec![],
+            speculative_mode: None,
+            structured_decoding: None,
+        };
+        let mut stream = self.coordinator.generate_session(instance_id, request)?;
+        let mut stdout_buffer = String::new();
+        let mut next_capture_index = 1;
+        let mut captured_message_count = 0;
+        let mut stream_error: Option<String> = None;
+        let mut stream_cancelled = false;
+        while let Some(item) = stream.next().await {
+            match item {
+                Ok(token) => {
+                    if token.finish_reason == Some(FinishReason::Cancelled) {
+                        stream_cancelled = true;
+                    }
+                    if token.finish_reason.is_none() && !token.text.is_empty() {
+                        stdout_buffer.push_str(&token.text);
+                        while let Some(newline_index) = stdout_buffer.find('\n') {
+                            let line = stdout_buffer[..newline_index]
+                                .trim_end_matches('\r')
+                                .to_string();
+                            stdout_buffer.drain(..=newline_index);
+                            let records = capture
+                                .capture_cli_stream(
+                                    &run,
+                                    &lane,
+                                    model_id,
+                                    capture_request_id,
+                                    cli_kind_for_selection(selection),
+                                    next_capture_index,
+                                    std::iter::once(line.as_str()),
+                                )
+                                .await?;
+                            next_capture_index += records.len() as u64;
+                            captured_message_count += records.len();
+                        }
+                    }
+                }
+                Err(err) => {
+                    stream_error = Some(format!(
+                        "operator-chat runtime stream failed for {}: {err}",
+                        instance_id
+                    ));
+                    break;
+                }
+            }
+        }
+
+        // A final non-newline-terminated activity is valid stdout and must be
+        // captured on normal/error completion. On a cooperative cancellation it
+        // is intentionally not promoted: only newline-complete activity blocks
+        // observed before the terminal boundary are durable.
+        if !stream_cancelled && !stdout_buffer.trim().is_empty() {
+            let records = capture
+                .capture_cli_stream(
+                    &run,
+                    &lane,
+                    model_id,
+                    capture_request_id,
+                    cli_kind_for_selection(selection),
+                    next_capture_index,
+                    std::iter::once(stdout_buffer.as_str()),
+                )
+                .await?;
+            captured_message_count += records.len();
+        }
         if let Some(err) = stream_error {
             return Err(OperatorChatError::Invalid(err));
         }
-        Ok(records.len())
+        if stream_cancelled {
+            return Err(OperatorChatError::Invalid(format!(
+                "operator-chat runtime stream cancelled for {instance_id}"
+            )));
+        }
+        Ok(captured_message_count)
     }
 
     /// Project the captured ModelLaneMessage rows for a run into pane-friendly

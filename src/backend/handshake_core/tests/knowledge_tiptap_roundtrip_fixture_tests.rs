@@ -11,7 +11,7 @@ mod knowledge_pg_support;
 
 use base64::Engine;
 use handshake_core::kernel::crdt::actor_site::{
-    knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
+    derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
 };
 use handshake_core::kernel::crdt::persistence::sha256_hex;
 use handshake_core::kernel::crdt::rich_document_snapshot::{
@@ -36,6 +36,7 @@ use handshake_core::storage::{Database, NewDocument, WriteContext};
 use knowledge_pg_support::knowledge_pg;
 use serde_json::{json, Value};
 use uuid::Uuid;
+use yrs::{Doc, ReadTxn, Text, Transact};
 
 fn all_custom_nodes_doc(extra_text: &str) -> Value {
     json!({
@@ -135,6 +136,18 @@ fn new_doc(
     }
 }
 
+fn yjs_text_update(client_id: u64, payload: &[u8]) -> Vec<u8> {
+    let document = Doc::with_client_id(client_id);
+    let body = document.get_or_insert_text("body");
+    let before = document.transact().state_vector();
+    body.push(
+        &mut document.transact_mut(),
+        String::from_utf8_lossy(payload).as_ref(),
+    );
+    let encoded = document.transact().encode_diff_v1(&before);
+    encoded
+}
+
 fn envelope(
     workspace_id: &str,
     document_id: &str,
@@ -145,12 +158,8 @@ fn envelope(
     after: &KnowledgeStateVectorV1,
     actor: &KnowledgeActorIdV1,
 ) -> YjsUpdateEnvelopeV1 {
-    let site_id = handshake_core::kernel::crdt::actor_site::derive_knowledge_site_id(
-        workspace_id,
-        crdt_document_id,
-        actor,
-    )
-    .site_id;
+    let site = derive_knowledge_site_id(workspace_id, crdt_document_id, actor);
+    let yjs_bytes = yjs_text_update(u64::from(site.yjs_client_id), update_bytes);
     YjsUpdateEnvelopeV1 {
         schema_id: YJS_UPDATE_ENVELOPE_SCHEMA_ID.to_string(),
         workspace_id: workspace_id.to_string(),
@@ -158,12 +167,12 @@ fn envelope(
         crdt_document_id: crdt_document_id.to_string(),
         update_id: update_id.to_string(),
         actor_id: actor.canonical(),
-        site_id,
+        site_id: site.site_id,
         session_id: "SR-MT236".to_string(),
         trace_id: format!("trace-{update_id}"),
         document_schema_id: RICH_DOCUMENT_SCHEMA_ID.to_string(),
-        update_b64: base64::engine::general_purpose::STANDARD.encode(update_bytes),
-        update_sha256: sha256_hex(update_bytes),
+        update_b64: base64::engine::general_purpose::STANDARD.encode(&yjs_bytes),
+        update_sha256: sha256_hex(&yjs_bytes),
         state_vector_before: before.encode(),
         state_vector_after: after.encode(),
         encoding: YJS_UPDATE_ENCODING_V1.to_string(),

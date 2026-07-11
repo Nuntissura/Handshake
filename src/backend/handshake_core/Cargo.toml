@@ -213,6 +213,13 @@ half = "2"
 # violated MT-150 minimum_control "real AEAD cipher; not a stub".
 chacha20poly1305 = "0.10"
 base64 = "0.22"
+# Yjs-compatible v1 decoder used at the durable CRDT ingress boundary. It
+# rejects malformed-but-hash-consistent updates before PostgreSQL/EventLedger
+# records them; no external CRDT service is introduced.
+# v0.27 uses an unstable Rust language feature under this workspace's stable
+# compiler; 0.26 remains Yjs-v1 compatible and is the newest release that
+# compiles on the supported toolchain.
+yrs = "0.26.0"
 unicode-normalization = "0.1"
 idna = "1"
 caseless = "0.2"

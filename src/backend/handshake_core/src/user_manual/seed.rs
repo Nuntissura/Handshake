@@ -2595,6 +2595,20 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  after restart, inspect it through native_swarm_lane_diagnostics, and fail \
                  closed for direct endpoints, missing consent, stale CRDT base state, missing \
                  payload authority, and FlightRecorder-only diagnostic posture. The harness is \
+                 also the proof surface for mid-stream cancellation: coordinator-owned generation \
+                 persists each newline-complete activity before polling the next chunk, so a \
+                 captured prefix remains replayable; a cancelled terminal lane receipt is durable; \
+                 and captures that reach the terminal gate cannot create later message, tool, \
+                 artifact-binding, or Flight Recorder activity authority. A Flight Recorder event \
+                 for a capture that was already durably accepted may be emitted after the terminal \
+                 receipt as delayed diagnostic correlation, never as a standalone capture claim. \
+                 CRDT update receipts are atomically \
+                 committed with their PostgreSQL/EventLedger evidence; snapshot receipts retain \
+                 explicit EventLedger linkage and append-only compaction plans retain audit and \
+                 promotion evidence. Every accepted Yjs delta must contain the submitting \
+                 actor's deterministic client id; duplicate/stale/foreign-client updates are \
+                 denied. \
+                 The harness is \
                  Rust-only product validation; React, TypeScript, Tauri/WebView, npm tests, \
                  terminal scrollback, provider chat history, and chat memory are not authority.",
             ),
@@ -2633,7 +2647,9 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  status rows. Outputs are ModelLaneRun/ModelLane/ModelLaneMessage rows, \
                  EventLedger event IDs/sequences, diagnostics projections, recovery replay \
                  status, Rust UserManual behavior coverage matrix entries, and native AccessKit author IDs \
-                 visible to Argus.",
+                 visible to Argus. Message payload bindings and their ModelLaneMessage are \
+                 persisted together, so a terminal-write rejection cannot leave a detached \
+                 ArtifactStore payload authority row.",
             ),
             section(
                 "failure_modes",
@@ -2645,7 +2661,10 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  stale CRDT base_snapshot_ref/state_vector, corrupt recovery checkpoint or \
                  replay order gaps, Argus projection count mismatch or missing author IDs, \
                  and FlightRecorder-only diagnostics that omit internal_diagnostics or \
-                 Palmistry posture.",
+                 Palmistry posture. Once a lane is Completed, Failed, or Cancelled, every \
+                 later source/target ModelLaneMessage (including ToolRequest) must fail closed; \
+                 the terminal receipt and the prefix captured before cancellation remain the \
+                 only replayable authority.",
             ),
             section(
                 "run_commands",
@@ -2653,6 +2672,11 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                 "Exact MT-009 proof commands: \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact`; \
@@ -4530,6 +4554,11 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "exact_commands": [
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact",
@@ -4552,13 +4581,13 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: None,
         http_method: "".into(),
         description:
-            "Exact Rust proof targets for mixed local/cloud/subagent ModelLaneRun persistence, replay, recovery, diagnostics projection, negative guards, and UserManual behavior coverage."
+            "Exact Rust proof targets for mixed local/cloud/subagent ModelLaneRun persistence, replay, recovery, diagnostics projection, negative guards, real Yjs atomicity, coordinator-owned cancellation capture, and UserManual behavior coverage."
                 .into(),
         expected_input:
             "Real PostgreSQL/EventLedger test schema; deterministic local/cloud/subagent lane fixtures; ProjectionPlan/ConsentReceipt rows; bounded payload artifacts; CRDT base/state-vector refs; recovery checkpoints; diagnostic tier rows; native AccessKit Argus harness."
                 .into(),
         expected_output:
-            "A replayable mixed ModelLaneRun with backend lane/message counts matching native diagnostics rows; EventLedger IDs/sequences on all authority rows; recovery from checkpoint without FlightRecorder/provider history; explicit cloud consent denial and stale CRDT/missing payload/direct endpoint failures; hsk.user_manual_behavior_coverage@1 Rust coverage matrix/contract entries covering every model-lane behavior with FlightRecorder/internal_diagnostics/Palmistry posture."
+            "A replayable mixed ModelLaneRun with backend lane/message counts matching native diagnostics rows; EventLedger IDs/sequences on all authority rows; atomic PostgreSQL/EventLedger Yjs receipts under cross-connection races; coordinator cancellation preserving a captured prefix while rejecting late message/tool/artifact/Flight Recorder activity; recovery from checkpoint without FlightRecorder/provider history; explicit cloud consent denial and stale CRDT/missing payload/direct endpoint failures; hsk.user_manual_behavior_coverage@1 Rust coverage matrix/contract entries covering every model-lane behavior with FlightRecorder/internal_diagnostics/Palmistry posture."
                 .into(),
         schema_fields: vec![
             "hsk.user_manual_behavior_coverage@1".into(),

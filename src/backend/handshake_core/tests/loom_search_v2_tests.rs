@@ -91,9 +91,7 @@ fn rec() -> &'static CapturingRecorder {
 
 async fn pg_required(name: &str) -> knowledge_pg_support::KnowledgePg {
     knowledge_pg().await.unwrap_or_else(|| {
-        panic!(
-            "PostgreSQL unavailable for {name}: MT-016 proof requires live PostgreSQL/EventLedger"
-        )
+        panic!("PostgreSQL unavailable for {name}: proof requires live PostgreSQL/EventLedger")
     })
 }
 
@@ -804,17 +802,20 @@ async fn mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_ca
 /// — on BOTH reindex AND search. It emits a surfaced Flight Recorder event and
 /// sets a TYPED `semantic_unavailable_reason::DimMismatch`. This proves the
 /// prior behavior (a hard `StorageError::Validation` that errored reindex and
-/// 400'd the search query path) is gone. Engine-free (InMemoryLlmClient).
+/// 400'd the search query path) is gone. The projection assertion uses a real
+/// managed PostgreSQL schema; the deterministic client is only the controlled
+/// embedding producer that creates the dimensionality mismatch.
 #[tokio::test]
 async fn mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search() {
-    let pg = pg_or_skip!();
+    let pg = pg_required("mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search").await;
     let ws = pg.create_workspace().await;
     let ctx = WriteContext::human(None);
     // Catalog DECLARES a 768-dim embedding model (matches the index), but the
     // client actually RETURNS 896-dim vectors -> dimensionality mismatch that must
     // DEGRADE (not hard-error) on reindex and search.
+    let catalog_model_id = ModelId::new_v7();
     let catalog = model_catalog(vec![(
-        ModelId::new_v7(),
+        catalog_model_id.clone(),
         "emb-declared-768",
         ModelCapabilities {
             supports_embedding: true,
@@ -840,6 +841,25 @@ async fn mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search() {
         .expect("reindex must DEGRADE (Ok), not hard-error on dim mismatch");
     assert!(!wrote, "dim mismatch -> NO embedding written (degraded)");
 
+    // The observable return value is not enough: direct PostgreSQL inspection
+    // proves that the derived projection retained the keyword-only posture and
+    // did not leave a stale embedding/model behind after the degraded write.
+    let mut conn = pg.raw_connection().await;
+    let keyword_only: bool = sqlx::query_scalar(
+        "SELECT embedding IS NULL AND embedding_model IS NULL \
+         FROM loom_block_search_index \
+         WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&block.block_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("read MT-014 keyword-only projection");
+    assert!(
+        keyword_only,
+        "dimension mismatch must persist a keyword-only projection with no vector/model"
+    );
+
     // SEARCH degrades: returns Ok with semantic_available=false + typed reason,
     // NOT a 400 / hard error. The keyword modality still finds the block.
     let resp = loom_search::search(&pg.db, &llm, &recorder, &ws, req("dimension mismatch"))
@@ -860,6 +880,11 @@ async fn mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search() {
     assert!(
         !resp.hits.is_empty(),
         "keyword modality still finds the block after semantic degrade"
+    );
+    assert_eq!(
+        llm.requested_model_ids(),
+        vec![catalog_model_id.to_string(), catalog_model_id.to_string()],
+        "both reindex and search must use the catalog-selected embedding model id"
     );
 
     // A surfaced Flight Recorder event was emitted on BOTH surfaces.

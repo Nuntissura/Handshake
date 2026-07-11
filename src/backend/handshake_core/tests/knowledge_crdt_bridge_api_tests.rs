@@ -8,6 +8,8 @@
 //! drive it with reqwest — in-process Handshake backend, real PostgreSQL,
 //! no external relay (the MT-078 posture this surface must keep).
 
+mod knowledge_pg_support;
+
 use base64::Engine;
 use handshake_core::api::knowledge_crdt::{router_with_state, KnowledgeCrdtApiState};
 use handshake_core::kernel::crdt::actor_site::{
@@ -18,18 +20,23 @@ use handshake_core::kernel::crdt::state_vector::KnowledgeStateVectorV1;
 use handshake_core::kernel::crdt::yjs_bridge::{
     YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1, YJS_UPDATE_ENVELOPE_SCHEMA_ID,
 };
-use handshake_core::storage::tests::{postgres_backend_with_pool_from_env, PostgresTestBackend};
-use handshake_core::storage::StorageError;
+use handshake_core::storage::tests::PostgresTestBackend;
+use knowledge_pg_support::knowledge_pg;
+use yrs::updates::decoder::Decode;
+use yrs::{Doc, ReadTxn, Text, Transact, Update};
 
 async fn backend_or_blocked() -> PostgresTestBackend {
-    match postgres_backend_with_pool_from_env().await {
-        Ok(backend) => backend,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: WP-009 CRDT bridge tests require POSTGRES_TEST_URL; {msg}"
-            );
-        }
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+    let pg = knowledge_pg().await.expect(
+        "ENVIRONMENT_BLOCKED: WP-009 CRDT bridge tests require Handshake-managed PostgreSQL \
+         (set POSTGRES_TEST_URL/DATABASE_URL or make managed PostgreSQL available)",
+    );
+    let postgres_pool = sqlx::PgPool::connect(&pg.schema_url)
+        .await
+        .expect("connect API pool to isolated real PostgreSQL schema");
+
+    PostgresTestBackend {
+        database: pg.db.into_arc(),
+        postgres_pool,
     }
 }
 
@@ -81,6 +88,35 @@ fn envelope(
     }
 }
 
+/// Produce a real Yjs v1 update with a deterministic client id.  MT-067's
+/// bridge contract is shared with MT-009, which rejects opaque bytes at its
+/// ingress; these fixtures therefore exercise the same wire format a browser
+/// Yjs client sends rather than a label that merely happens to hash correctly.
+fn yjs_insert_update(client_id: u64, text: &str) -> Vec<u8> {
+    let document = Doc::with_client_id(client_id);
+    let body = document.get_or_insert_text("body");
+    let before = document.transact().state_vector();
+    body.push(&mut document.transact_mut(), text);
+    let encoded = document.transact().encode_diff_v1(&before);
+    encoded
+}
+
+/// Extend a replica that already contains `base_update` from a different
+/// deterministic Yjs client.  This preserves the actual causal relationship
+/// between the two HTTP push fixtures.
+fn yjs_insert_after_update(client_id: u64, base_update: &[u8], text: &str) -> Vec<u8> {
+    let document = Doc::with_client_id(client_id);
+    document
+        .transact_mut()
+        .apply_update(Update::decode_v1(base_update).expect("decode base Yjs update"))
+        .expect("apply base Yjs update");
+    let body = document.get_or_insert_text("body");
+    let before = document.transact().state_vector();
+    body.push(&mut document.transact_mut(), text);
+    let encoded = document.transact().encode_diff_v1(&before);
+    encoded
+}
+
 mod mt_067_yjs_bridge {
     use super::*;
     use handshake_core::kernel::crdt::yjs_bridge::{
@@ -97,16 +133,9 @@ mod mt_067_yjs_bridge {
         let site = derive_knowledge_site_id("ws-067", "crdt-067", &actor);
         let mut after = before.clone();
         after.increment(&site.site_id);
+        let update = yjs_insert_update(u64::from(site.yjs_client_id), "yjs-update-bytes");
         let env = envelope(
-            "ws-067",
-            "doc-067",
-            "crdt-067",
-            "u-067",
-            &actor,
-            "sr-067",
-            b"yjs-update-bytes",
-            &before,
-            &after,
+            "ws-067", "doc-067", "crdt-067", "u-067", &actor, "sr-067", &update, &before, &after,
         );
         let json_form = serde_json::to_string(&env).expect("serialize");
         let back: YjsUpdateEnvelopeV1 = serde_json::from_str(&json_form).expect("deserialize");
@@ -114,7 +143,7 @@ mod mt_067_yjs_bridge {
 
         // Validation accepts and exposes typed parts.
         let validated = validate_yjs_update_envelope(&env).expect("valid envelope");
-        assert_eq!(validated.update_bytes, b"yjs-update-bytes");
+        assert_eq!(validated.update_bytes, update);
         assert_eq!(validated.actor, actor);
         assert_eq!(validated.before, before);
         assert_eq!(validated.after, after);
@@ -139,8 +168,9 @@ mod mt_067_yjs_bridge {
         let before = KnowledgeStateVectorV1::new();
         let mut after = before.clone();
         after.increment(&site.site_id);
+        let update = yjs_insert_update(u64::from(site.yjs_client_id), "valid update");
         let good = envelope(
-            "ws-067", "doc-067", "crdt-067", "u-067", &actor, "sr-067", b"bytes", &before, &after,
+            "ws-067", "doc-067", "crdt-067", "u-067", &actor, "sr-067", &update, &before, &after,
         );
 
         // Hash mismatch.
@@ -160,6 +190,20 @@ mod mt_067_yjs_bridge {
             .any(|error| matches!(
                 error,
                 YjsEnvelopeValidationError::UpdateBytesNotBase64 { .. }
+            )));
+
+        // Hash-consistent opaque bytes are still denied: the bridge accepts
+        // only a decodable Yjs v1 update, never arbitrary payload labels.
+        let mut not_yjs = good.clone();
+        let opaque = b"not-a-yjs-update";
+        not_yjs.update_b64 = base64::engine::general_purpose::STANDARD.encode(opaque);
+        not_yjs.update_sha256 = sha256_hex(opaque);
+        assert!(validate_yjs_update_envelope(&not_yjs)
+            .expect_err("opaque hash-consistent payload fails")
+            .iter()
+            .any(|error| matches!(
+                error,
+                YjsEnvelopeValidationError::UpdateBytesNotYjsV1 { .. }
             )));
 
         // Site id must match the deterministic derivation.
@@ -207,16 +251,9 @@ mod mt_067_yjs_bridge {
         let empty = KnowledgeStateVectorV1::new();
         let mut sv1 = empty.clone();
         sv1.increment(&op_site.site_id);
+        let op_update = yjs_insert_update(u64::from(op_site.yjs_client_id), "op-bytes-1");
         let env1 = envelope(
-            &ws,
-            &doc,
-            &crdt_doc,
-            "http-u1",
-            &operator,
-            "sr-op",
-            b"op-bytes-1",
-            &empty,
-            &sv1,
+            &ws, &doc, &crdt_doc, "http-u1", &operator, "sr-op", &op_update, &empty, &sv1,
         );
         let response = client
             .post(format!("{base_url}/knowledge/crdt/updates/push"))
@@ -238,16 +275,10 @@ mod mt_067_yjs_bridge {
         // Push update 2 (model) on the new head.
         let mut sv2 = sv1.clone();
         sv2.increment(&lm_site.site_id);
+        let lm_update =
+            yjs_insert_after_update(u64::from(lm_site.yjs_client_id), &op_update, "lm-bytes-2");
         let env2 = envelope(
-            &ws,
-            &doc,
-            &crdt_doc,
-            "http-u2",
-            &model,
-            "sr-lm",
-            b"lm-bytes-2",
-            &sv1,
-            &sv2,
+            &ws, &doc, &crdt_doc, "http-u2", &model, "sr-lm", &lm_update, &sv1, &sv2,
         );
         let response = client
             .post(format!("{base_url}/knowledge/crdt/updates/push"))
@@ -271,6 +302,7 @@ mod mt_067_yjs_bridge {
         // Stale base push is a typed 409, never silent.
         let mut stale_after = empty.clone();
         stale_after.increment(&lm_site.site_id);
+        let stale_update = yjs_insert_update(u64::from(lm_site.yjs_client_id), "stale-bytes");
         let stale = envelope(
             &ws,
             &doc,
@@ -278,7 +310,7 @@ mod mt_067_yjs_bridge {
             "http-u3",
             &model,
             "sr-lm",
-            b"stale-bytes",
+            &stale_update,
             &empty,
             &stale_after,
         );
@@ -318,7 +350,7 @@ mod mt_067_yjs_bridge {
         assert_eq!(updates[1]["update_id"], "http-u2");
         assert_eq!(
             updates[0]["update_b64"],
-            base64::engine::general_purpose::STANDARD.encode(b"op-bytes-1")
+            base64::engine::general_purpose::STANDARD.encode(&op_update)
         );
         assert_eq!(updates[1]["actor_id"], model.canonical());
         assert_eq!(body["result"]["head_update_seq"], 2);
@@ -396,17 +428,27 @@ mod mt_075_conflict_ui {
         let empty = KnowledgeStateVectorV1::new();
         let mut head = empty.clone();
         head.increment(&op_site.site_id);
+        let operator_update = yjs_insert_update(u64::from(op_site.yjs_client_id), "op-ui-1");
         save_rich_document_draft(
             db.as_ref(),
             &pool,
             &envelope(
-                &ws, &doc, &crdt_doc, "ui-u1", &operator, "sr-op", b"op-ui-1", &empty, &head,
+                &ws,
+                &doc,
+                &crdt_doc,
+                "ui-u1",
+                &operator,
+                "sr-op",
+                &operator_update,
+                &empty,
+                &head,
             ),
         )
         .await
         .expect("save flow");
         let mut model_after = empty.clone();
         model_after.increment(&lm_site.site_id);
+        let model_update = yjs_insert_update(u64::from(lm_site.yjs_client_id), "lm-ui-1");
         save_rich_document_draft(
             db.as_ref(),
             &pool,
@@ -417,7 +459,7 @@ mod mt_075_conflict_ui {
                 "ui-u2",
                 &model,
                 "sr-lm",
-                b"lm-ui-1",
+                &model_update,
                 &empty,
                 &model_after,
             ),

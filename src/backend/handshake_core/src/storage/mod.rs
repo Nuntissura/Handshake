@@ -38,6 +38,38 @@ pub mod tests;
 
 pub type StorageResult<T> = Result<T, StorageError>;
 
+/// One proposed CRDT update plus its EventLedger receipt, to be committed as
+/// one Postgres transaction. `provisional_record.event_ledger_event_id` is
+/// intentionally empty: the storage implementation appends `event` first
+/// inside the transaction, stamps its generated event id into the record, and
+/// then inserts the CRDT row before committing both writes together.
+#[derive(Clone, Debug)]
+pub struct KernelCrdtAtomicAppendRequest {
+    pub expected_head_update_seq: u64,
+    pub expected_head_state_vector: String,
+    pub provisional_record: CrdtUpdateRecordV1,
+    pub update_bytes: Vec<u8>,
+    pub event: NewKernelEvent,
+}
+
+/// Result of a database-scoped CRDT/EventLedger append attempt.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum KernelCrdtAtomicAppendOutcome {
+    Stored(CrdtUpdateRecordV1),
+    AlreadyStored {
+        record: CrdtUpdateRecordV1,
+        head_update_seq: u64,
+        head_state_vector: String,
+    },
+    UpdateIdContentMismatch {
+        update_id: String,
+    },
+    StaleHead {
+        head_update_seq: u64,
+        head_state_vector: String,
+    },
+}
+
 pub const WORKBENCH_LAYOUT_SCHEMA_ID: &str = "hsk.workbench_layout_state@1";
 pub const WORKSPACE_SETTINGS_SCHEMA_ID: &str = "hsk.workspace_settings_state@1";
 pub const WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID: &str = "hsk.workspace_search_bookmark_state@1";
@@ -2213,7 +2245,9 @@ pub trait Database: Send + Sync {
         _embedding: Option<&[f32]>,
         _embedding_model: Option<&str>,
     ) -> StorageResult<()> {
-        Err(StorageError::NotImplemented("loom search v2 reindex backend"))
+        Err(StorageError::NotImplemented(
+            "loom search v2 reindex backend",
+        ))
     }
 
     /// WP-KERNEL-009 MT-264 LoomSearchV2: hybrid Postgres-native search fusing
@@ -3027,6 +3061,20 @@ pub trait Database: Send + Sync {
     ) -> StorageResult<CrdtUpdateRecordV1> {
         Err(StorageError::NotImplemented(
             "kernel CRDT update persistence requires Postgres",
+        ))
+    }
+    /// Atomically serialize one CRDT document update with its EventLedger
+    /// receipt. The Postgres implementation holds a transaction-scoped,
+    /// database-wide document lock, checks the durable head and idempotency
+    /// row, appends the event, inserts the CRDT receipt, and commits once.
+    /// This prevents an EventLedger success receipt without its update row on
+    /// cross-process races or mid-write failures.
+    async fn append_kernel_crdt_update_with_event_atomic(
+        &self,
+        _request: KernelCrdtAtomicAppendRequest,
+    ) -> StorageResult<KernelCrdtAtomicAppendOutcome> {
+        Err(StorageError::NotImplemented(
+            "atomic kernel CRDT update plus EventLedger persistence requires Postgres",
         ))
     }
     async fn list_kernel_crdt_updates(

@@ -123,10 +123,37 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
         validate_message(&input)?;
         let mut tx = self.pool.begin().await?;
-        lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
-        if let Some(existing) =
-            message_by_idempotency_key_tx(&mut tx, &input.idempotency_key).await?
-        {
+        let stored = Self::record_message_tx(&mut tx, input).await?;
+        tx.commit().await?;
+        Ok(stored)
+    }
+
+    /// Commit a ModelLane payload binding and its message in one PostgreSQL
+    /// transaction.  The message is checked first, so a terminal lane rejects
+    /// before an ArtifactStore/EventLedger binding can be left behind.  A
+    /// later binding failure rolls the message transaction back as well.
+    pub async fn record_message_with_payload_binding(
+        &self,
+        message: NewModelLaneMessage,
+        binding: NewModelLaneContextBundleArtifactBinding,
+    ) -> ModelLaneResult<ModelLaneMessageRecord> {
+        validate_message(&message)?;
+        validate_context_bundle_artifact_binding(&binding)?;
+        validate_message_payload_binding_pair(&message, &binding)?;
+
+        let mut tx = self.pool.begin().await?;
+        let stored_message = Self::record_message_tx(&mut tx, message).await?;
+        Self::record_context_bundle_artifact_binding_tx(&mut tx, binding).await?;
+        tx.commit().await?;
+        Ok(stored_message)
+    }
+
+    async fn record_message_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        input: NewModelLaneMessage,
+    ) -> ModelLaneResult<ModelLaneMessageRecord> {
+        lock_idempotency_key_tx(tx, &input.idempotency_key).await?;
+        if let Some(existing) = message_by_idempotency_key_tx(tx, &input.idempotency_key).await? {
             if existing.payload_sha256 == input.payload_sha256 {
                 // Spec 4.3.9.2.5: "Duplicate retries with the same
                 // idempotency_key and payload hash MUST be idempotent." The
@@ -145,23 +172,47 @@ impl ModelLaneStore {
                     &existing.inner,
                     &retry_identity,
                 )?;
-                tx.commit().await?;
                 return Ok(existing);
             }
-            tx.rollback().await?;
             return Err(ModelLaneError::IdempotencyConflict(format!(
                 "idempotency_key {} already belongs to payload_sha256 {}",
                 input.idempotency_key, existing.payload_sha256
             )));
         }
-        let source_lane = lane_by_id_tx(&mut tx, &input.from_lane_id).await?;
+        // Lock peer lanes in one canonical order.  A pair of simultaneous
+        // A->B / B->A messages must not acquire the two PostgreSQL row locks
+        // in opposite order and deadlock the durable EventLedger path.
+        let target_lane = match &input.to_lane {
+            ModelLaneTarget::Lane(target_lane_id) if target_lane_id != &input.from_lane_id => {
+                if target_lane_id < &input.from_lane_id {
+                    let target_lane =
+                        lane_by_id_for_run_tx(tx, &input.run_id, target_lane_id).await?;
+                    let source_lane = lane_by_id_tx(tx, &input.from_lane_id).await?;
+                    (source_lane, Some(target_lane))
+                } else {
+                    let source_lane = lane_by_id_tx(tx, &input.from_lane_id).await?;
+                    let target_lane =
+                        lane_by_id_for_run_tx(tx, &input.run_id, target_lane_id).await?;
+                    (source_lane, Some(target_lane))
+                }
+            }
+            ModelLaneTarget::Lane(_) => {
+                let source_lane = lane_by_id_tx(tx, &input.from_lane_id).await?;
+                (source_lane.clone(), Some(source_lane))
+            }
+            ModelLaneTarget::Broadcast | ModelLaneTarget::Coordinator => {
+                (lane_by_id_tx(tx, &input.from_lane_id).await?, None)
+            }
+        };
+        let (source_lane, target_lane) = target_lane;
         require_equal(
             "message.run_id",
             &input.run_id,
             "source_lane.run_id",
             &source_lane.run_id,
         )?;
-        let source_run = run_by_id_tx(&mut tx, &input.run_id).await?;
+        ensure_message_lane_is_live(&source_lane, "source")?;
+        let source_run = run_by_id_tx(tx, &input.run_id).await?;
         require_equal(
             "message.event_ledger_stream_id",
             &input.event_ledger_stream_id,
@@ -174,8 +225,8 @@ impl ModelLaneStore {
             "source_run.event_ledger_stream_id",
             &source_run.event_ledger_stream_id,
         )?;
-        if let ModelLaneTarget::Lane(target_lane_id) = &input.to_lane {
-            let target_lane = lane_by_id_for_run_tx(&mut tx, &input.run_id, target_lane_id).await?;
+        if let Some(target_lane) = target_lane.as_ref() {
+            ensure_message_lane_is_live(target_lane, "target")?;
             require_equal(
                 "message.event_ledger_stream_id",
                 &input.event_ledger_stream_id,
@@ -186,12 +237,11 @@ impl ModelLaneStore {
         let cloud_source = is_cloud_lane_record(&source_lane);
         match input.authority {
             ModelLaneAuthority::Promoted => {
-                ensure_promoted_message_has_decision_tx(&mut tx, &input).await?;
+                ensure_promoted_message_has_decision_tx(tx, &input).await?;
             }
             ModelLaneAuthority::OperatorDecision | ModelLaneAuthority::ValidatorVerdict
                 if cloud_source =>
             {
-                tx.rollback().await?;
                 return Err(ModelLaneError::InvalidInput(
                     "Cloud ModelLaneMessage authority must remain advisory or promotion_candidate until an approved PromotionGate writes promoted authority"
                         .into(),
@@ -215,7 +265,7 @@ impl ModelLaneStore {
             payload,
         )?;
 
-        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let stored_event = append_kernel_event_with_executor(&mut **tx, event).await?;
         let sequence = stored_event.event_sequence;
         let record = ModelLaneMessageRecord {
             event_ledger_event_id: stored_event.event_id.clone(),
@@ -261,13 +311,13 @@ impl ModelLaneStore {
         .bind(record.event_stream_version)
         .bind(record.transaction_seq)
         .bind(serde_json::to_value(&record)?)
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut **tx)
         .await?;
 
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
         } else {
-            let existing = message_by_idempotency_key_tx(&mut tx, &record.idempotency_key).await?;
+            let existing = message_by_idempotency_key_tx(tx, &record.idempotency_key).await?;
             let existing = existing.ok_or_else(|| {
                 ModelLaneError::NotFound(format!(
                     "idempotency_key {} after insert conflict",
@@ -283,7 +333,6 @@ impl ModelLaneStore {
                 )?;
                 existing
             } else {
-                tx.rollback().await?;
                 return Err(ModelLaneError::IdempotencyConflict(format!(
                     "idempotency_key {} already belongs to payload_sha256 {}",
                     record.idempotency_key, existing.payload_sha256
@@ -291,7 +340,6 @@ impl ModelLaneStore {
             }
         };
 
-        tx.commit().await?;
         Ok(stored)
     }
 
@@ -1095,8 +1143,17 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneContextBundleArtifactBindingRecord> {
         validate_context_bundle_artifact_binding(&input)?;
         let mut tx = self.pool.begin().await?;
-        lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
-        run_by_id_tx(&mut tx, &input.run_id).await?;
+        let stored = Self::record_context_bundle_artifact_binding_tx(&mut tx, input).await?;
+        tx.commit().await?;
+        Ok(stored)
+    }
+
+    async fn record_context_bundle_artifact_binding_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        input: NewModelLaneContextBundleArtifactBinding,
+    ) -> ModelLaneResult<ModelLaneContextBundleArtifactBindingRecord> {
+        lock_idempotency_key_tx(tx, &input.idempotency_key).await?;
+        run_by_id_tx(tx, &input.run_id).await?;
         let binding_hash = context_bundle_artifact_binding_hash(&input)?;
         let prepared = ModelLaneContextBundleArtifactBindingRecord {
             inner: input,
@@ -1107,17 +1164,13 @@ impl ModelLaneStore {
             transaction_seq: 0,
         };
 
-        if let Some(existing) = context_bundle_artifact_binding_by_idempotency_key_tx(
-            &mut tx,
-            &prepared.idempotency_key,
-        )
-        .await?
+        if let Some(existing) =
+            context_bundle_artifact_binding_by_idempotency_key_tx(tx, &prepared.idempotency_key)
+                .await?
         {
             if existing.artifact_binding_hash == prepared.artifact_binding_hash {
-                tx.commit().await?;
                 return Ok(existing);
             }
-            tx.rollback().await?;
             return Err(ModelLaneError::IdempotencyConflict(format!(
                 "idempotency_key {} already belongs to artifact_binding_hash {}",
                 prepared.idempotency_key, existing.artifact_binding_hash
@@ -1133,7 +1186,7 @@ impl ModelLaneStore {
             &prepared.event_ledger_stream_id,
             context_bundle_artifact_binding_event_payload(&prepared),
         )?;
-        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let stored_event = append_kernel_event_with_executor(&mut **tx, event).await?;
         let sequence = stored_event.event_sequence;
         let record = ModelLaneContextBundleArtifactBindingRecord {
             event_ledger_event_id: stored_event.event_id.clone(),
@@ -1143,7 +1196,7 @@ impl ModelLaneStore {
             ..prepared
         };
         stamp_kernel_event_payload_tx(
-            &mut tx,
+            tx,
             &record.event_ledger_event_id,
             context_bundle_artifact_binding_event_payload(&record),
         )
@@ -1191,17 +1244,15 @@ impl ModelLaneStore {
         .bind(record.event_stream_version)
         .bind(record.transaction_seq)
         .bind(serde_json::to_value(&record)?)
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut **tx)
         .await?;
 
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
         } else {
-            let existing = context_bundle_artifact_binding_by_idempotency_key_tx(
-                &mut tx,
-                &record.idempotency_key,
-            )
-            .await?;
+            let existing =
+                context_bundle_artifact_binding_by_idempotency_key_tx(tx, &record.idempotency_key)
+                    .await?;
             let existing = existing.ok_or_else(|| {
                 ModelLaneError::NotFound(format!(
                     "idempotency_key {} after artifact binding insert conflict",
@@ -1211,7 +1262,6 @@ impl ModelLaneStore {
             if existing.artifact_binding_hash == record.artifact_binding_hash {
                 existing
             } else {
-                tx.rollback().await?;
                 return Err(ModelLaneError::IdempotencyConflict(format!(
                     "idempotency_key {} already belongs to artifact_binding_hash {}",
                     record.idempotency_key, existing.artifact_binding_hash
@@ -1219,7 +1269,6 @@ impl ModelLaneStore {
             }
         };
 
-        tx.commit().await?;
         Ok(stored)
     }
 
@@ -9319,6 +9368,114 @@ async fn lane_by_id_for_run_tx(
     let lane = lane_by_id_tx(tx, lane_id).await?;
     require_equal("lane.run_id", &lane.run_id, "record.run_id", run_id)?;
     Ok(lane)
+}
+
+/// A terminal lane is a durable lifecycle boundary, not merely a projection
+/// hint.  Once its terminal EventLedger row is committed, no new
+/// `ModelLaneMessage` may be appended from or to that lane.  Idempotent
+/// retries are resolved before this check in `record_message`, so a retry of a
+/// pre-terminal message remains safe and does not reopen the stream.
+fn ensure_message_lane_is_live(lane: &ModelLaneRecord, direction: &str) -> ModelLaneResult<()> {
+    if matches!(
+        lane.status,
+        ModelLaneStatus::Completed | ModelLaneStatus::Failed | ModelLaneStatus::Cancelled
+    ) {
+        return Err(ModelLaneError::InvalidInput(format!(
+            "cannot append ModelLaneMessage for terminal {direction} lane {} ({})",
+            lane.lane_id,
+            lane.status.as_str()
+        )));
+    }
+    Ok(())
+}
+
+fn validate_message_payload_binding_pair(
+    message: &NewModelLaneMessage,
+    binding: &NewModelLaneContextBundleArtifactBinding,
+) -> ModelLaneResult<()> {
+    require_equal(
+        "binding.run_id",
+        &binding.run_id,
+        "message.run_id",
+        &message.run_id,
+    )?;
+    require_equal(
+        "binding.trace_id",
+        &binding.trace_id,
+        "message.trace_id",
+        &message.trace_id,
+    )?;
+    require_equal(
+        "binding.artifact_ref",
+        &binding.artifact_ref,
+        "message.payload_ref",
+        &message.payload_ref,
+    )?;
+    require_equal(
+        "binding.artifact_payload_ref",
+        &binding.artifact_payload_ref,
+        "message.payload_ref",
+        &message.payload_ref,
+    )?;
+    require_equal(
+        "binding.artifact_sha256",
+        &binding.artifact_sha256,
+        "message.payload_sha256",
+        &message.payload_sha256,
+    )?;
+    require_equal(
+        "binding.content_hash",
+        &binding.content_hash,
+        "message.payload_sha256",
+        &message.payload_sha256,
+    )?;
+    require_equal(
+        "binding.event_ledger_stream_id",
+        &binding.event_ledger_stream_id,
+        "message.event_ledger_stream_id",
+        &message.event_ledger_stream_id,
+    )?;
+    require_equal(
+        "binding.owner_session",
+        &binding.owner_session,
+        "message.owner_session",
+        &message.owner_session,
+    )?;
+
+    let message_wp = message.work_packet_id.as_deref().ok_or_else(|| {
+        ModelLaneError::InvalidInput(
+            "message.work_packet_id is required for an atomic payload binding".into(),
+        )
+    })?;
+    let message_mt = message.micro_task_id.as_deref().ok_or_else(|| {
+        ModelLaneError::InvalidInput(
+            "message.micro_task_id is required for an atomic payload binding".into(),
+        )
+    })?;
+    let message_board = message.task_board_id.as_deref().ok_or_else(|| {
+        ModelLaneError::InvalidInput(
+            "message.task_board_id is required for an atomic payload binding".into(),
+        )
+    })?;
+    require_equal(
+        "binding.work_packet_id",
+        &binding.work_packet_id,
+        "message.work_packet_id",
+        message_wp,
+    )?;
+    require_equal(
+        "binding.micro_task_id",
+        &binding.micro_task_id,
+        "message.micro_task_id",
+        message_mt,
+    )?;
+    require_equal(
+        "binding.task_board_id",
+        &binding.task_board_id,
+        "message.task_board_id",
+        message_board,
+    )?;
+    Ok(())
 }
 
 async fn cloud_projection_plan_by_id_tx(

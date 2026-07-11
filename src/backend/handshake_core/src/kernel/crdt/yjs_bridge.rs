@@ -19,30 +19,26 @@
 //!     envelopes (bytes re-encoded from Postgres) strictly ordered by
 //!     `update_seq`, plus the head sequence and head state vector.
 //!
-//! The update bytes are opaque to the backend (no `yrs` dependency): the
-//! backend orders, attributes, hashes, persists, and replays them; merging
-//! is the Yjs client's job. That keeps the backend free of any external
-//! CRDT service while staying byte-compatible with the bundled frontend
-//! stack (MT-078 proves the no-external-relay posture).
-
-use std::{
-    collections::HashMap,
-    sync::{Arc, OnceLock},
-};
+//! The backend decodes each Yjs v1 update at ingress to reject
+//! hash-consistent-but-malformed bytes, then treats valid updates as opaque
+//! durable payloads: PostgreSQL/EventLedger orders, attributes, and persists
+//! them while document materialization remains a Yjs-compatible client concern.
+//! This preserves the no-external-relay posture while preventing invalid binary
+//! data from becoming authoritative replay state.
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
+use yrs::{updates::decoder::Decode, ClientID, Update};
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::Database;
+use crate::storage::{Database, KernelCrdtAtomicAppendOutcome, KernelCrdtAtomicAppendRequest};
 
 use super::actor_site::{
-    KnowledgeActorIdError, KnowledgeActorIdV1, derive_knowledge_site_id, knowledge_crdt_identity,
+    derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdError, KnowledgeActorIdV1,
 };
 use super::persistence::{
-    CrdtReplayMetadataV1, CrdtUpdateRecordInputV1, CrdtUpdateRecordV1, new_crdt_update_record,
-    sha256_hex,
+    new_crdt_update_record, sha256_hex, CrdtReplayMetadataV1, CrdtUpdateRecordInputV1,
+    CrdtUpdateRecordV1,
 };
 use super::state_vector::{
     KnowledgeStateVectorOrdering, KnowledgeStateVectorParseError, KnowledgeStateVectorV1,
@@ -54,29 +50,6 @@ pub const YJS_PUSH_DENIAL_SCHEMA_ID: &str = "hsk.kernel.knowledge_yjs_push_denia
 
 fn b64() -> base64::engine::general_purpose::GeneralPurpose {
     base64::engine::general_purpose::STANDARD
-}
-
-type DocumentPushLocks = Mutex<HashMap<String, Arc<Mutex<()>>>>;
-
-fn document_push_locks() -> &'static DocumentPushLocks {
-    static LOCKS: OnceLock<DocumentPushLocks> = OnceLock::new();
-    LOCKS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-// The Handshake backend is the loopback CRDT ingress point. Serializing one
-// document inside the process keeps same-base pushes from producing orphaned
-// EventLedger update events before the PostgreSQL sequence index rejects a
-// loser. The DB uniqueness constraint remains the cross-process backstop.
-async fn push_lock_for_document(envelope: &YjsUpdateEnvelopeV1) -> Arc<Mutex<()>> {
-    let key = format!(
-        "{}\u{0}{}\u{0}{}",
-        envelope.workspace_id, envelope.document_id, envelope.crdt_document_id
-    );
-    let mut locks = document_push_locks().lock().await;
-    locks
-        .entry(key)
-        .or_insert_with(|| Arc::new(Mutex::new(())))
-        .clone()
 }
 
 /// One Yjs update crossing the frontend/backend boundary.
@@ -100,9 +73,13 @@ pub struct YjsUpdateEnvelopeV1 {
     pub update_b64: String,
     /// sha256 hex of the decoded update bytes.
     pub update_sha256: String,
-    /// Typed state vector the client had applied before this update.
+    /// Client-reported typed state vector before this update. The server
+    /// compares it against the durable head and persists only its own
+    /// canonical derivation.
     pub state_vector_before: String,
-    /// Typed state vector after this update (must strictly dominate before).
+    /// Client-reported typed state vector after this update. It must equal the
+    /// server-derived next vector; callers cannot advance arbitrary sites or
+    /// clocks by supplying metadata here.
     pub state_vector_after: String,
     pub encoding: String,
 }
@@ -127,6 +104,12 @@ pub enum YjsEnvelopeValidationError {
     },
     UpdateBytesNotBase64 {
         message: String,
+    },
+    UpdateBytesNotYjsV1 {
+        message: String,
+    },
+    UpdateMissingExpectedClientId {
+        expected_client_id: u32,
     },
     UpdateBytesEmpty,
     UpdateHashMismatch {
@@ -167,6 +150,13 @@ impl std::fmt::Display for YjsEnvelopeValidationError {
             Self::UpdateBytesNotBase64 { message } => {
                 write!(f, "update_b64 does not decode: {message}")
             }
+            Self::UpdateBytesNotYjsV1 { message } => {
+                write!(f, "update bytes are not a decodable Yjs v1 update: {message}")
+            }
+            Self::UpdateMissingExpectedClientId { expected_client_id } => write!(
+                f,
+                "update has no insertion from the actor's deterministic Yjs client id {expected_client_id}"
+            ),
             Self::UpdateBytesEmpty => write!(f, "update bytes must not be empty"),
             Self::UpdateHashMismatch { expected, found } => write!(
                 f,
@@ -251,7 +241,7 @@ pub fn validate_yjs_update_envelope(
         }
     }
 
-    let update_bytes = match b64().decode(envelope.update_b64.as_bytes()) {
+    let decoded_update = match b64().decode(envelope.update_b64.as_bytes()) {
         Ok(bytes) => {
             if bytes.is_empty() {
                 errors.push(YjsEnvelopeValidationError::UpdateBytesEmpty);
@@ -265,7 +255,15 @@ pub fn validate_yjs_update_envelope(
                     });
                     None
                 } else {
-                    Some(bytes)
+                    match Update::decode_v1(&bytes) {
+                        Ok(update) => Some((bytes, update)),
+                        Err(error) => {
+                            errors.push(YjsEnvelopeValidationError::UpdateBytesNotYjsV1 {
+                                message: error.to_string(),
+                            });
+                            None
+                        }
+                    }
                 }
             }
         }
@@ -276,6 +274,26 @@ pub fn validate_yjs_update_envelope(
             None
         }
     };
+
+    if let (Some((_, update)), Some(actor)) = (&decoded_update, &actor) {
+        let expected =
+            derive_knowledge_site_id(&envelope.workspace_id, &envelope.crdt_document_id, actor);
+        let expected_client_id = ClientID::new(u64::from(expected.yjs_client_id));
+        // A decoded Yjs payload is not enough for actor attribution: an actor
+        // could otherwise submit another client's update while claiming its
+        // own HSK site.  The bridge currently accepts only updates containing
+        // at least one insertion from the deterministic client id bound to
+        // the actor/site.  Delete-only payloads deliberately fail closed until
+        // a separately durable operation-author attribution exists.
+        if !update
+            .state_vector_lower()
+            .contains_client(&expected_client_id)
+        {
+            errors.push(YjsEnvelopeValidationError::UpdateMissingExpectedClientId {
+                expected_client_id: expected.yjs_client_id,
+            });
+        }
+    }
 
     let before = match KnowledgeStateVectorV1::parse(&envelope.state_vector_before) {
         Ok(vector) => Some(vector),
@@ -308,8 +326,8 @@ pub fn validate_yjs_update_envelope(
         }
     }
 
-    match (update_bytes, actor, before, after) {
-        (Some(update_bytes), Some(actor), Some(before), Some(after)) if errors.is_empty() => {
+    match (decoded_update, actor, before, after) {
+        (Some((update_bytes, _)), Some(actor), Some(before), Some(after)) if errors.is_empty() => {
             Ok(ValidatedYjsUpdate {
                 update_bytes,
                 actor,
@@ -504,8 +522,9 @@ fn head_of(records: &[CrdtUpdateRecordV1]) -> KnowledgeDraftHeadV1 {
 
 /// Server-side ingest of one Yjs update envelope.
 ///
-/// Linear draft-log rule: `state_vector_before` must equal the current head
-/// state vector. A stale or concurrent base yields a typed
+/// Linear draft-log rule: the client-reported `state_vector_before` must equal
+/// the current head and `state_vector_after` must equal the server-derived
+/// next vector for the deterministic actor site. A stale or concurrent base yields a typed
 /// [`YjsPushDenialReasonV1::StaleBase`] — the Yjs client pulls, merges
 /// locally, and resubmits a rebased envelope. Identical resubmission of an
 /// already-stored update returns `AlreadyStored` (idempotent replay).
@@ -526,9 +545,10 @@ pub async fn push_yjs_update(
             });
         }
     };
-    let document_push_lock = push_lock_for_document(envelope).await;
-    let _document_push_guard = document_push_lock.lock().await;
-
+    // This read only constructs the optimistic receipt candidate. The storage
+    // operation below reacquires the durable head under a transaction-scoped
+    // PostgreSQL advisory lock before it writes anything, so a different
+    // process cannot create a receipt/row split or win the same sequence slot.
     let records = db
         .list_kernel_crdt_updates(
             &envelope.workspace_id,
@@ -538,107 +558,158 @@ pub async fn push_yjs_update(
         .await
         .map_err(|error| KnowledgeCrdtFlowError::Storage(error.to_string()))?;
 
-    // Idempotent replay of an already-stored update.
-    if let Some(existing) = records
+    let head = head_of(&records);
+    let (server_before, server_after, attempted_seq) = match records
         .iter()
         .find(|record| record.update_id == envelope.update_id)
     {
-        if existing.update_sha256 == envelope.update_sha256
-            && existing.state_vector_before == envelope.state_vector_before
-            && existing.state_vector_after == envelope.state_vector_after
-        {
-            let head = head_of(&records);
-            return Ok(YjsPushOutcomeV1::AlreadyStored {
-                update_seq: existing.update_seq,
-                update_id: existing.update_id.clone(),
-                event_ledger_event_id: existing.event_ledger_event_id.clone(),
-                head_state_vector: head.head_state_vector,
-            });
+        // Preserve exact idempotent replay after the durable head has moved.
+        // The client must still present the original causal metadata; otherwise
+        // the storage layer returns a content-mismatch denial rather than
+        // accepting a forged retry.
+        Some(existing) => {
+            let before = KnowledgeStateVectorV1::parse(&existing.state_vector_before)
+                .map_err(|error| KnowledgeCrdtFlowError::Storage(error.to_string()))?;
+            let after = KnowledgeStateVectorV1::parse(&existing.state_vector_after)
+                .map_err(|error| KnowledgeCrdtFlowError::Storage(error.to_string()))?;
+            if validated.before != before || validated.after != after {
+                return Ok(YjsPushOutcomeV1::Denied {
+                    denial: denial(
+                        envelope,
+                        YjsPushDenialReasonV1::UpdateIdContentMismatch {
+                            update_id: envelope.update_id.clone(),
+                        },
+                    ),
+                });
+            }
+            (before, after, existing.update_seq)
         }
-        return Ok(YjsPushOutcomeV1::Denied {
-            denial: denial(
-                envelope,
-                YjsPushDenialReasonV1::UpdateIdContentMismatch {
-                    update_id: envelope.update_id.clone(),
-                },
-            ),
-        });
-    }
+        None => {
+            let before = KnowledgeStateVectorV1::parse(&head.head_state_vector)
+                .map_err(|error| KnowledgeCrdtFlowError::Storage(error.to_string()))?;
+            if validated.before != before {
+                return Ok(YjsPushOutcomeV1::Denied {
+                    denial: denial(
+                        envelope,
+                        YjsPushDenialReasonV1::StaleBase {
+                            head_update_seq: head.head_update_seq,
+                            head_state_vector: head.head_state_vector.clone(),
+                            ordering: format!("{:?}", before.compare(&validated.before)),
+                        },
+                    ),
+                });
+            }
+            let mut after = before.clone();
+            after.increment(&envelope.site_id);
+            if validated.after != after {
+                return Ok(YjsPushOutcomeV1::Denied {
+                    denial: denial(
+                        envelope,
+                        YjsPushDenialReasonV1::EnvelopeInvalid {
+                            messages: vec![format!(
+                                "state_vector_after must equal the server-derived next vector '{}'",
+                                after.encode()
+                            )],
+                        },
+                    ),
+                });
+            }
+            let sequence = head.head_update_seq.checked_add(1).ok_or_else(|| {
+                KnowledgeCrdtFlowError::Storage("CRDT update sequence overflow".into())
+            })?;
+            (before, after, sequence)
+        }
+    };
 
-    let head = head_of(&records);
-    let head_vector = KnowledgeStateVectorV1::parse(&head.head_state_vector)
-        .map_err(|error| KnowledgeCrdtFlowError::Storage(error.to_string()))?;
-    if validated.before != head_vector {
-        let ordering = head_vector.compare(&validated.before);
-        return Ok(YjsPushOutcomeV1::Denied {
-            denial: denial(
-                envelope,
-                YjsPushDenialReasonV1::StaleBase {
-                    head_update_seq: head.head_update_seq,
-                    head_state_vector: head.head_state_vector,
-                    ordering: format!("{ordering:?}"),
-                },
-            ),
-        });
-    }
+    // Keep client metadata outside the durable authority path.  Once the
+    // server has verified it, construct the receipt/event from the derived
+    // vectors so the stored causal chain cannot be advanced by a forged
+    // envelope field.
+    let mut canonical_envelope = envelope.clone();
+    canonical_envelope.state_vector_before = server_before.encode();
+    canonical_envelope.state_vector_after = server_after.encode();
 
-    let attempted_seq = head.head_update_seq + 1;
     let event = NewKernelEvent::builder(
-        format!("KTR-KNOWLEDGE-CRDT-{}", envelope.crdt_document_id),
-        envelope.session_id.clone(),
+        format!("KTR-KNOWLEDGE-CRDT-{}", canonical_envelope.crdt_document_id),
+        canonical_envelope.session_id.clone(),
         KernelEventType::KnowledgeCrdtUpdateRecorded,
         validated.actor.to_kernel_actor(),
     )
-    .aggregate("knowledge_crdt_document", envelope.crdt_document_id.clone())
+    .aggregate(
+        "knowledge_crdt_document",
+        canonical_envelope.crdt_document_id.clone(),
+    )
     .idempotency_key(format!(
         "knowledge-crdt-update:{}:{}",
-        envelope.crdt_document_id, envelope.update_id
+        canonical_envelope.crdt_document_id, canonical_envelope.update_id
     ))
-    .correlation_id(envelope.trace_id.clone())
+    .correlation_id(canonical_envelope.trace_id.clone())
     .source_component("knowledge_crdt_yjs_bridge")
     .payload(serde_json::json!({
-        "update_id": envelope.update_id,
+        "update_id": canonical_envelope.update_id,
         "update_seq": attempted_seq,
-        "actor_id": envelope.actor_id,
-        "site_id": envelope.site_id,
-        "update_sha256": envelope.update_sha256,
-        "state_vector_before": envelope.state_vector_before,
-        "state_vector_after": envelope.state_vector_after,
+        "actor_id": canonical_envelope.actor_id,
+        "site_id": canonical_envelope.site_id,
+        "update_sha256": canonical_envelope.update_sha256,
+        "state_vector_before": canonical_envelope.state_vector_before,
+        "state_vector_after": canonical_envelope.state_vector_after,
     }))
     .build()
     .map_err(|error| KnowledgeCrdtFlowError::Event(error.to_string()))?;
-    let stored_event = db
-        .append_kernel_event(event)
-        .await
-        .map_err(|error| KnowledgeCrdtFlowError::Event(error.to_string()))?;
-
-    let record =
-        envelope_to_update_record(envelope, &validated, attempted_seq, &stored_event.event_id);
+    let provisional_record =
+        envelope_to_update_record(&canonical_envelope, &validated, attempted_seq, "");
     match db
-        .append_kernel_crdt_update(record, validated.update_bytes.clone())
+        .append_kernel_crdt_update_with_event_atomic(KernelCrdtAtomicAppendRequest {
+            expected_head_update_seq: head.head_update_seq,
+            expected_head_state_vector: head.head_state_vector.clone(),
+            provisional_record,
+            update_bytes: validated.update_bytes.clone(),
+            event,
+        })
         .await
     {
-        Ok(stored) => Ok(YjsPushOutcomeV1::Stored {
+        Ok(KernelCrdtAtomicAppendOutcome::Stored(stored)) => Ok(YjsPushOutcomeV1::Stored {
             update_seq: stored.update_seq,
             update_id: stored.update_id,
             event_ledger_event_id: stored.event_ledger_event_id,
-            head_state_vector: envelope.state_vector_after.clone(),
+            head_state_vector: stored.state_vector_after,
         }),
-        Err(error) => {
-            let message = error.to_string();
-            // Unique sequence-slot index (idx_kernel_crdt_updates_seq) turns
-            // a concurrent race into a typed retryable denial.
-            if message.contains("idx_kernel_crdt_updates_seq") {
-                Ok(YjsPushOutcomeV1::Denied {
-                    denial: denial(
-                        envelope,
-                        YjsPushDenialReasonV1::SequenceSlotRace { attempted_seq },
-                    ),
-                })
-            } else {
-                Err(KnowledgeCrdtFlowError::Storage(message))
-            }
+        Ok(KernelCrdtAtomicAppendOutcome::AlreadyStored {
+            record,
+            head_state_vector,
+            ..
+        }) => Ok(YjsPushOutcomeV1::AlreadyStored {
+            update_seq: record.update_seq,
+            update_id: record.update_id,
+            event_ledger_event_id: record.event_ledger_event_id,
+            head_state_vector,
+        }),
+        Ok(KernelCrdtAtomicAppendOutcome::UpdateIdContentMismatch { update_id }) => {
+            Ok(YjsPushOutcomeV1::Denied {
+                denial: denial(
+                    envelope,
+                    YjsPushDenialReasonV1::UpdateIdContentMismatch { update_id },
+                ),
+            })
         }
+        Ok(KernelCrdtAtomicAppendOutcome::StaleHead {
+            head_update_seq,
+            head_state_vector,
+        }) => {
+            let current = KnowledgeStateVectorV1::parse(&head_state_vector)
+                .map_err(|error| KnowledgeCrdtFlowError::Storage(error.to_string()))?;
+            Ok(YjsPushOutcomeV1::Denied {
+                denial: denial(
+                    envelope,
+                    YjsPushDenialReasonV1::StaleBase {
+                        head_update_seq,
+                        head_state_vector,
+                        ordering: format!("{:?}", current.compare(&validated.before)),
+                    },
+                ),
+            })
+        }
+        Err(error) => Err(KnowledgeCrdtFlowError::Storage(error.to_string())),
     }
 }
 

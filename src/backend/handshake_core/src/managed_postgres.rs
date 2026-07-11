@@ -57,12 +57,23 @@ pub enum ManagedPostgresError {
     /// The cluster did not start accepting connections before the timeout.
     #[error("managed postgres did not accept connections within {0:?}")]
     Timeout(Duration),
+    /// The owned cluster did not finish stopping before the bounded shutdown
+    /// timeout. The `pg_ctl` child is terminated on timeout.
+    #[error("managed postgres did not stop within {0:?}")]
+    StopTimeout(Duration),
+    /// `pg_ctl ... stop` exited before the owned cluster stopped.
+    #[error("pg_ctl stop failed: {0}")]
+    StopFailed(String),
     /// `initdb` exited non-zero while creating the cluster.
     #[error("initdb failed: {0}")]
     InitDbFailed(String),
     /// `pg_ctl ... start` exited non-zero.
     #[error("pg_ctl start failed: {0}")]
     StartFailed(String),
+    /// The managed cluster accepted connections but the required application
+    /// database could not be created or verified.
+    #[error("managed postgres database provisioning failed: {0}")]
+    DatabaseProvisionFailed(String),
     /// The required PostgreSQL binaries could not be located.
     #[error("postgres binaries not found: {0}")]
     BinariesNotFound(String),
@@ -293,11 +304,17 @@ impl ManagedPostgres {
         // system PG.) The handle is discarded; spawning goes through `pg_ctl`.
         let _postgres_server = resolve_bin(&config.bin_dir, "postgres")?;
 
-        // 3. Already accepting connections -> adopt, never double-start.
+        // 3. Already accepting connections -> adopt, never double-start, but
+        // still enforce the same application-database invariant as a cluster
+        // we launched ourselves.  Otherwise a stale/adopted cluster can pass
+        // readiness while every product Postgres/EventLedger connection fails
+        // with 3D000 because `handshake` was never created.
         if is_ready(&pg_isready, config.port).await {
+            ensure_database(&psql, &config).await?;
             tracing::info!(
                 target: "handshake_core::managed_postgres",
                 port = config.port,
+                database = %config.database,
                 "PostgreSQL already accepting connections; adopting existing cluster"
             );
             return Ok(Self {
@@ -322,7 +339,25 @@ impl ManagedPostgres {
         let os_pid = read_postmaster_pid(&config.data_dir);
 
         // 6. Ensure the application database exists (ignore "already exists").
-        ensure_database(&psql, &config).await?;
+        // If provisioning fails after this invocation started the postmaster,
+        // stop that owned process before returning the original failure.  A
+        // failed bootstrap must not strand a managed cluster that later tests
+        // or product launches could accidentally adopt as healthy.
+        if let Err(error) = ensure_database(&psql, &config).await {
+            let cleanup = Self {
+                config,
+                os_pid,
+                started_here: true,
+            };
+            if let Err(stop_error) = cleanup.stop().await {
+                tracing::error!(
+                    target: "handshake_core::managed_postgres",
+                    error = %stop_error,
+                    "failed to stop owned PostgreSQL after application-database provisioning failed"
+                );
+            }
+            return Err(error);
+        }
 
         tracing::info!(
             target: "handshake_core::managed_postgres",
@@ -391,29 +426,60 @@ impl ManagedPostgres {
             }
         };
 
-        let output = no_window(Command::new(&pg_ctl))
+        let pg_isready = resolve_bin(&self.config.bin_dir, "pg_isready")?;
+
+        // `pg_ctl stop` can retain a Windows process handle even after it has
+        // successfully asked the postmaster to shut down.  Its exit status is
+        // therefore not the lifecycle authority: the owned cluster is stopped
+        // only once `pg_isready` confirms the listening PostgreSQL endpoint is
+        // gone.  This is the shutdown counterpart to startup's readiness
+        // polling and avoids a false StopTimeout caused by pg_ctl's inherited
+        // postmaster handles.
+        if !is_ready(&pg_isready, self.config.port).await {
+            tracing::debug!(
+                target: "handshake_core::managed_postgres",
+                port = self.config.port,
+                "Managed PostgreSQL was already stopped"
+            );
+            return Ok(());
+        }
+
+        let timeout = self.config.startup_timeout;
+        let mut child = no_window(Command::new(&pg_ctl))
+            .kill_on_drop(true)
             .arg("-D")
             .arg(&self.config.data_dir)
             .arg("stop")
             .arg("-m")
             .arg("fast")
-            .output()
-            .await?;
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+        let deadline = Instant::now() + timeout;
+        loop {
+            if !is_ready(&pg_isready, self.config.port).await {
+                tracing::info!(
+                    target: "handshake_core::managed_postgres",
+                    "Managed PostgreSQL stopped"
+                );
+                return Ok(());
+            }
 
-        if output.status.success() {
-            tracing::info!(
-                target: "handshake_core::managed_postgres",
-                "Managed PostgreSQL stopped"
-            );
-        } else {
-            // Already stopped / not running is an acceptable idempotent outcome.
-            tracing::warn!(
-                target: "handshake_core::managed_postgres",
-                stderr = %String::from_utf8_lossy(&output.stderr).trim(),
-                "pg_ctl stop returned non-zero (treating as already stopped)"
-            );
+            if let Some(status) = child.try_wait()? {
+                if !status.success() {
+                    return Err(ManagedPostgresError::StopFailed(format!(
+                        "pg_ctl stop exited with {status} while PostgreSQL still accepted connections"
+                    )));
+                }
+            }
+
+            if Instant::now() >= deadline {
+                let _ = child.start_kill();
+                return Err(ManagedPostgresError::StopTimeout(timeout));
+            }
+            sleep(Duration::from_millis(250)).await;
         }
-        Ok(())
     }
 }
 
@@ -682,17 +748,125 @@ fn read_postmaster_pid(data_dir: &Path) -> Option<u32> {
     contents.lines().next()?.trim().parse().ok()
 }
 
-/// Ensure the application database exists.
+/// Ensure the application database exists and is connectable.
 ///
-/// Connects as the superuser to the maintenance database `postgres` and issues
-/// `CREATE DATABASE <database>`. A pre-existing database (PostgreSQL error
-/// "already exists") is treated as success so the call is idempotent.
+/// PostgreSQL normally provides the `postgres` maintenance database, but an
+/// adopted cluster can legitimately have only `template1` (for example after a
+/// partial/manual cluster initialization).  We therefore try `postgres` first
+/// and fall back to `template1` *only* when PostgreSQL reports that `postgres`
+/// is missing.  Authentication, network, permissions, and all other failures
+/// remain hard failures; silently treating those as a fallback would mask a
+/// broken managed-PG lifecycle.
+///
+/// A pre-existing application database is idempotent success.  The function
+/// then opens a fresh connection to the requested database, so readiness does
+/// not mean merely that the server accepts TCP while the product database is
+/// absent or inaccessible.
 async fn ensure_database(
     psql: &Path,
     config: &ManagedPostgresConfig,
 ) -> Result<(), ManagedPostgresError> {
-    let sql = format!("CREATE DATABASE \"{}\"", config.database);
-    let output = no_window(Command::new(psql))
+    let sql = format!("CREATE DATABASE {}", quote_sql_identifier(&config.database));
+    let mut created_or_present = false;
+
+    for maintenance_database in ["postgres", "template1"] {
+        let output = run_psql(psql, config, maintenance_database, &sql).await?;
+        if output.status.success() || output_reports_database_already_exists(&output) {
+            tracing::info!(
+                target: "handshake_core::managed_postgres",
+                database = %config.database,
+                maintenance_database,
+                "Ensured application database exists"
+            );
+            created_or_present = true;
+            break;
+        }
+
+        if maintenance_database == "postgres"
+            && output_reports_missing_database(&output, maintenance_database)
+        {
+            tracing::warn!(
+                target: "handshake_core::managed_postgres",
+                database = %config.database,
+                "Managed PostgreSQL maintenance database `postgres` is absent; retrying with `template1`"
+            );
+            continue;
+        }
+
+        return Err(ManagedPostgresError::DatabaseProvisionFailed(format!(
+            "cannot provision `{}` through maintenance database `{maintenance_database}`: {}",
+            config.database,
+            psql_output_text(&output),
+        )));
+    }
+
+    if !created_or_present {
+        return Err(ManagedPostgresError::DatabaseProvisionFailed(format!(
+            "neither `postgres` nor `template1` could provision `{}`",
+            config.database
+        )));
+    }
+
+    let verification = run_psql(psql, config, &config.database, "SELECT 1").await?;
+    if !verification.status.success() {
+        return Err(ManagedPostgresError::DatabaseProvisionFailed(format!(
+            "created or found `{}`, but could not connect to it: {}",
+            config.database,
+            psql_output_text(&verification),
+        )));
+    }
+
+    tracing::info!(
+        target: "handshake_core::managed_postgres",
+        database = %config.database,
+        "Verified application database is connectable"
+    );
+    Ok(())
+}
+
+/// Run one non-interactive `psql` command against a selected database.
+///
+/// `ON_ERROR_STOP=1` makes SQL failures non-zero exits.  This keeps a failed
+/// `CREATE DATABASE` distinguishable from a successful no-op and prevents an
+/// adopted cluster from being accepted after a hidden provisioning error.
+async fn run_psql(
+    psql: &Path,
+    config: &ManagedPostgresConfig,
+    database: &str,
+    sql: &str,
+) -> Result<std::process::Output, ManagedPostgresError> {
+    let timeout = config.startup_timeout;
+    tokio::time::timeout(timeout, psql_command(psql, config, database, sql).output())
+        .await
+        .map_err(|_| {
+            ManagedPostgresError::DatabaseProvisionFailed(format!(
+                "psql against `{database}` timed out after {} seconds",
+                timeout.as_secs()
+            ))
+        })?
+        .map_err(Into::into)
+}
+
+/// Build the bounded, non-interactive `psql` child used for both provision and
+/// verification.  This applies equally to a newly initialized cluster and an
+/// adopted one: an adopted cluster may require credentials, but a background
+/// lifecycle must fail closed rather than wait for an invisible password
+/// prompt or execute an operator's local `psqlrc`.
+fn psql_command(psql: &Path, config: &ManagedPostgresConfig, database: &str, sql: &str) -> Command {
+    let mut command = no_window(Command::new(psql));
+    command
+        // `timeout` drops this future on expiry; make that also terminate the
+        // child so an adopted-cluster credential failure cannot leave a
+        // background `psql` process behind.
+        .kill_on_drop(true)
+        .stdin(Stdio::null())
+        // Ignore user startup files so provisioning has deterministic command
+        // semantics across operator machines.
+        .arg("-X")
+        // Never ask an unattended background process for a password.  A
+        // credential failure must be a bounded non-zero exit for
+        // `ensure_database` to report.
+        .arg("-w")
         .arg("-h")
         .arg("127.0.0.1")
         .arg("-p")
@@ -700,38 +874,46 @@ async fn ensure_database(
         .arg("-U")
         .arg(&config.superuser)
         .arg("-d")
-        .arg("postgres")
+        .arg(database)
         .arg("-v")
-        .arg("ON_ERROR_STOP=0")
+        .arg("ON_ERROR_STOP=1")
         .arg("-c")
-        .arg(&sql)
-        .output()
-        .await?;
+        .arg(sql);
+    command
+}
 
-    if output.status.success() {
-        tracing::info!(
-            target: "handshake_core::managed_postgres",
-            database = %config.database,
-            "Ensured application database exists"
-        );
-        return Ok(());
-    }
+/// Escape a PostgreSQL identifier used in the `CREATE DATABASE` statement.
+fn quote_sql_identifier(value: &str) -> String {
+    format!("\"{}\"", value.replace('"', "\"\""))
+}
 
-    let stderr = String::from_utf8_lossy(&output.stderr).to_lowercase();
-    if stderr.contains("already exists") {
-        return Ok(());
-    }
+fn psql_output_text(output: &std::process::Output) -> String {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    format!("{stdout}\n{stderr}").trim().to_string()
+}
 
-    // Database creation failed for some other reason. The cluster is up, so do
-    // not fail the whole lifecycle; surface a warning and let storage init give
-    // the authoritative connection error if the db is truly missing.
-    tracing::warn!(
-        target: "handshake_core::managed_postgres",
-        database = %config.database,
-        stderr = %String::from_utf8_lossy(&output.stderr).trim(),
-        "CREATE DATABASE returned non-zero (continuing)"
-    );
-    Ok(())
+/// True only for PostgreSQL's missing-database failure for the selected DB.
+///
+/// `psql` does not always include SQLSTATE for a connection-time FATAL error,
+/// so accept the stable `database \"<name>\" does not exist` message as well as
+/// SQLSTATE 3D000.  The caller confines this to the first `postgres`
+/// maintenance attempt, never to the target database or other failure modes.
+fn output_reports_missing_database(output: &std::process::Output, database: &str) -> bool {
+    missing_database_error_text(&psql_output_text(output), database)
+}
+
+fn missing_database_error_text(output: &str, database: &str) -> bool {
+    let output = output.to_ascii_lowercase();
+    let database = database.to_ascii_lowercase();
+    output.contains(&format!("database \"{database}\" does not exist"))
+        || (output.contains("3d000") && output.contains(&database))
+}
+
+fn output_reports_database_already_exists(output: &std::process::Output) -> bool {
+    psql_output_text(output)
+        .to_ascii_lowercase()
+        .contains("already exists")
 }
 
 #[cfg(test)]
@@ -760,6 +942,70 @@ mod tests {
         assert!(pg.is_managed());
         assert!(pg.is_enabled());
         assert_eq!(pg.os_pid(), Some(1234));
+    }
+
+    #[test]
+    fn missing_maintenance_database_detection_accepts_3d000_and_fatal_message() {
+        assert!(missing_database_error_text(
+            "psql: error: connection to server failed: FATAL: database \"postgres\" does not exist",
+            "postgres",
+        ));
+        assert!(missing_database_error_text(
+            "FATAL: 3D000: database \"postgres\" does not exist",
+            "postgres",
+        ));
+        assert!(
+            !missing_database_error_text(
+                "psql: error: connection to server failed: FATAL: password authentication failed for user \"postgres\"",
+                "postgres",
+            ),
+            "authentication failures must not trigger the template1 fallback"
+        );
+    }
+
+    #[test]
+    fn quote_sql_identifier_escapes_embedded_quotes() {
+        assert_eq!(quote_sql_identifier("handshake"), "\"handshake\"");
+        assert_eq!(quote_sql_identifier("hand\"shake"), "\"hand\"\"shake\"");
+    }
+
+    #[test]
+    fn psql_command_disables_rc_files_and_interactive_password_prompts() {
+        let config = ManagedPostgresConfig {
+            enabled: true,
+            data_dir: PathBuf::from("pgdata"),
+            port: 5544,
+            bin_dir: PathBuf::new(),
+            database: "handshake".to_owned(),
+            superuser: "postgres".to_owned(),
+            startup_timeout: DEFAULT_STARTUP_TIMEOUT,
+        };
+        let command = psql_command(Path::new("psql"), &config, "template1", "SELECT 1");
+        let args: Vec<_> = command
+            .as_std()
+            .get_args()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(
+            args,
+            vec![
+                "-X",
+                "-w",
+                "-h",
+                "127.0.0.1",
+                "-p",
+                "5544",
+                "-U",
+                "postgres",
+                "-d",
+                "template1",
+                "-v",
+                "ON_ERROR_STOP=1",
+                "-c",
+                "SELECT 1",
+            ]
+        );
     }
 
     #[tokio::test]

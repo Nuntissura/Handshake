@@ -778,6 +778,7 @@ mod hardening_lease_chokepoint {
     use handshake_core::storage::knowledge_crdt::{get_lease, list_denial_receipts_for_document};
     use serde_json::json;
     use uuid::Uuid;
+    use yrs::{Doc, ReadTxn, Text, Transact};
 
     async fn wait_for_db_expiry(pool: &sqlx::PgPool, lease_id: &str) {
         for _ in 0..40 {
@@ -945,7 +946,11 @@ mod hardening_lease_chokepoint {
         let mut sv = KnowledgeStateVectorV1::new();
         let before = sv.clone();
         sv.increment(&site.site_id);
-        let bytes = b"guarded-save";
+        let yjs_document = Doc::with_client_id(u64::from(site.yjs_client_id));
+        let body = yjs_document.get_or_insert_text("body");
+        let yjs_before = yjs_document.transact().state_vector();
+        body.push(&mut yjs_document.transact_mut(), "guarded-save");
+        let bytes = yjs_document.transact().encode_diff_v1(&yjs_before);
         let env = YjsUpdateEnvelopeV1 {
             schema_id: YJS_UPDATE_ENVELOPE_SCHEMA_ID.to_string(),
             workspace_id: ws.clone(),
@@ -957,8 +962,8 @@ mod hardening_lease_chokepoint {
             session_id: format!("sr-{suffix}"),
             trace_id: format!("trace-{suffix}"),
             document_schema_id: "hsk.doc.rich_document@1".to_string(),
-            update_b64: base64::engine::general_purpose::STANDARD.encode(bytes),
-            update_sha256: handshake_core::kernel::crdt::persistence::sha256_hex(bytes),
+            update_b64: base64::engine::general_purpose::STANDARD.encode(&bytes),
+            update_sha256: handshake_core::kernel::crdt::persistence::sha256_hex(&bytes),
             state_vector_before: before.encode(),
             state_vector_after: sv.encode(),
             encoding: YJS_UPDATE_ENCODING_V1.to_string(),

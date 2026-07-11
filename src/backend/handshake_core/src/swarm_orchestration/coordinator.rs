@@ -17,8 +17,9 @@ use chrono::{DateTime, Utc};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
 
-use crate::model_runtime::CancellationToken;
-use crate::model_runtime::ProviderKind;
+use crate::model_runtime::{
+    CancellationToken, GenerateRequest, ModelId, ProviderKind, TokenStream,
+};
 use crate::process_ledger::{
     LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, ProcessStop, ReclaimTrigger,
 };
@@ -36,7 +37,6 @@ use super::model_lane::{
 };
 use super::state::ModelSessionState;
 use crate::kernel::{KernelActor, ModelAdapter, ModelAdapterOutput, ModelAdapterRequest};
-use crate::model_runtime::ModelId;
 
 /// Max number of times a single instance may be respawned by the reaper before
 /// it is given up on, so a flapping session cannot storm respawns.
@@ -1096,6 +1096,49 @@ impl SwarmCoordinator {
             .map(|h| h.runtime.clone())
     }
 
+    /// Start one generation through the coordinator-owned session handle.
+    ///
+    /// The request's `id` and cancellation token are replaced with the live
+    /// session values while the registry lock is held. Callers therefore cannot
+    /// accidentally create an unrelated cancellation token that bypasses
+    /// [`Self::cancel_session`]'s terminal ModelLane/EventLedger transition.
+    /// A session may have only one active generation: a second start while it
+    /// is already `Generating` fails closed.
+    pub fn generate_session(
+        &self,
+        instance_id: ModelInstanceId,
+        mut request: GenerateRequest,
+    ) -> SwarmResult<TokenStream> {
+        let (runtime, model_id, cancel, from) = {
+            let mut registry = self.inner.registry.lock().expect("registry poisoned");
+            let handle = registry
+                .get_mut(&instance_id)
+                .ok_or(SwarmError::UnknownInstance(instance_id))?;
+            if handle.state != ModelSessionState::Ready {
+                return Err(SwarmError::LedgerFailed(format!(
+                    "session {instance_id} must be Ready before generation; got {:?}",
+                    handle.state
+                )));
+            }
+            let from = handle.state;
+            handle.state = ModelSessionState::Generating;
+            (
+                handle.runtime.clone(),
+                handle.model_id,
+                handle.cancel.clone(),
+                from,
+            )
+        };
+        request.id = model_id;
+        request.cancel = cancel;
+        self.inner.sink.emit(SwarmEvent::SessionStateChanged {
+            instance_id,
+            from,
+            to: ModelSessionState::Generating,
+        });
+        Ok(runtime.generate(request))
+    }
+
     /// The runtime-minted `ModelId` registered for a spawned instance (the id the
     /// factory's load returned, which the generate/score path needs), or `None`
     /// if the instance is not in the registry. Production counterpart to
@@ -1452,31 +1495,58 @@ impl SwarmCoordinator {
         reason: &str,
         exit_code: i32,
     ) -> SwarmResult<()> {
-        if let Some(status) = model_lane_terminal_status(terminal) {
-            let terminal_record = {
-                let registry = self.inner.registry.lock().expect("registry poisoned");
-                let handle = registry
-                    .get(&instance_id)
-                    .ok_or(SwarmError::UnknownInstance(instance_id))?;
-                if handle.dexterity_model_lane_persisted {
-                    self.inner
-                        .model_lane_store
-                        .as_ref()
-                        .cloned()
-                        .zip(handle.dexterity_lane_id.clone())
-                } else {
-                    None
-                }
+        // Fence the live handle before awaiting the durable terminal write.
+        // Without this state transition, a concurrent `generate_session` can
+        // observe Ready and begin provider work while cancellation is already
+        // underway but blocked on PostgreSQL/EventLedger.  The terminal lane
+        // receipt remains the authoritative gate; `Cancelling` is the local
+        // coordinator fence that prevents a new runtime start in that gap.
+        let (previous_state, terminal_record) = {
+            let mut registry = self.inner.registry.lock().expect("registry poisoned");
+            let handle = registry
+                .get_mut(&instance_id)
+                .ok_or(SwarmError::UnknownInstance(instance_id))?;
+            if handle.state == ModelSessionState::Cancelling {
+                return Err(SwarmError::LedgerFailed(format!(
+                    "session {instance_id} termination is already in progress"
+                )));
+            }
+            if handle.state.is_terminal() {
+                return Err(SwarmError::UnknownInstance(instance_id));
+            }
+            let previous_state = handle.state;
+            handle.state = ModelSessionState::Cancelling;
+            let terminal_record = if handle.dexterity_model_lane_persisted {
+                self.inner
+                    .model_lane_store
+                    .as_ref()
+                    .cloned()
+                    .zip(handle.dexterity_lane_id.clone())
+            } else {
+                None
             };
+            (previous_state, terminal_record)
+        };
+
+        if let Some(status) = model_lane_terminal_status(terminal) {
             if let Some((store, lane_id)) = terminal_record {
-                store
+                if let Err(err) = store
                     .record_lane_terminal_status(&lane_id, status, reason)
                     .await
-                    .map_err(|err| {
-                        SwarmError::LedgerFailed(format!(
-                            "Dexterity terminal lane state record failed: {err}"
-                        ))
-                    })?;
+                {
+                    // A failed durable terminal write must not strand the
+                    // session in a local-only terminal fence. Restore exactly
+                    // the prior live state so a retry can take the same path.
+                    let mut registry = self.inner.registry.lock().expect("registry poisoned");
+                    if let Some(handle) = registry.get_mut(&instance_id) {
+                        if handle.state == ModelSessionState::Cancelling {
+                            handle.state = previous_state;
+                        }
+                    }
+                    return Err(SwarmError::LedgerFailed(format!(
+                        "Dexterity terminal lane state record failed: {err}"
+                    )));
+                }
             }
         }
 
@@ -1808,19 +1878,38 @@ async fn reap_expired(inner: &Arc<Inner>) {
             .sink
             .emit(SwarmEvent::LeaseExpired { instance_id, owner });
 
-        let terminal_record = {
-            let registry = inner.registry.lock().expect("registry poisoned");
-            registry.get(&instance_id).and_then(|handle| {
-                if handle.dexterity_model_lane_persisted {
-                    inner
-                        .model_lane_store
-                        .as_ref()
-                        .cloned()
-                        .zip(handle.dexterity_lane_id.clone())
-                } else {
+        // Mirror `terminate`'s cancelling fence. A lease reaper must not leave
+        // a Ready handle startable while it awaits the durable terminal lane
+        // receipt, and a concurrent explicit cancel must not race a second
+        // terminal write against it.
+        let fenced = {
+            let mut registry = inner.registry.lock().expect("registry poisoned");
+            match registry.get_mut(&instance_id) {
+                None => None,
+                Some(handle)
+                    if handle.state.is_terminal()
+                        || handle.state == ModelSessionState::Cancelling =>
+                {
                     None
                 }
-            })
+                Some(handle) => {
+                    let previous_state = handle.state;
+                    handle.state = ModelSessionState::Cancelling;
+                    let terminal_record = if handle.dexterity_model_lane_persisted {
+                        inner
+                            .model_lane_store
+                            .as_ref()
+                            .cloned()
+                            .zip(handle.dexterity_lane_id.clone())
+                    } else {
+                        None
+                    };
+                    Some((previous_state, terminal_record))
+                }
+            }
+        };
+        let Some((previous_state, terminal_record)) = fenced else {
+            continue;
         };
         if let Some((store, lane_id)) = terminal_record {
             if let Err(err) = store
@@ -1831,6 +1920,12 @@ async fn reap_expired(inner: &Arc<Inner>) {
                 )
                 .await
             {
+                let mut registry = inner.registry.lock().expect("registry poisoned");
+                if let Some(handle) = registry.get_mut(&instance_id) {
+                    if handle.state == ModelSessionState::Cancelling {
+                        handle.state = previous_state;
+                    }
+                }
                 inner.sink.emit(SwarmEvent::SessionFailed {
                     instance_id,
                     error: format!(

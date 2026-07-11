@@ -1982,6 +1982,8 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         "Palmistry",
         "mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects",
         "mixed_model_lane_negative_guards_fail_closed",
+        "mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep",
+        "operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity",
         "mixed_model_lane_run_is_inspectable_through_argus",
         "mixed_model_lane_behaviors_have_manual_coverage",
     ] {

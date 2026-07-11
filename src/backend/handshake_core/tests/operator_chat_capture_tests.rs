@@ -9,8 +9,9 @@
 
 mod knowledge_pg_support;
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -29,10 +30,10 @@ use handshake_core::model_runtime::cloud::{
 };
 use handshake_core::model_runtime::registry::RuntimeBinding as RuntimeAdapterBinding;
 use handshake_core::model_runtime::{
-    BaseModelTag, CancellationToken, Embedding, GenerateRequest, GeneratedToken, KvCacheHandle,
-    KvCachePolicy, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId, ModelRegistration,
-    ModelRegistry, ModelRuntime, ModelRuntimeError, OperatorId, ProviderKind, RuntimeKind,
-    SamplingParams, Score, SteeringHookHandle, TokenStream,
+    BaseModelTag, CancellationToken, Embedding, GenPrompt, GenerateRequest, GeneratedToken,
+    KvCacheHandle, KvCachePolicy, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId,
+    ModelRegistration, ModelRegistry, ModelRuntime, ModelRuntimeError, OperatorId, ProviderKind,
+    RuntimeKind, SamplingParams, Score, SteeringHookHandle, TokenStream,
 };
 use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, PostgresProcessLedgerStore,
@@ -47,8 +48,8 @@ use handshake_core::swarm_orchestration::operator_chat::{
     OperatorChatLaunched, OperatorChatSelection,
 };
 use handshake_core::swarm_orchestration::{
-    LiveSession, ModelSessionFactory, RecordingSwarmSink, RunBudget, SessionTeardown, SpawnRequest,
-    SwarmConfig, SwarmCoordinator, SwarmError,
+    LiveSession, ModelInstanceId, ModelSessionFactory, RecordingSwarmSink, RunBudget,
+    SessionTeardown, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
 };
 
 // ---------------------------------------------------------------------------
@@ -351,6 +352,125 @@ struct FailingAfterChunkCliSpawner {
     chunks: Vec<Vec<u8>>,
 }
 
+/// Coordination probes for an actual `CliBridgeModelRuntime` cancellation. The
+/// test receives only the spawned instance id; it still requests cancellation
+/// through `SwarmCoordinator::cancel_session`, never by touching a raw token.
+#[derive(Default)]
+struct CancellationLaunchProbe {
+    instance_id: Mutex<Option<ModelInstanceId>>,
+    run_id: Mutex<Option<String>>,
+    lane_id: Mutex<Option<String>>,
+    prefix_emitted: AtomicBool,
+    cancellation_observed: AtomicBool,
+}
+
+impl CancellationLaunchProbe {
+    fn record_launch(&self, request: &SpawnRequest) {
+        let contract = request
+            .dexterity_launch
+            .as_ref()
+            .expect("cancellation fixture requires Dexterity launch authority");
+        *self.instance_id.lock().expect("cancellation probe lock") = Some(request.instance_id);
+        *self.run_id.lock().expect("cancellation probe lock") = Some(contract.run_id.clone());
+        *self.lane_id.lock().expect("cancellation probe lock") = Some(contract.lane_id.clone());
+    }
+
+    fn instance_id(&self) -> Option<ModelInstanceId> {
+        *self.instance_id.lock().expect("cancellation probe lock")
+    }
+
+    fn run_id(&self) -> Option<String> {
+        self.run_id.lock().expect("cancellation probe lock").clone()
+    }
+
+    fn lane_id(&self) -> Option<String> {
+        self.lane_id
+            .lock()
+            .expect("cancellation probe lock")
+            .clone()
+    }
+}
+
+/// Deterministic subprocess adapter fixture for the live CLI bridge: it emits
+/// one complete activity, waits for the bridge's real `should_cancel` callback,
+/// then flushes one already-buffered late tool activity. That exercises the
+/// production bridge/coordinator/capture boundary without a live cloud account.
+struct CancelAfterPrefixCliSpawner {
+    prefix_chunk: Vec<u8>,
+    late_chunk: Vec<u8>,
+    probe: Arc<CancellationLaunchProbe>,
+}
+
+impl CancelAfterPrefixCliSpawner {
+    fn from_lines(lines: &[String], probe: Arc<CancellationLaunchProbe>) -> Self {
+        assert!(
+            lines.len() >= 2,
+            "cancellation fixture requires a prefix and a late activity line"
+        );
+        Self {
+            prefix_chunk: format!("{}\n", lines[0]).into_bytes(),
+            late_chunk: format!("{}\n", lines[1]).into_bytes(),
+            probe,
+        }
+    }
+}
+
+impl CliSubprocessSpawner for CancelAfterPrefixCliSpawner {
+    fn spawn(
+        &self,
+        _config: &CliBridgeConfig,
+        _model_name: &str,
+        _prompt: &str,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        Err(OfficialCliBridgeError::SpawnFailed {
+            reason: "cancellation fixture must use the live streaming bridge path".to_string(),
+            exit_code: None,
+        })
+    }
+
+    fn spawn_streaming_cancellable(
+        &self,
+        _config: &CliBridgeConfig,
+        _model_name: &str,
+        _prompt: &str,
+        on_chunk: &mut dyn FnMut(&[u8]),
+        should_cancel: &dyn Fn() -> bool,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        on_chunk(&self.prefix_chunk);
+        self.probe.prefix_emitted.store(true, Ordering::SeqCst);
+
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !should_cancel() {
+            if Instant::now() >= deadline {
+                return Err(OfficialCliBridgeError::SpawnFailed {
+                    reason: "coordinator cancellation was not propagated to CLI bridge".to_string(),
+                    exit_code: None,
+                });
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+
+        self.probe
+            .cancellation_observed
+            .store(true, Ordering::SeqCst);
+        // Model an already-buffered completed line that arrives after the
+        // coordinator committed the lane terminal state. The capture path must
+        // reject it without emitting a phantom Flight Recorder activity.
+        on_chunk(&self.late_chunk);
+        Ok(CliInvocationReceipt {
+            model_id: ModelId::new_v7(),
+            stdout: format!(
+                "{}{}",
+                String::from_utf8_lossy(&self.prefix_chunk),
+                String::from_utf8_lossy(&self.late_chunk)
+            ),
+            pid: Some(4243),
+            exit_code: Some(0),
+            cancelled: true,
+        })
+    }
+}
+
 impl FailingAfterChunkCliSpawner {
     fn from_lines(lines: &[String]) -> Self {
         Self {
@@ -471,10 +591,16 @@ fn loopback_cli_load_spec(model_name: &str) -> LoadSpec {
 /// A factory that builds a REAL [`CliBridgeModelRuntime`] backed by the loopback
 /// spawner, so `SwarmCoordinator::session_runtime` hands `launch()` back a runtime
 /// whose `generate()` streams the mock CLI's stream-json stdout.
+enum CliLoopbackMode {
+    Complete,
+    FailAfterChunks,
+    CancelAfterPrefix(Arc<CancellationLaunchProbe>),
+}
+
 struct CliLoopbackFactory {
     ledger: LedgerBatcher,
     lines: Vec<String>,
-    fail_after_chunks: bool,
+    mode: CliLoopbackMode,
 }
 
 #[async_trait]
@@ -500,10 +626,18 @@ impl ModelSessionFactory for CliLoopbackFactory {
             .cloud_model_name
             .clone()
             .unwrap_or_else(|| "gpt-5-codex".to_string());
-        let spawner: Arc<dyn CliSubprocessSpawner> = if self.fail_after_chunks {
-            Arc::new(FailingAfterChunkCliSpawner::from_lines(&self.lines))
-        } else {
-            Arc::new(LoopbackCliSpawner::from_lines(&self.lines))
+        let spawner: Arc<dyn CliSubprocessSpawner> = match &self.mode {
+            CliLoopbackMode::Complete => Arc::new(LoopbackCliSpawner::from_lines(&self.lines)),
+            CliLoopbackMode::FailAfterChunks => {
+                Arc::new(FailingAfterChunkCliSpawner::from_lines(&self.lines))
+            }
+            CliLoopbackMode::CancelAfterPrefix(probe) => {
+                probe.record_launch(request);
+                Arc::new(CancelAfterPrefixCliSpawner::from_lines(
+                    &self.lines,
+                    probe.clone(),
+                ))
+            }
         };
 
         // Shared runtime handed to the coordinator (its generate() is driven by
@@ -556,7 +690,7 @@ fn cli_loopback_coordinator_with_ledger(
         Arc::new(CliLoopbackFactory {
             ledger: ledger.clone(),
             lines,
-            fail_after_chunks: false,
+            mode: CliLoopbackMode::Complete,
         }),
         Arc::new(RecordingSwarmSink::new()),
         ledger,
@@ -577,13 +711,35 @@ fn cli_failing_after_chunk_coordinator(
         Arc::new(CliLoopbackFactory {
             ledger: ledger.clone(),
             lines,
-            fail_after_chunks: true,
+            mode: CliLoopbackMode::FailAfterChunks,
         }),
         Arc::new(RecordingSwarmSink::new()),
         ledger,
         store,
     );
     Arc::new(coordinator)
+}
+
+fn cli_cancel_after_prefix_coordinator(
+    store: ModelLaneStore,
+    lines: Vec<String>,
+    probe: Arc<CancellationLaunchProbe>,
+) -> (Arc<SwarmCoordinator>, ProcessLedgerDrain) {
+    let (ledger, drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("manual process ledger");
+    let coordinator = SwarmCoordinator::new_with_model_lane_store(
+        SwarmConfig::new(RunBudget::defaulted(8)),
+        Arc::new(CliLoopbackFactory {
+            ledger: ledger.clone(),
+            lines,
+            mode: CliLoopbackMode::CancelAfterPrefix(probe),
+        }),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+        store,
+    );
+    (Arc::new(coordinator), drain)
 }
 
 /// The codex model id the loopback uses so `cli_kind_for_model` -> `CodexCli`
@@ -1306,6 +1462,347 @@ async fn operator_chat_launch_stream_error_preserves_partial_capture_and_reclaim
         hbr_rows, 3,
         "failure path still records all HBR-INT-009 tier statuses"
     );
+}
+
+/// MT-009 cancellation hardening: the real operator-chat launch route drives a
+/// `CliBridgeModelRuntime` through `SwarmCoordinator::generate_session`. After
+/// one newline-complete activity is durably captured, only the coordinator is
+/// allowed to cancel the live instance. The terminal lane/EventLedger write must
+/// precede cancellation, preserve the prefix, and reject a late buffered tool
+/// activity without a phantom Flight Recorder event.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity()
+{
+    let (pool, store) = pg_store().await;
+    let prefix = "mt009-coordinator-cancel-prefix";
+    let late_tool = "mt009-coordinator-cancel-late-tool";
+    let lines = vec![
+        json!({"type":"item.completed","item":{"id":"r1","type":"reasoning","text":prefix}})
+            .to_string(),
+        json!({"type":"item.completed","item":{"id":"c1","type":"command_execution","command":late_tool,"status":"completed"}})
+            .to_string(),
+    ];
+    let probe = Arc::new(CancellationLaunchProbe::default());
+    let (coordinator, drain) =
+        cli_cancel_after_prefix_coordinator(store.clone(), lines, probe.clone());
+    let recorder = Arc::new(CapturingRecorder::default());
+    let service = Arc::new(OperatorChatLaunchService::new(
+        coordinator.clone(),
+        ModelCatalog::empty(),
+        recorder.clone(),
+    ));
+    let selection = codex_cli_selection("D:/work/repo", "audit", "operator-mt009-cancel");
+    let launch_task = {
+        let service = service.clone();
+        let selection = selection.clone();
+        tokio::spawn(async move { service.launch(&selection).await })
+    };
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let instance_id = loop {
+        let prefix_rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM model_lane_messages \
+             WHERE record_json->'diagnostic_payload'->'capture'->>'text' = $1",
+        )
+        .bind(prefix)
+        .fetch_one(&pool)
+        .await
+        .expect("count durably captured prefix rows");
+        if probe.prefix_emitted.load(Ordering::SeqCst) && prefix_rows == 1 {
+            break probe
+                .instance_id()
+                .expect("factory must expose the real spawned instance id");
+        }
+        assert!(
+            Instant::now() < deadline,
+            "launch did not durably capture the prefix before cancellation"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    };
+    let run_id = probe.run_id().expect("factory must expose launched run id");
+    let lane_id = probe
+        .lane_id()
+        .expect("factory must expose launched lane id");
+
+    coordinator
+        .cancel_session(instance_id, "operator-cancelled-mt009-live-capture")
+        .await
+        .expect(
+            "the coordinator must persist terminal state then cancel the exact runtime request",
+        );
+
+    let launch_result = tokio::time::timeout(Duration::from_secs(10), launch_task)
+        .await
+        .expect("cancelled launch must return without hanging")
+        .expect("launch task must join");
+    let launch_error = launch_result.expect_err("cancelled live launch must not report completion");
+    assert!(
+        launch_error.to_string().contains("terminal source lane")
+            || launch_error
+                .to_string()
+                .contains("runtime stream cancelled"),
+        "cancellation must surface a terminal/cancelled outcome, got {launch_error}"
+    );
+    assert!(
+        probe.cancellation_observed.load(Ordering::SeqCst),
+        "CliBridgeModelRuntime must observe the coordinator-owned cancellation token"
+    );
+    assert_eq!(
+        coordinator.live_session_count(),
+        0,
+        "coordinator cancellation must evict and tear down the live session"
+    );
+
+    let replay = store
+        .replay_run(&run_id)
+        .await
+        .expect("cancelled operator-chat run replays from PostgreSQL/EventLedger");
+    let lane = replay
+        .lanes
+        .iter()
+        .find(|candidate| candidate.lane_id == lane_id)
+        .expect("replay contains cancelled model lane");
+    assert_eq!(lane.status, ModelLaneStatus::Cancelled);
+    assert_eq!(
+        replay.messages.len(),
+        2,
+        "only the operator prompt and pre-cancel prefix are durable"
+    );
+    assert!(
+        replay
+            .messages
+            .iter()
+            .any(|message| { message.diagnostic_payload["capture"]["text"] == json!(prefix) }),
+        "the prefix captured before cancellation remains replayable"
+    );
+    assert!(
+        !replay.messages.iter().any(|message| {
+            message.diagnostic_payload["capture"]["command"] == json!(late_tool)
+        }),
+        "late tool activity must not become a ModelLane message"
+    );
+
+    let post_terminal_messages: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE session_run_id = $1 \
+           AND aggregate_type = 'model_lane_message' \
+           AND event_sequence > $2",
+    )
+    .bind(&replay.run.event_ledger_stream_id)
+    .bind(lane.event_ledger_seq)
+    .fetch_one(&pool)
+    .await
+    .expect("count post-terminal ModelLane EventLedger rows");
+    assert_eq!(
+        post_terminal_messages, 0,
+        "no ModelLane message EventLedger authority may appear after cancellation"
+    );
+    let artifact_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE run_id = $1",
+    )
+    .bind(&run_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count durable prompt/prefix artifact bindings");
+    assert_eq!(
+        artifact_rows, 2,
+        "late activity must not leave an artifact binding orphan"
+    );
+    assert!(
+        !recorder
+            .event_markers()
+            .iter()
+            .any(|marker| marker == "FR-EVT-AGENT-TOOLCALL"),
+        "late tool capture must not emit a phantom Flight Recorder activity"
+    );
+
+    let process_uuid = lane
+        .process_ownership_ref
+        .as_deref()
+        .and_then(|value| value.strip_prefix("process-ledger://"))
+        .expect("process-backed lane carries ProcessOwnershipLedger reference");
+    let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    ledger_store
+        .apply_migration()
+        .await
+        .expect("process-ledger migration applies");
+    drain
+        .drain_available_to(ledger_store)
+        .await
+        .expect("drain coordinator start/stop ledger events");
+    let stopped_processes: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_process_lifecycle \
+         WHERE process_uuid = $1::uuid AND stopped_at IS NOT NULL \
+           AND stop_reason = 'operator-cancelled-mt009-live-capture'",
+    )
+    .bind(process_uuid)
+    .fetch_one(&pool)
+    .await
+    .expect("count durable cancelled process stop rows");
+    assert_eq!(
+        stopped_processes, 1,
+        "coordinator cancellation must retain ProcessOwnershipLedger START/STOP symmetry"
+    );
+}
+
+/// MT-009 cancellation-fence regression: while the real PostgreSQL terminal
+/// lane write is in flight, the coordinator must expose `Cancelling` and
+/// refuse a new generation.  This closes the cancel-vs-start window without a
+/// mock store or a hand-written terminal state.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write() {
+    let (pool, store) = pg_store().await;
+    let coordinator = cli_loopback_coordinator(store, codex_stream_lines());
+    let request = build_spawn_request(
+        &codex_cli_selection("D:/work/repo", "fence generation", "operator-mt009-fence"),
+        91,
+    )
+    .expect("build real Dexterity spawn request");
+    let instance_id = request.instance_id;
+    coordinator
+        .spawn_session(request)
+        .await
+        .expect("spawn real coordinator-owned session");
+
+    let suffix = Uuid::now_v7().simple().to_string();
+    let function_name = format!("mt009_pause_terminal_{suffix}");
+    let trigger_name = format!("mt009_pause_terminal_trigger_{suffix}");
+    sqlx::query(&format!(
+        "CREATE FUNCTION {function_name}() RETURNS trigger AS $$ \
+         BEGIN PERFORM pg_sleep(1); RETURN NEW; END; $$ LANGUAGE plpgsql"
+    ))
+    .execute(&pool)
+    .await
+    .expect("install real PostgreSQL terminal-write pause function");
+    sqlx::query(&format!(
+        "CREATE TRIGGER {trigger_name} BEFORE UPDATE ON model_lanes \
+         FOR EACH ROW EXECUTE FUNCTION {function_name}()"
+    ))
+    .execute(&pool)
+    .await
+    .expect("install real PostgreSQL terminal-write pause trigger");
+
+    let cancelling_coordinator = coordinator.clone();
+    let cancel_task = tokio::spawn(async move {
+        cancelling_coordinator
+            .cancel_session(instance_id, "mt009-cancellation-fence")
+            .await
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if coordinator.session_state(instance_id)
+                == Some(handshake_core::swarm_orchestration::ModelSessionState::Cancelling)
+            {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("coordinator must fence the handle before awaiting terminal PostgreSQL write");
+
+    let start_attempt = coordinator.generate_session(
+        instance_id,
+        GenerateRequest {
+            id: ModelId::new_v7(),
+            prompt: GenPrompt::new("must not start after cancellation fence"),
+            sampling: SamplingParams::default(),
+            lora_overrides: vec![],
+            steering_overrides: vec![],
+            kv_prefix_handle: None,
+            cancel: CancellationToken::new(),
+            max_tokens: 1,
+            stop_sequences: vec![],
+            speculative_mode: None,
+            structured_decoding: None,
+        },
+    );
+    assert!(
+        matches!(&start_attempt, Err(SwarmError::LedgerFailed(message)) if message.contains("Cancelling")),
+        "a start racing cancellation must be rejected by the local cancelling fence"
+    );
+
+    cancel_task
+        .await
+        .expect("cancel task joins")
+        .expect("terminal write eventually completes");
+    sqlx::query(&format!("DROP TRIGGER {trigger_name} ON model_lanes"))
+        .execute(&pool)
+        .await
+        .expect("remove terminal-write pause trigger");
+    sqlx::query(&format!("DROP FUNCTION {function_name}()"))
+        .execute(&pool)
+        .await
+        .expect("remove terminal-write pause function");
+    assert_eq!(
+        coordinator.session_state(instance_id),
+        None,
+        "successful terminal persistence must evict the fenced session"
+    );
+}
+
+/// If the real terminal lane transaction fails, the fence must restore the
+/// preceding live state so an operator can retry rather than leaving a
+/// non-durable local cancellation permanently stuck.
+#[tokio::test]
+async fn coordinator_cancellation_fence_rolls_back_after_terminal_pg_failure() {
+    let (pool, store) = pg_store().await;
+    let coordinator = cli_loopback_coordinator(store, codex_stream_lines());
+    let request = build_spawn_request(
+        &codex_cli_selection("D:/work/repo", "fence retry", "operator-mt009-fence-retry"),
+        92,
+    )
+    .expect("build real Dexterity spawn request");
+    let instance_id = request.instance_id;
+    coordinator
+        .spawn_session(request)
+        .await
+        .expect("spawn real coordinator-owned session");
+
+    let suffix = Uuid::now_v7().simple().to_string();
+    let function_name = format!("mt009_fail_terminal_{suffix}");
+    let trigger_name = format!("mt009_fail_terminal_trigger_{suffix}");
+    sqlx::query(&format!(
+        "CREATE FUNCTION {function_name}() RETURNS trigger AS $$ \
+         BEGIN RAISE EXCEPTION 'mt009 forced terminal failure'; RETURN NEW; END; $$ LANGUAGE plpgsql"
+    ))
+    .execute(&pool)
+    .await
+    .expect("install real PostgreSQL terminal-write failure function");
+    sqlx::query(&format!(
+        "CREATE TRIGGER {trigger_name} BEFORE UPDATE ON model_lanes \
+         FOR EACH ROW EXECUTE FUNCTION {function_name}()"
+    ))
+    .execute(&pool)
+    .await
+    .expect("install real PostgreSQL terminal-write failure trigger");
+
+    let error = coordinator
+        .cancel_session(instance_id, "mt009-cancellation-fence-failure")
+        .await
+        .expect_err("forced terminal PostgreSQL failure must be surfaced");
+    assert!(
+        error.to_string().contains("mt009 forced terminal failure"),
+        "the original terminal persistence failure must remain visible: {error}"
+    );
+    assert_eq!(
+        coordinator.session_state(instance_id),
+        Some(handshake_core::swarm_orchestration::ModelSessionState::Ready),
+        "failed terminal persistence must roll back the local cancelling fence"
+    );
+
+    sqlx::query(&format!("DROP TRIGGER {trigger_name} ON model_lanes"))
+        .execute(&pool)
+        .await
+        .expect("remove terminal-write failure trigger");
+    sqlx::query(&format!("DROP FUNCTION {function_name}()"))
+        .execute(&pool)
+        .await
+        .expect("remove terminal-write failure function");
+    coordinator
+        .cancel_session(instance_id, "mt009-cancellation-fence-retry")
+        .await
+        .expect("restored live session must be cancellable after retry");
 }
 
 /// F1/F2 PROVENANCE: the captured messages carry the DISTINCTIVE text the mock CLI

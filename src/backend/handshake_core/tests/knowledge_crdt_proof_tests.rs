@@ -20,6 +20,7 @@ use handshake_core::kernel::crdt::yjs_bridge::{
 };
 use handshake_core::storage::tests::{postgres_backend_with_pool_from_env, PostgresTestBackend};
 use handshake_core::storage::StorageError;
+use yrs::{Doc, ReadTxn, Text, Transact};
 
 async fn backend_or_blocked() -> PostgresTestBackend {
     match postgres_backend_with_pool_from_env().await {
@@ -75,6 +76,18 @@ async fn live_span_fixture(pool: &sqlx::PgPool, label: &str, stale: bool) -> (St
     (workspace_id, span_id)
 }
 
+fn yjs_text_update(client_id: u64, payload: &[u8]) -> Vec<u8> {
+    let document = Doc::with_client_id(client_id);
+    let body = document.get_or_insert_text("body");
+    let before = document.transact().state_vector();
+    body.push(
+        &mut document.transact_mut(),
+        String::from_utf8_lossy(payload).as_ref(),
+    );
+    let encoded = document.transact().encode_diff_v1(&before);
+    encoded
+}
+
 #[allow(clippy::too_many_arguments)]
 fn envelope(
     workspace_id: &str,
@@ -88,6 +101,7 @@ fn envelope(
     after: &KnowledgeStateVectorV1,
 ) -> YjsUpdateEnvelopeV1 {
     let site = derive_knowledge_site_id(workspace_id, crdt_document_id, actor);
+    let yjs_bytes = yjs_text_update(u64::from(site.yjs_client_id), bytes);
     YjsUpdateEnvelopeV1 {
         schema_id: YJS_UPDATE_ENVELOPE_SCHEMA_ID.to_string(),
         workspace_id: workspace_id.to_string(),
@@ -99,8 +113,8 @@ fn envelope(
         session_id: session_id.to_string(),
         trace_id: format!("trace-{update_id}"),
         document_schema_id: "hsk.doc.rich_document@1".to_string(),
-        update_b64: base64::engine::general_purpose::STANDARD.encode(bytes),
-        update_sha256: sha256_hex(bytes),
+        update_b64: base64::engine::general_purpose::STANDARD.encode(&yjs_bytes),
+        update_sha256: sha256_hex(&yjs_bytes),
         state_vector_before: before.encode(),
         state_vector_after: after.encode(),
         encoding: YJS_UPDATE_ENCODING_V1.to_string(),

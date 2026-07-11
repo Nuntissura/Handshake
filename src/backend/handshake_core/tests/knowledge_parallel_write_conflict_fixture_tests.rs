@@ -28,12 +28,26 @@ use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Barrier;
 use uuid::Uuid;
+use yrs::updates::decoder::Decode;
+use yrs::{Doc, GetString, ReadTxn, Text, Transact, Update};
 
 #[derive(Clone)]
 struct InitialWriteAttempt {
     envelope: YjsUpdateEnvelopeV1,
     repair_update_id: &'static str,
     repair_bytes: &'static [u8],
+}
+
+fn yjs_text_update(client_id: u64, payload: &[u8]) -> Vec<u8> {
+    let document = Doc::with_client_id(client_id);
+    let body = document.get_or_insert_text("body");
+    let before = document.transact().state_vector();
+    body.push(
+        &mut document.transact_mut(),
+        String::from_utf8_lossy(payload).as_ref(),
+    );
+    let encoded = document.transact().encode_diff_v1(&before);
+    encoded
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -50,6 +64,7 @@ fn envelope(
     after: &KnowledgeStateVectorV1,
 ) -> YjsUpdateEnvelopeV1 {
     let site = derive_knowledge_site_id(workspace_id, crdt_document_id, actor);
+    let yjs_bytes = yjs_text_update(u64::from(site.yjs_client_id), bytes);
     YjsUpdateEnvelopeV1 {
         schema_id: YJS_UPDATE_ENVELOPE_SCHEMA_ID.to_string(),
         workspace_id: workspace_id.to_string(),
@@ -61,8 +76,8 @@ fn envelope(
         session_id: session_id.to_string(),
         trace_id: correlation_id.to_string(),
         document_schema_id: "hsk.doc.rich_document@1".to_string(),
-        update_b64: base64::engine::general_purpose::STANDARD.encode(bytes),
-        update_sha256: sha256_hex(bytes),
+        update_b64: base64::engine::general_purpose::STANDARD.encode(&yjs_bytes),
+        update_sha256: sha256_hex(&yjs_bytes),
         state_vector_before: before.encode(),
         state_vector_after: after.encode(),
         encoding: YJS_UPDATE_ENCODING_V1.to_string(),
@@ -183,11 +198,23 @@ fn ids_from_pull(updates: &[YjsUpdateEnvelopeV1]) -> BTreeSet<String> {
         .collect()
 }
 
+fn decoded_yjs_text(bytes: &[u8]) -> String {
+    let document = Doc::new();
+    document
+        .transact_mut()
+        .apply_update(Update::decode_v1(bytes).expect("decode stored Yjs update"))
+        .expect("apply stored Yjs update");
+    let text = document
+        .get_or_insert_text("body")
+        .get_string(&document.transact());
+    text
+}
+
 fn decoded_update_text(update: &YjsUpdateEnvelopeV1) -> String {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(update.update_b64.as_bytes())
         .expect("pull update bytes decode from base64");
-    String::from_utf8(bytes).expect("MT-237 sentinel update bytes are UTF-8")
+    decoded_yjs_text(&bytes)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -583,7 +610,7 @@ async fn mt237_parallel_model_validator_conflicts_leave_repairable_state() {
             .read_kernel_crdt_update_bytes(&record.update_bytes_ref)
             .await
             .expect("read persisted update bytes");
-        stored_update_texts.insert(String::from_utf8(bytes).expect("stored sentinel bytes"));
+        stored_update_texts.insert(decoded_yjs_text(&bytes));
     }
     assert_eq!(
         stored_update_texts, pulled_update_texts,
