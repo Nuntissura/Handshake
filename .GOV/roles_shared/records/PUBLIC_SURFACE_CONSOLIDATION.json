@@ -1,6 +1,67 @@
 {
   "consolidation_groups": [
     {
+      "count": 50,
+      "group_id": "public-surface-group:11944df15a28c2e9",
+      "owner_role": "SHARED",
+      "phase": "WORK_PACKET",
+      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surfaces": [
+        "file:.GOV/roles_shared/checks/mt-packet-scope-alignment-check.mjs",
+        "file:.GOV/roles_shared/checks/wp-communication-health-check.mjs",
+        "file:.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs",
+        "file:.GOV/roles_shared/scripts/wp/failure-memory.mjs",
+        "file:.GOV/roles_shared/scripts/wp/flat-packet-legacy-inventory.mjs",
+        "file:.GOV/roles_shared/scripts/wp/mt-board.mjs",
+        "file:.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs",
+        "file:.GOV/roles_shared/scripts/wp/wp-check-notifications.mjs",
+        "file:.GOV/roles_shared/scripts/wp/wp-contract-import.mjs",
+        "file:.GOV/roles_shared/scripts/wp/wp-heartbeat.mjs",
+        "file:.GOV/roles_shared/scripts/wp/wp-invalidity-flag.mjs",
+        "file:.GOV/roles_shared/scripts/wp/wp-operator-rule-restatement.mjs",
+        "file:.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs",
+        "file:.GOV/roles_shared/scripts/wp/wp-truth-bundle.mjs",
+        "just:begin-refinement",
+        "just:coder-next",
+        "just:coder-skeleton-checkpoint",
+        "just:ensure-wp-communications",
+        "just:failure-memory-query",
+        "just:flat-packet-legacy-inventory",
+        "just:gov-mt-packet-scope-alignment-check",
+        "just:hbr-matrix-check",
+        "just:heuristic-risk-check",
+        "just:kb-ready-checklist",
+        "just:live-smoketest-review-init",
+        "just:manual-relay-next",
+        "just:memory-extract",
+        "just:memory-prime",
+        "just:mt-board",
+        "just:mt-complete",
+        "just:mt-populate",
+        "just:orchestrator-health",
+        "just:orchestrator-next",
+        "just:orchestrator-rescue",
+        "just:orchestrator-steer-next",
+        "just:record-refinement",
+        "just:record-signature",
+        "just:skeleton-approved",
+        "just:spec-debt-open",
+        "just:task-board-set",
+        "just:task-packet-stub-contracts",
+        "just:workflow-dossier-autofill-costs",
+        "just:workflow-dossier-init",
+        "just:workflow-dossier-inject-repomem",
+        "just:workflow-dossier-judgment-check",
+        "just:workflow-dossier-note",
+        "just:wp-contract-import",
+        "just:wp-relay-watchdog",
+        "just:wp-traceability-set",
+        "just:wp-truth-bundle"
+      ]
+    },
+    {
       "count": 48,
       "group_id": "public-surface-group:25aa5f7f409663ef",
       "owner_role": "SHARED",
@@ -57,63 +118,6 @@
         "just:wp-timeline",
         "just:wp-token-usage",
         "just:wp-token-usage-settle"
-      ]
-    },
-    {
-      "count": 46,
-      "group_id": "public-surface-group:11944df15a28c2e9",
-      "owner_role": "SHARED",
-      "phase": "WORK_PACKET",
-      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
-      "replacement_bundle": "just phase-check",
-      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
-      "surfaces": [
-        "file:.GOV/roles_shared/checks/wp-communication-health-check.mjs",
-        "file:.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs",
-        "file:.GOV/roles_shared/scripts/wp/failure-memory.mjs",
-        "file:.GOV/roles_shared/scripts/wp/flat-packet-legacy-inventory.mjs",
-        "file:.GOV/roles_shared/scripts/wp/mt-board.mjs",
-        "file:.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs",
-        "file:.GOV/roles_shared/scripts/wp/wp-check-notifications.mjs",
-        "file:.GOV/roles_shared/scripts/wp/wp-contract-import.mjs",
-        "file:.GOV/roles_shared/scripts/wp/wp-heartbeat.mjs",
-        "file:.GOV/roles_shared/scripts/wp/wp-invalidity-flag.mjs",
-        "file:.GOV/roles_shared/scripts/wp/wp-operator-rule-restatement.mjs",
-        "file:.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs",
-        "file:.GOV/roles_shared/scripts/wp/wp-truth-bundle.mjs",
-        "just:begin-refinement",
-        "just:coder-next",
-        "just:coder-skeleton-checkpoint",
-        "just:ensure-wp-communications",
-        "just:failure-memory-query",
-        "just:flat-packet-legacy-inventory",
-        "just:heuristic-risk-check",
-        "just:live-smoketest-review-init",
-        "just:manual-relay-next",
-        "just:memory-extract",
-        "just:memory-prime",
-        "just:mt-board",
-        "just:mt-complete",
-        "just:mt-populate",
-        "just:orchestrator-health",
-        "just:orchestrator-next",
-        "just:orchestrator-rescue",
-        "just:orchestrator-steer-next",
-        "just:record-refinement",
-        "just:record-signature",
-        "just:skeleton-approved",
-        "just:spec-debt-open",
-        "just:task-board-set",
-        "just:task-packet-stub-contracts",
-        "just:workflow-dossier-autofill-costs",
-        "just:workflow-dossier-init",
-        "just:workflow-dossier-inject-repomem",
-        "just:workflow-dossier-judgment-check",
-        "just:workflow-dossier-note",
-        "just:wp-contract-import",
-        "just:wp-relay-watchdog",
-        "just:wp-traceability-set",
-        "just:wp-truth-bundle"
       ]
     },
     {
@@ -196,7 +200,7 @@
       ]
     },
     {
-      "count": 17,
+      "count": 25,
       "group_id": "public-surface-group:0c5bb0902e92a814",
       "owner_role": "SHARED",
       "phase": "TOPOLOGY",
@@ -216,11 +220,48 @@
         "just:backup-push",
         "just:backup-snapshot",
         "just:backup-status",
+        "just:generate-model-manual-md",
         "just:gov-flush",
+        "just:hbr-inspector-smoke",
+        "just:hbr-man-001",
+        "just:hbr-man-003",
+        "just:hbr-quiet-api-lint",
+        "just:hbr-swarm-invariants",
+        "just:hbr-swarm-n8",
+        "just:hbr-visual-smoke",
         "just:record-prepare",
         "just:resolve-protected-worktree",
         "just:retire-standalone-checkout",
         "just:wp-declared-topology-check"
+      ]
+    },
+    {
+      "count": 18,
+      "group_id": "public-surface-group:57fd776e1eb23061",
+      "owner_role": "SHARED",
+      "phase": "CHECK",
+      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surfaces": [
+        "file:.GOV/roles_shared/checks/computed-policy-gate-check.mjs",
+        "file:.GOV/roles_shared/checks/cor701-sha.mjs",
+        "file:.GOV/roles_shared/checks/hbr-man-001-paired-diff.mjs",
+        "file:.GOV/roles_shared/checks/hbr-man-003-scan.mjs",
+        "file:.GOV/roles_shared/checks/hbr-matrix-check.mjs",
+        "file:.GOV/roles_shared/checks/hbr-quiet-api-lint.mjs",
+        "file:.GOV/roles_shared/checks/hbr-swarm-invariants.mjs",
+        "file:.GOV/roles_shared/checks/hbr-swarm-n8.mjs",
+        "file:.GOV/roles_shared/checks/hbr-visual-smoke.mjs",
+        "file:.GOV/roles_shared/checks/heuristic-risk-check.mjs",
+        "file:.GOV/roles_shared/checks/kb-ready-checklist-coverage-check.mjs",
+        "file:.GOV/roles_shared/checks/skeleton-approved.mjs",
+        "file:.GOV/roles_shared/checks/verb-coverage-check.mjs",
+        "file:.GOV/roles_shared/scripts/checks/canonise-gov.mjs",
+        "just:canonise-gov",
+        "just:cor701-sha",
+        "just:gov-kb-ready-checklist-coverage-check",
+        "just:verb-coverage-check"
       ]
     },
     {
@@ -300,6 +341,28 @@
       ]
     },
     {
+      "count": 11,
+      "group_id": "public-surface-group:f1e1221b0836ca0a",
+      "owner_role": "SHARED",
+      "phase": "STARTUP",
+      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
+      "replacement_bundle": "role startup recipes plus just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surfaces": [
+        "file:.GOV/roles_shared/checks/artifact-root-preflight-check.mjs",
+        "file:.GOV/roles_shared/checks/role-startup-topology-check.mjs",
+        "file:.GOV/roles_shared/scripts/lib/startup-index-staleness-check.mjs",
+        "file:.GOV/roles_shared/scripts/memory/role-startup-brief.mjs",
+        "just:artifact-root-preflight",
+        "just:coder-preflight",
+        "just:gov-staged-index-survey",
+        "just:orchestrator-preflight",
+        "just:orchestrator-startup-truth-check",
+        "just:role-startup-brief",
+        "just:validator-preflight"
+      ]
+    },
+    {
       "count": 10,
       "group_id": "public-surface-group:89dd4ca9b49c76b2",
       "owner_role": "SHARED",
@@ -339,46 +402,6 @@
         "just:launch-wp-validator-session",
         "just:start-integration-validator-session",
         "just:start-wp-validator-session"
-      ]
-    },
-    {
-      "count": 9,
-      "group_id": "public-surface-group:57fd776e1eb23061",
-      "owner_role": "SHARED",
-      "phase": "CHECK",
-      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
-      "replacement_bundle": "just gov-check",
-      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
-      "surfaces": [
-        "file:.GOV/roles_shared/checks/computed-policy-gate-check.mjs",
-        "file:.GOV/roles_shared/checks/cor701-sha.mjs",
-        "file:.GOV/roles_shared/checks/heuristic-risk-check.mjs",
-        "file:.GOV/roles_shared/checks/skeleton-approved.mjs",
-        "file:.GOV/roles_shared/checks/verb-coverage-check.mjs",
-        "file:.GOV/roles_shared/scripts/checks/canonise-gov.mjs",
-        "just:canonise-gov",
-        "just:cor701-sha",
-        "just:verb-coverage-check"
-      ]
-    },
-    {
-      "count": 9,
-      "group_id": "public-surface-group:f1e1221b0836ca0a",
-      "owner_role": "SHARED",
-      "phase": "STARTUP",
-      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
-      "replacement_bundle": "role startup recipes plus just gov-check",
-      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
-      "surfaces": [
-        "file:.GOV/roles_shared/checks/artifact-root-preflight-check.mjs",
-        "file:.GOV/roles_shared/checks/role-startup-topology-check.mjs",
-        "file:.GOV/roles_shared/scripts/memory/role-startup-brief.mjs",
-        "just:artifact-root-preflight",
-        "just:coder-preflight",
-        "just:orchestrator-preflight",
-        "just:orchestrator-startup-truth-check",
-        "just:role-startup-brief",
-        "just:validator-preflight"
       ]
     },
     {
@@ -454,6 +477,21 @@
       ]
     },
     {
+      "count": 4,
+      "group_id": "public-surface-group:04c05a77b7751a1f",
+      "owner_role": "SHARED",
+      "phase": "SPEC",
+      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surfaces": [
+        "file:.GOV/roles_shared/checks/hbr-inspector-smoke.mjs",
+        "file:.GOV/roles_shared/checks/spec-eof-appendices-check.mjs",
+        "file:.GOV/roles_shared/scripts/debt/spec-debt-open.mjs",
+        "just:spec-eof-appendices-check"
+      ]
+    },
+    {
       "count": 3,
       "group_id": "public-surface-group:ecdcb0bc6fb072a0",
       "owner_role": "ORCHESTRATOR",
@@ -493,20 +531,6 @@
         "file:.GOV/roles_shared/scripts/wp/wp-closeout-format.mjs",
         "just:closeout-repair",
         "just:wp-closeout-format"
-      ]
-    },
-    {
-      "count": 3,
-      "group_id": "public-surface-group:04c05a77b7751a1f",
-      "owner_role": "SHARED",
-      "phase": "SPEC",
-      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
-      "replacement_bundle": "just gov-check",
-      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
-      "surfaces": [
-        "file:.GOV/roles_shared/checks/spec-eof-appendices-check.mjs",
-        "file:.GOV/roles_shared/scripts/debt/spec-debt-open.mjs",
-        "just:spec-eof-appendices-check"
       ]
     },
     {
@@ -621,6 +645,18 @@
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surfaces": [
         "file:.GOV/codex/Handshake_Codex_v1.4.md"
+      ]
+    },
+    {
+      "count": 1,
+      "group_id": "public-surface-group:cc4f6fbacb6eb0c6",
+      "owner_role": "KERNEL_BUILDER",
+      "phase": "CHECK",
+      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surfaces": [
+        "file:.GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs"
       ]
     },
     {
@@ -768,7 +804,7 @@
       ]
     }
   ],
-  "consolidation_hash": "sha256:fedd2c12d49f7a0b",
+  "consolidation_hash": "sha256:23f38732467711a8",
   "counts": {
     "by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
@@ -776,8 +812,8 @@
       "COMPATIBILITY_ALIAS": 20,
       "CONTRACT_AUTHORITY": 9,
       "INTERNAL_HELPER": 1,
-      "PUBLIC_LEAF_BASELINED": 121,
-      "PUBLIC_RECIPE_BASELINED": 175
+      "PUBLIC_LEAF_BASELINED": 133,
+      "PUBLIC_RECIPE_BASELINED": 188
     },
     "by_owner_role": {
       "ACTIVATION_MANAGER": 2,
@@ -785,35 +821,35 @@
       "CODER": 4,
       "CODEX": 1,
       "INTEGRATION_VALIDATOR": 1,
-      "KERNEL_BUILDER": 1,
+      "KERNEL_BUILDER": 2,
       "MEMORY_MANAGER": 3,
       "OPERATOR": 2,
       "ORCHESTRATOR": 22,
-      "SHARED": 289,
+      "SHARED": 313,
       "VALIDATOR": 16,
       "WP_VALIDATOR": 2
     },
     "by_phase": {
       "AUDIT": 2,
-      "CHECK": 16,
+      "CHECK": 26,
       "CLOSEOUT": 5,
       "GENERAL": 31,
       "HANDOFF": 1,
       "MEMORY": 31,
       "SESSION_CONTROL": 73,
-      "SPEC": 3,
-      "STARTUP": 18,
-      "TOPOLOGY": 42,
+      "SPEC": 4,
+      "STARTUP": 20,
+      "TOPOLOGY": 50,
       "VALIDATION": 63,
-      "WORK_PACKET": 59
+      "WORK_PACKET": 63
     },
     "by_side_effect_class": {
       "MUTATES_GIT_OR_WORKTREE": 20,
       "MUTATES_GOVERNANCE_OR_RUNTIME": 57,
-      "READ_ONLY_OR_DIAGNOSTIC": 267
+      "READ_ONLY_OR_DIAGNOSTIC": 292
     },
     "by_status": {
-      "CONSOLIDATE_WHEN_TOUCHED": 296,
+      "CONSOLIDATE_WHEN_TOUCHED": 321,
       "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT": 20,
       "RETAIN_CANONICAL": 19,
       "RETAIN_CONTRACT_AUTHORITY": 9
@@ -1052,6 +1088,222 @@
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
       "just_recipes": [
+        "hbr-inspector-smoke"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/hbr-inspector-smoke.mjs",
+      "phase": "SPEC",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/hbr-inspector-smoke.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "hbr-man-001"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/hbr-man-001-paired-diff.mjs",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/hbr-man-001-paired-diff.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "hbr-man-003"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/hbr-man-003-scan.mjs",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/hbr-man-003-scan.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "hbr-matrix-check"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/hbr-matrix-check.mjs",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/hbr-matrix-check.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "hbr-quiet-api-lint"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/hbr-quiet-api-lint.mjs",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/hbr-quiet-api-lint.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "hbr-swarm-invariants"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/hbr-swarm-invariants.mjs",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/hbr-swarm-invariants.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "hbr-swarm-n8"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/hbr-swarm-n8.mjs",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/hbr-swarm-n8.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "hbr-visual-smoke"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/hbr-visual-smoke.mjs",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/hbr-visual-smoke.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
         "heuristic-risk-check"
       ],
       "owner_role": "SHARED",
@@ -1063,6 +1315,60 @@
       "replacement_bundle": "just gov-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "file:.GOV/roles_shared/checks/heuristic-risk-check.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "gov-kb-ready-checklist-coverage-check"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/kb-ready-checklist-coverage-check.mjs",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/kb-ready-checklist-coverage-check.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "gov-mt-packet-scope-alignment-check"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/mt-packet-scope-alignment-check.mjs",
+      "phase": "WORK_PACKET",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/mt-packet-scope-alignment-check.mjs",
       "surface_kind": "GOVERNANCE_CHECK",
       "validation_coverage": [
         "just gov-check",
@@ -1596,6 +1902,32 @@
       "replacement_bundle": "just gov-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "file:.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs",
+      "surface_kind": "GOVERNANCE_SCRIPT",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "gov-staged-index-survey"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/scripts/lib/startup-index-staleness-check.mjs",
+      "phase": "STARTUP",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "role startup recipes plus just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/scripts/lib/startup-index-staleness-check.mjs",
       "surface_kind": "GOVERNANCE_SCRIPT",
       "validation_coverage": [
         "governance-topology-check"
@@ -2462,7 +2794,15 @@
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
       "just_recipes": [
+        "generate-model-manual-md",
         "gov-check",
+        "hbr-inspector-smoke",
+        "hbr-man-001",
+        "hbr-man-003",
+        "hbr-quiet-api-lint",
+        "hbr-swarm-invariants",
+        "hbr-swarm-n8",
+        "hbr-visual-smoke",
         "resolve-protected-worktree"
       ],
       "owner_role": "SHARED",
@@ -3243,6 +3583,32 @@
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "file:.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
       "surface_kind": "ROLE_PROTOCOL",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "ROLE_KERNEL_BUILDER",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "kb-ready-checklist"
+      ],
+      "owner_role": "KERNEL_BUILDER",
+      "path": ".GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs",
+      "surface_kind": "GOVERNANCE_SCRIPT",
       "validation_coverage": [
         "governance-topology-check"
       ]
@@ -5635,6 +6001,32 @@
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
+        "generate-model-manual-md"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#generate-model-manual-md",
+      "phase": "TOPOLOGY",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:generate-model-manual-md",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
         "generate-refinement-rubric"
       ],
       "owner_role": "SHARED",
@@ -5739,6 +6131,84 @@
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
+        "gov-kb-ready-checklist-coverage-check"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#gov-kb-ready-checklist-coverage-check",
+      "phase": "CHECK",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:gov-kb-ready-checklist-coverage-check",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "gov-mt-packet-scope-alignment-check"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#gov-mt-packet-scope-alignment-check",
+      "phase": "WORK_PACKET",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:gov-mt-packet-scope-alignment-check",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "gov-staged-index-survey"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#gov-staged-index-survey",
+      "phase": "STARTUP",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "role startup recipes plus just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:gov-staged-index-survey",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
         "handshake-acp-broker-status"
       ],
       "owner_role": "SHARED",
@@ -5802,6 +6272,214 @@
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:hard-gate-wt-001",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "hbr-inspector-smoke"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#hbr-inspector-smoke",
+      "phase": "TOPOLOGY",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:hbr-inspector-smoke",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "hbr-man-001"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#hbr-man-001",
+      "phase": "TOPOLOGY",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:hbr-man-001",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "hbr-man-003"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#hbr-man-003",
+      "phase": "TOPOLOGY",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:hbr-man-003",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "hbr-matrix-check"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#hbr-matrix-check",
+      "phase": "WORK_PACKET",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:hbr-matrix-check",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "hbr-quiet-api-lint"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#hbr-quiet-api-lint",
+      "phase": "TOPOLOGY",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:hbr-quiet-api-lint",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "hbr-swarm-invariants"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#hbr-swarm-invariants",
+      "phase": "TOPOLOGY",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:hbr-swarm-invariants",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "hbr-swarm-n8"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#hbr-swarm-n8",
+      "phase": "TOPOLOGY",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:hbr-swarm-n8",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "hbr-visual-smoke"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#hbr-visual-smoke",
+      "phase": "TOPOLOGY",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:hbr-visual-smoke",
       "surface_kind": "JUST_RECIPE",
       "validation_coverage": [
         "governance-topology-check"
@@ -5932,6 +6610,32 @@
       "replacement_bundle": "just phase-check",
       "side_effect_class": "MUTATES_GIT_OR_WORKTREE",
       "surface_id": "just:integration-validator-worktree-add",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "kb-ready-checklist"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#kb-ready-checklist",
+      "phase": "WORK_PACKET",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:kb-ready-checklist",
       "surface_kind": "JUST_RECIPE",
       "validation_coverage": [
         "governance-topology-check"
@@ -10235,14 +10939,14 @@
   },
   "schema_id": "handshake.gov.public_surface_consolidation",
   "schema_version": "public_surface_consolidation_v1",
-  "source_topology_projection_hash": "sha256:44a0ffb5cb98a3d482057ce562b5fddece8f03c1a3c1005342d9163a306ca713",
+  "source_topology_projection_hash": "sha256:d227b8bc8c7c41ead7c0128f898e5ec42e1a17d7c250d1d0ebd770689bef7565",
   "totals": {
     "canonical": 19,
     "compatibility_aliases": 20,
-    "consolidate_when_touched": 296,
-    "consolidation_groups": 41,
+    "consolidate_when_touched": 321,
+    "consolidation_groups": 42,
     "contract_authority": 9,
-    "public_surfaces": 344,
+    "public_surfaces": 369,
     "tracked_public_surfaces": 0
   }
 }

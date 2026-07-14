@@ -21,6 +21,17 @@
 
 ## Entries
 
+### 2026.07.14.01 / GOV-CHANGE-20260714-01
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Tasks: `RGF-326`
+- Summary: Made the root Kernel Builder launcher tail fail closed against authority-output truncation without changing delegated launcher exit semantics.
+- Contract impact: `kbstart.cmd` now captures the delegated exit code, prints an explicit prohibition against treating command completion or the injected `KBSTART COMPLETE` marker as authority-read completion, ends with a machine-readable `KBSTART_FINAL_STATE` declaring `authority_read=UNVERIFIED` and `role_startup_complete=NO`, then returns the original exit code. `protocol-alignment-check` requires both markers.
+- Driver evidence: `AUDIT-20260714-KBSTART-AUTHORITY-READ-TRUNCATION-GATE`; Operator correction on 2026-07-14 after a 5,560-line startup stream was truncated while preserving a success-looking tail and the assistant failed to read the binding files.
+- Files changed: `kbstart.cmd`, `.GOV/roles_shared/checks/protocol-alignment-check.mjs`, `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`, `.GOV/Audits/audits/AUDIT-20260714-KBSTART-AUTHORITY-READ-TRUNCATION-GATE.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`.
+- Verification: PARTIAL - PASS: wrapper success path preserved exit `0` and ended with the required final state; invalid-argument path preserved exit `1` and ended with the same gate; absolute-path invocation from another working directory passed; structural order check proved delegated call -> immediate `%ERRORLEVEL%` capture -> final gate -> `exit /b`; full `kbstart.cmd` run completed in 55.7 seconds with exit `0`, 5,587 captured lines, one inner `KBSTART COMPLETE` marker, and the required wrapper final line; `node --check` passed; `repo-governance-board-check`, `governance-topology-check`, and `public-surface-consolidation-check` passed; `docs-check` passed; `git diff --check` passed. `protocol-alignment-check` reported zero `kbstart.cmd` violations but retained one unrelated existing Orchestrator-protocol string drift. `just gov-check --sync-topology` refreshed topology/public-surface projections and remained nonzero on 15 broader existing spec/packet/HBR/session/structure checks; the generated failure dossier contains no scoped launcher failure.
+
 ### 2026.06.28.01 / GOV-CHANGE-20260628-01
 
 - Status: APPLIED

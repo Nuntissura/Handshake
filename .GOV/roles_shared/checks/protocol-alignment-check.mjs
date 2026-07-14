@@ -27,6 +27,7 @@ import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-cap
 registerFailCaptureHook("protocol-alignment-check.mjs", { role: "SHARED" });
 
 const JUSTFILE_PATH = "justfile";
+const KBSTART_CMD_PATH = "kbstart.cmd";
 // The justfile uses {{GOV_ROOT}} (a just variable) — when matching raw justfile text,
 // we must use the literal justfile variable syntax, not the resolved GOV_ROOT_REPO_REL.
 const JUSTFILE_GOV_PREFIX = "{{GOV_ROOT}}";
@@ -82,6 +83,7 @@ const ROLE_SESSION_REGISTRY_SCHEMA_PATH = path.join(GOV_ROOT_REPO_REL, "roles_sh
 
 const ACTIVE_SURFACE_PATHS = [
   JUSTFILE_PATH,
+  KBSTART_CMD_PATH,
   CODEX_PATH,
   ORCHESTRATOR_PROTOCOL_PATH,
   CLASSIC_ORCHESTRATOR_PROTOCOL_PATH,
@@ -222,6 +224,7 @@ const contents = new Map(ACTIVE_SURFACE_PATHS.map((filePath) => [filePath, readU
 const errors = [];
 
 const justfileContent = contents.get(JUSTFILE_PATH);
+const kbstartCmd = contents.get(KBSTART_CMD_PATH);
 const codexContent = contents.get(CODEX_PATH);
 const orchestratorProtocol = contents.get(ORCHESTRATOR_PROTOCOL_PATH);
 const classicOrchestratorProtocol = contents.get(CLASSIC_ORCHESTRATOR_PROTOCOL_PATH);
@@ -274,6 +277,21 @@ const roleSessionRegistrySchema = contents.get(ROLE_SESSION_REGISTRY_SCHEMA_PATH
 
 const roleAlternation = SESSION_ROLES.join("|");
 const commandKindAlternation = SESSION_COMMAND_KINDS.join("|");
+
+requireSubstring(
+  errors,
+  KBSTART_CMD_PATH,
+  kbstartCmd,
+  "KBSTART_FINAL_STATE command_exit=%KBSTART_LAUNCHER_EXIT_CODE% authority_read=UNVERIFIED role_startup_complete=NO required_action=READ_ALL_BINDING_FILES_THEN_ACK",
+  "fail-closed post-command authority-read state",
+);
+requireSubstring(
+  errors,
+  KBSTART_CMD_PATH,
+  kbstartCmd,
+  "ASSISTANT_MUST_NOT_REPORT=KERNEL_BUILDER_STARTUP_COMPLETE_FROM_COMMAND_EXIT_OR_KBSTART_COMPLETE_MARKER",
+  "explicit prohibition against treating command completion as authority-read completion",
+);
 const reasoningConfigPair = `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}`;
 const retiredRootScriptsDir = [GOV_ROOT_REPO_REL, "scripts"].join("/");
 
