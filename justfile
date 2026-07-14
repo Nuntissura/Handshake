@@ -339,7 +339,7 @@ orchestrator-startup:
 	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
 
 kernel-builder-startup:
-	@just protocol-ack-full "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
 	@just role-startup-brief KERNEL_BUILDER
 	@just backup-status
 	@just role-startup-topology-check --audit-permanent

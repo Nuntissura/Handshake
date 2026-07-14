@@ -7,5 +7,8 @@ if not exist "%ORCSTART_SCRIPT_DIR%orcstart.ps1" (
 )
 
 set "ORCSTART_ROLE=KERNEL_BUILDER"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ORCSTART_SCRIPT_DIR%orcstart.ps1" %*
+rem Never inline large authority files into one caller-truncatable stdout stream.
+rem The launcher still prints the complete required-file manifest; the assistant
+rem must read each listed file directly from disk before acknowledging startup.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ORCSTART_SCRIPT_DIR%orcstart.ps1" %* --no-authority-files
 exit /b %ERRORLEVEL%
