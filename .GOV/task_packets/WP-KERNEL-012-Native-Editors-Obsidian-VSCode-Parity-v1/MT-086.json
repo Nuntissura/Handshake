@@ -14,7 +14,7 @@
   "title": "D6-MT-086-Cpu-Rss-Gpu-ResourceCounters",
   "group": "D2 internal_diagnostics (Tier 2 in-process)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-086.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-084"
@@ -33,7 +33,10 @@
     "blocks": [
       "MT-087"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: Sample CPU%, resident memory (RSS), and GPU/driver identity as periodic typed `internal_diagnostics` RESOURCE COUNTERS (Master Spec v02.196 §5.8.2 'resource counters'). The §6.13.1 'pinned under heavy CPU' stall mode means CPU% is a first-class signal Palmistry/the panel care about. CPU + RSS are sampled periodically off the hot frame path; GPU adapter info is read ONCE at startup from the already-initialized wgpu render state (it is static identity, not a per-frame counter).\n\nExact files to create/edit:\n- EDIT `src/frontend/handshake_native/Cargo.toml` — promote `sysinfo` from a [dev-dependencies] entry to a real [dependencies] entry. NOTE (version drift, VERIFY): handshake-native currently has `sysinfo = \"0.33\"` under [dev-dependencies] (used by the MT-045 perf suite). The current crates.io sysinfo is 0.39.5 (verified 2026-06-27). To avoid a DUPLICATE sysinfo family in the locked graph, pin the new runtime dep to the SAME line already locked (0.33) UNLESS the coder upgrades both the dev-dep and the runtime dep together to 0.39 in one step and re-runs `cargo tree -d` to confirm a single sysinfo core. Pick one and record it; do NOT leave two sysinfo majors in the graph. sysinfo gives cross-platform CPU% (per-process) + RSS (Windows GetProcessMemoryInfo, Linux /proc, macOS task_info) with no per-OS windows-sys feature add.\n- CREATE `src/frontend/handshake_native/src/diagnostics/resource_counters.rs` — a `ResourceSampler` that holds a `sysinfo::System` (refreshed for THIS process only — refresh_process(Pid::from_u32(std::process::id())) so we never read other processes' data, which would be both wasteful and a privacy concern) and a `sample() -> ResourceSample { cpu_milli: u64, rss_kb: u64 }` (cpu as integer milli-percent, rss in KB — typed integers). `record_sample()` calls `diagnostics::record_with(DiagEventCode::ResourceSample, ...)`.\n- CREATE `src/frontend/handshake_native/src/diagnostics/gpu_info.rs` — capture the wgpu adapter info ONCE. eframe with the wgpu renderer exposes the render state via `eframe::CreationContext::wgpu_render_state` (a `RenderState` with the `wgpu::Adapter`). In `HandshakeApp::new(cc)`, read `cc.wgpu_render_state` -> adapter `.get_info()` -> `AdapterInfo { name, vendor, device, device_type, driver, driver_info, backend }`. Map this to a TYPED record: vendor id (u32), device id (u32), device_type (enum -> u8), backend (enum -> u8). The driver NAME/INFO strings are vendor/driver identity (e.g. 'NVIDIA', 'D3D12') — field-standard hardware identity, NOT project data; they are allowed but keep them to a bounded set / store them once for the panel's hardware line, and DO NOT put strings into the typed ring DiagEvent (the ring is integers; emit the vendor/device/backend as integer codes via ResourceSample-adjacent fields, keep the human strings only in an in-process GpuInfo the panel reads). Document this split.\n- EDIT `src/frontend/handshake_native/src/app.rs` — (a) in `HandshakeApp::new`, capture GpuInfo once from cc.wgpu_render_state and store it; (b) drive periodic CPU/RSS sampling: sample at a bounded cadence (~1-2s, NOT every frame — CPU% needs an interval between refreshes to be meaningful and sysinfo refresh is not free) using a `last_sample_instant` gate inside `fn update`, OR a lightweight background timer; emit a ResourceSample event each interval. Sampling inside `fn update` behind a ~1s gate is the simplest correct approach (no extra thread) — but the sysinfo refresh must be cheap enough not to stutter the frame; if it is not, move the refresh to a `spawn_blocking` on the existing tokio runtime and only read the cached result on the frame. Choose + document.\n- CREATE `src/frontend/handshake_native/tests/test_resource_counters.rs`.\n\nReuse note: sysinfo is ALREADY a (dev-)dependency — reuse the same crate, just the right scope + version. wgpu is ALREADY the eframe renderer (eframe = { features = [\"wgpu\", ...] }) and `cc.wgpu_render_state` is the supported eframe seam to reach the adapter — no new wgpu dep, no second device. The tokio runtime + `fn update` are already there. src/backend untouched.\n\nRisk if missed: no CPU/RSS counters means the §6.13.1 heavy-CPU stall mode is invisible in-process and the panel's resource line (§5.8.4) is empty; a wrong sampling cadence either stutters the frame (too frequent sysinfo refresh) or gives meaningless CPU% (no interval between refreshes).",
@@ -141,5 +144,150 @@
     "summary": "CPU/RSS/GPU resource counters: sysinfo (single core, cpu_milli/rss_kb) + wgpu GpuInfo (adapter name/driver/backend, kept PANEL-LOCAL not in the ring) sampled ~1s into resource_counters.rs + gpu_info.rs, wired into the live shell -> ResourceSample DiagEvent. test_resource_counters 5/5 + resource_counters 4/4 + gpu_info 3/3 GREEN; perf_manifest debug-drift checkout'd (only 6 allowed files staged); clean tree.",
     "disposition": "Review CHANGES_REQUIRED was the full-suite-green AC blocked by PRE-EXISTING editor-MT kittest flakes (baseline-proven, different failure set without MT-086) + the perf_manifest hygiene (resolved via checkout). Both dispositioned in the harden (0c512c53). GpuInfo strings stay panel-local (privacy: never in the integer-only ring/Palmistry record).",
     "carry_forward": "MT-087 panel author: GpuInfo strings are panel-local ONLY - never serialize into any ring/Palmistry survivor record. First-frame CPU sample is 0% (~first 1s) by design."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "PASS",
+      "implementing_commits": [
+        "0c512c53"
+      ],
+      "concerns": [
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-VIS"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope PASS, but unresolved mandatory HBR evidence makes approval illegal.",
+    "fail_report": "MT-086 FAIL_V1. Mechanical scope/lineage gate passed for 0c512c53; the missing compile-gate receipt is LOW severity. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-VIS. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Keep the mechanically-contained lineage unchanged. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-VIS with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-086 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-086 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Current-head MT-specific native/Palmistry tests and applicable proof artifacts passed or were inspected directly.",
+      "Committed source, MT contract, WP scope, and resolved current Master Spec modules were compared directly.",
+      "Negative, privacy, process-recovery, AccessKit, and diagnostics boundaries applicable to this MT were challenged."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-086 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
+    "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
 }

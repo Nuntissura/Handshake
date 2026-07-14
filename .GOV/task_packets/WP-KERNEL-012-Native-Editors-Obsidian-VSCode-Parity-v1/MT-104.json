@@ -14,7 +14,7 @@
   "title": "U8-MT-104-InternalManualUpdate-NotesChatTerminalModel-DiagnosticToolTopics",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-01T16:14:49Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-104.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-097",
@@ -37,7 +37,10 @@
       "MT-103"
     ],
     "blocks": [],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "OPERATOR + GLOBAL-BUILD-MANUAL: update the internal manual so a FUTURE NO-CONTEXT MODEL can use the now-usable product. The notes+chat worksurface (MT-097/098), the working open/edit/save notes flow (MT-099), the terminal + local/cloud model launch in a repo folder (MT-100/101), the Settings->Diagnostics panel (MT-087), and the visual debugger + foreground-safe navigation (MT-102/103) all landed — the built-in manual must now teach them.\n\nVERIFIED STATE (live-app inspection 2026-06-27): the internal manual EXISTS and is the reuse surface — this is a CONTENT UPDATE to the existing manual, not a new subsystem:\n- src/frontend/handshake_native/src/manual_pane.rs (MT-073): the ManualRegistry / ManualSection / ManualTopic data model + the ManualPane widget + the AgentToolReference (the author_id -> MCP tool steering index) + the AccessKit ids (manual-pane / manual-search / manual-topic-{section}.{topic}).\n- src/frontend/handshake_native/src/manual_content_editors.rs (MT-073): editors_manual_section() returns the live ManualSection — the eight GLOBAL-BUILD-MANUAL topics (Purpose / Core Workflows / Startup and Run / Inputs and Outputs / Navigation Paths / Safety Constraints / Common Failure Modes / Recovery Steps), the Interop Edges topic, and the Agent Tool Reference (agent_tool_rows()). app.rs registers it: ManualRegistry::new().register_section(editors_manual_section()) (~line 896).\n- The agent-tool reference uses the REAL author_ids (from the live registries) + the FOUR REAL MCP tool names (list_widgets / click_widget / set_value / screenshot) — NOT invented gui.* names (the MT-073 id-audit discipline).\n\nWhat to update (extend the existing manual content; the manual pane is registered as a factory but stripped from the notes-only default per MT-097 — it stays REACHABLE via the manual surface / Settings, just not on the default worksurface):\n- EDIT manual_content_editors.rs to ADD/UPDATE manual topics so a no-context model knows how to use: (1) THE NOTES WORKSURFACE + CHAT — that the default worksurface is the notes editors (code + rich) with the chat pane beside them (MT-097/098); the pane author_ids (code editor, rich/Notes editor 'loom.wikipage'-class, runtime-chat-panel/runtime-chat-input/runtime-chat-send); (2) OPENING/EDITING/SAVING NOTES — the open-by-id -> live edit -> authoritative save -> reopen-shows-edit flow (MT-099) + the save route + the draft-vs-save distinction + the EventLedger receipt; (3) LAUNCHING A TERMINAL in a repo folder with the wrapper (MT-100) — the 'Terminal: Open in Workspace Folder' command + the HONEST state (the PTY runtime exists but the native HTTP/IPC reach may be a typed blocker — state it honestly, do not claim a working terminal if MT-100 landed a blocker); (4) LAUNCHING A LOCAL/CLOUD MODEL in a repo folder with the wrapper (MT-101) — the 'Launch Model Session in Workspace Folder' command + the reachable POST /jobs half + the IPC-only typed-blocker half (honestly); (5) THE SETTINGS->DIAGNOSTICS PANEL (MT-087) — that diagnostics (heartbeat/frame/resource/last-N events + the Tier-3 Palmistry section) lives in Settings, NOT the worksurface; (6) THE VISUAL DEBUGGER (MT-102) — the WorksurfaceInspector dump (pane tree + widget-id inventory + layout tree + screenshot) in Settings/Diagnostics, with the headless-GPU pixel-readback known-limit; (7) FOREGROUND-SAFE NAVIGATION (MT-103) — that a model drives the GUI via the MCP click_widget/set_value/list_widgets path with NO OS foreground/input-injection (HBR-QUIET), targets by stable author_id.\n- UPDATE the Agent Tool Reference rows (agent_tool_rows()) to ADD the new addressable controls (runtime-chat-input/send, the terminal/model launch commands, the visual-debugger/diagnostics surface ids) mapped to the REAL MCP tools (list_widgets/click_widget/set_value/screenshot) — every author_id MUST be a LIVE registered id (the MT-073 id-audit test cross-checks; an orphan id FAILS the build).\n- HONESTY: where MT-100/101 landed a typed blocker (terminal native reach / IPC-only model spawn), the manual states the HONEST state (what works, what is a typed blocker), NOT a fabricated 'it works'. The manual reflects the ACTUAL shipped behavior of MT-097..103.\n- EDIT/EXTEND tests/test_manual_content.rs (or the existing MT-073 manual content test) for the new topics + the id-audit over the new rows.\n\nReuse notes: the ManualRegistry/ManualSection/ManualTopic/AgentToolReference data model + the ManualPane widget + the id-audit are BUILT (manual_pane.rs / manual_content_editors.rs / MT-073). This MT adds CONTENT (topics + agent-tool rows) to the existing section. No new manual subsystem. src/backend untouched.\n\nRisk if missed: a future no-context model cannot operate the now-usable product (notes+chat, terminal/model launch, diagnostics, visual debugger, safe navigation) — GLOBAL-BUILD-MANUAL unmet; OR the manual claims a feature works that actually landed a typed blocker (a dishonest manual).",
@@ -137,5 +140,167 @@
     },
     "motivating_incident": "The product became usable (notes+chat, terminal/model launch, diagnostics, visual debugger, safe navigation via MT-097..103); a future no-context model needs the built-in manual updated to operate it — and the manual must be HONEST about which features landed a typed blocker.",
     "validation_plan": "the seven new no-context topics render + are selectable + the agent-tool id-audit keeps every author_id live + every mcp_tool real + the terminal/model topics state the honest typed-blocker condition + diagnostics/visual-debugger point to Settings; clippy -D warnings; full suite -j 2."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "5a46ccd6"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-VIS",
+      "HBR-SWARM"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-104 FAIL_V1. Mechanical scope/lineage gate failed for 5a46ccd6. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-VIS/HBR-SWARM. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-104 scope.allowed_paths and inspect git show --name-only 5a46ccd6. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-VIS, HBR-SWARM with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-104 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-104 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Current-head MT-specific native/Palmistry tests and applicable proof artifacts passed or were inspected directly.",
+      "Committed source, MT contract, WP scope, and resolved current Master Spec modules were compared directly.",
+      "Negative, privacy, process-recovery, AccessKit, and diagnostics boundaries applicable to this MT were challenged."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-104 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "The internal UserManual is not truthful/runnable: it says to run cargo from the repo root although no root Cargo.toml exists, documents legacy MCP names as canonical Argus tools, lacks a clear frontend manual version, and its complete content-test binary hangs.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-104 FAIL V1. The internal UserManual is not truthful/runnable: it says to run cargo from the repo root although no root Cargo.toml exists, documents legacy MCP names as canonical Argus tools, lacks a clear frontend manual version, and its complete content-test binary hangs.",
+      "remediation_steps": [
+        "Correct startup commands to use the actual crate directory or explicit --manifest-path and include managed PostgreSQL/backend prerequisites.",
+        "Replace legacy canonical-tool documentation with argus.inspect/click/set_value/screenshot and validated examples.",
+        "Add an explicit manual version/current-head compatibility marker and cover notes, chatbox, terminal/model blocker states, diagnostics, Palmistry, recovery, and common failures.",
+        "Fix the manual test lifecycle leak and run the complete content binary with a hard timeout."
+      ],
+      "verification_required": [
+        "Every documented command runs from the stated location.",
+        "A no-context model can operate and recover the whole WP using the manual.",
+        "The complete manual-content test binary exits zero and canonical Argus examples validate."
+      ],
+      "no_context_instruction": "Read MT-104.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

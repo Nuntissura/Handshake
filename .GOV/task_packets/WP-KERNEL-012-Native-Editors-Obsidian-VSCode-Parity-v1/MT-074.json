@@ -14,7 +14,7 @@
   "title": "E10-MT-074-OtherPillarInteropProofSuite",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-10T22:51:05.000Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
-    "active": true,
+    "status": "FAIL_V1",
+    "active": false,
     "depends_on": [
       "MT-066",
       "MT-067",
@@ -35,7 +35,10 @@
       "MT-042"
     ],
     "blocks": [],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260711-interop",
     "ready_for_validation_at_utc": "2026-07-10T22:51:05.000Z",
@@ -198,5 +201,188 @@
     "honest_outcome": "OP-01/02/03 manifest entries = BLOCKED typed missing_api blockers (Stage /stage/ MT-066, Calendar /calendar/ MT-067, Locus /locus/ MT-068 - ALL routes verified absent + no_managed_postgres). Provable-NOW halves PROVEN: OP-01 embed-back MT-014 hsLink sha256==recomputed SHA-256 of routed bytes (CTRL-3); OP-02 idempotent daily-note binding via MT-019 + ActivitySpan correlation [DOC-A,DOC-B]; OP-03 locus:// resolve + reverse via the REAL MT-034 find_notes_with. OP-04 SWARM AccessKit PASS (3 edges stage-capture-embed-back/daily-journal-calendar-event-chip/locus-ref-chip reached by author_id only, STABLE across 2 re-queries, AccessKit Click). The 3 *_live proofs #[ignore]+integration (NEEDS_MANAGED_RESOURCE_PROOF).",
     "deviations_honest": "(1) the contract PT1 filter other_pillar_interop matched 0 fns -> corrected to other_pillar_op (the real fn prefix); (2) flush_pending_updates() named by the contract DOESN-T EXIST -> used Harness::run() per the MT-065/066/067/068 precedent (layout-level proof, documented). no mock/SQLite (grep exit 1); proof-only diff; DropGuard idempotent.",
     "waiver_granted": "test_other_pillar_interop_proofs.rs (new) + other_pillar_interop_manifest.json (new) + Cargo.toml [[test]] in allowed_paths."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "30d8657a",
+        "b289993f",
+        "b914d631"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "CHANGED_FILES_OUTSIDE_PACKET_IN_SCOPE_PATHS",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM",
+      "HBR-VIS"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "TARGETED_GREEN_NONDISPOSITIVE: eight ignored backend route tests passed sequentially against managed PostgreSQL (code-nav, Calendar, Locus WP/MT, Stage, document soft-delete). Scope/HBR still fails.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-074 FAIL_V1. Mechanical scope/lineage gate failed for 30d8657a, b289993f, b914d631. At least one mapped file is outside packet.scope.allowed_paths. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM/HBR-VIS. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-074 scope.allowed_paths and inspect git show --name-only 30d8657a, b289993f, b914d631. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM, HBR-VIS with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-074 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-074 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "OP-01 through OP-03 remain REQUIRES_PG and their required Flight Recorder event kinds/live persistence are absent; only OP-04 passed. The proof-only MT also added seed_fixture.sh outside its allowed proof-file set."
+    ],
+    "basis": "OP-01 through OP-03 remain REQUIRES_PG and their required Flight Recorder event kinds/live persistence are absent; only OP-04 passed. The proof-only MT also added seed_fixture.sh outside its allowed proof-file set.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-074 FAIL V1. OP-01 through OP-03 remain REQUIRES_PG and their required Flight Recorder event kinds/live persistence are absent; only OP-04 passed. The proof-only MT also added seed_fixture.sh outside its allowed proof-file set.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Remove or relocate the out-of-scope seed_fixture.sh through the proper authorized work unit, preserving any useful seed logic in an allowed existing fixture surface; do not rewrite history without Operator authority.",
+        "Provision managed PostgreSQL/EventLedger and execute OP-01 Stage route/embed-back, OP-02 Calendar/daily-note/ActivitySpan, and OP-03 Locus resolve/reverse lookup with the exact required persisted state and ordered FR events.",
+        "Keep OP-04 AccessKit-only driver proof green and verify it uses author_ids, not coordinates or labels.",
+        "Run the manifest cardinality/schema checks, no-mock/no-SQLite scans, proof-only diff audit, and report four non-zero scenario results."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-074.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-074 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "The other-pillar interop suite leaves production route scenarios ignored, so cross-pillar behavior is not proven on persisted data.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-074 FAIL V1. The other-pillar interop suite leaves production route scenarios ignored, so cross-pillar behavior is not proven on persisted data.",
+      "remediation_steps": [
+        "Inventory each pillar scenario and its exact production routes and persistent entities.",
+        "Start managed PostgreSQL/handshake_core, seed canonical data, and drive each scenario through the native client.",
+        "Assert stable identity, provenance, mutation/readback, denial, timeout, and recovery.",
+        "Remove acceptance-critical ignores and hard-bound setup and teardown."
+      ],
+      "verification_required": [
+        "Every declared pillar scenario runs by default and passes.",
+        "Persisted state and provenance remain consistent across pillars.",
+        "Negative and recovery cases terminate."
+      ],
+      "no_context_instruction": "Read MT-074.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

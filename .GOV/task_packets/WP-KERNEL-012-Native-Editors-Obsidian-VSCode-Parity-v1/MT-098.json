@@ -14,7 +14,7 @@
   "title": "U2-MT-098-ChatboxPaneBesideWorksurface",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-29T13:01:03Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-098.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -33,7 +33,10 @@
     "blocks": [
       "MT-104"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "OPERATOR PRODUCT-VISION STEER (2026-06-27): the worksurface is notes editors (MT-097) WITH A CHATBOX BESIDE IT — the Cursor / VS-Code / Antigravity editor+chat layout. This MT adds the CHAT panel as a first-class pane docked beside the editors so the fresh default worksurface shows EDITOR(S) + CHAT side by side.\n\nVERIFIED STATE (live-app inspection 2026-06-27): there is NO existing native chat pane (no runtime_chat / ChatPane surface in src/frontend/handshake_native). A chat surface EXISTS only in the legacy React app via Tauri IPC (app/src/components/swarm/OperatorChat.tsx + app/src-tauri kernel_swarm_chat_generate / session_chat_append / session_chat_read), NOT as a backend HTTP route. There is NO /chat or /conversation HTTP endpoint on handshake_core (verified absent in src/backend/handshake_core/src/api/mod.rs). So the SEND/RECEIVE ROUND-TRIP backend route over the native HTTP client is GENUINELY ABSENT.\n\nWhat to build (a REAL chat pane scaffold wired to the real route IF one exists, else a HONEST typed blocker — NOT a mock that fakes responses):\n- CREATE src/frontend/handshake_native/src/runtime_chat/ (mod.rs + panel.rs): a `ChatPanel` egui widget — a scrollback transcript (a Vec<ChatTurn{role, text}>) + a multiline input box + a Send button. Theme tokens only (no Color32 outside theme/palette.rs — CONTROL-4). AccessKit: register the pane container as Role::Region with author_id = \"runtime-chat-panel\", the input as `runtime-chat-input` (TextInput), and the send button as `runtime-chat-send` (Button) so a no-context model + swarm agents can drive it (HBR-VIS/SWARM).\n- CREATE `ChatPaneFactory` (impl crate::pane_registry::PaneFactory) following the editor_pane_factories.rs MT-079 host-mount pattern (a thin factory whose &self render drives a shared Arc<Mutex<ChatPanel>> the shell also holds). Add a `PaneType::RuntimeChat` variant to pane_registry.rs PaneType (arms in BOTH `label()` => \"Chat\" and `default_label()` => \"Chat\"; the compiler enforces exhaustiveness — do not miss one). Register the real ChatPaneFactory in app.rs over the PaneType::RuntimeChat placeholder (alongside install_editor_mounts).\n- WIRE THE SEND PATH to the REAL backend route: inspect backend_client.rs for an existing reusable client; the BACKEND HTTP CHAT ROUTE IS VERIFIED ABSENT, so the Send action records a TYPED BLOCKER (a typed `ChatSendError::EndpointMissing` returned from a `RuntimeChatClient` whose `production()` ctor documents the absent route), and the panel renders an HONEST empty-state / disabled-send banner ('Chat backend route absent — wired when handshake_core exposes POST /chat or the IPC bridge is reachable'). DO NOT fabricate an assistant reply. If, on inspection, a reachable HTTP send/receive route is found (e.g. a /jobs-backed or new chat route), wire the Send -> real POST and round-trip a message instead; prefer the real wire when a route exists.\n- EDIT app.rs `default_panes()` (post-MT-097): ADD `(\"pane-c\", PaneType::RuntimeChat)` so the fresh default worksurface is CodeSymbol + LoomWikiPage + RuntimeChat (editor(s) + chat side by side). default_tab_bar_states() auto-tracks. Verify the SplitLayoutWidget renders the three panes side by side (the chat docked beside the editors).\n- CREATE src/frontend/handshake_native/tests/test_runtime_chat_pane.rs.\n\nReuse notes: the PaneFactory trait + the shared-cell `&self render` threading + the factory-map registration are the EXISTING MT-079 editor-mount pattern (editor_pane_factories.rs is the worked reference). The accessibility registry + theme layer are reused (accessibility/registry.rs, theme/palette.rs). backend_client.rs is the reuse-via-API surface for any real route. src/backend untouched.\n\nRisk if missed: a chat pane that fakes assistant replies (a mock) would violate the no-mock Spec-Realism Gate; an absent route must be an HONEST typed blocker + disabled-send empty-state, not a fabricated round-trip.",
@@ -135,5 +138,200 @@
     },
     "motivating_incident": "Operator product vision: Handshake should work like Obsidian + VS Code / Cursor / Antigravity — a work surface (notes) with a chatbox beside it. The native frontend has no chat pane today.",
     "validation_plan": "live-app chat-pane mount + screenshot (editor+chat side by side) + real send round-trip OR typed EndpointMissing blocker (no fabricated reply) + AccessKit ids + CONTROL-4; clippy -D warnings; full suite -j 2."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "03625144"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-VIS",
+      "HBR-SWARM"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-098 FAIL_V1. Mechanical scope/lineage gate failed for 03625144. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-VIS/HBR-SWARM. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-098 scope.allowed_paths and inspect git show --name-only 03625144. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-VIS, HBR-SWARM with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-098 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "The three-pane default is visible, but current interaction suites fail from prior four-pane assumptions, missing horizontal divider, and non-unique controls; the MT full-suite gate is unmet.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate.",
+    "fail_report": {
+      "summary": "MT-098 FAIL V1. The three-pane default is visible, but current interaction suites fail from prior four-pane assumptions, missing horizontal divider, and non-unique controls; the MT full-suite gate is unmet.",
+      "remediation_steps": [
+        "Update default-shell tests to the specified three-pane topology.",
+        "Construct explicit four-pane/horizontal layouts for tests that need them.",
+        "Use stable author_ids for inputs/tabs/headers/dividers.",
+        "Verify popout, drag/close, active titles, splitters, responsive widths."
+      ],
+      "verification_required": [
+        "Affected binaries pass.",
+        "Three-pane default remains specified.",
+        "Custom layouts retain interactions."
+      ],
+      "no_context_instruction": "Read the complete MT, WP packet, and resolved current Master Spec before editing. Implement only this product remediation, run every required verification from current HEAD, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-098 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "The live chat pane and honest EndpointMissing UI render, but changing default_panes to three panes regressed shared shell contracts. Fresh failures include left-rail active quick-link count, pane-header seed/title/module/pane-d behavior, popout pane count/title, missing split divider, ambiguous search input, and tab close/activate/drag no-ops; AC-098-5 requires the full suite green."
+    ],
+    "basis": "The live chat pane and honest EndpointMissing UI render, but changing default_panes to three panes regressed shared shell contracts. Fresh failures include left-rail active quick-link count, pane-header seed/title/module/pane-d behavior, popout pane count/title, missing split divider, ambiguous search input, and tab close/activate/drag no-ops; AC-098-5 requires the full suite green.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-098 FAIL V1. The live chat pane and honest EndpointMissing UI render, but changing default_panes to three panes regressed shared shell contracts. Fresh failures include left-rail active quick-link count, pane-header seed/title/module/pane-d behavior, popout pane count/title, missing split divider, ambiguous search input, and tab close/activate/drag no-ops; AC-098-5 requires the full suite green.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Reproduce test_left_rail, test_pane_header, test_popout_window, test_rails, test_search_rail, and test_tab_bar failures from current HEAD.",
+        "Refactor default-pane seeding and shell expectations so CodeSymbol, LoomWikiPage, and RuntimeChat appear side by side without removing required pane identity, pane-d/navigation coverage, divider behavior, unique search addressing, or working tab close/activate/drag actions.",
+        "Keep the RuntimeChat real factory, stable AccessKit ids, honest EndpointMissing send state, and external visual proof intact.",
+        "Re-run all listed shell binaries, test_app_host_mount, runtime-chat tests, and the serialized full native suite until zero regressions remain."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-098.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-098 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "The three-pane default is visible, but current interaction suites fail from prior four-pane assumptions, a missing horizontal divider, and non-unique controls; the MT full-suite gate is unmet.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-098 FAIL V1. The three-pane default is visible, but current interaction suites fail from prior four-pane assumptions, a missing horizontal divider, and non-unique controls; the MT full-suite gate is unmet.",
+      "remediation_steps": [
+        "Update default-shell tests to the specified three-pane topology.",
+        "Construct explicit four-pane/horizontal layouts only for tests that need them.",
+        "Use stable author_ids for inputs, tabs, headers, and dividers.",
+        "Verify popout, drag/close, active titles, splitters, and responsive widths."
+      ],
+      "verification_required": [
+        "Affected binaries pass.",
+        "The three-pane default remains specified.",
+        "Custom layouts retain required interactions."
+      ],
+      "no_context_instruction": "Read MT-098.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

@@ -81,6 +81,17 @@
     "current_main_compatibility_verified_at_utc": "N/A",
     "packet_widening_decision": "OPERATOR_DIRECTIVE_2026-07-11_FULL_WP_IMPLEMENTATION",
     "packet_widening_evidence": "operator_directive_2026-07-11_pasted-text-1 requires every MT to be implemented, hardened by parallel adversarial review, and exposes the WP through settings plus an operator-facing dropdown/menu entry.",
+    "in_process_model_runtime_interpretation_v2": {
+      "authority": "OPERATOR_DIRECTIVE_2026-07-11_FAILED_MT_REMEDIATION",
+      "applies_to": "The default CandleRuntime/llama.cpp Rust-library load path only; it creates no OS child process, container, or guest.",
+      "resolved_active_spec_wording": [
+        "Section 4.6.1 load-under-SandboxAdapter is NOT_APPLICABLE where ModelRuntime is the in-process replacement described by section 4.6 and no child/guest exists.",
+        "Section 3.6.3 SandboxAdapter guest bind-mount language is NOT_APPLICABLE where no guest exists; the in-process adapter uses the integrity-checked configured host artifact path.",
+        "Section 3.5.7 engine-boxing delegation applies when an engine process or guest is spawned, not to a crate loaded into the Handshake process."
+      ],
+      "binding_rule": "Every actual Handshake-spawned model process or guest remains a SandboxAdapter child. Every in-process model load remains subject to artifact SHA-256 validation and honest pidless ProcessOwnershipLedger START/STOP evidence under section 4.6.1/5.7.",
+      "forbidden_interpretation": "This clarification cannot authorize a bare std::process::Command model spawn or a synthetic pid."
+    },
     "risk_tier": "HIGH",
     "user_signature": "operator_directive_20260628_activation_manager_wp_worktree_mt",
     "packet_format_version": "2026-06-28",
@@ -127,6 +138,8 @@
       "src/backend/handshake_core/src/process_ledger/",
       "src/backend/handshake_core/src/inspector_read/",
       "src/backend/handshake_core/src/api/kernel.rs",
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/src/api/model_runtime_registry.rs",
       "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
       "src/frontend/handshake_native/src/mcp/tools.rs",
       "src/frontend/handshake_native/src/mcp/screenshot.rs",
@@ -134,7 +147,13 @@
       "src/backend/handshake_core/src/llm/",
       "src/backend/handshake_core/src/managed_postgres.rs",
       "src/backend/handshake_core/Cargo.toml",
-      "src/backend/handshake_core/Cargo.lock"
+      "src/backend/handshake_core/Cargo.lock",
+      "app/src-tauri/Cargo.toml",
+      "app/src-tauri/src/commands/swarm_runtime.rs",
+      "app/src-tauri/src/commands/swarm_schedule.rs",
+      "app/src-tauri/src/commands/swarm_schedule_store.rs",
+      "app/src-tauri/src/lib.rs",
+      "src/backend/handshake_core/src/kernel/mod.rs"
     ],
     "forbidden_paths": [
       "unrelated repo-governance refactors",
@@ -177,7 +196,7 @@
       "Dexterity is the internal model switching and launch kernel name for this WP. It is a kernel/manual/display name only; stable schema IDs remain ModelLaneRun, ModelLane, ModelLaneMessage, and hsk.model_lane_*@1.",
       "The provisional Rust-native diagnostics/navigation contract id is native_swarm_lane_diagnostics until the separate naming worktree supplies an approved alias.",
       "Each MT receives post-implementation adversarial review through runtime launch, PostgreSQL/EventLedger/CRDT recovery, Rust native Argus/UserManual, and Spec-Realism/status-signaling lenses before READY_FOR_VALIDATION.",
-      "The default LlmClient resolves local inference through the embedded Rust ModelRuntime (LlamaCppRuntime default; CandleRuntime for hook/non-transformer lanes). The auto-detecting OllamaAdapter default and src/backend/handshake_core/src/llm/ollama.rs are removed, and no third-party model-server daemon is an authoritative runtime (master-spec-v02.197 3.6.1).",
+      "The default LlmClient resolves local inference through the embedded Rust ModelRuntime. MT-003 AC13 is the more-specific implementation contract: CandleRuntime is the compiled-in CPU default, while LlamaCppRuntime remains opt-in. The auto-detecting OllamaAdapter default and src/backend/handshake_core/src/llm/ollama.rs are removed, and no third-party model-server daemon is an authoritative runtime (master-spec-v02.197 3.6.1).",
       "A missing or unconfigured local model fails closed to DisabledLlmClient; there is no daemon fallback. A negative test proves the default runtime path never selects a third-party daemon adapter as authority.",
       "Embedded engine cargo features default to a CPU-only baseline in the default handshake_core build; GPU backends are opt-in features; engine enablement is decoupled from the legacy app/src-tauri build.",
       "The generic ExternalEngineImport OpenAI-compatible endpoint remains available only as a non-authoritative compat lane (provider=external_compat, not Handshake-owned in ProcessOwnershipLedger); removing Ollama does not remove this generic compat lane."
@@ -199,9 +218,9 @@
     "rust_only_hard_gate": "No new TypeScript, React, app/src, app/src-tauri, Tauri/WebView, JavaScript, npm, or docs/model-manual proof may satisfy this WP. Those surfaces are reference-only unless future authority explicitly reactivates them outside this WP.",
     "status_recovery_contract": "MT status signaling must be restartable and validator-honest: implementers may set CLAIMED/READY_FOR_VALIDATION plus proof/blocker fields; completed_by remains validator-only.",
     "post_implementation_review_contract": "Every MT gets pre-implementation contract review and post-implementation adversarial review against the actual diff before READY_FOR_VALIDATION. Review findings must be addressed in product code/contracts or represented as explicit MT lifecycle blocker/missing_resource/proof_status state. Implementers do not mark COMPLETED.",
-    "local_model_default_runtime": "Local model default runtime is the embedded Rust ModelRuntime: LlamaCppRuntime (llama-cpp-2 crate wrapping llama.cpp) is the default engine; CandleRuntime (pure-Rust candle-core/candle-transformers) is the required path for steering-hook techniques and non-transformer architectures (Mamba2/RWKV). Per master-spec-v02.197 03-local-first-infrastructure.md 3.6.1 and 04-llm-infrastructure.md 4.6, no third-party model-server daemon (Ollama, LM Studio, llama-server) is an authoritative ModelRuntime instance.",
+    "local_model_default_runtime": "Local model default runtime is the embedded Rust ModelRuntime. For this WP, MT-003 AC13 is the more-specific implementation contract: CandleRuntime (pure-Rust candle-core/candle-transformers) is the compiled-in CPU default, while LlamaCppRuntime (llama-cpp-2 wrapping llama.cpp) is opt-in because its C++ toolchain is not part of the default proof build. Per master-spec-v02.197 03-local-first-infrastructure.md 3.6.1 and 04-llm-infrastructure.md 4.6, no third-party model-server daemon (Ollama, LM Studio, llama-server) is an authoritative ModelRuntime instance.",
     "ollama_daemon_adapter_removal": "Operator decision 2026-07-01: the auto-detecting OllamaAdapter default LLM-client wiring is REMOVED. The startup Ollama /api/tags probe in src/backend/handshake_core/src/main.rs and the OllamaAdapter in src/backend/handshake_core/src/llm/ollama.rs must no longer be the default local path; the default LlmClient resolves through the embedded ModelRuntime, and a missing/unconfigured local model fails closed (DisabledLlmClient) rather than falling back to a daemon.",
-    "cpu_baseline_engine_features": "Embedded engine cargo features default to a CPU-only baseline in the default src/backend/handshake_core build; GPU backends (CUDA/Metal/etc.) are opt-in features. Engine enablement (llama-cpp-runtime-engine, candle-runtime-engine) MUST be part of the default build and MUST NOT be coupled to the legacy app/src-tauri app-runtime build.",
+    "cpu_baseline_engine_features": "The default src/backend/handshake_core build enables local-inference-default -> candle-runtime-engine as its CPU-only baseline. llama-cpp-runtime-engine and every GPU backend (CUDA/Metal/Vulkan/etc.) are opt-in and MUST NOT be part of Cargo default. Engine enablement MUST NOT be coupled to the legacy app/src-tauri app-runtime build.",
     "external_engine_import_compat_lane": "The generic ExternalEngineImport lane (operator-pointed OpenAI-compatible endpoint per master-spec-v02.197 3.6.4) is RETAINED as non-authoritative compatibility only: provider=external_compat, never written to ProcessOwnershipLedger as Handshake-owned, never a default, never authoritative. Removing Ollama removes only the bespoke Ollama-specific adapter and auto-wiring, not this generic compat lane."
   },
   "bundled_stub_summary": {

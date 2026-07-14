@@ -14,7 +14,7 @@
   "title": "E11-MT-070-WireEditorContextMenusAndNavigationBus",
   "group": "E11",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-08T16:52:50.946Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-070.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
-    "active": true,
+    "status": "FAIL_V1",
+    "active": false,
     "depends_on": [
       "MT-008",
       "MT-030",
@@ -38,7 +38,10 @@
     "blocks": [
       "MT-072"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: the MT-070 context-menu layer is NOT wired into the live render loop - show_editor_body_menu/show_node_menu/editor_body_context_items/node_context_items have NO product call site (module WIRING STATUS comment discloses it); live code-editor right-click still shows the pre-existing 2-entry menu; canvas/loom node menus still use the MT-021 layer. navigation_bus::dispatch has NO product caller; NavigationTarget byte_offset intentionally ignored (no scroll-to-byte seam). implementation_result claims AC-070-1..9 PASS and omits the load-bearing disclosure that exists only in code comments - overstatement on the contract surface. Root cause recorded in-code: BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE (allowed_paths forbids the call-site files the scope mandates). Fix: resolve the allowed-paths conflict, wire panel.rs/canvas/loom call sites + shell nav-bus consumption, add scroll-to-byte seam carry, re-prove AC-070 against the live app, amend implementation_result.",
@@ -200,5 +203,201 @@
     "deviations_honest": "(1) AC-070-9: the menu-popup CONTAINER is a foreground Area/GenericContainer not Role::Menu (the WP-011 context_menu.rs primitive emits addressability on the ITEMS not the container; forcing Role::Menu would FORK the out-of-scope WP-011 primitive) - the items ARE Role::MenuItem (swarm-addressable, intent met). (2) the contract assumed command_bus.dispatch_command(editor.rename_symbol) + register_nav_handler/registry.focus/pane.reveal, but the LIVE baseline is a static AppCommand catalog + the ShellNavigator - the agent RECONCILED to the real types (EditorBodyMenuAction enum + ShellNavigator dispatch), binding to the REAL API not the assumed one.",
     "waiver_granted": "context_menu_surfaces.rs (EDIT) + navigation_bus.rs (new, delegates to ShellNavigator) + lib.rs + tests in allowed_paths.",
     "overstatement_correction": "2026-07-02 KERNEL_BUILDER: the original AC-070-1..9 PASS claim was an overstatement - at that time the menu layer had zero product call sites (wave-B audit). Wave-2 remediation landed the real consumers: R2 wired the editor-body 5-entry menu call site in panel.rs; W2 wired the canvas/loom node menus and made them the first product navigation_bus::dispatch consumers (proven by test_menu_wireup 17/0 + test_navigation_bus 4/0 + host-mount bins). STILL OPEN: scroll-to-byte reveal seam (NavigationTarget.byte_offset ignored) and the create-note-from-link host drain (wave-3 W3 in flight). AC-070 verdicts remain PENDING official validation."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "52cee880",
+        "76ac3256",
+        "cba193ea"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-VIS",
+      "HBR-SWARM"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-070 FAIL_V1. Mechanical scope/lineage gate failed for 52cee880, 76ac3256, cba193ea. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-VIS/HBR-SWARM. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-070 scope.allowed_paths and inspect git show --name-only 52cee880, 76ac3256, cba193ea. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-VIS, HBR-SWARM with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-070 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "Context-menu states and pane topology are inconsistent; tests fail for Rename behavior and stale pane-d assumptions.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate.",
+    "fail_report": {
+      "summary": "MT-070 FAIL V1. Context-menu states and pane topology are inconsistent; tests fail for Rename behavior and stale pane-d assumptions.",
+      "remediation_steps": [
+        "Define Rename states for document/canvas/tab/empty targets from the spec.",
+        "Route actions through stable ids and canonical host registry.",
+        "Inject legacy/custom layouts explicitly; assert current three-pane default when default is the subject.",
+        "Test missing/locked/conflict/backend-rejection paths."
+      ],
+      "verification_required": [
+        "Context-menu/navigation suites pass.",
+        "Each target has correct states.",
+        "Actions mutate the intended entity."
+      ],
+      "no_context_instruction": "Read the complete MT, WP packet, and resolved current Master Spec before editing. Implement only this product remediation, run every required verification from current HEAD, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-070 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "Fresh deterministic failures in test_context_menu_surfaces: the required pane-d header is missing, and explorer document/canvas Rename activates an incorrect dialog path. Required entries therefore do not all reach the correct live handlers."
+    ],
+    "basis": "Fresh deterministic failures in test_context_menu_surfaces: the required pane-d header is missing, and explorer document/canvas Rename activates an incorrect dialog path. Required entries therefore do not all reach the correct live handlers.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-070 FAIL V1. Fresh deterministic failures in test_context_menu_surfaces: the required pane-d header is missing, and explorer document/canvas Rename activates an incorrect dialog path. Required entries therefore do not all reach the correct live handlers.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Reproduce all failing test_context_menu_surfaces cases from current HEAD.",
+        "Repair the shared context-menu wiring so pane-d is addressable and document/canvas Rename resolve to their correct registered handlers without opening the wrong dialog; preserve the single shared menu infrastructure.",
+        "Walk every required editor, canvas, loom-node, and navigation entry and assert handler side effects, including Create-note-from-link and PaneNotFound negative behavior.",
+        "Re-run test_context_menu_surfaces, test_navigation_bus, related editor-body menu tests, and the affected shell suite."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-070.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-070 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Context-menu states and pane topology are inconsistent; tests fail for Rename behavior and stale pane-d assumptions.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-070 FAIL V1. Context-menu states and pane topology are inconsistent; tests fail for Rename behavior and stale pane-d assumptions.",
+      "remediation_steps": [
+        "Define Rename states for document, canvas, tab, and empty targets from the spec.",
+        "Route actions through stable IDs and the canonical host registry.",
+        "Inject legacy/custom layouts explicitly and assert the current three-pane default where applicable.",
+        "Test missing, locked, conflict, and backend-rejection paths."
+      ],
+      "verification_required": [
+        "Context-menu/navigation suites pass.",
+        "Each target exposes correct states.",
+        "Actions mutate the intended entity."
+      ],
+      "no_context_instruction": "Read MT-070.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

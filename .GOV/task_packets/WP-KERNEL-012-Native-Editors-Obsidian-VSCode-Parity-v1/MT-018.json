@@ -14,7 +14,7 @@
   "title": "E2-MT018-RichFindReplace",
   "group": "E2 Rich-text editor (Obsidian/Notion parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-018.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,14 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-011",
       "MT-012"
     ],
     "blocks": [],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Implement document-wide find/replace across prose and embedded code blocks, achieving VS Code-class parity with the React FindReplacePanel (app/src/components/FindReplacePanel.tsx, MT-244). The panel opens via Ctrl+F (find) or Ctrl+H (find+replace), floats above the content, and highlights all matches in real time.\n\nEXPECTED DIFF SHAPE:\n- src/frontend/handshake_native/src/rich_text/find_replace/mod.rs\n- src/frontend/handshake_native/src/rich_text/find_replace/scanner.rs (scans the DocModel tree for text matches across all TextLeafs and code_block content)\n- src/frontend/handshake_native/src/rich_text/find_replace/panel.rs (egui panel widget: find input, options toggles, match count, next/prev, replace input, replace-one, replace-all, close)\n- src/frontend/handshake_native/src/rich_text/find_replace/highlight_layer.rs (paints match highlight rects over the rendered content)\n- Extend src/frontend/handshake_native/src/rich_text/renderer/rich_editor_widget.rs to host the panel and highlight layer.\n- Extend src/frontend/handshake_native/src/rich_text/renderer/input_handler.rs to handle Ctrl+F and Ctrl+H shortcuts.\n- REUSE the shared command/shortcut bus from command_registry.rs + event_bus.rs (WP-011) for registering Ctrl+F / Ctrl+H rather than inventing a new bus; AccessKit ids register through accessibility/* (WP-011).\n\nSCANNER (scanner.rs - port find_replace.ts logic):\n- FindQuery { pattern: String, case_sensitive: bool, whole_word: bool, is_regex: bool }\n- fn scan(doc: &DocNode, query: &FindQuery) -> FindScanResult where FindScanResult { matches: Vec<FindMatch>, truncated: bool } capped at MAX_MATCHES = 1000 (matching React EMPTY_SCAN pattern).\n- FindMatch { kind: MatchKind, node_path: Vec<usize>, char_start: usize, char_end: usize } where MatchKind = Prose | CodeBlock { block_index: usize }.\n- Prose matches: iterate all TextLeaf ropes, collect char ranges where the pattern occurs. For whole_word, check that the chars before/after the match range are not word chars.\n- Regex matches: use the regex crate; on invalid regex, return FindScanResult::invalid_regex(error_message).\n- CodeBlock matches: scan the raw text content of code_block nodes (code_block stores text as a single rope in a TextLeaf).\n- Each call to scan rebuilds the full match list (called on every document change while panel is open, mirroring React's 'recompute on every document change').\n\nPANEL WIDGET (panel.rs - port FindReplacePanel.tsx):\n- Layout: floating egui Window at top-right of the content area, non-blocking.\n  Row 1 (find): [TextEdit: find input] [Aa toggle: case-sensitive] [W toggle: whole-word] [.* toggle: regex] [count: '3 of 17'] [prev ◄] [next ►] [close ✕]\n  Row 2 (replace, only when with_replace=true): [TextEdit: replace input] [Replace] [Replace All]\n- Keyboard: Enter = next match; Shift+Enter = prev match; Escape = close panel and return focus to editor.\n- Match count display: '{current+1} of {total}' or '{total} matches' if no active selection; truncation marker '1000+ matches' when truncated.\n- Regex error: inline red text below the find input (role=alert), matches cleared.\n- Current match is highlighted differently (bright accent) vs other matches (dim highlight).\n- AccessKit: panel = 'find-panel', find-input = 'find-input', replace-input = 'replace-input', count = 'find-count', next = 'find-next', prev = 'find-prev', case toggle = 'find-toggle-case', whole-word = 'find-toggle-word', regex = 'find-toggle-regex', error = 'find-error', replace-one = 'replace-one', replace-all = 'replace-all', close = 'find-close'.\n\nHIGHLIGHT LAYER (highlight_layer.rs):\n- After block_renderer paints the content, iterate FindScanResult.matches. For each match, resolve the char range to pixel rects using the cosmic-text glyph layout (same mechanism as wikilink chip painting in MT-015). Paint semi-transparent colored rects over the content.\n- Current match: accent color at 60% opacity. Other matches: accent color at 25% opacity.\n- Highlights update on every scan rebuild (i.e. every document change while panel is open).\n\nREPLACE LOGIC:\n- Replace One: find the current match's char range in its TextLeaf rope; issue a DeleteText + InsertText transaction pair as a SINGLE atomic Transaction (one undo step). Advance to the next match.\n- Replace All: iterate all matches IN REVERSE order (to preserve char positions of earlier matches); issue one Transaction containing all replace steps.\n- CodeBlock replace: the code_block text is stored as a rope in a TextLeaf; the same DeleteText/InsertText steps apply.\n\nKEYBOARD INTEGRATION:\n- Ctrl+F: open panel in find-only mode (with_replace=false); if already open, re-focus the find input.\n- Ctrl+H: open panel in find+replace mode (with_replace=true).\n- These shortcuts are added to keymap.rs from MT-013 (or handled in input_handler.rs if MT-013 is not yet present; this MT does not depend on MT-013).\n\nSTEP-BY-STEP:\n1. Implement scanner.rs with the FindQuery/FindScanResult/FindMatch types and the scan() fn.\n2. Add regex = '1' to src/frontend/handshake_native/Cargo.toml (may already be present from MT-015).\n3. Implement highlight_layer.rs. Wire into block_renderer.rs after content painting.\n4. Implement panel.rs as a floating egui::Window. Store FindReplaceState in RichEditorState.\n5. Extend input_handler.rs: on Ctrl+F, set find_replace = Some(FindReplaceState { with_replace: false, ... }). On Ctrl+H, with_replace: true.\n6. On panel Escape or close button: clear find_replace, clear all highlights.\n7. Cargo tests: scan() finds all occurrences of 'foo' in a multi-paragraph doc. Whole-word mode skips 'foobar'. Regex mode returns error message for invalid pattern. Replace-all replaces all occurrences in a single Transaction (undo restores all). Replace-one advances to next match.\n\nDEPENDENCIES: MT-011 (DocModel tree traversal + Transaction for replace), MT-012 (highlight layer integration with block_renderer, glyph position resolution, floating window placement).",
@@ -135,5 +138,152 @@
     "corrections_held": "My patches held: highlight positions via egui Galley (chip_rect_for_span, NOT cosmic-text); Rust regex linear-time (no thread-timeout - used size_limit + MAX_MATCHES cap); scanner pure-CPU synchronous (no idle spinner); replace via undoable Step::DeleteText/InsertText (one Transaction, reverse-sorted Replace-All).",
     "no_spinner_regression": "Agent explicitly ran the at-risk shared-widget bins (test_rich_editor_widget 6 / test_embeds / test_formatting_toolbar / test_slash_commands 9 / test_wikilinks 8) ALL GREEN - the spinner-regression risk did NOT recur. The find-panel screenshot ALSO confirms the MT-015 spinner fix is live: the backlinks panel shows 'Backlinks not loaded.' (neutral Idle state, no perpetual Spinner).",
     "notes": "GPU race mitigated with a process-wide gpu_lock() Mutex (2 concurrent wgpu adapters fault on this host; 8/8 parallel green with the lock). Residual: scrolled-tall-doc highlight tracking is unit-proven (chip_rect_for_span scroll-adjust inherited from MT-015) but not integration-tested while scrolled - minor. RISK-4 stale highlights mitigated by per-frame rescan (supersedes the literal clear-flag). Module root rich_editor/ not rich_text/."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "455a6690"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM",
+      "HBR-VIS"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-018 FAIL_V1. Mechanical scope/lineage gate failed for 455a6690. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM/HBR-VIS. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-018 scope.allowed_paths and inspect git show --name-only 455a6690. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM, HBR-VIS with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-018 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-018 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Serialized current-head handshake-native library and applicable integration tests passed for this MT after isolated reruns; no MT-owned product failure remained.",
+      "Committed source, MT contract, WP scope, and resolved current Master Spec modules were compared directly.",
+      "Mock/ignored/live-resource boundaries were inspected; any accepted typed blocker is explicitly permitted by this MT contract."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-018 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
+    "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
 }

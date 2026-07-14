@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-07-10T22:43:12.889Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,11 +35,14 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [],
     "blocks": [],
-    "active": true,
-    "validator_verdict": "PENDING",
+    "active": false,
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
     "open_repair_plan_2026_07_03": {
       "schema_id": "hsk.mt_open_repair_plan@1",
       "created_at_utc": "2026-07-03T21:26:02Z",
@@ -176,5 +179,196 @@
       "Full-suite green gate (AC-108-3).",
       "Harness change keeps existing GPU-host behavior identical; only the headless path gains the typed marker."
     ]
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "PASS",
+      "implementing_commits": [
+        "b289993f"
+      ],
+      "concerns": [
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope PASS, but unresolved mandatory HBR evidence makes approval illegal.",
+    "fail_report": "MT-108 FAIL_V1. Mechanical scope/lineage gate passed for b289993f; the missing compile-gate receipt is LOW severity. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Keep the mechanically-contained lineage unchanged. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-108 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "Final frontend hardening is incomplete: current-source integration binaries still fail or hang although the library harness passes 1665/1665.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate.",
+    "fail_report": {
+      "summary": "MT-108 FAIL V1. Final frontend hardening is incomplete: current-source integration binaries still fail or hang although the library harness passes 1665/1665.",
+      "remediation_steps": [
+        "Resolve every current-source failure under its owning MT; exclude only binaries with no current source.",
+        "Fix order/global-state leaks.",
+        "Run all frontend tests serially from crate CWD with external artifacts.",
+        "Record inventory, counts, SHA, visual/runtime evidence."
+      ],
+      "verification_required": [
+        "Library and all current-source binaries pass.",
+        "Zero timeout.",
+        "No repo-local target/output; stable-id proofs reproduce."
+      ],
+      "no_context_instruction": "Read the complete MT, WP packet, and resolved current Master Spec before editing. Implement only this product remediation, run every required verification from current HEAD, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-108 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "The residual-hardening contract requires the current full native suite green, but the fresh serialized sweep has reproducible product failures in app-host, CKC mount, context menus, backend timeout audit, and the MT-098 shared shell surfaces. AC-108-3 is therefore unmet."
+    ],
+    "basis": "The residual-hardening contract requires the current full native suite green, but the fresh serialized sweep has reproducible product failures in app-host, CKC mount, context menus, backend timeout audit, and the MT-098 shared shell surfaces. AC-108-3 is therefore unmet.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-108 FAIL V1. The residual-hardening contract requires the current full native suite green, but the fresh serialized sweep has reproducible product failures in app-host, CKC mount, context menus, backend timeout audit, and the MT-098 shared shell surfaces. AC-108-3 is therefore unmet.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Use the fresh V1 fail reports for MT-033, MT-070, MT-079, MT-088, and MT-098 as the concrete residual defect list; reproduce each failure independently.",
+        "Repair the owning product surfaces without suppressing, ignoring, or weakening the tests.",
+        "Run the MT-108 targeted audit/hardening proofs, then cargo test -p handshake-native -j1 --no-fail-fast with the external target directory and retain the complete zero-failure summary.",
+        "Recheck artifact hygiene, diagnostics, and all counterfactual/negative probes declared by MT-108 before re-handoff."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-108.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-108 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Final frontend hardening is incomplete: multiple current-source integration binaries fail or hang, including notes, terminal, manual, MCP/Argus, diagnostics, watchdog, Palmistry capstone, and swarm proof.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-108 FAIL V1. Final frontend hardening is incomplete: multiple current-source integration binaries fail or hang, including notes, terminal, manual, MCP/Argus, diagnostics, watchdog, Palmistry capstone, and swarm proof.",
+      "remediation_steps": [
+        "Resolve every current-source failure under its owning MT and do not exclude acceptance-critical ignored tests.",
+        "Fix order/global-state leaks and make all managed-resource/child/IPC tests hard-bounded.",
+        "Run all frontend tests serially from crate CWD with external artifacts after targeted repairs.",
+        "Record current HEAD, complete inventory/counts, Argus evidence, manual proof, and runtime evidence."
+      ],
+      "verification_required": [
+        "The library and every current-source integration binary pass.",
+        "There are zero timeouts and no acceptance-critical ignores.",
+        "No repo-local target/output or orphan process remains."
+      ],
+      "no_context_instruction": "Read MT-108.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

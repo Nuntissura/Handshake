@@ -14,7 +14,7 @@
   "title": "E11-MT-080-AppHostMount-SecondaryPanesAndDeepWiring",
   "group": "E11 Shell host-mount (app.rs convergence, part 2)",
   "created_at_utc": "2026-06-26T00:00:00Z",
-  "updated_at_utc": "2026-07-08T16:52:50.946Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authoring_note": "Authored 2026-06-26 by KERNEL_BUILDER as the MT-079 fuller-mount follow-on (the canvas/graph + side-pane + deep-wiring carries MT-079 honestly deferred). MT-079 mounted the CORE code+rich editors live; this MT mounts the secondary panes + the deeper per-pane wirings carried from MT-035/036/043/060/061/062/063/064/066/067/073.",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-080.json",
@@ -26,8 +26,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
-    "active": true,
+    "status": "PASS_V1",
+    "active": false,
     "depends_on": [
       "MT-079",
       "MT-026",
@@ -45,7 +45,10 @@
       "MT-045",
       "MT-046"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: (1) Relevant Memory + Stage pane mounts are OPERATOR-UNREACHABLE - register helpers called only in unit tests; no menu/palette/drawer/navigator arm opens those Placeholder pane types; the AC-080-1 mounted-LIVE proof injects pane types programmatically (retype harness) so it does not evidence operator reachability; even interop.route-to-stage routes content without opening the Stage pane. (2) PaneType collisions: singleton side-pane factories registered over CONTENT-ADDRESSED navigation types ignoring content_id - every loom-block open renders the same OutgoingLinksPanel instead of block content, and quick-switcher WP/MT hits render the generic graph view with the WP/MT id ignored. Navigation lands on unrelated pane content. Fix: VIEW-menu/palette open commands (view.relevant-memory, view.stage), give side panes their own keys or make mounts consume ctx content_id, restore honest block-content/WP surfaces, re-prove AC-080-1 via real operator routes.",
@@ -188,5 +191,155 @@
     "group_b_wiring": "DEEP WIRINGS threaded: CANVAS ResizePlacement/AssignSection -> host PATCH path (route_canvas_events, live PATCH+getCanvasBoard gated); GRAPH depth-parameterized client (local_request_with_depth clamps) + DepthChanged re-query (live fetch gated); CODE Ctrl+Z/Ctrl+Y -> MT-035 unified undo + set_undo_runtime + register_undo_commands; OUTGOING-LINKS on_open->nav; RELEVANT-MEMORY refresh_for_context + honest EndpointMissing empty-state (route verified ABSENT); DAILY-JOURNAL DateNavigated->open_or_create; MT-043 code_editor_text Action::SetValue/ReplaceSelectedText + wikilink-by-id (SetValue dispatch mutates buffer - the swarm-authoring gap CLOSED).",
     "honest_carries": "emit_code_edit FR-emit (MT-036 closed-schema gap), Propose-to-Memory live invocation (MT-064), Stage Route-to-Stage/embed-back (Stage embed-back HTTP route ABSENT) = honest typed carries (NOT faked, NOT todo!()); live-PG round-trips + absent-HTTP-route panes stay gated/empty-state.",
     "waiver_granted": "app.rs (secondary mounts) + editor_pane_factories.rs + pane_registry.rs + backend_client.rs (depth builder) + code_editor/panel.rs (SetValue/undo) + graph/graph_view.rs + graph/canvas_board.rs + lib.rs + test in allowed_paths."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "286aca3c",
+        "52cee880",
+        "511150e2",
+        "ae661c2e"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-VIS",
+      "HBR-SWARM"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-080 FAIL_V1. Mechanical scope/lineage gate failed for 286aca3c, 52cee880, 511150e2, ae661c2e. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-VIS/HBR-SWARM. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-080 scope.allowed_paths and inspect git show --name-only 286aca3c, 52cee880, 511150e2, ae661c2e. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-VIS, HBR-SWARM with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-080 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-080 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "The secondary live app-host mount tests passed in the serialized native sweep.",
+      "The real Atelier, Graph View, Outgoing Links, and Manual panes were opened in the committed visual artifact and were readable.",
+      "No placeholder-only mount or MT-080-owned shell failure remained."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-080 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
+    "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
 }

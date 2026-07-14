@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-07-02T22:52:58Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,7 +35,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [],
     "blocks": [
       "MT-036",
@@ -44,7 +44,10 @@
       "MT-074"
     ],
     "active": false,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
     "remediation_appendage": "Build the backend routes that E5/E9/E10 native-editor work is typed-blocked on: (1) FR native-editor ingestion - extend api/flight_recorder.rs beyond the closed RuntimeChatEventV0_1 shape (deny_unknown_fields, 3-variant enum, hardcoded actor_id runtime_chat, UUID-only session_id) to accept a versioned native-editor event family covering NativeEditorAction kinds plus the 5 un-emitted interop kinds (STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP); (2) GET /memory/pack returning the REAL ace::MemoryPack shape (memory_id/memory_class/source_refs - the native client model must be aligned in the paired frontend change); (3) POST /memory/proposals review-gated intake (proposals land as pending review items, NEVER direct memory commits). All PostgreSQL/EventLedger-backed, no SQLite. Frontend pairing (emit variants + client model alignment + un-ignoring the gated E9 proofs) is wave-2 native work that this MT unblocks.",
     "completed_by": null,
     "implementation_evidence": "PROVEN on real managed PostgreSQL 2026-07-02 (durable log MT-109-managed-pg-verify-kb.log): api::memory::tests 6/6 (incl. proposal_cannot_mutate_committed_memory + missing-provenance fail-closed negatives), api::flight_recorder native_editor 4/4 (unknown-kind rejection, all documented kinds, ledger mirror, fail-closed). Ran with --features runtime-full,duckdb-flight-recorder,test-utils. No SQLite. Committed product 2fe559ed. Unblocks frontend MT-036/063/064/074 (their live proofs run in the managed-PG proof day)."
@@ -124,5 +127,197 @@
       "Negative test: direct memory mutation via the proposals route must fail closed (AC-109-3).",
       "Field-by-field response-shape assertion pinned in tests (AC-109-2) so frontend alignment has a stable contract."
     ]
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "2fe559ed"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_PACKET_IN_SCOPE_PATHS",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "TARGETED_GREEN_NONDISPOSITIVE: feature-gated native_editor passed 4/4 and api::memory passed 6/6 against real managed PostgreSQL/EventLedger. Packet scope still fails.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-109 FAIL_V1. Commit 2fe559ed changes five src/backend files outside packet.scope.allowed_paths. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "First, widen packet scope for the five backend files with explicit Operator authority or move them to a correctly scoped packet; preserve green managed-PG proofs. 1) Read MT-109 scope.allowed_paths and inspect git show --name-only 2fe559ed. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-109 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "Final real-data hardening is incomplete: native-editor FR and memory-pack/proposal managed-PostgreSQL groups exceed the timeout.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate.",
+    "fail_report": {
+      "summary": "MT-109 FAIL V1. Final real-data hardening is incomplete: native-editor FR and memory-pack/proposal managed-PostgreSQL groups exceed the timeout.",
+      "remediation_steps": [
+        "Isolate PG schemas/databases and eliminate lock/pool/worker leaks.",
+        "Bound route/event/memory/proposal operations and teardown.",
+        "Prove event idempotency/readback.",
+        "Prove memory-pack provenance and review-gated proposal without direct mutation."
+      ],
+      "verification_required": [
+        "Both groups pass bounded.",
+        "Duplicate replay is idempotent.",
+        "Proposal provenance reads back and review gates memory mutation."
+      ],
+      "no_context_instruction": "Read the complete MT, WP packet, and resolved current Master Spec before editing. Implement only this product remediation, run every required verification from current HEAD, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-109 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "The required feature-enabled native-editor Flight Recorder ingestion and memory-pack/proposal tests did not complete: enabling duckdb-flight-recorder remained in native DuckDB compilation/linking until the bounded run timed out, so no non-zero assertions executed. Source inspection found the intended tests, but source presence cannot satisfy the hard managed-resource proof."
+    ],
+    "basis": "The required feature-enabled native-editor Flight Recorder ingestion and memory-pack/proposal tests did not complete: enabling duckdb-flight-recorder remained in native DuckDB compilation/linking until the bounded run timed out, so no non-zero assertions executed. Source inspection found the intended tests, but source presence cannot satisfy the hard managed-resource proof.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-109 FAIL V1. The required feature-enabled native-editor Flight Recorder ingestion and memory-pack/proposal tests did not complete: enabling duckdb-flight-recorder remained in native DuckDB compilation/linking until the bounded run timed out, so no non-zero assertions executed. Source inspection found the intended tests, but source presence cannot satisfy the hard managed-resource proof.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Make the MT-109 proof target build and run deterministically within a bounded governed validation window, preferably by reusing the already-built canonical DuckDB/Flight Recorder feature target and eliminating unnecessary integration-target compilation.",
+        "Run the feature-enabled exact native_editor ingestion tests and memory tests with explicit non-zero test counts against managed PostgreSQL/EventLedger: roundtrip, idempotency, unknown kind/field rejection, documented kinds, fail-closed handler, real memory-pack shape, empty pack, pending proposal plus ledger, committed-memory immutability, provenance failure, and unknown class/field.",
+        "Capture real persisted proposal/event IDs and prove no committed memory mutation occurs before approval.",
+        "After exact tests pass, run the MT-109 integration subset and record build/test durations plus external artifact paths; do not infer PASS from source code or zero selected tests."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-109.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-109 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Final real-data hardening is incomplete: native-editor Flight Recorder and memory-pack/proposal managed-PostgreSQL groups exceed the timeout and required routes remain absent.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-109 FAIL V1. Final real-data hardening is incomplete: native-editor Flight Recorder and memory-pack/proposal managed-PostgreSQL groups exceed the timeout and required routes remain absent.",
+      "remediation_steps": [
+        "Implement the MT-109 route contracts and complete MT-036/063/064 dependencies.",
+        "Isolate PostgreSQL schemas/databases and eliminate lock, pool, and worker leaks.",
+        "Bound route, event, memory, and proposal operations plus teardown.",
+        "Prove event idempotency/readback and review-gated proposal provenance without direct memory mutation."
+      ],
+      "verification_required": [
+        "Both managed groups pass bounded.",
+        "Duplicate replay is idempotent.",
+        "Proposal provenance reads back and review gates memory mutation."
+      ],
+      "no_context_instruction": "Read MT-109.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

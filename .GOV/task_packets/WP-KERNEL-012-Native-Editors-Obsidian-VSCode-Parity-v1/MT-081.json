@@ -14,7 +14,7 @@
   "title": "D1-MT-081-SharedMemoryRing-Seqlock-DiagEventSchema",
   "group": "D1 Diagnostic substrate (shared-memory ring)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-081.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -34,7 +34,10 @@
       "MT-090",
       "MT-091"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: Build the SHARED-MEMORY RING that is the substrate of the whole three-tier diagnostic decoupling (Master Spec v02.196 §5.8.6 + §6.13.4). This is the ROOT MT of WP-KERNEL-012: internal_diagnostics (Tier 2, written by Handshake) and Palmistry (Tier 3, read by the external watcher) both depend on this one ring protocol, so it MUST be a SHARED crate both binaries link, not a private module inside handshake-native. The ring is a fixed-size, memmap2-mapped, single-producer/single-consumer (SPSC) lock-free ring with a seqlock-versioned header so a frozen/slow reader can NEVER back-pressure or tear the writer (the writer is the Handshake UI thread, which must never block on diagnostics). It also defines the TYPED-ALLOWLIST DiagEvent record schema used by every later MT.\n\nExact crate to create (NEW workspace member, separate from handshake-native and palmistry):\n- CREATE `src/frontend/handshake_native/diag_ring/Cargo.toml` — a small standalone library crate named `handshake-diag-ring` (`[package] name = \"handshake-diag-ring\"`, `edition = \"2021\"`, `publish = false`, its own `[workspace]` table so it stands alone exactly like handshake-native does — the repo has NO root cargo workspace per the handshake-native Cargo.toml header). Place it as a SIBLING of `src/frontend/handshake_native/` (i.e. `src/frontend/handshake_native/diag_ring/`) so both the Handshake crate and the palmistry crate (MT-089) can declare it via a relative `path = ` dependency. Dependencies: `memmap2 = \"0.9\"` (the OS shared-memory map; the latest 0.9 line is 0.9.11 as of 2026-06-27), `bytemuck = \"1\"` (zero-copy plain-old-data cast of the header + records into the mapped bytes — derive `Pod`/`Zeroable`), `serde = { version = \"1\", features = [\"derive\"] }` (DiagEvent (de)serialization for tests + later survivor-store JSON). NO tokio, NO egui, NO reqwest — this crate is pure substrate.\n- CREATE `src/frontend/handshake_native/diag_ring/.cargo/config.toml` — redirect `[build] target-dir` to the EXTERNAL artifact root so this crate NEVER creates a sibling `target/` folder. Use `target-dir = \"../../../../../Handshake_Artifacts/handshake-diag-ring-target\"` (count the `../` from the diag_ring crate dir to the `Handshake Worktrees/` parent that holds `Handshake_Artifacts/`; the handshake-native crate one level up uses four `../`, so this nested crate uses five — VERIFY the depth by resolving the path before committing). DO NOT create a repo-local `target/`.\n- CREATE `src/frontend/handshake_native/diag_ring/src/lib.rs` — declares `pub mod ring;` and `pub mod schema;` and re-exports the public types.\n- CREATE `src/frontend/handshake_native/diag_ring/src/ring.rs` — the seqlock SPSC ring.\n- CREATE `src/frontend/handshake_native/diag_ring/src/schema.rs` — the typed-allowlist DiagEvent record.\n- CREATE `src/frontend/handshake_native/diag_ring/tests/test_ring_roundtrip.rs` + `tests/test_seqlock_torn_read.rs` + `tests/test_schema_allowlist.rs`.\n\nRing design (ring.rs) — research basis: the Linux seqlock pattern (writer bumps a u32 sequence BEFORE and AFTER each write; an odd sequence means a write is in progress, and a changed sequence between the reader's two reads means it raced a write, so the reader RETRIES — this is exactly how the kernel publishes time without locks, and it is the standard lock-free single-writer publish primitive). Layout, all `#[repr(C)]` POD so the memory map is ABI-stable cross-process:\n- `RingHeader { magic: u64, version: u32, record_size: u32, capacity: u32, write_index: u32, heartbeat: HeartbeatSlot, _pad: [u8; N] }` — `magic` is a fixed constant (e.g. 0x48534B5F44494147 = \"HSK_DIAG\") the reader checks to refuse a foreign/garbage map; `version` lets MT-096/WP-016 evolve the layout; `capacity` is the fixed number of record slots (default 1024).\n- `HeartbeatSlot { seq: u32, counter: u64, timestamp_nanos: u64, _pad }` — the RESERVED heartbeat slot (a monotonic frame counter + a monotonic timestamp, written by MT-084 every egui frame; read by Palmistry MT-090/MT-091 with zero cooperation). It is its OWN seqlock-protected slot in the header (not a record) so a freeze probe reads ONLY the heartbeat without scanning records.\n- Each record slot: `RecordSlot { seq: u32, event: DiagEvent }` (DiagEvent is fixed-size POD from schema.rs). The whole region is `header + capacity * size_of::<RecordSlot>()`.\n- `DiagRingWriter` (Handshake side): `create(name: &str, capacity: u32) -> io::Result<Self>` maps a named shared region of the exact computed size and writes the header. `write(event: DiagEvent)` does: pick slot = `write_index % capacity`; bump that slot's `seq` to odd (`fetch_add(1)` semantics via `core::sync::atomic` on the mapped bytes, or a volatile store + `Ordering::Release`); write the record bytes; bump `seq` to even again; then advance `write_index` (Release). NON-BLOCKING + WAIT-FREE: the writer NEVER waits on the reader — overwriting an unread slot is allowed by design (a slow reader loses old records, it never stalls Handshake). `write_heartbeat(counter, timestamp_nanos)` does the same odd/even seq dance on the HeartbeatSlot.\n- `DiagRingReader` (Palmistry side): `open(name: &str) -> io::Result<Self>` maps the SAME named region read-only-ish, checks `magic` + `version`. `read_heartbeat() -> Option<Heartbeat>` does the seqlock read: read `seq` (retry if odd), read counter+timestamp, re-read `seq`; if it changed, retry (bounded retry count, e.g. 16, then return the last consistent value or None). `read_last_n(n) -> Vec<DiagEvent>` walks back from `write_index` reading each slot under the same seqlock retry, skipping any slot whose seq is odd or changed (torn) — returns only CONSISTENT records.\n- Cross-process named shared memory on Windows: memmap2's `MmapMut` maps a FILE, not a Win32 named section directly. Use a NAMED FILE in the OS temp dir as the backing (e.g. `%TEMP%/handshake-diag-<session-id>.ring`) and `memmap2::MmapMut::map_mut` over it — both processes map the SAME file path and share pages. This is the portable, field-standard memmap2 cross-process pattern (the alternative, raw Win32 `CreateFileMappingW` with a `Global\\` name, is NOT portable and not needed). The backing file path (NOT a Win32 object name) is what Handshake passes to Palmistry (MT-089/MT-094). DOCUMENT this choice in the module doc.\n\nDiagEvent typed-allowlist schema (schema.rs) — this is the HARD privacy invariant from §5.8.3 + §6.13.8: NO project content, NO sensitive data, NO free text, NO file contents, NO prompts, NO document bodies. EVERY field is a mechanical primitive. Define:\n- `DiagEvent { event_code: u16, phase_marker: u8, severity: u8, thread_id: u64, sequence_id: u64, counter_a: u64, counter_b: u64, metric_micros: u64, timestamp_nanos: u64 }` — all fixed-width integers, `#[repr(C)]`, `Pod + Zeroable`. NO `String`, NO `Vec`, NO `&str`, NO byte blob.\n- `event_code: u16` is a value from a CLOSED enum `DiagEventCode` (`#[repr(u16)]`): e.g. `Heartbeat`, `PanicCaught`, `SlowFrame`, `ResourceSample`, `BackendUnreachable`, `BackendRecovered`, `PaneMounted`, `FreezeSuspected`, `CrashDetected`, `PalmistryHandshake`, `Shutdown`, `Other`. Adding a code is a code change reviewed against the allowlist; a caller cannot smuggle arbitrary text because there IS no text field.\n- `phase_marker: u8` from a small `DiagPhase` enum (`Start`, `Tick`, `End`, `Recovered`, `Degraded`); `severity: u8` from `DiagSeverity` (`Info`, `Warn`, `Error`).\n- Provide `DiagEvent::heartbeat(...)`, `DiagEvent::resource_sample(cpu_milli, rss_kb, ...)`, etc. constructor helpers so call sites cannot hand-roll a malformed event.\n- Provide a compile-time + test guarantee that the struct contains NO pointer/heap field: a `const _: () = assert!(size_of::<DiagEvent>() == EXPECTED);` and a test that the type is `Pod` (bytemuck enforces no padding-UB / no non-POD field at the type level — bytemuck's derive FAILS to compile if you add a `String`).\n\nReuse / placement note: handshake-native is a STANDALONE `[workspace]` crate (no repo root workspace — see its Cargo.toml header). This new crate is ALSO standalone with its own `[workspace]`; handshake-native (MT-082) and palmistry (MT-089) depend on it via `handshake-diag-ring = { path = \"diag_ring\" }` / `path = \"../handshake_native/diag_ring\"` relative deps. NO backend involvement: this is pure local shared memory, src/backend is untouched.\n\nRisk if missed: every other MT in WP-KERNEL-012 is blocked. internal_diagnostics (MT-082) has nothing to write to; Palmistry (MT-090/011/012) has nothing to read; the heartbeat (MT-084) has no slot; the typed-allowlist invariant (MT-096) has no schema to enforce. A wrong seqlock here means torn reads of the heartbeat under freeze, which is the single most safety-critical read in the whole watcher.",
@@ -147,5 +150,153 @@
       "seqlock ordering stress-proven on x86 TSO only (Release/Acquire correct-by-construction; cross-arch proof deferred)",
       "thread- not process-level sharing in tests (memmap2 shared backing file shares pages identically cross-process; true cross-process proof at MT-089+ Palmistry binary)"
     ]
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "b1ba1e03",
+        "4b62591c",
+        "12d41d8d"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-081 FAIL_V1. Mechanical scope/lineage gate failed for b1ba1e03, 4b62591c, 12d41d8d. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-081 scope.allowed_paths and inspect git show --name-only b1ba1e03, 4b62591c, 12d41d8d. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-081 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-081 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "handshake-diag-ring passed all current-head library, roundtrip, schema allowlist, seqlock/wait-free, and three-tier evidence tests.",
+      "Ring schema/privacy/boundary source was compared directly with the MT and resolved Master Spec.",
+      "No MT-owned diagnostics-ring failure remained."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-081 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
+    "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
 }

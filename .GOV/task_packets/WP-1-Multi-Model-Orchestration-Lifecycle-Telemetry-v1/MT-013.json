@@ -47,6 +47,7 @@
       "src/backend/handshake_core/src/process_ledger/",
       "src/backend/handshake_core/src/sandbox/",
       "src/backend/handshake_core/src/flight_recorder/",
+      "src/backend/handshake_core/src/main.rs",
       "src/backend/handshake_core/tests/"
     ],
     "forbidden_paths": [
@@ -177,5 +178,80 @@
     "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
     "fail_report": "SPEC-REALISM descriptor/runtime mismatch (same root as MT-003). scope.summary, acceptance_criteria[0] (AC#1), and proof_status all assert the default embedded-model load 'loads the model under the configured SandboxAdapter (default HandshakeNativeSandboxAdapter)'. Verified against git ground truth: git diff 6519f4e2..HEAD -- src/backend/handshake_core/src/sandbox/ is EMPTY (zero sandbox files changed); grep SandboxAdapter src/llm/boot.rs = 0 hits; src/llm/embedded_ledger.rs documents the 3.6.2 boxing clause as 'satisfied VACUOUSLY'. No SandboxAdapter boxing shipped. The Spec-Realism Gate rejects descriptor/runtime mismatch even when tests pass. NOTE (not the FAIL basis - the ledger work is genuinely good): the ProcessOwnershipLedger START/STOP obligation IS well implemented (idempotent shutdown via compare_exchange, Drop safety net, rollback on lossless-record failure, honest os_pid=None with os_pid_absent_reason). The FAIL is the false boxing claim, not the code. SECONDARY (advisory, not FAIL basis): the real-Candle proof leg (candle_e2e_smoke.rs mt013_real_candle_default_load_emits_process_ledger_start_stop) is #[ignore]+feature-gated; it was proven 2026-07-04 (log at ../Handshake_Artifacts/handshake-test/wp1-final-audit/mt013-real-candle-ledger-proof.log with matching process_uuid 019f2b98-... + sha256 49c20f32...) but was NOT re-run in the 2026-07-09 HEAD re-proof set.",
     "remediation_plan": "STEP 1 (contract-truth, governance/spec-owner action - Coder MUST NOT edit /.GOV/): mark AC#1's SandboxAdapter-boxing clause NOT_APPLICABLE with recorded reason 'in-process Candle/llama.cpp library load spawns no OS process/child/guest; master-spec 3.6.2 clause(1) vacuous; the enforced obligation is ProcessOwnershipLedger START-on-load/STOP-on-unload (4.6.1), implemented in src/backend/handshake_core/src/llm/embedded_ledger.rs with os_pid=None + os_pid_absent_reason=in_process_library_load_no_os_process'. Strike 'box the default embedded model-load under a SandboxAdapter' from scope.summary and proof_status. STEP 2 (durable runtime evidence): re-run mt013_real_candle_default_load_emits_process_ledger_start_stop at HEAD with HANDSHAKE_TEST_CANDLE_MODEL_DIR pointing at the cached peft-internal-testing/tiny-random-LlamaForCausalLM snapshot and '--features candle-runtime-engine -- --ignored', and cite the captured [MT-013_REAL_CANDLE_LEDGER_DUMP] artifact path in proof_commands (not only in the proof_status narrative). STEP 3: re-handoff to READY_FOR_VALIDATION."
+  },
+  "remediation_v2": {
+    "status": "IN_PROGRESS_V2",
+    "opened_at_utc": "2026-07-11T11:19:45Z",
+    "product_baseline": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+    "v1_verdict_preserved": "FAIL_V1",
+    "authority": "packet.lifecycle.packet_widening_decision=OPERATOR_DIRECTIVE_2026-07-11_FULL_WP_IMPLEMENTATION plus the live operator directive to remediate every failed MT and harden each remediation before V2 validation",
+    "contract_truth_correction": {
+      "supersedes_for_v2": [
+        "scope.summary wording that requires the in-process default load to be boxed under a SandboxAdapter",
+        "acceptance_criteria[0] SandboxAdapter-boxing clause",
+        "proof_status and handshake_compatibility wording that treats boxing as part of the real-Candle gate",
+        "active SPEC_CURRENT v02.200 section 4.6.1 load-under-SandboxAdapter wording for the no-child/no-guest in-process path, plus section 3.6.3 guest bind-mount and section 3.5.7 engine-boxing wording where no guest/process exists"
+      ],
+      "classification": "NOT_APPLICABLE",
+      "reason": "Packet lifecycle.in_process_model_runtime_interpretation_v2 is the operator-authorized V2 resolution of the stale active-spec contradiction. The default Candle/llama.cpp runtime is loaded as an in-process Rust library and creates no OS child process or guest. SPEC_CURRENT section 3.6.2 clause (1) governs model processes Handshake spawns, so there is no child to place under a SandboxAdapter.",
+      "enforced_obligation": "Artifact integrity plus ProcessOwnershipLedger START-on-load and STOP-on-unload under section 4.6.1/5.7, with os_pid=null and os_pid_absent_reason=in_process_library_load_no_os_process; any actual spawned model process remains subject to SandboxAdapter ownership. Enqueue failure is typed and never reported as success; bounded live-writer retry or boot-time orphan reconciliation must close a failed STOP path."
+    },
+    "scope_amendment": {
+      "decision": "BOUNDED_PRODUCT_HARDENING",
+      "reason": "The V2 contract-truth correction remains the primary remediation and no sandbox rewrite is authorized. Adversarial review proved the synchronous STOP enqueue can lose capacity before main closes the writer, so the existing llm/process_ledger/test scope may harden lifecycle ownership before close-and-drain. Cargo.toml and the exact 0343/UserManual files reconcile the already-implemented MT-013 dependency and same-change HBR-MAN-004 proof paths that the original allowed-path list omitted.",
+      "exact_added_allowed_paths": [
+        "src/backend/handshake_core/src/main.rs",
+        "src/backend/handshake_core/Cargo.toml",
+        "src/backend/handshake_core/migrations/0343_user_manual_wp1_mt013_embedded_model_origin.sql",
+        "src/backend/handshake_core/migrations/0343_user_manual_wp1_mt013_embedded_model_origin.down.sql",
+        "src/backend/handshake_core/src/user_manual/behavior_coverage.rs",
+        "src/backend/handshake_core/src/user_manual/mod.rs",
+        "src/backend/handshake_core/src/user_manual/seed.rs"
+      ]
+    },
+    "research_basis_v2": {
+      "researched_at_utc": "2026-07-11T14:20:00Z",
+      "sources_checked": [
+        "https://doc.rust-lang.org/std/net/struct.UdpSocket.html",
+        "https://doc.rust-lang.org/std/net/struct.TcpListener.html",
+        "https://doc.rust-lang.org/std/net/index.html",
+        "https://www.postgresql.org/docs/current/explicit-locking.html",
+        "https://www.postgresql.org/docs/current/runtime-config-client.html",
+        "https://learn.microsoft.com/en-us/windows/win32/winsock/so-exclusiveaddruse"
+      ],
+      "patterns_found": [
+        "A PostgreSQL session advisory lock is released when its database session ends, so an absent lock proves session loss but not owning-process death.",
+        "An OS-owned loopback socket stays live independently of PostgreSQL and closes when its owning process exits or releases the socket.",
+        "Binding port zero requests an OS-assigned port, and a same-address second-bind self-test can fail startup when the current host cannot provide exclusive Handshake-to-Handshake lease semantics.",
+        "PostgreSQL pg_temp can precede pg_catalog for relation lookup unless search_path is explicitly pinned; authority-table queries must resolve and pin the intended schema."
+      ],
+      "rejected_options": [
+        "Timestamp-only orphan inference because it can close another live instance.",
+        "A permanent PostgreSQL session advisory lock as sole liveness proof because PostgreSQL restart, idle-session termination, or network loss releases it while the app can remain alive.",
+        "A filesystem PID/lock file because stale files, hardcoded paths, and cross-disk relocation weaken portability and crash proof.",
+        "Treating malformed or missing lease metadata as stale because unknown liveness must fail safe."
+      ],
+      "selected_approach": "Hold a process-owned loopback UDP port lease from before reconciliation/artifact access through durable STOP drain; persist its versioned descriptor in every embedded START; use a short transaction-scoped PostgreSQL advisory lock only to serialize reconcilers; bind-probe the exact descriptor while the transaction is open; close rows only after successful OS-port acquisition; pin pg_catalog plus the resolved authority schema and skip malformed/conflicting metadata with diagnostics.",
+      "risks_and_mitigations": [
+        "PostgreSQL session/server loss while model stays live: OS lease remains held, so reclaimer bind fails and no false STOP is written.",
+        "Two reconcilers race: deterministic transaction advisory lock plus holding the claimed OS socket through commit permits at most one closer.",
+        "Port reused by an unrelated process: bind fails and cleanup is delayed rather than falsely closing a live row.",
+        "Host permits two ordinary binds: acquisition self-test fails before artifact access.",
+        "Search-path or temporary-table shadowing: resolve one authority schema and transaction-locally pin pg_catalog, authority schema, then pg_temp."
+      ],
+      "validation_plan": "Use real PostgreSQL plus real OS sockets to prove two live instances remain open, one released instance closes exactly once, loss of a PostgreSQL session while the OS holder remains alive closes zero rows, corrupt/conflicting metadata remains open while valid stale rows still reconcile, competing reconcilers serialize, and shadow schemas/temp tables receive no mutation."
+    },
+    "required_proof_v2": [
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests embedded_model_reserved_stop_survives_unrelated_queue_saturation -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_writer_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests embedded_model_behaviors_have_manual_coverage -- --exact --nocapture",
+      "cargo check -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime"
+    ],
+    "required_runtime_artifact": "A fresh captured [MT-013_REAL_CANDLE_LEDGER_DUMP] from the final product source, naming matching START/STOP rows for the same process_uuid and real artifact SHA-256.",
+    "readiness_gate": "Remain IN_PROGRESS_V2 until the fresh real-Candle artifact exists, every supporting proof passes, and independent adversarial review finds no unresolved realism or ownership gap."
   }
 }

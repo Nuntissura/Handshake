@@ -58,7 +58,12 @@
       "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
       "src/backend/handshake_core/src/main.rs",
       "src/backend/handshake_core/src/llm/",
-      "src/backend/handshake_core/Cargo.toml"
+      "src/backend/handshake_core/Cargo.toml",
+      "app/src-tauri/Cargo.toml",
+      "app/src-tauri/src/commands/swarm_runtime.rs",
+      "app/src-tauri/src/commands/swarm_schedule.rs",
+      "app/src-tauri/src/commands/swarm_schedule_store.rs",
+      "app/src-tauri/src/lib.rs"
     ],
     "forbidden_paths": [
       "direct model endpoint calls outside LlmClient",
@@ -293,5 +298,75 @@
     "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
     "fail_report": "TWO independent failures. (1) SPEC-REALISM descriptor/runtime mismatch: AC#15 (REOPENED SCOPE, master-spec 3.6.2/4.6.1) requires the embedded default engine load path to 'box under a SandboxAdapter (default HandshakeNativeSandboxAdapter) and emit ProcessOwnershipLedger START/STOP'. proof_status/hbr_status defer the SandboxAdapter boxing clause 'DEFERRED-to-MT-013'; MT-013 in turn declares that boxing clause 'satisfied VACUOUSLY' (llm/embedded_ledger.rs). Net: the AC#15 SandboxAdapter-boxing clause is satisfied in NO microtask. The Spec-Realism Gate rejects descriptor/runtime mismatch even when tests pass. (2) SCOPE/BOUNDARY (WP Validator Job 2): MT-003 committed 490 insertions into app/src-tauri/ (commit 321543ca: swarm_runtime.rs +298, swarm_schedule.rs +171, lib.rs ModelLaneStore launch wiring, Cargo.toml feature change) - a path EVERY MT contract lists in forbidden_paths as 'app/src-tauri launch or IPC authority for this WP'. Verified: git diff --stat 6519f4e2..HEAD -- app/src-tauri = 490 insertions; git diff -- src/backend/handshake_core/src/sandbox/ = EMPTY (no SandboxAdapter shipped); grep SandboxAdapter llm/boot.rs = 0 hits.",
     "remediation_plan": "STEP 1 (contract-truth, governance/spec-owner action - Coder MUST NOT edit /.GOV/): In the packet PACKET_ACCEPTANCE_MATRIX and MT-003 AC#15, mark the SandboxAdapter-boxing clause NOT_APPLICABLE with recorded reason 'in-process Candle/llama.cpp library load spawns no OS process/child/guest; master-spec 3.6.2 clause(1) vacuous; the enforced obligation is ProcessOwnershipLedger START-on-load/STOP-on-unload (4.6.1), implemented in src/backend/handshake_core/src/llm/embedded_ledger.rs'. Strike 'box ... under a SandboxAdapter' from proof_status wording. (If the spec owner instead rules that in-process loads MUST be boxed, that is new product work: implement a real SandboxAdapter wrap on the boot.rs load path and add a test that observes the boxed process, then re-handoff.) STEP 2 (product scope): EITHER (a) obtain an Operator scope amendment adding app/src-tauri/src/commands/swarm_runtime.rs, swarm_schedule.rs, swarm_schedule_store.rs, src/lib.rs, Cargo.toml to WP-1 allowed_paths with justification (embedded-engine default feature migration removes candle-runtime-engine from the Tauri shell; ModelLaneStore is wired into the app launch runtime), OR (b) revert the app/src-tauri changes from feat/WP-1 and route them to a WP that owns app-shell launch/IPC authority. The WP cannot merge with an unresolved forbidden-path violation. STEP 3: re-handoff MT-003 to READY_FOR_VALIDATION (Coder MUST NOT self-certify COMPLETED)."
+  },
+  "remediation_v2": {
+    "status": "IN_PROGRESS_V2",
+    "opened_at_utc": "2026-07-11T11:19:45Z",
+    "product_baseline": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+    "v1_verdict_preserved": "FAIL_V1",
+    "authority": "packet.lifecycle.packet_widening_decision=OPERATOR_DIRECTIVE_2026-07-11_FULL_WP_IMPLEMENTATION plus the live operator directive to remediate every failed MT and harden each remediation before V2 validation",
+    "contract_truth_correction": {
+      "supersedes_for_v2": [
+        "scope acceptance/proof text that requires a SandboxAdapter around an in-process Candle or llama.cpp library load",
+        "proof_status and hbr_status deferral text that assigns in-process SandboxAdapter boxing to MT-013",
+        "active SPEC_CURRENT v02.200 section 4.6.1 load-under-SandboxAdapter wording for the no-child/no-guest in-process path, plus section 3.6.3 guest bind-mount and section 3.5.7 engine-boxing wording where no guest/process exists"
+      ],
+      "classification": "NOT_APPLICABLE",
+      "reason": "Packet lifecycle.in_process_model_runtime_interpretation_v2 is the operator-authorized V2 resolution of the stale active-spec contradiction. The default Candle/llama.cpp runtime is loaded as an in-process Rust library and creates no OS child process or guest. SPEC_CURRENT section 3.6.2 clause (1) governs model processes Handshake spawns, so there is no child to place under a SandboxAdapter. The enforceable in-process obligations are artifact integrity plus honest pidless ProcessOwnershipLedger START/STOP evidence.",
+      "required_runtime_invariant": "No bare model-server process is spawned; in-process loads use os_pid=null with os_pid_absent_reason=in_process_library_load_no_os_process. Enqueue failure is typed and never reported as success; shutdown must retry within a bounded live-writer window or leave a recoverable orphan that the boot-time reconciliation proof closes."
+    },
+    "scope_amendment": {
+      "decision": "APPROVED_FOR_V2_REMEDIATION",
+      "justification": "The five already-committed Rust Tauri shell files are request-source and launch wiring needed to close a production bypass while keeping the Rust backend authoritative.",
+      "exact_added_allowed_paths": [
+        "app/src-tauri/Cargo.toml",
+        "app/src-tauri/src/commands/swarm_runtime.rs",
+        "app/src-tauri/src/commands/swarm_schedule.rs",
+        "app/src-tauri/src/commands/swarm_schedule_store.rs",
+        "app/src-tauri/src/lib.rs"
+      ],
+      "reference_only_exception": "Only the five exact Rust Tauri shell paths above are implementation-allowed for MT-003; the broad app/src-tauri reference-only rule remains in force for every other path.",
+      "rust_only_gate_reconciliation": "The exception is Rust/Cargo shell wiring. app/src TypeScript/React implementation and npm/JavaScript proof remain forbidden, and these shell files do not become WP proof authority.",
+      "proof_authority": "Exact backend Rust proof remains authoritative; Tauri shell checks may prove bypass closure only."
+    },
+    "historical_dependency_lock_scope": {
+      "decision": "APPROVED_FOR_V2_REMEDIATION",
+      "reason": "Commit 321543ca changed the backend Cargo.lock as the deterministic dependency lock generated by the already-authorized embedded-engine Cargo.toml feature change. Omitting the lockfile made the historical MT-003 file partition internally inconsistent.",
+      "exact_added_allowed_paths": [
+        "src/backend/handshake_core/Cargo.lock"
+      ]
+    },
+    "required_proof_v2": [
+      "git diff --name-only 6519f4e2827840642a6c0401ac31055469f09d3b..HEAD -- app/src-tauri",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_writer_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests -- --nocapture",
+      "cargo check -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime",
+      "cargo test -j 1 --manifest-path app/src-tauri/Cargo.toml --lib dexterity_contract -- --nocapture",
+      "cargo test -j 1 --manifest-path app/src-tauri/Cargo.toml --lib production_runtime_without_model_lane_store_fails_closed_for_dexterity_command_spawn -- --exact --nocapture",
+      "cargo check -j 1 --manifest-path app/src-tauri/Cargo.toml --lib"
+    ],
+    "adversarial_review_v2": {
+      "status": "FAIL_BLOCKER_OPEN",
+      "lens": "sandbox_authority_process_provenance_and_unwind_lifetime",
+      "reviewed_at_utc": "2026-07-11T14:35:00Z",
+      "finding": "Official CLI lanes remain Handshake-spawned subprocesses, but LiveCliSpawner creates the provider executable and Windows taskkill helper directly through std::process::Command instead of the mandatory SandboxAdapter authority. The ledger metadata also claimed sandbox_adapter_id=official_cli_bridge although no such adapter existed. Independent review additionally found that a panic in an on_chunk or cancellation callback could drop Child without terminating it while ActiveProcessLifecycle emitted a STOP row.",
+      "authority_evidence": [
+        "SPEC_CURRENT v02.200 section 3.5.1 requires every Handshake-spawned process, including helper subprocesses, to pass through SandboxAdapter",
+        "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs LiveCliSpawner owns direct Command spawn sites and taskkill",
+        "src/backend/handshake_core/src/api/mod.rs constructs LiveCliSpawner with a ledger but no SandboxAdapter",
+        "src/backend/handshake_core/src/sandbox/adapter.rs exposes buffered exec and detached ProcessHandle contracts but no attached live-stdout child contract"
+      ],
+      "scope_blocker": "A complete production fix requires an attached-process contract and implementation under src/backend/handshake_core/src/sandbox/, production adapter bootstrap/injection, real adapter kill routing, truthful capability metadata, network policy, and exact environment replacement. Those sandbox paths are not currently in MT-003 or packet implementation scope.",
+      "minimum_in_scope_hardening": [
+        "Remove the false official_cli_bridge sandbox adapter attribution",
+        "Add a child-owning unwind guard that terminates and reaps the process before consuming the reserved STOP permit",
+        "Keep complete START/STOP lifecycle capacity reservation before any CLI executable spawn"
+      ],
+      "readiness_effect": "MT-003 MUST remain IN_PROGRESS_V2 and MUST NOT be marked READY_FOR_VALIDATION_V2 until the operator authorizes the required sandbox scope and the real adapter path passes runtime and adversarial proof."
+    },
+    "readiness_gate": "Remain IN_PROGRESS_V2 until the exact proofs pass at the final product source, the Official CLI SandboxAdapter blocker is remediated under authorized scope, and independent adversarial review finds no unresolved contract or regression blocker."
   }
 }

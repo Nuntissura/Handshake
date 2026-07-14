@@ -14,7 +14,7 @@
   "title": "E4-MT029-FindInFiles",
   "group": "E4 Search",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-029.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,14 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-030",
       "MT-044"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Build the native Rust/egui Find-in-Files + Replace-in-Files surface, porting the React WorkspaceSearchPanel (app/src/components/WorkspaceSearchPanel.tsx, MT-250). This is a workspace-wide search across all rich documents and Loom blocks, with a two-phase replace-preview-then-apply flow. It is distinct from the single-document FindReplacePanel (MT-004 / FindReplacePanel.tsx which is a code-editor-local feature).\n\nDiff shape: create src/frontend/handshake_native/src/find_in_files.rs (~550 lines) as a new flat module. Register it as a pane in src/frontend/handshake_native/src/pane_registry.rs and wire it into the shell in src/frontend/handshake_native/src/app.rs. Add all backend HTTP calls (loom search, workspace search bookmarks, rich-document load/save) to the existing shared HTTP client src/frontend/handshake_native/src/backend_client.rs (searchLoomGraph -> GET /workspaces/{id}/loom/search; loadRichDocument -> GET /knowledge/rich-documents/{id}; saveRichDocument -> PATCH /knowledge/rich-documents/{id}). Reuse the existing workspace search surface in src/frontend/handshake_native/src/search_rail.rs for shared query/result rendering helpers where applicable, and the shared command surface command_registry.rs + event_bus.rs for cross-surface selection/clipboard/command dispatch. Reuse accessibility/* for AccessKit author_id assignment.\n\nPanel features to implement (parity with React WorkspaceSearchPanel):\n\n1. QUERY BAR: egui::TextEdit for query. Match-option toggle buttons: case-sensitive (Aa), whole-word (W), regex (.*) - each aria-pressed with active visual state. Kind-filter dropdown (egui::ComboBox): All / Documents / Loom blocks / Files / Tags / Symbols / Work Packets / Microtasks / UserManual / Wiki pages. Tag-filter text input. Path-filter text input.\n\n2. SEARCH: 'Search' button fires GET /workspaces/{workspace_id}/loom/search with query params {q, limit: 500, offset, sourceKinds?, tagIds?, caseSensitive, wholeWord, isRegex, path?}. Paginate: keep requesting with offset+=500 until page.len() < 500. Collect all LoomGraphSearchHit {source_kind, result_kind, ref_id, title, excerpt, metadata, block?} into results Vec. Client-side filter: for case/word/regex options, apply hitMatchesClientOptions (same logic as React: build regex over title+excerpt haystack, skip wholeWord=false early-exit).\n\n3. REPLACE-PREVIEW phase: 'Preview Replace' button enabled after a search with results. On click: compile the search regex (same compileSearchRegex logic: wrap non-regex query in escapeRegex, apply flags); for each hit with a documentId (extracted via documentIdFromLoomSearchHit logic: metadata.rich_document_id or metadata.document_id or block.document_id, must start with 'KRD-'), GET the rich document (GET /workspaces/{workspace_id}/loom/blocks/{block_id}/knowledge or GET /knowledge/rich-documents/{document_id}), walk the content_json tree (visit all text nodes and attrs.code strings), apply replaceSegment (regex exec loop with wholeWord boundary check, group expansion for regex mode via $1..$9/$&/$$), accumulate per-document ReplacementPlan {document_id, title, expected_version, content_json_after, match_count, before_preview, after_preview, match_previews}. Show preview list in a scrollable panel: each plan shows title, match count, before/after preview snippets, and per-match before/after previews.\n\n4. REPLACE-APPLY phase: 'Apply' button enabled when previewPlans non-empty and plan key matches current search+replace key (stale guard). For each plan, PATCH the rich document (PATCH /knowledge/rich-documents/{document_id} with {doc_version: expected_version, content_json: replaced_content}). Collect save_receipt_event_ids. Show status: 'Applied N plans; receipts: ...'. On success re-run search to refresh results.\n\n5. BOOKMARKS (saved searches): on panel open, GET /workspaces/{workspace_id}/search-bookmarks (returns JSON with schema_id 'hsk.workspace_search_bookmark_state@1', key 'bookmarks': array). Show saved searches as a list; each has restore and remove buttons. 'Bookmark Search' button saves current query+options via PUT /workspaces/{workspace_id}/search-bookmarks. Max 20 bookmarks.\n\n6. STATE KEYS: searchPlanKey = hash of {query, sourceKinds, tagIds, path, options}; replacePlanKey = hash of {searchPlanKey, replacement}. Guard preview freshness: if resultSetKey != searchPlanKey, show 'Search results are stale; run Search again'. Guard apply freshness: if previewPlanKey != replacePlanKey, show 'Preview is stale; run Preview Replace again'.\n\nFiles to create/edit:\n- CREATE: src/frontend/handshake_native/src/find_in_files.rs\n- EDIT: src/frontend/handshake_native/src/pane_registry.rs (register the find-in-files pane)\n- EDIT: src/frontend/handshake_native/src/app.rs (wire pane into the shell)\n- EDIT: src/frontend/handshake_native/src/backend_client.rs (search_loom_graph, get/save workspace search bookmarks, load_rich_document, save_rich_document)\n\nReuse pointers (existing WP-011 modules):\n- src/frontend/handshake_native/src/backend_client.rs - shared HTTP client for all backend API calls (add the loom-search, bookmark, and rich-document methods here; do not create a new api/ dir).\n- src/frontend/handshake_native/src/search_rail.rs - existing workspace search surface; reuse its query/result rendering helpers.\n- src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs - shared selection/clipboard/command dispatch bus.\n- src/frontend/handshake_native/src/pane_registry.rs - pane registration for the new surface.\n- src/frontend/handshake_native/src/accessibility/ - AccessKit author_id assignment and snapshot.\n\nImplementation steps:\n1. Define FindInFilesPanelState with all fields from the React component: query, replacement, kind, tag_filter, path_filter, case_sensitive, whole_word, is_regex, results (Vec<LoomGraphSearchHit>), loading, error, replace_status, preview_plans (Vec<ReplacementPlan>), preview_plan_key, result_set_key, bookmarks, bookmark_status.\n2. Define LoomGraphSearchHit struct: source_kind, result_kind, ref_id, title, excerpt, metadata (serde_json::Value), block (Option<LoomBlock>).\n3. Implement search_loom_graph() HTTP fn on backend_client.rs. GET /workspaces/{id}/loom/search with query string params. Note: this is the LEGACY /loom/search endpoint (not /loom/search-v2); confirm the exact params contract from the backend route handler.\n4. Implement compile_search_regex(query, opts) -> Result<Regex, String> using the 'regex' crate. For non-regex mode, escape special chars first (regex::escape). Flags: case-insensitive if not case_sensitive (Regex::new with (?i) prefix or RegexBuilder).\n5. Implement hit_matches_client_options(hit, query, opts): build regex, search title+excerpt, apply whole_word boundary check (check char before start and after end using Unicode word-char property via regex \\b or manual check).\n6. Implement document_id_from_hit(hit): mirror the React documentIdFromLoomSearchHit logic - check metadata.rich_document_id, metadata.document_id, block.document_id, fallback if source_kind == 'document' use ref_id; only accept if starts with 'KRD-'.\n7. Implement replaceSegment(text, regex, replacement, opts) -> (new_text, count, before_preview, after_preview, match_previews). Iterate regex matches; handle zero-length match guard (advance by 1); check whole_word boundary; expand replacement groups for isRegex ($1..$9, $&, $$); collect 24-char context previews per match.\n8. Implement visit_content_json(node, regex, replacement, opts): recurse through content_json (ProseMirror-style AST as serde_json::Value). For text nodes (node.text), apply replaceSegment. For code block attrs (node.attrs.code), apply replaceSegment. Recurse into node.content array.\n9. Render preview list in a ScrollArea: for each ReplacementPlan, show a collapsible section with title, match_count, before/after text, and per-match previews. Use egui::CollapsingHeader.\n10. Assign AccessKit author_ids (via accessibility/*): 'find-in-files.query', 'find-in-files.replace', 'find-in-files.toggle-case', 'find-in-files.toggle-word', 'find-in-files.toggle-regex', 'find-in-files.kind-filter', 'find-in-files.tag-filter', 'find-in-files.path-filter', 'find-in-files.search', 'find-in-files.preview-replace', 'find-in-files.apply', 'find-in-files.cancel', 'find-in-files.save-bookmark', result rows 'find-in-files.result.{source_kind}.{stable_ref_id}', preview items 'find-in-files.preview.{document_id}'.\n\nDependencies/unblock conditions: no depends_on within WP-012. The backend /loom/search endpoint and /knowledge/rich-documents endpoints are live from KERNEL-009. The workspace search bookmarks endpoint (/workspaces/{id}/search-bookmarks) is live. All HTTP calls are to existing endpoints.\n\nRisk if missed: Find-in-files is a core VS-Code-class parity requirement. Missing it means the E4 parity gate cannot pass and the interconnection proof (MT-030) cannot demonstrate workspace-wide document discovery.",
@@ -155,5 +158,187 @@
     "data_safety_held": "content_json walk preserves ALL non-text nodes VERBATIM (test verified hsLink preserved - the MT-011 round-trip lesson); stale-plan-key guard blocks applying a stale plan; expected_version optimistic concurrency on save; KRD- documentId prefix check; zero-length-match advance-by-1; regex::escape non-regex; reused the MT-028 search_highlight_bg theme token (no Color32 literal - test_theme passes).",
     "pane_mounted": "Registered PaneType::FindInFiles in pane_registry + app.rs build_factories (hosted) + module_switcher; 15 pane/switcher regression tests green.",
     "waiver_granted": "backend_client.rs (WorkspaceSearchClient+RichDocClient) + lib.rs/pane_registry.rs/app.rs/module_switcher.rs (pane registration) + tests/test_find_in_files.rs - in/added to allowed_paths."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "5cc58497",
+        "47da54da"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM",
+      "HBR-VIS",
+      "HBR-QUIET"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-029 FAIL_V1. Mechanical scope/lineage gate failed for 5cc58497, 47da54da. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM/HBR-VIS/HBR-QUIET. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-029 scope.allowed_paths and inspect git show --name-only 5cc58497, 47da54da. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM, HBR-VIS, HBR-QUIET with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-029 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-029 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "Find-in-files search, preview, and apply were not proved through the real backend/document persistence path."
+    ],
+    "basis": "Find-in-files search, preview, and apply were not proved through the real backend/document persistence path.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-029 FAIL V1. Find-in-files search, preview, and apply were not proved through the real backend/document persistence path.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Seed searchable documents, including KRD rich documents, in managed PostgreSQL.",
+        "Run real GET search with case/word/regex/kind/tag/path variants; generate preview plans and assert before/after context.",
+        "Change the query to prove the stale-result guard, then rerun search/preview and apply real PATCHes; reload documents and match receipt event IDs.",
+        "Exercise partial failure without data loss and provide current-head commands plus persisted before/after hashes."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-029.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-029 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Find in Files is not proven over the real indexed/persisted corpus because its live PostgreSQL proof is ignored.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-029 FAIL V1. Find in Files is not proven over the real indexed/persisted corpus because its live PostgreSQL proof is ignored.",
+      "remediation_steps": [
+        "Seed multiple documents with positive, negative, Unicode, and large-result cases in managed PostgreSQL.",
+        "Drive the production Find in Files route and assert matches, snippets, file/document identity, navigation, cancellation, and truncation.",
+        "Re-run after edits and deletion to prove freshness.",
+        "Make the live proof default, isolated, and hard-bounded."
+      ],
+      "verification_required": [
+        "Results match the persisted corpus and refresh after mutation.",
+        "Navigation opens the exact match.",
+        "Timeout/cancel/backend-loss cases terminate and the binary exits zero."
+      ],
+      "no_context_instruction": "Read MT-029.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

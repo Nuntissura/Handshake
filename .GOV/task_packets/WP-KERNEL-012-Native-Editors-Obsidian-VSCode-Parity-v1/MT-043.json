@@ -14,7 +14,7 @@
   "title": "E7-MT-043-SwarmEditProof",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-08T23:54:21.114Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-043.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
-    "active": true,
+    "status": "FAIL_V1",
+    "active": false,
     "depends_on": [
       "MT-041",
       "MT-042",
@@ -38,7 +38,10 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: checked-in swarm proof log ends PROOF_PASS while STEP 2 (edit-code) and STEP 3 (add-backlink) are BLOCKED on typed blockers and STEP 4's search PASS is SEEDED (response pre-loaded; no search executes; harness disconnected from STEP 1 doc). Contract IN-043-11 mandates the log END with PROOF_FAIL-blocked-on-MT-041, HBR-STOP mandates stop-at-first-blocker, and the validator gate is keyed on the PROOF_FAIL marker; finish_fail() exists but is dead code. ZERO of AC-043-02..05 met as written. The STRATEGIC_GAP escalation is the MT's real value and stays: code_editor_text TextInput declares zero AccessKit text-insertion actions - swarm agents cannot WRITE text; wikilink-by-id pick missing. Fix: regenerate log with contract-conformant PROOF_FAIL marker (or explicit operator waiver on marker semantics), relabel STEP 4 lines seeded/GATED, re-run the full 4-step proof after MT-041 gains SetValue/ReplaceSelectedText + wikilink-by-id and E11 mounts the panes.",
@@ -203,5 +206,190 @@
     "proof_outcome": "HONEST mixed result (the proof's job = find gaps): STEP1 create-via-heading + save = AccessKit-driven, save-shape proven, live row GATED. STEP2 edit-code = BLOCKED (no AccessKit text-insertion). STEP3 add-backlink = BLOCKED (no headless-drivable wikilink-target pick). STEP4 search = PASS (loom-search-v2.result.<note> node + on_open_block navigation; live POST gated). Proof log: 15 lines, PROOF_PASS, 2 typed blockers + 2 gated halves explicitly logged (not masked). Agent thread channel-only (CTRL-01); NO key-sim (AC-07 lint); 30s/5s-step timeout; idempotent; headless (HBR-QUIET). 5 tests + MT-041(13)/MT-042(16) regression green; clippy clean; no artifacts.",
     "STRATEGIC_GAP": "PARITY GAP SURFACED BY THE PROOF: the AccessKit surface (MT-041/042) enables swarm NAVIGATION + COMMAND actions (save/find/format) + SEARCH, but NOT swarm TEXT-AUTHORING. Two real gaps vs the WP criterion 'a swarm agent can author/edit code and notes': (1) the code editor code_editor_text Role::TextInput node declares ZERO AccessKit actions (no SetValue/ReplaceSelectedText) - a swarm agent cannot WRITE code text; (2) no AccessKit action inserts a wikilink by target id without the live-backend autocomplete - a swarm agent cannot ADD a backlink headlessly. Both carried to MT-041 (add the AccessKit text-insertion + wikilink-by-id actions) + E11/MT-069 (mount the panes + re-run the FULL swarm proof live + the gated DB round-trips). FLAGGED to operator + noted for the MT-044 parity gate (swarm-navigation+search parity PASS; swarm-text-authoring parity GATED on MT-041-enhancement + E11).",
     "waiver_granted": "tests/test_e7_swarm_edit_proof.rs + tests/fixtures/swarm_edit_proof_log.txt only (NO app code - proof-only; forbidden_paths honored; gaps filed as typed blockers not inline patches)."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "1a71d967",
+        "a68e928e",
+        "2af26e91",
+        "8d1fe6f6"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM",
+      "HBR-VIS",
+      "HBR-QUIET",
+      "HBR-STOP"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-043 FAIL_V1. Mechanical scope/lineage gate failed for 1a71d967, a68e928e, 2af26e91, 8d1fe6f6. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM/HBR-VIS/HBR-QUIET/HBR-STOP. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-043 scope.allowed_paths and inspect git show --name-only 1a71d967, a68e928e, 2af26e91, 8d1fe6f6. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM, HBR-VIS, HBR-QUIET, HBR-STOP with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-043 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-043 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "The swarm-edit proof writes a PROOF_PASS marker while its required real database/search collaboration path is resource-gated; the marker is not proof that the live multi-agent edit/merge contract executed."
+    ],
+    "basis": "The swarm-edit proof writes a PROOF_PASS marker while its required real database/search collaboration path is resource-gated; the marker is not proof that the live multi-agent edit/merge contract executed.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-043 FAIL V1. The swarm-edit proof writes a PROOF_PASS marker while its required real database/search collaboration path is resource-gated; the marker is not proof that the live multi-agent edit/merge contract executed.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Remove or stop treating any unconditional PROOF_PASS marker as verdict authority.",
+        "Run the complete swarm edit scenario against managed PostgreSQL with distinct author IDs, concurrent/ordered edits, search/refetch, merge/conflict behavior, and durable reload.",
+        "Prove attribution and EventLedger/Flight Recorder receipts for each participant and verify no lost update or duplicate application.",
+        "Emit success only after the live scenario assertions pass; include exact commands, entity IDs, and final persisted state."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-043.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-043 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "The swarm proof is not complete: the live search step remains GATED:SEEDED and the current test binary fails because its proof-log fixture path does not exist.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-043 FAIL V1. The swarm proof is not complete: the live search step remains GATED:SEEDED and the current test binary fails because its proof-log fixture path does not exist.",
+      "remediation_steps": [
+        "Create the external proof directory deterministically or resolve it from the configured Handshake_Artifacts root before writing.",
+        "Replace the seeded search substitute with a managed-PostgreSQL Loom Search v2 round trip.",
+        "Run the real channel-driven AccessKit edit/search/open sequence and persist/read back the mutation.",
+        "Keep every step hard-bounded and reclaim agent/test resources."
+      ],
+      "verification_required": [
+        "test_e7_swarm_edit_proof passes 6/6.",
+        "The live search result comes from persisted data.",
+        "The proof log is written under the external artifact root and no repo-local output is created."
+      ],
+      "no_context_instruction": "Read MT-043.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

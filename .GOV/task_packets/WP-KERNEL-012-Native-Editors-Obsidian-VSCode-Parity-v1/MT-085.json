@@ -14,7 +14,7 @@
   "title": "D5-MT-085-FrameTimeTracking-SlowFrameFlag",
   "group": "D2 internal_diagnostics (Tier 2 in-process)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-085.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-084"
@@ -33,7 +33,10 @@
     "blocks": [
       "MT-087"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: Track per-frame FRAME TIME on the UI thread and emit a typed `internal_diagnostics` event when a frame is SLOW (Master Spec v02.196 §5.8.2 'frame-time and resource counters'). Frame-time is the in-process degradation signal BELOW a full freeze: a frame that takes 250ms is not yet a 5s freeze, but it is a stutter the Diagnostics Panel (MT-087) should surface and the panel's frame-time stats (§5.8.4) need. This is the cheap in-process complement to Palmistry's external freeze detection.\n\nExact edit (build on MT-084's wire-in point):\n- EDIT `src/frontend/handshake_native/src/app.rs` `fn update` — alongside the MT-084 heartbeat, measure the wall duration of the frame. Use a `last_frame_instant: Option<Instant>` field on HandshakeApp: at the top of `update`, compute `dt = now - last_frame_instant` (the inter-frame interval) and store `now`; this is the frame period. (Optionally also measure the WORK time inside update by sampling an Instant before `self.ui(ctx)` and after — the period is simplest + sufficient for the slow-frame flag; document which you use.)\n- CREATE `src/frontend/handshake_native/src/diagnostics/frame_timing.rs` — a `FrameTimer` helper: rolling stats (last, min, max, and a small ring of the last ~120 frame durations for a p50/p95 the panel reads) + a `record_frame(dt: Duration)` that updates the stats and, when `dt` exceeds a SLOW threshold (default ~100ms => below ~10fps; make it a const, tune so normal 60fps frames never flag), calls `diagnostics::record_with(DiagEventCode::SlowFrame, DiagPhase::Tick, DiagSeverity::Warn, frame_micros, ...)`. Declare `pub mod frame_timing;` in diagnostics/mod.rs.\n- Expose `pub fn frame_stats() -> FrameStats` (last/min/max/p50/p95 in micros) for the panel (MT-087). All typed integers (micros) — no content.\n- DEBOUNCE the SlowFrame event so a sustained slow period does not flood the ring (e.g. emit at most one SlowFrame per ~1s window, or only on the rising edge into a slow streak + a count) — the ring is bounded (MT-081) and flooding it with SlowFrame would evict useful events. Use a simple last-emit Instant gate.\n- CREATE `src/frontend/handshake_native/tests/test_frame_timing.rs`.\n\nWhy the threshold matters (no false flags): the SlowFrame threshold (~100ms) sits ABOVE a normal 16ms (60fps) / 33ms (30fps) frame and the ~250ms idle-repaint cadence from MT-084 — BUT the idle 250ms repaint period would itself look like a slow frame if you measure the PERIOD. AVOID THIS: either measure WORK time inside update (before/after self.ui), OR exclude the idle path (only flag when the app was actively repainting due to input/animation, not the idle keep-alive). Document the chosen approach so the idle keep-alive heartbeat (MT-084) does not generate spurious SlowFrame spam. Measuring update WORK time (Instant around self.ui(ctx)) is the cleaner choice and is recommended.\n\nReuse note: builds directly on the MT-084 `fn update` edit + the MT-082 recorder. No backend. egui_kittest drives frames; a slow frame can be simulated by sleeping inside a test pane or by feeding a known duration to FrameTimer::record_frame directly (unit-level) plus a kittest that a real slow frame flags.\n\nRisk if missed: no frame-time stats for the panel (§5.8.4 unmet); stutters below the freeze threshold are invisible; OR (if done wrong) the idle keep-alive is mis-flagged as slow, flooding the ring and burying real events.",
@@ -133,5 +136,150 @@
     "commit": "aa4b2803",
     "summary": "FrameTimer/FrameStats (last/min/max/p50/p95 over 120-frame ring; ~100ms slow threshold; ~1s emit debounce) wired into the live update() measuring WORK-time around self.ui(ctx) -> record_frame_live -> debounced SlowFrame DiagEvent + frame_stats() accessor for MT-087. AC-005-1..5 PASS; idle keep-alive does NOT false-flag; typed micros. Pre-existing other-MT suite failures (file_save/quick_switcher/perf_lc07) baseline-proven unrelated.",
     "notes": "#[doc(hidden)] set_extra_frame_work_for_test seam (inert in production) for the live slow-frame proof."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "PASS",
+      "implementing_commits": [
+        "aa4b2803"
+      ],
+      "concerns": [
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-VIS"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope PASS, but unresolved mandatory HBR evidence makes approval illegal.",
+    "fail_report": "MT-085 FAIL_V1. Mechanical scope/lineage gate passed for aa4b2803; the missing compile-gate receipt is LOW severity. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-VIS. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Keep the mechanically-contained lineage unchanged. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-VIS with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-085 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-085 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Current-head MT-specific native/Palmistry tests and applicable proof artifacts passed or were inspected directly.",
+      "Committed source, MT contract, WP scope, and resolved current Master Spec modules were compared directly.",
+      "Negative, privacy, process-recovery, AccessKit, and diagnostics boundaries applicable to this MT were challenged."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-085 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
+    "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
 }

@@ -14,7 +14,7 @@
   "title": "E5-MT-033-CkcEmbedsDragInRouteToStage",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-033.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -36,7 +36,10 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: let users drag CKC (Atelier/KERNEL-005) media items, characters, and moodboards into a native note or canvas pane as embedded loom:// references, and route any note selection or document to a Stage pane. Expected diff shape: (a) a new drag-source on the AtelierSidePanel widget that emits a DragPayload::AtelierRef; (b) a drop-target in the rich-text editor that converts a dropped AtelierRef into an embed node (similar to how React LoomTransclusionView.tsx inserts a loomTransclusion TipTap node); (c) a drop-target in the canvas pane that places a canvas node pinned to the atelier item; (d) a 'Route to Stage' command dispatched through the existing command_registry.rs + event_bus.rs that takes the current selection or document and opens/focuses the Stage pane with that content; (e) integration tests using a real PG backend to assert the embed survives a save/reload cycle.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/interop/drag_payload.rs  — defines DragPayload enum: AtelierRef { item_id: String, item_kind: AtelierItemKind, label: String, loom_block_id: Option<String> }, LoomBlockRef { block_id: String, workspace_id: String }, PlainText(String). Also defines AtelierItemKind enum: Media | Character | Moodboard. (New interop/ subdir created INSIDE src/frontend/handshake_native/src/.)\n  - src/frontend/handshake_native/src/atelier_side_panel.rs  — an egui side-panel listing AtelierIntakeBatch items and AtelierCommandCorpus entries fetched from the existing backend via backend_client.rs (GET /atelier/intake/batches, GET /atelier/command-corpus). Each item row supports egui drag-source: on drag-start stores DragPayload::AtelierRef in ctx.data_mut. Rows display thumbnail path + label. Reuse the existing rail layout patterns from left_rail.rs / search_rail.rs. AccessKit: panel container author_id=\"atelier-side-panel\", role=List; each row author_id=\"atelier-item-{item_id}\", role=ListItem, actions=[Press, StartDrag].\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/lib.rs  — add `pub mod interop;` and `pub mod atelier_side_panel;` (module registration for the new interop/ subdir and the new flat atelier_side_panel module).\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — (rich-text editor pane created by WP-012 / MT-013) add an egui drop-target zone over the editor area. When a drop is received from ctx.data(|d| d.get_temp::<DragPayload>(...)), match on AtelierRef: insert an embed node { node_type: 'atelierEmbed', item_id, item_kind, label, loom_block_id } into the document tree at the caret position. Serialize as a custom ProseMirror-style block in the rich doc JSON. On save, the block is stored as part of content_json and round-trips through saveRichDocument.\n  - src/frontend/handshake_native/src/canvas_board.rs  — add drop-target at canvas level. On AtelierRef drop at screen position: call PUT /canvas/{canvas_id}/graph (via backend_client.rs) with a new CanvasNodeInput { kind: 'atelier_ref', atelier_item_id, x, y, width, height, label }. Backend stores it; reload canvas graph. The placed node's header shows AtelierItemKind badge + label + loom:// chip if loom_block_id is Some.\n  - src/frontend/handshake_native/src/stage_pane.rs  — add or extend a StagePane widget (new flat module, registered in the existing pane_registry.rs and docked via split_layout.rs; header via pane_header.rs). The Stage pane accepts a StageContent enum: Document(RichDocLoad) | Selection(String, String) | AtelierItem(AtelierRef). Register a 'route-to-stage' command in command_registry.rs (MT-031): args = StageRouteArgs { content: StageContent }; the command opens the Stage pane tile (via split_layout.rs / egui_tiles) and sets its content.\n  - src/frontend/handshake_native/src/command_registry.rs  — register the 'route-to-stage' command descriptor; the route-to-stage handler emits the open/focus event over event_bus.rs and passes StageContent to stage_pane.rs.\n\nStep-by-step implementation notes:\n  1. egui drag-source: call ui.dnd_drag_source(egui::Id::new(item_id), payload, |ui| { ui.label(&row.label) }). The payload is DragPayload::AtelierRef. This is egui 0.28+ API; confirm version in src/frontend/handshake_native/Cargo.toml.\n  2. egui drop-target in rich-text pane: call let response = ui.dnd_drop_zone::<DragPayload, _>(egui::Frame::none(), |ui| { ... }); then check response.1 (the dropped payload) in each frame.\n  3. Embed node in rich doc JSON: define a custom block type \"atelier_embed\" in the document schema. Store as a JSONContent object node with attrs: { item_id, item_kind, label, loom_block_id }. The rich-text editor renders it as a small card widget inline (thumbnail if available, else text label with badge).\n  4. Canvas node creation for atelier drop: map screen position (egui Pos2) to canvas coordinates. Call updateCanvasGraph (api.ts ~1719: PUT /canvas/{id}/graph body { nodes: [{ kind, label, x, y, width, height, atelier_item_id }], edges: [] }) via the Rust backend_client.rs IPC client. Then reload via GET /canvas/{id}.\n  5. Route to Stage: the Stage pane is an egui_tiles tile in the docking layout managed by split_layout.rs. 'route-to-stage' command handler: find the Stage tile id in the tree, call tree.set_active_tile(stage_tile_id), then set stage_pane.content = StageContent::from(args). If Stage tile does not exist yet, insert it as a new floating pane (reuse popout_window.rs for the floating case).\n  6. Right-click context menu on rich-text selection: show 'Route to Stage' menu item via context_menu.rs / context_menu_surfaces.rs. This dispatches the 'route-to-stage' command through command_registry.rs with StageRouteArgs::Selection(selected_text, document_id).\n  7. Right-click context menu on canvas node: show 'Route to Stage' item (context_menu.rs) that routes the node's document or atelier item.\n  8. AtelierSidePanel data loading: call GET /atelier/intake/batches + GET /atelier/command-corpus via backend_client.rs on mount. Display in two sections: 'Media / Characters / Moodboards' (from intake items) and 'Command Corpus'. Refresh button fires a reload.\n  9. AccessKit (accessibility/*): atelier_side_panel rows have actions=[Press, StartDrag]; the Stage pane container has author_id=\"stage-pane\", role=Region. Use the existing accessibility/registry.rs + accessibility/snapshot.rs surfaces.\n  10. Tests: src/frontend/handshake_native/tests/test_ckc_embed.rs — (a) unit: DragPayload::AtelierRef serializes and deserializes correctly; (b) integration (real PG): create a canvas, PUT /canvas/{id}/graph with an atelier_ref node, reload, assert node appears with correct atelier_item_id; (c) integration: create a rich doc, insert an atelier_embed block, saveRichDocument, reload, assert the atelier_embed block survives round-trip; (d) kittest: simulate drag from atelier panel, drop on canvas, assert canvas node count increases by 1.\n\nDependencies / unblock conditions:\n  - MT-031 (command registration via command_registry.rs + event_bus.rs) merged.\n  - MT-032 (LoomBlockAddr, loom:// URI) merged — needed for loom_block_id in AtelierRef.\n  - MT-013 (rich-text embed NodeView infrastructure, rich_text/ module) merged — needed so the atelier_embed block has a renderer in the rich-text pane.\n  - Cross-WP: relies on WP-011 modules command_registry.rs, event_bus.rs, canvas_board.rs, pane_registry.rs, split_layout.rs, pane_header.rs, context_menu.rs, context_menu_surfaces.rs, accessibility/*, backend_client.rs, left_rail.rs, search_rail.rs (already merged in handshake-native).\n  - egui 0.28+ for dnd_drag_source / dnd_drop_zone API; confirm version in src/frontend/handshake_native/Cargo.toml.\n\nRisk if missed: CKC<->editor interconnection is one of the four named interconnection edges in the packet contract. Without this MT, dragging a character or moodboard into a note is impossible, breaking the 'melt-together' proof in MT-046.",
@@ -151,5 +154,202 @@
     "steers_all_held": "(1) CKC embed = hsLink ATOM by refKind (refKind=media, refValue=item-aaa) - AC-2 verified content_json contains hsLink NOT atelier_embed + round-trips byte-for-byte; NO invented node. (2) Canvas drop: unresolved AtelierRef -> NO fake atelier_item_id POST; resolved -> PlaceBlock with placed_block_id (MT-026's verified /loom/canvas placement body, the loom block id) - resolve-then-place, no unsupported field. (3) Atelier backend VERIFIED real (api/atelier.rs); AtelierClient builds the verified /atelier/intake/batches + /command-corpus + /items routes. (4) route-to-stage via the MT-031 bus (CMD_ROUTE_TO_STAGE); DragPayload in interop/.",
     "stage_note": "MT-033 delivers the local Stage pane (displays routed content) + route-to-stage command; deeper Stage backend interop (capture/embed-back) remains E10/MT-066.",
     "waiver_granted": "backend_client.rs (AtelierClient) + interop/interaction_bus.rs (CMD_ROUTE_TO_STAGE) + rich_editor_widget.rs + graph/canvas_board.rs + command_registry.rs + app.rs (dispatch) + lib.rs + tests in allowed_paths."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "1fed0376",
+        "5423de82"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM",
+      "HBR-VIS",
+      "HBR-QUIET"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-033 FAIL_V1. Mechanical scope/lineage gate failed for 1fed0376, 5423de82. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM/HBR-VIS/HBR-QUIET. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-033 scope.allowed_paths and inspect git show --name-only 1fed0376, 5423de82. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM, HBR-VIS, HBR-QUIET with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-033 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "The Atelier/CKC panel passes only in isolation; author_id atelier-side-panel is absent from the real live shell.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate.",
+    "fail_report": {
+      "summary": "MT-033 FAIL V1. The Atelier/CKC panel passes only in isolation; author_id atelier-side-panel is absent from the real live shell.",
+      "remediation_steps": [
+        "Register it in the production pane/rail registry.",
+        "Expose stable live navigation and author_id=atelier-side-panel.",
+        "Mount required rows through production data paths.",
+        "Keep backend-down visible and nonblocking."
+      ],
+      "verification_required": [
+        "Real-shell AccessKit finds panel/children.",
+        "Navigation opens it.",
+        "Full CKC/embed suite passes."
+      ],
+      "no_context_instruction": "Read the complete MT, WP packet, and resolved current Master Spec before editing. Implement only this product remediation, run every required verification from current HEAD, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-033 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "Fresh deterministic test failure: test_ckc_embed::ac6_atelier_side_panel_mounted_in_live_shell fails, so the required live Atelier side-panel mount/AccessKit surface is absent or mismatched."
+    ],
+    "basis": "Fresh deterministic test failure: test_ckc_embed::ac6_atelier_side_panel_mounted_in_live_shell fails, so the required live Atelier side-panel mount/AccessKit surface is absent or mismatched.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-033 FAIL V1. Fresh deterministic test failure: test_ckc_embed::ac6_atelier_side_panel_mounted_in_live_shell fails, so the required live Atelier side-panel mount/AccessKit surface is absent or mismatched.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Reproduce the exact failing test from current HEAD with external CARGO_TARGET_DIR.",
+        "Repair app/factory registration and live-shell mounting so AtelierSidePanel is rendered and its required AccessKit ids exist; do not satisfy the test with a detached widget fixture.",
+        "Re-run drag-to-editor, save/load, canvas placement, Route to Stage, real backend batch/corpus load, and the exact failing mount test.",
+        "Run the relevant full native suite segment to prove the mount repair does not regress pane hosting."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-033.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-033 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "The Atelier/CKC panel passes only in isolation; author_id atelier-side-panel is absent from the real live shell.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-033 FAIL V1. The Atelier/CKC panel passes only in isolation; author_id atelier-side-panel is absent from the real live shell.",
+      "remediation_steps": [
+        "Register the panel in the production pane/rail registry.",
+        "Expose stable live navigation and author_id=atelier-side-panel.",
+        "Mount required rows through production data paths.",
+        "Keep backend-down visible and nonblocking."
+      ],
+      "verification_required": [
+        "Real-shell AccessKit finds the panel and children.",
+        "Navigation opens it.",
+        "The full CKC/embed suite passes."
+      ],
+      "no_context_instruction": "Read MT-033.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

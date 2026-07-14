@@ -14,7 +14,7 @@
   "title": "G1-MT-095-HbrInt009-ThreeTierEvidenceFormat-GateInfra",
   "group": "G1 Gate infrastructure (HBR-INT-009)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-095.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -35,7 +35,10 @@
     "blocks": [
       "MT-096"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: Define the HBR-INT-009 THREE-TIER DIAGNOSTIC EVIDENCE FORMAT — the `test_run_with_three_tier_diagnostic_wiring_record` evidence a WP emits to prove its FR / internal_diagnostics / Palmistry wiring per tier — plus a VALIDATOR-SIDE check that reads it and marks the acceptance rows. This is the GATE INFRA that WP-KERNEL-016 (the retrofit) and ALL future WPs use to satisfy HBR-INT-009 (Master Spec v02.196 §5.8/§6.13 + the CODER_PROTOCOL HBR-INT-009 duty + CX-981). Per the CODER_PROTOCOL, every observable runtime behavior an MT touches must record each of the three tiers as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. THIS MT makes that recording machine-readable + validator-checkable instead of prose-only.\n\nIMPORTANT BOUNDARY (repo-gov vs product split): the EVIDENCE FORMAT + the validator check are GATE INFRA. Where they live depends on whether they are product code or governance tooling. Decompose:\n- (A) The MACHINE-READABLE EVIDENCE SCHEMA (the JSON a WP/MT emits): this is a small typed schema + emitter usable by product test runs. Build it as a tiny product-side helper crate/module so a Rust test can EMIT a `ThreeTierDiagnosticWiringRecord` JSON artifact to the external artifact root during a WP's test run. Place under the palmistry/diag-ring shared area OR a small `diag_evidence` module — RECOMMEND: a module in the diag_ring crate (MT-081) since it is the shared substrate both binaries already depend on, OR a standalone tiny `src/frontend/handshake_native/src/diagnostics/three_tier_evidence.rs` if it is handshake-native-only. The schema mirrors the `hbr_int_009_tier_obligations` array shape already used in these MT contracts: an array of `{ tier: FLIGHT_RECORDER|INTERNAL_DIAGNOSTICS|PALMISTRY, status: WIRED|NOT_APPLICABLE|DEFERRED, reason: string, proof_ref: string }` plus run metadata (wp_id, mt_id, run timestamp, the observable behavior covered).\n- (B) The VALIDATOR-SIDE CHECK (reads the emitted record, marks acceptance rows): this is GOVERNANCE tooling (it gates WP acceptance), so it belongs under .GOV/ governance scripts — BUT .GOV/ is forbidden_paths for the product-code coder lane. RESOLUTION: this MT builds the PRODUCT-SIDE half (the schema + emitter + a self-validating test that asserts a record is well-formed + every tier is accounted for), and SPECIFIES the governance-side validator as a typed HANDOFF to the validator/governance lane (an RGF item or a validator-protocol check), NOT a product-code edit to .GOV/. The coder must NOT write into .GOV/; instead emit the schema + a documented contract for what the validator check must assert, and raise it as the governance-side follow-on. (If the operator/orchestrator wants the validator check authored in .GOV/ in this MT, that is a governance-lane RGF, not this product MT.)\n\nExact files to create/edit (PRODUCT side only):\n- CREATE the schema + emitter module (RECOMMENDED: `src/frontend/handshake_native/diag_ring/src/three_tier_evidence.rs`, re-exported from the diag_ring crate so both handshake-native + palmistry + any future WP can emit it; OR `src/frontend/handshake_native/src/diagnostics/three_tier_evidence.rs` if handshake-native-scoped — choose + document). Define `ThreeTierDiagnosticWiringRecord { wp_id, mt_id, observable_behavior, run_at, tiers: Vec<TierWiring> }`, `TierWiring { tier: DiagTier, status: WiringStatus, reason: String, proof_ref: String }`, `DiagTier { FlightRecorder, InternalDiagnostics, Palmistry }`, `WiringStatus { Wired, NotApplicable, Deferred }` — serde-serializable. Provide `emit(record, out_dir)` that writes `test_run_with_three_tier_diagnostic_wiring_record.json` to the external artifact root atomically. Provide a `validate(record) -> Result<(), Vec<ValidationError>>` that enforces: all THREE tiers present (no tier silently omitted — the CODER_PROTOCOL 'never silently skip it' rule), every NOT_APPLICABLE/DEFERRED carries a non-empty reason, every WIRED carries a non-empty proof_ref.\n- CREATE `src/frontend/handshake_native/diag_ring/tests/test_three_tier_evidence.rs` (or the handshake-native tests dir if scoped there).\n- Produce a DOCUMENTED CONTRACT (in the module doc + the MT implementation_result handoff) for the governance-side validator: what the validator must read (the emitted JSON), what it asserts (all three tiers accounted for, reasons/proof_refs present), and how it marks the WP acceptance rows. Raise the governance-side authoring as a typed handoff (RGF / validator-protocol update), NOT a .GOV/ product edit here.\n\nWHY this is the gate WP-016 + future WPs use: WP-KERNEL-016 is the RETROFIT — it goes back over already-shipped features and records their three-tier wiring. This evidence format is what it emits per retrofitted surface, and the validator check is what marks those rows. Future WPs emit a `ThreeTierDiagnosticWiringRecord` per observable runtime behavior they touch (the CODER_PROTOCOL HBR-INT-009 duty), and the validator gate reads them. Building it here, in the WP that creates the three tiers, means the format is grounded in the real tier APIs (MT-082 record, MT-087 panel, MT-093 FR forward) rather than invented abstractly.\n\nReuse note: the `hbr_int_009_tier_obligations` array shape already used in every MT contract in THIS WP is the human/contract-side mirror of this machine record — keep them congruent (same tier names, same status vocabulary WIRED/NOT_APPLICABLE/DEFERRED) so a model reading either understands the other. serde/serde_json are available (diag_ring has serde; handshake-native has serde_json). The external artifact root is the standard Handshake_Artifacts target.\n\nRisk if missed: HBR-INT-009 stays prose-only (the CODER_PROTOCOL duty is recorded in narrative, not machine-checkable), so WP-016 + future WPs have no consistent emit format + no validator gate — the three-tier discipline drifts. The boundary risk: writing the validator INTO .GOV/ from the product coder lane (a repo-gov vs product-code confusion) — this MT must keep the product-side schema/emitter separate from the governance-side validator authoring.",
@@ -143,5 +146,151 @@
       "auto-relay hook subject-format drift (commit recorded e4043649; certifier picks up manually) - deferred",
       "the .GOV-side validator gate that reads the emitted JSON + marks hbr_int_009 acceptance rows - deferred to WP validation per operator no-paperwork directive"
     ]
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "e4043649"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-095 FAIL_V1. Mechanical scope/lineage gate failed for e4043649. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-095 scope.allowed_paths and inspect git show --name-only e4043649. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-095 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-095 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "handshake-diag-ring passed all current-head library, roundtrip, schema allowlist, seqlock/wait-free, and three-tier evidence tests.",
+      "Ring schema/privacy/boundary source was compared directly with the MT and resolved Master Spec.",
+      "No MT-owned diagnostics-ring failure remained."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-095 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
+    "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
 }

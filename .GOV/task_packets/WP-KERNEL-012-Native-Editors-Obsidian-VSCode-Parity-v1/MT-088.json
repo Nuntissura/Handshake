@@ -14,7 +14,7 @@
   "title": "D8-MT-088-BackendDown-GracefulDegradation-FreezeFix",
   "group": "D2 internal_diagnostics (Tier 2 — backend-down HARD requirement)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-088.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -34,7 +34,10 @@
     "blocks": [
       "MT-096"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: FIX THE LATENT BACKEND-DOWN FREEZE — the concrete bug from the 2026-06-26 live session — and enforce the HARD spec requirement that the native app DEGRADES, NOT FREEZES when a backend route is unreachable (Master Spec v02.196 §5.8.5 'Backend-down graceful degradation (HARD)': 'a UI path that can freeze the frame loop on an unreachable backend is a spec defect'). When the backend on 127.0.0.1:37501 is down, a mounted-pane load / backend call that runs `Handle::block_on` (or locks waiting on a backend result) ON THE UI THREAD stalls the egui frame loop — the app stops responding (Responding=false, CPU->0) instead of showing a 'disconnected' state. This MT makes those UI-thread backend interactions NON-BLOCKING (off-thread spawn + poll-if-finished), records a typed `BackendUnreachable` internal_diagnostics event, and RE-PROVES the 2026-06-26 repro: launch with the backend down, the app stays responsive and the heartbeat keeps advancing.\n\nROOT-CAUSE LOCATION (verified in this codebase — the coder MUST audit + confirm the exact live frame-path offenders, do not assume): `src/frontend/handshake_native/src/app.rs` contains BOTH the CORRECT pattern and the buggy one:\n- CORRECT reference (reuse this exact shape): the health poll at app.rs ~line 1189-1190 spawns `rt.spawn(async { backend_client::fetch_health(...) })` returning a `JoinHandle` stored in `health_handle`, and polls it each frame, folding the result in when it resolves (the doc at ~line 221 says 'stalls the render loop; polled each frame and folded ... when it resolves'). This is the off-thread + poll-if-finished pattern the whole fix must follow.\n- OFFENDERS (audit + fix the ones reachable on the UI/frame path): `self.runtime.block_on(...)` at app.rs ~lines 979 and 1011 (and any other `block_on` / blocking backend call reachable from `fn update` / `ui()` / a `PaneFactory::render` / a mount path). A `block_on` on the UI thread that awaits a backend round-trip will hang the frame loop for the full connect-timeout (or forever if there is no timeout) when the backend is down. Convert each UI-thread-reachable backend call to the spawn+poll pattern, OR ensure it carries a short connect/request timeout AND cannot be on the frame path. (Backend calls that run on a worker thread / spawn_blocking, e.g. the transport doc at backend_client.rs ~line 82 'short-lived tokio worker (NOT the egui UI thread)', are already safe — leave them; focus on UI-thread-reachable ones.)\n- Also add a short `connect_timeout` + request `timeout` to the reqwest clients used for these calls (reqwest is already a dep) so even a backend that accepts the TCP connection but never responds cannot hang a worker indefinitely.\n\nExact edits:\n- EDIT `src/frontend/handshake_native/src/app.rs` — (1) audit every backend interaction reachable from `fn update` / `ui()` / pane mount / `PaneFactory::render`; (2) convert each UI-thread `block_on`/blocking-lock-on-backend-result to the existing spawn-handle + poll-each-frame pattern (model it on `health_handle`); (3) when a backend call is in-flight or has failed, render a 'disconnected'/degraded state for that surface (not a spinner-forever, not a hang); (4) on a detected backend-unreachable condition, call `diagnostics::record_with(DiagEventCode::BackendUnreachable, ...)` once per transition (debounced — not every frame), and `DiagEventCode::BackendRecovered` on recovery. The status bar already shows live /health — reuse its disconnected display for the global indicator.\n- EDIT `src/frontend/handshake_native/src/backend_client.rs` — add a short `connect_timeout` (e.g. 1-2s) + request `timeout` to the reqwest `ClientBuilder` used by the affected clients so a dead/half-open backend cannot hang a worker forever (this is reuse-config of the EXISTING client, not a backend change; src/backend is untouched).\n- CREATE `src/frontend/handshake_native/tests/test_backend_down_responsive.rs` — the 2026-06-26 repro.\n\nTHE RE-PROVE (the deliverable proof, AC-008-1): a test launches the real HandshakeApp with NO backend listening on 127.0.0.1:37501 (or a bogus base_url that refuses connections), drives the frame loop (egui_kittest `step()` repeatedly), and asserts: (a) the app stays RESPONSIVE — frames keep completing within a tight per-frame time bound (no frame blocks for the connect-timeout), (b) the MT-084 heartbeat counter keeps ADVANCING across frames (proving the UI thread is not stalled, the exact CPU->0 symptom is gone), (c) a `BackendUnreachable` DiagEvent was recorded, (d) the affected surface shows a disconnected/degraded state, not a hang or a perpetual spinner. This directly contradicts the 2026-06-26 symptom (Responding=false, CPU->0, frozen).\n\nReuse note: the spawn-handle + poll-each-frame pattern ALREADY EXISTS (health_handle, app.rs ~1190) — this MT generalizes it to the offending call sites; it does NOT invent a new async pattern. The heartbeat (MT-084) is the responsiveness oracle. The MT-082 recorder provides BackendUnreachable. src/backend is reuse-via-API only (forbidden to edit) — the fix is entirely client-side / frame-path.\n\nRisk if missed: the exact 2026-06-26 freeze recurs (app hangs when the backend is down); §5.8.5 HARD requirement unmet (a spec defect by definition); Palmistry would then have to catch a freeze that should never have happened. This is the single highest-value bug-fix in the WP.",
@@ -143,5 +146,201 @@
     "summary": "THE BACKEND-DOWN FREEZE FIX (the 2026-06-26 live freeze). Layout-load block_on moved OFF the UI thread (spawn_layout_load + poll_layout_load); EVERY per-frame UI-thread manager access -> try_lock (skip-when-contended) - the load-bearing fix (the agent hit the exact freeze: worker held the layout-manager lock during the GET while ui() blocked on .lock()). Bounded 1.5s connect timeout; debounced BackendUnreachable/BackendRecovered typed events on edges; Disconnected indicator (no spinner); live /health re-probe recovery. AC-008-1..7 PASS.",
     "key_proof": "AC-008-1: real HandshakeApp pointed at a connection-REFUSING dead port (127.0.0.1:1), 30 frames each complete <1s + heartbeat advances -> the CPU->0/Responding=false symptom GONE. Real TCP refusal, not mocked. No new regression (only the pre-existing file_save flake).",
     "milestone": "completes the internal_diagnostics tier (MT-081..088): ring, open API, panic hook, heartbeat, frame-time, resources, Settings->Diagnostics panel, freeze fix."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "PASS",
+      "implementing_commits": [
+        "bd854fb4",
+        "c1933aaa"
+      ],
+      "concerns": [
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-VIS",
+      "HBR-SWARM",
+      "HBR-QUIET"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope PASS, but unresolved mandatory HBR evidence makes approval illegal.",
+    "fail_report": "MT-088 FAIL_V1. Mechanical scope/lineage gate passed for bd854fb4, c1933aaa; the missing compile-gate receipt is LOW severity. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-VIS/HBR-SWARM/HBR-QUIET. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Keep the mechanically-contained lineage unchanged. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-VIS, HBR-SWARM, HBR-QUIET with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-088 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "build_backend_client lacks connect_timeout, violating responsive degradation for dead or unroutable backends.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate.",
+    "fail_report": {
+      "summary": "MT-088 FAIL V1. build_backend_client lacks connect_timeout, violating responsive degradation for dead or unroutable backends.",
+      "remediation_steps": [
+        "Configure bounded connect/request timeouts from settings.",
+        "Keep connection/request/decode/server errors typed.",
+        "Test unroutable, accepts-but-never-responds, malformed response, and reconnect.",
+        "Drive the live shell through backend loss and recovery to prove requests are cancelled or bounded without freezing editor input."
+      ],
+      "verification_required": [
+        "Backend-down suite passes.",
+        "Failures return bounded.",
+        "UI stays interactive and reconnect recovers."
+      ],
+      "no_context_instruction": "Read the complete MT, WP packet, and resolved current Master Spec before editing. Implement only this product remediation, run every required verification from current HEAD, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-088 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "Fresh deterministic source-audit test failure: test_backend_down_responsive reports that build_backend_client lacks the required explicit connect_timeout configuration. The worker path may delegate to another helper, but the MT's declared client-configuration proof is red and half-open behavior is not independently established."
+    ],
+    "basis": "Fresh deterministic source-audit test failure: test_backend_down_responsive reports that build_backend_client lacks the required explicit connect_timeout configuration. The worker path may delegate to another helper, but the MT's declared client-configuration proof is red and half-open behavior is not independently established.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-088 FAIL V1. Fresh deterministic source-audit test failure: test_backend_down_responsive reports that build_backend_client lacks the required explicit connect_timeout configuration. The worker path may delegate to another helper, but the MT's declared client-configuration proof is red and half-open behavior is not independently established.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Reproduce test_backend_down_responsive from current HEAD and inspect every reqwest client reachable from the UI frame path.",
+        "Make the canonical client builder expose and apply bounded connect_timeout and request timeout values, or update the product/test architecture so the test proves the delegated canonical helper rather than scanning the wrong wrapper; do not weaken the timeout requirement.",
+        "Add or run a half-open server probe showing worker completion is bounded while UI frames and heartbeat continue, with exactly one BackendUnreachable transition and one BackendRecovered on recovery.",
+        "Re-run the entire backend-down responsiveness binary, source audit, build/clippy, and affected native shell tests."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-088.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-088 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "build_backend_client lacks connect_timeout, violating responsive degradation for dead or unroutable backends.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-088 FAIL V1. build_backend_client lacks connect_timeout, violating responsive degradation for dead or unroutable backends.",
+      "remediation_steps": [
+        "Configure bounded connect and request timeouts from settings.",
+        "Keep connection, request, decode, and server errors typed.",
+        "Test unroutable, accepts-but-never-responds, malformed response, and reconnect cases.",
+        "Drive the live shell through backend loss/recovery and prove requests cancel or bound without freezing input."
+      ],
+      "verification_required": [
+        "The backend-down suite passes.",
+        "Every failure returns within the declared bound.",
+        "The UI stays interactive and reconnect recovers."
+      ],
+      "no_context_instruction": "Read MT-088.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

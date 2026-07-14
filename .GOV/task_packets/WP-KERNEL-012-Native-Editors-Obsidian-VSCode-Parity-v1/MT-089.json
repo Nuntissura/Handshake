@@ -14,7 +14,7 @@
   "title": "P1-MT-089-PalmistryWatcherBinary-LifecycleInversion",
   "group": "P1 Palmistry (Tier 3 external watcher)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-089.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-081"
@@ -37,7 +37,10 @@
       "MT-093",
       "MT-094"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: Create the NEW separate `palmistry` BINARY crate and implement its LIFECYCLE INVERSION (Master Spec v02.196 §6.13.2 'a separate palmistry executable, distinct from the Handshake process' + §6.13.3 'Lifecycle inversion (HARD)'). Palmistry is the Tier 3 external out-of-process watcher following the Google-Crashpad model: a SIBLING process, NOT a thread, NOT an in-process subsystem. This is the ROOT Palmistry MT — it builds the executable, its argument/env intake, its control socket, and the inverted lifecycle (launched with Handshake, survives parent death, closes ONLY on explicit Shutdown). The ring reader (MT-090), freeze detection (MT-091), crash/minidump (MT-092), survivor store + FR forward (MT-093), and the Handshake-side launch (MT-094) build on this.\n\nLIFECYCLE INVERSION (the HARD §6.13.3 requirement — get this exactly right):\n- Launched WITH Handshake at startup (the spawn is MT-094's Handshake-side job; this MT defines the binary + how it is invoked).\n- CLOSES ONLY on explicit command — a deliberate Shutdown signal from Handshake or the operator over the control socket. NOT on parent death, NOT on a timer, NOT on EOF.\n- SURVIVES parent death — if Handshake freezes or crashes, Palmistry KEEPS RUNNING so it can capture + persist the evidence. It holds the parent's OS process handle and WAITS on it: an unexpected parent exit BEFORE a Shutdown command is RECORDED (it is a crash/abnormal-exit signal for MT-092) and Palmistry continues running (it does NOT die) until either an explicit Shutdown arrives OR a bounded post-death finalize window elapses (capture the evidence, write the survivor record, then it MAY exit after the finalize — but it must NOT die at the instant of parent death).\n- MUST NOT be a kill-on-job-close child — it MUST NOT be tied to the parent via a Win32 Job Object / process-group that terminates children when the parent dies (§6.13.3: 'A watcher that dies with its parent cannot record the parent's death'). The Handshake-side spawn (MT-094) must NOT add Palmistry to a kill-on-close job; this MT documents that constraint as a contract on the launcher and the watcher refuses/does-not-assume any job membership.\n\nExact crate to create (NEW workspace member, separate binary):\n- CREATE `src/frontend/palmistry/Cargo.toml` — `[package] name = \"palmistry\"`, `edition = \"2021\"`, `publish = false`, its own `[workspace]` table (standalone, like handshake-native + diag_ring). `[[bin]] name = \"palmistry\" path = \"src/main.rs\"`. Dependencies: `handshake-diag-ring = { path = \"../handshake_native/diag_ring\" }` (the MT-081 ring crate — relative path), `interprocess = \"2\"` (the cross-platform local-socket IPC for the control channel; latest 2.4.2 as of 2026-06-27), `serde`/`serde_json` (control-message + survivor-record JSON), `tracing`/`tracing-subscriber` (its own logging). On Windows for the parent-handle wait: `windows-sys = \"0.61\"` with `Win32_Foundation` + `Win32_System_Threading` (OpenProcess/WaitForSingleObject/GetExitCodeProcess) — matching the handshake-native windows-sys pin so the family is consistent. (minidumper/minidump-writer/crash-context are added in MT-092, not here.)\n- CREATE `src/frontend/palmistry/.cargo/config.toml` — redirect `[build] target-dir` into the EXTERNAL artifact root (`target-dir = \"../../../../Handshake_Artifacts/palmistry-target\"` — VERIFY the `../` depth resolves to the Handshake_Artifacts sibling before committing). NO repo-local target/.\n- CREATE `src/frontend/palmistry/src/main.rs` — arg/env intake + the lifecycle state machine + the control-socket server loop.\n- CREATE `src/frontend/palmistry/src/cli.rs` — parse the inputs: Handshake PID, session-id, ring backing-file path/name, control-socket name. Accept via CLI args AND/OR env vars (document which; env is often cleaner for a spawned sibling). Validate all are present; refuse to run partially-configured.\n- CREATE `src/frontend/palmistry/src/lifecycle.rs` — the parent-handle wait + the Shutdown-only exit logic + the post-death bounded finalize.\n- CREATE `src/frontend/palmistry/src/control.rs` — the interprocess `LocalSocketListener` server; the typed control protocol (a `ControlMessage` enum: `Shutdown`, `Ping`, `CrashContext{...}` (the MT-092 hand-off), and a `HandshakeHello{...}` startup handshake ack). Newline-delimited JSON over the local socket is fine.\n- CREATE `src/frontend/palmistry/tests/test_lifecycle.rs`.\n\nParent-handle wait (lifecycle.rs): on Windows, `OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION, false, pid)` to get a handle to the parent, then `WaitForSingleObject(handle, timeout)` in a loop / on a dedicated thread; when it signals, the parent has EXITED. Read `GetExitCodeProcess` to distinguish a clean exit code from a crash code (corroborated by whether a Shutdown was received first). If the parent exited and NO Shutdown was received => abnormal exit (crash/kill) => record it (the typed signal MT-092 consumes) and ENTER the bounded post-death finalize, do NOT exit immediately. If a Shutdown WAS received first => clean shutdown => Palmistry may exit normally (and MUST NOT record a crash, §6.13 clean-shutdown rule). Provide a cross-platform-shaped abstraction (a `ParentWatch` trait) so the Windows impl is behind a seam; the proof runs on Windows.\n\nTHE LIFECYCLE PROOFS (the deliverable, §6.13.3): (1) launches with valid inputs and stays running (does not exit) with no Shutdown; (2) exits promptly + cleanly ONLY when a Shutdown control message arrives; (3) SURVIVES a HARD-KILL of the parent (spawn a dummy parent process, give Palmistry its PID, TerminateProcess/kill the dummy parent, assert Palmistry is STILL RUNNING after the parent is dead and that it RECORDED the abnormal parent exit) — then on a subsequent Shutdown (or the bounded finalize) it exits. This is the inversion: a normal child would die with its parent; Palmistry must outlive it and record its death.\n\nReuse note: the diag_ring crate (MT-081) is the shared dep. interprocess is the field-standard cross-platform local-socket crate (Unix domain sockets / Windows named pipes behind one API). windows-sys is already the handshake-native Windows dep family (match the pin). No backend involvement — Palmistry never talks to src/backend; it talks to Handshake via the ring (read) + the control socket, and to the FR only at recovery via Handshake's existing HTTP route (MT-093, from the Handshake side or a documented reuse).\n\nRisk if missed: the entire Tier 3 watcher has no host process; the inversion done wrong (kill-on-job-close, or dying on parent death) makes the watcher useless precisely when it is needed (it cannot record the parent's death) — §6.13.3 calls that a spec defect.",
@@ -149,5 +152,153 @@
     "commit": "76bbd6d5",
     "summary": "NEW palmistry crate (separate watcher binary): cli/lifecycle/control over interprocess local-socket + windows-sys parent-handle wait + handshake-diag-ring reuse. THE LIFECYCLE INVERSION proven LIVE: AC-009-4 hard-kills (TerminateProcess) a real dummy parent -> palmistry STILL RUNNING while parent dead -> exits after bounded finalize -> survivor JSON abnormal_parent_exit=true/ParentDiedAbnormally. Clean Shutdown != crash; refuses partial start (exit 2); no Job-API membership (no-kill-on-job-close contract documented). 26/26 tests GREEN; external target dir.",
     "notes": "self-attacks: AC-009-4 timing window 300ms<500ms finalize defended by the non-timing survivor-record assertion; Cargo.lock committed (standard for a bin crate)."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "d123c234",
+        "76bbd6d5"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM",
+      "HBR-QUIET"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-089 FAIL_V1. Mechanical scope/lineage gate failed for d123c234, 76bbd6d5. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM/HBR-QUIET. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-089 scope.allowed_paths and inspect git show --name-only d123c234, 76bbd6d5. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM, HBR-QUIET with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-089 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-089 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "The complete Palmistry crate suite passed from current HEAD with no failures.",
+      "Palmistry source, survivor/forwarding behavior, privacy boundaries, and cross-tier contract were compared directly.",
+      "Applicable diagnostics visual/JSON artifacts were inspected; MT-096 live diagnostics panel was readable."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-089 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
+    "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
 }

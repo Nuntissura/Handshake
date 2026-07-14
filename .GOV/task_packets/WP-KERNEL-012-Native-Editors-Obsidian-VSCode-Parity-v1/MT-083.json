@@ -14,7 +14,7 @@
   "title": "D3-MT-083-PanicHook-DurableLocalCrashRecord",
   "group": "D2 internal_diagnostics (Tier 2 in-process)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-083.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-082"
@@ -33,7 +33,10 @@
     "blocks": [
       "MT-096"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: Install a `std::panic::set_hook` PANIC HOOK in the native app that, on any Rust panic, writes a DURABLE LOCAL crash record (thread name/id, panic location file:line:col, a captured backtrace, a monotonic + wall timestamp) to local disk AND signals the MT-081 ring with a typed `DiagEventCode::PanicCaught` event, BEFORE delegating to the default panic behavior. This is the internal_diagnostics (Tier 2) panic-record component named in Master Spec v02.196 §5.8.2 ('durable crash record'). It is the IN-PROCESS crash capture; the out-of-process minidump is Palmistry's job (MT-092) — this MT is the in-process half that records what the process itself can still record on the way down.\n\nTYPED-ALLOWLIST CONSTRAINT (HARD, §5.8.3): the crash record is mechanical only — thread id, panic source LOCATION (the file:line:col of the panic site is allowed; it is code position, not project data), backtrace frames (symbol names / addresses — code structure, not user data), counters, timestamps. The panic MESSAGE string is the ONE risk surface (a panic payload can contain interpolated values). Policy: DO NOT write the raw panic payload string into the ring DiagEvent (the ring is strictly typed integers — there is no string field, so this is structural). For the durable on-disk record, write the panic location + backtrace, and either OMIT the free-form payload message or write it only into a SEPARATE local-only crash file that is clearly marked local-only and never forwarded to the ring or FR without the typed-allowlist filter (MT-093 forwards only the typed fields). Default to OMITTING the payload message from anything that leaves the local crash file. Document this decision.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/diagnostics/panic_hook.rs` — `pub fn install_panic_hook(crash_dir: PathBuf)`. Declare `pub mod panic_hook;` in `src/frontend/handshake_native/src/diagnostics/mod.rs`.\n- EDIT `src/frontend/handshake_native/src/main.rs` — call `diagnostics::panic_hook::install_panic_hook(...)` EARLY in `main()`, BEFORE `eframe::run_native` and ideally before/around tracing init, so a panic during startup is also caught. Resolve the crash_dir to a portable per-user app data dir (reuse the existing `dirs` crate already in handshake-native: e.g. `dirs::data_local_dir()/handshake/crash/`), NOT a hardcoded absolute path (GLOBAL-PORTABILITY).\n- CREATE `src/frontend/handshake_native/tests/test_panic_hook.rs`.\n\nHook behavior (panic_hook.rs):\n- Capture the previous hook (`std::panic::take_hook`) and CHAIN to it after recording, so the default abort/unwind + any eframe/tracing hook still runs (do not swallow the panic). `panic = \"abort\"` is set in the release-native profile, so the hook runs once then the process aborts — the durable record must be FLUSHED to disk inside the hook before returning.\n- Inside the hook: read `PanicHookInfo::location()` (file/line/col), `std::thread::current()` (name + id), capture a backtrace via `std::backtrace::Backtrace::force_capture()` (std backtrace — no extra crate needed; force_capture ignores RUST_BACKTRACE so a crash is always symbolized when possible), and the timestamps.\n- Write a durable crash record file: `crash_dir/crash-<session_id>-<timestamp>.json` containing the typed fields + (local-only) backtrace text. Use an ATOMIC write (write to a temp file then rename, or write+flush+sync_all) so a crash mid-write does not leave a truncated record. Keep it panic-safe: the hook itself must NOT panic (a panic in the panic hook aborts immediately with no record) — use no-unwrap, ignore IO errors gracefully (best-effort flush; a failed write must not re-panic).\n- Signal the ring: call `diagnostics::record_with(DiagEventCode::PanicCaught, DiagPhase::End, DiagSeverity::Error, thread_id, ...)` so Palmistry sees a PanicCaught marker in the ring even if the process then aborts. This is a ring write of TYPED INTEGERS only (no message).\n- The crash_dir + session_id come from the DiagSession MT-082 stored on the app; for the panic hook (installed in main before HandshakeApp::new), pass the session_id in or use a process-start id generated in main and shared with HandshakeApp.\n\nReuse note: `dirs` is already a handshake-native dependency (MT-090 keymap used it for ~/.handshake). `std::backtrace::Backtrace` is std (Rust 1.65+), no new crate. The ring write reuses the MT-082 `diagnostics::record_with`. src/backend untouched.\n\nRisk if missed: an in-process panic leaves no first-party record; the only crash evidence would be Palmistry's out-of-process minidump (MT-092), losing the cheap, always-available in-process backtrace + the ring PanicCaught marker that helps Palmistry distinguish a panic-exit from a clean shutdown.",
@@ -135,5 +138,150 @@
   "implementation_result": {
     "summary": "panic::set_hook -> durable atomic local crash record (location/thread/backtrace, PanicCaught DiagEvent to the MT-081 ring), panic message confined to a LOCAL-ONLY sidecar (out of ring/record), chains prior hook, no re-panic on IO error, portable crash dir (dirs::data_local_dir). AC-003-1..6 + PT-003-A..D PASS.",
     "carry_forward": "session-id reuse seam built (diagnostics::set/process_session_id) but the ring-reuse line lives in app.rs (outside MT-083 allowed_paths) - a later app.rs-touching MT (MT-084/087) should prefer diagnostics::process_session_id() so crash file + ring share one correlation id."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "PASS",
+      "implementing_commits": [
+        "dfcc6096"
+      ],
+      "concerns": [
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-QUIET"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope PASS, but unresolved mandatory HBR evidence makes approval illegal.",
+    "fail_report": "MT-083 FAIL_V1. Mechanical scope/lineage gate passed for dfcc6096; the missing compile-gate receipt is LOW severity. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-QUIET. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Keep the mechanically-contained lineage unchanged. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-QUIET with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-083 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-083 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Current-head MT-specific native/Palmistry tests and applicable proof artifacts passed or were inspected directly.",
+      "Committed source, MT contract, WP scope, and resolved current Master Spec modules were compared directly.",
+      "Negative, privacy, process-recovery, AccessKit, and diagnostics boundaries applicable to this MT were challenged."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-083 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
+    "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
 }

@@ -14,7 +14,7 @@
   "title": "E1-MT-051-LineEditOperationsBufferTransforms",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-051.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-001",
@@ -35,7 +35,10 @@
     "blocks": [
       "MT-044"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: Implement the buffer-transform handlers behind the MT-010 keymap line-edit actions that currently resolve to actions whose handler bodies do not exist. MT-010 (`src/frontend/handshake_native/src/code_editor/keymap.rs`) already declares the `CodeEditorAction` variants `ToggleComment`, `DuplicateLine`, `MoveLineUp`, `MoveLineDown`, `DeleteLine`, `IndentLine`, `DedentLine`, and `InsertTab`, and binds them to VS Code parity chords (Ctrl+/, Ctrl+Shift+K, Alt+Up, Alt+Down, Tab, etc.). When `Keymap::resolve` returns one of these actions and `mod.rs` dispatches it, the handler is currently a stub / unimplemented branch. This MT supplies the real buffer transforms so those chords actually edit the document. Without it, Toggle Comment (Ctrl+/) and the line-edit chords are dead keys.\n\nExpected diff shape: (a) one new module `src/frontend/handshake_native/src/code_editor/line_ops.rs` (~300-450 lines) that defines pure functions operating on `TextBuffer` (MT-001) and `CursorSet` (MT-003); (b) a small edit to `src/frontend/handshake_native/src/code_editor/keymap.rs` ONLY if a comment-token / tab-policy lookup helper needs to live next to the action enum (prefer adding the lookup to line_ops.rs to keep keymap.rs binding-only — see notes); (c) the dispatch wiring edit in `src/frontend/handshake_native/src/code_editor/mod.rs`'s `process_keymap`-driven match so the eight actions call into `line_ops`; (d) a `cursor.rs` touch ONLY if `CursorSet` lacks a helper this MT needs (e.g. a `lines_touched()` accessor) — keep this minimal and additive, do not refactor the cursor model. There is NO backend involvement: `binds_backend_api = [\"NONE\"]`.\n\nExact files to CREATE/EDIT:\n- CREATE `src/frontend/handshake_native/src/code_editor/line_ops.rs` — the transform library. Define these public functions, each taking `&mut TextBuffer`, `&mut CursorSet`, and a `&LineEditContext` (language + tab settings), and each producing exactly ONE coalesced undo entry (see undo note below):\n  * `toggle_comment(buf, cursors, ctx)` — language-aware line-comment toggle.\n  * `duplicate_line(buf, cursors, ctx)` — duplicate the line (or each selected line) below.\n  * `move_line_up(buf, cursors, ctx)` and `move_line_down(buf, cursors, ctx)` — swap the cursor's line with the line above/below, moving cursors with the text.\n  * `delete_line(buf, cursors, ctx)` — delete the whole row including its trailing newline; place the cursor at the start of the next row (or end of buffer).\n  * `indent_line(buf, cursors, ctx)` and `dedent_line(buf, cursors, ctx)` — add/remove one indent unit at line start.\n  * `insert_tab(buf, cursors, ctx)` — insert a tab character OR `tab_size` spaces depending on `ctx.insert_spaces`; when a selection spans multiple lines, Tab indents the block and Shift+Tab (routed to `dedent_line`) dedents it (VS Code parity).\n  Define `LineEditContext { language: EditorLanguage, tab_size: usize, insert_spaces: bool }` and `EditorLanguage` (reuse / re-export the language enum already used by the MT-001 `LanguageRegistry`; do NOT define a second competing language enum — import it). Define `fn line_comment_token(language: EditorLanguage) -> Option<&'static str>` returning `\"//\"` for Rust/JS/TS/C/C++/Java/Go, `\"#\"` for Python/Shell/TOML/YAML, `\"--\"` for SQL/Lua, and `None` for languages with no line comment (those become a no-op for ToggleComment).\n- EDIT `src/frontend/handshake_native/src/code_editor/mod.rs` — in the action dispatch (the `match action { ... }` fed by `process_keymap` from MT-010), wire the eight variants to the corresponding `line_ops` calls, passing a `LineEditContext` built from the panel's current language and the operator's tab settings. Remove any prior placeholder/`todo!()`/no-op arms for these eight actions. Build the `LineEditContext` once per dispatch batch.\n- EDIT `src/frontend/handshake_native/src/code_editor/cursor.rs` — ONLY IF needed: add an additive helper such as `CursorSet::distinct_lines(buf: &TextBuffer) -> Vec<usize>` (sorted, de-duplicated set of line indices any cursor touches) used to apply a transform once per affected line. Do not change existing `Cursor`/`CursorSet` semantics.\n\nGrounded API facts (verified against MT-001 and MT-003 contracts, do not re-derive):\n- `TextBuffer` (MT-001, `buffer.rs`) exposes: `insert(byte_offset: usize, text: &str)`, `delete(byte_range: Range<usize>)`, `slice_to_string(line_range: Range<usize>) -> String`, `len_bytes() -> usize`, `len_lines() -> usize`, `line_to_byte(line_idx: usize) -> usize`, `byte_to_line(byte_offset: usize) -> usize`. Range ops are clamp/Result-safe (no panic on out-of-range). Use `line_to_byte`/`byte_to_line` for all row math; never hand-scan for newlines.\n- `CursorSet` (MT-003, `cursor.rs`): `Cursor { anchor: usize, head: usize }` (byte offsets), `CursorSet { cursors: Vec<Cursor> }`, methods `add_cursor`, `remove_overlap()`, `move_all`, `insert_at_all`, `delete_at_all`. Cursors are kept sorted by `head`; after any mutation call `remove_overlap()` then re-sort.\n- `CodeEditorAction` variants this MT implements are already declared in MT-010 `keymap.rs`: `ToggleComment`, `DuplicateLine`, `MoveLineUp`, `MoveLineDown`, `DeleteLine`, `IndentLine`, `DedentLine`, `InsertTab`. Do NOT add new enum variants; only implement handlers.\n\nStep-by-step implementation notes (multi-cursor + undo are the two cross-cutting requirements):\n1. MULTI-CURSOR MODEL: every transform must apply per affected line, derived from the cursor set, not just the primary cursor. Compute the distinct, sorted set of line indices touched by all cursors (each cursor's selection may span multiple lines — include every line from `byte_to_line(min(anchor,head))` to `byte_to_line(max(anchor,head))`). De-duplicate so two cursors on the same line transform it once.\n2. APPLY BOTTOM-UP: when a transform changes byte lengths (comment insert/remove, duplicate, move, delete, indent), process the affected lines in DESCENDING line order so earlier (lower-offset) line positions stay valid while later lines are mutated. After all edits, recompute/adjust every cursor's `anchor`/`head` so the cursor stays on the same logical line/column it started on (e.g. after ToggleComment that added `// `, shift heads on that line right by the inserted byte count; after MoveLineUp, move the head's byte offset by the delta of the swapped line lengths). Then call `cursors.remove_overlap()` and re-sort.\n3. TOGGLE COMMENT: resolve `token = line_comment_token(ctx.language)`; if `None`, no-op. For each affected line, read the line text via `slice_to_string(line..line+1)`. Determine the line's first non-whitespace column. VS Code semantics: if EVERY affected non-blank line is already commented (first non-ws chars == token), then UNCOMMENT all (remove the token plus one optional following space); otherwise COMMENT all (insert `token + \" \"` at the first non-whitespace column, or at column 0 for a blank line per VS Code, keeping a consistent insert column across the block = the minimum first-non-ws column of the block). Use `line_to_byte` + the column offset to compute the exact byte position for `insert`/`delete`.\n4. DUPLICATE LINE: for each affected line (descending), read its full text including no trailing newline via slice, then `insert` a copy plus a leading/trailing newline immediately after the line's end byte (`line_to_byte(line+1)` is the start of the next line / insertion point; for the last line with no trailing newline, prepend a `\\n`). Cursor stays on the original line (VS Code keeps the cursor on the lower/new copy — match VS Code: cursor moves to the duplicated line, i.e. head shifts down by one line's byte length).\n5. MOVE LINE UP/DOWN: swap line L with L-1 (up) or L+1 (down). Read both line texts, delete the two-line span, re-insert in swapped order via a single `delete` + `insert` pair (so it coalesces). Clamp: MoveLineUp on line 0 is a no-op; MoveLineDown on the last line is a no-op. Move the cursor with its line (head byte offset adjusted by the neighbor line's length delta).\n6. DELETE LINE: for each affected line (descending), delete the byte range `[line_to_byte(line) .. line_to_byte(line+1)]` (this includes the trailing newline). For the last line, delete `[line_to_byte(line)-1 .. len_bytes()]` to also drop the preceding newline so no empty trailing line remains. After deletion, set the affected cursor head to `line_to_byte(min(line, len_lines().saturating_sub(1)))`.\n7. INDENT / DEDENT: one indent unit = a literal tab `\\t` if `ctx.insert_spaces == false`, else `ctx.tab_size` spaces. INDENT inserts the unit at the start byte (`line_to_byte(line)`) of each affected line. DEDENT removes up to one leading indent unit: if the line starts with `\\t` remove it; else remove up to `tab_size` leading spaces (fewer if the line has fewer). Multi-line selection + Tab = indent block (call indent on each affected line); Shift+Tab = dedent block.\n8. INSERT TAB (single/collapsed cursor case): if there is NO multi-line selection, insert one indent unit (tab or `tab_size` spaces per `ctx.insert_spaces`) at each cursor head via the cursor set, then advance heads by the inserted byte length. If ANY cursor has a multi-line selection, route to `indent_line` block-indent instead (VS Code behavior: Tab with a block selection indents the block rather than replacing it).\n9. UNDO COALESCING: each public `line_ops` function must group all of its sub-edits (across all affected lines and all cursors) into exactly ONE undo entry. The undo stack lives in the editor (introduced by the buffer/edit layer; if a `begin_undo_group()`/`end_undo_group()` or transaction API exists on `TextBuffer`/the panel, wrap the whole transform in it; if no such API exists yet, that is a TYPED BLOCKER — record it as `proof_targets`/`implementation_notes` blocker `BLOCKER-UNDO-API` and implement against the agreed shim rather than inventing a parallel undo stack). Do not emit one undo entry per line.\n\nDependencies / unblock conditions:\n- MT-001 DONE (TextBuffer byte-offset API exists).\n- MT-003 DONE (CursorSet multi-cursor model exists).\n- MT-010 DONE (keymap.rs declares the eight CodeEditorAction variants and dispatches them through mod.rs).\n- No new crates required: tabs/spaces/comment tokens are plain string ops on the rope. Do NOT add a dependency for this.\n\nBlocks: MT-044 (depends on the line-edit transforms being real before it can build on them).\n\nRisk if missed: the keymap declares actions (Ctrl+/ ToggleComment, Ctrl+Shift+K DeleteLine, Alt+Up/Down MoveLine, Tab IndentLine, etc.) whose handlers do not exist, so those chords are silently dead — a direct, visible VS Code parity regression.",
@@ -143,5 +146,151 @@
     "steers_held": "panel.rs dispatch (8 arms via apply_line_transform; 6 stub handlers REMOVED, no todo!/unimplemented, AC-010/PT-004); VS Code all-or-nothing ToggleComment (mixed block comments all); boundary cases (MoveUp@0/MoveDown@last no-op, DeleteLine last-no-newline + only-line, AC-002/006); settings-driven tab_size/insert_spaces (not hardcoded); multi-cursor distinct-lines dedupe; pure standalone (no backend/LSP).",
     "honest_notes": "(1) MT-001 uses a language_id STRING not a LanguageRegistry enum; kept the intent (no 2nd language type, keyed line_comment_token on the same language_id: .rs->//, .py->#). (2) line_comment_token table lists many languages but only rust/javascript/python/sql/lua are live-exercisable (LanguageRegistry registers rust+javascript) - the rest correct-by-table, dormant until registered.",
     "waiver_granted": "code_editor/line_ops.rs (new) + mod.rs + panel.rs (dispatch+settings) + test in allowed_paths (keymap.rs/cursor.rs untouched - lookups in line_ops, no cursor helper needed)."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "PASS",
+      "implementing_commits": [
+        "d57e9865",
+        "a162d908"
+      ],
+      "concerns": [
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-VIS",
+      "HBR-SWARM"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope PASS, but unresolved mandatory HBR evidence makes approval illegal.",
+    "fail_report": "MT-051 FAIL_V1. Mechanical scope/lineage gate passed for d57e9865, a162d908; the missing compile-gate receipt is LOW severity. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-VIS/HBR-SWARM. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Keep the mechanically-contained lineage unchanged. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-VIS, HBR-SWARM with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-051 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-051 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Serialized current-head handshake-native library and applicable integration tests passed for this MT after isolated reruns; no MT-owned product failure remained.",
+      "Committed source, MT contract, WP scope, and resolved current Master Spec modules were compared directly.",
+      "Mock/ignored/live-resource boundaries were inspected; any accepted typed blocker is explicitly permitted by this MT contract."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-051 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
+    "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
 }

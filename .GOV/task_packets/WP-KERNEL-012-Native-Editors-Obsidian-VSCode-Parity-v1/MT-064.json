@@ -14,7 +14,7 @@
   "title": "E9-MT-064-FemsMemoryWriteProposalFromEditor",
   "group": "E9",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-064.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-063"
@@ -33,7 +33,10 @@
     "blocks": [
       "MT-074"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: turn editor context into FEMS (Pillar 12 typed-memory system, Pillar 12) memory-write PROPOSALS that are always review-gated and NEVER directly committed by the editor. Add a 'Propose to Memory' command that operates on the current SharedSelection (any editor pane: code, rich-text, loom block, canvas). When invoked, the command builds a typed memory-write proposal carrying full source provenance, submits it to the EXISTING review-gated FEMS write path (the proposal endpoint), and emits an FR-EVT-MEM-001 (memory_write_proposed) Flight Recorder event through the MT-036 NativeEditorEventEmitter. The commit step stays operator/review-gated downstream; this MT only creates the PROPOSAL and the observability event. This is the editor entry point into the FEMS proposal->review->commit loop.\n\nThis MT is PURE FRONTEND. No backend build, no schema changes, no SQLite anywhere. It binds the EXISTING handshake_core FEMS proposal API. If the proposal endpoint does not exist on the current API surface, STOP and raise a TYPED BLOCKER (do not invent, add, or rewrite a backend endpoint; do not fall back to a direct memory commit).\n\nFile to CREATE:\n  - src/frontend/handshake_native/src/fems/memory_proposal.rs (~300-450 lines) — defines the proposal data model, the pure proposal-builder function, the typed blocker, and the egui command/dialog wiring. Lives under a new (or existing) src/frontend/handshake_native/src/fems/ module so all Pillar-12 editor integration is colocated. If src/frontend/handshake_native/src/fems/mod.rs does not yet exist, create it and add `pub mod memory_proposal;`; otherwise edit the existing src/frontend/handshake_native/src/fems/mod.rs to add the module declaration. Also register the module in src/frontend/handshake_native/src/lib.rs (`pub mod fems;`) if fems is not already declared there.\n\nFile to EDIT:\n  - src/frontend/handshake_native/src/command_registry.rs — register the 'Propose to Memory' command into the WP-011 command registry / command bus (command_registry.rs) so it appears in the command palette and can be keybound. The command reads the live SharedSelection from the WP-011 selection/event substrate (command_registry.rs + event_bus.rs), builds the proposal, and dispatches submission. Do NOT duplicate the registry/bus; reuse the existing command_registry.rs registration API and the SharedSelection that the WP-011 command/event substrate already owns. Wire the MT-036 NativeEditorEventEmitter (already wired through event_bus.rs per MT-036) to emit the FR event after a successful proposal submission.\n\nProposal data model (in memory_proposal.rs):\n  pub enum MemoryClass { Episodic, Semantic, Procedural }\n  pub struct MemorySourceProvenance { document_id: String, selection_start: usize, selection_end: usize, content_hash: String, pane_id: String, workspace_id: String }\n  pub struct MemoryWriteProposal { class: MemoryClass, content: String, source: MemorySourceProvenance, review_gated: bool, actor_id: String }\n  pub enum MemoryProposalError { MissingEndpoint, NoSelection, SubmitFailed(String) }  // MissingEndpoint == the TYPED BLOCKER\n\nPure proposal-builder (trivially unit-testable, no I/O):\n  pub fn build_proposal(sel: &SharedSelection, class: MemoryClass, workspace_id: &str, actor_id: &str) -> Result<MemoryWriteProposal, MemoryProposalError>\n  - Reads document_id, selection start/end byte offsets, pane_id, and the selected text from the SharedSelection variant (TextRange { pane_id, start, end, text } per MT-031; BlockRef / NodeRef variants resolve their document_id and use a whole-block/whole-node range). Returns MemoryProposalError::NoSelection if SharedSelection is None.\n  - content_hash: compute a stable SHA-256 (or the same hashing primitive MT-032 / the loom content_hash uses — reuse the loom_graph.rs content-hash primitive, do not introduce a second hashing scheme) over the exact selected content; store as lowercase hex in MemorySourceProvenance.content_hash.\n  - review_gated: ALWAYS true for Procedural class (spec requires procedural-class proposals to be review-gated); for Episodic/Semantic default to true as well (commit is never editor-direct). Never set review_gated=false from the editor.\n\nSubmission (off the egui frame thread, same pattern as MT-036 emit):\n  pub async fn submit_proposal(proposal: &MemoryWriteProposal, client: &HandshakeCoreClient) -> Result<ProposalAck, MemoryProposalError>\n  - POST /workspaces/{workspace_id}/memory/proposals with the typed proposal body (existing review-gated FEMS write path). On 404 / route-absent / capability-missing, return MemoryProposalError::MissingEndpoint — this is the TYPED BLOCKER the coder surfaces; do NOT silently commit or fall back to any direct memory-write route.\n  - On success, parse ProposalAck { proposal_id, status } and trigger the FR event emit.\n\nFR event (reuse MT-036 emitter; do NOT build a new emitter):\n  - After a successful submit, emit a NativeEditorEvent through the MT-036 NativeEditorEventEmitter (wired via event_bus.rs) whose action maps to FR-EVT-MEM-001 (memory_write_proposed). The payload carries: { action: 'memory_write_proposed', proposal_id, class, document_id, selection_start, selection_end, content_hash, review_gated, pane_id }. The event_type stays 'system' and schema stays the closed FR schema per MT-036 (do NOT invent a new event_type; embed the native_editor payload as MT-036 specifies). FR-EVT-MEM-001 is the stable event-name marker carried in the payload action, not a new ledger schema.\n\negui command / dialog wiring:\n  - Register CommandDescriptor { id: 'fems.propose_to_memory', label: 'Propose to Memory', keybind: None (palette-driven; do not steal a VS Code binding), handler } into the WP-011 command registry via command_registry.rs (the same registration API that backs command_palette.rs).\n  - The handler reads the live SharedSelection from the WP-011 command/event substrate (command_registry.rs + event_bus.rs), opens a small egui confirmation dialog letting the operator pick MemoryClass (Episodic/Semantic/Procedural radio) and preview the selected content + computed content_hash, then on confirm fires submit_proposal off-thread.\n  - AccessKit: command palette entry already covered by MT-031 (author_id 'cmd-fems.propose_to_memory' via the cmd-{id} convention). The dialog gets author_id 'fems-propose-dialog' role Dialog; the class radios get author_id 'fems-class-{episodic|semantic|procedural}' role RadioButton; the confirm button gets author_id 'fems-propose-confirm' role Button. Register all ids through the WP-011 AccessKit id registry (accessibility/registry.rs), never ad-hoc.\n\nReuse WP-011 shell primitives: command registry / command palette (command_registry.rs + command_palette.rs — register the command), the WP-011 command/event substrate that owns SharedSelection (command_registry.rs + event_bus.rs), and the AccessKit id registry (accessibility/registry.rs for the dialog + radio + button ids). Reuse the MT-036 NativeEditorEventEmitter (wired via event_bus.rs) for the FR event. Reuse the MT-037 knowledge_documents client wiring / HandshakeCoreClient (built on backend_client.rs) for the HTTP call. Do not duplicate any of those substrates.\n\nStep-by-step implementation notes:\n  1. Create src/frontend/handshake_native/src/fems/memory_proposal.rs with the data model, build_proposal (pure), submit_proposal (async), and the dialog/command wiring.\n  2. Make build_proposal pure and side-effect-free so it is trivially unit-testable; submission and FR emit are separate steps that consume its output.\n  3. content_hash MUST reuse the loom/MT-032 content-hash primitive in loom_graph.rs (same algorithm, same hex encoding) so a proposal's hash matches the document's block hash for the same content; do not introduce a second hashing scheme.\n  4. review_gated is hard-set true for Procedural and never settable to false from the editor; assert this in a unit test.\n  5. submit_proposal runs off the egui frame thread (tokio::spawn or the same async mechanism MT-036 uses); never block the frame.\n  6. On MissingEndpoint, surface the typed blocker to the coder/validator (return the typed error, log to the MT-036 in-memory error ring, and do NOT commit anything). The absence of the proposal endpoint is a BLOCKER, not a reason to write memory directly.\n  7. After a successful ack, emit FR-EVT-MEM-001 via the MT-036 emitter; if the emit fails it must not crash the frame (MT-036 error-ring behavior).\n  8. Tests: (a) unit build_proposal sets class + full source provenance (document_id, selection_start/end, content_hash, pane_id) correctly from a TextRange selection; (b) unit Procedural-class proposal has review_gated=true and is never auto-committed (no direct-commit code path exists); (c) integration (real PG): invoking 'Propose to Memory' on a selection creates a proposal record via the FEMS proposal endpoint AND an FR-EVT-MEM-001 (memory_write_proposed) event appears in the flight-recorder ledger; (d) unit missing-endpoint path returns MemoryProposalError::MissingEndpoint (the typed blocker) and performs no commit and no silent fallback.\n\nDependencies / unblock conditions:\n  - WP-011 command/event substrate (command_registry.rs + event_bus.rs, owning the command bus + SharedSelection) MUST be present — the command registers into command_registry.rs and reads SharedSelection from the WP-011 substrate. This is a cross-WP dependency on the WP-011 native shell, not an intra-WP MT dependency.\n  - MT-031 (CommandBus + SharedSelection editor binding) MUST be merged — the command registers into the command registry and reads SharedSelection. (MT-031 is delivered against the WP-011 substrate; see implementation_notes for the cross-WP relationship.)\n  - MT-036 (NativeEditorEventEmitter + FR runtime_chat_event wiring through event_bus.rs) MUST be merged — the FR-EVT-MEM-001 emit reuses this emitter; do not build a new one.\n  - MT-037 (knowledge documents API binding / HandshakeCoreClient on backend_client.rs) MUST be merged — provides the typed HTTP client used for the proposal POST.\n  - MT-063 MUST be merged — provides the preceding FEMS editor-integration surface this MT builds on.\n  - The FEMS proposal endpoint (POST /workspaces/{workspace_id}/memory/proposals) must exist on the current handshake_core API surface; if absent, raise the typed blocker.\n\nRisk if missed: Editing work cannot feed the memory pillar; FEMS loses its richest provenance source (operator/model selections in real documents with exact document_id + range + content hash) and the proposal->review->commit loop has no editor entry point. Without it, Pillar 12 memory is fed only by non-editor sources and the native editors fail the FEMS interop edge.",
@@ -151,5 +154,185 @@
     "out_of_scope_disclosed": "event_emitter.rs edited (disclosed GLOBAL-SCOPE-005): added NativeEditorAction::MemoryWriteProposed + as_str arm (the FR-EVT-MEM-001 needs the action variant in the MT-036 emitter); test count 7->8; minimal unblocker.",
     "strategic_gaps": "TWO future backend packets: (1) FEMS PROPOSAL WRITE route POST /workspaces/{id}/memory/proposals absent (joins the MT-063 FEMS read-route gap); (2) FR native-editor memory_write_proposed INGESTION absent (the MT-036 closed-schema gap). Both -> the proposal->review->commit loop's editor entry is built + shape-proven; goes live when the backend exposes the routes.",
     "waiver_granted": "fems/memory_proposal.rs (new) + fems/mod.rs + command_registry.rs + event_emitter.rs (MemoryWriteProposed action) + test in allowed_paths."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "b052f95f",
+        "6bdaf32f"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-064 FAIL_V1. Mechanical scope/lineage gate failed for b052f95f, 6bdaf32f. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-064 scope.allowed_paths and inspect git show --name-only b052f95f, 6bdaf32f. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-064 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-064 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "Creating a FEMS memory proposal from the editor was not proved as a real pending proposal row with corresponding Flight Recorder/EventLedger evidence; current coverage stops at mock or absent-route behavior."
+    ],
+    "basis": "Creating a FEMS memory proposal from the editor was not proved as a real pending proposal row with corresponding Flight Recorder/EventLedger evidence; current coverage stops at mock or absent-route behavior.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-064 FAIL V1. Creating a FEMS memory proposal from the editor was not proved as a real pending proposal row with corresponding Flight Recorder/EventLedger evidence; current coverage stops at mock or absent-route behavior.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Run managed handshake_core/PostgreSQL with the memory proposal and recorder routes enabled.",
+        "Select editor content, submit through the real native command, and assert a persisted pending proposal row with source document/range, author, provenance, and correlation ID.",
+        "Query Flight Recorder/EventLedger and prove the matching proposal-created event; verify committed memory is unchanged until explicit approval.",
+        "Exercise route unavailable, malformed selection, duplicate submission, and rejection paths; provide exact IDs and commands."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-064.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-064 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "The FEMS proposal and native-editor Flight Recorder ingestion routes are absent, so proposal creation and evidence linkage are not wired end to end.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-064 FAIL V1. The FEMS proposal and native-editor Flight Recorder ingestion routes are absent, so proposal creation and evidence linkage are not wired end to end.",
+      "remediation_steps": [
+        "Implement the packet/spec-defined proposal and FR ingestion routes with typed schemas, identity, idempotency, provenance, and review-gated semantics.",
+        "Wire the editor actions to the real routes and keep failure visible instead of local success substitution.",
+        "Persist proposals/events in managed PostgreSQL and verify fresh-client readback.",
+        "Test duplicate replay, denial, invalid payload, timeout, and no direct memory mutation before review."
+      ],
+      "verification_required": [
+        "Proposal and FR event persist with correct provenance.",
+        "Duplicate replay is idempotent and review gating holds.",
+        "All live tests exit zero."
+      ],
+      "no_context_instruction": "Read MT-064.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

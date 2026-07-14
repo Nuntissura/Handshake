@@ -14,7 +14,7 @@
   "title": "E2-MT-057-WikilinkAliasResolveAndCreate",
   "group": "E2 Rich-text editor (Obsidian/Notion parity)",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-057.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [
       "MT-015",
@@ -36,7 +36,10 @@
     "blocks": [
       "MT-044"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: Add two Obsidian-core wikilink behaviors on top of the MT-015 wikilink/transclusion engine in the native (egui) rich-text editor: (1) CREATE-FROM-UNRESOLVED — clicking an unresolved `[[Title]]` link offers a 'Create note \"Title\"' affordance that POSTs a new knowledge document via the MT-037 backend binding and then rewrites the in-document mark from unresolved to resolved; and (2) ALIAS RESOLUTION — resolve a wikilink target not only by exact title/ref but also against a per-document `aliases` list, and surface alias matches in the MT-015 autocomplete dropdown alongside exact-title matches. This MT is pure frontend logic layered on existing panes and existing backend APIs — NO backend rewrite. Backend gaps are TYPED BLOCKERS, not new endpoints.\n\nThis MT does NOT re-implement the wikilink mark, the `[[...]]` parser, or the autocomplete UI shell — those already exist from MT-015 (E2-MT015-WikilinksTransclusion). This MT adds: a richer resolver (resolver.rs) and the alias-aware autocomplete data path (autocomplete.rs) feeding the existing MT-015 dropdown widget.\n\nFiles to CREATE (new modules under src/frontend/handshake_native/src/):\n  - src/frontend/handshake_native/src/rich_text/wikilinks/resolver.rs  — the resolution engine. Define:\n      * enum WikilinkResolution { Resolved { document_id: String, matched_by: MatchKind }, Unresolved { title: String } }\n      * enum MatchKind { ExactRef, ExactTitle, Alias { alias: String } }\n      * struct ResolverIndex { by_title: HashMap<String, String /*doc_id*/>, by_alias: HashMap<String, String /*doc_id*/>, aliases_supported: bool }\n      * fn resolve_wikilink(index: &ResolverIndex, target: &str) -> WikilinkResolution — normalize target (trim, case-insensitive per Obsidian default), check exact ref/title first, then alias map; if no match return Unresolved.\n      * fn create_note_intent(title: &str) -> EditorIntent::CreateNote { title } — emit a command-bus intent (reuse the WP-011 command bus via command_registry.rs + event_bus.rs) rather than calling the network inline from the click handler.\n  - src/frontend/handshake_native/src/rich_text/wikilinks/autocomplete.rs  — alias-aware candidate provider. Define:\n      * struct WikilinkCandidate { document_id: String, display_title: String, matched_alias: Option<String>, score: i64 }\n      * fn candidates_for_query(index: &ResolverIndex, query: &str) -> Vec<WikilinkCandidate> — fuzzy-match query against both titles and aliases, dedupe by document_id (prefer the higher score; if matched by alias, set matched_alias so the dropdown can render 'Title (alias: \"foo\")'), sort by score desc.\n      This module feeds the EXISTING MT-015 autocomplete dropdown — do not build a new dropdown widget; produce the candidate list the MT-015 widget consumes.\n\nFiles to EDIT (extend, do not rewrite):\n  - src/frontend/handshake_native/src/rich_text/wikilinks/mod.rs  — add `pub mod resolver;` and `pub mod autocomplete;`; route link-activation (click) through resolver::resolve_wikilink and, on Unresolved, present the 'Create note' affordance.\n  - src/frontend/handshake_native/src/rich_text/wikilinks/mark.rs (or the MT-015 mark module that owns the rendered link span) — on an Unresolved mark, render the link in the 'unresolved' visual state (Obsidian renders these dimmed/dashed) and attach a click/context action that emits the create-note affordance. After a successful create, mutate the mark to Resolved { document_id } so it re-renders as a live link without a full document reload.\n\nStep-by-step implementation notes:\n  1. Build ResolverIndex from data already available via the MT-038 Loom search binding. Call GET /workspaces/{workspace_id}/loom/search to enumerate candidate documents (title + id). Populate by_title. For aliases: read a per-document `aliases` field if the search/document payload exposes one (it is set via the MT-017 PropertiesPanel). If the field is ABSENT from the backend payload, set ResolverIndex.aliases_supported = false and raise the typed blocker (see step 7).\n  2. Resolution order in resolve_wikilink: (a) exact ref/id match, (b) exact title match (case-insensitive, whitespace-normalized), (c) alias match against by_alias. First hit wins; record MatchKind accordingly. No match => Unresolved { title }.\n  3. Click activation: when the user clicks a wikilink mark, call resolve_wikilink. If Resolved, route the open through the existing MT-015 link-open path (navigate to document_id). If Unresolved, show a small inline affordance (egui button or popup) labeled 'Create note \"{title}\"'.\n  4. Create-from-unresolved: when the operator confirms, emit EditorIntent::CreateNote { title }. The intent handler calls POST /knowledge/documents (MT-037 binding) with the title and an empty body, receives the new document_id, inserts it into ResolverIndex.by_title, and rewrites the originating mark to Resolved { document_id }. The link must become live immediately (no manual refresh).\n  5. Alias autocomplete: while the user types `[[query`, the MT-015 autocomplete trigger calls candidates_for_query. Candidates matched by alias render with a secondary label (e.g. `Project Atlas — alias: \"atlas\"`). Selecting an alias candidate inserts the canonical `[[Title]]` (or `[[Title|displayed]]` if Obsidian alias-display syntax is in scope per MT-015) that resolves to document_id.\n  6. AccessKit: the 'Create note' affordance must register an AccessKit node with a STABLE author_id of the form `wikilink-create-{hash}` where {hash} is a short stable hash of the unresolved title (so swarm agents and kittest can address it deterministically), Role::Button, actions=[Press]. Reuse the WP-011 AccessKit id registry (accessibility/registry.rs) rather than minting ids ad hoc. Each alias autocomplete row should also carry a stable author_id (e.g. `wikilink-candidate-{document_id}`).\n  7. TYPED BLOCKER (aliases gap): if the backend Loom search / knowledge document payload does NOT expose an `aliases` field, do NOT silently no-op. (a) Raise a typed blocker record in the standard WP-012 blocker channel (the packet's typed-gap mechanism) naming the missing field and the two affected APIs; (b) stub alias resolution LOCAL-ONLY: keep a process-local alias map (empty unless populated by the MT-017 PropertiesPanel in-session) so the code path is exercised and testable; (c) render a VISIBLE banner in the rich editor stating alias resolution is running local-only / backend aliases unavailable, so the operator is never misled into thinking aliases are persisted. The CREATE-FROM-UNRESOLVED half is independent of aliases and MUST still proceed fully.\n  8. Reuse only — do NOT add SQLite or any local DB. All persistence is PostgreSQL/EventLedger through the existing handshake_core HTTP APIs. The local alias stub in step 7 is in-memory only and is explicitly NOT a persistence layer.\n\nReact reference to port: app/src/lib/editor/wikilink.ts holds classifyWikilink + the resolution function (exact vs unresolved classification) — port the classification and resolution branching into resolver.rs. app/src/components/RichDocumentView.tsx holds the link-activation routing (what happens on click for resolved vs unresolved) — port the routing decision into the click handler, but emit a command-bus intent instead of an inline fetch.\n\nDependencies / unblock conditions:\n  - MT-015 (E2-MT015-WikilinksTransclusion) must be merged: provides the wikilink mark, parser, and autocomplete dropdown shell this MT extends.\n  - MT-017 (E2-MT017-PropertiesPanel) must be merged: it is where per-document `aliases` are authored; the resolver reads them.\n  - MT-037 (E6-MT-037-BindKnowledgeDocumentsApi) must be merged: provides POST /knowledge/documents.\n  - MT-038 (E6-MT-038-BindLoomApi) must be merged: provides GET /workspaces/{workspace_id}/loom/search for title/alias enumeration.\n\nInterop edge: create-from-link writes through the MT-037 /knowledge/documents binding so the newly created note is immediately addressable as a Loom block (E5 interconnection) with live backlinks — growing the note graph from a single click.\n\nRisk if missed: without create-on-click and alias resolution, the note graph cannot grow from authoring flow and multi-name linking parity with Obsidian is broken; MT-044 (which depends on this) is blocked.",
@@ -153,5 +156,183 @@
     "gated_and_carried": "live end-to-end (real Loom-search seed + real POST /knowledge/documents vs managed PostgreSQL) = NEEDS_MANAGED_RESOURCE_PROOF (live_pg_set_wikilink_context_seeds_and_creates #[ignore]+integration). The shell PaneFactory CALLING set_wikilink_context on the mounted editor = E11/MT-069 carry-forward (wiring proven at the widget level, not faked).",
     "strategic_gap": "ALIASES BACKEND GAP (verified, like the Flight Recorder gap): the backend Loom-search + knowledge-document payloads have NO `aliases` field. Native editor uses an in-memory in-session local-alias stub + a VISIBLE local-only banner + a typed blocker. FULL alias persistence needs a future BACKEND packet (out of this frozen-backend WP).",
     "waiver_granted": "rich_editor/wikilinks/resolver.rs (new) + autocomplete.rs/runtime.rs/confirm.rs/inline_view.rs/mod.rs (extend) + renderer/rich_editor_widget.rs (live wiring) + test in allowed_paths."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "31f62d3b",
+        "513f2869"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-SWARM",
+      "HBR-VIS"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-057 FAIL_V1. Mechanical scope/lineage gate failed for 31f62d3b, 513f2869. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-SWARM/HBR-VIS. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-057 scope.allowed_paths and inspect git show --name-only 31f62d3b, 513f2869. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-SWARM, HBR-VIS with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-057 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "Alias-gap resolution does not terminate reliably: the production resolver test stalls and the inspected artifact reports LOCAL-ONLY aliases that are not persisted.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate.",
+    "fail_report": {
+      "summary": "MT-057 FAIL V1. Alias-gap resolution does not terminate reliably: the production resolver test stalls and the inspected artifact reports LOCAL-ONLY aliases that are not persisted.",
+      "remediation_steps": [
+        "Implement bounded async success/empty/error/timeout states.",
+        "Wire production alias query and canonical persistence.",
+        "Expose create-note/create-alias through host drain.",
+        "Cancel superseded/closed-pane work."
+      ],
+      "verification_required": [
+        "Full resolver binary passes.",
+        "Seeded alias persists/readbacks.",
+        "No indefinite spinner on failure."
+      ],
+      "no_context_instruction": "Read the complete MT, WP packet, and resolved current Master Spec before editing. Implement only this product remediation, run every required verification from current HEAD, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-057 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "test_wikilink_resolver passed 12/12 on current HEAD.",
+      "Create-note and alias/local-only visual artifacts were opened directly and were readable with honest backend-unavailable state.",
+      "Host-drain failure is owned by MT-079; the standalone MT-057 handler contract passed."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-057 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Alias-gap resolution does not terminate reliably: the production resolver test stalls and the inspected artifact reports LOCAL-ONLY aliases that are not persisted.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-057 FAIL V1. Alias-gap resolution does not terminate reliably: the production resolver test stalls and the inspected artifact reports LOCAL-ONLY aliases that are not persisted.",
+      "remediation_steps": [
+        "Implement bounded async success, empty, error, cancellation, and timeout states.",
+        "Wire the production alias query and canonical persistence.",
+        "Expose create-note/create-alias through the host drain.",
+        "Cancel superseded or closed-pane work."
+      ],
+      "verification_required": [
+        "The full resolver binary passes.",
+        "A seeded alias persists and reads back.",
+        "No indefinite spinner remains on failure."
+      ],
+      "no_context_instruction": "Read MT-057.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

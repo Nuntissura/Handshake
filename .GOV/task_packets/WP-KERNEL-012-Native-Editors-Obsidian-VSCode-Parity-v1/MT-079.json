@@ -14,7 +14,7 @@
   "title": "E11-MT-079-AppHostMount-EditorPaneFactories",
   "group": "E11 Shell host-mount (app.rs convergence)",
   "created_at_utc": "2026-06-25T00:00:00Z",
-  "updated_at_utc": "2026-06-25T00:00:00Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-079.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "active": false,
     "depends_on": [
       "MT-008",
@@ -44,7 +44,10 @@
       "MT-070",
       "MT-071"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "FAIL_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "OPERATOR-AUTHORIZED SCOPE EXPANSION (2026-06-25, AskUserQuestion answer = Add app.rs mount MT now): this NEW MT closes the structural gap that NO existing WP-012 MT owned - the actual HOST-MOUNT of the built+widget-proven editor panes into the running Handshake app (app.rs). Today app.rs (~4902 lines) registers PlaceholderPaneFactory for the editor PaneTypes (the editor-pane TYPED SEAM, Rich-text/Code editor pane not mounted yet, at ~app.rs:286), so the panes are proven only at the kittest widget level and never render in the live app; this MT replaces those placeholders with the REAL editor pane factories, threads the per-pane session context, and wires the ~14 accumulated E11 carry-forwards so the native editors become LIVE in the running app (enabling real-app GUI inspection per the goal). HOST-INTEGRATION GLUE ONLY: no new editor features, no backend endpoints, no SQLite. It binds the EXISTING set_* hooks + pane widgets the prior MTs built+tested, and mounts/threads them in app.rs. Every backend gap stays a typed blocker (FEMS/Stage/Calendar/Locus HTTP routes verified ABSENT; live-PG round-trips = NEEDS_MANAGED_RESOURCE_PROOF). PostgreSQL/EventLedger only; no SQLite; src/backend is reuse-via-API-only. CORE MOUNT (must-have, prove first): (1) register a REAL CodeEditorPaneFactory (PaneType::CodeEditor) + RichEditorPaneFactory (rich/document PaneType) in app.rs factories HashMap, replacing PlaceholderPaneFactory for those types; construct from the existing CodeEditorPanel (code_editor/panel.rs) + RichEditorWidget (rich_editor/renderer/rich_editor_widget.rs); create thin impl PaneFactory wrappers if absent. (2) thread session context via PaneRenderContext on mount: code pane set_runtime(tokio Handle)+set_workspace_id (MT-008/010); rich pane RichEditorState::set_embed_context(workspace_id,runtime) (MT-014) + set_wikilink_context (MT-057); use the SAME shared-cell pattern app.rs already uses for LoomSearchV2PaneFactory/FindInFilesPaneFactory. (3) wire the shell command Sender into the code pane so Save/Undo/Redo/OpenCommandPalette reach the WP-011 command bus + MT-035 unified undo (MT-010). (4) wire MT-030 ShellNavigator open_document->rich pane + open_code_symbol->code pane (MT-030). (5) DRAIN RichEditorState.pending_events each frame + ROUTE WikilinkActivated/BacklinkActivated/TagActivated/locus open-ref to the nav bus (MT-015). FULLER MOUNT (as far as the run allows; gate/defer honestly, NEVER fake): (6) CANVAS pane (graph/canvas_board.rs): mount factory; consume MT-061 ResizePlacement/AssignSection/EditTextCard -> real PATCH/POST + getCanvasBoard refresh; set CanvasCardKind from the card response; push_canvas_placement_undo + emit_canvas_node_placed (MT-035/036/061). (7) GRAPH pane (graph/graph_view.rs): depth-parameterized graph-search client (backend_client local_request taking backlink_depth) + consume GraphEvent::DepthChanged to re-query (MT-060). (8) code pane live undo + FR: route code Ctrl+Z/Ctrl+Y -> bus.undo/redo + push_code_edit_undo; emit_code_edit debounced 2s; app.rs bus.set_undo_runtime(handle)+register_undo_commands()+render_undo_count_indicator (MT-035/036). (9) DOCK the widget-proven side panes: loom.outgoing_links (build resolver_index from /knowledge/documents + /loom/blocks, wire on_open) (MT-062); relevant-memory (subscribe refresh_for_context to MT-031 bus, wire source-links) (MT-063); Propose-to-Memory live invocation (MT-064); StagePane + Route-to-Stage/embed-stage-capture (MT-066); DailyJournalPanel + MT-030 date-selected -> open-or-create (MT-067). (10) MT-043 swarm-authoring: add AccessKit Action::SetValue/ReplaceSelectedText on code_editor_text + a wikilink-by-id insertion action; the MT-043 swarm-edit proof STEP2/STEP3 become live-drivable (gated on managed PG). PRIORITIZE core 1-5 (prove code+rich panes render LIVE in the running HandshakeApp tree via a kittest driving the real app + a wgpu screenshot of the mounted editor), THEN 6-10 as far as the run allows. Anything not completed = HONEST typed carry (NOT faked, NOT todo!()); live-PG halves stay NEEDS_MANAGED_RESOURCE_PROOF. A partial-but-honest mount that makes the core editors live + leaves the rest as typed carries is the expected, acceptable outcome.",
@@ -140,5 +143,200 @@
   },
   "kernel_builder_carried_forward": {
     "fuller_mount_followon": "canvas+graph pane mounts; MT-060 depth-client; MT-061 canvas events->PATCH/POST+CanvasCardKind; MT-035/036 code/canvas undo+FR; DOCK loom.outgoing_links(MT-062)+relevant-memory(MT-063)+Propose(MT-064)+StagePane(MT-066)+DailyJournal(MT-067); MT-043 AccessKit code SetValue+wikilink-by-id. Core code+rich mount DONE; these are the remaining E11 host-mount carries -> MT-080."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "78224aec"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-VIS",
+      "HBR-SWARM"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-079 FAIL_V1. Mechanical scope/lineage gate failed for 78224aec. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-VIS/HBR-SWARM. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-079 scope.allowed_paths and inspect git show --name-only 78224aec. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-VIS, HBR-SWARM with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-079 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "Editors mount live, but Create note from link is missing from the menu/host-drain path.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate.",
+    "fail_report": {
+      "summary": "MT-079 FAIL V1. Editors mount live, but Create note from link is missing from the menu/host-drain path.",
+      "remediation_steps": [
+        "Expose the action on unresolved links.",
+        "Map a stable action id to canonical host drain/note creation.",
+        "Focus created note; preserve input/show typed errors on conflict/backend failure.",
+        "Add live-shell click/drain and managed readback tests."
+      ],
+      "verification_required": [
+        "test_app_host_mount passes 12/12.",
+        "Created note persists/readbacks.",
+        "Negative paths are bounded."
+      ],
+      "no_context_instruction": "Read the complete MT, WP packet, and resolved current Master Spec before editing. Implement only this product remediation, run every required verification from current HEAD, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-079 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Fresh current-head source/test inspection reproduced or exposed the stated MT-owned acceptance failure.",
+      "The failure was compared against the MT acceptance criteria, WP scope, and resolved current Master Spec; prior verdicts and repo paperwork were excluded."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [
+      "Fresh exact failure: code_pane_create_note_from_link_routes_through_host_drain expected live author ID ctx-menu.ctxmenu-editor-create-note at test_app_host_mount.rs:407. The rich-editor pending-event drain/host routing contract is not satisfied."
+    ],
+    "basis": "Fresh exact failure: code_pane_create_note_from_link_routes_through_host_drain expected live author ID ctx-menu.ctxmenu-editor-create-note at test_app_host_mount.rs:407. The rich-editor pending-event drain/host routing contract is not satisfied.",
+    "residual_uncertainty": "The MT remains non-pass until every remediation step is implemented and independently rerun from current HEAD.",
+    "fail_report": {
+      "summary": "MT-079 FAIL V1. Fresh exact failure: code_pane_create_note_from_link_routes_through_host_drain expected live author ID ctx-menu.ctxmenu-editor-create-note at test_app_host_mount.rs:407. The rich-editor pending-event drain/host routing contract is not satisfied.",
+      "acceptance_impact": "At least one mandatory product acceptance/proof clause is unmet; PASS is prohibited.",
+      "root_boundary": "PRODUCT_CODE_OR_REQUIRED_PRODUCT_PROOF",
+      "remediation_steps": [
+        "Run the exact failing test_app_host_mount case from current HEAD and inspect the emitted pending event plus resolved author/command ID.",
+        "Repair the live app host drain so WikilinkActivated/BacklinkActivated/TagActivated and Create-note-from-link are consumed each frame and routed through the registered navigation/command bus with the canonical author ID.",
+        "Prove the event queue is empty after drain and the real mounted destination is focused/updated; do not patch only the test string unless the contract's canonical id changed under authority.",
+        "Re-run the full test_app_host_mount binary and related MT-057/context-menu/navigation tests."
+      ],
+      "verification_required": [
+        "Run the MT's complete declared proof set with non-zero assertions from current HEAD.",
+        "Use external ../Handshake_Artifacts target/output directories only.",
+        "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
+      ],
+      "no_context_instruction": "Read MT-079.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-079 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "Editors mount live, but Create note from link is missing from the menu/host-drain path.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-079 FAIL V1. Editors mount live, but Create note from link is missing from the menu/host-drain path.",
+      "remediation_steps": [
+        "Expose the action on unresolved links.",
+        "Map a stable action ID to canonical host drain and note creation.",
+        "Focus the created note and preserve input/show typed errors on conflict or backend failure.",
+        "Add live-shell click/drain and managed readback tests."
+      ],
+      "verification_required": [
+        "test_app_host_mount passes 12/12.",
+        "The created note persists and reads back.",
+        "Negative paths are bounded."
+      ],
+      "no_context_instruction": "Read MT-079.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }

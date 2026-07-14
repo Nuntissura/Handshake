@@ -42,14 +42,23 @@
     "summary": "Make the default LlmClient's embedded model registry shared, enumerable, and labeled (UUIDv7 -> display_name/base_model_tag) so downstream pillars can name and list the local model, and give LoomSearchV2 a real embedding-model contract that degrades (not hard-errors) on dimension mismatch.",
     "origin": "Deferred from MT-003 (2026-07-01) interconnectivity post-review. MT-003 wires the default LlmClient to the embedded ModelRuntime, but constructs a THROWAWAY single-entry ModelRegistry buried inside LocalRouter (llm/boot.rs) that is not shared, enumerable, or persisted, and whose UUIDv7 has no exposed display_name join. This blocks: MT-008 TraceProjection labeling the local model (groups by opaque UUIDv7), MT-012 operator model-picker enumeration, and Work Profiles provider_ref resolution (provider_id changed ollama->local_runtime). Separately, LoomSearchV2 hard-requires 768-dim embeddings (loom_search/mod.rs LOOM_SEARCH_EMBEDDING_DIM=768) and returns a HARD StorageError::Validation on mismatch, so configuring a normal chat model as the local default makes Loom reindex/search hard-error instead of degrade.",
     "allowed_paths": [
+      "src/backend/handshake_core/migrations/0348_model_runtime_registry.sql",
+      "src/backend/handshake_core/migrations/0348_model_runtime_registry.down.sql",
       "src/backend/handshake_core/src/llm/",
       "src/backend/handshake_core/src/model_runtime/",
       "src/backend/handshake_core/src/loom_search/",
       "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/main.rs",
       "src/backend/handshake_core/src/kernel/work_profiles.rs",
       "src/backend/handshake_core/src/managed_postgres.rs",
+      "src/backend/handshake_core/src/kernel/mod.rs",
       "src/backend/handshake_core/src/user_manual/",
-      "src/backend/handshake_core/tests/"
+      "src/backend/handshake_core/tests/",
+      "src/frontend/handshake_native/src/model_runtime_panel.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs"
     ],
     "forbidden_paths": [
       "re-implementing engine internals (WP-KERNEL-004)",
@@ -157,7 +166,7 @@
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs; COMPLETED is validator-only."
   },
   "remediation_v2": {
-    "status": "BLOCKED_V2",
+    "status": "IN_PROGRESS_V2",
     "remediated_at_utc": "2026-07-11T02:59:39Z",
     "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
     "v1_verdict_preserved": "FAIL_V1",
@@ -187,7 +196,100 @@
         "partition_matches_product_commit": true
       },
       "residual_concern": "LOW BUILD_PASS_EVIDENCE_NOT_FOUND: the existing COMPILE_GATE_LOG row for product commit 28e2e5c8 lacks an mt_id, so the per-MT mechanical tracker cannot associate it. This does not resolve the active-spec persistent-registry blocker."
-    }
+    },
+    "implementation_started_at_utc": "2026-07-11T11:19:45Z",
+    "implementation_baseline": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+    "authority": "packet.lifecycle.packet_widening_decision=OPERATOR_DIRECTIVE_2026-07-11_FULL_WP_IMPLEMENTATION plus the live operator directive to remediate every failed MT and harden each remediation before V2 validation",
+    "scope_amendment": {
+      "decision": "APPROVED_FOR_V2_REMEDIATION",
+      "reason": "SPEC_CURRENT v02.200 section 4.6.5 requires a persistent model-registry row and the production boot path must receive the PostgreSQL-backed registry authority. Existing MT-014 model_runtime, llm, UserManual, and test paths remain authoritative; only the exact migration and composition-root paths below are added.",
+      "exact_added_allowed_paths": [
+        "src/backend/handshake_core/migrations/0348_model_runtime_registry.sql",
+        "src/backend/handshake_core/migrations/0348_model_runtime_registry.down.sql",
+        "src/backend/handshake_core/src/main.rs",
+        "src/backend/handshake_core/src/kernel/mod.rs",
+        "src/frontend/handshake_native/src/model_runtime_panel.rs",
+        "src/frontend/handshake_native/src/backend_client.rs",
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/lib.rs",
+        "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs"
+      ],
+      "explicitly_not_added": [
+        "src/backend/handshake_core/src/storage/",
+        "src/backend/handshake_core/src/sandbox/",
+        "app/src/",
+        "app/src-tauri/"
+      ],
+      "control_panel_requirement": "The exact Rust-native files above replace the existing ModelRuntime placeholder pane with a real read-only registry/control projection. It joins durable rows to current live catalog rows by artifact SHA-256 and shows selected adapter, revision, live READY versus dormant state, and audit reference. It must never render a last-observed UUID as currently loaded.",
+      "passed_mt_preservation": "The MT-016 dedicated embedding-model load path must remain functional and must participate in the same atomic persistent-selection transaction; MT-012 picker behavior remains intact; MT-009 source remains untouched."
+    },
+    "research_basis_v2": {
+      "researched_at_utc": "2026-07-11T11:19:45Z",
+      "sources_checked": [
+        "https://www.postgresql.org/docs/current/sql-insert.html",
+        "https://github.com/launchbadge/sqlx",
+        "https://www.mlflow.org/docs/latest/ml/model-registry/workflow/",
+        "https://huggingface.co/docs/hub/model-cards",
+        "https://github.com/emilk/egui",
+        "https://docs.rs/egui/0.33.0/egui/",
+        "https://docs.rs/crate/egui_kittest/0.33.3"
+      ],
+      "patterns_found": [
+        "Use one canonical PostgreSQL registry row keyed by stable artifact identity rather than a boot-scoped runtime UUID.",
+        "Separate immutable runtime-adapter selection from mutable display and observation metadata.",
+        "Serialize conflicting selection writes transactionally and use explicit revision checks for deliberate rebinds.",
+        "Persist an auditable selection/rebind decision and read the committed row back before exposing it through the live catalog.",
+        "Treat primary and dedicated embedding registrations as one atomic boot set so partial registry state cannot escape.",
+        "Keep egui network/database work off the immediate-mode frame thread and deliver results through a nonblocking shared cell.",
+        "Use AccessKit-backed stable author ids for semantic inspection and egui_kittest Harness rendering for real-data desktop plus constrained-viewport visual proof."
+      ],
+      "reuse_opportunities": [
+        "Existing sqlx PostgreSQL pool and managed PostgreSQL test helper",
+        "Existing kernel EventLedger append path",
+        "Existing ModelCatalog/ModelRegistry enumeration and label surface",
+        "Existing in-process Candle/LlamaCpp boot and ProcessOwnershipLedger lifecycle",
+        "Existing MT-016 dedicated embedding registration path"
+      ],
+      "rejected_options": [
+        "A second in-memory registry projection without durable authority",
+        "A separate SQLite registry or fallback authority",
+        "A full MLflow-style model-version and alias subsystem beyond the selected-adapter requirement",
+        "Replacing in-process Candle/LlamaCpp boot with a new sandbox/VM runtime",
+        "Treating mutable display-name changes as an adapter-selection conflict",
+        "Blocking PostgreSQL/HTTP work on the egui frame thread",
+        "A screenshot-only UI check without stable semantic identifiers or backend-integrity negative paths"
+      ],
+      "selected_approach": "A narrow sqlx/PostgreSQL model-runtime registry table keyed by artifact SHA-256, with immutable adapter/capability selection, mutable observation metadata, compare-and-swap selection revision, same-transaction EventLedger audit references, atomic primary-plus-embedding persistence, committed read-back, and fail-closed production boot authority checks.",
+      "risks_and_mitigations": [
+        "Concurrent incompatible adapter selection: deterministic artifact-scoped serialization plus conflict error and no partial commit.",
+        "Project relocation or model renaming: persist artifact hash and portable locator identity; update mutable labels without changing selection revision.",
+        "Schema drift: validate required columns, nullability, and constraint definitions before artifact access.",
+        "Partial primary/embedding registration: validate and commit the complete boot set in one transaction.",
+        "Unaudited rebind: require actor, non-empty reason, expected revision, and an EventLedger row in the same transaction."
+      ],
+      "validation_plan": "Run exact real-PostgreSQL persistence, concurrency, restart, relocation/rename, schema-drift, atomic boot-set, and audit tests; run a real Candle production boot that proves load -> persisted row/read-back -> live catalog -> matching ProcessOwnershipLedger STOP; rerun the existing MT-014 and MT-016 regression proofs."
+    },
+    "required_proof_v2": [
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_persistence_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_persistence_tests mt014_persistent_registry_survives_restart_and_reads_back_selection -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_persistence_tests mt014_concurrent_incompatible_adapter_selection_has_one_winner -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_persistence_tests mt014_display_name_change_preserves_selection_and_revision -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_persistence_tests mt014_explicit_rebind_requires_audit_and_compare_and_swap -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_persistence_tests mt014_primary_and_embedding_registration_is_atomic_on_conflict -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_persistence_tests mt014_registry_authority_shape_rejects_semantic_drift -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_runtime_registry_api_tests -- --nocapture",
+      "$artifactRoot = Join-Path (Resolve-Path ..).Path 'Handshake_Artifacts/handshake-test/wp1-final-audit'; New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null; $projection = Join-Path $artifactRoot 'mt014-model-runtime-registry-projection.json'; Remove-Item -LiteralPath $projection -Force -ErrorAction SilentlyContinue; $env:HANDSHAKE_MT014_PROJECTION_ARTIFACT = $projection; cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_runtime_registry_api_tests mt014_registry_api_joins_real_pg_rows_to_current_ready_catalog_by_sha256 -- --exact --nocapture; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; if (-not (Test-Path -LiteralPath $projection)) { throw 'MT-014 projection artifact was not generated' }",
+      "$artifactRoot = Join-Path (Resolve-Path ..).Path 'Handshake_Artifacts/handshake-test/wp1-final-audit'; $projection = Join-Path $artifactRoot 'mt014-model-runtime-registry-projection.json'; if (-not (Test-Path -LiteralPath $projection)) { throw 'MT-014 projection artifact is missing' }; $env:HANDSHAKE_MT014_PROJECTION_ARTIFACT = $projection; cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_model_runtime_panel_argus -- --nocapture",
+      "$artifactRoot = Join-Path (Resolve-Path ..).Path 'Handshake_Artifacts/handshake-test/wp1-final-audit'; $projection = Join-Path $artifactRoot 'mt014-model-runtime-registry-projection.json'; $screenshot = Join-Path $artifactRoot 'mt014-model-runtime-panel.png'; if (-not (Test-Path -LiteralPath $projection)) { throw 'MT-014 projection artifact is missing' }; Remove-Item -LiteralPath $screenshot -Force -ErrorAction SilentlyContinue; $env:HANDSHAKE_MT014_PROJECTION_ARTIFACT = $projection; $env:HANDSHAKE_MT014_SCREENSHOT_PATH = $screenshot; cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_model_runtime_panel_argus mt014_model_runtime_real_pg_frame_png -- --ignored --exact --nocapture; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; if (-not (Test-Path -LiteralPath $screenshot)) { throw 'MT-014 screenshot artifact was not generated' }",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt014_real_candle_registry_commit_failure_rolls_back_and_stops -- --ignored --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt014_catalog_enumerates_and_labels_configured_model -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test work_profile_provider_ref_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests -- --nocapture",
+      "cargo check -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime"
+    ],
+    "readiness_gate": "Remain IN_PROGRESS_V2 until durable authority is integrated into the original in-process production boot, all exact proofs pass on the final source, passed-MT regressions are absent, and independent multi-lens adversarial review returns no unresolved blocker."
   },
   "validator_verdict": "FAIL_V1",
   "validation_v1": {

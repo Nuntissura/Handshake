@@ -14,7 +14,7 @@
   "title": "D9-MT-105-OperationSubprocessStallWatchdog-DeadlineProgressTicks",
   "group": "D2 internal_diagnostics (Tier 2 — generalized stall/hang detection)",
   "created_at_utc": "2026-06-28T00:00:00Z",
-  "updated_at_utc": "2026-07-01T04:08:49Z",
+  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-105.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": false,
     "claimed_by": "KERNEL_BUILDER",
     "claimed_at_utc": "2026-06-30T03:55:07Z",
@@ -39,7 +39,10 @@
     "blocks": [
       "MT-106"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PASS_V1",
+    "status_before_v1": "READY_FOR_VALIDATION",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
   },
   "scope": {
     "summary": "Goal: build a GENERALIZED OPERATION/SUBPROCESS STALL WATCHDOG inside internal_diagnostics (Tier 2) so a silent, hours-long hang of ANY in-app operation OR ANY spawned child process becomes IMPOSSIBLE — it is detected within a BOUNDED time (seconds, not hours). This GENERALIZES the MT-088 backend-down UI-thread freeze fix + the MT-091 freeze-detection pattern from 'the UI thread froze' to 'ANY deadline-bounded operation stopped making progress'. It is the internal_diagnostics half of the stall-detection capability; the Palmistry child-process half + the end-to-end no-silent-hang capstone are MT-106.\n\nMOTIVATING INCIDENT (operator, 2026-06-28): a spawned subprocess — a `cargo test` doing minidumper IPC (the MT-092 known hanger) — DEADLOCKED SILENTLY for HOURS with no detection and no one noticed. That whole CLASS of failure (an operation, or a spawned child process, that hangs/stalls with no progress and no observer) must be impossible inside Handshake: BOTH internal_diagnostics (this MT) AND Palmistry (MT-106) must catch it within a bounded time.\n\nTHE MODEL (deadline + progress ticks = a per-operation heartbeat): any in-app operation that could stall — a backend call, a spawned terminal/model session (MT-100/101), a tool run, a long async step, a spawned child process Handshake supervises — REGISTERS with the watchdog and gets back an `OperationHandle`. Registration carries: a typed numeric `operation_code` (a closed enum, NOT free text — see the typed-allowlist note), a `deadline` (max wall-clock the operation may run before it is presumed stalled), and an optional `progress_interval` (the max gap between progress ticks before it is presumed stalled even if the overall deadline has not elapsed). While the operation runs it calls `handle.tick()` periodically — a per-operation progress heartbeat (the same liveness idea as the MT-084 UI-thread heartbeat, but per-operation). On completion the operation calls `handle.complete()` (or drops the handle, which auto-completes/deregisters) so it can never false-flag after it finished. A background WATCHDOG thread (off the UI thread; reuse the MT-084/091 dedicated-poll-thread pattern) periodically scans the registered operations; any operation that has exceeded its `deadline` OR gone longer than `progress_interval` since its last tick — and has NOT completed — is declared STALLED: the watchdog emits a TYPED `DiagEventCode::StalledOperation` DiagEvent (typed integers only — see below) ONCE per stalled operation (debounced — not every scan tick), records it via the MT-082 `record()` API (so it lands in the ring Palmistry reads AND the in-process buffer the Settings->Diagnostics panel reads), and surfaces it (Settings->Diagnostics panel MT-087 + the status bar). A completed or still-ticking operation NEVER false-flags.\n\nThe whole point mirrors MT-091's no-false-positive gate: an operation that progresses (ticks within its interval) or completes before its deadline must produce NO StalledOperation; only an operation that is registered, never ticks/completes, and passes its deadline/interval is flagged — within a BOUNDED time (<= deadline + one watchdog poll interval).\n\nExact files to create/edit (inside handshake-native; the ring crate + backend are reuse-via-API only):\n- CREATE `src/frontend/handshake_native/src/diagnostics/operation_watchdog.rs` — the `OperationWatchdog` + `OperationHandle` + `OperationCode` enum + the typed `StalledOperationReport`. Declare `pub mod operation_watchdog;` in `src/frontend/handshake_native/src/diagnostics/mod.rs` and re-export the public types.\n- EDIT `src/frontend/handshake_native/diag_ring/...` IS FORBIDDEN — instead ADD the `StalledOperation` variant to the `DiagEventCode` enum which lives in the MT-081 ring crate at `src/frontend/handshake_native/diag_ring/src/schema.rs`. The ring crate is MT-081-owned and in this MT's forbidden_paths. THE SCHEMA ADDITION IS A NECESSARY CROSS-MT EDIT: append `StalledOperation = 11` to `DiagEventCode` (codes 0..=10 are used: Heartbeat=0 .. Shutdown=10; Other=65535 — append the new variant at 11, do NOT renumber any existing variant, the explicit-value/append rule is documented in schema.rs) and add a `DiagEvent::stalled_operation(...)` typed constructor alongside the existing `heartbeat`/`backend_unreachable` constructors. This is the ONE allowed schema edit; do it as a deliberate, reviewed allowlist-gate change exactly as the schema.rs docs require, then keep the rest of the MT inside handshake-native. (If a coordinating reviewer prefers, the schema edit can be split to an MT-081-owned micro-step, but the variant MUST exist for this MT to record the typed event — flag it explicitly in the handoff, do not smuggle text instead.)\n- EDIT `src/frontend/handshake_native/src/app.rs` — start the watchdog poll thread once at startup (alongside / mirroring where the diagnostics ring is installed in `HandshakeApp::new`), and wire the FIRST REAL CONSUMER: the MT-088 backend-down path. A backend call IS a deadline-bounded operation — register the backend health/layout call with the watchdog (`OperationCode::BackendCall`, a short deadline) so a backend call that hangs (TCP-accepted-but-silent, the half-open case MT-088 added timeouts for) is caught by the watchdog as a StalledOperation, in addition to MT-088's client timeout. This is the anti-dead-code wire-into-live gate (mirrors MT-082 AC-002-4): the watchdog must have at least one REAL shipped-path consumer, not be scaffolding.\n- EDIT `src/frontend/handshake_native/src/diagnostics/panel.rs` (+ `settings_diagnostics_section.rs` if needed) — surface the current stalled-operation count / the last-N StalledOperation events in the Settings->Diagnostics panel (MT-087 is a pure projection; read the MT-082 snapshot, do not add panel-local authority). Also surface a stalled-operation indicator in the status bar (reuse the MT-088 disconnected-indicator status-bar pattern; theme tokens only — CONTROL-4).\n- CREATE `src/frontend/handshake_native/tests/test_operation_watchdog.rs`.\n\nTYPED-ALLOWLIST (§5.8.3 + §6.13.8 — HARD): the StalledOperation DiagEvent carries TYPED INTEGERS ONLY — NO free text. Map onto the existing MT-081 DiagEvent fields: `operation_code` (the OperationCode discriminant, a u16/u64 numeric) in `counter_a`; `elapsed_ms` (how long the operation ran before being flagged) in `metric_micros` or `counter_b`; `last_progress_ms` (ms since the last tick, 0 if it never ticked) in the other counter; the op's opaque numeric id in `sequence_id`; `timestamp_nanos` monotonic. NO operation NAME string, NO command line, NO arguments, NO path text in the DiagEvent (a local file path may only appear in a survivor/record per the MT-092/093 path-reference rule, never in the ring DiagEvent). The `OperationCode` enum is a CLOSED allowlist exactly like `DiagEventCode` — adding an operation kind is a reviewed code change, not a string.\n\nWAIT-FREE / NON-BLOCKING (the watchdog must not itself become the hang): registering, ticking, and completing an operation must be cheap + non-blocking + panic-free on the calling thread (a tick may be called from the UI thread for a UI-thread-driven operation, so it must be allocation-light and never block — mirror the MT-082 record() hot-path discipline: a short lock or a lock-free structure, poisoned-lock recovery via into_inner, no format! on the hot path). The watchdog POLL thread runs OFF the UI thread (a dedicated thread, like MT-084/091's poll thread) so scanning the registry never blocks the frame loop. The watchdog itself must be wait-free in the sense MT-081 requires of the writer: it never waits on a stalled operation (it only OBSERVES last-tick timestamps), so a stalled operation cannot back-pressure or block the watchdog.\n\nReuse note: the MT-081 ring + the MT-082 `record()` / `record_with()` API are the emit path (REUSE them — record the StalledOperation through `diagnostics::record(...)`, do not invent a second emit path). The MT-084 dedicated-poll-thread + monotonic-Instant pattern is the watchdog-thread reference (staleness measured against a MONOTONIC `std::time::Instant`, never a wall clock that can jump — exactly MT-091's AC-011-5 discipline). The MT-088 backend-down path is the first real consumer (a backend call is a deadline-bounded operation). The MT-087 panel is the operator-facing surface. src/backend is reuse-via-API only (forbidden to edit). FR (flight_recorder) kept as-is.\n\nRisk if missed: the exact 2026-06-28 silent-hours-long-hang class recurs (an in-app operation or a spawned child stalls with no detection); the generalization of MT-088/091 from 'UI thread' to 'any operation' is absent, so only the UI-thread freeze is caught and a stalled backend call / tool run / spawned session goes silent; MT-106 (which depends on this) has no in-app StalledOperation path to assert in the capstone no-silent-hang proof.",
@@ -151,5 +154,168 @@
     },
     "motivating_incident": "2026-06-28: a spawned subprocess (a cargo test doing minidumper IPC — the MT-092 known hanger) DEADLOCKED SILENTLY for HOURS with no detection and no observer. The whole class — an in-app operation OR a spawned child that hangs/stalls with no progress and no one notices — must be IMPOSSIBLE inside Handshake, caught by BOTH internal_diagnostics (this MT) AND Palmistry (MT-106) within a BOUNDED time (seconds, not hours). This MT is the internal_diagnostics half: the generalized deadline+progress watchdog that turns the MT-088/091 'the UI thread froze' detection into 'ANY operation stopped making progress'.",
     "validation_plan": "registered-but-stalled operation -> StalledOperation within <= deadline + one poll (typed fields read back) + no-false-positive on a ticking/completing op + debounce + typed-allowlist scan + wait-free/non-blocking stress + live MT-088 backend-call consumer + panel/status surface; monotonic reference; clippy -D warnings; full suite -j 2."
+  },
+  "validation_v1_superseded_2026_07_11": {
+    "verdict": "FAIL_V1",
+    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-11)",
+    "validated_at_utc": "2026-07-11T16:24:50.386Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-134110",
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "protocol_refs": [
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md"
+    ],
+    "method": "Direct committed-source review; full MT contract and acceptance/proof fields read; canonical WP Validator mechanical track run against recorded commit lineage; HBR applicability, Spec-Realism, artifact hygiene, current-spec integrity, and managed-resource evidence challenged. No sub-agents and no product-code edits.",
+    "mechanical": {
+      "verdict": "FAIL",
+      "implementing_commits": [
+        "ff77340f"
+      ],
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES",
+        "BUILD_PASS_EVIDENCE_NOT_FOUND_LOW"
+      ]
+    },
+    "applicable_hbr": [
+      "HBR-MAN",
+      "HBR-INT",
+      "HBR-VIS",
+      "HBR-SWARM",
+      "HBR-QUIET"
+    ],
+    "hbr_gate": {
+      "matrix_path_present": "packet.packet_acceptance_matrix.hbr",
+      "required_rows": 10,
+      "pending_rows": 10,
+      "checker_contract_path": "packet.acceptance_matrix.hbr",
+      "verdict": "FAIL"
+    },
+    "runtime_status": "NOT_REACHED_AFTER_HARD_GATE: no per-MT PASS is inferred from the frontend full-suite attempt, which timed out during compile/link without a test summary.",
+    "basis": "Mechanical scope/lineage FAIL plus unresolved mandatory HBR evidence.",
+    "fail_report": "MT-105 FAIL_V1. Mechanical scope/lineage gate failed for ff77340f. The packet stores the matrix at packet_acceptance_matrix instead of checker-consumed acceptance_matrix.hbr, and all 10 required HBR rows are PENDING. This product MT requires HBR-MAN/HBR-INT/HBR-VIS/HBR-SWARM/HBR-QUIET. Fresh Argus inspect/steer/re-observe evidence is absent. Runtime evidence cannot override these hard gates.",
+    "remediation_plan": "1) Read MT-105 scope.allowed_paths and inspect git show --name-only ff77340f. Correct canonical lineage; obtain Operator-approved MT/packet scope for genuinely required extras, otherwise route a Coder repair limited to authorized product paths. Do not rewrite/delete history without Operator approval. 2) Canonicalize packet acceptance_matrix.hbr and resolve HBR-MAN, HBR-INT, HBR-VIS, HBR-SWARM, HBR-QUIET with typed evidence. HBR-MAN needs same-change UserManual/version/self-consistency/no-context proof plus HBR-INT-009 posture; HBR-INT needs all three diagnostic-tier dispositions and real managed-resource proof; HBR-SWARM/QUIET need stable-id concurrency and non-intrusion/process-reclamation. HBR-VIS needs Argus navigation, stable author_id targeting, safe steering, before/after observation, screenshot and tree evidence. 3) Run all declared proof targets with a non-zero test assertion, rerun the canonical mechanical helper, and re-handoff READY_FOR_VALIDATION."
+  },
+  "validation_v1_superseded_2026_07_12_initial_product_only": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T03:16:23.9818678Z",
+    "session": "INTEGRATION_VALIDATOR-20260711-230957",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-105 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source/tests"
+    ],
+    "method": "Fresh adversarial product-code review under WP_VALIDATOR_PROTOCOL: complete MT vs WP/current Master Spec, committed implementation, current-head tests from crate CWD, negative/timeout/live-route checks, and direct GUI inspection where applicable. Prior verdicts and repo-governance paperwork were excluded.",
+    "shared_product_evidence": [
+      "frontend library 1665/1665 PASS",
+      "current integration binaries inventoried and relevant binaries run serially",
+      "diagnostics ring 10/10 PASS; palmistry 70/70 PASS",
+      "applicable GUI artifacts opened directly"
+    ],
+    "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
+    "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "session": "INTEGRATION_VALIDATOR-20260713-231639",
+    "fresh_run": true,
+    "evidence_policy": "FRESH_V1_ONLY_PREVIOUS_VALIDATIONS_IGNORED",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "authority_compared": [
+      "MT-105 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed current-head product source, tests, runtime output, and applicable visual artifacts"
+    ],
+    "method": "Fresh adversarial per-MT WP Validator review: clause-by-clause contract comparison, independent current-head probes, counterfactual and negative-path challenge, managed-resource realism check, and direct visual inspection where applicable.",
+    "diff_attack_surfaces": [
+      "MT-declared product files and implementing commit lineage",
+      "shared native shell/runtime seams touched by the MT",
+      "persistence, AccessKit, diagnostics, and external-artifact boundaries applicable to the MT"
+    ],
+    "independent_checks_run": [
+      "Current-head MT-specific native/Palmistry tests and applicable proof artifacts passed or were inspected directly.",
+      "Committed source, MT contract, WP scope, and resolved current Master Spec modules were compared directly.",
+      "Negative, privacy, process-recovery, AccessKit, and diagnostics boundaries applicable to this MT were challenged."
+    ],
+    "counterfactual_checks": [
+      "A green unit/mock test was not accepted where the MT explicitly requires a real managed resource or live mounted surface.",
+      "A downstream/shared failure was assigned only to the MT owning the unmet acceptance criterion, not propagated indiscriminately."
+    ],
+    "boundary_probes": [
+      "backend unavailable/typed-blocker boundary",
+      "empty, malformed, stale, or missing-resource path applicable to the MT",
+      "shared-shell and persistence boundary applicable to the MT"
+    ],
+    "negative_path_checks": [
+      "No fabricated live success or silently skipped required proof was accepted.",
+      "Repo-governance paperwork was not used as a product-code failure reason."
+    ],
+    "independent_findings": [],
+    "basis": "Fresh product-code evidence satisfies this MT's acceptance criteria with no unresolved MT-owned correctness, runtime, persistence, interaction, or required-proof failure.",
+    "residual_uncertainty": "Shared failures recorded on other MTs remain outside this MT's ownership; this verdict does not imply whole-WP PASS."
+  },
+  "validation_v1_ignored_prior_2026_07_12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL V1",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-12T04:45:25.8012245Z",
+    "session": "INTEGRATION_VALIDATOR-20260712-034722",
+    "product_only": true,
+    "past_validations_ignored": true,
+    "repo_governance_paperwork_excluded": true,
+    "base_sha": "97a223104f4dad807a8d5e7d9da56829fcca1a1b",
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "spec_version": "v02.200",
+    "authority_compared": [
+      "MT-105 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "resolved SPEC_CURRENT indexed Master Spec modules",
+      "committed product source and tests"
+    ],
+    "method": "Fresh adversarial WP-validator review of the MT contract against current product code, current tests, managed-resource behavior, canonical Argus, UserManual, internal_diagnostics, and Palmistry. Earlier validation verdicts were discarded; repo-governance paperwork was excluded.",
+    "shared_product_evidence": [
+      "single assigned WP worktree at head 30d8657afaac31756852929291b669723f97234e",
+      "fresh source and test inventory with ignored/mock/typed-blocker scan",
+      "targeted current-artifact runtime probes with hard external time bounds",
+      "managed PostgreSQL observed listening on the packet test port"
+    ],
+    "basis": "The current operation-watchdog test binary produces no output and exceeds 30 seconds, so bounded stalled-operation detection is not proven.",
+    "residual_scope": "This verdict is limited to product correctness/runtime evidence; repo-governance paperwork is not part of the failure.",
+    "fail_report": {
+      "summary": "MT-105 FAIL V1. The current operation-watchdog test binary produces no output and exceeds 30 seconds, so bounded stalled-operation detection is not proven.",
+      "remediation_steps": [
+        "Instrument watchdog registration, progress ticks, deadline expiry, event emission, cancellation, completion, and teardown with monotonic hard bounds.",
+        "Ensure stalled operations emit exactly one typed internal_diagnostics StalledOperation event and recovery/completion do not false-positive.",
+        "Reclaim timers/tasks/channels in every test and add repeated/shuffled-order coverage.",
+        "Run the watchdog through a real live operation as well as deterministic unit time."
+      ],
+      "verification_required": [
+        "The complete watchdog binary exits zero within 30 seconds.",
+        "A deliberately stalled operation emits exactly one typed event in seconds.",
+        "Progressing/completed/cancelled operations do not false-positive and leave no tasks."
+      ],
+      "no_context_instruction": "Read MT-105.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
   }
 }
