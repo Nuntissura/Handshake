@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-741",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-741.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-741.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,11 +30,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-741.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -55,6 +56,8 @@
     "forbidden_paths": [],
     "acceptance_criteria": [
       "Every mutating action declares actor/session/correlation ids, target/ack routing, expected base version, lease scope, idempotency key, preview/diff/apply, cancellation/retry, stale/conflict/error envelopes, event ids, and receipt ids.",
+      "The catalog seeds every exact `tailor.{domain}.{verb}` action id required by 13.30 [TAI-ACT-010], rejects duplicate or missing seed ids, and maps any legacy alias one-to-one to the same descriptor, handler, TailorActionReceiptV1, TailorActionError, native/backend routes, Argus targets, and UserManual anchor.",
+      "The shared schema registry contains the exact versioned build-critical schemas and minimum fields in 13.30 [TAI-ACT-008..009], including solver/qualification profiles, parity claims, accepted-step certificates, DCC qualification runs, render jobs, and shared action receipts/errors; transport-local substitutes are rejected.",
       "Pure queries and mutations are distinguishable; parallel unrelated entities proceed, conflicting edits fail or merge through the declared policy, and retry is idempotent.",
       "A parity audit rejects GUI-only actions, MCP-only mutations, duplicate ids, undocumented permissions, non-replayable changes, or a Tailor-specific parallel command authority."
     ],
@@ -84,7 +87,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+      "Tailor UserManual > Automation > Canonical Tailor actions and parallel-agent invocation"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -102,18 +105,18 @@
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "DIRECT",
-      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+      "posture": "NOT_APPLICABLE",
+      "reason": "The action-catalog definition and parity scan do not execute Tailor mutations; each registered action owns its runtime event projection."
     },
     {
       "tier": "internal_diagnostics",
-      "posture": "INHERITED",
-      "reason": "This MT emits typed diagnostics through its owning command or job and inherits retention, health, and projection behavior from the shared diagnostics substrate."
+      "posture": "DIRECT",
+      "reason": "Catalog validation must emit typed duplicate-id, missing-handler, adapter-drift, permission, receipt, and replay defects."
     },
     {
       "tier": "palmistry",
-      "posture": "INHERITED",
-      "reason": "The owning native shell or scheduled job supplies Palmistry coverage; this MT must preserve operation identity and recovery handles."
+      "posture": "NOT_APPLICABLE",
+      "reason": "Catalog construction and parity scanning have no application, device, or child-process watch surface."
     }
   ],
   "handoff": {
@@ -142,7 +145,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

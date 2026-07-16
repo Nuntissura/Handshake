@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-747",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-747.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-747.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,11 +30,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-747.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -47,16 +48,16 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Build the canonical task-oriented in-product Tailor UserManual and no-context operation corpus; keep per-MT evidence as a generated technical appendix and project legacy ModelManual content as a compatibility shim only.",
+    "summary": "Establish the early canonical task-oriented Tailor UserManual framework, generated command/help bindings, BLOCKED-entry contract, and no-context discovery harness; MT-781 exclusively owns final content completeness and end-to-end manual-only operation proof, while legacy ModelManual content remains a compatibility shim only.",
     "allowed_paths": [
       "src/backend/handshake_core/src/user_manual/tailor.rs",
       "src/backend/handshake_core/tests/tailor_user_manual.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Chapters cover opening/navigating, project lifecycle, garment authoring, sewing/arrangement, simulation/repair, BodyKit, anatomy/contact, PoseKit/sheets, materials, animation, publishing/DCC, diagnostics/recovery, and parallel-agent operation.",
-      "Exact commands, inputs, outputs, permissions, preconditions, errors, receipts, recovery actions, stable control ids, and context-help links are generated from the canonical command/surface corpus.",
-      "Manual-only no-context tests complete representative Cloth, BodyKit, interlink, contact, conflict recovery, and export workflows through backend-only and GUI-only paths; drift is a build error."
+      "The framework defines the chapter taxonomy for opening/navigating, project lifecycle, garment authoring, sewing/arrangement, simulation/repair, BodyKit, anatomy/contact, PoseKit/sheets, materials, animation, publishing/DCC, diagnostics/recovery, and parallel-agent operation; unavailable chapters/actions carry typed BLOCKED owner, dependency, and recovery fields and MUST NOT imply completeness.",
+      "For actions available at this stage, exact commands, inputs, outputs, permissions, preconditions, errors, receipts, recovery actions, stable control ids, and context-help links are generated from the canonical command/surface corpus; missing bindings fail the framework check rather than being filled by prose.",
+      "Early no-context tests prove manual discovery, generated binding consistency, BLOCKED navigation, and the currently available representative paths only; final chapter completeness plus backend-only and GUI-only end-to-end manual operation is accepted exclusively by MT-781 and cannot be claimed by this MT."
     ],
     "proof_targets": [
       "cargo test -p handshake_core --test tailor_user_manual"
@@ -84,7 +85,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+      "Tailor UserManual > Manual framework > Navigation, blocked entries, and generated command help"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -102,18 +103,18 @@
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "DIRECT",
-      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+      "posture": "NOT_APPLICABLE",
+      "reason": "The early UserManual framework and consistency scan do not execute product actions; documented actions retain their own runtime events."
     },
     {
       "tier": "internal_diagnostics",
-      "posture": "INHERITED",
-      "reason": "This MT emits typed diagnostics through its owning command or job and inherits retention, health, and projection behavior from the shared diagnostics substrate."
+      "posture": "DIRECT",
+      "reason": "The framework check must emit typed missing-anchor, stale-binding, unresolved-BLOCKED-owner, and no-context discovery defects."
     },
     {
       "tier": "palmistry",
-      "posture": "INHERITED",
-      "reason": "The owning native shell or scheduled job supplies Palmistry coverage; this MT must preserve operation identity and recovery handles."
+      "posture": "NOT_APPLICABLE",
+      "reason": "Manual generation and consistency checks have no application, device, or child-process watch surface."
     }
   ],
   "handoff": {
@@ -142,7 +143,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

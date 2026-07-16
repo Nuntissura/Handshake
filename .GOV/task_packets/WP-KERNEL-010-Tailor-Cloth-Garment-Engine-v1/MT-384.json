@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-384",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-384.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-384.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
     "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
@@ -33,13 +32,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-384.md",
-    "status": "GENERATED_PENDING",
-    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-384.json",
-    "source_hash": null,
-    "projection_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -52,7 +51,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement fur strand material as a post-MVP deferred feature: define the FurStrandMaterial type with strand density, length, and direction parameters, scaffold the tailor_fur_strands authority table, and document the deferred implementation path in the spec with a placeholder ValidationDescriptor stub",
+    "summary": "Implement the FurStrandMaterial, authority storage, capability hooks, and validation foundation consumed by MT-774's in-WP shared groom/fur authoring, simulation, rendering, and export implementation.",
     "allowed_paths": [
       "tailor-solver/src/texture.rs",
       "src/backend/handshake_core/src/tailor/storage_glue.rs",
@@ -61,16 +60,16 @@
     "forbidden_paths": [],
     "acceptance_criteria": [
       "FurStrandMaterial struct is defined in tailor-solver/src/texture.rs with fields: strand_density_per_cm2 f32, strand_length_cm f32, strand_direction_deg f32, and seam_aware bool",
-      "tailor_fur_strands migration is scaffolded (table definition authored, not yet linked to render pipeline)",
-      "The spec post-MVP deferral note in Section 13.9 references this MT by id so the deferred path is discoverable",
-      "Fur strand rendering in the wgpu viewport is explicitly gated behind a Cargo feature flag fur-strands that defaults to disabled",
-      "An advisory ValidationDescriptor FUR_STRAND_UNSIMULATED is registered in the catalog to warn when a garment has fur strand material but the feature flag is disabled"
+      "The tailor_fur_strands migration and versioned authority contract are complete and expose stable garment/material bindings for MT-774; runtime render/simulation ownership remains in MT-774 rather than a duplicate foundation path.",
+      "The `fur-strands` Cargo feature is a bounded compile/capability boundary; professional profiles that require TCAP-MD26-FUR-FIBER-DOWN fail closed if it is unavailable and MT-774 owns qualification of the enabled route.",
+      "FUR_STRAND_UNAVAILABLE is a typed blocking finding for required professional profiles and an advisory only for an explicitly accepted reduced profile; no placeholder or future-WP deferral may satisfy the capability row.",
+      "The foundation schema, storage, capability discovery, event ids, and UserManual link are consumed unchanged by MT-774 and reject incompatible versions rather than silently dropping strands."
     ],
     "proof_targets": [
       "cargo test -p tailor-solver texture::fur_strand_material_serializes_roundtrip",
       "cargo build -p tailor-solver (without fur-strands feature) succeeds with no fur rendering code compiled in"
     ],
-    "risk_if_missed": "Without a scaffold, fur/hair material on garments (fur-collar coats, fuzzy sweaters) has no authority path at all. Future implementation requires schema migration from scratch. The deferred path stays undiscoverable, increasing the risk it is forgotten entirely."
+    "risk_if_missed": "Without this foundation, fur/hair material on garments (fur-collar coats, fuzzy sweaters) has no authoritative storage or capability path, forcing MT-774 to invent incompatible schema and bindings while implementing the required in-WP groom lane."
   },
   "hbr_obligations": [
     "HBR-INT",
@@ -156,7 +155,7 @@
       "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope.",
       "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "PRE_ACTIVATION_BUILD_READY_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

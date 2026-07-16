@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-780",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-780.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-780.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,35 +30,46 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-780.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-740"
+      "MT-740",
+      "MT-741",
+      "MT-742",
+      "MT-743",
+      "MT-747",
+      "MT-748",
+      "MT-749",
+      "MT-750",
+      "MT-782"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Run the machine-readable every-MT multi-lens semantic gate over all Tailor contracts, classifying product role, GUI ownership, backend/agent parity, HBR tiers, manual target, pillar links, acceptance depth, paths, proofs, and DAG integrity before activation and at every contract change.",
+    "summary": "Implement the shipped Tailor product-contract semantic gate used by CI and qualification to cross-check the runtime capability, action, operation, surface, UserManual, diagnostics, profile, and artifact registries; the existing preactivation MT checker remains governance prep outside this MT.",
     "allowed_paths": [
-      ".GOV/roles_shared/checks/tailor-mt-preactivation-check.mjs",
-      ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
+      "src/backend/handshake_core/src/tailor/contract_gate.rs",
+      "src/backend/handshake_core/tests/tailor_contract_semantic_gate.rs",
+      "src/backend/handshake_core/src/user_manual/tailor.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Every MT is uniquely classified as pure computation, authority mutation, artifact creation, job lifecycle, UI projection, tool/API, DCC, or a justified combination with one primary review lens.",
-      "The gate rejects missing/duplicate ids, cycles, missing dependencies, inactive-state drift before activation, sparse acceptance, generic GUI targets, GUI/path mismatches, missing native proof, synthetic MT-number manual navigation, empty HBR obligations, deferred diagnostics, and unowned pillar/capability requirements.",
-      "The generated review accounts for every MT exactly once and is advisory pre-activation evidence only; it never emits a WP validator PASS/FAIL verdict."
+      "The gate rejects missing or duplicate capability/action/operation/surface/manual/profile identifiers, any missing exact TAI-ACT-010 Tailor seed action, unresolved TAI-ACT-008..009 schema or event owners, action/manual drift, unsupported authority paths, diagnostic-posture contradictions, product-fixture misplacement, and unqualified required capabilities.",
+      "It validates native and backend route parity, actor/session/correlation/version/idempotency/lease fields, preview-diff-apply and recovery semantics, exact surface/help anchors, and ArtifactStore/EventLedger/Flight Recorder lineage without reading governance MT files at runtime.",
+      "CI emits a deterministic machine-readable report artifact and nonzero failure status; runtime diagnostics may project the last report but the report never changes capability qualification or validator verdict by itself."
     ],
     "proof_targets": [
-      "node .GOV/roles_shared/checks/tailor-mt-preactivation-check.mjs"
+      "cargo test -p handshake_core --test tailor_contract_semantic_gate"
     ],
     "risk_if_missed": "A large MT inventory can hide omissions and contradictory obligations unless every contract is mechanically reviewed through the required lenses."
   },
@@ -84,7 +94,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+      "Tailor UserManual > Run and repair the Tailor product-contract semantic gate"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -95,25 +105,23 @@
     "not_applicable_reason": null
   },
   "hbr_obligations": [
-    "HBR-INT",
-    "HBR-MAN",
-    "HBR-SWARM"
+    "HBR-MAN"
   ],
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "DIRECT",
-      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+      "posture": "NOT_APPLICABLE",
+      "reason": "This MT implements a deterministic CI/product-contract check and does not own an authority or job lifecycle; it verifies Flight Recorder bindings declared by the checked runtime contracts."
     },
     {
       "tier": "internal_diagnostics",
-      "posture": "INHERITED",
-      "reason": "This MT emits typed diagnostics through its owning command or job and inherits retention, health, and projection behavior from the shared diagnostics substrate."
+      "posture": "NOT_APPLICABLE",
+      "reason": "The gate emits a report and test failure rather than a runtime diagnostic operation; it validates internal_diagnostics coverage on the product contracts it inspects."
     },
     {
       "tier": "palmistry",
-      "posture": "INHERITED",
-      "reason": "The owning native shell or scheduled job supplies Palmistry coverage; this MT must preserve operation identity and recovery handles."
+      "posture": "NOT_APPLICABLE",
+      "reason": "The CI check is bounded and owns no watched native or external process; it verifies Palmistry classification for long-running Tailor operations."
     }
   ],
   "handoff": {
@@ -142,7 +150,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

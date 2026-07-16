@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-767",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-767.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-767.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,11 +30,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-767.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -53,7 +54,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement final-render AOV/canvas outputs, region/spot render, render queue, retry/priority/cancellation, output templates, comparison, history, and Render Library with artifact manifests and no-context operation.",
+    "summary": "Implement the shared Cloth+BodyKit final-render AOV/canvas outputs, region/spot render, TailorRenderJobV1 queue, retry/priority/cancellation, output templates, comparison, history, and Render Library, integrated with the existing Handshake Photo Studio capability and backed by artifact manifests and no-context operation.",
     "allowed_paths": [
       "src/backend/handshake_core/src/tailor/render/queue.rs",
       "src/frontend/handshake_native/src/tailor/render_queue.rs",
@@ -62,6 +63,9 @@
     "forbidden_paths": [],
     "acceptance_criteria": [
       "AOV/canvas definitions, crop/spot regions, queue priority, dependencies, retries, output templates, formats/color spaces, compare/history, artifact hashes, and source scene versions are explicit.",
+      "TailorRenderJobV1 is registered as `hsk.tailor.render_job@1` with the exact minimum structure in 13.30 [TAI-ACT-008]: job/project/scene/camera ids and authority versions; renderer/backend/device/qualification profile; body/garment/material/groom/pose/animation refs; resolution/sampling/frame/AOV/canvas/color/output settings; queue priority/owner/lease; state/progress/checkpoint/retry/cancellation; output artifacts; diagnostics; action/event/correlation ids; and timestamps.",
+      "Cloth and BodyKit renders use the same TailorRenderJobV1 queue, AOV vocabulary, checkpoints, output templates, comparison/history, Render Library indexing, ArtifactStore handles, and EventLedger lineage required by 13.32 [TAI-BKP-008..009].",
+      "Queue, comparison, history, output, and navigation integrate with the existing Handshake Photo Studio capability; no Tailor-local duplicate Photo Studio product, queue, library, or mutable artifact authority is permitted.",
       "Queue work inherits scheduler leases/backpressure/cancellation/orphan recovery; retry-failed-only and app restart cannot duplicate completed artifacts or leave survivor processes.",
       "Backend and Argus tests cover multi-agent enqueue/reorder, stale scenes, partial AOVs, disk error, cancellation, device loss, retry, comparison, and direct-load Render Library navigation."
     ],
@@ -77,7 +81,8 @@
     "argus_required": true,
     "trace_projection_required_when_non_ui": false,
     "surfaces": [
-      "Tailor render queue and Render Library"
+      "Shared Cloth and BodyKit Tailor render queue and Render Library",
+      "Existing Handshake Photo Studio queue, comparison, history, and output integration"
     ],
     "argus_targets": [
       "tailor-render-spot-region",
@@ -106,7 +111,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > Professional BodyKit production workflows"
+      "Tailor UserManual > Render stills, animation, and AOVs > Queue, cancel, resume, retry, compare, and recover shared Cloth/BodyKit renders"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -166,7 +171,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

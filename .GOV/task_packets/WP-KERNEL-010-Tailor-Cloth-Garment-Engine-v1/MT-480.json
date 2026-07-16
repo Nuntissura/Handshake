@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-480",
   "created_at_utc": "2026-07-08T00:00:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-480.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-480.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
     "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
@@ -33,11 +32,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-480.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -50,7 +51,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Author the bodykit_bodies (BDY-) and bodykit_recipes (BRC-) PostgreSQL migrations per Section 13.16 (BK-16.3 storage authority/canonical DDL): TEXT primary keys with prefixed uuid_v7, NOT NULL event_ledger_event_id per ARCH-036/TAI-OVR-014, and guard_authority_write(AuthorityMode::Postgres) required before every write. Bodies persist BodySpec authority state; recipes persist saved channel/skin/genital layer bundles.",
+    "summary": "Author the bodykit_bodies (BDY-) and bodykit_recipes (BRC-) PostgreSQL migrations per Section 13.16 (BK-16.3 storage authority/canonical DDL): TEXT primary keys with prefixed uuid_v7, NOT NULL event_ledger_event_id per ARCH-036/TAI-OVR-014, and guard_authority_write(AuthorityMode::PostgresPrimary) required before every write. Bodies persist BodySpec authority state; recipes persist saved channel/skin/genital layer bundles.",
     "allowed_paths": [
       "src/backend/handshake_core/migrations/2026_07_08_tailor_bodykit_bodies_recipes.sql",
       "src/backend/handshake_core/src/tailor/bodykit/storage.rs"
@@ -59,7 +60,7 @@
     "acceptance_criteria": [
       "Migration creates bodykit_bodies (body_id TEXT PRIMARY KEY 'BDY-{uuid_v7}', body_spec_json JSONB NOT NULL, schema_id TEXT NOT NULL DEFAULT 'hsk.tailor.body_spec@1', created_at/updated_at TIMESTAMPTZ, event_ledger_event_id TEXT NOT NULL) and bodykit_recipes (recipe_id TEXT PRIMARY KEY 'BRC-{uuid_v7}', recipe_json JSONB NOT NULL, name TEXT, tags TEXT[], event_ledger_event_id TEXT NOT NULL).",
       "Migration filename follows the dated convention (2026_07_08_tailor_bodykit_bodies_recipes.sql), applies cleanly on an empty database, and is idempotent-safe under the migration runner.",
-      "storage.rs write paths call guard_authority_write(AuthorityMode::Postgres) as their first statement; a test proves an insert without the guard fails closed.",
+      "storage.rs write paths call guard_authority_write(AuthorityMode::PostgresPrimary) as their first statement; a test proves an insert without the guard fails closed.",
       "CHECK constraints reject PKs not matching their 'BDY-'/'BRC-' prefix and reject NULL event_ledger_event_id."
     ],
     "proof_targets": [
@@ -149,7 +150,7 @@
     "required_changes_before_execution": [
       "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "PRE_ACTIVATION_BUILD_READY_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

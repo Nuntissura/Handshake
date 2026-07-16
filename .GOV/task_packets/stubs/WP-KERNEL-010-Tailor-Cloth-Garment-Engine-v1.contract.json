@@ -33,13 +33,13 @@
     "note": "JSON contract is authority. Per the KERNEL-006/007/008 convention and the operator no-.md directive, no Markdown projection is generated for this stub."
   },
   "lifecycle": {
-    "status": "READY_FOR_REFINEMENT",
+    "status": "SPEC_V02_201_APPLIED_BUILD_READY_CANDIDATE_HELD_FOR_PACKET_ACTIVATION_AND_DEPENDENCY_GATES",
     "promoted_from_stub_at_utc": "2026-06-17T17:50:00Z",
     "format_version": "2026-04-06",
     "activation_required": true,
     "user_signature_required": true,
     "refinement_required_before_execution": true,
-    "spec_status": "SECTION_13_TAILOR_ACTIVE_IN_MASTER_SPEC_v02.200_BUT_REQUIRES_COPY_FIRST_PROFESSIONAL_HARDENING_ENRICHMENT_BEFORE_ACTIVATION; prior BodyKit/second-pass signature ilja080720262117 remains historical authority for v02.198 content",
+    "spec_status": "SECTION_13_TAILOR_PROFESSIONAL_HARDENING_ACTIVE_IN_VALIDATED_MASTER_SPEC_v02.201; execution remains blocked on official refinement/packet hydration, WP-KERNEL-012 and CKC PoseKit main containment/compatibility gates, and explicit WP activation",
     "next_in_build_order_after": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1 (start after WP-009 passes tests + validation)"
   },
   "microtasks": {
@@ -54,7 +54,7 @@
       "md_parity_additions": "MT-333..MT-448 (116 first-pass Marvelous-Designer parity gaps closed, clustered by target_group)",
       "second_pass_parity_additions": "MT-449..MT-477 (29 gaps CG-01..29 from the independent external MD inventory; .GOV/reference/tailor_bodykit_research/06-gap-matrix-and-mt-plan.md Part A)",
       "bodykit_submodule": "MT-478..MT-653 (176 BodyKit MTs in 14 groups: BkFoundation 478-491, BkChannels 492-513, BkSkeleton 514-527, BkCorrectives 528-537, BkSoftTissue 538-545, BkGenitals 546-561, BkSkin 562-575, BkFace 576-583, BkClothBridge 584-593, BkModelApi 594-607, BkExport 608-625, BkGui 626-635, BkBodiesQA 636-645, BkGovernance 646-653; blueprint Part B of 06-gap-matrix-and-mt-plan.md; governed by spec 13.16-13.27)",
-      "physics_hardening": "MT-654..MT-687 (34 two-tier solver, contact, recovery, oracle, reliability, performance, remesh, materials, and parity hardening MTs assigned from TAI-PHYSICS-PREWORK-001)",
+      "physics_hardening": "MT-654..MT-687 (34 three-lane solver hardening MTs: non-production ReferenceCpuF64 oracle plus InteractiveGpuXpbd and FinalCpuBarrierF64 production tiers, contact, recovery, accepted-step certificates, reliability, performance, remesh, materials, and parity)",
       "native_production_ux": "MT-688..MT-709 (22 native professional workspace, command, 2D editor, selection, property, history, recovery, Jobs, Problems, accessibility, publish, animation, shared-world, visual-matrix, and E2E MTs)",
       "posekit_character_interop": "MT-710..MT-720 (11 inspected PoseKit/character binding, 2D-to-3D lift, joint map, camera, contact, sheet mapping, artifact, primitive, GUI, E2E, and interchange MTs)",
       "professional_production_hardening": "MT-721..MT-739 (19 source-asset, creator-tool, anatomy, genital, dependency, corpus, material, USD/DCC, E2E, performance, and deformation-support MTs)",
@@ -63,13 +63,13 @@
       "bodykit_production": "MT-760..772, MT-775..776 (creator parity, adult contact, face, Smart Content, shader/layers/render, transfer/deformers/setup/maps/DSON, hair, lip-sync)",
       "dcc_parity_qualification": "MT-773, MT-778..779, MT-781 (extension SDK, DCC reference harness, vendor qualification matrix, final professional E2E)"
     },
-    "shape": "All MT-001..782 follow hsk.microtask_contract@1; all remain PENDING and active=false. All have minimum three acceptance criteria, task-oriented UserManual targets, HBR obligations, classified three-tier diagnostics, and an acyclic candidate DAG. This is non-execution prep pending signed refinement and official packet hydration.",
-    "verified": "PREP_GENERATED_PENDING_CHECK: 782/782 JSON contracts, full index, multi-lens review, parity V3, build-readiness prework, and technical-refinement prework exist; the repository check must pass before this field is advanced.",
-    "reconciliation": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json supersedes the 739-MT planning audit for build-readiness lenses while preserving the historical reconciliation artifact. This remains non-execution prework pending signed refinement."
+    "shape": "All MT-001..782 follow hsk.microtask_contract@1; all remain PENDING and active=false. They are required to carry minimum three acceptance criteria, task-oriented UserManual targets, HBR obligations, classified three-tier diagnostics, and one acyclic candidate DAG. This is non-execution prep under active v02.201 authority pending semantic-gate proof, official refinement/packet hydration, dependency containment, and explicit activation.",
+    "verified": "782/782 contract artifacts are mechanically present. Build-ready verification advances only when tailor-mt-preactivation-check passes against active v02.201, the refreshed index/review, all MT contracts, dependency interfaces, product fixture placement, diagnostics, task manuals, and final GUI proof.",
+    "reconciliation": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json is advisory evidence over all 782 MTs; older physics/professional/reconciliation/build-readiness preworks are absorbed and retained as provenance. Every MT must carry SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE before the semantic gate can pass."
   },
   "refinement_ready": {
-    "spec_authority": "Section 13 (Tailor) is active in the current Master Spec v02.200; the Cloth 13.1-13.15 and BodyKit 13.16-13.27 content inherited from the signed v02.198 enrichment remains authority. The 2026-07-16 physics/professional audit found contradictions and gaps that MUST be resolved through a new copy-first signed spec enrichment before activation. Research and prep JSON remain non-normative until that transition.",
-    "gaps_status": "CONTRACT_GAPS_CLOSED_IN_NON_EXECUTION_PREWORK_PENDING_NEW_UNIQUE_OPERATOR_SIGNATURE_AND_COPY_FIRST_SPEC_ENRICHMENT",
+    "spec_authority": "The current validated Master Spec v02.201 is normative: Section 13.1..13.27 preserves Cloth/BodyKit law and Sections 13.28..13.36 add TAI-PRO-001..006, TAI-PHY-001..007, TAI-ACT-001..010, TAI-CLP-001..007, TAI-BKP-001..011, TAI-INT-001..006, TAI-UX-001..005, TAI-QA-001..007, and TAI-GATE-001..005. Prework and review JSON remain non-normative provenance/advisory evidence.",
+    "gaps_status": "SPEC_V02_201_GAPS_NORMATIVELY_CLOSED; MT_SEMANTIC_RECONCILIATION_DEPENDENCY_CONTAINMENT_PACKET_HYDRATION_AND_ACTIVATION_REMAIN_OPEN",
     "hbr_directive_MUST": {
       "summary": "Operator directive (post-HANDSHAKE_BUILD_RULES): Tailor is first-class for parallel LLM swarm work AND visually inspectable + navigable in BOTH the back end and the front-end GUI, so models can debug, test, self-correct, and make micro-adjustments through the visual tool while working with Tailor.",
       "HBR_SWARM": "The model-first Tailor API/primitive (ClothModelAdapter + MCP tool surface, 13.13) MUST support multiple parallel swarm agents working with Tailor concurrently: typed events, leases, cancellation, conflict handling, restartable runtime state, per-agent attributable authoring, safe under concurrent model + operator activity (CRDT pattern editing, EventLedger authority, sandbox/promotion).",
@@ -83,13 +83,13 @@
     "mt_group_plan": {
       "total_estimate": 782,
       "groups": "SolverCore(46), KernelIntegration(40), Collision(37), GarmentAuthoring(61), ValidationHBR(26), TrimRigid(36), Fabric(29), UvTexture(37), RenderViewportExport(29), ModelFirstApi(35), Animation(36), AutoFit(32), ProductionBridge(33), BkFoundation(14), BkChannels(22), BkSkeleton(14), BkCorrectives(10), BkSoftTissue(8), BkGenitals(16), BkSkin(14), BkFace(8), BkClothBridge(10), BkModelApi(14), BkExport(18), BkGui(10), BkBodiesQA(10), BkGovernance(8), PhysicsHardening(34), NativeProductionUX(22), PoseKitCharacterInterop(11), ProfessionalProductionHardening(19), BuildReadinessPlatform(13), ProfessionalClothUX(11), BodyKitProduction(15), DccParityQualification(4)",
-      "source": "current MT-001..782 pre-activation candidate index plus physics, UI, backend/pillar, DCC, and every-MT multi-lens audits; final authority remains subject to signed refinement"
+      "source": "current MT-001..782 pre-activation candidate index plus physics, UI, backend/pillar, DCC, and every-MT multi-lens audits; normative product requirements are active in v02.201 while the candidate execution DAG remains subject to semantic-gate proof and official packet activation"
     },
     "next_session_steps": [
-      "1. Present the full technical refinement block to the operator and obtain a new unique signature.",
-      "2. Record the signed refinement through Activation Manager.",
-      "3. Apply the accepted enrichment through a copy-first v02.201 Master Spec bundle and repair manifest/index/changelog drift in the copied bundle.",
-      "4. Create packet.json, hydrate the accepted MT-001..782 set, prepare the product branch/worktree/backup, and synchronize Task Board/Build Order/traceability.",
+      "1. Reconcile every MT and refreshed index/review to the active v02.201 anchor/delta/manual/interface/diagnostic/fixture/GUI contracts and pass tailor-mt-preactivation-check.",
+      "2. Prove WP-KERNEL-012 and CKC PoseKit containment in main plus current-main compatibility against actual interfaces.",
+      "3. Record an official refinement and packet.json without changing the already-active v02.201 authority.",
+      "4. Prepare the product branch/worktree/backup and synchronize Task Board/Build Order/traceability only after explicit activation.",
       "5. Run activation readiness; only then launch implementation sessions."
     ],
     "research": {
@@ -113,20 +113,20 @@
   },
   "spec_trace": {
     "spec_target": ".GOV/spec/SPEC_CURRENT.md",
-    "active_bundle_at_stub_time": ".GOV/spec/master-spec-v02.193",
+    "active_bundle_at_stub_time": ".GOV/spec/master-spec-v02.201/indexed-spec-manifest.json",
     "roadmap_pointer": "Forward creative-module research (NOT in the original reset-brief Week-1..6 build order). Operator-directed 2026-06-17. Full landscape + architecture in the committed research package .GOV/reference/cloth_engine_research/ (index.yaml; feature named 'Tailor'). Roadmap module T-ROADMAP defines six kernel-gated build slices.",
-    "roadmap_add_coverage": "Tailor: a fully-featured, Handshake-native, model-steerable cloth/garment authoring + simulation engine (a Marvelous-Designer-equivalent 'detailer') delivered as a creative module on the kernel. Standalone tailor-solver Rust crate (XPBD, GPU compute in WGSL via wgpu, parry rigid proxies) consumed by a handshake_core::tailor module that binds garments to PostgreSQL/EventLedger authority, CRDT collaborative pattern editing, and the sandbox->validation->promotion lifecycle for model-authored garments, driven by model lanes (LLM-steerable authoring). Outputs geometry caches (glTF/USD/OBJ-sequence) for photoreal render in Blender/UE. Differentiator vs Marvelous Designer: model-steerability (the crate public API is the model API), not human-UI-first."
+    "roadmap_add_coverage": "Tailor: one fully-featured, Handshake-native, model-steerable Rust module containing Cloth and BodyKit. The standalone tailor-solver exposes three solver lanes with two production tiers; handshake_core::tailor binds authoring and assets to PostgreSQL/EventLedger authority, shared jobs/actions/artifacts/diagnostics/manuals/pillars, native final rendering/queue/library, and the sandbox-validation-promotion lifecycle. Blender/Unreal and installed DCCs remain version-pinned black-box qualification and interchange bridges, not Tailor's only renderer or proprietary runtime dependencies."
   },
   "native_shell_toolkit_integration": {
     "added_at_utc": "2026-06-19T00:00:00Z",
-    "operator_note": "Operator 2026-06-19: WP-KERNEL-010 Tailor IS the native-Rust Marvelous Designer rebuild. Its operator surface + 3D garment viewport are hosted by the WP-KERNEL-011 native work-surface shell on the chosen native toolkit (recommended egui + wgpu).",
-    "shell_packet": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+    "operator_note": "Tailor is the native-Rust Cloth/BodyKit production module. Its operator surface and 3D garment/body viewport must integrate through the actual WP-KERNEL-012 native editor/shell interfaces after they are contained in main and pass current-main compatibility; planning references are not proof that the pane is registered or callable.",
+    "shell_packet": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "gui_reference": ".GOV/operator/docs_local/handshake-gui-look-and-behavior-v1.md (extension-points table lists Tailor pane type)",
-    "toolkit_viewport_probe": "WP-KERNEL-011 MT-001 includes a custom wgpu viewport embed probe (probe e: rotating 3D mesh + painted 2D texture + model-driven parameter via AccessKit) that de-risks the Tailor 3D garment viewport (and the future Affinity/Photoshop 2D canvas) before Tailor build; a toolkit that cannot host a custom wgpu viewport is disqualified for Tailor.",
-    "pane_type": "tailor (registered in the shell pane registry as a creative-surface extension point)",
+    "toolkit_viewport_probe": "MT-750 must compile and exercise the Tailor seam against WP-KERNEL-012 symbols actually contained in main. A native custom wgpu viewport, AccessKit tree, stable actions, Argus capture, failure/recovery, and no-focus-steal behavior are blocking proof; no unused scaffold is treated as live integration.",
+    "pane_type": "tailor (planned creative-surface extension; registration is UNVERIFIED until WP-KERNEL-012 containment/compatibility and MT-750 compile/runtime proof pass)",
     "model_steering": "Aligns with CX-005-VIS/CX-006-VIS: the model edits the parametric GarmentSpec (pattern pieces + seams + fabric + measurements); Handshake mechanically runs the deterministic cloth solver; the panel/tool chrome is steered via AccessKit; viewport/sim state is exposed as model-readable visual capture per HBR_VIS. The model never manipulates raw vertices (deterministic, replayable, inspectable).",
     "native_no_webview": "Aligns with CX-008-VIS: Tailor renders in the native wgpu viewport, not a webview.",
-    "build_gating": "Unchanged: creative module gated on kernel prerequisites and explicit activation. The 2026-07-16 multi-lens prep reclassified backend-only GUI obligations, introduced exact surface/action registries and a real WP-KERNEL-012 seam gate, and expanded the inactive candidate inventory to 782 MTs."
+    "build_gating": "Creative module execution remains gated on explicit activation. GUI implementation additionally blocks on WP-KERNEL-012 main containment/current-main compatibility and MT-750 actual-interface proof; PoseKit/character-sheet consumers block on the corresponding CKC PoseKit containment/compatibility gate."
   },
   "session_policy": {
     "session_start_authority": "ORCHESTRATOR_ONLY",
@@ -141,8 +141,8 @@
     "research_index": ".GOV/reference/cloth_engine_research/index.yaml",
     "research_commit": "gov_kernel 662e76d5",
     "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
-    "physics_refinement_prework_status": "DRAFT_REFINEMENT_PREWORK / NON_EXECUTION; operator-directed physics-first expansion 2026-07-16; must be reconciled into signed refinement, copy-first spec bundle, and final MT contracts before implementation",
-    "translation_rule": "All research and the 2026-07-16 prep artifacts are context/prework, not active product authority. Accepted decisions MUST be translated through a signed refinement into a copy-first Master Spec bundle and official packet before implementation. The current active spec remains unchanged by this prep pass.",
+    "physics_refinement_prework_status": "ABSORBED_RETAINED_PROVENANCE / NON_EXECUTION; normative physics authority is active v02.201 TAI-PHY-001..007 and reconciled MT contracts remain required before implementation",
+    "translation_rule": "Research and prep artifacts are non-normative context/provenance. Their accepted decisions are now translated into active validated Master Spec v02.201; the official refinement/packet and reconciled MT contracts remain required before execution, and v02.201 wins on any conflict.",
     "topic_map": [
       "T-OVERVIEW (00) vision/constraints/differentiator",
       "T-CODEBASE (01) wtc-kernel-009 inventory + the 5 kernel extension points",
@@ -160,12 +160,14 @@
       "T-BK (tailor_bodykit_research index.yaml): 00 file-format strategy, 01 beyond-parity game/photoreal reqs, 02 current-coverage map, 03 operator body requirements OBR, 04 independent MD inventory, 05 Daz/BodyKit REQ-001..044 + licenses, 06 gap matrix + BodyKit MT blueprint"
     ],
     "professional_production_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
-    "professional_production_refinement_prework_status": "PREWORK_HARDENED_PENDING_SIGNED_REFINEMENT / NON_EXECUTION",
+    "professional_production_refinement_prework_status": "ABSORBED_RETAINED_PROVENANCE / NON_EXECUTION; normative professional-production authority is active v02.201 Sections 13.28..13.36",
     "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json",
-    "mt_reconciliation_prework_status": "FULL_MT_001_TO_739_CLASSIFICATION_AND_ACYCLIC_DAG_CANDIDATE / NON_EXECUTION"
+    "mt_reconciliation_prework_status": "ABSORBED_RETAINED_PROVENANCE; superseded by the full MT-001..782 SPEC_V02_201 reconciliation and semantic gate / NON_EXECUTION"
   },
   "draft_scope": {
-    "intent": "- What: Build 'Tailor' — a fully-featured, Handshake-native, model-steerable cloth/garment authoring + simulation engine (a Marvelous-Designer-equivalent 'detailer') as a creative module on the Handshake kernel, with native core authoring inside Handshake; external DCCs are explicit version-pinned export, conversion, and qualification connectors.\n- Why: The operator needs realistic, reusable garment authoring + drape for avatar production. Marvelous Designer is a recurring subscription and is human-UI-first. Tailor's differentiator is model-steerability: an LLM emits/parametrizes garments directly (the crate public API IS the model API). Building it native keeps the pipeline self-contained and reusable across avatars, and unifies the breast/ass jiggle soft-body solver.\n- Product goal: A standalone, UI-agnostic `tailor-solver` Rust crate (XPBD solver, GPU compute in WGSL via wgpu, parry for rigid collision proxies, CubeCL optional CUDA path) consumed by a `handshake_core::tailor` creative module. Garments/wardrobe are PostgreSQL/EventLedger authority; collaborative pattern editing rides the existing CRDT layer; model-authored garments run in the sandbox and reach authority only through the promotion gate after validation; model lanes drive LLM authoring. Outputs geometry caches (glTF/USD/OBJ-sequence) for photoreal render in Blender/UE (Tailor is not the renderer).\n- Operator goal: Describe a garment in natural language -> Tailor drapes/simulates it on a body proxy -> iterate via the self-correction loop -> promote -> reuse and auto-refit across avatars. All inside Handshake.\n- No-context goal: HELD PRE-ACTIVATION PREWORK ONLY. Refinement before activation is REQUIRED to (a) re-research the latest 2026 implementation methods, (b) close the coherence-review gaps (see KEY_OPEN_QUESTIONS), (c) lock the canonical contracts (one GarmentSpec, one KernelEventType additions set, one body-proxy/avatar schema, dated migration naming), (d) translate the research into Handshake-native normative Master Spec sections (new versioned bundle), and (e) author the full MT plan.\n- BODYKIT FOLD-IN (Operator directive 2026-07-08): Tailor is ONE module with TWO submodules — Cloth (the MD-parity garment engine above) and BodyKit (a full Rust replacement of Daz 3D / Daz Studio Premier in the production pipeline). BodyKit generates parametric bodies with DECOUPLED region morph channels (breast volume/ptosis/firmness/profile independent of shoulder width, hips, thighs, midriff — the exact couplings Daz bakes in via FBM/ERC that the operator explicitly rejects), extreme ranges by design (petite frames with unrealistically large tits, oversized cocks, obese/muscular/slender bodies, fake-plastic implant looks), native genital modules to Golden Palace/Dicktator parity-plus, skeleton/skinning with per-body re-baked correctives (sim-to-corrective baking), skin/texture system, and Blender/UE export lanes. Operator-stated requirements OBR-001..004 (.GOV/reference/tailor_bodykit_research/03-operator-body-requirements.md) are scope authority; normative law is spec 13.16-13.27 (v02.198).",
+    "historical_draft_scope_status": "SUPERSEDED_BY_ACTIVE_v02_201_AND_CURRENT_INTENT; all retained scope_sketch, acceptance_criteria, risks_unknowns, and governance_artifact_stance text in this draft_scope object is historical provenance only",
+    "current_scope_correction": "Tailor owns native final-quality rendering, queueing, and render-library workflows under TAI-BKP-008/009 and shares Handshake Photo Studio services. Blender/Unreal remain qualified DCC/interchange lanes. Strand hair, lip-sync, creator tools, face/expression, Smart Content, shader/layer authoring, PBR/SBSAR, and the MT-740..782 professional workflows are in current v02.201 scope; any contradictory exclusion in the retained historical scope_sketch is superseded.",
+    "intent": "- What: Build Tailor as one fully-featured, Handshake-native, model-steerable Rust module with Cloth (Marvelous Designer parity) and BodyKit (Daz Studio parity) submodules; installed/external DCCs are version-pinned black-box reference, interchange, and qualification connectors rather than proprietary runtime dependencies.\n- Why: The operator needs realistic reusable garment/body authoring, drape, posing, lookdev, final rendering, and adult-production staging in one model-operable professional pipeline.\n- Product goal: A standalone UI-agnostic `tailor-solver` crate exposes three solver lanes: non-production ReferenceCpuF64 oracle plus InteractiveGpuXpbd and FinalCpuBarrierF64 production tiers. `handshake_core::tailor` owns native authoring, native final rendering/queue/library, shared jobs/actions/assets/diagnostics/manuals/pillars, PostgreSQL/EventLedger authority, CRDT collaboration, and sandbox-validation-promotion. Blender/Unreal/DCC bridges remain qualified interchange lanes, not Tailor's only renderer.\n- Operator goal: Author or mix a body, garment, pose, material, camera, and render recipe; simulate and self-correct; inspect trace/artifacts/GUI state; render/publish; recover; and reuse across characters entirely through canonical Handshake surfaces.\n- No-context goal: NON-EXECUTION BUILD-READY PREP under active validated v02.201. Before implementation, reconcile all 782 MTs and pass the semantic gate, prove WP-KERNEL-012 and CKC PoseKit main containment/current-main compatibility, create the official refinement/packet, and receive explicit WP activation.\n- BODYKIT FOLD-IN: Tailor is ONE module with TWO submodules. BodyKit provides decoupled regional morph channels, extreme body ranges, detailed genital modules/contact staging, skeleton/skinning/correctives, face/expression, materials, native render/lookdev, and qualified export/interchange. Operator requirements OBR-001..004 remain preserved context; normative current law is v02.201 Sections 13.16..13.36.",
     "scope_sketch": "- IN_SCOPE (by roadmap slice / MT group):\n  - ResearchSpecTranslation: audit SPEC_CURRENT (active bundle at stub time v02.193); translate the Tailor research into Handshake-native normative spec sections; produce spec-enrichment-proposal.json and apply the copy-first versioned bundle (v02.193 -> next) updating manifest, INDEX.json, changelog, SPEC_CURRENT, previous_current_spec, archive, and internal references.\n  - SolverCore (tailor-solver crate): XPBD substepping + constraint projection (stretch/shear/bend/seam) as WGSL compute shaders via wgpu; data layout; graph-coloring or fixed-point atomic strategy; determinism scoping; the ClothSolver trait boundary; standalone crate with NO sqlx/tauri deps.\n  - Collision: cloth-vs-body (SDF + capsule proxy), self-collision (spatial hash), multi-layer garments, and the EXAGGERATED-proportion robustness case (large-bust inter-collider overlap); parry for rigid proxies.\n  - Fabric: anisotropic material properties (density, weft/warp/shear stretch, bend, buckling, friction, damping, pressure) -> XPBD compliance; typed Postgres-authority preset library.\n  - GarmentAuthoring: 2D pattern/seam representation + parametric, LLM-emittable garment schema; pattern-to-mesh; bidirectional 2D<->3D; GarmentCode interop.\n  - AutoFit: retarget a garment authored on one body onto a different avatar (pattern grading, body-shape transfer, re-drape, UV/texture preservation) -- the reuse moat.\n  - KernelIntegration: garment/wardrobe assets as Postgres/EventLedger authority; CRDT collaborative editing; sandbox->validation->promotion lifecycle; typed event taxonomy (Tailor* variants); model lanes; Axum API routes; no-SQLite enforcement.\n  - ModelFirstApi: the LLM-steerable garment authoring surface, MCP tool definitions, simulation receipt (typed feedback), the self-correction loop, fabric estimation, system-prompt/UserManual surface.\n  - RenderViewportExport: throwaway Bevy testbed viewport; Handshake-native wgpu viewport panel; model-readable visual capture; glTF/USD/OBJ-sequence export to Blender/UE.\n  - The three MOAT topics the research did NOT yet author and that refinement MUST add: TrimRigid (mixed cloth-rigid sim graph: zippers/buttons/tacks), UvTexture (UV-from-pattern + texture/material authority), Animation (keyframe timeline + dynamics).\n  - Validation/HBR: per-MT and whole-WP HBR matrix (INT/SWARM/VIS/QUIET/MAN/STOP); negative tests; Spec-Realism gate.\n- OUT_OF_SCOPE:\n  - Photoreal hero-frame rendering (stays in Blender Cycles / Unreal; Tailor exports geometry caches only).\n  - Avatar identity / body-proxy GENERATION (the 2D-avatar -> 3D-body-proxy bridge is a separate input; flagged as KI-PRODUCTION-BRIDGE; refinement decides whether a minimal proxy importer is in or out).\n  - The diffusion image/video + identity-LoRA pipeline (lives in comfyui-workbench / Avatar_workbench).\n  - Adult-production legal paperwork, consent records, performer records (operator-owned per [CX-123A], [CX-123B], [GLOBAL-PRODUCTION-010..017]).\n  - Marvelous Designer / GarmentCode Python port (GarmentCode JSON is interchange only).\n  - SQLite anything; Docker-default; outside-app proof.\n- KEY_OPEN_QUESTIONS (deferred to refinement; these are the coherence-review gaps + design forks that MUST be closed before the spec enrichment + MT authoring):\n  - Q1 (KI-MISSING-TOPICS): author the 3 missing moat designs -- TrimRigid (cloth-rigid coupling), UvTexture (UV-from-pattern), Animation (keyframe timeline) -- before they become spec law.\n  - Q2 (KI-CONTRACTS-DRIFT): lock ONE canonical GarmentSpec (units cm vs mm; gather single-float vs M:N; fabric normalized vs raw compliance); ONE KernelEventType additions list (the files currently differ on Tailor* event names); ONE body-proxy/avatar authority schema incl. the currently-undefined tailor_avatars table.\n  - Q3 (KI-MIGRATION-COLLISION): pick the dated migration-naming convention (e.g. 2026_06_*; 0334_* already collides with 0334_loom_canvas_boards.sql).\n  - Q4 (KI-DETERMINISM-VS-PROMOTION): resolve solver per-backend determinism vs the promotion gate's exact content-hash check (tolerance-based mesh compare, not exact hash).\n  - Q5 (KI-MISSING-OSS-REFS): fold NVIDIA Warp and XRTailor into the OSS adaptation map; evaluate Loro/yrs vs the existing yjs_bridge for the geometry-merge risk.\n  - Q6: GPU-in-sandbox capability/security posture -- the SandboxCapability set the tailor-solver adapter declares (wgpu device + filesystem) under the kernel's default-deny sandbox.\n  - Q7: body-proxy input -- minimal proxy importer in-scope, or strictly an external input (KI-PRODUCTION-BRIDGE)?\n  - Q8: latency/perf envelope -- interactive vs promotion-quality particle ceilings, VRAM budget, the 2D<->3D loop latency (currently unquantified).\n  - Q9: solver-crate naming consistency -- crate is tailor-solver; confirm internal physics types stay Cloth* (physics) while feature identifiers are Tailor*.\n- BODYKIT IN_SCOPE (MT-478..653, 14 groups): foundation/authority (BDY-/BRC-/BMA-/BCH-/BSK-/BSM-/BXP- tables, original base mesh with license guards), decoupled channel system, skeleton/skinning/posing (multi-actor sex poses, mocap ingest, jiggle chains), RBF correctives + sim-to-corrective baking, unified-solver soft tissue, genital modules (vulva/penis/anus/futa, gape+erection continuums, arousal controller), skin/texture (UDIM, wet layers, biophysical tone, HD deltas), face/expression (ARKit-52 + arousal acting), Cloth bridge (parametric avatars, channel-derived proxies, grow-into-garment, fit-across-morph-space), model-first body API (author_body/edit_body/get_body/solve_measurements/randomize_body/pose_body/configure_genitals/export_body + BodyRecipe cards), export lanes (glTF primary, FBX via Blender-bridge only, VRM/USD/OBJ, LOD/bake/conformance, DSON read-only import), GUI panes + Argus, 8 acceptance archetypes ARCH-A..H, validation/HBR.\n- BODYKIT OUT_OF_SCOPE: strand/groom AUTHORING (density masks + attachment hooks only; grooming is a future WP), audio lip-sync SOLVER (viseme track type + ingest contract only), fluid/cum simulation (adjacent pipeline; emitter/collision surface marking only), photoreal rendering (Blender/UE remain the renderers), SMPL/Genesis/dhdm content in any form (license-prohibited), native FBX writer (Blender-bridge only).\n- KEY_OPEN_QUESTIONS additions: Q10 base-mesh sourcing (commission vs in-house sculpt vs one-time MakeHuman CC0 bootstrap reference — operator decision at activation); Q11 groom WP split point; Q12 lip-sync solver deferral horizon.",
     "acceptance_criteria": "- AC-001: STUB-LEVEL ONLY -- full AC list deferred to refinement.\n- ACTIVATION-AC-001: Refinement re-researches current (2026) implementation methods (XPBD/wgpu/WGSL, GPU self-collision, garment-from-LLM, auto-fit) and records the research basis; confirms or revises the research package's selected approaches.\n- ACTIVATION-AC-002: Refinement closes KEY_OPEN_QUESTIONS Q1-Q9 (or records scoped deferrals with rationale).\n- ACTIVATION-AC-003: Refinement authors the 3 missing moat designs (TrimRigid, UvTexture, Animation) so they exist before spec enrichment.\n- ACTIVATION-AC-004: Refinement locks the ONE canonical GarmentSpec, KernelEventType additions, body-proxy/avatar schema, and dated migration convention (resolves KI-CONTRACTS-DRIFT + KI-MIGRATION-COLLISION).\n- ACTIVATION-AC-005: Refinement translates the research into Handshake-native NORMATIVE Master Spec sections in a new copy-first versioned bundle, updating manifest, INDEX.json, changelog, SPEC_CURRENT (+ previous_current_spec), archive, and internal references; validator-spec-regression + spec-bundle-check + spec-eof-appendices-check PASS.\n- ACTIVATION-AC-006: Refinement produces the full MT plan (groups + per-MT scope) sufficient for a no-context local model to implement, and pre-creates the MT contracts (the actual 739 inactive candidate MTs).\n- ACTIVATION-AC-007: Kernel dependencies (KERNEL-001..004) are activated/validated, or the refinement records which slices (solver-crate slices 1-2) may proceed without them.\n- ACTIVATION-AC-008: Operator signature obtained before packet creation and worktree preparation.\n- BODYKIT-AC-001: The 8 acceptance archetypes (ARCH-A..H incl. petite+extreme-tits+narrow-soft-shoulders and oversized-cock builds) exist as seeded recipes and pass the decouple-proof, pose-range (porn-range poses), drape, and export round-trip QA matrices before BodyKit groups claim completion.\n- BODYKIT-AC-002: Zero cross-region coupling proven mechanically (BODY_DECOUPLE_VALID) on every archetype; any coupling exists only as explicit inspectable links.\n- BODYKIT-AC-003: License guards fail closed on SMPL/dhdm/Genesis-derived payloads; base mesh provenance recorded.\n- BODYKIT-AC-004: Blender + UE round-trip verification proves morphs/skeleton/correctives/scale survive export (the Daz-bridge pain list as acceptance tests).\n- BODYKIT-AC-005: v02.198 spec bump operator signature obtained before packet activation (extends ACTIVATION-AC-008).\n- HARDENING-AC-001: The signed refinement accepts/revises TAI-PHYSICS-PREWORK-001, TAI-PROFESSIONAL-PRODUCTION-PREWORK-001, and TAI-MT-RECONCILIATION-PREWORK-001 before execution.\n- HARDENING-AC-002: All MT-001..739 are current-template, inactive until activation, indexed exactly once, and form a signed producer/consumer-accepted acyclic architecture DAG.\n- HARDENING-AC-003: Native UI, real BodyKit asset ids/creator tools/anatomy, PoseKit lift/interlink, USD/MaterialX/OCIO, reference visual/performance corpora, and DCC qualification gates are signed and pinned.\n- HARDENING-AC-004: Product wording distinguishes native core authoring from external connector/qualification bridges and names deferred or unsupported parity rows.",
     "risks_unknowns": "- Risk (build order): Tailor is a forward creative module ahead of its reset-brief slot; a full spec enrichment + 739 inactive candidate MTs is a large governance investment. Mitigation: solver-crate slices 1-2 carry no kernel dependency and de-risk the core; kernel-integration slices gate on KERNEL-001..004; the operator has explicitly directed this scope.\n- Risk (spec authority of gappy research): embedding research with known gaps as spec law. Mitigation: ACTIVATION-AC-002/003/004 close the gaps in refinement BEFORE the bundle bump; research stays non_normative_context_only.\n- Risk (collision robustness long tail): self-collision + concave/exaggerated body under fast motion is where MD-class depth lives; AI coding speed does NOT fix it. Mitigation: roadmap slice 2 is the explicit go/no-go gate on exaggerated-proportion capsules before building real garments.\n- Risk (determinism vs promotion gate): per-backend solver determinism vs exact-hash promotion check -> spurious cross-GPU failures. Mitigation: Q4 resolves with tolerance-based mesh compare.\n- Risk (GPU-in-sandbox): wgpu device creation inside the default-deny sandbox needs GPU passthrough; security posture unclear. Mitigation: Q6 locks the SandboxCapability set + policy.\n- Risk (content/authoring != solver): a solver is necessary not sufficient; garment authoring + auto-fit (MD's moat) is a separate hard problem. Mitigation: dedicated GarmentAuthoring + AutoFit MT groups; model-first parametric authoring attacks it.\n- Risk (scale/state recovery): 739 inactive candidate MTs spanning many sessions; detail loss across sessions. Mitigation: every MT is a self-contained JSON contract restartable by a no-context local model (the operator's stated reason for full-detail pre-creation).\n- Risk (Master Spec resolution breakage): the bundle bump touches SPEC_CURRENT (every session's spec resolution). Mitigation: strict copy-first per [CX-105B/C]; validator-spec-regression + spec-bundle-check gates; archive the prior bundle.\n- Risk (BodyKit base mesh): no licensable off-the-shelf mesh exists (SMPL porn-prohibited, Genesis EULA-prohibited, MB-Lab AGPL); an original mesh must be authored/commissioned (MakeHuman CC0 one-time bootstrap reference permitted). Mitigation: Q10 operator decision + BkFoundation topology contract validates whatever source is chosen.\n- Risk (decouple enforcement cost): per-channel region-mask enforcement + per-body corrective re-baking is compute-heavy at authoring time. Mitigation: bake jobs on the scheduler with caching; acceptance gates measure only correctness, budgets tuned at implementation.\n- Risk (genital blend on dark skins): the Daz ecosystem's known failure; explicit GENITAL_BLEND_VALID gate on a skin-tone sweep.\n- Risk (export fidelity): correctives/drivers do not survive FBX natively; driver sidecar + generator scripts are the mitigation, verified by the round-trip harness.\n- Risk (packet scale): 739 inactive candidate MTs; mitigated by the same restartable per-MT contract discipline the operator mandated (each MT no-context implementable by cheap models).\n- Risk (active-spec contradiction): current Section 13 still contains legacy Tauri/WebView and superseded physics clauses. Mitigation: no activation until copy-first signed enrichment.\n- Risk (hypothetical BodyKit content): validators can pass synthetic assets while no professional source pack exists. Mitigation: MT-721 immutable source-asset ids and MT-734 signed reference corpus are release prerequisites.\n- Risk (professional workflow gap): subsystem breadth without undo/recovery/Jobs/Problems/native 2D authoring remains unusable. Mitigation: MT-688..709.\n- Risk (2D PoseKit misuse): pixels or framing could be treated as 3D pose/camera/contact authority. Mitigation: MT-710..720 proposal/lift/retarget/camera/contact contract.\n- Risk (unqualified parity): native authoring plus external Blender bridges and deferred grooming/lip-sync conflicts with unqualified Daz/full-DCC claims. Mitigation: versioned support matrix and exact claim law.",
@@ -175,31 +177,16 @@
     "may_start_coder": false,
     "may_start_validator": false,
     "required_activation_steps": [
-      "verify_kernel_dependencies_001_to_004_status",
-      "begin_refinement_and_re_research_current_methods",
-      "review_and_reconcile_TAI_PHYSICS_PREWORK_001_into_signed_refinement_spec_and_MT_contracts",
-      "answer_or_defer_key_open_questions_Q1_to_Q9",
-      "author_missing_moat_designs_trim_rigid_uv_texture_animation",
-      "lock_canonical_contracts_garmentspec_events_bodyproxy_migrations",
-      "translate_research_into_normative_master_spec_sections_via_copy_first_versioned_bundle",
-      "update_spec_current_manifest_index_changelog_archive_internal_refs",
-      "obtain_user_signature",
-      "create_official_work_packet_contract",
-      "pre_create_full_detail_microtask_contracts",
-      "prepare_packet_branch_and_wtc_worktree",
-      "refresh_task_board_build_order_traceability",
-      "move_task_board_entry_from_stub_to_ready_for_dev",
-      "verify_v02_198_spec_bump_signature_covers_bodykit_and_second_pass_reconciliation",
-      "decide_bodykit_base_mesh_sourcing_Q10_before_BkFoundation_claims",
-      "review_and_reconcile_TAI_PROFESSIONAL_PRODUCTION_PREWORK_001_into_signed_refinement_spec_and_MT_contracts",
-      "accept_or_revise_full_MT_001_to_782_classification_and_producer_consumer_hardened_DAG_candidate",
-      "pin_bodykit_source_asset_ids_signed_visual_references_hardware_budgets_and_DCC_versions",
-      "supersede_legacy_tauri_webview_and_one_tier_physics_clauses_in_copy_first_spec_bundle",
-      "verify_posekit_character_interlink_source_commit_against_merged_main_containment_and_pinned_WP_KERNEL_012_compatibility_receipt",
-      "review_and_accept_TAILOR_BUILD_READINESS_PREWORK_AND_MULTI_LENS_REVIEW",
+      "verify_active_v02_201_spec_health_exact_Tailor_anchors_and_spec_delta_map",
+      "verify_spec_current_manifest_index_changelog_archive_internal_refs",
+      "run_tailor_mt_pre_activation_semantic_gate_and_reconcile_all_782_contracts_index_and_review",
       "pin_or_configure_marvelous_designer_executable_version_and_sha256",
-      "obtain_new_unique_operator_signature_for_v02_201_hardening",
-      "run_tailor_mt_pre_activation_semantic_gate"
+      "prove_WP_KERNEL_012_main_containment_current_main_compatibility_and_actual_interface_compile_probe",
+      "prove_CKC_PoseKit_main_containment_current_main_compatibility_and_actual_schema_compile_probe",
+      "record_official_refinement_and_create_official_packet_json_without_rewriting_active_v02_201",
+      "record_explicit_WP_activation_authorization_after_semantic_and_dependency_gates",
+      "prepare_packet_branch_product_worktree_backup_and_synchronize_taskboard_build_order_traceability",
+      "emit_ACTIVATION_READINESS_before_any_implementation_session"
     ]
   },
   "red_team": {
@@ -211,9 +198,9 @@
       "Tailor is a creative module that binds to kernel primitives; it does not re-implement EventLedger/CRDT/sandbox/promotion.",
       "The tailor-solver crate is standalone and UI-agnostic (no sqlx/tauri); the feature module handshake_core::tailor owns the kernel binding.",
       "Physics keeps 'cloth' terminology (ClothSolver/ClothParticle); feature identifiers are Tailor* (module/crate/events/tables).",
-      "Hero-frame rendering stays in Blender/UE; Tailor exports geometry caches only.",
+      "Native final rendering, queueing, and library workflows meet TAI-BKP-008/009; Blender/UE remain qualified interchange/reference lanes and are not Tailor's sole renderer.",
       "No SQLite, no Docker-default, no outside-app proof.",
-      "The spec enrichment must use copy-first versioned bundle and must not break SPEC_CURRENT resolution.",
+      "The active v02.201 enrichment was copy-first and SPEC_CURRENT resolution, module hashes, reconstruction, index, and changelog must remain healthy.",
       "BodyKit region channels are truly decoupled: no morph writes outside its declared mask; provable mechanically on every archetype.",
       "No SMPL/Genesis/dhdm content enters BodyKit in any form; license guard fails closed.",
       "Genital skin blending is seamless on ALL skin tones, not just pale skins (the Daz shell-blending failure).",
@@ -228,14 +215,14 @@
     ],
     "minimum_controls": [
       "Keep execution_authority=NON_EXECUTION_STUB until a signed official packet exists.",
-      "Require refinement to close the coherence-review gaps (Q1-Q5) before spec enrichment.",
-      "Require validator-spec-regression + spec-bundle-check + spec-eof-appendices-check PASS on the new bundle before activation.",
-      "Require operator signature before packet creation and worktree preparation.",
+      "Require the official refinement and packet to reference the active v02.201 anchors and reconciled MT delta map without reviving superseded prework contradictions.",
+      "Require spec-current-check + validator-spec-regression + spec-bundle-check + spec-eof-appendices-check PASS on active v02.201 before activation.",
+      "Require explicit operator activation before product branch/worktree preparation or implementation.",
       "Every MT must be a self-contained contract restartable by a no-context local model with runtime PostgreSQL/EventLedger proof where durable state is named.",
       "Solver-crate slices 1-2 (no kernel dependency) may proceed in parallel; kernel-integration slices gate on KERNEL-001..004.",
       "BODY_DECOUPLE_VALID + LICENSE_GUARD + GENITAL_BLEND_VALID + EXPORT_BODY_VALID validation descriptors are blocking gates wired into the 13.15 runner.",
       "The 8 archetypes (ARCH-A..H) are seeded QA fixtures; no BodyKit group claims completion while an archetype matrix row fails.",
-      "Keep every MT inactive and may_start_implementation=false until the new refinement/spec transition is signed.",
+      "Keep every MT inactive and may_start_implementation=false until semantic, dependency, packet, and explicit activation gates pass.",
       "Require immutable BodyKit asset/reference ids before any professional-quality or Daz-parity claim.",
       "Require direct inspection of exact retained visual artifacts against exact references.",
       "Require release-lane DCC qualification to fail closed; optional developer smoke skips do not advance support status."
@@ -259,8 +246,8 @@
   "activation_status": {
     "recorded_at_utc": "2026-07-09T00:00:00Z",
     "recorded_by": "KERNEL_BUILDER (operator decisions 2026-07-08/09)",
-    "lifecycle": "READY_FOR_REFINEMENT / NON_EXECUTION_STUB (HELD — contract-build-ready candidate, not activated)",
-    "operator_hold_directive": "Historical operator directive dated 2026-07-09: HOLD and do not activate. The hold remains current; its written-MTs (653) count was superseded by the 2026-07-16 non-execution hardening inventory of 739 inactive candidate MTs. No packet.json, feat branch, or wtc-* product worktree is authorized until signed refinement and explicit activation.",
+    "lifecycle": "SPEC_v02_201_APPLIED / NON_EXECUTION_STUB / 782-MT BUILD-READY CANDIDATE HELD FOR SEMANTIC GATE, DEPENDENCIES, PACKET, AND EXPLICIT ACTIVATION",
+    "operator_hold_directive": "Tailor prep may be hardened but is not activated. No packet.json, feat branch, wtc-* product worktree, or product implementation is authorized by this stub. Active v02.201 supplies normative requirements; the semantic gate, WP-KERNEL-012 and CKC PoseKit containment/compatibility, official refinement/packet, and explicit activation still gate execution.",
     "kernel_dependency_gate": {
       "status": "CLEARED",
       "evidence": "Operator confirmed 2026-07-08: WP-KERNEL-001..004 are VALIDATED PASS and their product code is in main.",
@@ -274,11 +261,13 @@
       "note": "Cloth kernel-integration slices are now dependency-clear. Standalone tailor-solver slices never gated on these."
     },
     "spec_enrichment": {
-      "status": "DONE + SIGNED",
-      "version": "v02.198",
-      "signature": "ilja080720262117 (2026-07-08 21:17; SIGNATURE_AUDIT.md)",
-      "scope": "Section 13 two-submodule Tailor: Cloth 13.1-13.15 (second-pass MD-parity reconciliation) + BodyKit 13.16-13.27 (TAI-BK-001..240).",
-      "hardening_enrichment_status": "REQUIRED_NOT_STARTED; current signed v02.198 content is insufficient for the 2026-07-16 physics/professional contract and must be superseded copy-first before activation"
+      "status": "DONE_APPROVED_ACTIVE_AND_VALIDATED",
+      "version": "v02.201",
+      "refinement_approval_evidence": "APPROVE REFINEMENT WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1 (v02.201 changelog approval evidence)",
+      "user_signature_consumed": false,
+      "user_signature": null,
+      "scope": "Section 13.1..13.27 preserved Cloth/BodyKit authority plus Sections 13.28..13.36 professional parity, three-lane/two-production-tier physics, action/backend, Cloth UX, BodyKit production, interop, native GUI, QA, semantic, fixture, and final-E2E gates.",
+      "hardening_enrichment_status": "APPLIED_COPY_FIRST_IN_ACTIVE_v02_201; SPEC_CURRENT resolution, indexed reconstruction, and validator spec regression PASS"
     },
     "microtasks": {
       "status": "782 PRE_ACTIVATION CONTRACTS MULTI_LENS_HARDENED (not packet-hydrated, not active)",
@@ -294,18 +283,19 @@
       }
     },
     "remaining_activation_steps_when_resumed": [
-      "review the complete technical refinement block and provide a new unique operator signature",
       "pin/configure the local Marvelous Designer executable path, version, and SHA-256",
-      "author and validate copy-first Master Spec v02.201",
+      "pass tailor-mt-preactivation-check against active v02.201 after reconciling all 782 MTs and refreshing the index/review",
+      "prove WP-KERNEL-012 and CKC PoseKit main containment plus current-main compatibility against actual interfaces",
+      "record the official refinement without changing active v02.201 authority",
       "create official packet.json with the accepted MT-001..782 architecture DAG",
       "prepare feat/WP-KERNEL-010 branch + wtc-* product worktree + backup branch",
       "synchronize Task Board, Build Order, traceability, and activation records",
-      "emit ACTIVATION_READINESS before any implementation session"
+      "receive explicit WP activation and emit ACTIVATION_READINESS before any implementation session"
     ]
   },
   "professional_production_hardening": {
     "added_at_utc": "2026-07-16T01:23:22Z",
-    "verdict": "CONTRACT_BUILD_READY_PENDING_NEW_OPERATOR_SIGNATURE_COPY_FIRST_SPEC_AND_ACTIVATION",
+    "verdict": "SPEC_v02_201_ACTIVE_CONTRACT_BUILD_READY_CANDIDATE_PENDING_MT_SEMANTIC_GATE_DEPENDENCY_CONTAINMENT_PACKET_AND_ACTIVATION",
     "physics_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
     "professional_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
     "mt_reconciliation": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json",
@@ -314,10 +304,12 @@
     "new_hardening_mts": 129,
     "native_path_rehomes": 51,
     "template_hydrations": 448,
-    "dependency_shape": "ACYCLIC_ARCHITECTURAL_DAG_CANDIDATE_PENDING_CHECK_AND_SIGNATURE",
+    "dependency_shape": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE_PENDING_ALL_782_SEMANTIC_CHECK",
     "implementation_authority": false,
     "activation_changed": false,
-    "active_spec_changed": false,
+    "active_spec_changed": true,
+    "active_spec_version": "v02.201",
+    "active_spec_transition_note": "The copy-first v02.201 transition is complete and validated; this remains a non-execution stub and does not imply packet hydration or WP activation.",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
     "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json",

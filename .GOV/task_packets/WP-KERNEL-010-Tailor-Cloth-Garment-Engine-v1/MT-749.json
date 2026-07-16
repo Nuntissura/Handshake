@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-749",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-749.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-749.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,11 +30,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-749.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -60,7 +61,8 @@
     "acceptance_criteria": [
       "Mix operations are read/derive proposals until explicit selected apply through the owning API; 2D PoseKit evidence never becomes direct 3D authority.",
       "Supports weighted pose blending, symmetry, N-pose proximity blending, region-scoped body recipe/channel mixing, garment/preset composition, layer conflict rules, compare/revert, and content-addressed provenance.",
-      "Concurrent mixes use expected versions, leases, idempotency, immutable proposals, deterministic conflict diagnostics, EventLedger receipts, and Loom-navigable refs."
+      "Concurrent mixes use expected versions, leases, idempotency, immutable proposals, deterministic conflict diagnostics, EventLedger receipts, and Loom-navigable refs.",
+      "MT-749 owns TailorMixGraphV1 backend authority and typed commands under 13.30 [TAI-ACT-003..005] and 13.33 [TAI-INT-002..003, TAI-INT-006]; it consumes MT-710 containment proof transitively through MT-717 and MUST return `dependency_unavailable` without private adapters, copied schemas, or guessed fixtures unless the exact PoseKit source commit is contained in merged main and the compatible WP-KERNEL-012/PoseKit/character-sheet schema receipts resolve. MT-718 exclusively owns the native mix preview, weight, conflict, selected-apply, detach, rebase, repair, and provenance projection and must consume these commands without a UI schema fork."
     ],
     "proof_targets": [
       "cargo test -p handshake_core --test tailor_mix_primitives"
@@ -81,14 +83,14 @@
       "layout_overlap_state_check",
       "capture_matrix_or_recorded_not_applicable_reason"
     ],
-    "not_applicable_reason": "Non-UI contract: typed commands, state, receipts, diagnostics, and TraceProjection provide model/operator observability; the owning native projection is separately contracted."
+    "not_applicable_reason": "Backend-only authority contract. MT-718 is the exact owning native GUI for mix preview, region/layer weights, conflict inspection, selected apply, detach, rebase, repair, and provenance; MT-749 provides typed commands, state, receipts, diagnostics, and TraceProjection and must not claim MT-718 Argus proof."
   },
   "user_manual_obligation": {
     "required": true,
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+      "Tailor UserManual > Use PoseKit, character sheets, and mix graphs > Author, weight, preview, apply, detach, and repair a mix graph"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -112,13 +114,13 @@
     },
     {
       "tier": "internal_diagnostics",
-      "posture": "INHERITED",
-      "reason": "This MT emits typed diagnostics through its owning command or job and inherits retention, health, and projection behavior from the shared diagnostics substrate."
+      "posture": "DIRECT",
+      "reason": "TailorMixGraphV1 owns stable conflict, stale-source, correspondence, invalid-weight, apply, detach, rebase, and repair diagnostics and must emit them through the shared internal_diagnostics API."
     },
     {
       "tier": "palmistry",
-      "posture": "INHERITED",
-      "reason": "The owning native shell or scheduled job supplies Palmistry coverage; this MT must preserve operation identity and recovery handles."
+      "posture": "NOT_APPLICABLE",
+      "reason": "Mix graph schema, proposal, and bounded authority operations do not independently own a long-running process; any derived preview or solver job is watched by its owning job and carries the mix operation identity."
     }
   ],
   "handoff": {
@@ -147,7 +149,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

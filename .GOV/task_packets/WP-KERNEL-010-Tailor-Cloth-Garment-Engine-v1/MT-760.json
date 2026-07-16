@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-760",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-760.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-760.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,11 +30,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-760.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -43,6 +44,8 @@
       "MT-489",
       "MT-594",
       "MT-607",
+      "MT-627",
+      "MT-632",
       "MT-722",
       "MT-723",
       "MT-724",
@@ -57,7 +60,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Integrate BodyKit geometry, joint, weight/rigidity, transfer, skin, and anatomy creator operations with canonical command/backend-agent parity, EventLedger, semantic undo, leases, cancellation, stale-state rejection, recovery, and native surfaces.",
+    "summary": "Implement the backend-only canonical command and backend-agent parity layer for BodyKit geometry, joint, weight/rigidity, transfer, skin, and anatomy creator operations, with EventLedger, semantic undo, leases, cancellation, stale-state rejection, recovery, and explicit consumption by the existing owning native surfaces.",
     "allowed_paths": [
       "src/backend/handshake_core/src/tailor/bodykit/content_tools/commands.rs",
       "src/backend/handshake_core/tests/bodykit_creator_command_parity.rs"
@@ -66,7 +69,8 @@
     "acceptance_criteria": [
       "Every creator action has one descriptor and identical GUI/MCP/backend/replay/undo semantics with exact inputs, outputs, permissions, side effects, artifacts, progress, and receipts.",
       "Concurrent unrelated edits proceed; topology/rig/weight/material conflicts use declared leases/base versions, and cancellation/partial failure leaves atomic authority and artifact state.",
-      "A no-context model completes representative creator flows through backend only and reproduces them through GUI without hidden state or manual intervention."
+      "A no-context model completes representative creator flows through backend only; GUI equivalence is consumed and visually proven by MT-627 channel panels, MT-632 genital configuration, MT-722 geometry/topology, MT-723 joints/skeleton, MT-724 weight/rigidity, MT-725 transfer, and MT-726 skin/UDIM, with MT-737 providing downstream creator-lifecycle proof.",
+      "MT-760 does not create or claim native surfaces or Argus evidence: each named GUI owner binds to the same KernelActionCatalogV1 descriptors and receipts under 13.30 [TAI-ACT-003..007] and 13.32 [TAI-BKP-001,006]."
     ],
     "proof_targets": [
       "cargo test -p handshake_core --test bodykit_creator_command_parity"
@@ -87,14 +91,14 @@
       "layout_overlap_state_check",
       "capture_matrix_or_recorded_not_applicable_reason"
     ],
-    "not_applicable_reason": "Non-UI contract: typed commands, state, receipts, diagnostics, and TraceProjection provide model/operator observability; the owning native projection is separately contracted."
+    "not_applicable_reason": "Backend-only creator command-parity contract. Native ownership is exact: MT-627 channel panels, MT-632 genital configuration, MT-722 geometry/topology, MT-723 joints/skeleton, MT-724 weight/rigidity, MT-725 transfer, and MT-726 skin/UDIM; MT-737 supplies downstream GUI/backend lifecycle proof. MT-760 exposes typed commands, state, receipts, diagnostics, and TraceProjection only."
   },
   "user_manual_obligation": {
     "required": true,
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > Professional BodyKit production workflows"
+      "Tailor UserManual > Create a body > Use creator commands consistently through native GUI and backend actions"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -152,7 +156,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

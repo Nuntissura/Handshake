@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-375",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-375.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-375.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
     "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
@@ -33,13 +32,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-375.md",
-    "status": "GENERATED_PENDING",
-    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-375.json",
-    "source_hash": null,
-    "projection_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -67,7 +66,7 @@
       "A dated migration YYYY_MM_DD_tailor_material_assignments.sql MUST create the tailor_material_assignments table with assignment_id TEXT PK ('ASGN-{uuid_v7}'), garment_id FK tailor_garments, panel_id TEXT, preset_id FK tailor_material_presets, event_ledger_event_id FK, created_at, with a UNIQUE(garment_id, panel_id) constraint",
       "PanelSpec in tailor-solver/src/spec.rs MUST include an optional material_preset_id: Option<String> field; when present it references a tailor_material_presets.preset_id and overrides GarmentSpec.fabric for that panel at SolverMesh build time",
       "build_solver_mesh MUST apply per-panel material_preset_id override AFTER the garment-level FabricProperties decode, not before; the override wins per-field",
-      "Every INSERT to tailor_material_assignments MUST call guard_authority_write(AuthorityMode::Postgres) and emit TailorGarmentMaterialAssigned with aggregate 'tailor_material_assignment' and the assignment_id",
+      "Every INSERT to tailor_material_assignments MUST call guard_authority_write(AuthorityMode::PostgresPrimary) and emit TailorGarmentMaterialAssigned with aggregate 'tailor_material_assignment' and the assignment_id",
       "The tailor_garment_panel_assign_material MCP tool (spec §<N>.<i>.7.2) MUST write to tailor_material_assignments, not to GarmentSpec directly, so the assignment is independently auditable via the EventLedger",
       "The FABRIC_PRESET_VALID ValidationDescriptor MUST verify that every material_preset_id referenced in a PanelSpec resolves to an existing tailor_material_presets row in the same workspace",
       "An integration test MUST assert: assign leather preset to one panel of a multi-panel garment, assign chiffon to another, run simulation, verify the two panels have measurably different per-particle compliance values in the solver output"
@@ -165,7 +164,7 @@
       "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope.",
       "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "PRE_ACTIVATION_BUILD_READY_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

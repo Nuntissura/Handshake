@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-779",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-779.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-779.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,18 +30,36 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-779.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
       "MT-687",
+      "MT-709",
+      "MT-718",
+      "MT-719",
       "MT-720",
+      "MT-737",
       "MT-740",
+      "MT-743",
+      "MT-744",
+      "MT-745",
+      "MT-746",
+      "MT-747",
+      "MT-748",
+      "MT-749",
+      "MT-750",
+      "MT-751",
+      "MT-752",
+      "MT-753",
+      "MT-754",
       "MT-755",
       "MT-756",
       "MT-757",
@@ -66,7 +83,8 @@
       "MT-775",
       "MT-776",
       "MT-777",
-      "MT-778"
+      "MT-778",
+      "MT-780"
     ],
     "blocks": [],
     "active": false,
@@ -76,41 +94,73 @@
     "summary": "Execute the feature-by-feature Marvelous Designer and Daz Studio parity qualification matrix over every required capability, GUI/backend/manual path, black-box reference fixture, export/import, visual artifact, failure path, and performance budget.",
     "allowed_paths": [
       "src/backend/handshake_core/tests/tailor_vendor_parity_matrix.rs",
-      ".GOV/fixtures/tailor/vendor_parity/"
+      "src/backend/handshake_core/tests/testdata/tailor/vendor_parity/",
+      "src/frontend/handshake_native/tests/tailor_vendor_parity_matrix.rs",
+      "src/frontend/handshake_native/tests/testdata/tailor/vendor_parity/"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
       "Every required capability row references exact MTs, commands, surfaces, manual anchors, reference sources, fixtures, artifacts, metric thresholds, DCC versions, and inspected reviewer evidence.",
       "Qualification covers success, boundary, unsupported, cancellation, recovery, concurrency, accessibility, no-context backend/GUI operation, round-trip, visual comparison, performance, and claim-state transitions.",
-      "No cargo-only, changed-hash-only, MT-name-only, or uninspected artifact evidence can set QUALIFIED; the claim gate remains fail-closed until direct proof exists."
+      "No cargo-only, changed-hash-only, MT-name-only, or uninspected artifact evidence can set QUALIFIED; the claim gate remains fail-closed until direct proof exists.",
+      "The matrix covers the full professional dependency chain, including native shell and surface registry, task-oriented UserManual, diagnostics and optional pillars, interlink/mix, project lifecycle, sewing/arrangement, simulation, fabric lab, BodyKit creator/contact, materials, groom, render, publish, DCC, and the MT-780 semantic gate under 13.35 [TAI-QA-001..007] and 13.36 [TAI-GATE-002..005].",
+      "For every required native surface family, Argus/AccessKit proves exact surface and dynamic entity ids, empty/loading/populated/preview/conflict/failure/recovery/success states, accessibility, responsive layout, backend receipt agreement, and renderer-console cleanliness; a reviewer directly opens each selected capture and compares it with the pinned Marvelous Designer or Daz Studio reference before QUALIFIED.",
+      "A no-context model completes the matched backend-only and GUI-only workflow using only the exact task-specific Tailor UserManual anchor, command ids, surface paths, structured state, diagnostics, and recovery instructions; command inputs/outputs, authority versions, receipts, artifacts, and visible success state must agree."
     ],
     "proof_targets": [
-      "cargo test -p handshake_core --test tailor_vendor_parity_matrix"
+      "cargo test -p handshake_core --test tailor_vendor_parity_matrix",
+      "cargo test -p handshake-native --test tailor_vendor_parity_matrix"
     ],
     "risk_if_missed": "Feature ownership without witnessed qualification cannot establish professional usability or full-parity claims."
   },
   "gui_obligation": {
-    "operator_surface_required": false,
+    "operator_surface_required": true,
     "gui_creation_required": false,
-    "argus_required": false,
+    "argus_required": true,
     "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
+    "surfaces": [
+      "Tailor project and Cloth authoring surface family",
+      "Tailor BodyKit creator, face, genitals, rig, and content surface family",
+      "Tailor material, shader, groom, and render surface family",
+      "Tailor DCC, diagnostics, capabilities, and help surface family"
+    ],
+    "argus_targets": [
+      "tailor.project",
+      "tailor.pattern",
+      "tailor.arrangement",
+      "tailor.sewing",
+      "tailor.simulation",
+      "tailor.fabric",
+      "tailor.material",
+      "tailor.bodykit.creator",
+      "tailor.bodykit.face",
+      "tailor.bodykit.genitals",
+      "tailor.bodykit.rig",
+      "tailor.bodykit.content",
+      "tailor.shader",
+      "tailor.render",
+      "tailor.dcc",
+      "tailor.diagnostics",
+      "tailor.capabilities",
+      "tailor.help"
+    ],
     "expected_evidence": [
       "argus_inspect_or_accesskit_tree",
       "argus_screenshot_or_snapshot_reference",
       "renderer_console_error_scan",
       "layout_overlap_state_check",
-      "capture_matrix_or_recorded_not_applicable_reason"
+      "capture_matrix_or_recorded_not_applicable_reason",
+      "direct_capture_inspection_against_pinned_dcc_reference",
+      "manual_only_no_context_gui_and_backend_equivalence_proof"
     ],
-    "not_applicable_reason": "Non-UI contract: typed commands, state, receipts, diagnostics, and TraceProjection provide model/operator observability; the owning native projection is separately contracted."
+    "not_applicable_reason": null
   },
   "user_manual_obligation": {
     "required": true,
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > DCC parity and qualification"
+      "Tailor UserManual > Qualify vendor parity > Run and directly inspect the Marvelous Designer and Daz Studio capability matrix"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -130,8 +180,8 @@
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "DIRECT",
-      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+      "posture": "INHERITED",
+      "reason": "The matrix correlates and verifies EventLedger and Flight Recorder identities emitted by the qualified Tailor actions and MT-778 DCC harness; it must not invent a second qualification-only lifecycle event family."
     },
     {
       "tier": "internal_diagnostics",
@@ -140,8 +190,8 @@
     },
     {
       "tier": "palmistry",
-      "posture": "DIRECT",
-      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
+      "posture": "INHERITED",
+      "reason": "Renderer, solver, export, and MT-778 external DCC jobs own Palmistry registration; the matrix verifies their bounded progress, cancellation, timeout, survivor-process, and recovery evidence without creating a second watcher."
     }
   ],
   "handoff": {
@@ -170,7 +220,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

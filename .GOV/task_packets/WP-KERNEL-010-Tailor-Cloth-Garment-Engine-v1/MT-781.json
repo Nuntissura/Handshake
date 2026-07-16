@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-781",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-781.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-781.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,17 +30,20 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-781.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
       "MT-653",
       "MT-709",
+      "MT-718",
       "MT-719",
       "MT-737",
       "MT-743",
@@ -93,13 +95,17 @@
     "allowed_paths": [
       "src/backend/handshake_core/tests/tailor_professional_e2e.rs",
       "src/frontend/handshake_native/tests/tailor_professional_e2e.rs",
-      ".GOV/fixtures/tailor/professional_e2e/"
+      "src/backend/handshake_core/tests/testdata/tailor/professional_e2e/",
+      "src/frontend/handshake_native/tests/testdata/tailor/professional_e2e/"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
       "A no-context model completes representative professional workflows through backend only and GUI only using the built-in UserManual, exact commands/ids, and structured state; outputs and receipts are equivalent.",
       "Multiple agents edit unrelated Cloth/BodyKit entities concurrently, conflict on one entity, recover from stale state, cancellation, device loss, DCC hang, partial artifact, app restart, and retry-failed-only without data loss, focus steal, or authority drift.",
-      "Every required vendor capability and professional visual/metric artifact is directly inspected against pinned references; parity claim remains unavailable until the independent validator later accepts the implemented evidence."
+      "Every required vendor capability and professional visual/metric artifact is directly inspected against pinned references; parity claim remains unavailable until the independent validator later accepts the implemented evidence.",
+      "The proof traverses the complete 13.36 [TAI-GATE-004..005] workflow through exact 13.34 [TAI-UX-001] native surface families: create/recover project, Cloth pattern/sewing/arrangement/simulation/fabric/repair, BodyKit body/anatomy/pose/contact, interlink/mix, materials/groom, shared render/AOV queue, publish/DCC, optional pillar outages, diagnostics, parallel conflict, and recovery.",
+      "Argus/AccessKit proves exact surface and dynamic entity ids plus empty/loading/populated/preview/conflict/failure/recovery/success states, accessibility, responsive layout, backend receipt agreement, and renderer-console cleanliness; the reviewer directly opens the selected captures and compares them with declared references rather than accepting snapshot metadata.",
+      "Manual-only proof starts with no conversation context and uses the exact task-specific Tailor UserManual entry to complete both GUI-only and backend-only routes, diagnose injected failures, recover, and confirm equivalent commands, authority versions, receipts, artifacts, Flight Recorder projection, and visible success state."
     ],
     "proof_targets": [
       "cargo test -p handshake_core --test tailor_professional_e2e",
@@ -108,27 +114,53 @@
     "risk_if_missed": "Independent feature tests can pass while the real production lifecycle, recovery, manual, parallel-agent, or parity claim fails."
   },
   "gui_obligation": {
-    "operator_surface_required": false,
-    "gui_creation_required": false,
-    "argus_required": false,
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
     "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
+    "surfaces": [
+      "Tailor project and Cloth authoring surface family",
+      "Tailor BodyKit creator, face, genitals, rig, and content surface family",
+      "Tailor material, shader, groom, and render surface family",
+      "Tailor DCC, diagnostics, capabilities, and help surface family"
+    ],
+    "argus_targets": [
+      "tailor.project",
+      "tailor.pattern",
+      "tailor.arrangement",
+      "tailor.sewing",
+      "tailor.simulation",
+      "tailor.fabric",
+      "tailor.material",
+      "tailor.bodykit.creator",
+      "tailor.bodykit.face",
+      "tailor.bodykit.genitals",
+      "tailor.bodykit.rig",
+      "tailor.bodykit.content",
+      "tailor.shader",
+      "tailor.render",
+      "tailor.dcc",
+      "tailor.diagnostics",
+      "tailor.capabilities",
+      "tailor.help"
+    ],
     "expected_evidence": [
       "argus_inspect_or_accesskit_tree",
       "argus_screenshot_or_snapshot_reference",
       "renderer_console_error_scan",
       "layout_overlap_state_check",
-      "capture_matrix_or_recorded_not_applicable_reason"
+      "capture_matrix_or_recorded_not_applicable_reason",
+      "direct_capture_inspection_against_declared_reference",
+      "manual_only_no_context_gui_and_backend_equivalence_proof"
     ],
-    "not_applicable_reason": "Non-UI contract: typed commands, state, receipts, diagnostics, and TraceProjection provide model/operator observability; the owning native projection is separately contracted."
+    "not_applicable_reason": null
   },
   "user_manual_obligation": {
     "required": true,
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > DCC parity and qualification"
+      "Tailor UserManual > Professional end-to-end proof > Complete, diagnose, recover, and verify the full Cloth and BodyKit production lifecycle"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -148,18 +180,18 @@
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "DIRECT",
-      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+      "posture": "INHERITED",
+      "reason": "The end-to-end test verifies the exact EventLedger and Flight Recorder identities emitted by each underlying Tailor action and job; it must not add a test-only lifecycle event family."
     },
     {
       "tier": "internal_diagnostics",
-      "posture": "DIRECT",
-      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
+      "posture": "INHERITED",
+      "reason": "The end-to-end test injects failures and consumes the bounded internal_diagnostics records and recovery actions owned by the exercised surfaces, jobs, solver, renderer, pillars, artifacts, and DCC harness."
     },
     {
       "tier": "palmistry",
-      "posture": "DIRECT",
-      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
+      "posture": "INHERITED",
+      "reason": "Each exercised solver, renderer, export, and external DCC job owns Palmistry registration; the end-to-end test verifies bounded progress, cancellation, timeout, survivor-process, and recovery evidence without creating a second watcher."
     }
   ],
   "handoff": {
@@ -188,7 +220,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

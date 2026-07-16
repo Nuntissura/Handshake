@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-331",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-331.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-331.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
     "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
@@ -33,13 +32,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-331.md",
-    "status": "GENERATED_PENDING",
-    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-331.json",
-    "source_hash": null,
-    "projection_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -59,13 +58,13 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Add ModelManual entries for the Tailor export/production commands (and bump MANUAL_VERSION).",
+    "summary": "Add UserManual entries for the Tailor export/production commands (and bump MANUAL_VERSION).",
     "allowed_paths": [
       "src/frontend/handshake_native/src/manual_tailor.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Every export/production command is discoverable + code-truthful in the ModelManual.",
+      "Every export/production command is discoverable + code-truthful in the UserManual.",
       "All operator-facing scope is implemented in src/frontend/handshake_native with native wgpu/egui, AccessKit author_id, Argus inspection/steering/capture, and no Tailor React, Tauri-command, WebView, data-testid-only, or rendered-PNG frontend path.",
       "The exact TailorSurfaceDescriptor row MT-331 enumerates every route, pane, control author_id, dynamic entity-key rule, action, state, help anchor, permission, undo policy, receipt, and command binding; wildcard-only evidence is rejected.",
       "Applicable blank, loading, populated, stale/conflict, cancelled, failed, retry, permission, keyboard/focus, narrow/4K/DPI, overlap/clipping, and no-focus-steal states are covered by the registry-derived Argus matrix."
@@ -166,7 +165,7 @@
       "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope.",
       "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "PRE_ACTIVATION_BUILD_READY_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

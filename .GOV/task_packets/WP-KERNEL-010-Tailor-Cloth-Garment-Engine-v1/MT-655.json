@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-655",
   "created_at_utc": "2026-07-16T01:23:22Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-655.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-655.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
@@ -34,11 +33,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-655.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -53,7 +54,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Define the versioned f64 SI FinalSolverResult schema and accepted-step certificate used for promotion, replay, checkpoints, and downstream comparison.",
+    "summary": "Define the versioned f64 SI FinalSolverResult and `hsk.tailor.accepted_step_certificate@1` TailorAcceptedStepCertificateV1 schemas used for promotion, replay, checkpoints, and downstream comparison.",
     "allowed_paths": [
       "tailor-solver/src/result/",
       "src/backend/handshake_core/src/tailor/schemas.rs",
@@ -62,7 +63,8 @@
     "forbidden_paths": [],
     "acceptance_criteria": [
       "The result records SI units, topology/material/collider/backend hashes, accepted-step sequence, convergence and contact metrics.",
-      "Certificates distinguish accepted, cancelled, failed, and recovered terminals without treating partial state as final authority.",
+      "TailorAcceptedStepCertificateV1 carries certificate/run/step ids, input and qualification-profile hashes, iteration and line-search history, energy terms, residual norms, minimum time-of-impact and separation, maximum strain, contact counts, topology/remesh lineage, prior checkpoint, output/checkpoint artifact handles, actor/event ids, and timestamps under 13.29 [TAI-PHY-005] and 13.30 [TAI-ACT-008].",
+      "Certificates distinguish accepted, rejected, cancelled, failed, and recovered terminals; rejected trials never mutate authority, cancelled/partial state is never final authority, and resume starts only from the last complete accepted certificate/checkpoint.",
       "Schema versioning and compatibility checks reject unknown major versions."
     ],
     "proof_targets": [
@@ -152,7 +154,7 @@
     "required_changes_before_execution": [
       "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "PRE_ACTIVATION_BUILD_READY_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

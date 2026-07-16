@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-718",
   "created_at_utc": "2026-07-16T01:23:22Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-718.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-718.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
@@ -34,11 +33,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-718.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -59,6 +60,7 @@
       "MT-715",
       "MT-716",
       "MT-717",
+      "MT-749",
       "MT-741",
       "MT-742",
       "MT-743",
@@ -71,7 +73,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Build the professional native Tailor interlink pane for verified PoseKit evidence, character-sheet mapping, lift/camera/contact proposals, manual correction, and explicit apply/recovery.",
+    "summary": "Build the professional native Tailor interlink pane for verified PoseKit evidence, character-sheet mapping, lift/camera/contact proposals, and the MT-749 TailorMixGraph projection with source/layer weights, conflicts, preview, selected apply, detach, repair, provenance, and recovery.",
     "allowed_paths": [
       "src/frontend/handshake_native/src/tailor/mod.rs",
       "src/frontend/handshake_native/src/tailor/backend.rs",
@@ -83,11 +85,13 @@
       "Tailor opens PaneType::AtelierEditor through the shared typed pane-navigation route and selects AtelierPanelTab::Posekit or AtelierPanelTab::CastkitCodex through the typed panel API; atelier-tab-posekit, atelier-content-posekit, atelier-tab-ckc, atelier-content-ckc, atelier-ckc-character-ref, atelier-ckc-sheet-version-ref, and atelier-ckc-sheet-artifact-list are inspection targets only, never the navigation API or Tailor ownership.",
       "Provides stable native ids tailor-interlink-pane, tailor-interlink-binding-source, tailor-interlink-receipt-validity, tailor-interlink-lift-state, tailor-interlink-joint-confidence, tailor-interlink-camera-candidates, tailor-interlink-reprojection-error, tailor-interlink-contact-state, tailor-interlink-proposal-diff, tailor-interlink-stale-conflict, tailor-interlink-job-status, tailor-interlink-cancel, and tailor-interlink-retry.",
       "Manual correction supports accept/reject/remap joint, camera-candidate selection, 3D handle correction, immutable amended proposal, compare, and revert before explicit selected apply through typed backend commands.",
+      "The interlink pane is the owning native projection for MT-749 and renders the authoritative TailorMixGraphV1 graph, source nodes, target slots, normalized and over-range region/layer weights, ordering, correspondence, conflicts, provenance, derived previews, selected apply, detach, rebase, and repair; it never redefines mix authority in UI-local state.",
       "Blank, loading, partial, tampered, offline, merge-incompatible, stale/conflicted, cancelled, failed, and retry states remain distinguishable; Jobs, Problems, and History expose attribution, progress, diagnostics, recovery, and receipts without stealing focus.",
       "Argus/AccessKit proves docked, floating, narrow, 4K, and DPI layouts; keyboard/focus order, non-color state, readable text, no overlap/clipping, cancellation, retry, and no-focus-steal behavior are required.",
-      "Stable actions include tailor-interlink-open-posekit, tailor-interlink-open-ckc, tailor-interlink-joint-{joint_id}-accept, tailor-interlink-joint-{joint_id}-reject, tailor-interlink-joint-{joint_id}-remap, tailor-interlink-camera-{candidate_id}-select, tailor-interlink-contact-{contact_id}, tailor-interlink-correct-3d, tailor-interlink-compare-{proposal_revision}, tailor-interlink-revert-{proposal_revision}, and tailor-interlink-selected-apply; template substitutions are canonical escaped typed ids.",
-      "Every repeated inspectable record has a stable escaped typed-id row identity: tailor-interlink-joint-{joint_id}-row, tailor-interlink-camera-{candidate_id}-row, tailor-interlink-contact-{contact_id}-row, and tailor-interlink-proposal-{proposal_revision}-row; selection and action ids resolve to the same typed record without relying on row position.",
-      "The exact TailorSurfaceDescriptor row MT-718 enumerates every route, pane, control author_id, dynamic entity-key rule, action, state, help anchor, permission, undo policy, receipt, and command binding; wildcard-only evidence is rejected.",
+      "Stable native control/element ids include tailor-interlink-open-posekit, tailor-interlink-open-ckc, tailor-interlink-joint-{joint_id}-accept, tailor-interlink-joint-{joint_id}-reject, tailor-interlink-joint-{joint_id}-remap, tailor-interlink-camera-{candidate_id}-select, tailor-interlink-contact-{contact_id}, tailor-interlink-correct-3d, tailor-interlink-compare-{proposal_revision}, tailor-interlink-revert-{proposal_revision}, and tailor-interlink-selected-apply; template substitutions identify controls/records only and are never action ids.",
+      "Those controls bind exact canonical actions `tailor.interlink.open-posekit`, `tailor.interlink.open-character-sheet`, `tailor.interlink.accept-joint`, `tailor.interlink.reject-joint`, `tailor.interlink.remap-joint`, `tailor.interlink.select-camera`, `tailor.interlink.edit-contact`, `tailor.interlink.correct-3d`, `tailor.interlink.compare-proposal`, `tailor.interlink.revert-proposal`, and the applicable `tailor.mix.*` seed actions; joint_id, candidate_id, contact_id, proposal_revision, node_id, and conflict_id are typed inputs, never action-id segments.",
+      "Every repeated inspectable record has a stable escaped typed-id row identity: tailor-interlink-joint-{joint_id}-row, tailor-interlink-camera-{candidate_id}-row, tailor-interlink-contact-{contact_id}-row, and tailor-interlink-proposal-{proposal_revision}-row; selection/control ids and bound action inputs resolve to the same typed record without relying on row position.",
+      "The exact TailorSurfaceDescriptor row MT-718 enumerates every route, pane, control author_id, dynamic entity-key rule, canonical ACT-010 action binding, state, help anchor, permission, undo policy, receipt, and command binding required by 13.30 [TAI-ACT-007, TAI-ACT-010], 13.33 [TAI-INT-002..003, TAI-INT-006], and 13.34 [TAI-UX-001..005]; wildcard-only evidence is rejected.",
       "Applicable blank, loading, populated, stale/conflict, cancelled, failed, retry, permission, keyboard/focus, narrow/4K/DPI, overlap/clipping, and no-focus-steal states are covered by the registry-derived Argus matrix."
     ],
     "proof_targets": [
@@ -102,6 +106,7 @@
     "trace_projection_required_when_non_ui": false,
     "surfaces": [
       "Tailor interlink pane",
+      "Tailor mix-graph editor within the interlink pane",
       "Atelier PoseKit deep link",
       "Atelier character-sheet deep link",
       "Tailor Jobs, Problems, and History projections"
@@ -131,6 +136,15 @@
       "tailor-interlink-compare-{proposal_revision}",
       "tailor-interlink-revert-{proposal_revision}",
       "tailor-interlink-selected-apply",
+      "tailor-interlink-mix-graph",
+      "tailor-interlink-mix-source-{source_id}",
+      "tailor-interlink-mix-node-{node_id}",
+      "tailor-interlink-mix-weight-{node_id}-{region_id}",
+      "tailor-interlink-mix-conflict-{conflict_id}",
+      "tailor-interlink-mix-preview",
+      "tailor-interlink-mix-apply-selected",
+      "tailor-interlink-mix-detach-{node_id}",
+      "tailor-interlink-mix-repair-{conflict_id}",
       "tailor-interlink-joint-{joint_id}-row",
       "tailor-interlink-camera-{candidate_id}-row",
       "tailor-interlink-contact-{contact_id}-row",
@@ -150,7 +164,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > PoseKit and character-sheet interlinking"
+      "Tailor UserManual > Use PoseKit, character sheets, and mix graphs > Inspect, weight, preview, apply, detach, and repair an interlink proposal"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -170,8 +184,8 @@
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "DIRECT",
-      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+      "posture": "INHERITED",
+      "reason": "This native projection invokes MT-710..717 and MT-749 typed actions and displays their existing EventLedger and Flight Recorder identities; it must not emit a second UI-local lifecycle event family."
     },
     {
       "tier": "internal_diagnostics",
@@ -180,8 +194,8 @@
     },
     {
       "tier": "palmistry",
-      "posture": "DIRECT",
-      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
+      "posture": "INHERITED",
+      "reason": "The owning interlink, preview, solver, and apply jobs register Palmistry coverage; this pane preserves their run/process identity, progress, cancellation, and recovery handles without creating a second watcher."
     }
   ],
   "handoff": {
@@ -213,7 +227,7 @@
     "required_changes_before_execution": [
       "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "PRE_ACTIVATION_BUILD_READY_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

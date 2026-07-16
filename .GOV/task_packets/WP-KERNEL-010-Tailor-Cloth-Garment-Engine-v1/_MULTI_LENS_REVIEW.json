@@ -1,10 +1,10 @@
 {
   "schema": "tailor.multi_lens_review@1",
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
-  "reviewed_at_utc": "2026-07-16T11:53:00Z",
+  "reviewed_at_utc": "2026-07-16T17:48:48Z",
   "review_authority": "ADVISORY_PRE_ACTIVATION_ONLY_NO_VALIDATOR_VERDICT",
   "generator": ".GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
-  "source_range_reviewed": "MT-001..MT-739",
+  "source_range_reviewed": "MT-001..MT-782",
   "hardened_result_range": "MT-001..MT-782",
   "lenses": [
     "feature_scope",
@@ -49,7 +49,7 @@
     "minimum_acceptance_criteria": 3
   },
   "unresolved_external_inputs": [
-    "NEW_OPERATOR_SIGNATURE_REQUIRED_FOR_REFINEMENT_AND_COPY_FIRST_SPEC_ENRICHMENT",
+    "ACTIVATION_SIGNATURE_WORKFLOW_LANE_AND_EXECUTION_OWNER_REQUIRED_BEFORE_ACTIVATION",
     "MARVELOUS_DESIGNER_EXECUTABLE_PATH_VERSION_SHA256_NOT_INSPECTED",
     "WP_KERNEL_012_MERGED_MAIN_SURFACE_SEAM_AND_POSEKIT_SCHEMA_RECEIPT_REQUIRED",
     "CANONICAL_LOCUS_READ_API_CURRENTLY_TYPED_UNAVAILABLE",
@@ -108,7 +108,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -116,12 +115,12 @@
         "solverOnly",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 4,
+      "acceptance_criteria_count": 5,
       "proof_target_count": 2,
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Cloth simulation and physics"
+        "Tailor UserManual > Simulation setup > Cloth solver feature gating and backend availability"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -130,12 +129,13 @@
       ],
       "diagnostic_postures": {
         "flight_recorder": "NOT_APPLICABLE",
-        "internal_diagnostics": "DIRECT",
+        "internal_diagnostics": "NOT_APPLICABLE",
         "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-001",
-        "MT-743"
+        "MT-743",
+        "MT-782"
       ],
       "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
@@ -20738,6 +20738,7 @@
       "primary_lens": "feature_and_platform",
       "lenses_applied": [
         "feature_scope",
+        "professional_ui_gui",
         "backend_parallel_agents",
         "authority_artifacts_events",
         "diagnostics_palmistry",
@@ -20752,14 +20753,26 @@
         "artifact",
         "command",
         "authority",
-        "diagnostics"
+        "diagnostics",
+        "ui",
+        "frontend",
+        "visual"
       ],
-      "acceptance_criteria_count": 5,
-      "proof_target_count": 2,
-      "gui_required": false,
-      "gui_targets": [],
+      "acceptance_criteria_count": 6,
+      "proof_target_count": 4,
+      "gui_required": true,
+      "gui_targets": [
+        "tailor.livesync",
+        "tailor-livesync-connection-state",
+        "tailor-livesync-preview-state",
+        "tailor-livesync-auto-sync",
+        "tailor-livesync-rig-lod-bake-job",
+        "tailor-livesync-cancel",
+        "tailor-livesync-reconnect",
+        "tailor-livesync-diagnostics"
+      ],
       "manual_targets": [
-        "Tailor UserManual > Publishing and DCC interchange"
+        "Tailor UserManual > LiveSync and engine delivery > Preview, auto-sync, auto-rig, LOD, texture bake, diagnose, and recover"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -21798,7 +21811,10 @@
       ],
       "classifications": [
         "command",
-        "authority"
+        "authority",
+        "ui",
+        "frontend",
+        "visual"
       ],
       "acceptance_criteria_count": 6,
       "proof_target_count": 2,
@@ -22240,7 +22256,8 @@
         "MT-001",
         "MT-041",
         "MT-741",
-        "MT-742"
+        "MT-742",
+        "MT-782"
       ],
       "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
@@ -30739,7 +30756,7 @@
       "classifications": [
         "authority"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 4,
       "proof_target_count": 1,
       "gui_required": false,
       "gui_targets": [],
@@ -33793,7 +33810,7 @@
         "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 9,
+      "acceptance_criteria_count": 11,
       "proof_target_count": 1,
       "gui_required": true,
       "gui_targets": [
@@ -33821,13 +33838,22 @@
         "tailor-interlink-compare-{proposal_revision}",
         "tailor-interlink-revert-{proposal_revision}",
         "tailor-interlink-selected-apply",
+        "tailor-interlink-mix-graph",
+        "tailor-interlink-mix-source-{source_id}",
+        "tailor-interlink-mix-node-{node_id}",
+        "tailor-interlink-mix-weight-{node_id}-{region_id}",
+        "tailor-interlink-mix-conflict-{conflict_id}",
+        "tailor-interlink-mix-preview",
+        "tailor-interlink-mix-apply-selected",
+        "tailor-interlink-mix-detach-{node_id}",
+        "tailor-interlink-mix-repair-{conflict_id}",
         "tailor-interlink-joint-{joint_id}-row",
         "tailor-interlink-camera-{candidate_id}-row",
         "tailor-interlink-contact-{contact_id}-row",
         "tailor-interlink-proposal-{proposal_revision}-row"
       ],
       "manual_targets": [
-        "Tailor UserManual > PoseKit and character-sheet interlinking"
+        "Tailor UserManual > Use PoseKit, character sheets, and mix graphs > Inspect, weight, preview, apply, detach, and repair an interlink proposal"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -33837,9 +33863,9 @@
         "HBR-QUIET"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
+        "flight_recorder": "INHERITED",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "INHERITED"
       },
       "dependencies": [
         "MT-689",
@@ -33858,6 +33884,7 @@
         "MT-715",
         "MT-716",
         "MT-717",
+        "MT-749",
         "MT-741",
         "MT-742",
         "MT-743",
@@ -33890,7 +33917,8 @@
         "command",
         "authority",
         "visual",
-        "diagnostics"
+        "diagnostics",
+        "ui"
       ],
       "acceptance_criteria_count": 6,
       "proof_target_count": 2,
@@ -35012,7 +35040,7 @@
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Qualification > Vendor capability requirements and evidence status"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35021,14 +35049,15 @@
         "HBR-QUIET"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
+        "flight_recorder": "NOT_APPLICABLE",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
-        "MT-001"
+        "MT-001",
+        "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-741",
@@ -35048,12 +35077,12 @@
         "command",
         "authority"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 5,
       "proof_target_count": 1,
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Automation > Canonical Tailor actions and parallel-agent invocation"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35061,14 +35090,14 @@
         "HBR-SWARM"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
-        "internal_diagnostics": "INHERITED",
-        "palmistry": "INHERITED"
+        "flight_recorder": "NOT_APPLICABLE",
+        "internal_diagnostics": "DIRECT",
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-001"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-742",
@@ -35093,12 +35122,12 @@
         "authority",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 4,
       "proof_target_count": 1,
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Governance and recovery > Operation classes, events, artifacts, and receipts"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35110,12 +35139,12 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-741"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-743",
@@ -35143,7 +35172,7 @@
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Diagnostics and recovery > Flight Recorder, internal diagnostics, and Palmistry"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35158,7 +35187,7 @@
       "dependencies": [
         "MT-742"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-744",
@@ -35172,7 +35201,6 @@
         "user_manual_no_context",
         "locus",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -35186,7 +35214,7 @@
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Pillar interoperation > Locus work projection and outage behavior"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35195,14 +35223,14 @@
         "HBR-QUIET"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
+        "flight_recorder": "INHERITED",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-742"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-745",
@@ -35231,7 +35259,7 @@
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Pillar interoperation > Loom references, backlinks, and search"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35241,14 +35269,14 @@
         "HBR-QUIET"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
+        "flight_recorder": "INHERITED",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-742"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-746",
@@ -35262,7 +35290,6 @@
         "user_manual_no_context",
         "calendar",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -35276,7 +35303,7 @@
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Pillar interoperation > Calendar spans and optional production blocks"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35285,14 +35312,14 @@
         "HBR-QUIET"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
+        "flight_recorder": "INHERITED",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "INHERITED"
       },
       "dependencies": [
         "MT-742"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-747",
@@ -35319,7 +35346,7 @@
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Manual framework > Navigation, blocked entries, and generated command help"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35327,14 +35354,14 @@
         "HBR-SWARM"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
-        "internal_diagnostics": "INHERITED",
-        "palmistry": "INHERITED"
+        "flight_recorder": "NOT_APPLICABLE",
+        "internal_diagnostics": "DIRECT",
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-741"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-748",
@@ -35347,7 +35374,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -35362,7 +35388,7 @@
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Interface automation > Surface registry, control identifiers, and Argus audits"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35370,15 +35396,15 @@
         "HBR-SWARM"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
+        "flight_recorder": "NOT_APPLICABLE",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-741",
         "MT-750"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-749",
@@ -35401,12 +35427,12 @@
         "command",
         "authority"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 4,
       "proof_target_count": 1,
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Use PoseKit, character sheets, and mix graphs > Author, weight, preview, apply, detach, and repair a mix graph"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35416,8 +35442,8 @@
       ],
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
-        "internal_diagnostics": "INHERITED",
-        "palmistry": "INHERITED"
+        "internal_diagnostics": "DIRECT",
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-714",
@@ -35426,7 +35452,7 @@
         "MT-741",
         "MT-742"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-750",
@@ -35434,6 +35460,7 @@
       "primary_lens": "feature_and_platform",
       "lenses_applied": [
         "feature_scope",
+        "professional_ui_gui",
         "backend_parallel_agents",
         "authority_artifacts_events",
         "diagnostics_palmistry",
@@ -35444,29 +35471,45 @@
         "dependency_dag"
       ],
       "classifications": [
+        "ui",
         "frontend",
+        "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 4,
       "proof_target_count": 1,
-      "gui_required": false,
-      "gui_targets": [],
+      "gui_required": true,
+      "gui_targets": [
+        "tailor.project",
+        "tailor.pattern",
+        "tailor.simulation",
+        "tailor.bodykit.creator",
+        "tailor.bodykit.content",
+        "tailor.render",
+        "tailor.dcc",
+        "tailor.diagnostics",
+        "tailor.capabilities",
+        "tailor.help"
+      ],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Create or recover a project > Open, restore, and recover the native Tailor workspace"
       ],
       "hbr_obligations": [
         "HBR-INT",
-        "HBR-MAN"
+        "HBR-MAN",
+        "HBR-SWARM",
+        "HBR-VIS",
+        "HBR-QUIET"
       ],
       "diagnostic_postures": {
         "flight_recorder": "NOT_APPLICABLE",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-001"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-751",
@@ -35508,7 +35551,7 @@
         "tailor-arrangement-apply"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Garment authoring > Sewing and 2D arrangement workspace"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35520,7 +35563,7 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-118",
@@ -35534,7 +35577,7 @@
         "MT-741",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-752",
@@ -35548,7 +35591,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -35578,7 +35620,7 @@
         "tailor-sim-device-status"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Cloth simulation > Runtime controls, performance, and device recovery"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35606,7 +35648,7 @@
         "MT-748",
         "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-753",
@@ -35620,7 +35662,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -35648,7 +35689,7 @@
         "tailor-material-loss-report"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Materials > Fabric calibration and measured drape comparison"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35675,7 +35716,7 @@
         "MT-741",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-754",
@@ -35689,7 +35730,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -35718,7 +35758,7 @@
         "tailor-project-recover"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Projects > Workspace lifecycle, checkpoints, and multi-agent occupancy"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35730,7 +35770,7 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "INHERITED"
       },
       "dependencies": [
         "MT-077",
@@ -35740,7 +35780,7 @@
         "MT-742",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-755",
@@ -35785,7 +35825,7 @@
         "tailor-publish-retry"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Publishing > Export configuration, preflight, recovery, and DCC round trips"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35816,7 +35856,7 @@
         "MT-742",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-756",
@@ -35830,7 +35870,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -35855,7 +35894,7 @@
         "tailor-modular-revert"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Garment authoring > Modular garment composer and block replacement"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35867,7 +35906,7 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-358",
@@ -35875,7 +35914,7 @@
         "MT-741",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-757",
@@ -35889,7 +35928,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -35902,7 +35940,7 @@
         "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 5,
       "proof_target_count": 2,
       "gui_required": true,
       "gui_targets": [
@@ -35913,7 +35951,7 @@
         "tailor-pattern-archive-dependencies"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Garment authoring > Pattern Archive, restore, and simulation exclusion"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35925,7 +35963,7 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-347",
@@ -35933,7 +35971,7 @@
         "MT-741",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-758",
@@ -35976,7 +36014,7 @@
         "tailor-retopo-apply"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Garment authoring > Manual retopology and deformation validation"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -35995,7 +36033,7 @@
         "MT-741",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-759",
@@ -36009,7 +36047,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -36038,7 +36075,7 @@
         "tailor-colorway-export"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Styling > Reusable trims, graphics, styles, and colorways"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36050,7 +36087,7 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "INHERITED"
       },
       "dependencies": [
         "MT-167",
@@ -36062,7 +36099,7 @@
         "MT-741",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-760",
@@ -36077,6 +36114,7 @@
         "user_manual_no_context",
         "flight_recorder",
         "dcc_parity",
+        "adult_contact_production",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -36085,12 +36123,12 @@
         "authority",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 4,
       "proof_target_count": 1,
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > Create a body > Use creator commands consistently through native GUI and backend actions"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36106,6 +36144,8 @@
         "MT-489",
         "MT-594",
         "MT-607",
+        "MT-627",
+        "MT-632",
         "MT-722",
         "MT-723",
         "MT-724",
@@ -36115,7 +36155,7 @@
         "MT-742",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-761",
@@ -36130,7 +36170,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "adult_contact_production",
         "recovery_accessibility_quiet",
         "dependency_dag"
@@ -36162,7 +36201,7 @@
         "tailor-contact-revert"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > BodyKit contact > Adult contact staging, feasibility, and recovery"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36193,7 +36232,7 @@
         "MT-743",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-762",
@@ -36235,7 +36274,7 @@
         "tailor-face-apply"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > BodyKit face > Expressions, eyes, visemes, and corrective authoring"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36247,7 +36286,7 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "INHERITED"
       },
       "dependencies": [
         "MT-576",
@@ -36259,7 +36298,7 @@
         "MT-741",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-763",
@@ -36306,7 +36345,7 @@
         "tailor-assets-hydration"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > Asset management > Smart Content metadata, compatibility, and recovery"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36318,7 +36357,7 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "INHERITED"
       },
       "dependencies": [
         "MT-357",
@@ -36335,7 +36374,7 @@
         "MT-745",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-764",
@@ -36375,7 +36414,7 @@
         "tailor-shader-diff"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > Materials > Shader graph authoring and interchange diagnostics"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36395,7 +36434,7 @@
         "MT-742",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-765",
@@ -36439,7 +36478,7 @@
         "tailor-layer-diagnostics"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > Materials > Layered image and material authoring"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36460,7 +36499,7 @@
         "MT-741",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-766",
@@ -36488,7 +36527,7 @@
         "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 5,
       "proof_target_count": 2,
       "gui_required": true,
       "gui_targets": [
@@ -36505,7 +36544,7 @@
         "tailor-render-diagnostics"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > Render stills, animation, and AOVs > Configure shared Cloth/BodyKit final rendering through the existing Photo Studio capability"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36531,7 +36570,7 @@
         "MT-743",
         "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-767",
@@ -36560,7 +36599,7 @@
         "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 6,
       "proof_target_count": 2,
       "gui_required": true,
       "gui_targets": [
@@ -36577,7 +36616,7 @@
         "tailor-render-compare"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > Render stills, animation, and AOVs > Queue, cancel, resume, retry, compare, and recover shared Cloth/BodyKit renders"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36600,7 +36639,7 @@
         "MT-743",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-768",
@@ -36615,7 +36654,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -36643,7 +36681,7 @@
         "tailor-reference-revert"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > BodyKit transfer > Reference-image proposals and identity evidence"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36666,9 +36704,10 @@
         "MT-721",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-769",
@@ -36683,7 +36722,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -36709,7 +36747,7 @@
         "tailor-deformer-bake"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > BodyKit deformation > D-Former fields, visualization, and baking"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36728,9 +36766,10 @@
         "MT-722",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-770",
@@ -36771,7 +36810,7 @@
         "tailor-figure-apply"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > BodyKit rigging > Figure Setup and hierarchy validation"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36783,7 +36822,7 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-514",
@@ -36794,7 +36833,7 @@
         "MT-741",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-771",
@@ -36839,7 +36878,7 @@
         "tailor-map-apply"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > BodyKit transfer > Map transfer, projection errors, and atomic apply"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36860,9 +36899,10 @@
         "MT-726",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-772",
@@ -36876,7 +36916,6 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
@@ -36892,7 +36931,7 @@
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > Migration > DSON scene and preset import with loss reports"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36913,7 +36952,7 @@
         "MT-741",
         "MT-742"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-773",
@@ -36941,7 +36980,7 @@
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > DCC parity and qualification"
+        "Tailor UserManual > Extensions > Plugin manifests, permissions, sandboxing, and recovery"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -36961,7 +37000,7 @@
         "MT-742",
         "MT-743"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-774",
@@ -36988,7 +37027,7 @@
         "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 4,
       "proof_target_count": 2,
       "gui_required": true,
       "gui_targets": [
@@ -37004,7 +37043,7 @@
         "tailor-fur-export"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Groom hair and fur > Author, simulate, render, export, and recover garment fur and fuzz"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -37028,7 +37067,7 @@
         "MT-743",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-775",
@@ -37057,7 +37096,7 @@
         "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 4,
       "proof_target_count": 2,
       "gui_required": true,
       "gui_targets": [
@@ -37074,7 +37113,7 @@
         "tailor-groom-preview"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > Groom hair and fur > Author, simulate, render, export, and recover BodyKit strand and body hair"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -37093,11 +37132,12 @@
         "MT-721",
         "MT-764",
         "MT-766",
+        "MT-774",
         "MT-741",
         "MT-743",
         "MT-748"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-776",
@@ -37141,7 +37181,7 @@
         "tailor-lipsync-apply"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional BodyKit production workflows"
+        "Tailor UserManual > BodyKit animation > Speech-to-viseme generation and curve correction"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -37161,9 +37201,10 @@
         "MT-741",
         "MT-742",
         "MT-743",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-777",
@@ -37205,7 +37246,7 @@
         "tailor-pbr-loss-report"
       ],
       "manual_targets": [
-        "Tailor UserManual > Professional Cloth authoring workflows"
+        "Tailor UserManual > Materials > PBR map generation and optional SBSAR connector"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -37229,9 +37270,10 @@
         "MT-765",
         "MT-741",
         "MT-743",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-778",
@@ -37255,12 +37297,12 @@
         "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 4,
       "proof_target_count": 1,
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > DCC parity and qualification"
+        "Tailor UserManual > Configure and run black-box DCC qualification"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -37281,7 +37323,7 @@
         "MT-755",
         "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-779",
@@ -37289,29 +37331,52 @@
       "primary_lens": "dcc_parity",
       "lenses_applied": [
         "feature_scope",
+        "professional_ui_gui",
         "backend_parallel_agents",
         "authority_artifacts_events",
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
         "dcc_parity",
+        "adult_contact_production",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
       "classifications": [
+        "frontend",
         "dcc",
         "artifact",
         "command",
         "authority",
         "visual",
-        "diagnostics"
+        "diagnostics",
+        "ui"
       ],
-      "acceptance_criteria_count": 3,
-      "proof_target_count": 1,
+      "acceptance_criteria_count": 6,
+      "proof_target_count": 2,
       "gui_required": false,
-      "gui_targets": [],
+      "gui_targets": [
+        "tailor.project",
+        "tailor.pattern",
+        "tailor.arrangement",
+        "tailor.sewing",
+        "tailor.simulation",
+        "tailor.fabric",
+        "tailor.material",
+        "tailor.bodykit.creator",
+        "tailor.bodykit.face",
+        "tailor.bodykit.genitals",
+        "tailor.bodykit.rig",
+        "tailor.bodykit.content",
+        "tailor.shader",
+        "tailor.render",
+        "tailor.dcc",
+        "tailor.diagnostics",
+        "tailor.capabilities",
+        "tailor.help"
+      ],
       "manual_targets": [
-        "Tailor UserManual > DCC parity and qualification"
+        "Tailor UserManual > Qualify vendor parity > Run and directly inspect the Marvelous Designer and Daz Studio capability matrix"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -37321,14 +37386,30 @@
         "HBR-QUIET"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
+        "flight_recorder": "INHERITED",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "INHERITED"
       },
       "dependencies": [
         "MT-687",
+        "MT-709",
+        "MT-718",
+        "MT-719",
         "MT-720",
+        "MT-737",
         "MT-740",
+        "MT-743",
+        "MT-744",
+        "MT-745",
+        "MT-746",
+        "MT-747",
+        "MT-748",
+        "MT-749",
+        "MT-750",
+        "MT-751",
+        "MT-752",
+        "MT-753",
+        "MT-754",
         "MT-755",
         "MT-756",
         "MT-757",
@@ -37352,9 +37433,10 @@
         "MT-775",
         "MT-776",
         "MT-777",
-        "MT-778"
+        "MT-778",
+        "MT-780"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-780",
@@ -37367,35 +37449,42 @@
         "diagnostics_palmistry",
         "user_manual_no_context",
         "flight_recorder",
-        "dcc_parity",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
       "classifications": [
+        "artifact",
         "command",
-        "authority"
+        "authority",
+        "diagnostics"
       ],
       "acceptance_criteria_count": 3,
       "proof_target_count": 1,
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Run and repair the Tailor product-contract semantic gate"
       ],
       "hbr_obligations": [
-        "HBR-INT",
-        "HBR-MAN",
-        "HBR-SWARM"
+        "HBR-MAN"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
-        "internal_diagnostics": "INHERITED",
-        "palmistry": "INHERITED"
+        "flight_recorder": "NOT_APPLICABLE",
+        "internal_diagnostics": "NOT_APPLICABLE",
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
-        "MT-740"
+        "MT-740",
+        "MT-741",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-748",
+        "MT-749",
+        "MT-750",
+        "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-781",
@@ -37403,6 +37492,7 @@
       "primary_lens": "dcc_parity",
       "lenses_applied": [
         "feature_scope",
+        "professional_ui_gui",
         "backend_parallel_agents",
         "authority_artifacts_events",
         "diagnostics_palmistry",
@@ -37410,10 +37500,12 @@
         "posekit_character_sheet_mix",
         "flight_recorder",
         "dcc_parity",
+        "adult_contact_production",
         "recovery_accessibility_quiet",
         "dependency_dag"
       ],
       "classifications": [
+        "ui",
         "frontend",
         "dcc",
         "artifact",
@@ -37422,12 +37514,31 @@
         "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 6,
       "proof_target_count": 2,
-      "gui_required": false,
-      "gui_targets": [],
+      "gui_required": true,
+      "gui_targets": [
+        "tailor.project",
+        "tailor.pattern",
+        "tailor.arrangement",
+        "tailor.sewing",
+        "tailor.simulation",
+        "tailor.fabric",
+        "tailor.material",
+        "tailor.bodykit.creator",
+        "tailor.bodykit.face",
+        "tailor.bodykit.genitals",
+        "tailor.bodykit.rig",
+        "tailor.bodykit.content",
+        "tailor.shader",
+        "tailor.render",
+        "tailor.dcc",
+        "tailor.diagnostics",
+        "tailor.capabilities",
+        "tailor.help"
+      ],
       "manual_targets": [
-        "Tailor UserManual > DCC parity and qualification"
+        "Tailor UserManual > Professional end-to-end proof > Complete, diagnose, recover, and verify the full Cloth and BodyKit production lifecycle"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -37437,13 +37548,14 @@
         "HBR-QUIET"
       ],
       "diagnostic_postures": {
-        "flight_recorder": "DIRECT",
-        "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "flight_recorder": "INHERITED",
+        "internal_diagnostics": "INHERITED",
+        "palmistry": "INHERITED"
       },
       "dependencies": [
         "MT-653",
         "MT-709",
+        "MT-718",
         "MT-719",
         "MT-737",
         "MT-743",
@@ -37486,7 +37598,7 @@
         "MT-780",
         "MT-782"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     },
     {
       "mt_id": "MT-782",
@@ -37509,12 +37621,12 @@
         "visual",
         "diagnostics"
       ],
-      "acceptance_criteria_count": 3,
+      "acceptance_criteria_count": 5,
       "proof_target_count": 2,
       "gui_required": false,
       "gui_targets": [],
       "manual_targets": [
-        "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+        "Tailor UserManual > Qualification > Implementation profiles, fixtures, and stale-input blockers"
       ],
       "hbr_obligations": [
         "HBR-INT",
@@ -37526,12 +37638,12 @@
       "diagnostic_postures": {
         "flight_recorder": "DIRECT",
         "internal_diagnostics": "DIRECT",
-        "palmistry": "DIRECT"
+        "palmistry": "NOT_APPLICABLE"
       },
       "dependencies": [
         "MT-001"
       ],
-      "outcome": "NEW_GAP_CLOSURE_CANDIDATE"
+      "outcome": "REVIEWED_AND_HARDENED_CANDIDATE"
     }
   ]
 }

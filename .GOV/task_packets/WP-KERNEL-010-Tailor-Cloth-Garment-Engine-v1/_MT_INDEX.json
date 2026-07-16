@@ -1,7 +1,7 @@
 {
   "schema": "tailor.mt_index@1",
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
-  "generated_at_utc": "2026-07-16T11:53:00Z",
+  "generated_at_utc": "2026-07-16T17:48:48Z",
   "total": 782,
   "range": "MT-001..MT-782",
   "core_section_13_range": "MT-001..MT-332",
@@ -58,7 +58,7 @@
   "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
   "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
   "generator": ".GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
-  "note": "Pre-activation projection of all 782 inactive template-exact MT contracts. The architecture and every-MT multi-lens review are candidate prep pending a new operator-signed refinement and copy-first spec enrichment; this index is not execution or validation authority.",
+  "note": "Pre-activation projection of all 782 inactive template-exact MT contracts, reconciled to the operator-approved Master Spec v02.201 Tailor refinement. No packet hydration, activation, signature consumption, execution, or validator verdict is implied.",
   "microtasks": [
     {
       "mt_id": "MT-001",
@@ -72,7 +72,8 @@
       "group": "SolverCore",
       "depends_on": [
         "MT-001",
-        "MT-743"
+        "MT-743",
+        "MT-782"
       ],
       "status": "PENDING",
       "summary": "Declare tailor-solver dependencies (wgpu, bytemuck, glam, parry3d/rapier3d, thiserror) behind a `cloth-solver` cargo feature so CI can skip GPU compilation."
@@ -811,7 +812,7 @@
         "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Update the in-product ModelManual with the Tailor command/tool reference in the same change; bump MANUAL_VERSION."
+      "summary": "Update the in-product UserManual with the Tailor command/tool reference in the same change; bump MANUAL_VERSION."
     },
     {
       "mt_id": "MT-071",
@@ -2197,7 +2198,7 @@
         "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Bind HBR-MAN evidence (ModelManual entry + code-truthful self-consistency) to acceptance rows."
+      "summary": "Bind HBR-MAN evidence (UserManual entry + code-truthful self-consistency) to acceptance rows."
     },
     {
       "mt_id": "MT-164",
@@ -3622,7 +3623,7 @@
         "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Add ModelManual entries for every Tailor MCP tool (purpose, inputs, outputs, errors) and bump MANUAL_VERSION."
+      "summary": "Add UserManual entries for every Tailor MCP tool (purpose, inputs, outputs, errors) and bump MANUAL_VERSION."
     },
     {
       "mt_id": "MT-278",
@@ -4270,7 +4271,7 @@
         "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Add ModelManual entries for the Tailor export/production commands (and bump MANUAL_VERSION)."
+      "summary": "Add UserManual entries for the Tailor export/production commands (and bump MANUAL_VERSION)."
     },
     {
       "mt_id": "MT-332",
@@ -5177,7 +5178,7 @@
         "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Implement fur strand material as a post-MVP deferred feature: define the FurStrandMaterial type with strand density, length, and direction parameters, scaffold the tailor_fur_strands authority table, and document the deferred implementation path in the spec with a placeholder ValidationDescriptor stub"
+      "summary": "Implement the FurStrandMaterial, authority storage, capability hooks, and validation foundation consumed by MT-774's in-WP shared groom/fur authoring, simulation, rendering, and export implementation."
     },
     {
       "mt_id": "MT-385",
@@ -5261,7 +5262,7 @@
         "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Implement the Toon wgpu render pipeline in ClothViewport with configurable shading bands, outline pass, rim lighting, emissive color, and MatCap material mode, gated behind a cargo feature toon-shader per the post-MVP deferral note in Section 13.9"
+      "summary": "Implement the optional Toon wgpu render pipeline in ClothViewport with configurable shading bands, outline pass, rim lighting, emissive color, and MatCap material mode behind the declared `toon-shader` capability boundary."
     },
     {
       "mt_id": "MT-391",
@@ -5667,7 +5668,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Verify and fail-close the FBX delivery contract (companion to MT-419; supersedes the earlier duplicate native fbx_key_baker scope which violated Master Spec 13.12): round-trip verification of the Blender-bridge FBX bake, EXPORT_VALID integration, negative guard proving no native FBX writer exists in the codebase, and the ModelManual limitation entry for the FBX lane."
+      "summary": "Verify and fail-close the FBX delivery contract (companion to MT-419; supersedes the earlier duplicate native fbx_key_baker scope which violated Master Spec 13.12): round-trip verification of the Blender-bridge FBX bake, EXPORT_VALID integration, negative guard proving no native FBX writer exists in the codebase, and the UserManual limitation entry for the FBX lane."
     },
     {
       "mt_id": "MT-422",
@@ -6002,7 +6003,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Document and stub the LiveSync / EveryWear-equivalent real-time engine link as explicitly deferred post-v1, implement a watched-folder live-sync bridge for UE that auto-pushes the latest promoted garment USD/glTF to a watched UE Content directory on promotion, and record the MOAT-7 deferred-requirement note in T-PIPELINE-INTEROP"
+      "summary": "Implement and qualify the LiveSync/EveryWear-equivalent real-time engine delivery lane: versioned live authoring previews, promotion auto-sync, auto-rig, LOD generation, texture bake, and explicit UE/standard-export engine adapters with fail-closed capability rows."
     },
     {
       "mt_id": "MT-447",
@@ -6402,7 +6403,8 @@
         "MT-001",
         "MT-041",
         "MT-741",
-        "MT-742"
+        "MT-742",
+        "MT-782"
       ],
       "status": "PENDING",
       "summary": "Scaffold the BodyKit kernel module per Section 13.16 (BK-16.1 scope/submodule framing): create src/tailor/bodykit/ with mod.rs, a typed BodyKitError enum, and event/schema constants (EVENT_FAMILY_TAILOR_BODY = \"tailor.body\" matching the 13.14 registered constant, SCHEMA_TAILOR_BODY_SPEC_V1 = \"hsk.tailor.body_spec@1\"), plus the solver-side tailor-solver/src/body/ module skeleton. Kernel authority/orchestration code lives in bodykit/; ALL geometry/solver body code lives in tailor-solver/src/body/ — this split is the architectural law every later BodyKit MT builds on."
@@ -6425,7 +6427,7 @@
         "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Author the bodykit_bodies (BDY-) and bodykit_recipes (BRC-) PostgreSQL migrations per Section 13.16 (BK-16.3 storage authority/canonical DDL): TEXT primary keys with prefixed uuid_v7, NOT NULL event_ledger_event_id per ARCH-036/TAI-OVR-014, and guard_authority_write(AuthorityMode::Postgres) required before every write. Bodies persist BodySpec authority state; recipes persist saved channel/skin/genital layer bundles."
+      "summary": "Author the bodykit_bodies (BDY-) and bodykit_recipes (BRC-) PostgreSQL migrations per Section 13.16 (BK-16.3 storage authority/canonical DDL): TEXT primary keys with prefixed uuid_v7, NOT NULL event_ledger_event_id per ARCH-036/TAI-OVR-014, and guard_authority_write(AuthorityMode::PostgresPrimary) required before every write. Bodies persist BodySpec authority state; recipes persist saved channel/skin/genital layer bundles."
     },
     {
       "mt_id": "MT-481",
@@ -7480,7 +7482,7 @@
         "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Implement body/pubic hair region groom hooks (spec 13.22; PREQ-021/022): density masks (pubic, chest, arms, brows) plus groom attachment metadata (region anchors, surface-binding refs) that survive channel morphs - strand authoring itself is explicitly DEFERRED to a future groom WP with the deferral recorded, so only hooks and contracts land here."
+      "summary": "Implement body/pubic hair region groom foundations consumed by MT-775: density masks plus versioned groom attachment metadata and morph-safe surface bindings for the shared in-WP groom core."
     },
     {
       "mt_id": "MT-575",
@@ -7567,7 +7569,7 @@
         "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Implement the viseme track ingest hook (spec 13.23; AREQ-009/010): an editable VisemeTrack timeline TYPE (time-stamped viseme ids, weights, co-articulation blend params) mapped to ARKit mouth shapes with reserved non-speech moan/gasp ids, accepting externally generated tracks (Audio2Face-class JSON) - the audio lip-sync solver itself is explicitly DEFERRED as a typed stub plus contract only."
+      "summary": "Implement the editable VisemeTrack ingest/editor foundation consumed by MT-776's in-WP audio-to-viseme solver: timestamped viseme ids, weights, co-articulation, ARKit mapping, and reserved moan/gasp ids."
     },
     {
       "mt_id": "MT-582",
@@ -8696,7 +8698,7 @@
         "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Hydrate the HBR matrix for all BodyKit MTs per Section 13.27: INT/SWARM/VIS/QUIET/MAN/STOP rows populated for MT-478..653 with evidence references (swarm proof MT-607, Argus matrices MT-634/645, manual MT-651), gaps recorded as typed deferrals — and hbr-matrix-check green."
+      "summary": "Hydrate the HBR matrix for all BodyKit MTs per Section 13.27: INT/SWARM/VIS/QUIET/MAN/STOP rows populated for MT-478..653 with exact DIRECT, INHERITED, or NOT_APPLICABLE postures, owner/reason/evidence references, and hbr-matrix-check green."
     },
     {
       "mt_id": "MT-653",
@@ -8743,7 +8745,7 @@
         "MT-782"
       ],
       "status": "PENDING",
-      "summary": "Define the versioned f64 SI FinalSolverResult schema and accepted-step certificate used for promotion, replay, checkpoints, and downstream comparison."
+      "summary": "Define the versioned f64 SI FinalSolverResult and `hsk.tailor.accepted_step_certificate@1` TailorAcceptedStepCertificateV1 schemas used for promotion, replay, checkpoints, and downstream comparison."
     },
     {
       "mt_id": "MT-656",
@@ -9292,7 +9294,7 @@
         "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Implement Tailor command palette integration, rebindable shortcuts, active-tool/status help, context help, and generated ModelManual linkage from the command registry."
+      "summary": "Implement Tailor command palette integration, rebindable shortcuts, active-tool/status help, context help, and generated canonical UserManual linkage from the action registry."
     },
     {
       "mt_id": "MT-700",
@@ -9589,6 +9591,7 @@
         "MT-715",
         "MT-716",
         "MT-717",
+        "MT-749",
         "MT-741",
         "MT-742",
         "MT-743",
@@ -9597,7 +9600,7 @@
         "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Build the professional native Tailor interlink pane for verified PoseKit evidence, character-sheet mapping, lift/camera/contact proposals, manual correction, and explicit apply/recovery."
+      "summary": "Build the professional native Tailor interlink pane for verified PoseKit evidence, character-sheet mapping, lift/camera/contact proposals, and the MT-749 TailorMixGraph projection with source/layer weights, conflicts, preview, selected apply, detach, repair, provenance, and recovery."
     },
     {
       "mt_id": "MT-719",
@@ -9938,10 +9941,11 @@
       "mt_id": "MT-740",
       "group": "BuildReadinessPlatform",
       "depends_on": [
-        "MT-001"
+        "MT-001",
+        "MT-782"
       ],
       "status": "PENDING",
-      "summary": "Create the versioned Tailor vendor-capability registry and parity-claim gate covering the pinned Marvelous Designer and Daz Studio baselines; every capability is REQUIRED, QUALIFIED, ACCEPTED_EXCLUSION, or UNSUPPORTED, and full-parity wording fails while a required row is not QUALIFIED."
+      "summary": "Create the versioned Tailor vendor-capability registry and parity-claim gate covering the MT-782-pinned Marvelous Designer and Daz Studio baselines; every capability stores independent `requirement_status` and `qualification_status` fields, and full-parity wording fails while any `required` row is not `qualified`."
     },
     {
       "mt_id": "MT-741",
@@ -9959,7 +9963,7 @@
         "MT-741"
       ],
       "status": "PENDING",
-      "summary": "Define and enforce Tailor operation classification and EventLedger/ArtifactStore/Flight-Recorder conformance across pure computation, authority mutation, derived artifact, job lifecycle, UI projection, and DCC operations."
+      "summary": "Define and enforce the exact TailorOperationContractV1 classification enum (`authority_mutation`, `authority_read`, `derived_projection`, `bounded_job`, `external_dcc_job`, `diagnostic_probe`) with separate EventLedger, ArtifactStore, Flight Recorder, internal_diagnostics, Palmistry, and UserManual obligations."
     },
     {
       "mt_id": "MT-743",
@@ -10004,7 +10008,7 @@
         "MT-741"
       ],
       "status": "PENDING",
-      "summary": "Build the canonical task-oriented in-product Tailor UserManual and no-context operation corpus; keep per-MT evidence as a generated technical appendix and project legacy ModelManual content as a compatibility shim only."
+      "summary": "Establish the early canonical task-oriented Tailor UserManual framework, generated command/help bindings, BLOCKED-entry contract, and no-context discovery harness; MT-781 exclusively owns final content completeness and end-to-end manual-only operation proof, while legacy ModelManual content remains a compatibility shim only."
     },
     {
       "mt_id": "MT-748",
@@ -10190,6 +10194,8 @@
         "MT-489",
         "MT-594",
         "MT-607",
+        "MT-627",
+        "MT-632",
         "MT-722",
         "MT-723",
         "MT-724",
@@ -10200,7 +10206,7 @@
         "MT-748"
       ],
       "status": "PENDING",
-      "summary": "Integrate BodyKit geometry, joint, weight/rigidity, transfer, skin, and anatomy creator operations with canonical command/backend-agent parity, EventLedger, semantic undo, leases, cancellation, stale-state rejection, recovery, and native surfaces."
+      "summary": "Implement the backend-only canonical command and backend-agent parity layer for BodyKit geometry, joint, weight/rigidity, transfer, skin, and anatomy creator operations, with EventLedger, semantic undo, leases, cancellation, stale-state rejection, recovery, and explicit consumption by the existing owning native surfaces."
     },
     {
       "mt_id": "MT-761",
@@ -10303,7 +10309,7 @@
         "MT-782"
       ],
       "status": "PENDING",
-      "summary": "Implement the native final-render and Photo Studio lane with path tracing, render presets, physical cameras/lights, environment, denoise, tone mapping/color management, material/hair/volume support, deterministic reference scenes, and bounded GPU/CPU scheduling."
+      "summary": "Implement one shared native final-render infrastructure for Cloth and BodyKit, integrated with the existing Handshake Photo Studio capability, with path tracing, render presets, physical cameras/lights, environment, denoise, tone mapping/color management, material/hair/volume support, deterministic reference scenes, and bounded GPU/CPU scheduling."
     },
     {
       "mt_id": "MT-767",
@@ -10318,7 +10324,7 @@
         "MT-748"
       ],
       "status": "PENDING",
-      "summary": "Implement final-render AOV/canvas outputs, region/spot render, render queue, retry/priority/cancellation, output templates, comparison, history, and Render Library with artifact manifests and no-context operation."
+      "summary": "Implement the shared Cloth+BodyKit final-render AOV/canvas outputs, region/spot render, TailorRenderJobV1 queue, retry/priority/cancellation, output templates, comparison, history, and Render Library, integrated with the existing Handshake Photo Studio capability and backed by artifact manifests and no-context operation."
     },
     {
       "mt_id": "MT-768",
@@ -10332,7 +10338,8 @@
         "MT-721",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
       "status": "PENDING",
       "summary": "Implement reference-image-to-face/body transfer as an immutable proposal workflow separating landmarks, camera, lighting, shape, texture, and identity evidence, with manual correction, similarity matrices, lineage, and no silent authority writes."
@@ -10345,7 +10352,8 @@
         "MT-722",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
       "status": "PENDING",
       "summary": "Implement reusable Daz-class deformation fields with point/line/plane/spherical/cylindrical influences, falloff curves, weights, masks, transforms, stacks, animation, visualization, baking, and BodyKit/Cloth application."
@@ -10375,7 +10383,8 @@
         "MT-726",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
       "status": "PENDING",
       "summary": "Implement UV, texture, weight, mask, and generic map transfer across compatible or changed topology/UV variants with cage/raycast/barycentric methods, projection-error inspection, seam policy, batch jobs, and atomic apply."
@@ -10420,7 +10429,7 @@
         "MT-748"
       ],
       "status": "PENDING",
-      "summary": "Replace the placeholder fur contract with production garment fur/fuzz: guides or procedural fibers, density/length/clump/curl/noise, masks, seam/graphic preservation, cloth binding, collisions, grooming, LOD/cards/strands, viewport/final render, export, and performance qualification."
+      "summary": "Own the shared Tailor groom core and replace the placeholder fur contract with production garment fur/fuzz: shared guide/fiber, mask, binding, collision, dynamics, grooming, LOD/card/strand, material, renderer, export, diagnostics, and receipt contracts plus Cloth-specific seam/graphic/deformation behavior and performance qualification."
     },
     {
       "mt_id": "MT-775",
@@ -10430,12 +10439,13 @@
         "MT-721",
         "MT-764",
         "MT-766",
+        "MT-774",
         "MT-741",
         "MT-743",
         "MT-748"
       ],
       "status": "PENDING",
-      "summary": "Implement BodyKit strand-hair/groom authoring and export: scalp/eyebrow/eyelash/body-hair guides, density/length/clump/curl/noise, surface binding under morphs, grooming tools, dynamics/collision, LOD/cards/strands, materials, render, and DCC qualification."
+      "summary": "Implement BodyKit strand-hair/groom authoring and export by consuming the MT-774 shared groom core for scalp/eyebrow/eyelash/body-hair guides, density/length/clump/curl/noise, surface binding under morphs, grooming tools, dynamics/collision, LOD/cards/strands, materials, render, and DCC qualification."
     },
     {
       "mt_id": "MT-776",
@@ -10446,7 +10456,8 @@
         "MT-741",
         "MT-742",
         "MT-743",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
       "status": "PENDING",
       "summary": "Implement the version-pinned speech-to-viseme/lip-sync pipeline with audio/transcript ingest, phoneme timing, co-articulation, emotion/intensity, editable curves, face/tongue/jaw integration, preview, bake, export, and exact connector/model provenance."
@@ -10464,7 +10475,8 @@
         "MT-765",
         "MT-741",
         "MT-743",
-        "MT-748"
+        "MT-748",
+        "MT-782"
       ],
       "status": "PENDING",
       "summary": "Implement native PBR map generation and a version-pinned optional Substance/SBSAR connector with parameter introspection, previews, texture bakes, manifests, color management, loss reporting, fail-closed availability, and material/layer/shader integration."
@@ -10480,15 +10492,31 @@
         "MT-782"
       ],
       "status": "PENDING",
-      "summary": "Create the version/path/hash-locked black-box DCC reference harness and legal fixture workflow for local Daz Studio and Marvelous Designer, official APIs/docs/examples, exported scenes, screenshots, behavior captures, and version-delta reports without decompilation or runtime dependence."
+      "summary": "Create the version/path/hash-locked black-box DCC reference harness and documented fixture workflow for local Daz Studio and Marvelous Designer, official APIs/docs/examples, exported scenes, screenshots, behavior captures, and version-delta reports without decompilation or runtime dependence."
     },
     {
       "mt_id": "MT-779",
       "group": "DccParityQualification",
       "depends_on": [
         "MT-687",
+        "MT-709",
+        "MT-718",
+        "MT-719",
         "MT-720",
+        "MT-737",
         "MT-740",
+        "MT-743",
+        "MT-744",
+        "MT-745",
+        "MT-746",
+        "MT-747",
+        "MT-748",
+        "MT-749",
+        "MT-750",
+        "MT-751",
+        "MT-752",
+        "MT-753",
+        "MT-754",
         "MT-755",
         "MT-756",
         "MT-757",
@@ -10512,7 +10540,8 @@
         "MT-775",
         "MT-776",
         "MT-777",
-        "MT-778"
+        "MT-778",
+        "MT-780"
       ],
       "status": "PENDING",
       "summary": "Execute the feature-by-feature Marvelous Designer and Daz Studio parity qualification matrix over every required capability, GUI/backend/manual path, black-box reference fixture, export/import, visual artifact, failure path, and performance budget."
@@ -10521,10 +10550,18 @@
       "mt_id": "MT-780",
       "group": "BuildReadinessPlatform",
       "depends_on": [
-        "MT-740"
+        "MT-740",
+        "MT-741",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-748",
+        "MT-749",
+        "MT-750",
+        "MT-782"
       ],
       "status": "PENDING",
-      "summary": "Run the machine-readable every-MT multi-lens semantic gate over all Tailor contracts, classifying product role, GUI ownership, backend/agent parity, HBR tiers, manual target, pillar links, acceptance depth, paths, proofs, and DAG integrity before activation and at every contract change."
+      "summary": "Implement the shipped Tailor product-contract semantic gate used by CI and qualification to cross-check the runtime capability, action, operation, surface, UserManual, diagnostics, profile, and artifact registries; the existing preactivation MT checker remains governance prep outside this MT."
     },
     {
       "mt_id": "MT-781",
@@ -10532,6 +10569,7 @@
       "depends_on": [
         "MT-653",
         "MT-709",
+        "MT-718",
         "MT-719",
         "MT-737",
         "MT-743",

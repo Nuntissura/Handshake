@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-778",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-778.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-778.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,11 +30,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-778.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -51,15 +52,16 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Create the version/path/hash-locked black-box DCC reference harness and legal fixture workflow for local Daz Studio and Marvelous Designer, official APIs/docs/examples, exported scenes, screenshots, behavior captures, and version-delta reports without decompilation or runtime dependence.",
+    "summary": "Create the version/path/hash-locked black-box DCC reference harness and documented fixture workflow for local Daz Studio and Marvelous Designer, official APIs/docs/examples, exported scenes, screenshots, behavior captures, and version-delta reports without decompilation or runtime dependence.",
     "allowed_paths": [
       "src/backend/handshake_core/src/tailor/dcc/reference_harness.rs",
       "src/backend/handshake_core/tests/tailor_dcc_reference_harness.rs",
-      ".GOV/fixtures/tailor/dcc_reference/"
+      "src/backend/handshake_core/tests/testdata/tailor/dcc_reference/"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Pins executable path, version, SHA-256, API/plugin versions, source URL/doc version, hardware/driver, fixture hashes, capture method, and observed capability; missing Marvelous path remains a typed activation input, not inspected fact.",
+      "Resolves each executable through an ignored machine-local configuration handle and records product version, SHA-256, API/plugin versions, source URL/doc version, hardware/driver, fixture hashes, capture method, and observed capability; a missing Marvelous configuration remains a typed input, not inspected fact.",
+      "TailorDccQualificationRunV1 is registered as `hsk.tailor.dcc_qualification_run@1` with run id/status, capability row ids, executable config handle, product/version/build/executable hash, fixture-manifest id/hash, action/surface/UserManual ids, input/output schema versions, round-trip artifacts, timings/log/diagnostic/capture handles, cleanup/survivor-process state, independent-inspection verdict, actor/session/correlation/event ids, and timestamps under 13.30 [TAI-ACT-008].",
       "Uses documented APIs, local metadata/config/examples, black-box actions, exports, and screenshots only; no proprietary binary decompilation, copying, or runtime product dependency.",
       "Produces reproducible capability deltas and exact unsupported/loss reports across upgrades, missing tools, API changes, timeout/hang, export/import, and reference requalification."
     ],
@@ -89,7 +91,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > DCC parity and qualification"
+      "Tailor UserManual > Configure and run black-box DCC qualification"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -149,7 +151,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

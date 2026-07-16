@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-766",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-766.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-766.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,11 +30,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-766.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -56,7 +57,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement the native final-render and Photo Studio lane with path tracing, render presets, physical cameras/lights, environment, denoise, tone mapping/color management, material/hair/volume support, deterministic reference scenes, and bounded GPU/CPU scheduling.",
+    "summary": "Implement one shared native final-render infrastructure for Cloth and BodyKit, integrated with the existing Handshake Photo Studio capability, with path tracing, render presets, physical cameras/lights, environment, denoise, tone mapping/color management, material/hair/volume support, deterministic reference scenes, and bounded GPU/CPU scheduling.",
     "allowed_paths": [
       "src/backend/handshake_core/src/tailor/render/final_renderer.rs",
       "src/frontend/handshake_native/src/tailor/render_studio.rs",
@@ -65,6 +66,8 @@
     "forbidden_paths": [],
     "acceptance_criteria": [
       "Render scenes, cameras, lights, environments, integrator/sampling, motion/depth of field, denoise, tone/color, materials, hair, volumes, device budgets, and presets are versioned and inspectable.",
+      "Cloth garments and BodyKit bodies, anatomy, skin, hair, pose, camera, light, material, and animation references enter the same TailorRenderJobV1 infrastructure under 13.32 [TAI-BKP-008..009]; neither submodule may fork renderer state, settings, devices, color management, artifacts, or receipts.",
+      "Tailor reuses the existing Handshake Photo Studio capability for shared camera/light/color/output/comparison/navigation behavior and does not create a second product, queue, library, or authority named Photo Studio.",
       "Rendering is a cancellable leased job with progress, checkpoints, deterministic seeds, device-loss/VRAM recovery, atomic artifacts, content hashes, and no focus steal.",
       "Backend and Argus tests cover reference scenes, skin/genital/cloth/hair close-ups, dark/light tones, wetness, unsupported nodes, device loss, cancellation, resume, and reproducibility."
     ],
@@ -80,7 +83,8 @@
     "argus_required": true,
     "trace_projection_required_when_non_ui": false,
     "surfaces": [
-      "Tailor Photo Studio and final-render workspace"
+      "Shared Tailor render workspace for Cloth and BodyKit",
+      "Existing Handshake Photo Studio capability integration"
     ],
     "argus_targets": [
       "tailor-render-studio",
@@ -109,7 +113,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > Professional BodyKit production workflows"
+      "Tailor UserManual > Render stills, animation, and AOVs > Configure shared Cloth/BodyKit final rendering through the existing Photo Studio capability"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -169,7 +173,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }

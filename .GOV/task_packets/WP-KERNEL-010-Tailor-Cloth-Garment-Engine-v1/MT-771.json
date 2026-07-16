@@ -5,7 +5,7 @@
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
     "operator_facing_authority": false,
     "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
@@ -20,10 +20,9 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-771",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T18:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-771.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-771.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
@@ -31,11 +30,13 @@
     "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
-    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-771.md",
-    "status": "GENERATED_PENDING",
-    "source_hash": null,
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
-    "generator": null
+    "generator": "PENDING_DEMAND"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -46,7 +47,8 @@
       "MT-726",
       "MT-741",
       "MT-742",
-      "MT-748"
+      "MT-748",
+      "MT-782"
     ],
     "blocks": [],
     "active": false,
@@ -61,7 +63,7 @@
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Source/target meshes, UV sets, map/channel type, method, cage/ray settings, seams, missing coverage, projection error, artifacts, and versions are explicit.",
+      "Source/target meshes, UV sets, map/channel type, method, cage/ray settings, seams, missing coverage, projection error, artifacts, and versions are explicit; method defaults, tolerances, seeds/repeats, fixture hashes, backend, memory, and cancellation budgets consume MT-782 and fail with a typed stale/incompatible-profile blocker.",
       "Preview heatmaps, thresholded acceptance, manual exclusions, batch operation, cancellation, retry, atomic apply, rollback, and loss report are shared by backend and GUI.",
       "Tests cover topology/UV mismatch, holes/overlap, mirrored seams, dark/light skin maps, weights/masks, stale source/target, cancellation, recovery, and DCC round trip."
     ],
@@ -105,7 +107,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > Professional BodyKit production workflows"
+      "Tailor UserManual > BodyKit transfer > Map transfer, projection errors, and atomic apply"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -126,17 +128,17 @@
     {
       "tier": "flight_recorder",
       "posture": "DIRECT",
-      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+      "reason": "Transfer proposals, accepted thresholds, exclusions, batch apply, rollback, and artifact publication require events and receipts."
     },
     {
       "tier": "internal_diagnostics",
       "posture": "DIRECT",
-      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
+      "reason": "The workflow directly exposes topology/UV mismatch, holes, overlap, seam, projection-error, stale-source/target, loss, and partial-output diagnostics."
     },
     {
       "tier": "palmistry",
       "posture": "DIRECT",
-      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
+      "reason": "Cage/raycast/barycentric projection, heatmap generation, and batch transfer are bounded cancellable jobs requiring progress and recovery watches."
     }
   ],
   "handoff": {
@@ -165,7 +167,7 @@
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
     "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
   }
 }
