@@ -48,6 +48,10 @@ import {
   buildManualRelayCommands,
 } from './lib/workflow-lane-guidance-lib.mjs';
 import {
+  inspectPrecreatedMicrotaskSuite,
+  PRECREATED_MICROTASK_ADOPTION_MODE,
+} from './lib/precreated-microtask-adoption-lib.mjs';
+import {
   communicationPathsForWp,
   EXECUTION_OWNER_VALUES,
   WORKFLOW_LANE_VALUES,
@@ -1389,7 +1393,36 @@ ${formatList(refinementData.uiSpec?.accessibility)}
   }
 }
 
-const declaredMicrotaskIds = (clauseClosureRows || []).map((_, idx) => `MT-${String(idx + 1).padStart(3, '0')}`);
+const legacyDeclaredMicrotaskIds = (clauseClosureRows || []).map((_, idx) => `MT-${String(idx + 1).padStart(3, '0')}`);
+let precreatedMicrotaskSuite = null;
+try {
+  precreatedMicrotaskSuite = inspectPrecreatedMicrotaskSuite({ wpDir, wpId: WP_ID });
+} catch (error) {
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'PACKET_CREATE',
+    next: 'MICROTASK_SUITE_REPAIR',
+    operatorAction: 'Repair the pre-created MT index/contracts before retrying packet creation.',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: error?.message || String(error),
+    gateOutputLines: [`BLOCKED: ${error?.message || error}`],
+    nextCommands: [
+      `node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/create-task-packet.mjs ${WP_ID}`,
+    ],
+  });
+  process.exit(1);
+}
+const adoptingPrecreatedMicrotasks = precreatedMicrotaskSuite.mode === PRECREATED_MICROTASK_ADOPTION_MODE;
+const declaredMicrotaskIds = adoptingPrecreatedMicrotasks
+  ? precreatedMicrotaskSuite.declaredIds
+  : legacyDeclaredMicrotaskIds;
+const activeMicrotaskId = adoptingPrecreatedMicrotasks
+  ? precreatedMicrotaskSuite.activeId
+  : declaredMicrotaskIds[0] || null;
+const nextMicrotaskId = adoptingPrecreatedMicrotasks
+  ? precreatedMicrotaskSuite.nextId
+  : declaredMicrotaskIds[0] || null;
 const specAnchorValues = (refinementData.specAnchors || [])
   .map((anchor) => String(anchor?.specAnchor || anchor || '').trim())
   .filter(Boolean);
@@ -1490,8 +1523,8 @@ const packetContract = {
   microtasks: {
     contract_glob: `${wpDir.replace(/\\/g, '/')}/MT-*.json`,
     declared_ids: declaredMicrotaskIds,
-    active_id: declaredMicrotaskIds[0] || null,
-    next_id: declaredMicrotaskIds[0] || null,
+    active_id: activeMicrotaskId,
+    next_id: nextMicrotaskId,
   },
   role_profiles: {
     activation_manager: activationManagerModelProfileId,
@@ -1596,8 +1629,11 @@ if (fs.existsSync(refinementSrc)) {
   console.log(`Copied refinement to: ${refinementDst}`);
 }
 
-// Generate micro task files from CLAUSE_CLOSURE_MATRIX rows
-if (clauseClosureRows && clauseClosureRows.length > 0) {
+// Adopt a validated, pre-created detailed suite without rewriting its JSON bodies.
+// WPs without a pre-created suite retain the historical clause-row generation path.
+if (adoptingPrecreatedMicrotasks) {
+  console.log(`Adopted ${declaredMicrotaskIds.length} pre-created microtask contracts from ${precreatedMicrotaskSuite.indexPath}; existing MT JSON files were preserved.`);
+} else if (clauseClosureRows && clauseClosureRows.length > 0) {
   const mtTemplatePath = `${GOV_ROOT_REPO_REL}/templates/MICRO_TASK_TEMPLATE.md`;
   const mtTemplate = fs.existsSync(mtTemplatePath) ? fs.readFileSync(mtTemplatePath, 'utf8') : null;
 

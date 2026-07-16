@@ -1,0 +1,50 @@
+{
+  "schema": "tailor.build_readiness_prework@1",
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "status": "CONTRACT_BUILD_READY_PENDING_SIGNATURE_SPEC_AND_ACTIVATION",
+  "implementation_authority": false,
+  "activation_changed": false,
+  "active_spec_changed": false,
+  "source_inventory_reviewed": "MT-001..MT-739",
+  "hardened_inventory": "MT-001..MT-782",
+  "generated_by": ".GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
+  "evidence": {
+    "index": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MT_INDEX.json",
+    "every_mt_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json",
+    "parity_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_PARITY_REVIEW_V3.json",
+    "technical_refinement": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
+    "physics_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "professional_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "historical_reconciliation": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+  },
+  "resolved_contract_gaps": [
+    "every-MT acceptance depth",
+    "GUI/backend ownership mismatch",
+    "exact surface registry",
+    "canonical action/backend-agent parity",
+    "task-oriented UserManual",
+    "HBR and three-tier diagnostics classification",
+    "early BodyKit scheduler ancestry",
+    "EventLedger/ArtifactStore/Flight Recorder conformance",
+    "Locus/Loom/Calendar integration",
+    "PoseKit/character-sheet mix primitives",
+    "professional Cloth workspaces",
+    "adult contact staging",
+    "Daz/Marvelous parity gap ownership",
+    "DCC fixture and claim gates",
+    "numeric/hardware/input lock",
+    "final professional E2E"
+  ],
+  "remaining_authority_gates": [
+    "NEW_UNIQUE_OPERATOR_SIGNATURE",
+    "COPY_FIRST_MASTER_SPEC_V02_201",
+    "OFFICIAL_PACKET_JSON",
+    "ACTIVATION_MANAGER_RECORDS",
+    "PRODUCT_BRANCH_AND_WTC_WORKTREE",
+    "TASK_BOARD_BUILD_ORDER_TRACEABILITY_SYNC",
+    "ACTIVATION_READINESS"
+  ],
+  "remaining_external_input": "Marvelous Designer executable path/version/SHA-256 is NOT_INSPECTED and must be supplied or discovered before MT-778/activation input lock can close.",
+  "truthful_verdict": "The implementation contracts and pre-activation review are build-ready candidates. The WP itself remains inactive and may not be called activated, executable, implemented, or validator-ready until the unique signature, copy-first spec, official packet, worktree, state sync, and activation readiness gates complete."
+}

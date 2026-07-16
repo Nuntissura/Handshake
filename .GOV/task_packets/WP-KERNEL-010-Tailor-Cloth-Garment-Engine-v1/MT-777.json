@@ -1,0 +1,174 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-777",
+  "created_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-777.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-777.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+    "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
+    "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
+    "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-777.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-226",
+      "MT-228",
+      "MT-388",
+      "MT-735",
+      "MT-753",
+      "MT-764",
+      "MT-765",
+      "MT-741",
+      "MT-743",
+      "MT-748"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement native PBR map generation and a version-pinned optional Substance/SBSAR connector with parameter introspection, previews, texture bakes, manifests, color management, loss reporting, fail-closed availability, and material/layer/shader integration.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/materials/pbr_generator.rs",
+      "src/backend/handshake_core/src/tailor/materials/sbsar_connector.rs",
+      "src/frontend/handshake_native/src/tailor/pbr_generator.rs",
+      "src/frontend/handshake_native/tests/tailor_pbr_generator.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Native generation covers base color, normal, height/displacement, roughness, metalness, AO, opacity, masks, channel packing, resolution/tiling, seed, and dependency manifests.",
+      "The optional SBSAR connector pins executable/API/version/hash, exposes parameters and outputs, runs bounded/cancellable, records unsupported/loss state, and fails closed without licensing/tool assumptions.",
+      "Backend/Argus tests cover native-only operation, parameter sweeps, missing connector, incompatible version, DCC hang, partial bake, color management, stale sources, recovery, and round trip."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor_pbr_generator",
+      "cargo test -p handshake-native --test tailor_pbr_generator"
+    ],
+    "risk_if_missed": "Fragmented texture generation and an implicit SBSAR exclusion leave a major professional material workflow unowned."
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "Tailor PBR generator and SBSAR connector workspace"
+    ],
+    "argus_targets": [
+      "tailor-pbr-source",
+      "tailor-pbr-output-{map_id}",
+      "tailor-pbr-resolution",
+      "tailor-pbr-seed",
+      "tailor-pbr-generate",
+      "tailor-sbsar-status",
+      "tailor-sbsar-parameter-{parameter_id}",
+      "tailor-sbsar-bake",
+      "tailor-pbr-loss-report"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > Professional Cloth authoring workflows"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-MAN",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "TAILOR_PROFESSIONAL_PRODUCTION_V1",
+    "risks": [
+      "Fragmented texture generation and an implicit SBSAR exclusion leave a major professional material workflow unowned.",
+      "GUI, backend, agent, replay, and manual projections may drift if they do not consume the same typed authority."
+    ],
+    "minimum_controls": [
+      "One typed owner and exact stable ids are required.",
+      "Negative, concurrent, cancellation, recovery, and no-context proofs are required where applicable.",
+      "No validator PASS/FAIL is inferred from this pre-activation contract."
+    ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "NEW_BUILD_READINESS_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "MULTI_LENS_BUILD_READINESS_GAP"
+    ],
+    "required_changes_before_execution": [],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
+  }
+}

@@ -284,15 +284,15 @@
     }
   ],
   "public_surface_summary": {
-    "total_surfaces": 872,
+    "total_surfaces": 878,
     "counts_by_kind": {
-      "GOVERNANCE_CHECK": 119,
+      "GOVERNANCE_CHECK": 120,
       "GOVERNANCE_DOC": 81,
       "GOVERNANCE_RECORD": 22,
-      "GOVERNANCE_SCRIPT": 236,
+      "GOVERNANCE_SCRIPT": 238,
       "GOVERNANCE_TEMPLATE": 18,
-      "GOVERNANCE_TEST": 135,
-      "JUST_RECIPE": 223,
+      "GOVERNANCE_TEST": 136,
+      "JUST_RECIPE": 225,
       "JUSTFILE": 1,
       "MACHINE_READABLE_CONTRACT": 13,
       "MACHINE_READABLE_RECORD": 11,
@@ -308,8 +308,8 @@
       "KERNEL_BUILDER": 4,
       "MEMORY_MANAGER": 13,
       "OPERATOR": 11,
-      "ORCHESTRATOR": 58,
-      "SHARED": 709,
+      "ORCHESTRATOR": 60,
+      "SHARED": 713,
       "VALIDATOR": 39,
       "WP_VALIDATOR": 4
     },
@@ -319,13 +319,13 @@
       "CANONICAL_SUB_BUNDLE": 6,
       "COMPATIBILITY_ALIAS": 20,
       "CONTRACT_AUTHORITY": 13,
-      "INTERNAL_HELPER": 358,
-      "INTERNAL_TEST": 135,
+      "INTERNAL_HELPER": 359,
+      "INTERNAL_TEST": 136,
       "MACHINE_PROJECTION": 1,
-      "PUBLIC_LEAF_BASELINED": 133,
-      "PUBLIC_RECIPE_BASELINED": 188
+      "PUBLIC_LEAF_BASELINED": 135,
+      "PUBLIC_RECIPE_BASELINED": 190
     },
-    "public_recipe_count": 223,
+    "public_recipe_count": 225,
     "public_leaf_groups": [
       {
         "owner_role": "ACTIVATION_MANAGER",
@@ -981,11 +981,13 @@
         "policy_status": "CONSOLIDATE_OR_JUSTIFY_WHEN_TOUCHED",
         "surfaces": [
           "file:.GOV/roles_shared/checks/mt-packet-scope-alignment-check.mjs",
+          "file:.GOV/roles_shared/checks/tailor-mt-preactivation-check.mjs",
           "file:.GOV/roles_shared/checks/wp-communication-health-check.mjs",
           "file:.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs",
           "file:.GOV/roles_shared/scripts/wp/failure-memory.mjs",
           "file:.GOV/roles_shared/scripts/wp/flat-packet-legacy-inventory.mjs",
           "file:.GOV/roles_shared/scripts/wp/mt-board.mjs",
+          "file:.GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
           "file:.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs",
           "file:.GOV/roles_shared/scripts/wp/wp-check-notifications.mjs",
           "file:.GOV/roles_shared/scripts/wp/wp-contract-import.mjs",
@@ -1018,6 +1020,8 @@
           "just:record-signature",
           "just:skeleton-approved",
           "just:spec-debt-open",
+          "just:tailor-build-readiness-refresh",
+          "just:tailor-mt-preactivation-check",
           "just:task-board-set",
           "just:task-packet-stub-contracts",
           "just:workflow-dossier-autofill-costs",
@@ -1030,7 +1034,7 @@
           "just:wp-traceability-set",
           "just:wp-truth-bundle"
         ],
-        "count": 49
+        "count": 53
       },
       {
         "owner_role": "VALIDATOR",
@@ -3109,6 +3113,29 @@
       "last_verified_at_utc": null
     },
     {
+      "surface_id": "file:.GOV/roles_shared/checks/tailor-mt-preactivation-check.mjs",
+      "path": ".GOV/roles_shared/checks/tailor-mt-preactivation-check.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "owner_role": "SHARED",
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "phase": "WORK_PACKET",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "just_recipes": [
+        "tailor-mt-preactivation-check"
+      ],
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "replacement_bundle": "just phase-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:cb8b3a71ee39a2ef5036cdbf5f33833e89aa6ce2e3444c3dfd0abbf4bd4a22d7",
+      "last_verified_at_utc": null
+    },
+    {
       "surface_id": "file:.GOV/roles_shared/checks/task-board-check.mjs",
       "path": ".GOV/roles_shared/checks/task-board-check.mjs",
       "surface_kind": "GOVERNANCE_CHECK",
@@ -4358,7 +4385,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:3f10cd048df0c34e4ac56231c779148fa6d225afb27bf3a13980bf1c83b6f514",
+      "source_hash": "sha256:10f693a115743b612d29714db76412d77eccdcbd784e39cff624282802b0c2e7",
       "last_verified_at_utc": null
     },
     {
@@ -4578,7 +4605,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:a61c1662fac7508c1351164f688aba6736ccdfaf6fde4f8616a7a59050efb44b",
+      "source_hash": "sha256:d7d039b24772db4e35c726e7661843457c95200f8f66bbb7433f7148a5c7d01e",
       "last_verified_at_utc": null
     },
     {
@@ -4738,7 +4765,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:7d2e6c01d2aed599e60529b6b40ac956250b6062ff328947d93afad34d9bb285",
+      "source_hash": "sha256:da757d5294f0aa1d7bd23701d56c1e686ae88d3969c9c3388e4c3c1e4bfc4b2b",
       "last_verified_at_utc": null
     },
     {
@@ -4758,7 +4785,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:c7bde5ec214c69288b284371498e246829dc5dfd7c76a3200a2d6c6f126521ba",
+      "source_hash": "sha256:72db30500aa6112cf89f989edce9ec7f288c6a443c5ab67bcaf882bd41d436ee",
       "last_verified_at_utc": null
     },
     {
@@ -8419,6 +8446,28 @@
         "governance-topology-check"
       ],
       "source_hash": "sha256:8645f28348fb2eaed1d7b106e51303d153933166d15bdd64179f9ebe70a4f39a",
+      "last_verified_at_utc": null
+    },
+    {
+      "surface_id": "file:.GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
+      "path": ".GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
+      "surface_kind": "GOVERNANCE_SCRIPT",
+      "owner_role": "SHARED",
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "phase": "WORK_PACKET",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "just_recipes": [
+        "tailor-build-readiness-refresh"
+      ],
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "replacement_bundle": "just phase-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:a61e23efb11a3f4325e7dfe94eedb950c70760e3e7cc932fd17688b7956ac8d0",
       "last_verified_at_utc": null
     },
     {
@@ -12239,7 +12288,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:6e4705a2a56c67140ad964ef86949ad442818ab270cd8fea4496c886d48cea10",
+      "source_hash": "sha256:9021695ed84e97b8079a8ac1c4d52d53c7a9800a6ef3936fca2eaa3a42047892",
       "last_verified_at_utc": null
     },
     {
@@ -12366,6 +12415,26 @@
         "governance-topology-check"
       ],
       "source_hash": "sha256:7f1fc0600bb1a0cf739b68a5ac88031bac7e83d64cf5a0fa3020d34e463cac1b",
+      "last_verified_at_utc": null
+    },
+    {
+      "surface_id": "file:.GOV/roles/orchestrator/scripts/lib/precreated-microtask-adoption-lib.mjs",
+      "path": ".GOV/roles/orchestrator/scripts/lib/precreated-microtask-adoption-lib.mjs",
+      "surface_kind": "GOVERNANCE_SCRIPT",
+      "owner_role": "ORCHESTRATOR",
+      "authority_boundary": "ROLE_ORCHESTRATOR",
+      "phase": "GENERAL",
+      "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
+      "public_exposure": "INTERNAL_PATH",
+      "just_recipes": [],
+      "entrypoint_status": "INTERNAL_HELPER",
+      "replacement_bundle": "just gov-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:89ddf95fa1e83f27e8360581e190dfd7d10e4e0ecaf15704198dfa132a07a41f",
       "last_verified_at_utc": null
     },
     {
@@ -13103,6 +13172,26 @@
         "governance-topology-check"
       ],
       "source_hash": "sha256:c395e49da1c47813050434dd496ed998ab9c3a311ca03cbaa0d91d1b8a69cc57",
+      "last_verified_at_utc": null
+    },
+    {
+      "surface_id": "file:.GOV/roles/orchestrator/tests/precreated-microtask-adoption-lib.test.mjs",
+      "path": ".GOV/roles/orchestrator/tests/precreated-microtask-adoption-lib.test.mjs",
+      "surface_kind": "GOVERNANCE_TEST",
+      "owner_role": "ORCHESTRATOR",
+      "authority_boundary": "ROLE_ORCHESTRATOR",
+      "phase": "GENERAL",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "INTERNAL_PATH",
+      "just_recipes": [],
+      "entrypoint_status": "INTERNAL_TEST",
+      "replacement_bundle": "just gov-check",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:f3f56660804e2d36d36e0fbbcd6cf97ab6bcb3bc0a9371a3fef0ed6504f90964",
       "last_verified_at_utc": null
     },
     {
@@ -14516,7 +14605,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:9ad4ef0e6d844f05410c7836bfddad43ad8b8c4ddb723947c5a95ea7be33af9a",
+      "source_hash": "sha256:f40f527c709bef2372ffc6f772ca5f35479121e69bc988c24e0b8ad834ea3f5e",
       "last_verified_at_utc": null
     },
     {
@@ -18080,6 +18169,50 @@
       "last_verified_at_utc": null
     },
     {
+      "surface_id": "just:tailor-build-readiness-refresh",
+      "path": "justfile#tailor-build-readiness-refresh",
+      "surface_kind": "JUST_RECIPE",
+      "owner_role": "SHARED",
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "phase": "WORK_PACKET",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "just_recipes": [
+        "tailor-build-readiness-refresh"
+      ],
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "replacement_bundle": "just phase-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "contract_authority": "CX-912_PUBLIC_SURFACE_CONTRACT",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:abfb6ba14c15e569956a802722221323e0e606305b7fb8104b139c9a0670a516",
+      "last_verified_at_utc": null
+    },
+    {
+      "surface_id": "just:tailor-mt-preactivation-check",
+      "path": "justfile#tailor-mt-preactivation-check",
+      "surface_kind": "JUST_RECIPE",
+      "owner_role": "SHARED",
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "phase": "WORK_PACKET",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "just_recipes": [
+        "tailor-mt-preactivation-check"
+      ],
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "replacement_bundle": "just phase-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "contract_authority": "CX-912_PUBLIC_SURFACE_CONTRACT",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:4ebed00ecfcc8cfc58cf495e948a2d53ce62ca05075ea4f645b5a7f243b239b4",
+      "last_verified_at_utc": null
+    },
+    {
       "surface_id": "just:task-board-set",
       "path": "justfile#task-board-set",
       "surface_kind": "JUST_RECIPE",
@@ -19466,5 +19599,5 @@
       "last_verified_at_utc": null
     }
   ],
-  "projection_hash": "sha256:e4b0833de988251af5ac30272ffc8d6cf5161264665d416bdf93fd728cca8e19"
+  "projection_hash": "sha256:aadd10f19a4b673d5251aa147942c719637d84b4121f8fecce9d6c2b158cc11a"
 }

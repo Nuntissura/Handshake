@@ -1,0 +1,60 @@
+{
+  "schema": "tailor.parity_review@3",
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "reviewed_at_utc": "2026-07-16T11:53:00Z",
+  "review_authority": "ADVISORY_PRE_ACTIVATION_ONLY_NO_RUNTIME_PARITY_VERDICT",
+  "supersedes_planning_conclusions_from": [
+    "_PARITY_REVIEW.json",
+    "_PARITY_REVIEW_V2.json"
+  ],
+  "baseline": {
+    "marvelous_designer": "Official Marvelous Designer 2026.0 documentation and Python/API surface; local executable NOT_INSPECTED pending exact path/version/hash.",
+    "daz_studio": "Locally verified Daz Studio 6.25.2026.14722 General Release; Qt 6.10.3; OpenSubdiv 3.5.0; Iray 2025.0.3; RTX 3090 24 GiB reference.",
+    "daz_evidence": "PREP_SESSION_VERIFIED_LOCAL_LOG; activation must resolve the Daz executable/log roots through operator-controlled configuration and record path/version/hash in the DCC fixture manifest."
+  },
+  "claim_law": "Every required vendor capability must be QUALIFIED by runtime and inspected artifact evidence before full-parity language is available. MT ownership is planning coverage, not parity proof.",
+  "gaps_closed_by_candidate_contracts": {
+    "capability_claim_gate": "MT-740",
+    "pattern_archive": "MT-757",
+    "professional_retopology": "MT-758",
+    "modular_garment_composer": "MT-756",
+    "trim_graphic_styles_and_colorways": "MT-759",
+    "fit_map_semantics": "MT-432..MT-434 amended",
+    "front_back_material_swap": "MT-467 amended",
+    "substance_pbr": "MT-777",
+    "garment_fur": "MT-774",
+    "smart_content": "MT-763",
+    "shader_mixer": "MT-764",
+    "layered_image_material": "MT-765",
+    "native_final_render": "MT-766",
+    "aov_spot_render_queue_library": "MT-767",
+    "face_transfer": "MT-768",
+    "strand_hair": "MT-775",
+    "generic_deformers": "MT-769",
+    "figure_setup": "MT-770",
+    "map_transfer": "MT-771",
+    "dson_migration": "MT-772",
+    "lip_sync": "MT-776",
+    "extension_plugin_api": "MT-773",
+    "vendor_fixture_harness": "MT-778",
+    "full_qualification_matrix": "MT-779",
+    "final_professional_e2e": "MT-781"
+  },
+  "explicit_low_roi_legacy_state": {
+    "poser_cr2_pz3": "UNSUPPORTED_CANDIDATE_PENDING_OPERATOR_REFINEMENT_DECISION",
+    "third_party_plugin_ecosystem": "NOT_PART_OF_CORE_PARITY_UNLESS_REGISTERED_AS_REQUIRED_CAPABILITY"
+  },
+  "primary_sources": [
+    "https://support.marvelousdesigner.com/hc/en-us/articles/55837641308313-Marvelous-Designer-2026-0-New-Feature-List",
+    "https://support.marvelousdesigner.com/hc/en-us/categories/51985515993625-Manual",
+    "https://developer.marvelousdesigner.com/",
+    "https://developer.marvelousdesigner.com/list.html",
+    "https://docs.daz3d.com/public/software/dazstudio/4/referenceguide/scripting/start",
+    "https://docs.daz3d.com/public/software/dazstudio/4/referenceguide/interface/panes/content_library/start",
+    "https://docs.daz3d.com/public/software/dazstudio/4/referenceguide/terms/metadata/start",
+    "https://docs.daz3d.com/public/dson_spec/start",
+    "https://github.com/daz3d/DazBridgeUtils",
+    "https://github.com/daz3d/DazToBlender",
+    "https://github.com/daz3d/DazToUnreal"
+  ]
+}

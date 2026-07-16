@@ -1,0 +1,148 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-750",
+  "created_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-750.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-750.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+    "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
+    "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
+    "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-750.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Activate the first real Tailor native surface integration seam against the merged WP-KERNEL-012 shell contract, replacing or graduating the design-only surface_extension_seam without assuming unused scaffold code is live.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/surface_extension_seam.rs",
+      "src/frontend/handshake_native/src/tailor/mod.rs",
+      "src/frontend/handshake_native/tests/tailor_surface_extension.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "The seam is gated on merged-main WP-KERNEL-012 schema/receipt compatibility and registers Tailor panes, commands, state, navigation, jobs/problems/history, Argus, and UserManual anchors through canonical APIs.",
+      "Missing/incompatible shell capabilities return typed blockers; no WebView/Tauri fallback, hidden feature fork, or unused design-only registration can claim success.",
+      "Headless startup, multiple parallel sessions, layout restore, crash/restart, backend unavailable, and no-focus-steal behavior are proven."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native --test tailor_surface_extension"
+    ],
+    "risk_if_missed": "Tailor could be planned against a design-only seam and reach implementation with no real native host integration."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Non-UI contract: typed commands, state, receipts, diagnostics, and TraceProjection provide model/operator observability; the owning native projection is separately contracted."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > Model operation, diagnostics, pillars, and manual"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-MAN"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "NOT_APPLICABLE",
+      "reason": "Pure computation or schema-only behavior has no independent lifecycle event; its owning run records inputs, outputs, diagnostics, and receipts."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "TAILOR_PROFESSIONAL_PRODUCTION_V1",
+    "risks": [
+      "Tailor could be planned against a design-only seam and reach implementation with no real native host integration.",
+      "GUI, backend, agent, replay, and manual projections may drift if they do not consume the same typed authority."
+    ],
+    "minimum_controls": [
+      "One typed owner and exact stable ids are required.",
+      "Negative, concurrent, cancellation, recovery, and no-context proofs are required where applicable.",
+      "No validator PASS/FAIL is inferred from this pre-activation contract."
+    ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "NEW_BUILD_READINESS_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "MULTI_LENS_BUILD_READINESS_GAP"
+    ],
+    "required_changes_before_execution": [],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
+  }
+}

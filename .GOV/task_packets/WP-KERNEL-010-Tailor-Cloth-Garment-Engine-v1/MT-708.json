@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-708",
   "created_at_utc": "2026-07-16T01:23:22Z",
-  "updated_at_utc": "2026-07-16T03:02:51Z",
+  "updated_at_utc": "2026-07-16T11:53:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-708.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-708.md",
@@ -28,7 +28,10 @@
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
     "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
     "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
-    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json",
+    "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
+    "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
+    "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-708.md",
@@ -49,7 +52,11 @@
       "MT-704",
       "MT-705",
       "MT-706",
-      "MT-707"
+      "MT-707",
+      "MT-743",
+      "MT-747",
+      "MT-748",
+      "MT-750"
     ],
     "blocks": [],
     "active": false,
@@ -67,7 +74,10 @@
       "Required panes cover empty/loading/error/large-data, normal/failure/recovery, narrow/HDPI/theme/high-contrast/reduced-motion, and keyboard/Argus states.",
       "Every cell retains screenshot, AccessKit tree, typed state, command trace, error scan, receipt, focus/selection ids, and repro route.",
       "Matrix completeness and image/state references are machine-checked; visual verdicts require opening the exact captures.",
-      "The native suite proves Tailor pane and typed-command registration, shared wgpu context, stable AccessKit identities/actions, Argus inspection/steering/capture, quiet background behavior, and absence of positive legacy web execution paths after MT-688 passes."
+      "The native suite proves Tailor pane and typed-command registration, shared wgpu context, stable AccessKit identities/actions, Argus inspection/steering/capture, quiet background behavior, and absence of positive legacy web execution paths after MT-688 passes.",
+      "The exact TailorSurfaceDescriptor row MT-708 enumerates every route, pane, control author_id, dynamic entity-key rule, action, state, help anchor, permission, undo policy, receipt, and command binding; wildcard-only evidence is rejected.",
+      "Applicable blank, loading, populated, stale/conflict, cancelled, failed, retry, permission, keyboard/focus, narrow/4K/DPI, overlap/clipping, and no-focus-steal states are covered by the registry-derived Argus matrix.",
+      "The matrix is generated from TailorSurfaceDescriptor rows and fails on wildcard-only targets, duplicate/orphan/unreachable controls, missing commands or help anchors, row-position IDs, and controls without permission, undo, receipt, and state coverage."
     ],
     "proof_targets": [
       "cargo test -p handshake-native --tests tailor_"
@@ -83,7 +93,7 @@
       "All Tailor native-shell workspaces"
     ],
     "argus_targets": [
-      "every control and visible state introduced or changed by this MT, using stable native author_id values"
+      "tailor-surface-manifest-mt-708"
     ],
     "expected_evidence": [
       "argus_inspect_or_accesskit_tree",
@@ -99,8 +109,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > NativeProductionUX > MT-708",
-      "Tailor ModelManual > NativeProductionUX > MT-708"
+      "Tailor UserManual > Tailor workspace and controls"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -110,22 +119,28 @@
     ],
     "not_applicable_reason": null
   },
-  "hbr_obligations": [],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-MAN",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "REQUIRED",
-      "reason": "The implementing MT emits or projects its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+      "posture": "INHERITED",
+      "reason": "This MT is observed through the canonical command, job, or artifact owner; it must preserve correlation identifiers and must not create a second event authority."
     },
     {
       "tier": "internal_diagnostics",
-      "posture": "DEFERRED",
-      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; use its open projection contract and do not fork a Tailor-only diagnostics runtime."
+      "posture": "DIRECT",
+      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
     },
     {
       "tier": "palmistry",
-      "posture": "DEFERRED",
-      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+      "posture": "DIRECT",
+      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
     }
   ],
   "handoff": {
@@ -154,8 +169,10 @@
     "reason_codes": [
       "PROFESSIONAL_PRODUCTION_HARDENING_GAP"
     ],
-    "required_changes_before_execution": [],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "required_changes_before_execution": [
+      "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_BUILD_READY_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

@@ -4,7 +4,7 @@
   "authority_surface": "MACHINE_CONTRACT",
   "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
   "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
-  "updated_at_utc": "2026-07-01T15:17:12.151Z",
+  "updated_at_utc": "2026-07-16T12:27:04.755Z",
   "entries": [
     {
       "base_wp_id": "WP-1-ACE-Auditability",
@@ -964,7 +964,7 @@
       "base_wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine",
       "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
       "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
-      "notes": "PRIMARY_MACHINE_READABLE_STUB; READY_FOR_REFINEMENT; Tailor cloth/garment engine (Handshake-native Marvelous-Designer-equivalent); Master Spec Section 13 ACTIVE in v02.194 (sub-sections 13.1-13.15); NEXT in build order after WP-KERNEL-009 passes tests+validation; HBR directive baked in (swarm-parallel model API + front-end AND back-end visual inspect/navigate + jobs/Flight-Recorder/headless-parallel, reuse-don't-fork); ~350-MT plan; research package .GOV/reference/cloth_engine_research (17 topics) + canonical contracts 16-contracts.md / 13.14"
+      "notes": "PRIMARY_MACHINE_READABLE_STUB; READY_FOR_REFINEMENT; NON_EXECUTION; Tailor Cloth + BodyKit single-module scope; current indexed bundle target v02.200 has a verified module-hash mismatch and the candidate hardening requires copy-first v02.201 enrichment after explicit operator approval; historical v02.198 signature does not authorize this change; 782 inactive pre-created MT contracts reviewed and hardened across physics, DCC parity, GUI/UI, backend parallel-agent operation, UserManual, PoseKit/character-sheet mix primitives, Locus, Loom, Flight Recorder, Calendar, diagnostics, adult anatomy/contact production, and professional end-to-end qualification; full Marvelous Designer/Daz Studio parity is proof-gated; no official packet, activation, product branch, product worktree, or product code"
     },
     {
       "base_wp_id": "WP-KERNEL-005",

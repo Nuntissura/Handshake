@@ -1,0 +1,168 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-758",
+  "created_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-758.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-758.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+    "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
+    "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
+    "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-758.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-385",
+      "MT-741",
+      "MT-748"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Build professional manual 2D/3D retopology over automatic draft generation: topology points, edges, triangles/quads, cross-seam ghosts, loops, symmetry, locks, projection, deformation preview, validation, and export.",
+    "allowed_paths": [
+      "tailor-solver/src/remesh/manual_topology.rs",
+      "src/backend/handshake_core/src/tailor/garment/retopology.rs",
+      "src/frontend/handshake_native/src/tailor/retopology.rs",
+      "src/frontend/handshake_native/tests/tailor_retopology.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Automatic MT-385 output is only a starting draft; users and agents can add/move/delete points and edges, form 3/4-sided faces, manage loops/poles, mirror, lock, and inspect cross-seam correspondence.",
+      "Projection error, seam continuity, UV/material transfer, deformation quality, skin/cloth binding, LOD, invalid topology, compare, apply, and revert are explicit and versioned.",
+      "Backend-only and Argus tests cover non-manifold edits, crossing edges, stale source, symmetry conflicts, cancellation, rollback, pose/deformation sweep, and DCC round trip."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor_retopology",
+      "cargo test -p handshake-native --test tailor_retopology"
+    ],
+    "risk_if_missed": "Shortest-diagonal triangle pairing is not professional retopology and cannot support production deformation or DCC delivery."
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "Tailor 2D and 3D retopology workspace"
+    ],
+    "argus_targets": [
+      "tailor-retopo-mode",
+      "tailor-retopo-point-{point_id}",
+      "tailor-retopo-edge-{edge_id}",
+      "tailor-retopo-face-{face_id}",
+      "tailor-retopo-cross-seam",
+      "tailor-retopo-loop",
+      "tailor-retopo-symmetry",
+      "tailor-retopo-lock",
+      "tailor-retopo-error",
+      "tailor-retopo-apply"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > Professional Cloth authoring workflows"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-MAN",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "TAILOR_PROFESSIONAL_PRODUCTION_V1",
+    "risks": [
+      "Shortest-diagonal triangle pairing is not professional retopology and cannot support production deformation or DCC delivery.",
+      "GUI, backend, agent, replay, and manual projections may drift if they do not consume the same typed authority."
+    ],
+    "minimum_controls": [
+      "One typed owner and exact stable ids are required.",
+      "Negative, concurrent, cancellation, recovery, and no-context proofs are required where applicable.",
+      "No validator PASS/FAIL is inferred from this pre-activation contract."
+    ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "NEW_BUILD_READINESS_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "MULTI_LENS_BUILD_READINESS_GAP"
+    ],
+    "required_changes_before_execution": [],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
+  }
+}

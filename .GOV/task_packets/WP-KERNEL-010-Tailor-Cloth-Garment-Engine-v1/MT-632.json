@@ -20,14 +20,17 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-632",
   "created_at_utc": "2026-07-08T00:00:00Z",
-  "updated_at_utc": "2026-07-16T03:02:51Z",
+  "updated_at_utc": "2026-07-16T11:53:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-632.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-632.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
     "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
-    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json",
+    "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
+    "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
+    "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-632.md",
@@ -48,7 +51,15 @@
       "MT-723",
       "MT-724",
       "MT-725",
-      "MT-726"
+      "MT-726",
+      "MT-741",
+      "MT-742",
+      "MT-743",
+      "MT-747",
+      "MT-748",
+      "MT-750",
+      "MT-730",
+      "MT-731"
     ],
     "blocks": [],
     "active": false,
@@ -66,7 +77,10 @@
       "Erection continuum slider plus rigid|floppy state toggle and gape dials drive the same channel ops as configure_genitals (asserted equivalence).",
       "The arousal controller slider live-drives flush/engorgement/wetness/nipple-erection preview in the viewport (MT-559 hook).",
       "Labels use direct language (cock, pussy, gape, erection) matching the channel registry ids; no euphemistic renaming layer exists.",
-      "All controls carry stable author_ids; Argus sets an erection state and captures the result headlessly; futa configs show both modules' panels concurrently without conflict."
+      "All controls carry stable author_ids; Argus sets an erection state and captures the result headlessly; futa configs show both modules' panels concurrently without conflict.",
+      "The exact TailorSurfaceDescriptor row MT-632 enumerates every route, pane, control author_id, dynamic entity-key rule, action, state, help anchor, permission, undo policy, receipt, and command binding; wildcard-only evidence is rejected.",
+      "Applicable blank, loading, populated, stale/conflict, cancelled, failed, retry, permission, keyboard/focus, narrow/4K/DPI, overlap/clipping, and no-focus-steal states are covered by the registry-derived Argus matrix.",
+      "The panel exposes every MT-730/MT-731 vulva, penis, scrotum, erection, foreskin, asymmetry, pigmentation, wetness, and interior channel with searchable grouping, authored/effective values, shape-family presets, reference comparison, and exact stable IDs."
     ],
     "proof_targets": [
       "cargo test -p handshake-native tailor_bodykit::genital_panel_same_grain_direct_language"
@@ -77,9 +91,21 @@
     "operator_surface_required": true,
     "gui_creation_required": true,
     "argus_required": true,
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "BodyKit genital configuration and arousal panel"
+    ],
+    "argus_targets": [
+      "tailor-bodykit-genitals",
+      "tailor-bodykit-vulva-{channel_id}",
+      "tailor-bodykit-penis-{channel_id}",
+      "tailor-bodykit-scrotum-{channel_id}",
+      "tailor-bodykit-anus-{channel_id}",
+      "tailor-bodykit-erection-state",
+      "tailor-bodykit-gape-state",
+      "tailor-bodykit-arousal-state",
+      "tailor-bodykit-genital-reference-compare"
+    ],
     "expected_evidence": [
       "argus_inspect_or_accesskit_tree",
       "argus_screenshot_or_snapshot_reference",
@@ -94,8 +120,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > BkGui > MT-632",
-      "Tailor ModelManual > BkGui > MT-632"
+      "Tailor UserManual > BodyKit workspace and controls"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -105,22 +130,28 @@
     ],
     "not_applicable_reason": null
   },
-  "hbr_obligations": [],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-MAN",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "WIRED",
-      "reason": "Emits/extends the TAILOR_BODY_* KernelEventType family on the EventLedger per Section 13.16 (extends the 13.14 canonical list)."
+      "posture": "DIRECT",
+      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
     },
     {
       "tier": "internal_diagnostics",
-      "posture": "DEFERRED",
-      "reason": "internal_diagnostics ships with WP-KERNEL-012; wire the open diagnostic-event API for this behavior in the WP-KERNEL-016 retrofit."
+      "posture": "DIRECT",
+      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
     },
     {
       "tier": "palmistry",
-      "posture": "DEFERRED",
-      "reason": "Palmistry external watcher ships with WP-KERNEL-012/016; long generation/bake/export runs get child-stall watch coverage in the retrofit."
+      "posture": "DIRECT",
+      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
     }
   ],
   "handoff": {
@@ -150,9 +181,10 @@
       "BODYKIT_CREATOR_UI_HARDENING"
     ],
     "required_changes_before_execution": [
-      "BodyKit GUI must expose or integrate the geometry/morph, joint, weight/rigidity, transfer, skin/material, interlink, Jobs, Problems, history, recovery, and shared-world contracts."
+      "BodyKit GUI must expose or integrate the geometry/morph, joint, weight/rigidity, transfer, skin/material, interlink, Jobs, Problems, history, recovery, and shared-world contracts.",
+      "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "PRE_ACTIVATION_BUILD_READY_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

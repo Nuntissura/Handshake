@@ -20,14 +20,17 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-390",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": "2026-07-16T03:02:51Z",
+  "updated_at_utc": "2026-07-16T11:53:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-390.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-390.md",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
     "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
     "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
-    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json",
+    "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
+    "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
+    "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-390.md",
@@ -43,7 +46,12 @@
     "depends_on": [
       "MT-389",
       "MT-688",
-      "MT-689"
+      "MT-689",
+      "MT-742",
+      "MT-743",
+      "MT-747",
+      "MT-748",
+      "MT-750"
     ],
     "blocks": [],
     "active": false,
@@ -66,16 +74,25 @@
       "MatCap material mode samples a MatCap texture (provided as a 256x256 PNG artifact ref) using the view-space normal as UV coordinates in place of the PBR shader",
       "tailor_viewport_config accepts render_mode: 'toon' when the feature is enabled",
       "Visual integration test: a denim jacket in Toon mode with 3 bands shows hard shading transitions; the captured PNG is assertable as non-PBR by absence of specular highlights",
-      "All operator-facing scope is implemented in src/frontend/handshake_native with native wgpu/egui, AccessKit author_id, Argus inspection/steering/capture, and no Tailor React, Tauri-command, WebView, data-testid-only, or rendered-PNG frontend path."
+      "All operator-facing scope is implemented in src/frontend/handshake_native with native wgpu/egui, AccessKit author_id, Argus inspection/steering/capture, and no Tailor React, Tauri-command, WebView, data-testid-only, or rendered-PNG frontend path.",
+      "The exact TailorSurfaceDescriptor row MT-390 enumerates every route, pane, control author_id, dynamic entity-key rule, action, state, help anchor, permission, undo policy, receipt, and command binding; wildcard-only evidence is rejected.",
+      "Applicable blank, loading, populated, stale/conflict, cancelled, failed, retry, permission, keyboard/focus, narrow/4K/DPI, overlap/clipping, and no-focus-steal states are covered by the registry-derived Argus matrix."
     ],
     "proof_targets": [
       "cargo test -p tailor-solver --features toon-shader viewport::toon_pipeline_compiles_and_renders",
       "cargo test -p tailor-solver --features toon-shader viewport::matcap_mode_samples_view_space_normal",
-      "HBR-VIS: capture a draped T-shirt in RenderMode::Toon; assert visual output shows banded shading (pixel value histogram shows discrete luminance clusters)"
+      "HBR-VIS: capture a draped T-shirt in RenderMode::Toon; assert visual output shows banded shading (pixel value histogram shows discrete luminance clusters)",
+      "cargo test -p handshake-native tailor_surface_manifest_mt_390"
     ],
     "risk_if_missed": "Without Toon/MatCap rendering, Tailor cannot produce stylized garment previews for anime, illustration, or game-engine cartoon pipelines. Clients targeting stylized renders must export and re-render in external tools, adding a full DCC roundtrip per preview iteration."
   },
-  "hbr_obligations": [],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-MAN",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
@@ -105,7 +122,7 @@
       "native Tailor pane and applicable editor, viewport, browser, timeline, or status surface"
     ],
     "argus_targets": [
-      "every control and visible state introduced or changed by this MT, using stable native author_id values"
+      "tailor-surface-manifest-mt-390"
     ],
     "expected_evidence": [
       "argus_inspect_or_accesskit_tree",
@@ -121,8 +138,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > RenderViewportExport > MT-390",
-      "Tailor ModelManual > RenderViewportExport > MT-390"
+      "Tailor UserManual > Viewport, look development, and export"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -135,18 +151,18 @@
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "REQUIRED",
-      "reason": "The implementing MT must emit or project its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+      "posture": "INHERITED",
+      "reason": "This MT is observed through the canonical command, job, or artifact owner; it must preserve correlation identifiers and must not create a second event authority."
     },
     {
       "tier": "internal_diagnostics",
-      "posture": "DEFERRED",
-      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; this MT must use its open projection contract when available and must not fork a Tailor-only diagnostics runtime."
+      "posture": "DIRECT",
+      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
     },
     {
       "tier": "palmistry",
-      "posture": "DEFERRED",
-      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+      "posture": "DIRECT",
+      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
     }
   ],
   "pre_activation_reconciliation": {
@@ -158,9 +174,10 @@
     ],
     "required_changes_before_execution": [
       "Replace legacy app/src or app/src-tauri targets with the native Handshake shell and native Tailor paths.",
-      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope."
+      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope.",
+      "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "dependency_graph_status": "PRE_ACTIVATION_BUILD_READY_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
     "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

@@ -1,7 +1,7 @@
 {
   "consolidation_groups": [
     {
-      "count": 50,
+      "count": 54,
       "group_id": "public-surface-group:11944df15a28c2e9",
       "owner_role": "SHARED",
       "phase": "WORK_PACKET",
@@ -10,11 +10,13 @@
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surfaces": [
         "file:.GOV/roles_shared/checks/mt-packet-scope-alignment-check.mjs",
+        "file:.GOV/roles_shared/checks/tailor-mt-preactivation-check.mjs",
         "file:.GOV/roles_shared/checks/wp-communication-health-check.mjs",
         "file:.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs",
         "file:.GOV/roles_shared/scripts/wp/failure-memory.mjs",
         "file:.GOV/roles_shared/scripts/wp/flat-packet-legacy-inventory.mjs",
         "file:.GOV/roles_shared/scripts/wp/mt-board.mjs",
+        "file:.GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
         "file:.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs",
         "file:.GOV/roles_shared/scripts/wp/wp-check-notifications.mjs",
         "file:.GOV/roles_shared/scripts/wp/wp-contract-import.mjs",
@@ -48,6 +50,8 @@
         "just:record-signature",
         "just:skeleton-approved",
         "just:spec-debt-open",
+        "just:tailor-build-readiness-refresh",
+        "just:tailor-mt-preactivation-check",
         "just:task-board-set",
         "just:task-packet-stub-contracts",
         "just:workflow-dossier-autofill-costs",
@@ -804,7 +808,7 @@
       ]
     }
   ],
-  "consolidation_hash": "sha256:23f38732467711a8",
+  "consolidation_hash": "sha256:4189aad661af9688",
   "counts": {
     "by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
@@ -812,8 +816,8 @@
       "COMPATIBILITY_ALIAS": 20,
       "CONTRACT_AUTHORITY": 9,
       "INTERNAL_HELPER": 1,
-      "PUBLIC_LEAF_BASELINED": 133,
-      "PUBLIC_RECIPE_BASELINED": 188
+      "PUBLIC_LEAF_BASELINED": 135,
+      "PUBLIC_RECIPE_BASELINED": 190
     },
     "by_owner_role": {
       "ACTIVATION_MANAGER": 2,
@@ -825,7 +829,7 @@
       "MEMORY_MANAGER": 3,
       "OPERATOR": 2,
       "ORCHESTRATOR": 22,
-      "SHARED": 313,
+      "SHARED": 317,
       "VALIDATOR": 16,
       "WP_VALIDATOR": 2
     },
@@ -841,15 +845,15 @@
       "STARTUP": 20,
       "TOPOLOGY": 50,
       "VALIDATION": 63,
-      "WORK_PACKET": 63
+      "WORK_PACKET": 67
     },
     "by_side_effect_class": {
       "MUTATES_GIT_OR_WORKTREE": 20,
       "MUTATES_GOVERNANCE_OR_RUNTIME": 57,
-      "READ_ONLY_OR_DIAGNOSTIC": 292
+      "READ_ONLY_OR_DIAGNOSTIC": 296
     },
     "by_status": {
-      "CONSOLIDATE_WHEN_TOUCHED": 321,
+      "CONSOLIDATE_WHEN_TOUCHED": 325,
       "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT": 20,
       "RETAIN_CANONICAL": 19,
       "RETAIN_CONTRACT_AUTHORITY": 9
@@ -1504,6 +1508,33 @@
       "replacement_bundle": "just gov-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "file:.GOV/roles_shared/checks/spec-eof-appendices-check.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "tailor-mt-preactivation-check"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/checks/tailor-mt-preactivation-check.mjs",
+      "phase": "WORK_PACKET",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/checks/tailor-mt-preactivation-check.mjs",
       "surface_kind": "GOVERNANCE_CHECK",
       "validation_coverage": [
         "just gov-check",
@@ -3026,6 +3057,32 @@
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "file:.GOV/roles_shared/scripts/wp/mt-board.mjs",
+      "surface_kind": "GOVERNANCE_SCRIPT",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "tailor-build-readiness-refresh"
+      ],
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
+      "phase": "WORK_PACKET",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
       "surface_kind": "GOVERNANCE_SCRIPT",
       "validation_coverage": [
         "governance-topology-check"
@@ -9265,6 +9322,58 @@
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
+        "tailor-build-readiness-refresh"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#tailor-build-readiness-refresh",
+      "phase": "WORK_PACKET",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:tailor-build-readiness-refresh",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
+        "tailor-mt-preactivation-check"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#tailor-mt-preactivation-check",
+      "phase": "WORK_PACKET",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:tailor-mt-preactivation-check",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
         "task-board-set"
       ],
       "owner_role": "SHARED",
@@ -10939,14 +11048,14 @@
   },
   "schema_id": "handshake.gov.public_surface_consolidation",
   "schema_version": "public_surface_consolidation_v1",
-  "source_topology_projection_hash": "sha256:d227b8bc8c7c41ead7c0128f898e5ec42e1a17d7c250d1d0ebd770689bef7565",
+  "source_topology_projection_hash": "sha256:b32001fb793b9319d8e262d4c2eca8770a160d07d04486cd5aa7855eabe4cf84",
   "totals": {
     "canonical": 19,
     "compatibility_aliases": 20,
-    "consolidate_when_touched": 321,
+    "consolidate_when_touched": 325,
     "consolidation_groups": 42,
     "contract_authority": 9,
-    "public_surfaces": 369,
+    "public_surfaces": 373,
     "tracked_public_surfaces": 0
   }
 }

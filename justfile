@@ -12,6 +12,12 @@ docs-check:
 hbr-matrix-check:
 	node "{{GOV_ROOT}}/roles_shared/checks/hbr-matrix-check.mjs" --all-packets
 
+tailor-build-readiness-refresh:
+	node "{{GOV_ROOT}}/roles_shared/scripts/wp/tailor-build-readiness.mjs"
+
+tailor-mt-preactivation-check:
+	node "{{GOV_ROOT}}/roles_shared/checks/tailor-mt-preactivation-check.mjs"
+
 hbr-man-001 *FLAGS="":
 	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; node "{{GOV_ROOT}}/roles_shared/checks/hbr-man-001-paired-diff.mjs" --repo-root (Resolve-Path $activeRoot).Path {{FLAGS}}
 

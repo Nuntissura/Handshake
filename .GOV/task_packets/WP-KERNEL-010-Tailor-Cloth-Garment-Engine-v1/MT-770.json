@@ -1,0 +1,170 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-770",
+  "created_at_utc": "2026-07-16T11:53:00Z",
+  "updated_at_utc": "2026-07-16T11:53:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-770.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-770.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+    "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
+    "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
+    "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-770.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-514",
+      "MT-527",
+      "MT-721",
+      "MT-723",
+      "MT-724",
+      "MT-741",
+      "MT-748"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the Figure Setup workflow for node hierarchy, geometry/face groups, skeleton association, orientation/limits, labels, region mapping, weight initialization, validation, presets, and versioned figure construction.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/bodykit/figure_setup.rs",
+      "src/frontend/handshake_native/src/tailor/bodykit/figure_setup.rs",
+      "src/frontend/handshake_native/tests/bodykit_figure_setup.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Figure nodes, hierarchy, geometry groups, bones, orientations, limits, labels, regions, compatibility bases, weight seeds, and export mappings are typed, versioned, and inspectable.",
+      "Construction supports preview/validate/apply/revert, reusable presets, missing/duplicate/orphan group diagnostics, cycle rejection, symmetry, and atomic authority updates.",
+      "Backend and Argus tests cover invalid hierarchy, missing geometry group, bad orientation, stale geometry, concurrent edits, rollback, and DCC round trip."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core bodykit_figure_setup",
+      "cargo test -p handshake-native --test bodykit_figure_setup"
+    ],
+    "risk_if_missed": "Individual joint and weight editors do not provide a complete Daz Figure Setup workflow."
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "BodyKit Figure Setup workspace"
+    ],
+    "argus_targets": [
+      "tailor-figure-tree",
+      "tailor-figure-node-{node_id}",
+      "tailor-figure-geometry-group-{group_id}",
+      "tailor-figure-bone-{bone_id}",
+      "tailor-figure-orientation",
+      "tailor-figure-limits",
+      "tailor-figure-weight-seed",
+      "tailor-figure-validation",
+      "tailor-figure-apply"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > Professional BodyKit production workflows"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-MAN",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "TAILOR_PROFESSIONAL_PRODUCTION_V1",
+    "risks": [
+      "Individual joint and weight editors do not provide a complete Daz Figure Setup workflow.",
+      "GUI, backend, agent, replay, and manual projections may drift if they do not consume the same typed authority."
+    ],
+    "minimum_controls": [
+      "One typed owner and exact stable ids are required.",
+      "Negative, concurrent, cancellation, recovery, and no-context proofs are required where applicable.",
+      "No validator PASS/FAIL is inferred from this pre-activation contract."
+    ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "NEW_BUILD_READINESS_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "MULTI_LENS_BUILD_READINESS_GAP"
+    ],
+    "required_changes_before_execution": [],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
+  }
+}
