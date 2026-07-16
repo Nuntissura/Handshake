@@ -14,7 +14,7 @@
   "title": "E3-MT025-WikiPageProjectionOverlay",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T17:42:28.3451123Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-025.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -405,5 +405,33 @@
       ],
       "no_context_instruction": "Read MT-025.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-15T17:42:28.3451123Z",
+    "remediated_by": "KERNEL_BUILDER",
+    "scope_closed": [
+      "The mounted Wiki Projection pane loads and regenerates real PostgreSQL projections, persists overlays, renders exact model-facing metadata and overlay identities, and fences stale cross-pane deliveries.",
+      "Save now distinguishes a failed POST from a committed overlay whose follow-up reload failed; the latter locks Save and Cancel and exposes only a GET-only Retry Reload action.",
+      "The managed-resource negative proof commits exactly one additional overlay, forces the follow-up GET to fail, retries through raw AccessKit, and proves the complete PostgreSQL overlay list remains byte-for-byte unchanged."
+    ],
+    "fresh_proofs": [
+      {
+        "command": "cargo test --features integration --test test_wiki_page_panel -j 1 -- --nocapture",
+        "result": "PASS: 9 passed, 0 failed, 0 ignored; managed PostgreSQL receipt and cleanup verification emitted under Handshake_Artifacts."
+      },
+      {
+        "command": "cargo test --lib graph::wiki_page_panel::tests::saved_overlay_reload_failure_cannot_post_again_or_cancel -j 1 -- --nocapture",
+        "result": "PASS: 1 passed, 0 failed; second POST and Cancel are rejected after commit while Retry Reload remains available."
+      }
+    ],
+    "independent_review": {
+      "verdict": "READY_FOR_VALIDATION_V2",
+      "reviewer": "mt034_adversarial_review_v2",
+      "findings": [],
+      "basis": "Independent adversarial re-review traced the partial-success state machine, confirmed RetryReloadAfterSave reaches only fetch_projection_stamped, verified all write/cancel/edit lockouts and final-state cleanup, and inspected the exact-two-row managed-PostgreSQL counterfactual."
+    },
+    "validator_instruction": "Independently rerun the current-head MT-025 proof against managed PostgreSQL. Preserve validation_v1 and lifecycle.validator_verdict as FAIL_V1 until the independent v2 verdict is issued."
   }
 }

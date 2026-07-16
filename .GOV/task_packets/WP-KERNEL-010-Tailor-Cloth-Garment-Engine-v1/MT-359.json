@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-359",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T03:02:51Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-359.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-359.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-359.md",
@@ -38,7 +41,11 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-358"
+      "MT-358",
+      "MT-688",
+      "MT-689",
+      "MT-691",
+      "MT-702"
     ],
     "blocks": [],
     "active": false,
@@ -48,19 +55,20 @@
     "summary": "Implement a unified Tailor Library browser panel (operator and model accessible) listing local garments, fabric presets, trim catalog, and starter templates by category with search and stable element IDs",
     "allowed_paths": [
       "src/backend/handshake_core/src/api/tailor.rs",
-      "app/src/components/tailor/LibraryBrowserPanel.tsx",
-      "app/src/components/tailor/LibrarySearchBar.tsx"
+      "src/frontend/handshake_native/src/tailor/library_browser_panel.rs",
+      "src/frontend/handshake_native/src/tailor/library_search_bar.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
       "GET /tailor/library/browse accepts ?kind=garment|preset|trim|template and ?q= search string and returns a structured list with stable IDs, name, kind, preview_ref, and status",
       "The frontend LibraryBrowserPanel renders four tabs (Garments, Fabrics, Trims, Templates) populated from the browse endpoint",
-      "Every item in the panel has a stable data-testid element ID for parallel-model interaction (HBR-VIS)",
+      "Every item in the native panel has a stable AccessKit author_id and typed Argus action/state route for parallel-model interaction (HBR-VIS)",
       "A model can call tailor_library_browse MCP tool with kind filter and receive the same structured list without a GUI session",
       "Selecting a garment from the panel loads it into the active GarmentSpec authoring context",
       "Selecting a preset from the panel assigns it to the currently selected panel in the authoring view",
       "The panel renders correctly in the capture matrix (MT-244) including in the empty and populated states",
-      "No window focus change occurs when the panel is opened or a library item is selected (HBR-QUIET compliance)"
+      "No window focus change occurs when the panel is opened or a library item is selected (HBR-QUIET compliance)",
+      "All operator-facing scope is implemented in src/frontend/handshake_native with native wgpu/egui, AccessKit author_id, Argus inspection/steering/capture, and no Tailor React, Tauri-command, WebView, data-testid-only, or rendered-PNG frontend path."
     ],
     "proof_targets": [
       "cargo test -p handshake_core tailor::api::tests::library_browse_kinds",
@@ -90,5 +98,74 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "native Tailor pane and applicable editor, viewport, browser, timeline, or status surface"
+    ],
+    "argus_targets": [
+      "every control and visible state introduced or changed by this MT, using stable native author_id values"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > GarmentAuthoring > MT-359",
+      "Tailor ModelManual > GarmentAuthoring > MT-359"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "REQUIRED",
+      "reason": "The implementing MT must emit or project its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; this MT must use its open projection contract when available and must not fork a Tailor-only diagnostics runtime."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+    }
+  ],
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "LEGACY_FRONTEND_PATH_REHOMED",
+      "SHARED_SELECTION_ASSET_BROWSER",
+      "CURRENT_MT_TEMPLATE_HYDRATED"
+    ],
+    "required_changes_before_execution": [
+      "Replace legacy app/src or app/src-tauri targets with the native Handshake shell and native Tailor paths.",
+      "Add canonical selection, visibility, lock, isolate, attribution, version state, filters, and large-list behavior.",
+      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

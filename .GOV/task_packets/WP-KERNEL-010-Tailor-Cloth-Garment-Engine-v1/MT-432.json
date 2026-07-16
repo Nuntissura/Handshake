@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-432",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T03:02:51Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-432.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-432.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-432.md",
@@ -38,7 +41,14 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-431"
+      "MT-431",
+      "MT-662",
+      "MT-667",
+      "MT-677",
+      "MT-688",
+      "MT-689",
+      "MT-697",
+      "MT-700"
     ],
     "blocks": [],
     "active": false,
@@ -50,7 +60,7 @@
       "src/backend/handshake_core/src/tailor/refit.rs",
       "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_garment_fits_fit_props.sql",
       "tailor-solver/src/analysis/fit_heatmap.rs",
-      "app/src/components/tailor/FitHeatmapOverlay.tsx"
+      "src/frontend/handshake_native/src/tailor/fit_heatmap_overlay.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
@@ -59,7 +69,8 @@
       "The solver computes per-vertex stress (stretch ratio vs rest), strain (scalar from the stretch constraint lambda), and pressure (collision force magnitude) after each sim run and stores them as a Float32Array sidecar in tailor_garment_fits",
       "The Tailor viewport exposes a heatmap_mode query param (stress | strain | pressure | off) that colorizes the garment mesh from the stored per-vertex sidecar",
       "A model can read the heatmap summary (region max/mean values) via GET /api/tailor/garments/{gar_id}/fit-heatmap for self-correction",
-      "cargo test fit_heatmap::test_stress_computed_after_sim and fit_heatmap::test_strain_within_range both pass"
+      "cargo test fit_heatmap::test_stress_computed_after_sim and fit_heatmap::test_strain_within_range both pass",
+      "All operator-facing scope is implemented in src/frontend/handshake_native with native wgpu/egui, AccessKit author_id, Argus inspection/steering/capture, and no Tailor React, Tauri-command, WebView, data-testid-only, or rendered-PNG frontend path."
     ],
     "proof_targets": [
       "cargo test -p tailor-solver analysis::fit_heatmap::test_stress_heatmap_computed",
@@ -87,5 +98,76 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "native Tailor pane and applicable editor, viewport, browser, timeline, or status surface"
+    ],
+    "argus_targets": [
+      "every control and visible state introduced or changed by this MT, using stable native author_id values"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > AutoFit > MT-432",
+      "Tailor ModelManual > AutoFit > MT-432"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "REQUIRED",
+      "reason": "The implementing MT must emit or project its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; this MT must use its open projection contract when available and must not fork a Tailor-only diagnostics runtime."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+    }
+  ],
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "PHYSICS_CONTRACT_RECONCILIATION",
+      "LEGACY_FRONTEND_PATH_REHOMED",
+      "PROBLEMS_ACCESSIBLE_DIAGNOSTICS",
+      "CURRENT_MT_TEMPLATE_HYDRATED"
+    ],
+    "required_changes_before_execution": [
+      "Reconcile refit/redrape, friction overrides, warm starts, topology lock, fit maps, batch jobs, determinism, and FIT_VALID evidence with the new solver tiers and final-contact promotion rule.",
+      "Replace legacy app/src or app/src-tauri targets with the native Handshake shell and native Tailor paths.",
+      "Feed the shared Problems system and provide legends, units, numeric probes, stable entity links, and non-color alternatives.",
+      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

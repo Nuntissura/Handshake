@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-414",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T03:02:51Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-414.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-414.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-414.md",
@@ -38,7 +41,9 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-413"
+      "MT-413",
+      "MT-688",
+      "MT-689"
     ],
     "blocks": [],
     "active": false,
@@ -50,7 +55,7 @@
       "tailor-solver/src/animation/recorder.rs",
       "src/backend/handshake_core/src/tailor/mod.rs",
       "src/backend/handshake_core/src/tailor/storage_glue.rs",
-      "app/src/components/tailor/AnimationTimeline.tsx"
+      "src/frontend/handshake_native/src/tailor/animation_timeline.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
@@ -58,7 +63,8 @@
       "During a recording session, any wind or avatar-pose parameter write via the animation API is auto-converted to a Keyframe at the current simulation frame and inserted into the corresponding Track.",
       "end_recording() persists the captured keyframes into the tailor_animations row and emits TailorAnimationRecordingCompleted event.",
       "A model can call begin_recording, issue a sequence of set_wind_strength(frame, val) calls, then call end_recording and receive a fully-populated wind Track without separately constructing keyframes.",
-      "cargo test animation::recorder::wind_recording_produces_track passes."
+      "cargo test animation::recorder::wind_recording_produces_track passes.",
+      "All operator-facing scope is implemented in src/frontend/handshake_native with native wgpu/egui, AccessKit author_id, Argus inspection/steering/capture, and no Tailor React, Tauri-command, WebView, data-testid-only, or rendered-PNG frontend path."
     ],
     "proof_targets": [
       "cargo test -p tailor-solver animation::recorder::wind_recording_produces_track",
@@ -86,5 +92,72 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "native Tailor pane and applicable editor, viewport, browser, timeline, or status surface"
+    ],
+    "argus_targets": [
+      "every control and visible state introduced or changed by this MT, using stable native author_id values"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > Animation > MT-414",
+      "Tailor ModelManual > Animation > MT-414"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "REQUIRED",
+      "reason": "The implementing MT must emit or project its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; this MT must use its open projection contract when available and must not fork a Tailor-only diagnostics runtime."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+    }
+  ],
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "LEGACY_FRONTEND_PATH_REHOMED",
+      "CURRENT_MT_TEMPLATE_HYDRATED"
+    ],
+    "required_changes_before_execution": [
+      "Replace legacy app/src or app/src-tauri targets with the native Handshake shell and native Tailor paths.",
+      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

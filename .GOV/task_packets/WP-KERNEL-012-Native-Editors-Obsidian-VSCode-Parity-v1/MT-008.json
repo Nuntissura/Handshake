@@ -14,7 +14,7 @@
   "title": "E1-MT-008-LspClient",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T14:31:37.9630797Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-001",
@@ -445,6 +445,31 @@
         "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
       ],
       "no_context_instruction": "Read MT-008.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@2",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-15T14:31:37.9630797Z",
+    "updated_by": "KERNEL_BUILDER",
+    "validation_v1_preserved": "FAIL_V1",
+    "scope": "Product remediation only: populated managed-CodeNav behavior, mounted completion/hover/diagnostic surfaces, language-server ownership/rebind lifecycle, and bounded negative paths.",
+    "proof_status": "GREEN_CURRENT_SOURCE",
+    "runtime_proof": [
+      "Managed handshake_core/PostgreSQL fixture: populated add symbol, function kind, definition line, and caller reference; missing/malformed/backend-loss negatives passed and owned fixture state was cleaned.",
+      "Mounted completion/hover AccessKit proof: 18/18 passed with populated popup, tooltip, documentation, definition target, and staleness gutter; screenshot stored outside the repository at Handshake_Artifacts/handshake-test/wp-kernel-012-mt-008/MT-008-staleness-gutter.png.",
+      "Fresh current-source app-host binary: 34/34 passed, including same-panel Rust-to-JavaScript language rebind, old-process retirement before app Drop, retained-process reclamation on app Drop, popout-scoped command routing, and close/didClose behavior.",
+      "Fresh current-source LSP client binary: 34/34 non-ignored passed; explicitly gated real subprocess spawn/initialize/Drop-reap proof also passed with zero retained child process."
+    ],
+    "adversarial_review": {
+      "verdict": "PASS",
+      "independent": true,
+      "counterfactuals": [
+        "Removing file-path language-cache invalidation makes the Rust-to-JavaScript path-only rebind return stale Rust and fail.",
+        "Removing explicit store retirement or app shutdown leaves observer-held real transports alive and fails PID reclamation assertions.",
+        "Removing panic-safe fixture ownership can strand a canned child on an assertion unwind."
+      ],
+      "actionable_findings_remaining": 0
     }
   },
   "validation_v1_ignored_prior_2026_07_12": {

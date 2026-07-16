@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-399",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T02:47:09Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-399.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-399.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-399.md",
@@ -38,14 +41,18 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-398"
+      "MT-398",
+      "MT-710",
+      "MT-711",
+      "MT-712",
+      "MT-713"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement a model-steerable avatar pose generation tool that accepts a natural-language pose description or a reference image ArtifactStore ref, invokes the kernel LlmClient with a pose-estimation prompt, and converts the output joint rotations to a PoseEditRequest sequence that drives the IK-mode avatar joint updater",
+    "summary": "Generate a canonical BodyPose proposal from natural language or a reference artifact through LlmClient, preserving model lineage and requiring preview/validation before pose-service apply.",
     "allowed_paths": [
       "src/backend/handshake_core/src/tailor/avatar.rs",
       "src/backend/handshake_core/src/tailor/model_adapter.rs",
@@ -54,18 +61,15 @@
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "A generate_avatar_pose MCP tool is registered in TailorModelAdapter accepting pose_description: String and optional reference_image_artifact_id: String",
-      "The tool builds a ContextBundle with the current AVT- measurements + joint list and dispatches via ModelAdapter to the configured LlmClient",
-      "Model output is a JSON array of PoseEditRequest objects (joint_name, target_rotation_deg: [f32;3]); it is validated against the canonical joint name set before any proxy update",
-      "The validated pose is applied through the IK solver (from the IK Mode MT) and TailorBodyProxyUpdated is emitted",
-      "The tool works with any LlmClient implementation (local/CLI/BYOK) registered in the kernel; no cloud-specific provider is required",
-      "cargo test avatar_pose_gen::test_pose_generation_via_mock_llm passes: mock LLM returns 6-joint pose, IK drives the proxy, event is emitted"
+      "The model adapter emits a typed BodyPose/PoseLift proposal with source artifact, model, prompt-template, seed/parameters, joint confidence, expected-base, and schema/content hashes; it never writes joint rotations or collision proxies directly.",
+      "Proposal validation and selected apply route through the canonical BodyPose service and its IK/contact contracts; reference-image evidence uses MT-711..713 verification/lift/camera boundaries.",
+      "Model failure, invalid joints, wrong character, stale base, ambiguity, cancellation, and replay return typed diagnostics without authority mutation."
     ],
     "proof_targets": [
       "cargo test -p handshake_core tailor::avatar::test_generate_pose_tool_mock",
       "cargo test -p handshake_core tailor::model_adapter::test_pose_tool_dispatches_via_llm_client"
     ],
-    "risk_if_missed": "MD's AI Pose Generator is the highest-visibility AI feature in 2025.1. Without a kernel-native equivalent, Tailor's model-first differentiator applies to garment authoring but not avatar setup, leaving a prominent gap when compared to MD. The IK infrastructure (proposed above) makes this MT cheap to add."
+    "risk_if_missed": "Direct model-to-proxy mutation would create a second pose authority and make model reruns irreproducible."
   },
   "hbr_obligations": [],
   "handoff": {
@@ -87,5 +91,68 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Non-UI scope: behavior remains observable through typed Tailor state, receipts, captures, diagnostics, and TraceProjection; GUI projection is verified by the owning native-shell MT."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor model manual > Generate BodyPose proposal",
+      "Tailor > BodyKit > Model pose proposal preview"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "REQUIRED",
+      "reason": "The implementing MT must emit or project its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; this MT must use its open projection contract when available and must not fork a Tailor-only diagnostics runtime."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+    }
+  ],
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "POSEKIT_CHARACTER_INTERLINK",
+      "CURRENT_MT_TEMPLATE_HYDRATED"
+    ],
+    "required_changes_before_execution": [
+      "Consolidate reference-image/NL posing into the proposal lane; consume verified PoseKit artifacts and never mutate avatar proxies directly.",
+      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

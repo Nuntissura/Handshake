@@ -14,7 +14,7 @@
   "title": "E4-MT029-FindInFiles",
   "group": "E4 Search",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T16:42:37.4626453Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-029.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -339,6 +339,31 @@
         "Timeout/cancel/backend-loss cases terminate and the binary exits zero."
       ],
       "no_context_instruction": "Read MT-029.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@2",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-15T16:42:37.4626453Z",
+    "updated_by": "KERNEL_BUILDER",
+    "validation_v1_preserved": "FAIL_V1",
+    "scope": "Product remediation only: canonical paginated Find in Files, persisted rich-document preview/apply, stale and conflict safety, bookmarks, mounted routing, accessibility, and bounded recovery/cancellation paths.",
+    "proof_status": "GREEN_CURRENT_SOURCE",
+    "runtime_proof": [
+      "Fresh cargo test --features integration --test test_find_in_files -j 1: 14 passed, 0 failed against managed PostgreSQL and mounted HandshakeApp surfaces.",
+      "Canonical pagination continues beyond 10,000 results until the short page; a 10,001-hit transport proof and 501 persisted-document page-boundary proof pass.",
+      "A persisted same-kind Unicode/regex-metachar decoy is independently searchable but excluded from the positive query; preview asserts exact match counts and nonempty before/after/per-match context.",
+      "Real optimistic saves reload preserved rich image/table/attribute nodes, retain partial-success receipts on conflict, and round-trip bookmarks across fresh remount/removal."
+    ],
+    "adversarial_review": {
+      "verdict": "PASS",
+      "independent": true,
+      "counterfactuals": [
+        "Reintroducing the 10,000-result ceiling fails the 10,001-hit pagination proof.",
+        "Returning blank preview context or including the persisted decoy fails exact managed assertions.",
+        "Restoring transient symbol-id tabs fails the dependency-adjusted mounted routing assertion."
+      ],
+      "actionable_findings_remaining": 0
     }
   }
 }

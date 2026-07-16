@@ -14,7 +14,7 @@
   "title": "E3-MT027-BlockCollectionViews",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T19:42:38.7722974Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-027.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-021",
@@ -395,6 +395,35 @@
       "emitted_by": "KERNEL_BUILDER-20260705-025228",
       "emitted_at_utc": "2026-07-05T05:07:52.554Z"
     }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-15T19:42:38.7722974Z",
+    "remediated_by": "KERNEL_BUILDER",
+    "scope_closed": [
+      "Saved table, Kanban, and calendar collection views now execute their full mounted-host workflow against self-seeded managed PostgreSQL, including persisted sort, card tag mutation and authoritative re-query, date range, kind switch, create, reload, and cleanup.",
+      "Every asynchronous create and mutation completion is bound to workspace, generation, and expected view identity; stale deliveries cannot rebind a newer workspace or view, and duplicate Retry events cannot issue duplicate create requests.",
+      "Successful collection and create responses fail closed on malformed identity and record shapes; free-Kanban dynamic lanes are duplicate-safe and deterministically ordered by canonical tag id.",
+      "Canonical Flight Recorder create, definition-update, and tag-mutation events retain top-level native actor attribution and structured payload fields."
+    ],
+    "fresh_proofs": [
+      {
+        "command": "cargo test --features integration --test test_block_collection_view -j 1 -- --nocapture",
+        "result": "PASS: 29 passed, 0 failed, 0 ignored against rebuilt external-target backend PID 280208 and managed PostgreSQL; fresh receipt, screenshot, attribution, and cleanup 404 verified."
+      },
+      {
+        "command": "cargo test --features test-utils --test loom_block_collection_views_tests free_kanban_places_shared_tag_cards_once_each -j 1 -- --nocapture",
+        "result": "PASS: 1 passed, 0 failed; reversed multi-tag insertion, duplicate edge, deterministic lane ordering, and unique shared-lane cards verified on isolated managed PostgreSQL."
+      }
+    ],
+    "independent_review": {
+      "verdict": "READY_FOR_VALIDATION_V2",
+      "reviewer": "mt032_adversarial_review_v2",
+      "findings": [],
+      "basis": "Independent adversarial re-review verified fail-closed create parsing, workspace/generation/view delivery binding, duplicate Retry suppression, deterministic duplicate-safe free-Kanban lanes, fresh receipt cleanup, and canonical Flight Recorder attribution."
+    },
+    "validator_instruction": "Independently rerun both current-head MT-027 proof commands against managed PostgreSQL. Preserve validation_v1.verdict and lifecycle.validator_verdict as FAIL_V1 until the independent v2 validator issues a new verdict."
   },
   "validation_v1_superseded_2026_07_11": {
     "verdict": "FAIL_V1",

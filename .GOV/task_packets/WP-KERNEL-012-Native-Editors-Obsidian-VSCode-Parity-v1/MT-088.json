@@ -14,7 +14,7 @@
   "title": "D8-MT-088-BackendDown-GracefulDegradation-FreezeFix",
   "group": "D2 internal_diagnostics (Tier 2 — backend-down HARD requirement)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T14:34:22.0620984Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-088.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -297,6 +297,31 @@
         "Return READY_FOR_VALIDATION for an independent validator; do not self-issue PASS."
       ],
       "no_context_instruction": "Read MT-088.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
+    }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@2",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-15T14:34:22.0620984Z",
+    "updated_by": "KERNEL_BUILDER",
+    "validation_v1_preserved": "FAIL_V1",
+    "scope": "Product remediation only: bounded backend transport, non-blocking frame-path degradation/recovery, generation-safe layout ownership, and bounded application teardown.",
+    "proof_status": "GREEN_CURRENT_SOURCE",
+    "runtime_proof": [
+      "Fresh current-source test_backend_down_responsive binary: 22/22 passed.",
+      "Dead, half-open, malformed, recovery, exact-route, stale-generation, save-publication, and two-active-generation Drop paths remained bounded and responsive.",
+      "Typed peer diagnostics proved complete malformed requests, fragmented valid requests, an exact 8192-byte request head, and deterministic rejection at 8193 bytes with zero false health/layout classifications."
+    ],
+    "adversarial_review": {
+      "verdict": "PASS",
+      "independent": true,
+      "counterfactuals": [
+        "A single TCP read fails the fragmented-route proof and can manufacture false backend-down transitions.",
+        "Claiming the publication pause after transport completion allows another generation to steal ownership and fails stale-generation assertions.",
+        "Changing the inclusive 8192-byte bound or accepting before checking terminator position fails the exact-limit or 8193-byte regression.",
+        "Stopping recovery peers before dropping the mounted app can create a spurious unreachable/recovered edge and fails the exact event tuple."
+      ],
+      "actionable_findings_remaining": 0
     }
   },
   "validation_v1_ignored_prior_2026_07_12": {

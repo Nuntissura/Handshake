@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-600",
   "created_at_utc": "2026-07-08T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T02:47:09Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-600.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-600.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-600.md",
@@ -36,29 +39,34 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-599"
+      "MT-599",
+      "MT-520",
+      "MT-710",
+      "MT-711",
+      "MT-712",
+      "MT-713",
+      "MT-714"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement the pose_body MCP tool per Section 13.25: canonical wire name pose_body turns an NL pose description or pose-library reference into a BodyPose applied via the full-body IK lane (MT-519/520, reusing the MT-399/404 Cloth avatar-pose lane), with morph-context re-solve so poses authored on other proportions adapt to the current body (AREQ-003).",
+    "summary": "Implement pose_body so natural language, a BodyPose library ref, or a verified PoseLiftProposal produces a canonical BodyPose preview that is validated before explicit selected apply.",
     "allowed_paths": [
       "src/backend/handshake_core/src/tailor/bodykit/model_api/tools.rs",
       "src/backend/handshake_core/src/tailor/bodykit/skeleton/pose_apply.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "pose_body accepts either an NL pose description or a pose asset id, plus optional IK pin overrides (hands/feet/knees targets); the result is a BodyPose applied to the draft body in the sandbox.",
-      "Applying a library pose re-solves via IK for the current proportions (morph-context re-solve): the same pose asset applied to petite and obese archetypes keeps feet grounded and hands on their pin targets.",
-      "Porn-range poses (full thigh spread, deep squat, deep arch) from the QA pose set are reachable through this tool; corrective activation rides along automatically.",
-      "The response includes a capture reference for visual verification of the applied pose."
+      "Natural-language and library inputs use the canonical MT-520 BodyPose service; verified lift input must be hsk.tailor.pose_lift_proposal@1 with matching binding, body, skeleton, camera, contact, and expected-base hashes.",
+      "Every lane returns an immutable preview/diff with IK/contact validation and warnings before an explicit selected apply command; no character-sheet graph or raw PoseKit payload can mutate pose state.",
+      "Apply re-solves in morph context, records actor/lease/event/receipt provenance, supports cancellation before commit, and rejects stale, ambiguous, wrong-character, or incompatible proposals atomically."
     ],
     "proof_targets": [
-      "cargo test -p handshake_core tailor::bodykit::model_api::pose_body_ik_resolves_across_proportions"
+      "cargo test -p handshake_core tailor::bodykit::model_api::pose_body_all_inputs_preview_apply_and_atomic_rejections"
     ],
-    "risk_if_missed": "Models cannot pose bodies for QA, captures, or scene work; the pose-range validation matrix and every downstream visual verification loop lose their programmatic driver."
+    "risk_if_missed": "A convenience pose tool that applies unverified model or 2D output directly would bypass the canonical BodyPose proposal and review boundary."
   },
   "gui_obligation": {
     "operator_surface_required": false,
@@ -80,7 +88,10 @@
     "required": true,
     "same_change_update_required": true,
     "manual_version_bump_required": false,
-    "target_entries": [],
+    "target_entries": [
+      "Tailor model manual > pose_body inputs, preview, selected apply, and rejection paths",
+      "Tailor > BodyKit > Pose command history"
+    ],
     "expected_evidence": [
       "user_manual_diff",
       "manual_self_consistency_test",
@@ -126,5 +137,17 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "POSEKIT_CHARACTER_INTERLINK"
+    ],
+    "required_changes_before_execution": [
+      "Accept BodyPoseAsset or verified PoseKit export through lift/retarget proposal; require preview/validation before apply."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

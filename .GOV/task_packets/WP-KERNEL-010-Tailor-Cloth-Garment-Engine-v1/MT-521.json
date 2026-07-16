@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-521",
   "created_at_utc": "2026-07-08T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T03:02:51Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-521.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-521.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-521.md",
@@ -51,14 +54,17 @@
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "MultiActorPoseAsset matches TAI-BK-065: pose_asset_id BPA-, actors (Vec<ActorPoseSlot>, each a full BodyPoseAsset plus root transform relative to the stage anchor), stage_anchor (StageAnchor: floor-plane origin, forward +Y); persisted and event-backed like single poses.",
+      "MultiActorPoseAsset registers hsk.tailor.multi_actor_pose_asset@1 and stores actors (each a canonical BodyPoseAsset ref plus root transform) against a complete stage frame declaring right-handedness, up/forward axes, linear/angular units, origin/floor policy, rest-pose convention, and an explicit separation between world/stage frame and MT-713 camera extrinsics.",
       "apply_multi_actor(assignments: Vec<(actor_slot, body_id)>) re-solves each slot in its own body's morph context (MT-520 lane) while preserving the relative root alignment; a two-body doggy fixture applied to (neutral, neutral) and to (petite+extreme-breasts, muscular-male) keeps the declared pelvis-to-pelvis relative transform within tolerance in both castings.",
-      "Declared contact constraints (typed ContactConstraint: bone pair + max separation) are honored during re-solve; violated constraints report typed findings instead of silently drifting.",
+      "Declared contacts consume constraints by hash/reference from canonical hsk.tailor.body_pose_contact_set@1; no local ContactConstraint type exists, and violated canonical constraints report typed findings instead of silently drifting.",
       "Actor slots are assignable to any body whose skeleton version matches; mismatches are typed rejections; slots may not share a body id.",
-      "Stage-anchor math: re-rooting the whole asset (move/rotate on the stage) transforms all actors rigidly with contacts intact."
+      "Stage-anchor math: re-rooting the whole asset (move/rotate on the stage) transforms all actors rigidly with contacts intact.",
+      "Consumes hsk.tailor.body_pose_contact_set@1 from MT-714 as the sole pin/contact authority and does not introduce a parallel contact record.",
+      "Stage, actor-root, body-local, effector, prop, cloth, and camera frame conversions are explicit and unit-tested; re-rooting changes only the declared stage transform and preserves contact-set frame references.",
+      "The immutable multi-actor asset hashes its schema/version/revision, stage-frame law, ordered actor/body/BodyPose refs, contact-set ref, and source lineage under the MT-520 canonical hash convention."
     ],
     "proof_targets": [
-      "cargo test -p handshake_core tailor::bodykit::pose::multi_actor_alignment_survives_body_swaps"
+      "cargo test -p handshake_core tailor::bodykit::pose::multi_actor_stage_frames_contacts_hash_tamper_and_body_swap"
     ],
     "risk_if_missed": "Couple/group poses stored per-body with no relative alignment must be re-staged by hand every casting change — the production-killing Daz workflow for multi-actor sex scenes; without contact-preserving re-solve, swapping an actor breaks every penetration/contact alignment in the scene."
   },
@@ -82,7 +88,10 @@
     "required": true,
     "same_change_update_required": true,
     "manual_version_bump_required": false,
-    "target_entries": [],
+    "target_entries": [
+      "Tailor > BodyKit > Multi-actor poses",
+      "Tailor model manual > Stage frames and canonical contacts"
+    ],
     "expected_evidence": [
       "user_manual_diff",
       "manual_self_consistency_test",
@@ -128,5 +137,15 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "POSEKIT_CHARACTER_INTERLINK"
+    ],
+    "required_changes_before_execution": [],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

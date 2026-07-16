@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-420",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T03:02:51Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-420.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-420.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-420.md",
@@ -38,7 +41,12 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-419"
+      "MT-336",
+      "MT-419",
+      "MT-677",
+      "MT-686",
+      "MT-688",
+      "MT-689"
     ],
     "blocks": [],
     "active": false,
@@ -51,7 +59,7 @@
       "tailor-solver/src/solver/state.rs",
       "src/backend/handshake_core/src/tailor/mod.rs",
       "src/backend/handshake_core/src/api/tailor.rs",
-      "app/src/components/tailor/AnimationTimeline.tsx"
+      "src/frontend/handshake_native/src/tailor/animation_timeline.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
@@ -61,7 +69,8 @@
       "Freeze command (freeze_simulation()) halts the solver advance (no further substep dispatch) until resume_simulation() is called, preserving all particle positions and velocities.",
       "Pins and freeze state serialize into the animation session and can be saved/restored without loss.",
       "cargo test solver::pin::pinned_particle_stays_at_world_pos passes.",
-      "cargo test solver::freeze::halt_and_resume_preserves_state passes."
+      "cargo test solver::freeze::halt_and_resume_preserves_state passes.",
+      "All operator-facing scope is implemented in src/frontend/handshake_native with native wgpu/egui, AccessKit author_id, Argus inspection/steering/capture, and no Tailor React, Tauri-command, WebView, data-testid-only, or rendered-PNG frontend path."
     ],
     "proof_targets": [
       "cargo test -p tailor-solver solver::pin::pinned_particle_stays_at_world_pos",
@@ -90,5 +99,76 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "native Tailor pane and applicable editor, viewport, browser, timeline, or status surface"
+    ],
+    "argus_targets": [
+      "every control and visible state introduced or changed by this MT, using stable native author_id values"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > Animation > MT-420",
+      "Tailor ModelManual > Animation > MT-420"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "REQUIRED",
+      "reason": "The implementing MT must emit or project its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; this MT must use its open projection contract when available and must not fork a Tailor-only diagnostics runtime."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+    }
+  ],
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "PHYSICS_CONTRACT_RECONCILIATION",
+      "DUPLICATE_INTENT_CONSOLIDATED",
+      "LEGACY_FRONTEND_PATH_REHOMED",
+      "CURRENT_MT_TEMPLATE_HYDRATED"
+    ],
+    "required_changes_before_execution": [
+      "Reconcile timeline stepping, wind, cache authority, reset/pin/freeze, coupled trim advance, replay, and deterministic animation evidence with accepted checkpoints and tier-specific promotion.",
+      "MT-336 owns the pin/freeze primitive; MT-420 owns animation and native-UI integration and depends on MT-336.",
+      "Replace legacy app/src or app/src-tauri targets with the native Handshake shell and native Tailor paths.",
+      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

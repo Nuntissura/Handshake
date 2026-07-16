@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -41,6 +41,9 @@
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "ready_for_validation_v2_at_utc": "2026-07-15T21:31:57.0694829Z",
+    "ready_for_validation_v2_by": "KERNEL_BUILDER",
+    "ready_for_validation_v2_reason": "Managed PostgreSQL and mounted native runtime remediation is current and independently hardened: canonical Loom identities/backlinks/hash/update/delete proof passes; async deliveries are queued and identity-bound; save invalidation and sticky index warnings are workspace/source scoped and survive bounded-history eviction; create guards prevent duplicate notes across document and workspace round-trips; both adversarial reviewers returned READY.",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: CMD_OPEN_DOCUMENT melt-together nav channel is test-only - take_pending_navigation drained ONLY by tests; live backlink clicks work via the PARALLEL EditorEvent::BacklinkActivated nav-bus path; the MT-032 bus bridge routes nothing in production and MT-034 NoteRefs clicks depend on the undrained channel. Live backlink computation proofs (created-doc block_id, computed backlinks, content-hash equality) are ignored+integration and never ran - all in-suite backlink assertions use seeded fixtures. Fix: add shell drain for take_pending_navigation (mirror take_pending_stage_content drain at app.rs:6684) or retire the duplicate channel; run gated live-PG backlink tests.",
@@ -552,5 +555,50 @@
       ],
       "no_context_instruction": "Read MT-032.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-15T21:31:57.0694829Z",
+    "remediated_by": "KERNEL_BUILDER",
+    "scope_closed": [
+      "The production Backlinks client supplies all required Handshake identity headers, treats endpoint 404 as an empty projection, and uses bounded transport failure handling.",
+      "Managed PostgreSQL creates A and B through production APIs, proves identical RichDocument/LoomBlock ids, normal-save A-to-B backlink creation/removal/restoration, mounted production runtime rows and command-bus navigation, canonical content hash equality, and delete cleanup without a rebuild shortcut.",
+      "Transclusion, backlinks, autocomplete, resolver-seed, and create-note deliveries are queued and context/identity hardened; transclusion response bodies fail closed on workspace/block mismatch.",
+      "Mounted panels receive workspace/source-scoped save invalidations. Save-time indexing warnings are sticky across read refresh, clear only on successful indexing for the same source, rehydrate across workspace selection, and survive bounded event-history eviction through compact per-workspace state.",
+      "Create-note guards are keyed by workspace and normalized title, survive A-to-B-to-A navigation, reconcile every completion, and cache successful off-workspace creates for resolver rehydration without mutating the wrong visible document.",
+      "The internal User Manual documents the final runtime, recovery, stable ids, proof command, concurrency boundaries, and workspace-specific create-versus-seed behavior."
+    ],
+    "fresh_proofs": [
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --features integration --test test_loom_address -- --nocapture --test-threads=1",
+        "result": "PASS: 17 passed, 0 failed, 0 ignored against managed PostgreSQL on 127.0.0.1:5544 and handshake_core on 127.0.0.1:37501; live ids, hash, inbound row, remove/restore/delete, strict screenshots, 404, bounded backend-down, recovery, AccessKit, and command-bus routes verified."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --lib rich_editor::wikilinks::runtime::tests -- --nocapture --test-threads=1",
+        "result": "PASS: 34 passed, 0 failed; concurrent/reverse completions, workspace switching, warning rehydration, history eviction, duplicate-create prevention, and response-identity rejection verified."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --test test_rich_editor_save -- --nocapture --test-threads=1",
+        "result": "PASS: 19 passed, 0 failed, 1 pre-existing managed-resource test ignored; mounted target invalidation and post-commit warning propagation passed."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --test test_manual_content mt032_agent_tool_reference_covers_fixed_backlinks_controls -- --exact --nocapture --test-threads=1",
+        "result": "PASS: 1 passed, 0 failed; final no-context manual assertions match the implemented runtime."
+      }
+    ],
+    "independent_reviews": [
+      {
+        "reviewer": "mt032_adversarial_review_v2",
+        "verdict": "READY",
+        "findings": []
+      },
+      {
+        "reviewer": "mt034_adversarial_review_v2",
+        "verdict": "READY",
+        "findings": []
+      }
+    ],
+    "validator_instruction": "Independently rerun the current-head MT-032 proof commands against managed PostgreSQL and inspect the strict current Canvas screenshot. Preserve validation_v1.verdict and lifecycle.validator_verdict as FAIL_V1 until the independent v2 validator issues a new verdict."
   }
 }

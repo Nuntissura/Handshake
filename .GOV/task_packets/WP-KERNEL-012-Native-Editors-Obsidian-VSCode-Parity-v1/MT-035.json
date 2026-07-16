@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-05T10:55:27.452Z",
@@ -397,5 +397,38 @@
       ],
       "no_context_instruction": "Read MT-035.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-16T00:43:41.1104217Z",
+    "remediated_by": "KERNEL_BUILDER",
+    "scope_closed": [
+      "Unified local-first undo/redo now reaches docked and detached Code, Rich, and Graph surfaces while Canvas and canonical Stage use their required cross-pane history.",
+      "Canvas create undo/redo validates canonical backend receipts, serializes compensation transitions, preserves replacement identity, and fails closed on ambiguous or mismatched responses.",
+      "Settings, command-palette, and quick-switcher keyboard ownership prevents global undo shortcuts from mutating hidden editor history.",
+      "Same-physical-pane Code-to-Canvas/Stage transitions and popout-to-root focus transitions cannot route undo/redo to stale local history or a background detached pane."
+    ],
+    "fresh_proofs": [
+      {
+        "command": "cargo test --features integration --test test_undo_scope -- --nocapture --test-threads=1",
+        "result": "PASS: 29 passed, 0 failed against live handshake_core and managed PostgreSQL."
+      },
+      {
+        "command": "cargo test --lib app::mt035_popout_undo_tests -- --nocapture",
+        "result": "PASS: 2 passed, 0 failed; focused popout Ctrl+Y and popout-to-root focus recovery."
+      }
+    ],
+    "independent_review": {
+      "verdict": "READY_FOR_VALIDATION_V2",
+      "reviewers": [
+        "mt029_adversarial_review_v2",
+        "mt032_adversarial_review_v2",
+        "mt034_adversarial_review_v2"
+      ],
+      "findings": [],
+      "basis": "Three independent final-tree adversarial reviews covered receipt ownership, async reconciliation, overlay input ownership, same-pane Canvas/Stage routing, Graph local history, detached viewport shortcuts, and root-focus recovery; all returned READY."
+    },
+    "validator_instruction": "Independently rerun the current-head MT-035 proof set against managed PostgreSQL. Preserve validation_v1.verdict and lifecycle.validator_verdict as FAIL_V1 until that independent verdict is issued."
   }
 }

@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-424",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T02:47:09Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-424.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-424.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-424.md",
@@ -38,34 +41,35 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-423"
+      "MT-423",
+      "MT-688",
+      "MT-689",
+      "MT-520",
+      "MT-714"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement IK-mode avatar pose editing that accepts end-effector joint targets, drives a chain IK solver (FABRIK or analytical 2-bone) over the tailor_avatars skeleton, and updates the linked ClothBodyProxy capsule positions for the next sim run",
+    "summary": "Implement IK-mode editing as canonical BodyPose proposal/commit operations and derive a linked ClothBodyProxy collider snapshot from the accepted pose for the next simulation run.",
     "allowed_paths": [
       "tailor-solver/src/body/ik_pose.rs",
       "src/backend/handshake_core/src/tailor/avatar.rs",
       "src/backend/handshake_core/src/api/tailor.rs",
-      "app/src/components/tailor/AvatarPoseEditor.tsx"
+      "src/frontend/handshake_native/src/tailor/avatar_pose_editor.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "A PoseEditRequest type (joint_name: String, target_position_mm: [f32;3]) is defined in tailor-solver/src/body/ik_pose.rs",
-      "The IK solver reaches the target end-effector within 5 mm in <= 20 iterations for a 2-bone chain (hip -> knee -> ankle)",
-      "The resulting joint transform chain is propagated to update all CollisionCapsule p0_mm/p1_mm values in the linked BPX- row",
-      "TailorBodyProxyUpdated is emitted after each successful pose edit commit",
-      "Existing garment sim runs on the same AVT- are not invalidated (prior sim results are historical; new runs pick up the updated proxy)",
-      "cargo test tailor_ik::test_two_bone_chain_reach and tailor_ik::test_ik_proxy_capsule_update both pass"
+      "Dragging an end effector edits a BodyPose preview through the canonical MT-520 service and MT-714 pin/contact schema; the collision proxy is never pose authority.",
+      "Commit records the accepted BodyPose revision and derives a collider snapshot linked by body/pose/content hashes, units, actor, event, and simulation-input receipt.",
+      "IK failure, unreachable target, stale base, cancelled drag, proxy-build failure, and simulation cancellation leave the prior accepted BodyPose/proxy pair intact."
     ],
     "proof_targets": [
       "cargo test -p tailor-solver body::ik_pose::test_two_bone_chain_reach",
       "cargo test -p handshake_core tailor::avatar::test_ik_proxy_update_event"
     ],
-    "risk_if_missed": "Operators and models cannot pose avatars without re-importing a full custom mesh. Pose variation for draping (seated, arms raised, A-pose vs T-pose) requires external tooling, breaking the self-contained workflow MD users expect."
+    "risk_if_missed": "Updating capsules as pose truth can desynchronize the rendered skeleton, saved pose, contacts, and cloth collision input."
   },
   "hbr_obligations": [],
   "handoff": {
@@ -87,5 +91,74 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "native Tailor pane and applicable editor, viewport, browser, timeline, or status surface"
+    ],
+    "argus_targets": [
+      "every control and visible state introduced or changed by this MT, using stable native author_id values"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor > BodyKit > IK pose editing and collider snapshot",
+      "Tailor model manual > BodyPose-to-cloth proxy derivation"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "REQUIRED",
+      "reason": "The implementing MT must emit or project its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; this MT must use its open projection contract when available and must not fork a Tailor-only diagnostics runtime."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+    }
+  ],
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "LEGACY_FRONTEND_PATH_REHOMED",
+      "POSEKIT_CHARACTER_INTERLINK",
+      "CURRENT_MT_TEMPLATE_HYDRATED"
+    ],
+    "required_changes_before_execution": [
+      "Replace legacy app/src or app/src-tauri targets with the native Handshake shell and native Tailor paths.",
+      "Unify legacy Cloth avatar IK with BodyKit skeleton/BodyPose authority and explicit contact primitives.",
+      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

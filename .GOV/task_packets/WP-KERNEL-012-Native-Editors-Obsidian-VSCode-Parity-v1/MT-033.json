@@ -14,7 +14,7 @@
   "title": "E5-MT-033-CkcEmbedsDragInRouteToStage",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T23:03:46.5907996Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-033.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -307,6 +307,12 @@
       ],
       "no_context_instruction": "Read MT-033.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
     }
+  },
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "implemented_at_utc": "2026-07-15T23:03:46.5907996Z",
+    "product_proof": "Managed-PostgreSQL test_ckc_embed passed 28/28; exact shell-wide Stage pane-switch/embed/route test and same-board reordered Canvas completion tests passed.",
+    "adversarial_review": "READY from mt029_adversarial_review_v2, mt032_adversarial_review_v2, and mt034_adversarial_review_v2."
   },
   "validation_v1_ignored_prior_2026_07_12": {
     "schema_id": "hsk.mt_validation_verdict@1",

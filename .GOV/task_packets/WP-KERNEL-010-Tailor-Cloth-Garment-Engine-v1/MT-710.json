@@ -1,0 +1,159 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-710",
+  "created_at_utc": "2026-07-16T01:23:22Z",
+  "updated_at_utc": "2026-07-16T02:47:09Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-710.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-710.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-710.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-047",
+      "MT-478",
+      "MT-480",
+      "MT-490",
+      "MT-491"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Gate Tailor interlink work on the validated PoseKit merge, then implement the canonical revisioned binding and shared schema/hash/store foundation for Atelier character/sheet refs and BodyKit body/avatar ids.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/interlink/mod.rs",
+      "src/backend/handshake_core/src/tailor/interlink/identity_binding.rs",
+      "src/backend/handshake_core/src/tailor/interlink/store.rs",
+      "src/backend/handshake_core/src/tailor/schemas.rs",
+      "src/backend/handshake_core/src/api/tailor.rs",
+      "src/backend/handshake_core/migrations/2026_07_16_tailor_interlink_bindings.sql",
+      "src/backend/handshake_core/tests/tailor_identity_binding.rs",
+      "src/backend/handshake_core/migrations/2026_07_16_tailor_interlink_records.sql"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Before any Atelier implementation or fixture is read, the source commit a2abba07af8e0446d5cd988f5aaabc1c7f48cbfe must have a non-NONE merged_main_commit, main containment CONTAINED/PASS, and current-main compatibility PASS against the pinned main/WP-KERNEL-012 baseline.",
+      "The containment receipt records validator INTEGRATION_VALIDATOR-20260708-ckc-v2, validated source SHA, merge SHA, baseline SHA, and merged-main schema-fixture compatibility; dirty or unmerged PoseKit worktree files are forbidden implementation inputs.",
+      "Registers hsk.tailor.character_body_binding@1 and the interlink schema registry. Canonical bytes use crate::llm::canonical_json_bytes_nfc and hashes use sha256:<64hex> over schema id/version, revision, semantic fields, and source hashes while excluding storage-location refs, storage-local surrogate row ids, timestamps, and receipts while including semantic typed character, sheet-version, body, avatar, actor, entity, and source refs.",
+      "Unknown major schema versions fail closed; accepted older versions require explicit deterministic migration before hashing or use. Pinned sheet-version refs never silently advance, while explicit follow-head marks every derived proposal stale on head change.",
+      "atelier://character stable refs, immutable sheet-version refs, BodyKit body/avatar ids, actors, leases, events, and receipts remain distinct and are verified before binding; wrong-character, stale-base, lease, cancellation, replay, and orphan recovery paths are covered.",
+      "The shared interlink store indexes immutable ArtifactStore refs and their EventLedger events and supplies transactional idempotency, list/get, replay, outbox, and orphan-recovery state for MT-711..717 records; payload bytes remain content-addressed and hash-verified."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --test tailor_identity_binding"
+    ],
+    "risk_if_missed": "Reading merge-withheld or dirty PoseKit state, conflating UUID spaces, or hashing storage metadata could bind and replay derived body/pose state against the wrong character."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Non-UI scope: behavior is observable through typed Tailor state, receipts, captures, diagnostics, and TraceProjection; the owning native-shell MT verifies GUI projection."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor > Interlink > Binding sources",
+      "Tailor model manual > Interlink containment and schema law"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "REQUIRED",
+      "reason": "The implementing MT emits or projects its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; use its open projection contract and do not fork a Tailor-only diagnostics runtime."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "NEW_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "PROFESSIONAL_PRODUCTION_HARDENING_GAP"
+    ],
+    "required_changes_before_execution": [],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+  }
+}

@@ -14,7 +14,7 @@
   "title": "E3-MT021-LocalGlobalGraph",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T05:57:56.822Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-021.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -505,6 +505,37 @@
         "The live test runs by default and exits zero."
       ],
       "no_context_instruction": "Read MT-021.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "remediated_at_utc": "2026-07-15T05:57:56.822Z",
+    "v1_verdict_preserved": "FAIL_V1",
+    "remediation_scope": [
+      "Bound the mounted graph to canonical global/local Loom routes with strict projection parsing, full request identity, bounded transport failure, hidden workspace reset, and A-to-B-to-A stale-delivery rejection.",
+      "Made graph AccessKit identities injective over raw UTF-8, restricted production exposure to visible consumable nodes, preserved exact reverse routing, canonicalized TreeItem roles, and rejected blank identities across node/edge actions and projections.",
+      "Replaced the ignored fixture-dependent graph check with a self-seeding PostgreSQL proof covering real pre-seed empty state, populated Global and Local projections, exact node open, bounded backend failure, same-request retry, and workspace cleanup."
+    ],
+    "proof_status": {
+      "graph_nonlive": "PASS_7_OF_7",
+      "mounted_host_graph": "PASS_4_OF_4",
+      "graph_accesskit": "PASS_7_OF_7",
+      "manual": "PASS_2_OF_2",
+      "whitespace_projection_guard": "PASS_1_OF_1",
+      "blank_action_guard": "PASS_1_OF_1",
+      "live_postgres_round_trip": "PASS_1_OF_1_WITHOUT_HSK_TEST_WORKSPACE_ID",
+      "visual_inspection": "PASS_CURRENT_EXTERNAL_SCREENSHOT",
+      "owned_resource_cleanup": "PASS_PID_PORT_DATABASE_RUNTIME_AND_SHARED_CLUSTER"
+    },
+    "adversarial_review": {
+      "verdict": "PASS",
+      "lenses": [
+        "workspace_mode_focus_depth_request_identity",
+        "accesskit_visibility_injective_identity_and_reverse_routing",
+        "strict_projection_and_parameterized_action_fail_closed_behavior",
+        "self_seeded_postgres_empty_error_retry_cleanup_and_manual_truth"
+      ],
+      "residual_uncertainty": "No MT-021 V2 blocker remained after final cross-review. Independent validator PASS remains outside implementer authority."
     }
   }
 }

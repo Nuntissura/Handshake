@@ -1,0 +1,798 @@
+{
+  "schema_id": "hsk.tailor.professional_production_refinement_prework@1",
+  "schema_version": "1.0.0",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_PREWORK",
+  "execution_authority": "NON_EXECUTION_PRE_ACTIVATION_PREWORK",
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "artifact_id": "TAI-PROFESSIONAL-PRODUCTION-PREWORK-001",
+  "created_at_utc": "2026-07-16T01:23:22Z",
+  "updated_at_utc": "2026-07-16T02:47:09Z",
+  "lifecycle": {
+    "status": "PREWORK_HARDENED_PENDING_SIGNED_REFINEMENT",
+    "operator_signature_status": "NOT_REQUESTED_BY_THIS_PREP_PASS",
+    "activation_status": "HELD",
+    "may_start_implementation": false,
+    "may_create_packet_or_product_worktree": false
+  },
+  "scope": {
+    "primary_deliverable": "Decide whether Tailor Cloth, BodyKit, and physics are ready for professional 3D-production implementation, close the discoverable prep gaps, reconcile all existing MTs, add bounded missing MTs, and preserve the operator hold.",
+    "in_scope": [
+      "cloth physics architecture",
+      "BodyKit content and creator tooling",
+      "native professional GUI/UX",
+      "visual debugging and accessibility",
+      "PoseKit and character-sheet interlink",
+      "mix/read/derive/write primitives",
+      "adult anatomy production readiness",
+      "asset/version/dependency publishing",
+      "USD/MaterialX/OCIO and DCC qualification",
+      "reference assets/scenes, visual and performance gates",
+      "all-MT template and dependency reconciliation"
+    ],
+    "non_goals": [
+      "product-code implementation",
+      "WP activation",
+      "packet.json creation",
+      "feature worktree creation",
+      "Task Board activation",
+      "Master Spec mutation without a copy-first signed refinement",
+      "PoseKit merge or product-worktree mutation"
+    ]
+  },
+  "verified_readiness_verdict": {
+    "verdict": "NOT_READY_FOR_BUILD",
+    "verdict_class": "DESIGN_CONTRACT_ASSESSMENT_NOT_VALIDATOR_VERDICT",
+    "reason": "The research base is extensive, but current signed Section 13 and the original 653 MTs contain superseded physics, native-versus-Tauri UI contradictions, a fake total serial dependency chain, missing professional authoring/recovery/content tools, hypothetical BodyKit source assets, insufficient genital/anatomy detail, incomplete DCC publishing, and unpinned visual/performance evidence.",
+    "ready_after": "A signed refinement accepts or revises this prework, a copy-first Section 13 bundle resolves every conflict, actual required asset/reference ids and budgets are pinned, an official packet hydrates the accepted DAG, and activation is explicitly authorized."
+  },
+  "verified_current_state": {
+    "product_implementation": "NO_TAILOR_PRODUCT_IMPLEMENTATION_FOUND_IN_CURRENT_AUTHORITY_REVIEW",
+    "original_mt_inventory": "653/653 hsk.microtask_contract@1 files were present and PENDING before this pass.",
+    "original_dependency_shape": "MT-001 root plus MT-N depending only on MT-(N-1), one total serial chain.",
+    "original_template_drift": "MT-001..448 lacked gui_obligation, user_manual_obligation, and hbr_int_009_tier_obligations; MT-001 was incorrectly active while the WP was held.",
+    "original_ui_drift": "51 MTs named app/src React/Tauri paths while the stub and BodyKit named the native shell.",
+    "active_spec_conflict": "Section 13.12 still mandates Tauri/WebView rendered-to-PNG viewport behavior; the stub and BodyKit mandate native handshake_native/wgpu/AccessKit/Argus behavior.",
+    "posekit_state": {
+      "worktree": "../wtc-ckc-posekit-overhaul",
+      "branch": "feat/WP-CKC-posekit-overhaul",
+      "inspected_head": "a2abba07af8e0446d5cd988f5aaabc1c7f48cbfe",
+      "packet_state": "IN_PROGRESS / WHOLE_WP_TECHNICAL_PASS_V2 / MERGE_WITHHELD",
+      "merge_gate": "Waits on WP-KERNEL-012 lineage and main containment/compatibility; this prep reads committed interfaces only and does not modify or merge that worktree.",
+      "validator_id": "INTEGRATION_VALIDATOR-20260708-ckc-v2",
+      "validated_source_commit": "a2abba07af8e0446d5cd988f5aaabc1c7f48cbfe",
+      "merged_main_commit": "NONE_AT_INSPECTION",
+      "main_containment": "NOT_STARTED_AT_INSPECTION",
+      "current_main_compatibility": "NOT_RUN_AT_INSPECTION",
+      "implementation_input_rule": "Tailor execution may read only merged-main committed schemas/fixtures after containment and current-main/WP-KERNEL-012 compatibility PASS; dirty or unmerged PoseKit worktree files are forbidden inputs."
+    },
+    "named_adult_surface": "The verified project name is BodyKit, with Section 13.21 named Genital Modules. No separate named porn-production-readiness feature was found; this prep does not invent one."
+  },
+  "authority_inputs": [
+    {
+      "path": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+      "role": "non-execution Tailor stub and activation hold"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.200/spec-modules/13-tailor-cloth-garment-engine.md",
+      "role": "active Section 13 authority inspected for contradictions and gaps; unchanged by this prep"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MT_INDEX.json",
+      "role": "authoritative MT inventory updated by this prep"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+      "role": "two-tier physics contract candidate and assigned MT-654..687 plan"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json",
+      "role": "complete MT-001..739 classification and candidate DAG"
+    },
+    {
+      "path": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+      "role": "current MT structure used for hydration and new MTs"
+    },
+    {
+      "path": ".GOV/reference/cloth_engine_research/",
+      "role": "prior non-normative Cloth research"
+    },
+    {
+      "path": ".GOV/reference/tailor_bodykit_research/",
+      "role": "prior non-normative BodyKit/Daz research"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/.GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+      "role": "PoseKit technical-pass/merge-withheld evidence"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/pose.rs",
+      "role": "implemented PoseKit schemas and 2D boundary"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "role": "merged-candidate Atelier API ownership and typed link routes"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/refs.rs",
+      "role": "stable character and immutable sheet reference shapes"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/sheet.rs",
+      "role": "character-sheet version authority"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/sheet_artifacts.rs",
+      "role": "Atelier-owned sheet artifact link implementation"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "role": "verified native Atelier author_ids and deep-link surfaces"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/migrations/0090_atelier_pose_sidecars.sql",
+      "role": "PoseKit sidecar persistence schema"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/migrations/0340_atelier_sheet_artifact_links.sql",
+      "role": "Atelier sheet artifact link ownership/migration"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+      "role": "Atelier packet authority and ownership boundary"
+    }
+  ],
+  "research_basis": {
+    "verified_at_utc": "2026-07-16T02:12:07Z",
+    "source_rule": "Current primary/official documentation and directly inspected project/worktree source were preferred; research remains non-normative until translated into a signed spec and MT contract.",
+    "sources_checked": [
+      {
+        "source": "Marvelous Designer 2025 custom UI layouts",
+        "url": "https://support.marvelousdesigner.com/hc/en-us/articles/47358157097881-Custom-UI-Layout-ver-2025-0",
+        "pattern": "saved professional layouts"
+      },
+      {
+        "source": "Marvelous Designer History Window",
+        "url": "https://support.marvelousdesigner.com/hc/en-us/articles/47358269290393-History-Window",
+        "pattern": "named visual states and recovery-oriented history"
+      },
+      {
+        "source": "Marvelous Designer Object Browser",
+        "url": "https://support.marvelousdesigner.com/hc/en-us/articles/47358294806169-Object-Browser",
+        "pattern": "hierarchical scene/object management"
+      },
+      {
+        "source": "Marvelous Designer Property Editor",
+        "url": "https://support.marvelousdesigner.com/hc/en-us/articles/47358318005913-Property-Editor",
+        "pattern": "contextual numeric property editing"
+      },
+      {
+        "source": "Marvelous Designer autosave recovery",
+        "url": "https://support.marvelousdesigner.com/hc/en-us/articles/47358409002265-Open-Auto-Save-File-Zpac-or-Zprj",
+        "pattern": "timed autosave and crash recovery"
+      },
+      {
+        "source": "CLO 2D Window",
+        "url": "https://support.clo3d.com/hc/en-us/articles/115000374127-2D-Window",
+        "pattern": "2D pattern/seam/texture authoring"
+      },
+      {
+        "source": "CLO Garment Fit Maps",
+        "url": "https://support.clo3d.com/hc/en-us/articles/360000436368-Garment-Fit-Maps",
+        "pattern": "stress, strain, fit, and pressure inspection"
+      },
+      {
+        "source": "Daz Content Creator Toolkit",
+        "url": "https://docs.daz3d.com/public/software/dazstudio/4/referenceguide/plugins/cct/start",
+        "pattern": "native content creation and repair tooling"
+      },
+      {
+        "source": "Daz rigging tools",
+        "url": "https://docs.daz3d.com/public/software/dazstudio/4/userguide/creating_content/rigging/start",
+        "pattern": "joint, geometry, transfer, and rigging workflows"
+      },
+      {
+        "source": "Daz Weight Map Brush",
+        "url": "https://docs.daz3d.com/public/software/dazstudio/4/userguide/creating_content/rigging/tutorials/weight_map_brush/start",
+        "pattern": "weight editing and normalization"
+      },
+      {
+        "source": "Blender operator contract",
+        "url": "https://docs.blender.org/api/blender_python_api_current/bpy.types.Operator.html",
+        "pattern": "one identified operation across UI, properties, undo, and automation"
+      },
+      {
+        "source": "Blender undo and adjustment",
+        "url": "https://docs.blender.org/manual/en/4.2/interface/undo_redo.html",
+        "pattern": "semantic history and adjust-last-operation"
+      },
+      {
+        "source": "Blender recovery and saving",
+        "url": "https://docs.blender.org/manual/en/dev/files/blend/open_save.html",
+        "pattern": "autosave, last-session recovery, portable path handling"
+      },
+      {
+        "source": "Houdini Vellum",
+        "url": "https://www.sidefx.com/docs/houdini/vellum/overview.html",
+        "pattern": "XPBD constraints and production diagnostics"
+      },
+      {
+        "source": "Houdini PDG UI",
+        "url": "https://www.sidefx.com/docs/houdini/tops/ui.html",
+        "pattern": "queued/running/waiting/failed/cancelled jobs and work-item diagnostics"
+      },
+      {
+        "source": "OpenUSD concepts",
+        "url": "https://openusd.org/release/glossary.html",
+        "pattern": "layers, references, payloads, variants, collections, composition"
+      },
+      {
+        "source": "OpenUSD toolset",
+        "url": "https://openusd.org/dev/toolset.html",
+        "pattern": "usdchecker and interchange validation"
+      },
+      {
+        "source": "UsdSkel scope",
+        "url": "https://openusd.org/release/api/_usd_skel__intro.html",
+        "pattern": "skeleton, skinning, animation, and blendshape interchange boundary"
+      },
+      {
+        "source": "MaterialX source",
+        "url": "https://github.com/AcademySoftwareFoundation/MaterialX",
+        "pattern": "portable material/look representation and validation"
+      },
+      {
+        "source": "MaterialX in USD",
+        "url": "https://openusd.org/release/api/_page__material_x__in__hydra__u_s_d.html",
+        "pattern": "USD/MaterialX integration and conversion limits"
+      },
+      {
+        "source": "OpenUSD color guide",
+        "url": "https://openusd.org/release/user_guides/color_user_guide.html",
+        "pattern": "interoperable color-space metadata"
+      },
+      {
+        "source": "AccessKit",
+        "url": "https://github.com/AccessKit/accesskit",
+        "pattern": "stable node roles/actions/focus and incremental accessibility tree"
+      },
+      {
+        "source": "WCAG use of color",
+        "url": "https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html",
+        "pattern": "color cannot be the sole state carrier"
+      },
+      {
+        "source": "Position Based Dynamics / XPBD paper basis",
+        "url": "https://matthias-research.github.io/pages/publications/XPBD.pdf",
+        "pattern": "compliance-aware constraint formulation"
+      },
+      {
+        "source": "Incremental Potential Contact",
+        "url": "https://ipc-sim.github.io/",
+        "pattern": "contact-safe nonlinear solve and CCD oracle"
+      },
+      {
+        "source": "C-IPC",
+        "url": "https://ipc-sim.github.io/C-IPC/",
+        "pattern": "codimensional contact oracle and failure cases"
+      },
+      {
+        "source": "IPC reference implementation",
+        "url": "https://github.com/ipc-sim/IPC",
+        "pattern": "source, tests, diagnostic tools, batch fixtures, optional solver backends, and headless execution for contact-safe nonlinear elastodynamics"
+      },
+      {
+        "source": "wgpu repository and release surface",
+        "url": "https://github.com/gfx-rs/wgpu",
+        "pattern": "native cross-platform Rust GPU API, backend portability, release cadence, MSRV, examples, and implementation limitations"
+      },
+      {
+        "source": "WebGPU XPBD cloth field implementation",
+        "url": "https://github.com/jspdown/cloth",
+        "pattern": "GPU XPBD with graph-colored parallel Gauss-Seidel as useful reference code but not production collision or reliability proof"
+      },
+      {
+        "source": "Genesis release notes for IPC cloth coupling",
+        "url": "https://github.com/Genesis-Embodied-AI/genesis-world/blob/main/RELEASE.md",
+        "pattern": "current field integration treats IPC cloth coupling as experimental, reinforcing qualification rather than parity-by-presence"
+      },
+      {
+        "source": "Marvelous Designer retopology crash/autosave field report",
+        "url": "https://www.reddit.com/r/MarvelousDesigner/comments/z9g6gx",
+        "pattern": "large 2D topology performance, crash recovery, autosave, visibility/isolation, and data-loss failure scenarios"
+      },
+      {
+        "source": "Marvelous Designer cross-window selection field report",
+        "url": "https://www.reddit.com/r/MarvelousDesigner/comments/1dm3tnb",
+        "pattern": "2D-to-3D selection synchronization and occluded-object manipulation usability gap"
+      },
+      {
+        "source": "GarmageSet dataset card",
+        "url": "https://huggingface.co/datasets/Style3D/GarmageSet",
+        "pattern": "professionally curated 2D sewing-pattern, stitching, and simulation-ready 3D garment corpus with access/license constraints"
+      },
+      {
+        "source": "GarmentCodeData paper and implementation link",
+        "url": "https://huggingface.co/papers/2405.17609",
+        "pattern": "large made-to-measure sewing-pattern corpus, automatic drape pipeline, body-shape sampling, collision resolution, and open-source reuse opportunity"
+      },
+      {
+        "source": "RGBench Cloth Sim-to-Real v1",
+        "url": "https://huggingface.co/datasets/hwk0809/RGBench-Cloth-Sim2Real-v1",
+        "pattern": "current real-garment point-cloud benchmark, multi-resolution meshes, calibration, published baseline structure, and non-manifold negative cases"
+      },
+      {
+        "source": "NVIDIA SOMA-X model card",
+        "url": "https://huggingface.co/nvidia/SOMA-X",
+        "pattern": "decoupled identity and pose over canonical topology/skeleton plus documented commercial-data provenance; research comparison only, not a reusable BodyKit source asset"
+      },
+      {
+        "source": "NVIDIA Warp topology-update issue",
+        "url": "https://github.com/NVIDIA/warp/issues/160",
+        "pattern": "deforming collider meshes require explicit update/refit lifecycle; issue discussion and linked implementation are comparison evidence, not a Tailor dependency"
+      },
+      {
+        "source": "OpenColorIO configuration authoring",
+        "url": "https://opencolorio.readthedocs.io/en/latest/guides/authoring/authoring.html",
+        "pattern": "versioned roles, file/view rules, displays/views, validation, and operator-visible color-state requirements"
+      },
+      {
+        "source": "OpenPBR specification",
+        "url": "https://academysoftwarefoundation.github.io/OpenPBR/",
+        "pattern": "physically based material parameters, units, texture/geometry metadata boundary, and MaterialX/USD interchange context"
+      },
+      {
+        "source": "Blender production deployment and 4.5 LTS release line",
+        "url": "https://docs.blender.org/manual/en/dev/advanced/deploying_blender.html",
+        "pattern": "production projects should use one LTS version; select Blender 4.5 LTS as the initial qualification family and lock its exact patch/binary at signed refinement"
+      },
+      {
+        "source": "Unreal Engine 5.8 official release notes",
+        "url": "https://dev.epicgames.com/documentation/unreal-engine/unreal-engine-5-8-release-notes",
+        "pattern": "current official UE5 release family for the initial import/round-trip qualification lock"
+      }
+    ],
+    "source_category_coverage": [
+      {
+        "category": "project_authority_and_source",
+        "result": "Directly inspected the Tailor stub/MTs/spec anchors and the validated-but-merge-withheld PoseKit packet, schemas, tests, and implementation."
+      },
+      {
+        "category": "github_source_issue_release_and_implementation",
+        "result": "Inspected wgpu, IPC, a GPU XPBD implementation, AccessKit, MaterialX, Genesis release notes, and an NVIDIA Warp topology-update issue; reused patterns only where the project boundary and proof plan support them."
+      },
+      {
+        "category": "vendor_official_documentation",
+        "result": "Inspected Marvelous Designer, CLO, Daz, Blender, Houdini, OpenUSD, MaterialX, OCIO/color, WCAG, and AccessKit documentation for professional workflows and UI contracts."
+      },
+      {
+        "category": "papers_universities_labs_and_hyperscalers",
+        "result": "Inspected XPBD, IPC/C-IPC, GarmentCodeData, RGBench, and NVIDIA SOMA-X evidence for solvers, corpora, body-model separation, validation, and limitations."
+      },
+      {
+        "category": "hugging_face_models_datasets_and_benchmarks",
+        "result": "Inspected GarmageSet, GarmentCodeData, RGBench, and SOMA-X; corpus licenses, access gates, and research-only assets are not treated as shippable BodyKit content."
+      },
+      {
+        "category": "reddit_and_field_failure_reports",
+        "result": "Inspected current and historical Marvelous Designer/CLO reports for crashes, missing autosaves, large-pattern lag, lost selection, workspace recovery, and cross-window manipulation; used them as failure scenarios, not technical authority."
+      },
+      {
+        "category": "civitai_and_x_social_search",
+        "result": "Searched for relevant professional 3D cloth, BodyKit creator-tool, and anatomy implementation evidence; no source suitable for architectural authority was adopted."
+      },
+      {
+        "category": "benchmarks_postmortems_and_negative_paths",
+        "result": "Used RGBench and contact oracle fixtures for benchmark structure, plus field crash/data-loss reports and source issue/release evidence for recovery and qualification gates; no feature-name-only parity claim was accepted."
+      }
+    ],
+    "selected_approach": [
+      "One versioned Tailor world with GPU f32 interactive XPBD, CPU f64 XPBD reference, and pure-Rust CPU f64 contact-safe nonlinear final solve.",
+      "One native shell and one typed command registry across operator, model, Argus, MCP, history, replay, receipts, and manual.",
+      "One shared scene/selection/property/history/jobs/problems/validation world for Cloth and BodyKit.",
+      "Versioned original BodyKit source assets plus native creator/repair tools; validators do not substitute for content.",
+      "PoseKit remains typed hashed 2D evidence; Tailor owns explicit lift, camera, joint-map, contact, proposal, and promotion contracts.",
+      "MaterialX/OpenPBR/OCIO plus composed OpenUSD publishing and version-pinned downstream qualification."
+    ],
+    "rejected_options": [
+      "Start product coding from the current signed spec/653 chain.",
+      "Maintain parallel React/Tauri and native Tailor frontends.",
+      "Treat EventLedger or panel snapshots as full undo/autosave/recovery.",
+      "Treat PoseKit's 2D pixels, lens_mm, or misleading 3D viewport author_id as 3D authority.",
+      "Use hard zero-region deformation masks as the definition of channel independence.",
+      "Claim Daz or professional-DCC parity from feature names, cargo tests, or raw USD/glTF export alone.",
+      "Silently truncate contacts, mutate parameters, skip required release qualification, or fall back without typed receipts."
+    ]
+  },
+  "blocking_findings": [
+    {
+      "id": "TAI-READY-BLOCK-001",
+      "finding": "Physics contract is a non-executable candidate with unresolved signed-spec conflicts.",
+      "mitigation": "Accept/revise the physics prework, MT-654..687, and copy-first Section 13 changes in signed refinement.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-002",
+      "finding": "Original MTs used one total serial chain rather than architecture dependencies.",
+      "mitigation": "Use the acyclic candidate DAG in the reconciliation artifact and sign the final graph at refinement.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-003",
+      "finding": "MT-001..448 were missing current GUI/manual/HBR template fields and MT-001 was active under hold.",
+      "mitigation": "Hydrated all 448 and forced every MT inactive; schema/invariant validation remains required.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-004",
+      "finding": "Active spec, stub, Cloth MTs, and BodyKit MTs disagree on Tauri/WebView versus native-shell UI.",
+      "mitigation": "Re-homed 51 MTs and added MT-688 native-path guard; signed spec enrichment must supersede Tauri/WebView clauses.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-688.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-005",
+      "finding": "No owned professional 2D Pattern workspace, shared selection/property command law, or complete authoring UX existed.",
+      "mitigation": "Implement the bounded native UX contracts MT-689..709 after activation.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-690.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-006",
+      "finding": "Undo, autosave, crash/device-loss recovery, Jobs, and Problems were absent or conflated with events/snapshots.",
+      "mitigation": "Use semantic history/checkpoint branches plus MT-694..697 recovery and observability contracts.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-694.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-007",
+      "finding": "BodyKit validated an unspecified source mesh but did not own an immutable professional asset pack.",
+      "mitigation": "MT-721 pins and accepts the complete base-asset pack and fixture hashes before downstream qualification.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-721.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-008",
+      "finding": "BodyKit lacked Daz-class content-creator and repair tools for geometry, joints, weights, transfer, morphs, correctives, and skin.",
+      "mitigation": "MT-722..726 and MT-737 add creator tools and lifecycle proof.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-737.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-009",
+      "finding": "Hard zero-region delta rules confuse independent controls with physically/anatomically valid deformation support.",
+      "mitigation": "MT-739 separates hidden channel coupling from explicit feathered support, compensation, skeletal propagation, and physics.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-739.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-010",
+      "finding": "Genital controls and tests were too shallow for professional close-up anatomy, variation, motion, and contact.",
+      "mitigation": "MT-730..732 add detailed pussy, cock/scrotum, and full deformation/contact/reference matrices.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-732.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-011",
+      "finding": "Oral, ocular, nail, and groom-attachment anatomy lanes were incomplete.",
+      "mitigation": "MT-727..729 add versioned assets and close-up/export gates; strand grooming remains an explicitly deferred system.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-727.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-012",
+      "finding": "PoseKit is a validated 2D OpenPose workflow, not a 3D pose/camera/contact/cloth authority.",
+      "mitigation": "MT-710..720 add identity binding, verification, lift, joint map, camera, contacts, sheet mapping, primitives, GUI, E2E, and interchange.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-711.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-013",
+      "finding": "Professional publishing was file-export oriented and lacked dependency resolution, composed USD, MaterialX/OpenPBR/OCIO, and fail-closed DCC qualification.",
+      "mitigation": "MT-702..704 and MT-733..736 add backend and GUI publication contracts.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-736.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-014",
+      "finding": "Visual, anatomy, deformation, usability, and performance claims lacked pinned reference artifacts and thresholds.",
+      "mitigation": "MT-708, MT-734, and MT-738 establish exact visual/state/performance matrices and require direct artifact inspection.",
+      "evidence": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-734.json"
+    },
+    {
+      "id": "TAI-READY-BLOCK-015",
+      "finding": "Unqualified 'native/full Daz/professional 3D parity' wording conflicts with required Blender bridges and deferred grooming/lip-sync/photoreal rendering.",
+      "mitigation": "State the native authoring boundary, external connector/qualification boundary, initial Blender/UE targets, and explicit deferred/unsupported rows in the signed spec.",
+      "evidence": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json"
+    }
+  ],
+  "candidate_product_contract": {
+    "native_boundary": "Core body/garment authoring, physics, scene state, validation, jobs, GUI, automation, recovery, and publishing preparation are native Rust inside Handshake.",
+    "connector_boundary": "External DCCs are explicit version-pinned export, conversion, and qualification connectors; their use does not make the core authoring engine non-native and may not be described as no-outside-app end-to-end delivery.",
+    "initial_qualified_targets": [
+      "Blender",
+      "Unreal Engine"
+    ],
+    "explicit_target_verdicts_required": [
+      "Maya",
+      "Houdini",
+      "3ds Max",
+      "Cinema 4D"
+    ],
+    "deferred_parity_systems": [
+      "strand/groom authoring beyond typed attachment hooks",
+      "audio lip-sync solver beyond typed viseme ingest",
+      "photoreal hero rendering",
+      "native FBX writer"
+    ],
+    "claim_rule": "No Marvelous Designer, Daz, or professional-DCC parity claim is permitted beyond the exact versioned capability matrix rows with green metric, visual, usability, performance, and round-trip evidence.",
+    "dcc_toolchain_lock": {
+      "initial_version_families": [
+        "Blender 4.5 LTS",
+        "Unreal Engine 5.8"
+      ],
+      "exact_lock_gate": "Signed refinement must record exact patch/build/importer/plugin ids, platform, executable/package sha256, and official acquisition source before MT-736/720 execution.",
+      "fixture": "src/backend/handshake_core/tests/fixtures/tailor/dcc_qualification/toolchain-lock.json"
+    }
+  },
+  "ui_contract_candidate": {
+    "layout_presets": {
+      "tailor_authoring": [
+        "Scene Object Browser",
+        "2D Pattern",
+        "3D Garment",
+        "Property Inspector",
+        "Simulation toolbar",
+        "Problems",
+        "Jobs",
+        "History"
+      ],
+      "tailor_fit": [
+        "3D fit viewport",
+        "synchronized 2D fit map",
+        "stress/strain/pressure/ease/contact probes",
+        "measurements",
+        "Problems"
+      ],
+      "tailor_bodykit": [
+        "shared body/garment viewport",
+        "region channels",
+        "recipes",
+        "measurements",
+        "coupling graph",
+        "genital configuration",
+        "pose/interlink"
+      ],
+      "tailor_material_uv": [
+        "material library/inspector",
+        "2D graphics",
+        "UV editor",
+        "MaterialX/OpenPBR",
+        "OCIO",
+        "target preview"
+      ],
+      "tailor_animation": [
+        "track/outliner",
+        "dope sheet",
+        "curve editor",
+        "takes/cache layers",
+        "markers",
+        "comparison"
+      ],
+      "tailor_publish": [
+        "versions/dependencies",
+        "export profiles",
+        "USD composition",
+        "material bindings",
+        "validation/promotion",
+        "manifest/round-trip"
+      ]
+    },
+    "interaction_law": "Every meaningful action resolves through one typed command descriptor shared by GUI, shortcuts, palette, Argus, MCP, replay, semantic history, receipts, and manual.",
+    "topology_edit_law": "Topology-changing edits queue while a solver run is active, display affected entities/count, and apply only through an atomic stopped-run topology transaction with rollback.",
+    "visual_debug_law": "Every GUI matrix cell retains screenshot, AccessKit tree, typed state, command trace, renderer/error scan, receipt, selected/focused id, and repro route."
+  },
+  "posekit_character_interlink_candidate": {
+    "reuse": [
+      "atelier character and immutable sheet refs",
+      "hsk.atelier.posekit.openpose_export@1",
+      "hashed PNG/JSON/receipt sidecars",
+      "rig/source/character lineage",
+      "ArtifactStore refs",
+      "actor/thread/lease/event attribution",
+      "stable Atelier deep-link author_ids"
+    ],
+    "forbidden_assumptions": [
+      "PoseKit is a 3D skeleton authority",
+      "2D pixels are cm/m",
+      "PoseKit lens_mm is calibrated camera data",
+      "atelier-pose-3d-viewport is a real 3D product surface",
+      "PoseKit supplies ground/penetration/cloth contacts",
+      "raw character-sheet prose is solver authority"
+    ],
+    "mix_primitive_law": "read_* returns typed pinned refs; derive_* emits immutable proposals/overlays without RawContent mutation; write_* accepts only validated previewed patches with expected base hash, lease, actor attribution, event, receipt, cancellation, and replay.",
+    "merge_containment_gate": "Validated source a2abba07af8e0446d5cd988f5aaabc1c7f48cbfe must be merged, contained, and compatibility-PASS against pinned current main/WP-KERNEL-012 before any Atelier read; receipt names INTEGRATION_VALIDATOR-20260708-ckc-v2, source SHA, merge SHA, and baseline SHA.",
+    "reference_law": "atelier://character is a stable character ref; sheet-version ref is immutable and distinct; a follow-head policy is explicit and stales derived proposals.",
+    "schema_ids": [
+      "hsk.tailor.body_pose_asset@1",
+      "hsk.tailor.multi_actor_pose_asset@1",
+      "hsk.tailor.character_body_binding@1",
+      "hsk.tailor.pose_evidence_package@1",
+      "hsk.tailor.camera_spec@1",
+      "hsk.tailor.camera_hypothesis_set@1",
+      "hsk.tailor.pose_joint_map@1",
+      "hsk.tailor.pose_lift_proposal@1",
+      "hsk.tailor.pose_retarget_report@1",
+      "hsk.tailor.body_pose_contact_set@1",
+      "hsk.tailor.character_sheet_body_mapping_proposal@1",
+      "hsk.atelier.sheet_artifact_link@2",
+      "hsk.tailor.interlink_primitive_graph@1"
+    ],
+    "canonical_hash_law": "crate::llm::canonical_json_bytes_nfc -> sha256:<64hex>; hash semantic versioned content/source hashes, exclude storage ids/timestamps/receipts, reject unknown major versions, and require explicit migrations.",
+    "posekit_receipt_schema": "hsk.atelier.posekit.openpose_export_receipt@1",
+    "durable_authority_law": "Immutable evidence/proposal/camera/map/contact/graph payloads are content-addressed ArtifactStore artifacts linked by EventLedger events; guarded Postgres stores typed refs plus idempotency/query/outbox/orphan state and list/get/replay always reverify hashes.",
+    "body_pose_authority": "hsk.tailor.body_pose_asset@1 with canonical revision/hash/rest-pose/body-channel/contact/source lineage; multi-actor assets use hsk.tailor.multi_actor_pose_asset@1 and the complete stage-frame law."
+  },
+  "adult_anatomy_candidate": {
+    "vulva": [
+      "independent bilateral labia minora shape/thickness/protrusion/asymmetry/edge/wrinkle",
+      "labia majora fullness/separation/sag/distribution",
+      "clitoral glans and hood coverage/retraction",
+      "introitus/canal/urethra/perineum/rugae/interior",
+      "pigmentation/wetness/support/correctives/contact"
+    ],
+    "penis_scrotum": [
+      "base/mid/distal girth and non-circular profiles",
+      "multi-plane/S-curve/torsion",
+      "glans/rim/meatus",
+      "foreskin/overhang/tightness/retraction/frenulum/circumcision scar",
+      "pubic base/fat-pad",
+      "testicle asymmetry/scrotal hang/detail",
+      "erection angle/rigidity/engorgement",
+      "skin sliding/contact"
+    ],
+    "acceptance": "Content-addressed shape-family, tone, wetness, motion, erection/gape, penetration/contact, cloth/prop, close-up render, animation, and DCC-export matrices; manifold/no-collapse or changed-image-hash tests are insufficient."
+  },
+  "professional_readiness_gates": [
+    "A signed refinement resolves every physics/UI/BodyKit/interlink/product-boundary conflict and explicitly accepts or revises MT-001..739.",
+    "A copy-first next Master Spec bundle supersedes legacy Tauri/WebView clauses and carries the accepted professional contract.",
+    "All 739 MTs validate against the current template, remain inactive until explicit activation, and form a mechanically acyclic, producer/consumer-hardened architecture candidate whose semantic DAG is accepted or revised by signed refinement.",
+    "The BodyKit base-asset pack and all production reference corpora have immutable artifact ids, hashes, provenance, units/axes, and signed visual targets.",
+    "Physics material/contact/solver/hardware/budget decisions and all named oracle/reliability/performance rows are pinned.",
+    "Native 2D/3D authoring, command, selection, property, history, recovery, Jobs, Problems, accessibility, and visual-debug contracts are signed.",
+    "BodyKit geometry/morph/corrective, joint, weight/rigidity, transfer, skin/material, anatomy, and creator-lifecycle contracts are signed.",
+    "PoseKit/character-sheet bindings, lift, retarget, physical camera, contacts, typed mapping, proposals, and GUI/E2E gates are signed against the merged schema.",
+    "MaterialX/OpenPBR/OCIO and OpenUSD composition validate; required DCC rows pass on named tool/importer versions without release-lane skips.",
+    "Visual verdicts open exact artifacts against exact references; objective metrics and operator review are both retained where appropriate.",
+    "Product-wide latency, throughput, memory, VRAM, cancellation, recovery, and concurrency budgets pass on named workstation profiles.",
+    "The operator explicitly authorizes activation; only then may packet.json, feature branch/worktree, task-board state, or implementation sessions be created."
+  ],
+  "risks_and_mitigations": [
+    {
+      "risk": "The signed spec remains authoritative and contradicts this prep.",
+      "failure": "A model implements legacy Tauri or one-tier physics because it follows current spec.",
+      "mitigation": "Keep may_start_implementation=false; require signed copy-first spec enrichment before packet hydration."
+    },
+    {
+      "risk": "The larger 739-MT plan appears exhaustive but still contains hidden overlap.",
+      "failure": "Two lanes implement separate truths or tests pass locally while integration conflicts.",
+      "mitigation": "Use the consolidation map, typed command/scene/asset registries, architectural DAG, and end-to-end gates; archive only after signed refinement."
+    },
+    {
+      "risk": "BodyKit code proceeds before real source assets exist.",
+      "failure": "Tests use synthetic placeholders and professional quality cannot be judged.",
+      "mitigation": "MT-721 asset ids and MT-734 reference ids are hard prerequisites for release qualification."
+    },
+    {
+      "risk": "Extreme anatomy passes topology but looks sterile, generic, or visibly simulated.",
+      "failure": "Close-up porn production fails despite green cargo tests.",
+      "mitigation": "Use signed shape-family/material/motion/contact references and exact opened-artifact review in MT-730..734."
+    },
+    {
+      "risk": "External tool upgrades silently change import/export behavior.",
+      "failure": "Published assets break or lose rigs/materials on a new DCC version.",
+      "mitigation": "Pin target versions and adapters; requalify before support-matrix advancement."
+    },
+    {
+      "risk": "Agent concurrency corrupts artist state.",
+      "failure": "Stale commands, global undo, or hidden follow-head rewinds accepted work.",
+      "mitigation": "Expected-version commands, leases, proposal/diff, semantic undo-my-action, checkpoint branches, attribution, and no silent auto-follow."
+    },
+    {
+      "risk": "GPU or solver failure loses long work.",
+      "failure": "Device loss, contact overflow, divergence, or cancellation discards or promotes partial state.",
+      "mitigation": "No-truncation policy, accepted checkpoints, controlled terminals, recovery UI, fault injection, and explicit fallback profiles."
+    }
+  ],
+  "high_roi_additions": [
+    {
+      "addition": "Shared command registry",
+      "why": "One contract closes GUI/API/Argus/manual/undo/replay drift while every lane is being re-homed.",
+      "reuses": [
+        "WP-012 command palette",
+        "AccessKit",
+        "Argus",
+        "MCP",
+        "EventLedger"
+      ],
+      "validation": "registry parity and no-context operation audits"
+    },
+    {
+      "addition": "Native 2D Pattern foundation plus shared selection/property",
+      "why": "Unlocks the core artist workflow assumed by dozens of existing MTs and removes cross-pane ambiguity.",
+      "reuses": [
+        "native pane registry",
+        "wgpu",
+        "existing GarmentSpec operations"
+      ],
+      "validation": "large-document, stale-state, keyboard, Argus, and selection-sync matrix"
+    },
+    {
+      "addition": "Semantic history and recovery",
+      "why": "Prevents the highest-cost professional failure—lost or destructively rewound work—using existing checkpoints/events.",
+      "reuses": [
+        "EventLedger",
+        "CRDT proposals",
+        "solver checkpoints",
+        "layout persistence"
+      ],
+      "validation": "crash/device-loss/concurrent-edit recovery corpus"
+    },
+    {
+      "addition": "BodyKit creator toolset",
+      "why": "Converts BodyKit from a parameter evaluator into the promised native content-production system.",
+      "reuses": [
+        "typed channels",
+        "correctives",
+        "native viewport",
+        "selection/property/history",
+        "ArtifactStore"
+      ],
+      "validation": "creator lifecycle E2E and reference archetype sweeps"
+    },
+    {
+      "addition": "PoseKit/character typed proposal seam",
+      "why": "Reuses validated 2D evidence and immutable sheets without creating a second pose or identity system.",
+      "reuses": [
+        "PoseKit sidecars",
+        "Atelier refs",
+        "BodyPose/BodyRecipe",
+        "ArtifactStore",
+        "leases/receipts"
+      ],
+      "validation": "wrong-character/stale/tampered/ambiguous/cancel/replay E2E"
+    },
+    {
+      "addition": "Asset dependency and USD/MaterialX publishing",
+      "why": "Turns broad export support into repeatable versioned delivery and reduces downstream repair/rebuild cost.",
+      "reuses": [
+        "ArtifactStore",
+        "export profiles",
+        "USD/glTF lanes",
+        "Blender/UE bridges"
+      ],
+      "validation": "dependency closure, usdchecker, MaterialX validation, signed reimport rows"
+    },
+    {
+      "addition": "Content-addressed production corpus",
+      "why": "One fixture system hardens physics, anatomy, UI, performance, DCC, and visual review and prevents vague completion claims.",
+      "reuses": [
+        "Argus captures",
+        "ArtifactStore",
+        "validation descriptors",
+        "benchmark harnesses"
+      ],
+      "validation": "manifest completeness and exact-artifact inspection gates"
+    }
+  ],
+  "deliverables": {
+    "physics_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "professional_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "mt_reconciliation": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json",
+    "mt_index": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MT_INDEX.json",
+    "new_mt_ranges": [
+      "MT-654..MT-687 PhysicsHardening",
+      "MT-688..MT-709 NativeProductionUX",
+      "MT-710..MT-720 PoseKitCharacterInterop",
+      "MT-721..MT-739 ProfessionalProductionHardening"
+    ]
+  },
+  "prework_acceptance": [
+    "The readiness verdict is evidence-backed and does not claim validator authority.",
+    "All original 653 MT intents remain present and classified; 86 bounded template-conformant hardening MTs are indexed.",
+    "Every original legacy frontend target is native-rehomed and guarded.",
+    "PoseKit/character interlink uses inspected committed schemas, preserves its 2D boundary, and is hard-gated on merged-main containment plus pinned-baseline compatibility before execution.",
+    "BodyKit asset/tool/anatomy/deformation gaps and professional DCC/visual/performance gates are explicit.",
+    "No product code, active spec, packet, task-board activation, product worktree, or PoseKit worktree was changed."
+  ],
+  "next_authorized_transition": "Remain held. On explicit operator activation work, create and sign a refinement that accepts/revises this prep, author a copy-first Section 13 enrichment, validate it, then hydrate the official packet and product worktree."
+}

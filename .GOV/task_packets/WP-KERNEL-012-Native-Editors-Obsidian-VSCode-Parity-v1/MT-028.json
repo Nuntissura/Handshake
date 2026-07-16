@@ -14,7 +14,7 @@
   "title": "E4-MT028-LoomSearchV2Surface",
   "group": "E4 Search",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T16:42:37.4626453Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-028.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -331,6 +331,31 @@
         "The live test runs by default and exits zero."
       ],
       "no_context_instruction": "Read MT-028.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@2",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-15T16:42:37.4626453Z",
+    "updated_by": "KERNEL_BUILDER",
+    "validation_v1_preserved": "FAIL_V1",
+    "scope": "Product remediation only: mounted Loom Search v2 over managed PostgreSQL, exact facet and mutation freshness, saved-view persistence, stale-delivery isolation, atomic search-index projection writes, and bounded cleanup/error paths.",
+    "proof_status": "GREEN_CURRENT_SOURCE",
+    "runtime_proof": [
+      "Fresh cargo test --features integration --test test_loom_search_v2 -j 1: 15 passed, 0 failed against the owned handshake_core process and shared managed PostgreSQL.",
+      "Real PATCH rename/restore proves old query removal, new query insertion, same exact note block identity, and note facet correctness.",
+      "Saved view persists and reloads by canonical block id; exact view_def-filter result and global note/file/tag_hub/view_def facet counts are asserted; stale save delivery cannot publish into replacement state.",
+      "Canonical Loom block create/update/view conversion and the derived search-index UPSERT now share one PostgreSQL transaction; backend library check and app-runtime server build passed."
+    ],
+    "adversarial_review": {
+      "verdict": "PASS",
+      "independent": true,
+      "counterfactuals": [
+        "Removing the update projection refresh fails the disjoint-token rename/restore search proof.",
+        "Indexing a saved view as any non-view_def type fails the exact filtered hit and facet-count assertions.",
+        "Separating canonical mutation from index UPSERT reintroduces the independently reviewed partial-commit defect closed by the shared transaction."
+      ],
+      "actionable_findings_remaining": 0
     }
   }
 }

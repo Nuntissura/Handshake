@@ -14,7 +14,7 @@
   "title": "E3-MT022-FolderTreeColorLabels",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T05:57:12.461Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-022.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -478,6 +478,39 @@
         "The full live folder-tree proof exits zero."
       ],
       "no_context_instruction": "Read MT-022.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "remediated_at_utc": "2026-07-15T05:57:12.461Z",
+    "v1_verdict_preserved": "FAIL_V1",
+    "remediation_scope": [
+      "Made folder list and child delivery workspace/request-sequence aware, including hidden A-to-B-to-A transitions, folder-label OpenFolder loads, and out-of-order child/write/recolor receipts.",
+      "Added bounded complete child pagination, persistent typed mutation errors, strict transport parsing, collision-resistant AccessKit and dialog identities, typed HTTP 409 sibling conflicts, and deterministic pre-0342 duplicate recovery.",
+      "Replaced the ignored hard-coded database check with a self-seeding mounted-host PostgreSQL round trip that proves CRUD, move-to-root, delete, recolor rollback, fresh-client persistence, conflict paths, and verified cleanup."
+    ],
+    "proof_status": {
+      "folder_tree_nonlive": "PASS_15_OF_15",
+      "mounted_host_folder": "PASS_7_OF_7",
+      "folder_model": "PASS_13_OF_13",
+      "pagination": "PASS_1_OF_1",
+      "manual": "PASS_2_OF_2",
+      "typed_http_409": "PASS_1_OF_1",
+      "postgres_storage_and_migration": "PASS_10_OF_10",
+      "live_postgres_round_trip": "PASS_1_OF_1",
+      "live_receipt_sha256": "D548ACA6EBC39FBB262960E1B9E0B6F183E5C992AF1649EC35F325C028EA4873",
+      "visual_inspection": "PASS_CURRENT_EXTERNAL_SCREENSHOT",
+      "owned_resource_cleanup": "PASS_PID_PORT_DATABASE_RUNTIME_AND_SHARED_CLUSTER"
+    },
+    "adversarial_review": {
+      "verdict": "PASS",
+      "lenses": [
+        "workspace_and_request_sequence_attribution",
+        "concurrent_mutation_receipt_ordering",
+        "postgres_migration_conflict_and_upgrade_safety",
+        "accesskit_manual_and_live_receipt_truthfulness"
+      ],
+      "residual_uncertainty": "No MT-022 V2 blocker remained after final cross-review. Independent validator PASS remains outside implementer authority."
     }
   }
 }

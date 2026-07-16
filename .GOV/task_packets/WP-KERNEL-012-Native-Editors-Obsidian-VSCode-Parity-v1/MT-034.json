@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T16:44:20.0870819Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -401,6 +401,43 @@
       ],
       "no_context_instruction": "Read MT-034.json completely, then packet.json and resolved SPEC_CURRENT modules. Implement only the product remediation above in authorized scope, preserve unrelated user changes, run every named live/negative proof, and hand off without relying on prior validation records."
     }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-15T16:44:20.0870819Z",
+    "remediated_by": "KERNEL_BUILDER",
+    "scope_closed": [
+      "Persisted code_ref save/reload is proven against managed PostgreSQL with the exact symbol_entity_id preserved.",
+      "Code-reference chips expose the required Button role and navigate through the mounted shell to the canonical file tab and exact source line without transient symbol tabs.",
+      "NoteRefs performs exact structured reverse lookup, opens the referencing document, fences stale asynchronous deliveries, and fails closed when any candidate readback fails.",
+      "Managed create, reload, reverse lookup, navigation, unresolved/delete, and cleanup paths are bounded and runtime-proven."
+    ],
+    "fresh_proofs": [
+      {
+        "command": "cargo test --features integration --test test_code_note_cross_ref -j 1 -- --nocapture",
+        "result": "PASS: 18 passed, 0 failed against managed handshake_core/PostgreSQL."
+      },
+      {
+        "command": "cargo test --lib fences_old_note_refs_delivery -j 1",
+        "result": "PASS: 2 passed, 0 failed."
+      },
+      {
+        "command": "cargo test --lib reverse_completion_cannot_overwrite_or_lose_newest_code_ref_navigation -j 1",
+        "result": "PASS: 1 passed, 0 failed."
+      },
+      {
+        "command": "cargo test --lib exact_reverse_lookup_fails_closed_when_any_candidate_readback_fails -j 1",
+        "result": "PASS: 1 passed, 0 failed."
+      }
+    ],
+    "independent_review": {
+      "verdict": "READY_FOR_VALIDATION_V2",
+      "reviewer": "mt034_adversarial_review_v2",
+      "findings": [],
+      "basis": "Independent adversarial source review covered generation fencing, exact reverse lookup under partial readback failure, accessibility roles, canonical tab routing, client/backend replacement invalidation, and the managed PostgreSQL lifecycle; no blocking findings remain."
+    },
+    "validator_instruction": "Independently rerun the current-head MT-034 declared proof set with the managed PostgreSQL/backend resource. Preserve validation_v1 and lifecycle.validator_verdict as FAIL_V1 until that independent verdict is issued."
   },
   "validation_v1_ignored_prior_2026_07_12": {
     "schema_id": "hsk.mt_validation_verdict@1",

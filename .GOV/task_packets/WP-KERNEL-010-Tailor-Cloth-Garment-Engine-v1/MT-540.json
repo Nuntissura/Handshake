@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-540",
   "created_at_utc": "2026-07-08T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T03:02:51Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-540.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-540.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-540.md",
@@ -36,7 +39,10 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-539"
+      "MT-539",
+      "MT-673",
+      "MT-677",
+      "MT-679"
     ],
     "blocks": [],
     "active": false,
@@ -80,7 +86,10 @@
     "required": true,
     "same_change_update_required": true,
     "manual_version_bump_required": false,
-    "target_entries": [],
+    "target_entries": [
+      "Tailor UserManual > BkSoftTissue > MT-540",
+      "Tailor ModelManual > BkSoftTissue > MT-540"
+    ],
     "expected_evidence": [
       "user_manual_diff",
       "manual_self_consistency_test",
@@ -126,5 +135,19 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "PHYSICS_CONTRACT_RECONCILIATION",
+      "FINAL_SOFT_TISSUE_HARDENING"
+    ],
+    "required_changes_before_execution": [
+      "Keep one solver world but separate tissue constitutive models, require two-way contact for final quality, and reuse the new checkpoint/contact/receipt gates.",
+      "Reconcile preview cages with final nonlinear tissue, inversion barriers, full shared contacts, accepted checkpoints, and reference motion scenes."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

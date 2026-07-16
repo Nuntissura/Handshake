@@ -14,7 +14,7 @@
   "title": "E3-MT026-CanvasBoardLoomBlocks",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T18:04:47.6268708Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-026.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -447,5 +447,33 @@
       ],
       "no_context_instruction": "Read MT-026.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "remediation_v2": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "updated_at_utc": "2026-07-15T18:04:47.6268708Z",
+    "remediated_by": "KERNEL_BUILDER",
+    "scope_closed": [
+      "The mounted Canvas host persists real PostgreSQL viewport, grouping, move, resize, semantic-edge, visual-edge, removal, source-retention, fresh-reload, and cleanup behavior.",
+      "Widget-producer and mounted-host persistence proofs are explicitly split and truthfully recorded; exact multi-frame tests prove per-frame pan, move, resize, and section assignment geometry.",
+      "Successful-but-malformed Canvas responses now fail closed on required arrays, rows, board state, schema, and numeric fields, with a mounted error/Retry recovery to the valid managed backend."
+    ],
+    "fresh_proofs": [
+      {
+        "command": "cargo test --features integration --test test_canvas_board -j 1 -- --nocapture",
+        "result": "PASS: 24 passed, 0 failed, 0 ignored; managed PostgreSQL receipt @3, screenshot, source retention, cleanup, and malformed-200 recovery verified."
+      },
+      {
+        "command": "cargo test --features integration --test test_canvas_sections_resize -j 1 -- --nocapture",
+        "result": "PASS: 10 passed, 0 failed, 0 ignored; exact multi-frame pan/move/resize and section assign/clear producer behavior verified."
+      }
+    ],
+    "independent_review": {
+      "verdict": "READY_FOR_VALIDATION_V2",
+      "reviewer": "mt029_adversarial_review_v2",
+      "findings": [],
+      "basis": "Independent adversarial re-review verified vendored egui per-frame drag semantics, exact gesture assertions, truthful producer/persistence proof splitting, fail-closed parsing, malformed-success recovery, screenshot readability, source retention, backend health, and cleanup 404."
+    },
+    "validator_instruction": "Independently rerun both current-head MT-026 proof binaries against managed PostgreSQL. Preserve validation_v1 and lifecycle.validator_verdict as FAIL_V1 until the independent v2 verdict is issued."
   }
 }

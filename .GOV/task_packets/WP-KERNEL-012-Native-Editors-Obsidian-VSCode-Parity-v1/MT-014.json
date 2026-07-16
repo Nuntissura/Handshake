@@ -14,7 +14,7 @@
   "title": "E2-MT014-EmbedsNodeViews",
   "group": "E2 Rich-text editor (Obsidian/Notion parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-15T05:01:15.577Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-014.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-011",
@@ -343,6 +343,34 @@
         "No decoder, upload task, or listener remains after teardown."
       ],
       "no_context_instruction": "Read MT-014.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "remediated_at_utc": "2026-07-15T05:01:15.577Z",
+    "v1_verdict_preserved": "FAIL_V1",
+    "remediation_scope": [
+      "Executed the required real seeded-asset image route against an owned Handshake backend and PostgreSQL database instead of accepting mock-only resolution.",
+      "Proved decoded image pixels, aspect-ratio rendering, typed invalid-reference errors, slideshow/album/video behavior, AccessKit controls, caching, concurrency bounds, and off-thread decode behavior from current product source.",
+      "Captured the exact external image and typed-error screenshots and removed the owned backend, database, runtime root, and seeded resources after proof."
+    ],
+    "proof_status": {
+      "embed_library": "PASS_66_OF_66",
+      "embed_integration": "PASS_10_OF_10",
+      "managed_seeded_asset": "PASS_1_OF_1",
+      "external_proof_receipt_sha256": "83ba6eefc230155729b7362b5dc03de10a68c3df91a51a47d9b7f3825ca80416",
+      "visual_inspection": "PASS_EXACT_CURRENT_ARTIFACTS",
+      "owned_resource_cleanup": "PASS"
+    },
+    "adversarial_review": {
+      "verdict": "PASS",
+      "lenses": [
+        "real_backend_asset_resolution_and_decode",
+        "fail_closed_reference_validation_and_typed_errors",
+        "async_completion_cache_and_resource_reclamation",
+        "accesskit_and_external_visual_artifact_truthfulness"
+      ],
+      "residual_uncertainty": "No MT-014 V2 blocker remained after the managed seeded-asset proof and exact visual inspection. Independent validator PASS remains outside implementer authority."
     }
   }
 }

@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-109",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T03:07:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-109.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-109.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-109.md",
@@ -38,24 +41,30 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-108"
+      "MT-042",
+      "MT-108",
+      "MT-114",
+      "MT-668"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Bind a ClothBodyProxy from tailor_avatars + tailor_body_proxies authority into a sim run.",
+    "summary": "Bind authoritative ClothBodyProxy state and the explicit standalone untangle operation into a simulation run through the sole MT-042 solver/unit/GPU adapter.",
     "allowed_paths": [
-      "src/backend/handshake_core/src/tailor/collision_binding.rs"
+      "src/backend/handshake_core/src/tailor/collision_binding.rs",
+      "src/backend/handshake_core/src/tailor/operations/untangle.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Run loads the avatar proxy from authority (no ad-hoc proxy); binding recorded on the run."
+      "ClothBodyProxy loads from guarded tailor_avatars/tailor_body_proxies authority, validates typed ids/content hashes, converts units exactly once through MT-042/MT-656 before entering ClothSolver, and binds the exact immutable content-hashed typed result and exaggerated-proportion fixture receipt produced by MT-114 without recomputing its collision metrics.",
+      "The kernel untangle command invokes MT-668 as an explicit previewable/cancellable operation and commits accepted geometry only through expected-base, actor, lease, event, receipt, validation, and promotion gates.",
+      "Shared GPU context and budgets route only through MT-042; the binding never constructs a second device/surface or imports solver internals outside the declared adapter.",
+      "Wrong avatar/proxy, stale hash/topology, mixed units, cancelled/failed untangle, device loss, and rejected preview preserve the last accepted authority/simulation input."
     ],
     "proof_targets": [
-      "cargo test -p handshake_core tailor::collision_binding::loads_from_authority",
-      "AVATAR_BINDING validation check"
+      "cargo test -p handshake_core tailor::collision_binding::authority_units_gpu_and_untangle_adapter"
     ],
     "risk_if_missed": "Ad-hoc proxies break reuse and determinism across runs."
   },
@@ -79,5 +88,68 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Non-UI scope: behavior remains observable through typed Tailor state, receipts, captures, diagnostics, and TraceProjection; GUI projection is verified by the owning native-shell MT."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > Collision > MT-109",
+      "Tailor ModelManual > Collision > MT-109"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "REQUIRED",
+      "reason": "The implementing MT must emit or project its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; this MT must use its open projection contract when available and must not fork a Tailor-only diagnostics runtime."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+    }
+  ],
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "PHYSICS_CONTRACT_RECONCILIATION",
+      "CURRENT_MT_TEMPLATE_HYDRATED"
+    ],
+    "required_changes_before_execution": [
+      "Upgrade collision from particle/proxy pushout to mesh VF/EE predictive contact, coupled layers, SDF freshness, independent triangle validation, explicit untangle, and adversarial reliability matrices while retaining analytic preview colliders and the exaggerated-body test intent.",
+      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

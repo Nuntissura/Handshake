@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-641",
   "created_at_utc": "2026-07-08T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T03:02:51Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-641.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-641.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-641.md",
@@ -36,7 +39,19 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-640"
+      "MT-640",
+      "MT-721",
+      "MT-727",
+      "MT-728",
+      "MT-729",
+      "MT-730",
+      "MT-731",
+      "MT-732",
+      "MT-734",
+      "MT-736",
+      "MT-737",
+      "MT-738",
+      "MT-739"
     ],
     "blocks": [],
     "active": false,
@@ -81,7 +96,10 @@
     "required": true,
     "same_change_update_required": true,
     "manual_version_bump_required": false,
-    "target_entries": [],
+    "target_entries": [
+      "Tailor UserManual > BkBodiesQA > MT-641",
+      "Tailor ModelManual > BkBodiesQA > MT-641"
+    ],
     "expected_evidence": [
       "user_manual_diff",
       "manual_self_consistency_test",
@@ -127,5 +145,17 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "PRODUCTION_REFERENCE_GATES"
+    ],
+    "required_changes_before_execution": [
+      "Run the accepted source assets, anatomy, genital, creator-tool, DCC, visual, and performance corpora with pinned metrics and exact artifact inspection."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }

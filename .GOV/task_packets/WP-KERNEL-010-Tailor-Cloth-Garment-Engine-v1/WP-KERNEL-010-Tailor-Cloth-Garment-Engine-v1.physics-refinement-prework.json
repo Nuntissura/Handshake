@@ -1,0 +1,1529 @@
+{
+  "schema_id": "hsk.tailor_physics_refinement_prework@1",
+  "schema_version": "1.0.0",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB_EXTENSION",
+  "execution_authority": "NON_EXECUTION_PREWORK",
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "artifact_id": "TAI-PHYSICS-PREWORK-001",
+  "created_at_utc": "2026-07-15T23:48:02Z",
+  "updated_at_utc": "2026-07-16T02:36:20Z",
+  "lifecycle": {
+    "status": "DRAFT_REFINEMENT_PREWORK",
+    "operator_signature_status": "NOT_REQUESTED",
+    "activation_status": "HELD",
+    "contract_maturity": "CONTRACT_CANDIDATE_NOT_EXECUTABLE",
+    "may_start_implementation": false,
+    "promotion_rule": "This artifact must be reconciled into a signed refinement, a copy-first Master Spec bundle, and final MT contracts before implementation."
+  },
+  "scope": {
+    "primary_deliverable": "Close the Tailor cloth-physics architecture gaps before WP activation while preserving the existing stub, signed spec, original 653 MTs, and 86 bounded hardening MTs.",
+    "in_scope": [
+      "tailor-solver compile-unit architecture",
+      "interactive cloth solver",
+      "final-quality cloth/contact solver",
+      "CPU reference backend",
+      "GPU ownership and wgpu integration",
+      "cloth/body/self/inter-layer/trim contact",
+      "soft-tissue compatibility boundary",
+      "determinism and promotion equivalence",
+      "solver diagnostics, cancellation, checkpointing, and recovery",
+      "physics verification, regression scenes, and performance gates",
+      "reconciliation map for existing physics MTs and signed Section 13 clauses"
+    ],
+    "explicitly_deferred": [
+      "PoseKit integration",
+      "Character Sheet integration",
+      "BodyKit anatomy-channel expansion",
+      "Tailor GUI workspace design outside solver diagnostics and run controls",
+      "WP activation, branch creation, worktree creation, packet hydration, and implementation"
+    ],
+    "preservation_rule": "No existing Tailor requirement or MT is deleted. Conflicting or insufficient physics requirements are carried forward and marked for revision or supersession during signed refinement."
+  },
+  "authority_inputs": [
+    {
+      "path": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+      "role": "held non-execution stub"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.200/spec-modules/13-tailor-cloth-garment-engine.md",
+      "role": "current active Tailor specification inspected for physics clauses"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MT_INDEX.json",
+      "role": "authoritative original inventory of MT-001..653 before hardening additions"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_PARITY_REVIEW_V2.json",
+      "role": "second-pass MD capability review"
+    },
+    {
+      "path": "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/Cargo.toml",
+      "role": "current native product dependency evidence; direct wgpu 27.0.1 on the inspected branch"
+    }
+  ],
+  "verified_current_state": {
+    "runtime_status": "NO_TAILOR_PHYSICS_IMPLEMENTATION_EXISTS",
+    "evidence": [
+      "No tailor-solver crate was found in the inspected product worktrees.",
+      "No handshake_core::tailor module was found in the inspected product worktrees.",
+      "No Tailor WGSL shaders, executable Tailor product tests, Tailor branch, or Tailor worktree were found.",
+      "All 739 Tailor MTs remain PENDING and inactive."
+    ],
+    "interpretation": "The work defines the first Tailor physics engine; it does not extend an existing engine."
+  },
+  "research_basis": {
+    "verified_at_utc": "2026-07-15T23:48:02Z",
+    "source_selection_rule": "Current primary, official, paper, and source-repository evidence was used. Technical claims were not based on secondary summaries.",
+    "sources_checked": [
+      {
+        "source_id": "SRC-MD-SIM-2026",
+        "url": "https://support.marvelousdesigner.com/hc/en-us/articles/47358125463321-Simulation-Properties",
+        "kind": "official_product_documentation",
+        "verified_pattern": "Current MD exposes Normal, Animation, and Fitting use cases; nonlinear fitting; CG iteration/residual controls; self-collision iterations; triangle-vertex and edge-edge detection; proximity; layer collision; and intersection resolution.",
+        "selected_use": "Behavioral comparator and capability acceptance matrix.",
+        "rejected_use": "No claim is made that MD uses XPBD or IPC internally."
+      },
+      {
+        "source_id": "SRC-XPBD",
+        "url": "https://matthias-research.github.io/pages/publications/XPBD.pdf",
+        "kind": "research_paper",
+        "verified_pattern": "XPBD introduces compliance and constraint-force estimates while reducing stiffness dependence on timestep and iteration count.",
+        "selected_use": "Interactive solver foundation and material-parameter mapping.",
+        "rejected_use": "XPBD alone is not accepted as proof of robust final multilayer contact."
+      },
+      {
+        "source_id": "SRC-SMALL-STEPS",
+        "url": "https://matthias-research.github.io/pages/publications/smallsteps.pdf",
+        "kind": "research_paper",
+        "verified_pattern": "More substeps with fewer XPBD iterations can outperform one large step with many iterations for stability and visual quality.",
+        "selected_use": "Interactive preset and substep benchmark design.",
+        "rejected_use": "No fixed substep count is copied without a Tailor benchmark."
+      },
+      {
+        "source_id": "SRC-CIPC",
+        "url": "https://ipc-sim.github.io/C-IPC/",
+        "kind": "research_project_and_paper",
+        "verified_pattern": "C-IPC demonstrates intersection-free codimensional contact with finite thickness, friction, anisotropic strain limits, and additive CCD.",
+        "selected_use": "Final-quality acceptance properties and algorithmic conformance oracle.",
+        "rejected_use": "The C++ implementation is not a Tailor runtime dependency."
+      },
+      {
+        "source_id": "SRC-IPC-TOOLKIT",
+        "url": "https://github.com/ipc-sim/ipc-toolkit",
+        "kind": "primary_source_repository",
+        "verified_pattern": "The MIT toolkit provides barrier functions and derivatives, broad/narrow-phase CCD, distances and derivatives, and friction potentials, but explicitly is not a complete solver.",
+        "selected_use": "Reference oracle and test-vector source for a Rust implementation.",
+        "rejected_use": "It cannot be named as the final solver by itself and is not linked into the shipped Rust runtime."
+      },
+      {
+        "source_id": "SRC-PPF-CONTACT",
+        "url": "https://github.com/st-tech/ppf-contact-solver",
+        "kind": "primary_source_repository_and_product",
+        "verified_pattern": "The current Apache-2.0 Rust project provides FEM/contact patterns, penetration-free per-step checks, strict strain bounds, measured fabric calibration, resumable sessions, headless operation, MCP control, and repeated jittered regression runs; its accelerated solver path is CUDA/NVIDIA-oriented.",
+        "selected_use": "Highest-value source-level reference for final solver structure, fabric calibration, recovery, headless operation, and adversarial validation.",
+        "rejected_use": "No CUDA-only driver, Python surface, server, Docker workflow, or external process becomes a Tailor production dependency."
+      },
+      {
+        "source_id": "SRC-FROSTBITE-PREDICTIVE-CONTACT",
+        "url": "https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/gdc2018-chrislewin-clothselfcollisionwithpredictivecontacts.pdf",
+        "kind": "vendor_technical_paper",
+        "verified_pattern": "Production cloth self-collision needs point-triangle and edge-edge contacts; discrete pushout alone tunnels, and constraint ordering can move cloth across colliders.",
+        "selected_use": "Interactive predictive-contact and regression-scene requirements.",
+        "rejected_use": "Point-particle collision is not accepted as full-mesh parity."
+      },
+      {
+        "source_id": "SRC-WGPU",
+        "url": "https://github.com/gfx-rs/wgpu",
+        "kind": "primary_source_repository",
+        "verified_pattern": "wgpu is pure Rust and cross-platform, while WGSL and Naga capabilities continue to evolve across breaking releases.",
+        "selected_use": "Interactive GPU compute substrate with workspace-version pinning and capability probes.",
+        "rejected_use": "The Tailor prework does not hardcode a future wgpu version independently of the product workspace."
+      },
+      {
+        "source_id": "SRC-WGSL-FLOAT",
+        "url": "https://gpuweb.github.io/gpuweb/wgsl/#floating-point-evaluation",
+        "kind": "official_standard",
+        "verified_pattern": "WGSL floating-point evaluation permits implementation variation including reassociation/fusion and does not provide universal cross-device byte determinism.",
+        "selected_use": "Named GPU determinism envelope, fixed reduction layout, witnessed repeatability, and invariant downgrade rule.",
+        "rejected_use": "No universal byte-repeatability claim is made for WebGPU execution."
+      },
+      {
+        "source_id": "SRC-WGPU-DEVICE-QUEUE",
+        "url": "https://wgpu.rs/doc/wgpu/api/device/struct.Device.html",
+        "kind": "official_api_documentation",
+        "verified_pattern": "wgpu device errors/loss and asynchronous completion require explicit application ownership and polling behavior.",
+        "selected_use": "Three-mode context injection, device-generation invalidation, bounded submission, error sinks, loss notification, and checkpoint reload.",
+        "rejected_use": "Already-submitted GPU work is not described as cooperatively cancellable mid-command-buffer."
+      },
+      {
+        "source_id": "SRC-RIGID-IPC",
+        "url": "https://ipc-sim.github.io/rigid-ipc/",
+        "kind": "research_project_and_paper",
+        "verified_pattern": "Rigid IPC treats collision-safe rigid motion using trajectories rather than assuming arbitrary rotation is captured by endpoint-linear vertex motion.",
+        "selected_use": "Curved-trajectory CCD or conservative motion-bounded substeps for rotating rigid trims and props.",
+        "rejected_use": "Rigid IPC is not selected as the Tailor runtime or general cloth solver."
+      },
+      {
+        "source_id": "SRC-ADAPTIVE-REMESH",
+        "url": "https://graphics.berkeley.edu/papers/Narain-AAR-2012-11/",
+        "kind": "research_paper_and_project",
+        "verified_pattern": "Adaptive cloth remeshing requires explicit sizing criteria and careful state transfer; naive transfer can alter dynamics.",
+        "selected_use": "Keep automatic adaptive remesh outside the baseline and require checkpoint-bounded atomic transfer, feasibility validation, and rollback if later selected.",
+        "rejected_use": "No in-step automatic adaptive remeshing is authorized by this prework."
+      },
+      {
+        "source_id": "SRC-FAER",
+        "url": "https://github.com/sarah-quinones/faer-rs",
+        "kind": "primary_source_repository",
+        "verified_pattern": "faer is a current pure-Rust linear-algebra library focused on portability, correctness, and performance, with sparse functionality and a July 2026 release visible during inspection.",
+        "selected_use": "Default candidate behind a Tailor SparseLinearSolver trait for the CPU final tier.",
+        "rejected_use": "The dependency is not final until Tailor sparsity, factorization, cancellation, and memory benchmarks pass."
+      },
+      {
+        "source_id": "SRC-PARRY",
+        "url": "https://github.com/dimforge/parry",
+        "kind": "primary_source_repository",
+        "verified_pattern": "Parry is a current Rust geometric and collision-detection library.",
+        "selected_use": "CPU geometry queries, proxy construction, selection, and validation broad phase.",
+        "rejected_use": "Parry is not treated as a deformable contact solver or a replacement for cloth VF/EE CCD."
+      }
+    ],
+    "selected_approach": "A two-tier physics engine inside tailor-solver: cross-platform interactive GPU XPBD for authoring plus a pure-Rust CPU final-quality nonlinear/contact-safe tier, both checked against a required f64 CPU reference path and a shared typed scene/receipt contract.",
+    "rejected_options": [
+      {
+        "option": "One GPU XPBD solver for all quality levels",
+        "reason": "It cannot substantiate intersection-free final contact, strict strain limits, or MD-class nonlinear fitting by itself."
+      },
+      {
+        "option": "Particle-particle spatial hash as the complete self-collision system",
+        "reason": "It misses triangle-vertex and edge-edge contact required by the comparator and fails on coarse, folded, and layered meshes."
+      },
+      {
+        "option": "Curvature-only correctness culling",
+        "reason": "Flat cloth regions can collide with other flat regions; curvature may prioritize work but cannot remove correctness candidates."
+      },
+      {
+        "option": "Fixed-point atomic correction accumulation",
+        "reason": "It creates overflow, quantization, scaling, and nondeterministic-order risks that are avoidable with canonical contact ordering and segmented reduction."
+      },
+      {
+        "option": "SDF as authoritative body contact",
+        "reason": "Stale/deforming SDFs, thin gaps, and semantic portals or cavities can produce false barriers or invalid normals."
+      },
+      {
+        "option": "PPF/IPC C++ or CUDA service as the shipped solver",
+        "reason": "It violates the Handshake-native Rust and cross-platform product boundary and would fork job, recovery, and model-control infrastructure."
+      },
+      {
+        "option": "Exact cross-GPU byte-hash promotion",
+        "reason": "GPU floating-point and scheduling behavior varies by backend, adapter, driver, and shader compiler."
+      }
+    ]
+  },
+  "architecture_contract_candidate": {
+    "product_shape": {
+      "module": "Tailor",
+      "submodule": "Cloth",
+      "compile_units": [
+        {
+          "name": "tailor-solver",
+          "responsibility": "UI-agnostic physics, contact, comparison, diagnostics, and checkpoints; no sqlx, Tauri, eframe, Axum, EventLedger, or product authority dependencies."
+        },
+        {
+          "name": "handshake_core::tailor",
+          "responsibility": "Jobs, assets, authority, EventLedger, CRDT, sandbox, validation, promotion, API, and model-lane binding through the tailor-solver public contract."
+        }
+      ],
+      "one_solver_world_semantics": "One solver world means one shared scene, asset, topology, physical-material, attachment, collision-filter, semantic-region, receipt, and checkpoint authority. It does not mean one integrator. Cloth, soft tissue, trims, and rigid/kinematic bodies remain coupled inside the selected tier; no participant may be advanced by an unreceipted side solver.",
+      "tailor_solver_internal_modules": [
+        "scene",
+        "topology",
+        "materials",
+        "constraints",
+        "xpbd",
+        "contact",
+        "final_solve",
+        "soft_body",
+        "gpu",
+        "cpu",
+        "checkpoint",
+        "diagnostics",
+        "compare"
+      ]
+    },
+    "unit_contract": {
+      "authoring_boundary": "GarmentSpec and operator-facing measurements remain centimeters/millimeters as already canonicalized.",
+      "solver_internal": "All solver state and coefficients use coherent SI meters/kilograms/seconds internally. Unsuffixed internal numeric fields are SI-only.",
+      "dimensioned_gateway_fields": [
+        "position, velocity, and acceleration",
+        "area, volume, mass, volumetric density, and areal density",
+        "gravity, force, torque, pressure, and aerodynamic loads",
+        "time, angular velocity, damping, and friction thresholds",
+        "surface thickness, contact offset, barrier activation distance, and CCD tolerance",
+        "stretch, shear, bend, seam, pin, and attachment compliance or stiffness with declared dimensions",
+        "remesh sizing and quality thresholds",
+        "linear/nonlinear residuals, energy scales, and convergence tolerances"
+      ],
+      "boundary_type_rule": "Non-SI public or serialized inputs use unit-suffixed fields or typed unit wrappers. Ambiguous raw length, force, compliance, pressure, time, or density fields are rejected.",
+      "conversion_rule": "Conversion occurs exactly once at scene ingest and once for derived display/export data; receipts store declared source units, every conversion scale, and the conversion-gateway version.",
+      "validation": "Round-trip and scale-invariance tests run physically equivalent millimeter, centimeter, and meter scenes. Double conversion, ambiguous units, dimensionally invalid values, and mixed-unit scenes fail closed."
+    },
+    "shared_scene_contract": {
+      "scene_type": "SolverScene",
+      "participants": [
+        "cloth triangle shells",
+        "soft-tissue cages",
+        "rigid and kinematic trims",
+        "kinematic body/prop triangle meshes",
+        "analytic preview colliders",
+        "optional versioned SDF acceleration volumes"
+      ],
+      "required_identity": [
+        "scene_id",
+        "topology_id",
+        "topology_version",
+        "material_version",
+        "collider_snapshot_id",
+        "coordinate_system",
+        "unit_scale",
+        "semantic region ids"
+      ],
+      "topology_rule": "A live accepted step never silently changes topology. Remesh, cut, tear, weld, or panel edits create a new topology version and an explicit state-transfer receipt at a checkpoint boundary."
+    },
+    "backend_contract": [
+      {
+        "backend_id": "cpu_reference_f64",
+        "purpose": "portable correctness oracle, no-GPU fallback, deterministic small-scene validation, and GPU comparison",
+        "precision": "f64",
+        "solver_family": "Scalar f64 CPU reference implementation of the interactive XPBD tier, including the same constraint families, authoritative interactive substep schedule, contact feature classification, thickness/friction law, candidate refresh rules, and canonical reduction order. It is not the final barrier solver and is not a third physical model.",
+        "contact_and_schedule": "CPU swept-BVH broad phase plus the same PP/PE/EE/PT predictive contact stencils as gpu_interactive_xpbd; strict mode executes one canonical single-thread loop in stable id/contact-key order.",
+        "fallback_role": "No-GPU fallback for interactive_draft/interactive_stable and correctness oracle for gpu_interactive_xpbd only. It is never an automatic replacement for cpu_final_contact_safe.",
+        "comparison_target": "GPU interactive outputs and kernels are compared against this backend with same-tier aggregate/contact invariants and named-envelope tolerances; final-barrier output is not vertex-compared to it.",
+        "certificate_capability": "May emit same-tier invariant/replay evidence but cannot emit the final accepted-step certificate or grant final-quality promotion.",
+        "required": true,
+        "strict_mode": "single-threaded canonical iteration and reduction order",
+        "strict_envelope": "Byte identity is claimable only for a witnessed envelope that fixes target triple, CPU architecture and enabled ISA/features, compiler/version/flags, dependency and math-library hashes, floating-point contraction/FMA policy, rounding/denormal policy, thread count, solver build, and all input hashes. Any envelope drift downgrades comparison to typed invariants/tolerances.",
+        "performance_claim": "none until benchmarked"
+      },
+      {
+        "backend_id": "gpu_interactive_xpbd",
+        "purpose": "responsive authoring, drape iteration, interactive pinching, and animation preview",
+        "precision": "f32 WGSL",
+        "required": true,
+        "gpu_contract": "Uses the product workspace-pinned wgpu type universe and the three-mode GPU-context contract. EmbeddedApp and KernelHeadless never acquire an uncoordinated second device.",
+        "fallback": "cpu_reference_f64 or a bounded CPU interactive path"
+      },
+      {
+        "backend_id": "cpu_final_contact_safe",
+        "purpose": "promotion-quality fitting, multilayer contact, hero animation caches, and difficult body/garment interactions",
+        "precision": "f64",
+        "required": true,
+        "solver_family": "nonlinear orthotropic shell/soft-body energy minimization with finite-thickness frictional barrier contact, VF/EE CCD, strict strain bounds, and collision-bounded line search",
+        "linear_algebra": "SparseLinearSolver trait with faer as the default candidate after benchmark and cancellation validation",
+        "acceptance_rule": "A step is accepted only when finite, converged within policy, topology-valid, and intersection-free at the declared thickness."
+      }
+    ],
+    "quality_contract": {
+      "separate_axes": {
+        "use_case": [
+          "fitting",
+          "animation",
+          "interactive_edit"
+        ],
+        "quality": [
+          "interactive_draft",
+          "interactive_stable",
+          "final_contact_safe"
+        ],
+        "backend_policy": [
+          "auto",
+          "cpu_reference",
+          "gpu_interactive",
+          "cpu_final"
+        ]
+      },
+      "rule": "Chebyshev, multigrid, preconditioner, graph coloring, and reduction strategies are implementation choices/capabilities, not user-facing use-case modes."
+    },
+    "gpu_context_contract": {
+      "modes": [
+        {
+          "mode": "EmbeddedApp",
+          "ownership": "The app injects its Device/Queue and submission coordinator; Tailor receives a bounded compute/memory lease and must not create another device."
+        },
+        {
+          "mode": "KernelHeadless",
+          "ownership": "The scheduler injects a shared GPU context, lease, and memory budget so parallel jobs cannot independently duplicate devices or exhaust VRAM."
+        },
+        {
+          "mode": "StandaloneTestOrCli",
+          "ownership": "Solver-owned adapter/device acquisition is allowed through the same capability policy and must be explicitly receipted."
+        }
+      ],
+      "required_context_fields": [
+        "adapter vendor/device ids and stable identity",
+        "backend, driver, features, limits, and device-generation id",
+        "Device/Queue handles behind the pinned workspace wgpu type universe",
+        "submission coordinator and bounded batch policy",
+        "memory budget and allocation accounting",
+        "uncaptured-error sink, error-scope policy, and device-loss notification",
+        "lease id, owner, expiration, and correlation ids"
+      ],
+      "sandbox_capability": "GPU compute is a distinct declared sandbox capability with bounded device, memory, submission, and readback authority.",
+      "device_loss": "Device loss invalidates every derived GPU resource, preserves authority/checkpoint artifacts, records the failed generation, and asks the app or scheduler for a new context before reloading the last compatible checkpoint."
+    },
+    "public_api_contract": {
+      "trait": "ClothSolver",
+      "required_operations": [
+        "capabilities",
+        "load_scene",
+        "begin_run",
+        "step",
+        "pause",
+        "resume",
+        "cancel",
+        "checkpoint",
+        "resume_from_checkpoint",
+        "update_run_params",
+        "inspect_run",
+        "capture_diagnostics",
+        "compare_results",
+        "unload_scene"
+      ],
+      "run_state": [
+        "queued",
+        "preparing",
+        "running",
+        "paused",
+        "cancelling",
+        "cancelled",
+        "completed",
+        "failed",
+        "recovered"
+      ],
+      "result_authority": "FinalCpuBarrierF64 and ReferenceCpuF64 preserve canonical numeric state as positions_m_f64 in SI. Only FinalCpuBarrierF64 can carry the final accepted-step certificate and grant final-quality promotion. Any positions_m_f32 data is a derived viewport/export projection and can never carry that certificate.",
+      "result_hash_rule": "Canonical final identity hashes f64 SI bytes plus unit schema, topology version, solver build, material-calibration version, and accepted-step certificate.",
+      "rule": "Every GUI action and model tool uses the same typed operation and stable ids; no hidden GUI-only physics state."
+    }
+  },
+  "material_and_force_contract": {
+    "canonical_authority": "Fabric physics authority is unit-bearing physical data and measured response curves. Normalized 0-1 artist controls may exist as UI conveniences but are not stored as the sole simulation truth.",
+    "required_compilation_pipeline": "FabricProperties -> MaterialCalibrationVersion -> PhysicalMaterialSi -> XpbdMaterialSi and ShellMaterialSi",
+    "required_material_fields": [
+      "areal density in kg/m2",
+      "physical and collision thickness in meters",
+      "warp tensile response curve",
+      "weft tensile response curve",
+      "bias/shear response curve",
+      "warp and weft bending response",
+      "buckling/compression response",
+      "Poisson/cross-axis coupling where the selected law requires it",
+      "strain limits by warp, weft, and shear",
+      "internal and air damping",
+      "static/dynamic cloth-body, cloth-cloth, and cloth-trim friction",
+      "shrinkage/prestrain by material direction",
+      "air permeability, drag, and lift coefficients",
+      "pressure/closed-volume parameters where applicable"
+    ],
+    "backend_mapping": "One versioned FabricMaterial asset is compiled into backend-specific parameters: XPBD compliance/constraint curves for interactive use and orthotropic nonlinear energy/strain-limit terms for final use. Both derivations record compiler version, source material version, fit residuals, and validity range.",
+    "calibration": "A fabric-calibration operation fits canonical fields to measured or trusted coupon targets. Warp, weft, bias extension, cantilever bend, buckling, friction slide, and damping tests must reproduce the target curves within declared tolerances before a preset is promotion-ready.",
+    "force_fields": [
+      "gravity with explicit SI vector",
+      "spatially and temporally sampled wind field",
+      "aerodynamic drag and lift",
+      "pressure and inflow/outflow for closed garments",
+      "moving collider linear/angular velocity",
+      "interactive pinching and authored external forces",
+      "cloth-soft-tissue and rigid-trim coupling forces"
+    ],
+    "deterministic_sampling": "Procedural wind/turbulence uses an explicit seed, clock, sampler version, and sample grid. Cross-backend animation equivalence uses envelope metrics rather than exact per-vertex bytes.",
+    "failure_rule": "Missing units, invalid response curves, negative density/thickness, non-monotone tensile fits outside an explicitly supported hysteresis model, or a material used beyond its calibrated range produces a typed warning or blocking verdict according to the selected quality profile; no silent clamp is allowed."
+  },
+  "interactive_solver_contract": {
+    "method": "small-substep XPBD with orthotropic membrane, shear, bend, seam/gather, pin/attachment, pressure/volume, trim, strain-limit, contact, and friction constraints",
+    "constraint_scheduling": {
+      "static_constraints": "Topology-stable stretch, shear, bend, seam, and attachment constraints use deterministic precomputed graph colors and in-place Gauss-Seidel per color.",
+      "dynamic_contacts": "VF and EE candidate pairs are classified into PP, PE, EE, or PT distance stencils. Each stencil has canonical primitive ids, feature class, local role, topology version, collision-group pair, and degeneracy/coplanarity tie-break. Near-parallel EE uses a declared mollifier. Duplicate, one-ring, incident-primitive, seam, layer, trim, body-region, portal, and cavity filtering is deterministic and receipted.",
+      "contact_reduction": "Expand contacts into per-vertex contributions, stable-sort by (vertex_id, contact_key, local_role), and apply a versioned fixed reduction tree per segment. Fixed-point atomic accumulation is prohibited as the default path.",
+      "contact_refresh": "Broad/narrow-phase candidates rebuild or conservatively expand after structural/contact sweeps whenever the maximum correction crosses a configured fraction of contact thickness or topology/kinematic motion invalidates the bounds; every decision is recorded.",
+      "overflow_rule": "A contact buffer may grow only at a checkpoint-safe boundary within the run budget. If safe growth or a proven fallback is unavailable, reject and retry/fail the step from the last accepted checkpoint. Candidate truncation is forbidden."
+    },
+    "authoritative_substep_schedule": [
+      "Validate topology, unit scale, material range, and collider snapshot freshness before the frame.",
+      "Create or reference the last accepted checkpoint.",
+      "Synchronize kinematic participants and external forces for the substep.",
+      "Predict unconstrained positions.",
+      "Build swept primitive bounds and broad-phase candidates from previous and predicted positions.",
+      "For each bounded outer iteration: apply attachment targets as participating constraints; solve colored structural/seam/pressure/trim constraints; rebuild/refit candidates as required; generate body/prop and self/inter-layer contacts; apply normal contact and friction; measure attachment/contact residuals; finish the iteration with contact feasibility rather than an unvalidated hard-attachment projection.",
+      "Finalize velocities from accepted position change and apply bounded damping without contact energy injection.",
+      "Run finite-value, maximum-strain, penetration/intersection, residual, and candidate-overflow checks.",
+      "Accept the substep, or halve dt and retry from the checkpoint within a bounded retry budget; on exhaustion fail with the last accepted state intact."
+    ],
+    "collision_broad_phase": "GPU LBVH over swept AABBs for cloth vertices/faces/unique edges and deforming collider primitives, with canonical Morton/contact-key ordering. Analytic capsules/spheres may bypass mesh broad phase only in explicit preview profiles.",
+    "collision_narrow_phase": [
+      "vertex-face proximity and predictive swept contact",
+      "edge-edge proximity and predictive swept contact",
+      "cloth versus deforming body/prop triangle mesh",
+      "self collision",
+      "inter-garment and sublayer collision",
+      "rigid trim versus cloth/body",
+      "finite per-surface and per-pair thickness",
+      "one-sided/two-sided and semantic portal rules"
+    ],
+    "culling_rule": "Only topology adjacency, duplicate ownership, disabled semantic-region pairs, and provably separated swept bounds may remove a correctness candidate. Curvature and region masks may prioritize or batch work but may not suppress valid flat-flat contact.",
+    "layer_rule": "Layer and sublayer ids bias sidedness and contact ordering. Coupled multilayer solving is the correctness path; sequential inner-to-outer settle is an explicit preview optimization and must be revalidated by the coupled or final tier before promotion.",
+    "moving_geometry_rule": "Each kinematic participant declares its trajectory law. Skinned meshes declare vertex interpolation; rotating rigid participants use curved-trajectory CCD or conservative substeps with a proven rotational motion bound; capsules conservatively sweep both endpoints and radius. Endpoint-only linearization is insufficient when it cannot bound the swept geometry.",
+    "attachment_infeasibility": "If prescribed attachment motion and contact cannot both meet profile tolerances within the bounded retry policy, return a typed infeasible-attachment failure with the last accepted state; do not oscillate, tunnel, or silently weaken the attachment.",
+    "sdf_rule": "SDF is optional coarse preview acceleration restricted to rigid or conservatively bounded regions. Every SDF carries source mesh hash, topology version, pose/deformation hash, world/voxel transforms, sign method, valid-region mask, error bound, maximum permitted source displacement, baked_at, valid_until/expiry state, and semantic exclusions. A stale, unsigned/ambiguous, or incompatible SDF is disabled, never sampled. SDF is prohibited as the only collider for deforming tissue, open cavities, thin opposing surfaces, or semantic portal boundaries; portal metadata explicitly covers mouth, vagina, anus, and garment openings.",
+    "initial_intersection_rule": "Already-intersecting inputs enter a separately authorized untangle/recovery operation with explicit normal-orientation strategy and a receipt. Untangle output must pass exact triangle-level intersection and thickness validation before either solver admits it. The ordinary solve does not silently reinterpret an invalid initial state as successful."
+  },
+  "final_solver_contract": {
+    "method": "Pure-Rust f64 nonlinear incremental solve modeled on IPC/C-IPC/PPF acceptance properties, not a foreign-runtime wrapper.",
+    "mathematical_bill_of_materials": {
+      "time_integrator_and_objective": "Backward Euler is the final-tier time integrator. For step h, minimize Phi(x)=0.5*(x-x_hat)^T*M*(x-x_hat)/h^2 + Psi_shell(x) + Psi_tet(x) + Psi_authored(x) + B_contact(x) + D_friction(x), all in f64 SI. x_hat contains accepted-state position/velocity plus explicit external acceleration. Every term and coefficient is receipted.",
+      "shell_terms": "Use an orthotropic StVK membrane energy in each triangle's material coordinates with independently calibrated warp, weft, and shear response, plus a rest-dihedral discrete-hinge bending energy with directionally blended warp/weft bend coefficients. Triangle rest metric, area, material frame, and rest dihedral are topology-versioned authority.",
+      "volumetric_terms": "Soft-tissue tetrahedra use a stable Neo-Hookean f64 energy in rest coordinates plus the separate determinant barrier below; cage-to-render embedding is derived state. Rest matrix, rest volume, Lamé parameters, damping, and region material version are explicit.",
+      "authored_terms": "Soft seams/gathers, zippers, pressure/volume, soft pins, and compliant attachments use explicit quadratic or strain energies with SI coefficients. Truly hard pins and prescribed kinematic attachments are Dirichlet-eliminated. Dynamic trims/rods contribute generalized coordinates and energies to the same objective. Every prescribed trajectory participates in CCD.",
+      "contact_barrier": "For primitive distance d and summed per-surface thickness t, gap g=d-t must remain positive. With activation gap g_hat, use b(g)=-kappa*(g-g_hat)^2*ln(g/g_hat) for 0<g<g_hat and b(g)=0 for g>=g_hat; g<=0 is infeasible. Barrier stiffness updates are bounded and receipted; distance/gradient/Hessian kernels are differential-tested against the selected IPC oracle.",
+      "contact_stencils": "VF/EE candidates resolve to canonical PP/PE/EE/PT distance stencils. Exact-zero/degenerate and coplanar cases use stable primitive-id and feature-dimension tie-breaks. Near-parallel EE multiplies the barrier by m(q)=(-q/eps_x+2)*(q/eps_x) for q<eps_x and 1 otherwise, where q is normalized squared edge cross-product and eps_x is a versioned scale-aware threshold.",
+      "strain_and_inversion": "Material-coordinate warp, weft, and shear measures each receive lower and upper shifted-log barriers using the same positive-gap barrier family; bounds come from PhysicalMaterialSi calibration. For every soft-tissue tet, J=det(F) must exceed J_min>0 and receives a shifted-log barrier on J-J_min. A non-positive gap is infeasible and cannot enter line search.",
+      "friction": "Use lagged IPC-style friction: freeze the normal-contact basis and normal force estimate for one outer iteration, minimize a tangential displacement potential using smooth_norm(u)=sqrt(dot(u,u)+eps_v^2)-eps_v with separate static/dynamic coefficients and eps_v=h*v_static_threshold, update tangent history, then repeat to the recorded friction convergence tolerance. History is checkpointed.",
+      "hessian_policy": "Each elastic, strain, contact, and friction local Hessian is symmetrized and eigen-projected by clamping negative eigenvalues to zero. Assemble the projected system, add diagonal Levenberg regularization mu*I with bounded x10 retries until positive curvature checks pass, then use PCG. No indefinite solver menu is conforming to this draft; failure to establish SPD follows the bounded numerical-failure path.",
+      "linear_solve": "Use preconditioned conjugate gradient with a deterministic block-Jacobi preconditioner, stable sparse ordering, f64 dot products, recorded absolute/relative residuals, maximum iterations, bounded cancellation chunks, stagnation detection, and conditioning telemetry. SparseLinearSolver isolates the library implementation; faer remains a benchmark candidate but may not change these semantics.",
+      "line_search": "Compute conservative continuous-collision alpha_ccd over all active/swept PP/PE/EE/PT pairs and inversion limits; start alpha=min(1,0.9*alpha_ccd), require Armijo decrease with c1=1e-4, and halve alpha on rejection. Curved rigid motion is conservatively segmented before CCD. Alpha below the profile minimum rejects the trial step.",
+      "convergence": "Acceptance requires all profile fields: mass/energy-scaled infinity norm of the nonlinear gradient, relative step norm, relative energy change, PCG residual, friction outer-loop change, seam/attachment residual, strain margins, and exact feasibility. Each threshold, maximum iteration count, dt retry count, and minimum alpha is a signed quality-profile constant; iteration exhaustion is failure, not convergence.",
+      "accepted_step_certificate": "Each accepted step stores the exact input/output topology versions, endpoint triangle-level feasibility scan, continuous VF/EE CCD evidence for cloth/body/trim/soft-tissue/interlayer pairs, minimum thickness margin, tet/shell validity, strain extrema, linear/nonlinear residuals, friction convergence, and last-valid checkpoint id."
+    },
+    "initial_feasibility_classes": [
+      {
+        "class": "Feasible",
+        "admission": "Exact triangle-level intersection, finite-thickness, shell/tet validity, and semantic collision checks pass."
+      },
+      {
+        "class": "RepairableByAuthorizedUntangle",
+        "admission": "The input is rejected from the ordinary final solve, the authorized untangle operation runs separately, and its output must reclassify as Feasible before admission."
+      },
+      {
+        "class": "RejectedInitialIntersection",
+        "admission": "Untangle is unavailable, unauthorized, or fails exact feasibility; no trial final state is committed."
+      }
+    ],
+    "iteration_schedule": [
+      "Assemble/update inertial, elastic, constraint, strain-limit, and contact terms.",
+      "Build broad phase and VF/EE active contact set.",
+      "Evaluate energy, gradient, and the bill-of-materials Hessian projection/regularization and preconditioner.",
+      "Solve the sparse search direction with bounded, cancellable iterations and recorded residuals.",
+      "Compute a collision-bounded step size with CCD and backtracking line search.",
+      "Reject any step that is non-finite, inverted, violates thickness/strain, lacks continuous-trajectory feasibility, or fails Armijo/merit policy.",
+      "Update friction state and repeat until convergence, cancellation, or bounded failure.",
+      "Issue the exact accepted-step certificate before checkpointing; if CCD caps below the minimum usable step, line search stalls, or the certificate fails, restore the last accepted checkpoint and never commit the trial iterate."
+    ],
+    "failure_policy": {
+      "recoverable": [
+        "linear solve stagnation",
+        "line-search exhaustion",
+        "CCD uncertainty",
+        "contact candidate growth",
+        "step inversion"
+      ],
+      "recovery": "Restore the last accepted checkpoint, reduce dt or strengthen the barrier within declared bounds, and retry. Every fallback is recorded; silent parameter mutation is forbidden.",
+      "controlled_terminal": "Operator cancellation is not a numerical failure and is never retried with changed dt/barrier parameters. At the next declared observation boundary, discard the trial state and return CANCELLED with the last accepted checkpoint plus request/observation evidence.",
+      "terminal": "On bounded numerical retry exhaustion, return FAILED with the last accepted state, full diagnostics, and no promotable result."
+    },
+    "authoritative_precision": "The accepted state, feasibility scan, certificate, checkpoint, and promotion input remain f64 SI. Downcast viewport/export meshes are derived artifacts and are revalidated only for their declared downstream use.",
+    "oracle_policy": "Tailor regression scenes compare distances, CCD times, barrier derivatives, friction responses, strain limits, and accepted-step intersection status against IPC Toolkit/C-IPC/PPF reference scenes where licensing and reproducibility permit."
+  },
+  "soft_tissue_compatibility_contract": {
+    "purpose": "Keep BodyKit soft tissue in the same solver world without forcing cloth and tissue to use identical constitutive models.",
+    "shared": [
+      "scene graph",
+      "time integration and checkpoints",
+      "collision/contact infrastructure",
+      "kinematic participants",
+      "diagnostics and receipts",
+      "cancellation and recovery"
+    ],
+    "separate": [
+      "cloth shell material law",
+      "volumetric/cage tissue material law",
+      "surface embedding and skin transfer",
+      "region-specific damping and volume preservation"
+    ],
+    "two_way_coupling": "Cloth-to-tissue, hand/prop-to-tissue, and tissue-to-body contacts use the shared contact graph. One-way preview coupling is allowed only when labeled and must not be promoted as final-quality output."
+  },
+  "per_tier_interaction_contract": {
+    "matrix": [
+      {
+        "pair": "cloth-cloth and inner/outer garment",
+        "cpu_reference_f64": "two_way_coupled_reference_xpbd",
+        "gpu_interactive_xpbd": "two_way_coupled_xpbd",
+        "cpu_final_contact_safe": "two_way_coupled_barrier_shell",
+        "promotion_required_when_present": true
+      },
+      {
+        "pair": "cloth-kinematic body",
+        "cpu_reference_f64": "prescribed_trajectory_mesh_contact_reference_xpbd",
+        "gpu_interactive_xpbd": "prescribed_trajectory_mesh_or_explicit_analytic_preview_contact",
+        "cpu_final_contact_safe": "prescribed_trajectory_mesh_barrier_contact_with_ccd",
+        "promotion_required_when_present": true
+      },
+      {
+        "pair": "cloth-soft tissue",
+        "cpu_reference_f64": "two_way_coupled_reference_xpbd_shell_cage",
+        "gpu_interactive_xpbd": "two_way_coupled_xpbd_shell_cage",
+        "cpu_final_contact_safe": "two_way_coupled_shell_tet_barrier_objective",
+        "promotion_required_when_present": true
+      },
+      {
+        "pair": "cloth-dynamic trim",
+        "cpu_reference_f64": "two_way_coupled_reference_xpbd_generalized_rigid",
+        "gpu_interactive_xpbd": "two_way_coupled_xpbd_generalized_rigid",
+        "cpu_final_contact_safe": "two_way_coupled_shell_rigid_objective_and_barrier_contact",
+        "promotion_required_when_present": true
+      },
+      {
+        "pair": "cloth-rod/cord/zipper",
+        "cpu_reference_f64": "two_way_coupled_reference_xpbd_constraints",
+        "gpu_interactive_xpbd": "two_way_coupled_xpbd_constraints",
+        "cpu_final_contact_safe": "two_way_coupled_shell_rod_or_authored_objective",
+        "promotion_required_when_present": true
+      },
+      {
+        "pair": "cloth-prop",
+        "cpu_reference_f64": "kinematic_is_prescribed_contact_dynamic_is_two_way_reference_xpbd",
+        "gpu_interactive_xpbd": "kinematic_is_prescribed_contact_dynamic_is_two_way_xpbd",
+        "cpu_final_contact_safe": "kinematic_is_prescribed_ccd_dynamic_is_two_way_coupled_objective",
+        "promotion_required_when_present": true
+      },
+      {
+        "pair": "soft tissue-body/prop/trim",
+        "cpu_reference_f64": "kinematic_is_prescribed_dynamic_is_two_way_reference_xpbd_cage",
+        "gpu_interactive_xpbd": "kinematic_is_prescribed_dynamic_is_two_way_xpbd_cage",
+        "cpu_final_contact_safe": "kinematic_is_prescribed_ccd_dynamic_is_two_way_tet_coupled_objective",
+        "promotion_required_when_present": true
+      },
+      {
+        "pair": "dynamic trim-body/prop",
+        "cpu_reference_f64": "kinematic_counterpart_is_prescribed_dynamic_counterpart_is_two_way_reference",
+        "gpu_interactive_xpbd": "kinematic_counterpart_is_prescribed_dynamic_counterpart_is_two_way_xpbd",
+        "cpu_final_contact_safe": "kinematic_counterpart_is_prescribed_ccd_dynamic_counterpart_is_two_way_coupled_objective",
+        "promotion_required_when_present": true
+      }
+    ],
+    "interactive_rule": "An analytic collider is an optional explicitly selected preview approximation only for a kinematic participant. Every use is visible in capabilities, diagnostics, and receipts; it never changes a dynamic participant into a kinematic one silently.",
+    "final_rule": "A selected final scene must implement every matrix row whose participants are present. Kinematic one-way response is a declared participant role, not a solver approximation. Dynamic trim, rod, prop, cloth, and soft-tissue generalized coordinates participate in the same final objective.",
+    "validation_rule": "Every supported cell has a named scene and pair-specific separation, force/residual, trajectory, recovery, and determinism expectations."
+  },
+  "topology_and_remesh_contract": {
+    "authoring_remesh": "Baseline Tailor permits pattern tessellation and authoring/quality remesh only between runs: no simulation job is running or paused, and the source state is the last accepted checkpoint from the stopped/completed run. Paused intra-run manual remesh and automatic in-simulation adaptive remesh are not permitted. Every operation creates a new topology version.",
+    "state_transfer": [
+      "current and previous positions, velocities, and acceleration/prediction state needed by CCD",
+      "mass, rest metrics, material frames, and physical-material bindings",
+      "UVs and pattern/material-space coordinates",
+      "seams, darts, pins, barycentric attachment anchors, trims, and layer labels",
+      "semantic contact regions, portal/cavity metadata, and collision filters",
+      "soft-tissue rest volumes, cage bindings, and surface embeddings where applicable",
+      "XPBD lambdas and final-tier friction lag/tangent history under explicit project/reset policies",
+      "active constraint graph, graph coloring, stable primitive provenance, and topology-derived ids",
+      "RNG seed, simulation clock, solver caches, and convergence history under explicit compatibility policies"
+    ],
+    "atomic_transaction": "propose -> transfer -> rebuild constraint graph/colors/BVH/contact filters/caches -> exact intersection, thickness, inversion, degeneracy, conservation, and identity checks -> commit or rollback",
+    "validation": "State transfer must preserve seam identity, UV coverage, mass/rest state within tolerance, material orientation, stable provenance, attachment semantics, portal/collision classification, and exact feasibility. Failure rolls back atomically to the prior topology/checkpoint.",
+    "simulation_scope": "If paused intra-run manual remesh or automatic adaptive remesh is selected later, it requires a separately signed contract with deterministic sizing-field/edit triggers, accepted-step-only transaction barriers, full history transfer, and added state/damping validation.",
+    "crdt_rule": "Topology-affecting CRDT edits received during a running or paused simulation queue until that run is stopped/closed at its last accepted checkpoint. They never mutate a live constraint/contact graph in-place.",
+    "live_tearing": "Dynamic tearing is not implied by remeshing. If later selected as a parity feature, it requires a separate topology-event contract, deterministic cut identity, checkpoint, state transfer, validation, and export behavior."
+  },
+  "determinism_and_promotion_contract": {
+    "classes": [
+      {
+        "class": "strict_cpu_reference",
+        "meaning": "The scalar f64 reference-XPBD backend produces byte-identical canonical output/receipt only inside a witnessed envelope fixing target triple, CPU/ISA, compiler/flags, dependencies/math implementation, floating-point contraction/rounding/denormal policy, single thread, solver build, dispatch schedule equivalent, and inputs. Envelope drift automatically downgrades to invariant comparison."
+      },
+      {
+        "class": "same_gpu_envelope_repeatable",
+        "meaning": "Same build, shader hash, adapter, backend, driver, feature set, dispatch geometry, and inputs satisfy a measured repeatability tolerance; byte identity is not assumed."
+      },
+      {
+        "class": "cross_device_preview_equivalent",
+        "meaning": "GPU preview topology invariants match exactly and aggregate geometry/contact/material metrics stay within typed tolerances; vertexwise identity is not required."
+      },
+      {
+        "class": "cross_tier_physically_consistent",
+        "meaning": "Interactive and final tiers share asset/topology/material authority and satisfy tier-specific coupon and invariant envelopes. Different wrinkle phase, friction basin, or local minimum is allowed; cross-tier vertexwise comparison is forbidden as a promotion gate."
+      }
+    ],
+    "content_hash_use": "Input, topology, shader/build, parameter, and output hashes are receipts and same-envelope deduplication keys only.",
+    "promotion_gate": "Preview XPBD never independently grants final-quality promotion. Final promotion is based only on the canonical CPU final f64 accepted-step certificate plus topology/version identity, zero forbidden intersections, finite-thickness margins, strain bounds, seam/attachment residuals, volume/tet validity, nonlinear/linear/friction convergence, finite values, and required material-coupon gates. MeshComparator may compare same-tier outputs or derived views but cross-tier 0.1 mm per-vertex comparison is forbidden.",
+    "required_envelope_fields": [
+      "solver_build_id",
+      "backend_id",
+      "adapter_name",
+      "backend_api",
+      "driver",
+      "wgpu_version",
+      "naga_version",
+      "shader_hashes",
+      "shader compiler flags and pipeline constants",
+      "feature set and limits",
+      "workgroup sizes and dispatch sequence",
+      "reduction-layout version and fixed-tree definition",
+      "device-generation and GPU-context mode/lease id",
+      "thread_count",
+      "precision",
+      "math_mode",
+      "topology_hash",
+      "input_hash",
+      "parameter_hash"
+    ],
+    "downgrade_rule": "If any same-GPU-envelope field differs or repeatability has not been witnessed for the named envelope, comparison automatically downgrades to invariant/tolerance-based equivalence. WebGPU execution is never assumed universally byte-deterministic."
+  },
+  "diagnostics_and_recovery_contract": {
+    "simulation_receipt_required_fields": [
+      "run_id and correlation ids",
+      "scene/topology/material/collider versions",
+      "backend and determinism envelope",
+      "use case, quality, and full parameters",
+      "particle/vertex/triangle/edge/constraint/contact counts",
+      "phase timings and GPU/CPU memory high-water marks",
+      "per-family residual and maximum constraint error",
+      "strain min/max/percentiles by warp, weft, and shear",
+      "VF and EE candidate/active/rejected counts",
+      "maximum and percentile penetration/thickness margins",
+      "friction/contact impulses or force estimates",
+      "energy terms and convergence history",
+      "broad-phase rebuilds, SDF freshness, fallbacks, dt reductions, and retries",
+      "checkpoint lineage and last accepted step",
+      "cancel_requested_at, cancel_observed_at, observation boundary, latency, and terminal verdict",
+      "GPU context mode/lease/device generation, submission batches, errors, and device-loss/reacquisition events"
+    ],
+    "visual_debug_layers": [
+      "warp/weft/shear strain",
+      "bend and buckling",
+      "contact type and pair id",
+      "penetration/thickness margin",
+      "collision layer/sublayer",
+      "SDF validity/error bounds",
+      "constraint residual",
+      "solver island and graph color",
+      "remesh/state-transfer mapping",
+      "last accepted versus failed trial step"
+    ],
+    "cancellation_policy": {
+      "gpu": "Observe cancellation before encode, before submit, and after each bounded submission batch. Already-submitted command buffers are allowed to finish; Tailor never claims mid-command-buffer cancellation.",
+      "cpu": "Observe cancellation between Newton steps, bounded linear-solver chunks, CCD batches, and remesh transaction phases.",
+      "authority": "Cancellation never promotes a trial state. Return the last accepted checkpoint plus distinct request/observation timestamps and bounded-latency verdict."
+    },
+    "device_loss_recovery": "Invalidate the lost device generation and all derived GPU buffers/pipelines, keep serialized scene and last accepted checkpoint authority intact, reacquire through the app/scheduler, rebuild resources, and resume only after compatibility validation.",
+    "checkpoint_policy": "Interactive runs checkpoint at accepted frame boundaries and optionally at bounded substep intervals; final runs checkpoint every accepted step plus configured nonlinear milestones. Checkpoints are versioned, content-addressed, cancellable, and resume only when scene/build compatibility passes.",
+    "quiet_operation": "Headless runs expose progress and captures through typed state without foreground windows, focus theft, or blocking modal UI."
+  },
+  "verification_contract": {
+    "material_coupons": [
+      "warp and weft uniaxial stretch",
+      "bias extension/shear",
+      "cantilever bend",
+      "buckling and fold recovery",
+      "hysteresis/damping",
+      "pressure and closed-volume conservation"
+    ],
+    "contact_torture_scenes": [
+      "vertex-face grazing and high-speed impact",
+      "near-parallel edge-edge contact",
+      "folded flat-flat self contact",
+      "multiple stacked layers and sublayers",
+      "thin straps, piping, zippers, buttons, and rigid trims",
+      "fast animated body and prop motion",
+      "concave body regions and under-bust crease",
+      "exaggerated tits/hips/ass on a narrow frame",
+      "open cavity and semantic portal boundary",
+      "already-intersecting input followed by explicit untangle",
+      "candidate-buffer overflow and OOM fault injection"
+    ],
+    "named_blocking_cells": [
+      "PHY-CELL-001 feasible initial state admission",
+      "PHY-CELL-002 intersecting initial state rejection and authorized untangle readmission",
+      "PHY-CELL-003 near-parallel edge-edge mollification",
+      "PHY-CELL-004 coplanar edge-edge/flat-flat tie-break",
+      "PHY-CELL-005 point grazing triangle edge and vertex feature transitions",
+      "PHY-CELL-006 very small thickness at large coordinate magnitude",
+      "PHY-CELL-007 fast needle or edge crossing",
+      "PHY-CELL-008 rotating rigid participant swept trajectory",
+      "PHY-CELL-009 ten-layer cloth stack",
+      "PHY-CELL-010 tight fold and card-shuffle contact",
+      "PHY-CELL-011 high-friction stick/slip threshold",
+      "PHY-CELL-012 infeasible attachment pulling through collider",
+      "PHY-CELL-013 contact-buffer overflow without truncation",
+      "PHY-CELL-014 GPU OOM, device loss, context reacquisition, and checkpoint resume",
+      "PHY-CELL-015 cancellation before submit and after bounded GPU batch",
+      "PHY-CELL-016 cancellation during Newton, linear solve, CCD, and remesh transaction",
+      "PHY-CELL-017 remesh feasibility failure and atomic rollback",
+      "PHY-CELL-018 stale SDF at portal fallback",
+      "PHY-CELL-019 vagina, anus, and mouth canal traversal without SDF sealing",
+      "PHY-CELL-020 soft-tissue tet inversion attempt",
+      "PHY-CELL-021 extreme bust/hip fitted garment",
+      "PHY-CELL-022 zipper, button, cord, and rigid-trim contact",
+      "PHY-CELL-023 cross-tier material calibration and coupon consistency"
+    ],
+    "cell_contract": "Every named cell stores immutable scene/input hashes, topology/material/calibration versions, exact expected invariant bounds, repeat count, timeout, backend/hardware envelope, failure-injection phase where applicable, accepted-step certificate expectations, and retained SolverCapture/visual diagnostic artifacts.",
+    "reliability_matrix": "Every blocking physics scene runs with deterministic jitters for at least ten consecutive repetitions per required backend envelope; one unexpected intersection, NaN, unbounded strain, or unrecoverable failure fails the row.",
+    "backend_matrix": [
+      "strict CPU reference",
+      "parallel CPU final",
+      "DX12 wgpu interactive on the product baseline",
+      "other product-supported wgpu backends selected at activation"
+    ],
+    "performance_gate": "Activation must name baseline hardware and lock measured p50/p95 frame/step latency, memory, cancellation latency, and supported mesh/contact ceilings for each quality profile. No unmeasured particle ceiling is made normative in this prework.",
+    "promotion_blockers": [
+      "initial state not classified Feasible",
+      "non-finite state",
+      "missing or failed continuous accepted-step CCD certificate",
+      "endpoint intersection or missing pair coverage for any participant pair present in the per-tier matrix, including self/interlayer, cloth-body/prop/trim/rod/soft-tissue, soft-tissue-body/prop/trim, and dynamic-trim-body/prop",
+      "thickness violation beyond tolerance",
+      "shell orientation/degeneracy or soft-tissue tet inversion",
+      "upper or lower anisotropic strain-limit violation",
+      "seam or attachment residual failure",
+      "linear, nonlinear, or friction convergence failure",
+      "stale collider/SDF used",
+      "missing determinism envelope",
+      "missing or mismatched last-valid checkpoint identity",
+      "failed checkpoint/recovery proof"
+    ]
+  },
+  "behavioral_parity_contract": {
+    "claim_rule": "Tailor may claim MD physics parity only against a versioned comparator release and capability matrix with witnessed scenes. It does not claim the proprietary MD solver algorithm is reproduced.",
+    "required_matrix_rows": [
+      "Normal, Animation, Fitting, and interactive-edit use cases",
+      "CPU/GPU selection and documented quality differences",
+      "time step, substeps, structural iterations, collision iterations, convergence residual, and bounded cancellation",
+      "nonlinear fitting",
+      "warp/weft/shear/bending/buckling/shrinkage/damping/pressure material behavior",
+      "triangle-vertex and edge-edge avatar/prop collision",
+      "triangle-vertex and edge-edge self collision",
+      "proximity, finite thickness, friction, and intersection recovery",
+      "layer and sublayer collision",
+      "trims, attachments, pins, zippers, buttons, and rigid coupling",
+      "stable animation caches and final contact-safe output",
+      "stress, strain, pressure, contact, convergence, and failure diagnostics"
+    ],
+    "row_state": [
+      "SUPPORTED",
+      "PARTIAL",
+      "MISSING",
+      "INTENTIONALLY_OUT_OF_SCOPE"
+    ],
+    "evidence_per_row": [
+      "comparator version and official capability anchor",
+      "Tailor API and GUI operation ids",
+      "reference input scene and expected invariants",
+      "Tailor run/capture ids",
+      "numeric and visual comparison",
+      "backend envelope",
+      "validator verdict"
+    ],
+    "full_parity_gate": "Every in-scope blocking row must be SUPPORTED with witnessed evidence. PARTIAL or MISSING rows prevent the full-parity claim even when individual drapes look convincing."
+  },
+  "spec_reconciliation_required": {
+    "signed_spec_edit_policy": "Do not edit v02.200 in place. Apply these changes only through a copy-first next-version bundle with operator signature and normal validators.",
+    "conflicts_to_supersede": [
+      {
+        "conflict_id": "PHY-CONFLICT-001",
+        "current_surfaces": "Section 13.3 substep loop, GPU pass table, COL-CAPSULE-002, COL-SDF-003, COL-LAYER-003, COL-BUST-005",
+        "resolution": "Replace the contradictory one-pass order with the interactive authoritative substep schedule in this artifact and a distinct final-solver iteration schedule."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-002",
+        "current_surfaces": "COL-SELF-004 describes GPU hash; COL-SELF-005 mandates CPU construction/upload",
+        "resolution": "Use GPU LBVH over swept VF/EE primitives for interactive contact; use CPU f64 broad phase for CPU lanes."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-003",
+        "current_surfaces": "MT-035 calls graph coloring Jacobi-style; MT-037 and COL-SELF-007 use Jacobi atomic accumulation; Section 13.3 names colored GS",
+        "resolution": "Static constraints use colored GS. Dynamic contacts use stable sorted Jacobi with segmented per-vertex gather."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-004",
+        "current_surfaces": "COL-SELF-001 through COL-SELF-003 remove flat regions from contact",
+        "resolution": "Curvature becomes a scheduling hint only; correctness culling is limited to topology adjacency, duplicate ownership, disabled semantic pairs, and separated swept bounds."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-005",
+        "current_surfaces": "COL-SELF-007 through COL-SELF-009 fixed-point atomic corrections",
+        "resolution": "Default fixed-point atomics are removed in favor of canonical contacts and segmented reduction; any future atomic fast path is optional and independently bounded/validated."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-006",
+        "current_surfaces": "COL-SDF-002 through COL-SDF-005 and MT-088 through MT-090/106/108",
+        "resolution": "SDF becomes optional versioned preview acceleration with explicit freshness/error/semantic exclusions; final contact uses deforming triangle meshes plus CCD."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-007",
+        "current_surfaces": "Section 13.2 requires GPU/CPU implementations while other text says CPU fallback SHOULD",
+        "resolution": "CPU reference and CPU final backends are mandatory."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-008",
+        "current_surfaces": "Spec pins wgpu 29 while active product evidence pins direct wgpu 27.0.1 on the inspected branch",
+        "resolution": "Use one product workspace-pinned wgpu version selected at activation; inject the existing Device/Queue in embedded mode and prohibit a second embedded device."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-009",
+        "current_surfaces": "MT-002 says parry3d/rapier3d while spec names parry3d; spade/faer/final-solver needs are not coherent",
+        "resolution": "Parry remains geometry/proxy support, Rapier is not required for cloth, Spade remains pattern meshing, and faer is evaluated behind the final-tier SparseLinearSolver boundary."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-010",
+        "current_surfaces": "NO_INTERPENETRATION and SELF_INTERSECTION checks are particle/proxy-count oriented",
+        "resolution": "Blocking validation uses independent triangle-level VF/EE intersection and thickness scans over final geometry plus analytic-proxy checks where applicable."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-011",
+        "current_surfaces": "Section 13.3 and BodyKit clauses define XPBD as the one solver law",
+        "resolution": "Replace the one-integrator interpretation with tiered InteractiveGpuXpbd, ReferenceCpuF64, and FinalCpuBarrierF64 semantics while preserving one shared solver-world authority and in-tier coupling."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-012",
+        "current_surfaces": "MeshComparator and MT-039 impose 0.1 mm vertexwise CPU/GPU equivalence",
+        "resolution": "Separate same-tier replay, cross-device preview equivalence, and final CPU promotion; forbid cross-tier vertexwise comparison as a promotion gate."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-013",
+        "current_surfaces": "SolverResult positions are f32 with ambiguous metres-or-centimetres units",
+        "resolution": "Final authoritative results and validation remain positions_m_f64 in SI; f32 is a derived viewport/export projection only."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-014",
+        "current_surfaces": "GPU ownership assumes app injection or uncoordinated headless ownership",
+        "resolution": "Use EmbeddedApp, KernelHeadless scheduler-shared, and StandaloneTestOrCli GPU-context modes with leases, budgets, device generations, errors, and loss recovery."
+      },
+      {
+        "conflict_id": "PHY-CONFLICT-015",
+        "current_surfaces": "MT-334/385/462 do not define an adaptive remesh topology transaction and allow in-loop edit assumptions",
+        "resolution": "Baseline remesh is authoring/between-run at deterministic checkpoint barriers with atomic state transfer, cache rebuild, exact feasibility commit, and rollback; topology CRDT edits queue."
+      }
+    ]
+  },
+  "microtask_reconciliation_required": {
+    "existing_count_preserved": 653,
+    "no_numeric_mt_added_in_this_prework": false,
+    "coverage_class": "FULL_739_CLASSIFIED_WITH_34_ASSIGNED_PHYSICS_HARDENING_MTS",
+    "coverage_rule": "The revision targets below are the minimum affected set proven by direct index inspection; they are not a claim that every affected MT has been found. Before activation, every one of the 739 indexed MTs must be classified unchanged, revised, superseded, or new-dependency-required, with rationale and dependency-edge updates recorded in the signed refinement.",
+    "overlap_rule": "An MT may appear in more than one reconciliation group when one contract owns multiple affected concerns; MT-463 intentionally spans collision and topology-recovery reconciliation.",
+    "revision_targets": [
+      {
+        "mt_ids": [
+          "MT-001",
+          "MT-002",
+          "MT-003",
+          "MT-004",
+          "MT-005",
+          "MT-006",
+          "MT-007",
+          "MT-008",
+          "MT-009"
+        ],
+        "required_change": "Scaffold the two-tier backend/module shape, SI ingest, expanded scene/quality/capability/result types, and coherent dependencies without deleting the original crate/type intent."
+      },
+      {
+        "mt_ids": [
+          "MT-010",
+          "MT-011",
+          "MT-012",
+          "MT-013",
+          "MT-014",
+          "MT-015",
+          "MT-016",
+          "MT-017",
+          "MT-018",
+          "MT-019",
+          "MT-020",
+          "MT-021",
+          "MT-333",
+          "MT-336",
+          "MT-457"
+        ],
+        "required_change": "Bind the CPU reference and interactive XPBD methods to the authoritative schedule, material coupons, strain limits, and failure checks."
+      },
+      {
+        "mt_ids": [
+          "MT-022",
+          "MT-023",
+          "MT-024",
+          "MT-025",
+          "MT-026",
+          "MT-027",
+          "MT-028",
+          "MT-029",
+          "MT-030",
+          "MT-031",
+          "MT-032",
+          "MT-033",
+          "MT-034",
+          "MT-035",
+          "MT-036",
+          "MT-037",
+          "MT-038",
+          "MT-039",
+          "MT-040"
+        ],
+        "required_change": "Share/inject the product GPU context, replace the fixed eight-pass assumption, separate colored GS from contact Jacobi, remove default fixed-point atomics, and expand trait/determinism/diagnostics contracts."
+      },
+      {
+        "mt_ids": [
+          "MT-049",
+          "MT-055",
+          "MT-056",
+          "MT-064",
+          "MT-065",
+          "MT-074",
+          "MT-267",
+          "MT-274"
+        ],
+        "required_change": "Make checkpoints, cancellation request/observation boundaries, last-valid recovery, GPU device loss, final f64 authority, and accepted-step certificates durable and resumable."
+      },
+      {
+        "mt_ids": [
+          "MT-167",
+          "MT-168",
+          "MT-169",
+          "MT-170",
+          "MT-171",
+          "MT-172",
+          "MT-173",
+          "MT-174",
+          "MT-175",
+          "MT-176",
+          "MT-177",
+          "MT-178",
+          "MT-179",
+          "MT-180",
+          "MT-181",
+          "MT-182",
+          "MT-183",
+          "MT-184",
+          "MT-185",
+          "MT-186",
+          "MT-187",
+          "MT-188",
+          "MT-189",
+          "MT-190",
+          "MT-363",
+          "MT-364",
+          "MT-365",
+          "MT-366",
+          "MT-367",
+          "MT-368",
+          "MT-369",
+          "MT-370",
+          "MT-371",
+          "MT-372",
+          "MT-459",
+          "MT-472"
+        ],
+        "required_change": "Replace contradictory CPU/GPU trim ownership with the per-tier interaction matrix and require final two-way generalized-coordinate coupling where the selected profile needs it."
+      },
+      {
+        "mt_ids": [
+          "MT-081",
+          "MT-082",
+          "MT-083",
+          "MT-084",
+          "MT-085",
+          "MT-086",
+          "MT-087",
+          "MT-088",
+          "MT-089",
+          "MT-090",
+          "MT-091",
+          "MT-092",
+          "MT-093",
+          "MT-094",
+          "MT-095",
+          "MT-096",
+          "MT-097",
+          "MT-098",
+          "MT-099",
+          "MT-100",
+          "MT-101",
+          "MT-102",
+          "MT-103",
+          "MT-104",
+          "MT-105",
+          "MT-106",
+          "MT-107",
+          "MT-108",
+          "MT-109",
+          "MT-110",
+          "MT-111",
+          "MT-112",
+          "MT-113",
+          "MT-114",
+          "MT-337",
+          "MT-463",
+          "MT-464"
+        ],
+        "required_change": "Upgrade collision from particle/proxy pushout to mesh VF/EE predictive contact, coupled layers, SDF freshness, independent triangle validation, explicit untangle, and adversarial reliability matrices while retaining analytic preview colliders and the exaggerated-body test intent."
+      },
+      {
+        "mt_ids": [
+          "MT-334",
+          "MT-385",
+          "MT-462",
+          "MT-463"
+        ],
+        "required_change": "Separate initial tessellation, post-solve retopology, checkpoint-bounded topology transactions, and authorized initial-feasibility untangle; queue topology-affecting CRDT edits and require exact commit/rollback validation."
+      },
+      {
+        "mt_ids": [
+          "MT-335",
+          "MT-538",
+          "MT-539",
+          "MT-540",
+          "MT-541",
+          "MT-542",
+          "MT-543",
+          "MT-544",
+          "MT-545"
+        ],
+        "required_change": "Keep one solver world but separate tissue constitutive models, require two-way contact for final quality, and reuse the new checkpoint/contact/receipt gates."
+      },
+      {
+        "mt_ids": [
+          "MT-191",
+          "MT-192",
+          "MT-193",
+          "MT-194",
+          "MT-195",
+          "MT-196",
+          "MT-197",
+          "MT-198",
+          "MT-199",
+          "MT-200",
+          "MT-201",
+          "MT-202",
+          "MT-203",
+          "MT-204",
+          "MT-205",
+          "MT-206",
+          "MT-207",
+          "MT-208",
+          "MT-209",
+          "MT-210",
+          "MT-211",
+          "MT-212",
+          "MT-373",
+          "MT-374",
+          "MT-375",
+          "MT-376",
+          "MT-454",
+          "MT-455",
+          "MT-466"
+        ],
+        "required_change": "Reconcile the full Fabric group with unit-bearing SI/f64 material authority, orthotropic coupon calibration, strain/friction/thickness semantics, backend-specific compilation, and versioned behavioral parity evidence."
+      },
+      {
+        "mt_ids": [
+          "MT-584",
+          "MT-585",
+          "MT-586",
+          "MT-587",
+          "MT-588",
+          "MT-589",
+          "MT-590",
+          "MT-591",
+          "MT-592",
+          "MT-593"
+        ],
+        "required_change": "Reconcile the BodyKit cloth bridge with shared topology/material/collider snapshots, the per-tier interaction matrix, portal-aware cavity metadata, final f64 authority, and promotion-safe receipts without expanding BodyKit anatomy authoring in this slice."
+      },
+      {
+        "mt_ids": [
+          "MT-283",
+          "MT-285",
+          "MT-289",
+          "MT-292",
+          "MT-293",
+          "MT-295",
+          "MT-298",
+          "MT-409",
+          "MT-415",
+          "MT-416",
+          "MT-417",
+          "MT-420",
+          "MT-474"
+        ],
+        "required_change": "Reconcile timeline stepping, wind, cache authority, reset/pin/freeze, coupled trim advance, replay, and deterministic animation evidence with accepted checkpoints and tier-specific promotion."
+      },
+      {
+        "mt_ids": [
+          "MT-300",
+          "MT-301",
+          "MT-302",
+          "MT-303",
+          "MT-304",
+          "MT-305",
+          "MT-309",
+          "MT-310",
+          "MT-311",
+          "MT-312",
+          "MT-313",
+          "MT-314",
+          "MT-315",
+          "MT-316",
+          "MT-422",
+          "MT-427",
+          "MT-431",
+          "MT-432",
+          "MT-433"
+        ],
+        "required_change": "Reconcile refit/redrape, friction overrides, warm starts, topology lock, fit maps, batch jobs, determinism, and FIT_VALID evidence with the new solver tiers and final-contact promotion rule."
+      },
+      {
+        "mt_ids": [
+          "MT-141",
+          "MT-142",
+          "MT-143",
+          "MT-144",
+          "MT-145",
+          "MT-146",
+          "MT-147",
+          "MT-148",
+          "MT-149",
+          "MT-150",
+          "MT-151",
+          "MT-152",
+          "MT-153",
+          "MT-154",
+          "MT-155",
+          "MT-156",
+          "MT-157",
+          "MT-158",
+          "MT-159",
+          "MT-160",
+          "MT-161",
+          "MT-162",
+          "MT-163",
+          "MT-164",
+          "MT-165",
+          "MT-166"
+        ],
+        "required_change": "Reconcile the validation/HBR catalog and receipts with tier-aware convergence, exact independent triangle contact checks, no-truncation/failure semantics, deterministic envelopes, accepted-step certificates, and all named adversarial cells."
+      }
+    ],
+    "new_scope_units_to_assign_final_mt_ids_during_refinement": [
+      "CPU f64 reference backend and strict mode",
+      "versioned f64 SI final-result schema and accepted-step certificate",
+      "SI boundary conversion and mixed-unit validator",
+      "EmbeddedApp, KernelHeadless, and StandaloneTestOrCli GPU-context contract",
+      "GPU lease, memory budget, bounded submission, device loss, and reacquisition",
+      "GPU swept-primitive LBVH",
+      "interactive vertex-face predictive contacts",
+      "interactive edge-edge predictive contacts",
+      "canonical contact sorting and segmented per-vertex reduction",
+      "PP/PE/EE/PT feature classification, degeneracy tie-breaks, and EE mollifier",
+      "contact buffer growth/fail-without-truncation policy",
+      "coupled layer/sublayer contact",
+      "versioned SDF freshness/error state machine",
+      "deforming body/prop triangle-mesh collider path",
+      "explicit intersection untangle operation",
+      "final orthotropic nonlinear shell energy",
+      "final contact barrier and finite thickness",
+      "final VF/EE CCD and collision-bounded line search",
+      "final friction and strict strain-limit potentials",
+      "final soft-tissue energy and element-inversion barrier",
+      "PSD Hessian projection/regularization and SPD proof policy",
+      "SparseLinearSolver trait and faer benchmark",
+      "Armijo line search, CCD step cap, and initial-feasibility classifier",
+      "last-accepted checkpoint and resume compatibility",
+      "fault injection and bounded fallback policy",
+      "typed solver capture and diagnostic overlay data",
+      "PPF/IPC/C-IPC oracle comparison suite",
+      "ten-run jittered contact reliability suite",
+      "baseline hardware performance and cancellation matrix",
+      "topology-versioned remesh/state transfer",
+      "atomic remesh cache rebuild, feasibility commit, and rollback",
+      "unit-bearing fabric material schema and calibration compiler",
+      "deterministic wind/aerodynamic force field",
+      "versioned MD physics capability matrix and witnessed parity scenes"
+    ],
+    "activation_rule": "The full MT-001..739 classification, including the original 653 intents and assigned MT-654..687 physics contracts, now exist as non-execution prework. A signed refinement must accept/revise the classifications, promote contract decisions into a copy-first spec bundle, and hydrate an official packet before any implementation starts.",
+    "assigned_new_scope_mt_range": "MT-654..MT-687",
+    "assigned_new_scope_units": [
+      {
+        "mt_id": "MT-654",
+        "summary": "Implement the CPU f64 XPBD reference backend and strict reference-run mode behind the shared ClothSolver contract, with deterministic ordering, explicit convergence metrics, and no GPU dependency."
+      },
+      {
+        "mt_id": "MT-655",
+        "summary": "Define the versioned f64 SI FinalSolverResult schema and accepted-step certificate used for promotion, replay, checkpoints, and downstream comparison."
+      },
+      {
+        "mt_id": "MT-656",
+        "summary": "Implement one SI-unit boundary conversion layer and mixed-unit validator for cloth, BodyKit, animation, import, export, camera, and collision inputs."
+      },
+      {
+        "mt_id": "MT-657",
+        "summary": "Define the EmbeddedApp, KernelHeadless, and StandaloneTestOrCli GPU-context contract so Tailor injects or owns wgpu resources correctly in every execution mode."
+      },
+      {
+        "mt_id": "MT-658",
+        "summary": "Implement GPU leases, memory budgets, bounded submissions, device-loss recovery, and reacquisition for Tailor preview and batch jobs."
+      },
+      {
+        "mt_id": "MT-659",
+        "summary": "Implement a deterministic GPU swept-primitive LBVH broad phase for cloth, body, trim, prop, and soft-tissue candidate generation."
+      },
+      {
+        "mt_id": "MT-660",
+        "summary": "Implement interactive predictive vertex-face contact generation with finite thickness and continuous-time candidate bounds."
+      },
+      {
+        "mt_id": "MT-661",
+        "summary": "Implement interactive predictive edge-edge contact generation with finite thickness, parallel-edge handling, and canonical feature ownership."
+      },
+      {
+        "mt_id": "MT-662",
+        "summary": "Implement canonical contact sorting, deduplication, segmented per-vertex reduction, and deterministic accumulation for interactive GPU contact solves."
+      },
+      {
+        "mt_id": "MT-663",
+        "summary": "Implement PP, PE, EE, and PT closest-feature classification, degeneracy tie-breaks, and the final-solver edge-edge mollifier."
+      },
+      {
+        "mt_id": "MT-664",
+        "summary": "Implement contact-buffer measurement, deterministic growth, retry, and fail-without-truncation behavior."
+      },
+      {
+        "mt_id": "MT-665",
+        "summary": "Implement coupled layer and sublayer contact semantics for multilayer garments, skin, soft tissue, rigid trim, and props."
+      },
+      {
+        "mt_id": "MT-666",
+        "summary": "Define the versioned SDF freshness, resolution, error-bound, invalidation, and fallback state machine."
+      },
+      {
+        "mt_id": "MT-667",
+        "summary": "Implement the deforming body and prop triangle-mesh collider path shared by Cloth, BodyKit, animation, and final-quality validation."
+      },
+      {
+        "mt_id": "MT-668",
+        "summary": "Implement an explicit, previewable initial-intersection untangle operation with bounded displacement, diagnostics, and no hidden parameter mutation."
+      },
+      {
+        "mt_id": "MT-669",
+        "summary": "Implement the final-quality orthotropic nonlinear shell energy with warp, weft, shear, bend, thickness, and calibrated material parameters."
+      },
+      {
+        "mt_id": "MT-670",
+        "summary": "Implement the final-quality finite-thickness contact barrier shared by cloth, bodies, soft tissue, trim, and props."
+      },
+      {
+        "mt_id": "MT-671",
+        "summary": "Implement final-solver vertex-face and edge-edge CCD plus collision-bounded step sizes for every accepted Newton line-search step."
+      },
+      {
+        "mt_id": "MT-672",
+        "summary": "Implement final-quality friction potentials and strict strain-limit potentials with differentiated, unit-tested derivatives."
+      },
+      {
+        "mt_id": "MT-673",
+        "summary": "Implement final-quality volumetric soft-tissue energy, skin/cage binding, and element-inversion barriers for BodyKit coupling."
+      },
+      {
+        "mt_id": "MT-674",
+        "summary": "Implement PSD Hessian projection and regularization with an explicit SPD proof policy for shell, contact, friction, strain, and tissue energies."
+      },
+      {
+        "mt_id": "MT-675",
+        "summary": "Define the SparseLinearSolver trait and benchmark a pure-Rust faer implementation for the final nonlinear solver."
+      },
+      {
+        "mt_id": "MT-676",
+        "summary": "Implement the Armijo line search, CCD step cap, convergence policy, and initial-feasibility classifier for the final nonlinear solver."
+      },
+      {
+        "mt_id": "MT-677",
+        "summary": "Implement last-accepted checkpoints and resume compatibility for interactive and final solver runs."
+      },
+      {
+        "mt_id": "MT-678",
+        "summary": "Implement fault injection and bounded fallback policy for allocation failure, device loss, divergence, NaN, contact overflow, and checkpoint corruption."
+      },
+      {
+        "mt_id": "MT-679",
+        "summary": "Define typed solver captures and diagnostic overlay data for residuals, constraints, contacts, thickness, layers, CCD, strain, energy, and failed entities."
+      },
+      {
+        "mt_id": "MT-680",
+        "summary": "Build the PPF, IPC, and C-IPC oracle-comparison suite for derivatives, CCD, contact energy, and accepted result metrics."
+      },
+      {
+        "mt_id": "MT-681",
+        "summary": "Build the ten-run jittered contact reliability suite across multilayer cloth, exaggerated bodies, cavities, trim, props, multi-body scenes, and soft tissue."
+      },
+      {
+        "mt_id": "MT-682",
+        "summary": "Define and enforce the baseline-hardware performance, memory, contention, cancellation-latency, and jitter matrix for preview and final profiles."
+      },
+      {
+        "mt_id": "MT-683",
+        "summary": "Implement topology-versioned remesh and state transfer for positions, velocity, constraints, material coordinates, UVs, attachments, and diagnostic identity."
+      },
+      {
+        "mt_id": "MT-684",
+        "summary": "Implement atomic remesh cache rebuild, feasibility validation, commit, rollback, and queued topology-edit application."
+      },
+      {
+        "mt_id": "MT-685",
+        "summary": "Define the unit-bearing fabric material schema and calibration compiler from physical coupon measurements to preview and final backend parameters."
+      },
+      {
+        "mt_id": "MT-686",
+        "summary": "Implement deterministic wind and aerodynamic force fields with spatial actors, turbulence seeds, drag/lift parameters, animation, and replay."
+      },
+      {
+        "mt_id": "MT-687",
+        "summary": "Create the versioned Marvelous-Designer physics capability matrix and witnessed parity-scene qualification suite."
+      }
+    ],
+    "reconciliation_artifact": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json",
+    "all_739_reconciliation_status": "PREWORK_COMPLETE_PENDING_SIGNED_REFINEMENT"
+  },
+  "signed_refinement_blockers": {
+    "status": "UNRESOLVED_AND_EXECUTION_BLOCKING",
+    "rule": "The architecture and algorithm families in this prework are candidates for refinement, not an executable numerical contract. The signed refinement and final MT contracts must pin every item below before any physics implementation starts or any named validation cell is treated as runnable.",
+    "items": [
+      "Content-addressed input/fixture asset ids and hashes for every named validation cell, including body, garment, trim, soft-tissue, prop, material, pose, wind, and topology inputs.",
+      "Profile-specific numeric invariant bounds for separation/thickness, strain, energy/residual, force/impulse, drift, volume, mass/rest-state transfer, trajectory, convergence, and accepted-step certificate fields.",
+      "Per-cell repeat counts, perturbation/jitter distributions and seeds, cancellation bounds, timeout budgets, retry budgets, and pass/fail aggregation rules.",
+      "Baseline hardware/backend/driver/compiler matrix, performance budgets, memory budgets, device-loss fixtures, and downgrade rules for unwitnessed environments.",
+      "Exact quality-profile values for dt, substeps, iteration limits, XPBD compliance compilation, damping, contact alpha/thickness, friction smoothing and lag policy, barrier activation distance/stiffness, strain bounds, CCD tolerances, line-search limits, Newton/PCG tolerances, and regularization bounds.",
+      "The SparseLinearSolver dependency decision after a recorded faer benchmark covering convergence, cancellation observation, memory, determinism class, supported sparse operations, and pure-Rust workspace compatibility.",
+      "The workspace-pinned wgpu version and one shared GPU type universe, plus feature/limit negotiation and tested fallback capabilities for EmbeddedApp, KernelHeadless, and StandaloneTestOrCli.",
+      "A signed all-739 MT classification with every affected dependency edge, acceptance criterion, verification command, status surface, and supersession link reconciled.",
+      "Final HBR descriptors, built-in model manual operations, structured diagnostics, visual-debug overlays, headless commands, receipt schemas, and reproducible verification paths mapped to their final MT contracts."
+    ]
+  },
+  "risks_and_mitigations": [
+    {
+      "risk_id": "PHY-RISK-001",
+      "risk": "The pure-Rust final contact-safe solver is a large numerical-method project and can dominate the WP.",
+      "failure_scenario": "Interactive drape works, but promotion-quality multilayer or genital/body contact remains unreliable and Tailor is incorrectly called parity-ready.",
+      "mitigation": "Make the final tier a separately gated milestone with IPC/C-IPC/PPF oracle tests, sparse-solver benchmarks, exact intersection scans, and no promotion claim before it passes."
+    },
+    {
+      "risk_id": "PHY-RISK-002",
+      "risk": "GPU broad-phase candidate growth or memory exhaustion on dense folds and many layers.",
+      "failure_scenario": "Candidate buffers overflow, contacts disappear, or the app crashes under the scenes that matter most.",
+      "mitigation": "Capacity planning from swept AABBs, bounded growth, overflow telemetry, spill/fallback path, last-accepted checkpoint, and deliberate overflow fault tests."
+    },
+    {
+      "risk_id": "PHY-RISK-003",
+      "risk": "Shared wgpu device use can contend with rendering or expose unsupported adapter features.",
+      "failure_scenario": "Tailor creates a second device, doubles VRAM, deadlocks submission ordering, or fails on a supported product adapter.",
+      "mitigation": "EmbeddedApp injection, KernelHeadless scheduler injection, StandaloneTestOrCli-only ownership, leases/memory budgets, capability negotiation, bounded submission batches, device generations, and loss recovery."
+    },
+    {
+      "risk_id": "PHY-RISK-004",
+      "risk": "SDF snapshots become stale during body deformation or seal cavities.",
+      "failure_scenario": "Cloth, props, or anatomy collide against old geometry or cannot pass a valid opening.",
+      "mitigation": "Version/error/freshness checks, automatic disable, triangle-mesh fallback, and semantic portal exclusions."
+    },
+    {
+      "risk_id": "PHY-RISK-005",
+      "risk": "Centimeter authoring data mixed with SI solver data creates 100x force, gravity, or thickness errors.",
+      "failure_scenario": "Garments explode, fall too slowly, or use absurd collision margins while inputs look valid.",
+      "mitigation": "Single ingest/export conversion boundary, unit-bearing types at boundaries, receipts, and mixed-unit negative tests."
+    },
+    {
+      "risk_id": "PHY-RISK-006",
+      "risk": "Determinism is oversold across GPU vendors.",
+      "failure_scenario": "Valid work is rejected or hidden drift is accepted because one content-hash rule is used everywhere.",
+      "mitigation": "Three determinism classes, full backend envelope, tolerance/invariant-based promotion, and strict CPU oracle scenes."
+    },
+    {
+      "risk_id": "PHY-RISK-007",
+      "risk": "Remeshing silently breaks seams, UVs, contacts, or replay identity.",
+      "failure_scenario": "A garment visually survives but cannot reproduce, export, or promote consistently.",
+      "mitigation": "Topology versions, explicit state-transfer receipts, checkpoint boundary, conservation/identity checks, and rollback."
+    },
+    {
+      "risk_id": "PHY-RISK-008",
+      "risk": "One unified solver world is misread as one material model for cloth, tissue, and rigid trims.",
+      "failure_scenario": "Soft tissue behaves like cloth or cloth inherits volumetric tissue assumptions.",
+      "mitigation": "Share scene/contact/time/recovery only; keep separate constitutive modules and typed participant capabilities."
+    },
+    {
+      "risk_id": "PHY-RISK-009",
+      "risk": "Normalized fabric sliders produce plausible-looking but physically inconsistent behavior between interactive and final backends.",
+      "failure_scenario": "A preset drapes one way in preview, changes materially in final solve, and cannot be calibrated or compared to a real fabric.",
+      "mitigation": "Store unit-bearing material curves, derive both backend parameter sets from one versioned compiler, report fit residuals, and gate presets with shared coupon tests."
+    },
+    {
+      "risk_id": "PHY-RISK-010",
+      "risk": "Preview and final solvers settle into different valid wrinkle or friction basins and are incorrectly judged by vertexwise equality.",
+      "failure_scenario": "Valid final output is rejected, or preview output is promoted without the final feasibility proof.",
+      "mitigation": "Separate same-tier replay, cross-device preview invariants, and final CPU promotion; prohibit cross-tier vertex comparison and require the final f64 accepted-step certificate."
+    },
+    {
+      "risk_id": "PHY-RISK-011",
+      "risk": "Final f64 feasibility is invalidated by an authoritative f32 downcast.",
+      "failure_scenario": "Close contacts cross the certified thickness margin after conversion while the artifact still carries a promotion verdict.",
+      "mitigation": "Keep canonical final state, validation, certificate, checkpoint, and promotion inputs in f64 SI; label f32 viewport/export products as derived and non-authoritative."
+    }
+  ],
+  "high_roi_additions": [
+    {
+      "addition_id": "PHY-ROI-001",
+      "add": "A versioned SolverCapture artifact containing inputs, topology, parameters, backend envelope, checkpoints, selected buffers, receipt, and optional visual layers.",
+      "why_high_roi": "The solver already needs replay, model inspection, validation, and bug reports; one capture format serves all four.",
+      "reuses": "ArtifactStore, Flight Recorder correlation, diagnostics, and model-readable capture paths.",
+      "validation": "Save/reload/replay on another session and prove the same determinism-class verdict."
+    },
+    {
+      "addition_id": "PHY-ROI-002",
+      "add": "A small permanent physics scene registry derived from material coupons and contact torture scenes.",
+      "why_high_roi": "Every solver optimization, dependency bump, and GPU backend change needs the same corpus.",
+      "reuses": "Tailor validation descriptors, CI, visual debugging, and benchmark harness.",
+      "validation": "Every registered scene has typed expected invariants, failure injection, and capture output."
+    },
+    {
+      "addition_id": "PHY-ROI-003",
+      "add": "Backend capability negotiation and graceful quality fallback in the public solver API.",
+      "why_high_roi": "The native shell and headless jobs already need adapter introspection; solving it once prevents device-specific branches throughout Tailor.",
+      "reuses": "Current native diagnostics GPU identity and job scheduling.",
+      "validation": "Feature-disable tests select the documented fallback and record it in the receipt."
+    },
+    {
+      "addition_id": "PHY-ROI-004",
+      "add": "Physics fault injection for NaN, OOM/candidate overflow, stale collider, CCD failure, cancellation, and checkpoint corruption.",
+      "why_high_roi": "Recovery must be built at the same time as the solver state machine; adding it later is expensive and unreliable.",
+      "reuses": "Handshake jobs, cancellation, Flight Recorder, and last-good-state patterns.",
+      "validation": "Each injected fault preserves the last accepted state and returns a typed non-promotable verdict."
+    },
+    {
+      "addition_id": "PHY-ROI-005",
+      "add": "One fabric calibration compiler and coupon corpus shared by interactive and final backends.",
+      "why_high_roi": "Material authoring, parity, regression tests, preset libraries, and backend comparison all need the same physical basis.",
+      "reuses": "Existing Fabric MT group, material preset authority, solver receipts, and validation runner.",
+      "validation": "Both backends reproduce each promoted preset's coupon targets within profile-specific tolerances and report deviations."
+    },
+    {
+      "addition_id": "PHY-ROI-006",
+      "add": "A versioned accepted-step certificate shared by final promotion, checkpoints, failure reports, and model diagnostics.",
+      "why_high_roi": "The exact feasibility proof is already required for every final step; retaining it once prevents four consumers from independently reconstructing or weakening the verdict.",
+      "reuses": "Final VF/EE CCD, triangle-level validators, SolverCapture, ArtifactStore, and promotion receipts.",
+      "validation": "Replay the certificate inputs, independently reproduce its endpoint/trajectory/residual verdicts, and fail closed on any schema or topology mismatch."
+    }
+  ],
+  "prework_acceptance": [
+    "PHYSICS-PREWORK-AC-001: The current no-engine status is stated without implying runtime progress.",
+    "PHYSICS-PREWORK-AC-002: Interactive, CPU reference, and final-quality backends have distinct responsibilities and one shared API/scene/material/topology/checkpoint authority without pretending they share one integrator.",
+    "PHYSICS-PREWORK-AC-003: Pass order, GS/Jacobi responsibilities, three-mode GPU ownership, device loss, SDF policy, tier-aware determinism/promotion, f64 final authority, units, and CPU requirements are resolved as candidates for signed refinement.",
+    "PHYSICS-PREWORK-AC-004: Full-mesh VF/EE contact, finite thickness, friction, multilayer behavior, CCD/final accepted-step safety, and independent validation are required.",
+    "PHYSICS-PREWORK-AC-005: Cancellation, checkpoint, resume, diagnostics, model visibility, and quiet headless operation are first-class requirements.",
+    "PHYSICS-PREWORK-AC-006: All original 653 MT files are preserved and all 739 candidate MTs are classified; the directly inspected minimum physics-affected set is mapped, and full all-739 signed acceptance remains an explicit activation blocker with no execution authority or activation state changes.",
+    "PHYSICS-PREWORK-AC-007: The final solver's algorithmic formulations, initial-feasibility classes, SPD/linear-solver policy, and accepted-step certificate shape are pinned as refinement candidates; numeric profile constants, fixtures, hashes, tolerances, timeouts, hardware envelopes, and dependency decisions remain explicit signed-refinement blockers.",
+    "PHYSICS-PREWORK-AC-008: Baseline remesh and topology edits occur only between stopped/completed runs and use checkpoint-bounded atomic transfer/rebuild/feasibility/rollback semantics; paused intra-run or adaptive remesh requires a separately signed contract.",
+    "PHYSICS-PREWORK-AC-009: The signed active Master Spec is not edited in place."
+  ],
+  "next_authorized_transition": "Operator-approved signed refinement and copy-first Section 13 enrichment; no activation or implementation is authorized by this prework."
+}

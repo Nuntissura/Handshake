@@ -20,11 +20,14 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-354",
   "created_at_utc": "2026-06-17T18:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-07-16T03:02:51Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-354.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-354.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.professional-production-refinement-prework.json",
+    "physics_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.physics-refinement-prework.json",
+    "mt_reconciliation_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-354.md",
@@ -38,7 +41,13 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-353"
+      "MT-353",
+      "MT-688",
+      "MT-689",
+      "MT-690",
+      "MT-691",
+      "MT-693",
+      "MT-694"
     ],
     "blocks": [],
     "active": false,
@@ -47,8 +56,8 @@
   "scope": {
     "summary": "Implement a 3D-viewport seam authoring mode that enables spatial edge selection on draped panels in the 3D viewport and routes the selection to SeamSpec creation, supporting all sew variants (Segment, Free, 1:N, M:N) via the same SeamSpec authority surface used by the 2D authoring path",
     "allowed_paths": [
-      "app/src/components/tailor/viewport.rs",
-      "app/src/components/tailor/sewing_tool.rs",
+      "src/frontend/handshake_native/src/tailor/viewport.rs",
+      "src/frontend/handshake_native/src/tailor/sewing_tool.rs",
       "src/backend/handshake_core/src/tailor/model_adapter.rs",
       "src/backend/handshake_core/src/tailor/rest_api.rs"
     ],
@@ -59,7 +68,8 @@
       "The 3D sewing interaction emits a TailorPanelCrdtUpdateRecorded (seam-addition) event to the EventLedger, identical to the CRDT path used by 2D panel edits (MT-135)",
       "The model-first API exposes an equivalent create_seam_3d_selection endpoint accepting (panel_id_a, edge_index_a, range_a, panel_id_b, edge_index_b, range_b, sew_kind, gather_ratio) producing a SeamSpec — usable by swarm agents operating from solver-state snapshots without a 2D pattern view",
       "Spatial edge selection uses the raycast / closest-edge-to-ray algorithm against the simulated mesh positions, not the 2D pattern layout",
-      "All 3D sew variants route to the same SeamSpec data model, validated identically to 2D-authored seams"
+      "All 3D sew variants route to the same SeamSpec data model, validated identically to 2D-authored seams",
+      "All operator-facing scope is implemented in src/frontend/handshake_native with native wgpu/egui, AccessKit author_id, Argus inspection/steering/capture, and no Tailor React, Tauri-command, WebView, data-testid-only, or rendered-PNG frontend path."
     ],
     "proof_targets": [
       "cargo test -p handshake_core -- tailor::rest_api::create_seam_3d_selection",
@@ -88,5 +98,74 @@
       "MT identity must be stable and referenced by receipt correlation.",
       "Generated projection drift must not wake Coder or Validator by itself."
     ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "native Tailor pane and applicable editor, viewport, browser, timeline, or status surface"
+    ],
+    "argus_targets": [
+      "every control and visible state introduced or changed by this MT, using stable native author_id values"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > GarmentAuthoring > MT-354",
+      "Tailor ModelManual > GarmentAuthoring > MT-354"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "REQUIRED",
+      "reason": "The implementing MT must emit or project its applicable Tailor lifecycle, command, job, validation, or authority event through the shared Flight Recorder contract; pure solver kernels surface typed receipts through their owning run."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DEFERRED",
+      "reason": "The shared internal_diagnostics substrate is supplied by WP-KERNEL-012/WP-KERNEL-016; this MT must use its open projection contract when available and must not fork a Tailor-only diagnostics runtime."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DEFERRED",
+      "reason": "The shared Palmistry watcher is supplied by WP-KERNEL-012/WP-KERNEL-016; long-running Tailor jobs inherit bounded child-stall and survivor coverage during the retrofit."
+    }
+  ],
+  "pre_activation_reconciliation": {
+    "status": "REVISED_PREP_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "LEGACY_FRONTEND_PATH_REHOMED",
+      "NATIVE_PATTERN_WORKFLOW_FOUNDATION",
+      "CURRENT_MT_TEMPLATE_HYDRATED"
+    ],
+    "required_changes_before_execution": [
+      "Replace legacy app/src or app/src-tauri targets with the native Handshake shell and native Tailor paths.",
+      "Bind this scope to the native 2D Pattern pane, shared selection/property/history, and queued topology transaction contracts.",
+      "Added gui_obligation, user_manual_obligation, and HBR-INT-009 tier obligations from the current MT template without removing original scope."
+    ],
+    "dependency_graph_status": "PRE_ACTIVATION_DAG_CANDIDATE_PENDING_SIGNED_REFINEMENT",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
   }
 }
