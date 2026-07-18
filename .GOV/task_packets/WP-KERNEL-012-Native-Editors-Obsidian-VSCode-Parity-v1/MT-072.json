@@ -25,7 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "rfv_evidence_2026_07_18": {
+      "by": "KERNEL_BUILDER-20260718-mt072",
+      "mode": "VERIFY_AND_PROVE",
+      "proof": "Fresh external-target proofs: test_editor_settings_persist 17 passed/0 failed/0 ignored against managed PostgreSQL (all-fields PUT->GET and fresh reopen, retries and negative paths); test_syntax_palette_live 4/4; test_editor_keybindings_table 6/6; test_editor_settings_section_renders 4/4 with inspected screenshot showing readable, non-overlapping Editor settings controls.",
+      "review": "Independent adversarial review found the remediated runtime paths green and recommends READY_FOR_VALIDATION_V2.",
+      "typed_contract_deviation": "The backend rejects unknown entries in the app keybindings map, so rich/editor overrides persist in the separate editor_keybindings list. This is the previously disclosed typed AC-005 deviation; it is recorded for validator disposition and is not being presented as same-map compliance.",
+      "residuals": "Validator should confirm the disclosed AC-005 shape against the contract and retain the managed-PG run output; no new persistence infrastructure was introduced."
+    },
     "active": false,
     "depends_on": [
       "MT-001",

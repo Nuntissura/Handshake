@@ -25,7 +25,14 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "rfv_evidence_2026_07_18": {
+      "by": "KERNEL_BUILDER-20260718-mt070",
+      "mode": "VERIFY_AND_PROVE",
+      "proof": "Fresh context-menu suite: 25 passed, 0 failed, 0 ignored. The editor-body popup now exposes an AccessKit Role::Menu container with stable IDs, and CreateNoteFromLink dispatches through the live MT-057 wikilink handler path.",
+      "review": "Independent adversarial review READY_FOR_VALIDATION_V2. Enabled entries bind real handlers; no dead enabled action remains.",
+      "residuals": "Validator should add direct UI activation coverage for the node CreateNoteFromLink item and confirm the expected title when a stale canvas block ID is used; these are evidence/usability checks, not current implementation blockers."
+    },
     "active": false,
     "depends_on": [
       "MT-008",

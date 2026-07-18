@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-041",
@@ -92,6 +92,14 @@
       "session_summary": "E7 SwarmEditProof end-to-end: a swarm agent CREATE note (STEP 1), EDIT code (STEP 2 via MT-080 code_editor_text SetValue), ADD backlink via rich editor (STEP 3 via the NEW MT-110 rich wikilink-SetValue-by-id surface), RUN search (STEP 4 surface) - all purely via AccessKit-by-id dispatch, no keystroke simulation. STEP 3 was the genuine blocker (rich editor had no swarm-edit surface); MT-110 shipped it, so STEP 3 now dispatches a raw AccessKitActionRequest{SetValue, target: wikilink chip, Value(target_block_id)} and asserts the hsLink carries the agent-chosen backlink (!= placeholder, Spec-Realism Gate holds). Product commit 1a71d967 (test rewrite + fixture).",
       "proofs": "KERNEL_BUILDER authoritative (mt035): test_e7_swarm_edit_proof 6/0; the proof-log fixture (swarm_edit_proof_log.txt) now ends PROOF_PASS with STEP 1 GATED, STEP 2 PASS, STEP 3 PASS, STEP 4 GATED:SEEDED and ZERO BLOCKED tokens (was PROOF_FAIL). finish_pass wired (was the dead finish_fail).",
       "needs_managed_resource_proof": "The AccessKit swarm-edit CAPABILITY is proven end-to-end in-process; the live DB persistence round-trips (STEP 1 knowledge_rich_documents SELECT, STEP 3 loom_edges, STEP 4 POST /loom/search/v2) remain GATED requires_pg -> the live-PG seed-fixture batch (backend already proven up + reachable in this session)."
+    },
+    "rfv_evidence_2026_07_18": {
+      "by": "KERNEL_BUILDER-20260718-mt043",
+      "mode": "VERIFY_AND_PROVE",
+      "session_summary": "Fresh adversarial review after MT-041 collision-safe wikilink identity hardening. The complete managed-PostgreSQL proof suite ran 13/13 with the live child scenario passing 1/1; the live proof log ended PROOF_PASS.",
+      "proofs": "cargo test --features integration --test test_e7_swarm_edit_proof -j1 -- --nocapture --test-threads=1: 13 passed, 0 failed, 0 ignored. External artifact and checked-in fixture SHA-256 matched (76A5D685...), both are 54 lines, and a raw-byte scan found zero double-LF blank records. Negative/concurrency checks passed for namespace rejection, payload escaping, live-lock non-stealing, stale-lock recovery, watchdog contention, process-tree termination, and crash-window cleanup. The live path recorded distinct actor A/B receipts, managed-PG conflict/refetch/keep-server/merge/resave, live search result activation, EventLedger/Flight Recorder attribution, graph identities, and cleanup.",
+      "independent_review": "PASS — READY_FOR_VALIDATION_V2 (mt043_final_review, 2026-07-18). Residual non-blocking notes: graph assertion is observed after persistence by a fresh Graph observer; stdout did not include a separate cargo build --tests invocation.",
+      "artifact_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-043"
     }
   },
   "scope": {

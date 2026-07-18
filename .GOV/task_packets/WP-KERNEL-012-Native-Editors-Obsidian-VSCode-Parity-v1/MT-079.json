@@ -25,7 +25,14 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "rfv_evidence_2026_07_18": {
+      "by": "KERNEL_BUILDER-20260718-mt079",
+      "mode": "VERIFY_AND_PROVE",
+      "proof": "Fresh external-target app-host proof test_app_host_mount: 39 passed, 0 failed, 0 ignored. Added exact loading-gate regression rich_pending_events_drain_while_document_is_loading: 1 passed, 0 failed, 39 filtered; queued rich events are drained before the unready document returns its loading view.",
+      "review": "Independent adversarial review accepts the mount and loading/error-path remediation for READY_FOR_VALIDATION_V2.",
+      "residuals": "The broader fuller-mount carries remain explicitly documented for follow-on work; this remediation closes the failed loading-path behavior without claiming those carries are complete."
+    },
     "active": false,
     "depends_on": [
       "MT-008",

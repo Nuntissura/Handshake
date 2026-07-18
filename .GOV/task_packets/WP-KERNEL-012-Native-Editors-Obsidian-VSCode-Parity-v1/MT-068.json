@@ -25,7 +25,14 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
+    "rfv_evidence_2026_07_18": {
+      "by": "KERNEL_BUILDER-20260718-mt068",
+      "mode": "VERIFY_AND_PROVE",
+      "proof": "Fresh managed-PostgreSQL integration run test_locus_interop: 20 passed, 0 failed, 0 ignored, using the sanctioned WP database and backend. The run seeds isolated WP/MT rows, persists and reloads locus refs, resolves both production HTTP routes, checks reverse lookup and missing-record behavior, exercises mounted chip navigation, and tears down its fixture.",
+      "review": "Independent adversarial review READY_FOR_VALIDATION_V2. Backend routes read canonical PostgreSQL rows; prior dead-end and chip-layout findings are closed.",
+      "artifact_and_residuals": "Exact 20/20 command output was observed in the remediation session. Residual validator check: retain that output/fixture identifiers and inspect the current working-tree test/proof lineage; no implementation blocker remains."
+    },
     "active": false,
     "depends_on": [
       "MT-030",
