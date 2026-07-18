@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-17T23:04:05Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,7 +35,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "depends_on": [],
     "blocks": [
       "MT-036",
@@ -45,6 +45,10 @@
     ],
     "active": false,
     "validator_verdict": "FAIL_V1",
+    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
+    "ready_for_validation_at_utc": "2026-07-17T23:04:05Z",
+    "proof_status": "PASS_REMEDIATION_V2: real managed-PostgreSQL/EventLedger native-editor ingestion, readback, strict decoding, idempotency, reconciliation, real ace::MemoryPack readback, review-gated proposal provenance, immutable committed memory before approval, and typed zero-residue rejection were implemented and independently adversarially reviewed. Historical FAIL_V1 remains preserved for independent V2 validation.",
+    "post_implementation_adversarial_review_status": "PASS_2026-07-17_NO_SOURCE_BLOCKERS_AND_REQUIRED_RUNTIME_PROOFS_GREEN",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -209,6 +213,39 @@
       ],
       "no_context_instruction": "Read the complete MT, WP packet, and resolved current Master Spec before editing. Implement only this product remediation, run every required verification from current HEAD, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "opened_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "v1_verdict_preserved": "FAIL_V1",
+    "authority": "Operator directive to remediate every failed WP-KERNEL-012 MT, independently harden each implementation, and return implemented MTs ready for V2 validation.",
+    "implemented_repairs": [
+      "Implemented the closed versioned native-editor event family across all 13 documented kinds with strict envelope and payload decoding.",
+      "Persisted native-editor events through the real Flight Recorder and EventLedger paths with idempotency, conflict detection, replay, reconciliation, and restart repair.",
+      "Implemented real ace::MemoryPack PostgreSQL readback with complete struct and serialized-shape equality proofs.",
+      "Implemented review-gated memory proposals with canonical document, selection range, content hash, and EventLedger receipt provenance while preventing direct committed-memory mutation.",
+      "Added mounted-route typed rejection proofs for unknown fields, kinds, and proposal classes with zero durable residue."
+    ],
+    "final_source_proof_v2": {
+      "native_editor_integration_subset": "PASS_26_OF_26_WITH_RUNTIME_FULL_DUCKDB_FLIGHT_RECORDER_TEST_UTILS_MANAGED_PG",
+      "canonical_save_receipt": "PASS_1_OF_1",
+      "memory_empty_pack": "PASS_1_OF_1",
+      "committed_memory_immutability": "PASS_1_OF_1",
+      "missing_provenance_fail_closed": "PASS_1_OF_1",
+      "proposal_decode_rejection": "PASS_1_OF_1",
+      "proposal_retry_idempotency_and_drift_conflict": "PASS_1_OF_1",
+      "previous_exact_route_and_shape_filters": "PASS_NATIVE_HANDLER_ALL_KINDS_ROUTE_ZERO_RESIDUE_REAL_MEMORY_PACK_PROPOSAL_RECEIPT_AND_PROPOSAL_ROUTE_ZERO_RESIDUE",
+      "diff_check": "PASS_NO_ERRORS_LINE_ENDING_WARNINGS_ONLY"
+    },
+    "adversarial_review_v2": {
+      "status": "PASS",
+      "reviewed_at_utc": "2026-07-17T23:04:05Z",
+      "lens": "closed_decode_cross_store_partial_write_idempotency_recovery_real_memory_pack_proposal_provenance_and_zero_residue",
+      "independent_findings": "No source-level blocker remained against the MT-109 failed-validation clauses; the root lane then completed the required non-zero managed-PostgreSQL and DuckDB runtime proofs.",
+      "residual_uncertainty": "Independent V2 validation still owns the complete integrated runtime verdict; no remediation blocker remains."
+    },
+    "ready_for_validation_at_utc": "2026-07-17T23:04:05Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2"
   },
   "validation_v1": {
     "schema_id": "hsk.mt_validation_verdict@1",

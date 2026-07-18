@@ -14,7 +14,7 @@
   "title": "E10-MT-074-OtherPillarInteropProofSuite",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-18T01:01:42Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-066",
@@ -36,6 +36,10 @@
     ],
     "blocks": [],
     "validator_verdict": "FAIL_V1",
+    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
+    "ready_for_validation_at_utc": "2026-07-18T01:01:42Z",
+    "proof_status": "PASS_REMEDIATION_V2: all 17 Other-Pillar runtime proofs passed against the exact managed PostgreSQL/EventLedger backend, including Stage embed-back, Calendar binding/ActivitySpan, Locus resolve/reverse, raw AccessKit driving, exact cleanup, and killed-owner binding recovery. Historical FAIL_V1 remains preserved for independent V2 validation.",
+    "post_implementation_adversarial_review_status": "PASS_2026-07-18_INDEPENDENT_REVIEW_NO_CONTRACT_BLOCKER",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -274,6 +278,36 @@
     ],
     "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
     "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "opened_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "v1_verdict_preserved": "FAIL_V1",
+    "authority": "Operator directive to remediate every failed WP-KERNEL-012 MT, independently harden each implementation, and return implemented MTs ready for V2 validation.",
+    "implemented_repairs": [
+      "Converted OP-01 through OP-03 from ignored/resource-gated proofs into live managed-PostgreSQL/EventLedger scenarios with exact persisted identity, provenance, readback, and cleanup.",
+      "Implemented OP-04 as raw AccessKitActionRequest dispatch through stable production author IDs without pointer coordinates, click helpers, or label scraping.",
+      "Preserved immutable causal attribution across Stage route and busy retry, including exact Flight Recorder/EventLedger correlation.",
+      "Added canonical dead-owner Stage binding recovery and teardown coverage without restoring stale credentials.",
+      "Removed the out-of-scope shared test helper by inlining the binding fixture into the exact authorized proof surfaces."
+    ],
+    "final_source_proof_v2": {
+      "other_pillar_full_suite": "PASS_17_OF_17_ZERO_FAILED_ZERO_IGNORED_EXACT_WP12_DSN",
+      "stage_dependency_suite": "PASS_18_OF_18_ZERO_FAILED_ZERO_IGNORED_EXACT_WP12_DSN",
+      "raw_accesskit_tripwire": "PASS_NO_POINTER_COORDINATE_CLICK_OR_LABEL_LOOKUP",
+      "authorized_proof_surface": "PASS_NO_STAGE_BINDING_SUPPORT_FILE_OR_REFERENCE",
+      "rustfmt": "PASS_SCOPED_PROOF_SURFACES",
+      "diff_check": "PASS_NO_ERRORS_LINE_ENDING_WARNINGS_ONLY"
+    },
+    "adversarial_review_v2": {
+      "status": "PASS",
+      "reviewed_at_utc": "2026-07-18T01:01:42Z",
+      "lens": "stage_calendar_locus_raw_accesskit_binding_ownership_exact_dsn_cleanup_and_negative_paths",
+      "independent_findings": "No MT-074 contract-breaking issue remained; every declared proof ran live and the formerly unauthorized helper and pointer-driven OP-04 path were removed.",
+      "residual_uncertainty": "Independent V2 validation still owns the complete integrated runtime verdict; dependent MT remediation remains tracked in each dependency's own lifecycle."
+    },
+    "ready_for_validation_at_utc": "2026-07-18T01:01:42Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2"
   },
   "validation_v1": {
     "schema_id": "hsk.mt_validation_verdict@1",

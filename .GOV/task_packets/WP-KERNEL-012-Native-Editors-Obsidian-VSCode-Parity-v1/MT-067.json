@@ -14,7 +14,7 @@
   "title": "E10-MT-067-CalendarDailyNoteAndActivityInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-18T03:34:17Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-067.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-019",
@@ -36,6 +36,10 @@
       "MT-073"
     ],
     "validator_verdict": "FAIL_V1",
+    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
+    "ready_for_validation_at_utc": "2026-07-18T03:34:17Z",
+    "proof_status": "PASS_REMEDIATION_V2: mounted daily-note/CalendarEvent/ActivitySpan runtime uses the exact managed PostgreSQL backend, one journal mutation authority, bounded typed retries, generation-safe cancellation, exact Flight Recorder cardinality, and truthful operator manual states. Changed-source Calendar suite passed 19/19, exact live multi-day proof passed 3/3, focused cancellation/manual/unit gates passed, and two independent adversarial rereviews returned READY. Historical FAIL_V1 remains preserved for independent V2 validation.",
+    "post_implementation_adversarial_review_status": "PASS_2026-07-18_TWO_INDEPENDENT_REVIEWS_NO_BLOCKING_FINDINGS",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -285,6 +289,53 @@
     ],
     "basis": "All MT-specific acceptance criteria are supported by current committed product code and direct evidence; no unresolved product runtime, visual, persistence, interaction, or MT-specific proof failure was found.",
     "residual_scope": "Cross-MT failures are assigned only to the MT owning the affected live surface or final hardening gate."
+  },
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "opened_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "v1_verdict_preserved": "FAIL_V1",
+    "authority": "Operator directive to remediate every failed WP-KERNEL-012 MT, independently harden each implementation, and return implemented MTs ready for V2 validation.",
+    "implemented_repairs": [
+      "Mounted the production CalendarEvent and ActivitySpan reads behind the exact MT-019 JournalStore result, leaving one daily-note PUT authority per workspace/date/generation.",
+      "Added explicit WaitingForDailyNote, DailyNoteError, Loading, NoEvent, Event, EndpointUnavailable, RetryExhausted, InvalidResponse, and activity-only failure states with operator-visible manual guidance.",
+      "Added bounded retry classification for transport, 408, 425, 429, and 5xx failures while keeping endpoint absence, other 4xx, and decode failures terminal.",
+      "Made date/workspace generation changes cancel stale retry, delivery, and queued Flight Recorder receipts without retaining an old event or consuming queue capacity.",
+      "Preserved immutable random-ID Flight Recorder envelopes across transport retries and prevented conflicting same-ID/different-envelope reconstruction.",
+      "Added real managed-PostgreSQL multi-day proofs for one exact journal identity per date, production Calendar/activity data, shared-bus navigation, cleanup, and exact receipt cardinality across both seeded spans.",
+      "Added mounted negative proofs for journal exhaustion, Calendar 404/503/malformed responses, activity 404/503 event preservation, empty results, transient recovery, and real AccessKit date-navigation cancellation."
+    ],
+    "final_source_proof_v2": {
+      "calendar_interop_full_serial": "PASS_19_OF_19_ZERO_FAILED_MANAGED_POSTGRESQL_INCLUDED",
+      "live_multi_day_repetition": "PASS_3_OF_3_UNCHANGED_SOURCE",
+      "live_postgresql_identity": "PASS_COUNT_ONE_AND_EXACT_BLOCK_ID_PER_DATE_A_AND_B",
+      "flight_recorder_cardinality": "PASS_2_CALENDAR_EVENT_BOUND_AND_4_ACTIVITY_SPAN_CORRELATED_EXACTLY_2_PER_SEEDED_SPAN",
+      "real_accesskit_cancellation": "PASS_1_OF_1_OLD_DATE_ONE_GET_ZERO_STALE_FR",
+      "manual_regression": "PASS_1_OF_1_CURRENT_MANAGED_RUNTIME_FACTS",
+      "focused_lib_gates": "PASS_IMMUTABLE_ENVELOPE_STALE_QUEUE_RETRY_TAXONOMY_NO_EVENT_JOURNAL_GENERATION_AND_ERROR_KIND",
+      "diff_check": "PASS_CLEAN"
+    },
+    "adversarial_review_v2": {
+      "status": "PASS",
+      "reviewed_at_utc": "2026-07-18T03:34:17Z",
+      "lenses": [
+        "calendar_journal_lifecycle_retry_generation_and_idempotency_architecture",
+        "managed_resource_false_green_cardinality_cleanup_manual_and_test_seam_audit"
+      ],
+      "prior_blockers_closed": [
+        "duplicate daily-note PUT authority",
+        "stale workspace/date event projection",
+        "daily-note and Calendar error conflation",
+        "unsafe deterministic receipt identity",
+        "late queued Flight Recorder residue",
+        "mock-only activity failure proof",
+        "under-asserted journal identity and receipt cardinality",
+        "test-supplied generation cancellation",
+        "stale managed-resource manual assertion"
+      ],
+      "residual_uncertainty": "Independent V2 validation owns the final integrated verdict; both assigned post-fix reviewers found no MT-067 blocker."
+    },
+    "ready_for_validation_at_utc": "2026-07-18T03:34:17Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2"
   },
   "validation_v1": {
     "schema_id": "hsk.mt_validation_verdict@1",

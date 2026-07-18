@@ -14,7 +14,7 @@
   "title": "E5-MT-036-UnifiedEventLedgerExtensionSeams",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-17T22:13:50Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-036.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -38,6 +38,10 @@
       "MT-046"
     ],
     "validator_verdict": "FAIL_V1",
+    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
+    "ready_for_validation_at_utc": "2026-07-17T22:13:50Z",
+    "proof_status": "PASS_REMEDIATION_V2: native-editor Flight Recorder ingestion/readback, storage-side filtering, deterministic ingest ordering, populated legacy migration, mounted loading/refresh lifecycle, and real Canvas-backed undo were implemented and adversarially re-reviewed. Focused DuckDB proofs passed 1/1 each for populated migration, pre-limit filtering beyond 200 rows, and equal-microsecond ordering. Historical FAIL_V1 remains preserved for independent V2 validation.",
+    "post_implementation_adversarial_review_status": "PASS_2026-07-17_THIRD_REVIEW_NO_BLOCKING_FINDINGS",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -205,6 +209,40 @@
     "typed_backend_blocker": "STRATEGIC FINDING (verified read-only against api/flight_recorder.rs): the FROZEN handshake_core backend CANNOT ingest a native-editor FlightEvent - POST /api/flight_recorder/runtime_chat_event is #[serde(deny_unknown_fields)] (rejects the nested native_editor_event field), CLOSED 3-value type enum (no 'system'), HARDCODES actor_id='runtime_chat', requires non-nil UUID session_id; GET /flight_recorder has NO actor_id filter. So the native-editor observability ROUND-TRIP (AC-1/2/3) needs a NEW backend endpoint (or relaxed schema) - backend work OUTSIDE this frozen-backend WP. Recorded as #[ignore] native_editor_round_trip test (lights up when the backend ships). The client emitter is built+wired+ready. FLAG FOR A FUTURE BACKEND PACKET.",
     "carried_forward_MT_069": "emit_code_edit (code pane live edit batch, debounced 2s) + emit_canvas_node_placed (canvas live placement) emit call sites deferred to E11/MT-069 (panes not mounted); helpers READY + unit-tested.",
     "waiver_granted": "interop/interaction_bus.rs (emitter+registry fields) + rich_editor/renderer/rich_editor_widget.rs (live emits) + stage_pane.rs + Cargo.toml/lock (uuid v4) + new event_emitter.rs/surface_extension_seam.rs/flight_recorder_pane.rs + test in allowed_paths."
+  },
+  "remediation_v2": {
+    "status": "READY_FOR_VALIDATION_V2",
+    "opened_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "v1_verdict_preserved": "FAIL_V1",
+    "authority": "Operator directive to remediate every failed WP-KERNEL-012 MT, independently harden each implementation, and return implemented MTs ready for V2 validation.",
+    "implemented_repairs": [
+      "Added the real native-editor Flight Recorder ingestion/readback path and mounted production query behavior.",
+      "Moved actor, actor_id, event_type, workspace, and surface filtering into DuckDB before the 200-row limit.",
+      "Added persisted ingest_sequence ordering for equal-microsecond events, including deterministic session ordering.",
+      "Made populated legacy-database migration idempotent across reopen and explicit post-migration inserts.",
+      "Corrected Flight Recorder Loading and queued-refresh lifecycle behavior.",
+      "Replaced synthetic undo evidence with a real backend-confirmed Canvas placement and exactly-one undo lifecycle proof."
+    ],
+    "final_source_proof_v2": {
+      "populated_legacy_duckdb_migration": "PASS_1_OF_1_WITH_DUCKDB_FLIGHT_RECORDER_FEATURE",
+      "storage_filters_before_limit_201_boundary": "PASS_1_OF_1_WITH_DUCKDB_FLIGHT_RECORDER_FEATURE",
+      "equal_microsecond_ingest_order": "PASS_1_OF_1_WITH_DUCKDB_FLIGHT_RECORDER_FEATURE",
+      "third_adversarial_review": "PASS_NO_BLOCKING_OR_ACTIONABLE_FINDING",
+      "diff_check": "PASS_NO_ERRORS_LINE_ENDING_WARNINGS_ONLY"
+    },
+    "adversarial_review_v2": {
+      "status": "PASS",
+      "reviewed_at_utc": "2026-07-17T22:13:50Z",
+      "lens": "legacy_migration_query_boundary_deterministic_order_loading_refresh_and_real_undo",
+      "prior_blockers_closed": [
+        "populated legacy rows receive unique non-null sequences and post-reopen inserts advance monotonically",
+        "session queries order by timestamp, ingest_sequence, and event_id",
+        "surface semantics execute in storage before LIMIT 200"
+      ],
+      "residual_uncertainty": "Independent V2 validation still owns the complete integrated runtime verdict; no remediation blocker remains."
+    },
+    "ready_for_validation_at_utc": "2026-07-17T22:13:50Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2"
   },
   "validation_v1_superseded_2026_07_11": {
     "verdict": "FAIL_V1",

@@ -14,7 +14,7 @@
   "title": "E10-MT-066-StageRouteAndCaptureInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-18T09:24:47.3335852Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-066.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-014",
@@ -80,7 +80,7 @@
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-08T05:37:24.001Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-09T02:45:54.108Z",
+    "ready_for_validation_at_utc": "2026-07-18T09:24:47.3335852Z",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-09)",
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260707-224033",
@@ -103,6 +103,29 @@
       "session_summary": "Stage embed-back (Pillar 17). The backend blocker (no Stage capture-artifact + SHA-256 manifest store) is RESOLVED: new stage_capture_artifacts store (migration 0341, storage/stage_artifacts.rs, api/stage.rs POST create + GET read; commit 7f639f6e). The GET returns the evidence-grade provenance descriptor StageArtifactRef{artifact_id,workspace_id,sha256,manifest{sha256,manifest_ref,content_type},label} the frontend fetch_stage_artifact -> hsLink(ref_kind=stage_capture) embed-back needs; DB CHECKs enforce non-empty sha256+manifest_ref (the twin of the frontend ProvenanceMissing gate).",
       "proofs": "LIVE managed PG: route2_stage_artifact_create_and_resolve PASS (POST a selection artifact -> GET -> non-empty 64-hex sha256 + non-empty manifest_ref + content_type round-trips). Backend route tests 8/8.",
       "deferred": "Binary/blob captures (image/png via ArtifactStore L1-L4) + wiring the Stage-pane Capture action to POST (route_to_stage is bus-only) = documented product-flow follow-ups; the GET is metadata-only so binary defers cleanly."
+    },
+    "rfv_evidence_2026_07_18_v2": {
+      "schema_id": "hsk.mt_remediation_handoff@1",
+      "by": "KERNEL_BUILDER",
+      "at_utc": "2026-07-18T09:24:47.3335852Z",
+      "source_verdict_preserved": "FAIL_V1",
+      "status_transition": "FAIL_V1 -> READY_FOR_VALIDATION_V2",
+      "remediation_summary": "Completed the full mounted Stage route/capture/embed-back path with exact receipt retention, UI-authority completion, canonical Stage activation, note and Canvas insertion, split-view caret preservation, typed recovery, and operator/swarm-visible controls. Closed final adversarial findings for direct-SQL provenance type integrity and occupied-bus route admission without silent request loss.",
+      "runtime_proofs": [
+        "backend loom_canvas_board_tests against managed PostgreSQL: 13 passed, 0 failed",
+        "backend wp_kernel_012_native_editor_routes_pg_tests live ignored batch: 13 passed, 0 failed",
+        "native test_stage_interop against current-source backend and managed PostgreSQL: 18 passed, 0 failed",
+        "mounted Canvas occupied-bus admission regression: 1 passed, 0 failed",
+        "StagePane older-commit/later-retry ordering regression: 1 passed, 0 failed",
+        "backend app-runtime handshake_core binary build: exit 0",
+        "managed PostgreSQL _sqlx_migrations version 349 success=true; malformed Stage provenance rows=0"
+      ],
+      "adversarial_reviews": [
+        "security/storage final verdict PASS: migration 0349 closes PostgreSQL CHECK UNKNOWN/null/non-string bypass for all five exact provenance keys",
+        "UI/runtime final verdict PASS: palette, left rail, rich editor, and Canvas retain and surface non-admitted routes; older admitted route commit cannot erase the later exact retry"
+      ],
+      "lineage_boundary": "MT-066 frontend remediation binds the current Stage API and shared runtime dependencies. Backend Stage/Canvas migrations and storage work are shared dependency implementation and are not attributed to MT-066, whose forbidden src/backend/** boundary remains explicit for validator lineage.",
+      "validation_instruction": "Independent validator must rerun from current product state; this handoff does not self-issue PASS."
     }
   },
   "scope": {
