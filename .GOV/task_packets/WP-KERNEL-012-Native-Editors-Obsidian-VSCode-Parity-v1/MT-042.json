@@ -14,7 +14,7 @@
   "title": "E7-MT-042-KnowledgeGraphAccessKit",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-18T10:33:14.0007281Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-042.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-021",
@@ -85,6 +85,7 @@
     "claimed_at_utc": "2026-07-08T04:38:40.574Z",
     "completed_by": null,
     "ready_for_validation_at_utc": "2026-07-08T04:38:40.574Z",
+    "ready_for_validation_v2_at_utc": "2026-07-18T10:33:14.0007281Z",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260707-224033",
@@ -98,6 +99,15 @@
       "deferred_to_future_mt_same_wp": [
         "live managed-PG run of ac10_live_pg_round_trip (live-PG batch)"
       ]
+    },
+    "rfv_evidence_2026_07_18_v2": {
+      "by": "KERNEL_BUILDER",
+      "mode": "FAILED_V1_PRODUCT_REMEDIATION_WITH_MANAGED_RUNTIME_AND_TWO_INDEPENDENT_ADVERSARIAL_REVIEWS",
+      "summary": "Replaced the prior synthetic/partial proof with a continuously mounted production host and managed PostgreSQL round trip. Preserved canonical persisted graph edge ids end to end; exposed stable edge identities and deletion; proved exact graph-node document opening, Canvas placement persistence/tree reconciliation, Kanban tag-edge persistence/tree reconciliation, focus without activation, empty/unreachable recovery, collision-safe author ids and reverse routing, offscreen persisted-edge discovery, per-surface quiet-state behavior, and bounded external SQL proof execution.",
+      "product_proof": "cargo test --locked -j1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_e7_knowledge_accesskit -- --nocapture => 24 passed, 0 failed, 0 ignored; live managed PostgreSQL output included PROOF-042-C Canvas before/after author-id diff, PROOF-042-D canonical loom_edges counts done=1/todo=0, fresh graph add/delete persistence, workspace cleanup, and empty/backend-loss negatives PASS.",
+      "build_proof": "cargo build --quiet --locked -j1 --manifest-path src/frontend/handshake_native/Cargo.toml => exit 0; only pre-existing warnings outside the MT-042 edits remained.",
+      "review_proof": "Two independent post-fix adversarial source reviews returned PASS after finding and forcing remediation of misleading edge/lane Click capabilities, lossy lane/card/row identities, incomplete reverse routing, offscreen edge omission, an unbounded psql child, and a Focus false-pass.",
+      "v1_preservation": "lifecycle.validator_verdict and validation_v1 remain FAIL_V1 as historical validator authority; this builder transition requests independent validation V2 and does not self-issue PASS."
     }
   },
   "scope": {
