@@ -119,8 +119,15 @@
       "Workflow-needs architecture implication: the 41 partial/uncovered needs cluster into a scale-adaptive review/approval + workflow-state + permission triad layered on the CRDT/EventLedger substrate (NEED-005/009/017/022/045/051/057). Decide whether Section 14 covers these or whether they need spec enrichment; note Studio must serve large-team, small-team, AND solo scales (invisible-for-solo, governable-for-large).",
       "Bridge opportunities (60): decide which NON-AI differentiators enter Section-14 scope (local-first files, in-document version history/branching, LAN CRDT co-edit, modern automation API, non-destructive node graph, unified codec-forward export, local spot-color, tagged PDF/UA, universal intl text engine, performance-class engine)."
     ],
-    "held_by_operator_2026_07_20": [
-      "ACTION-A7 record pending operator decisions (CJK/RTL/ME market scope, iPad/web exclusion, accessible-PDF posture, licensing/business model)",
+    "operator_decisions_2026_07_21": {
+      "STUDIO-DEC-001_cjk_rtl_me": "IN SCOPE. Full CJK/RTL/Middle-East text support; upgrades composite-fonts + kinsoku/mojikumi + ruby/warichu/tate-chu-yoko + kashida/bidi/vertical-CJK from market-contingent to committed targets.",
+      "STUDIO-DEC-002_ipad_web": "OUT for now. Handshake is local-only focused; Studio is a Handshake module. iPad/web parity revisited only if Handshake ships a web/iPad version. Desktop-class local parity only.",
+      "STUDIO-DEC-003_accessibility": "EXCEED the incumbents on accessible output (tagged PDF/UA, semantic web, EPUB3 a11y, WCAG/EAA).",
+      "STUDIO-DEC-004_positioning": "Handshake is open-source and combats vendor paywalls/subscriptions by taking everything offline at full non-AI feature parity, professional/industry grade. Studio is a native Handshake module (no cloud, no subscription).",
+      "source": ".GOV/reference/studio_app_feature_research/61-parity-audit-action-register.md ACTION-A7",
+      "spec_propagation": "Deferred: promoting these into Master Spec Section 14 is a governed enrichment step for when the operator resumes refinement (refinement declined 2026-07-21)."
+    },
+    "still_held_by_operator": [
       "ACTION-A8 vendor-watch re-crawl cadence"
     ]
   },
